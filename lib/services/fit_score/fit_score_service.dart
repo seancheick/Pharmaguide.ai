@@ -305,6 +305,7 @@ class FitScoreService {
         _goalReasons(
           userGoals: userGoals,
           selectedGoalMatches: selectedGoalMatches,
+          hasFallbackGoalAlignment: selectedGoalMatches.isEmpty && e2aScore > 0,
         ),
       );
       return _Assessment(
@@ -316,12 +317,20 @@ class FitScoreService {
       );
     }
 
+    final hasFallbackGoalAlignment =
+        selectedGoalMatches.isEmpty && e2aScore > 0;
     var state = FitAssessmentState.limitedFit;
-    if (selectedGoalMatches.isNotEmpty) {
+    if (selectedGoalMatches.isNotEmpty || hasFallbackGoalAlignment) {
       final matchedAllGoals =
           userGoals.isNotEmpty &&
           selectedGoalMatches.length == userGoals.length;
-      state = matchedAllGoals && e2aScore >= strongMatchE2aFloor
+      // Cluster fallback uses the same pipeline-owned mapping contract, so it
+      // may establish a Good fit. Strong remains reserved for explicit
+      // product goal tags matching every selected goal.
+      state =
+          !hasFallbackGoalAlignment &&
+              matchedAllGoals &&
+              e2aScore >= strongMatchE2aFloor
           ? FitAssessmentState.strongMatch
           : FitAssessmentState.goodFit;
     }
@@ -337,6 +346,7 @@ class FitScoreService {
       _goalReasons(
         userGoals: userGoals,
         selectedGoalMatches: selectedGoalMatches,
+        hasFallbackGoalAlignment: hasFallbackGoalAlignment,
       ),
     );
     reasons.addAll(_signalReasons(e1Score: e1Score, e2bScore: e2bScore));
@@ -427,9 +437,15 @@ class FitScoreService {
   List<String> _goalReasons({
     required List<String> userGoals,
     required List<String> selectedGoalMatches,
+    required bool hasFallbackGoalAlignment,
   }) {
     if (userGoals.isEmpty) return const [];
     if (selectedGoalMatches.isEmpty) {
+      if (hasFallbackGoalAlignment) {
+        return const [
+          'Its ingredient profile aligns with your selected goals.',
+        ];
+      }
       return const ['Does not strongly support your selected goals.'];
     }
 

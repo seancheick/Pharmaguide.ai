@@ -16,6 +16,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 
 void main() {
   group('heroShowsCautionCue — pure decision', () {
@@ -111,6 +112,25 @@ void main() {
       );
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Use caution'), findsNothing);
+    });
+
+    testWidgets('hero score is prominent and uses its tier color', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const PGHeroSection(
+          imageWidget: SizedBox(),
+          productName: 'Fair Product',
+          brandName: 'Test Brand',
+          score: 60,
+          verdict: 'SAFE',
+        ),
+      );
+
+      final scoreText = tester.widget<Text>(find.text('60/100'));
+      expect(scoreText.style?.fontSize, greaterThanOrEqualTo(20));
+      expect(scoreText.style?.color, tierForScore(60).textColor);
     });
 
     testWidgets('no verdict passed → no cue (backward compatible)', (

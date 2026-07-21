@@ -14,6 +14,10 @@ InteractionWarning _w({
   List<String> conditionIds = const [],
   List<String> drugClassIds = const [],
   String displayModeDefault = 'informational',
+  String? direction,
+  Map<String, dynamic>? doseThresholdEvaluation,
+  String? alertHeadline,
+  String? alertBody,
 }) {
   return InteractionWarning(
     severity: severity,
@@ -26,6 +30,10 @@ InteractionWarning _w({
     conditionIds: conditionIds,
     drugClassIds: drugClassIds,
     displayModeDefault: displayModeDefault,
+    direction: direction,
+    doseThresholdEvaluation: doseThresholdEvaluation,
+    alertHeadline: alertHeadline,
+    alertBody: alertBody,
   );
 }
 
@@ -178,38 +186,155 @@ void main() {
     });
 
     test(
-      'duplicate prenatal warning collapses after partition and profile placement wins',
+      'matched informational breastfeeding advisory → calm general bucket',
       () {
-        const body =
-            'Vitamin C is required in pregnancy, but high intakes need review.';
-        const action = 'Review total intake with your clinician.';
-        final generic = _w(
-          headline: 'Keep vitamin C within prenatal range',
-          severity: Severity.caution,
-          mechanism: body,
-          management: action,
-          ingredientName: 'Vitamin C',
-        );
-        final profileMatched = _w(
-          headline: '  KEEP VITAMIN C WITHIN PRENATAL RANGE  ',
-          severity: Severity.caution,
-          mechanism:
-              ' vitamin C is required in pregnancy,   but high intakes need review. ',
-          management: ' review TOTAL intake with your clinician. ',
-          ingredientName: ' vitamin c ',
-          conditionIds: const ['pregnancy'],
+        final advisory = _w(
+          headline: 'High-dose B6 may affect milk supply',
+          severity: Severity.informational,
+          conditionIds: const ['lactation'],
+          displayModeDefault: 'informational',
+          direction: 'harmful',
         );
 
         final result = _partition(
-          [generic, profileMatched],
-          userConditions: const {'pregnancy'},
+          [advisory],
+          userConditions: const {'lactation'},
         );
 
-        expect(result.profile, hasLength(1));
-        expect(result.profile.single.conditionIds, const ['pregnancy']);
-        expect(result.general, isEmpty);
+        expect(result.profile, isEmpty);
+        expect(result.general, [advisory]);
       },
     );
+
+    test('harmful actionable life-stage warning stays in warning bucket', () {
+      final warning = _w(
+        headline: 'Limited pregnancy safety data',
+        severity: Severity.caution,
+        conditionIds: const ['pregnancy'],
+        displayModeDefault: 'informational',
+        direction: 'harmful',
+      );
+
+      final result = _partition([warning], userConditions: const {'pregnancy'});
+
+      expect(result.profile, [warning]);
+      expect(result.general, isEmpty);
+    });
+
+    test('neutral profile guidance moves to the calm information lane', () {
+      final note = _w(
+        headline: 'Standard nutrient guidance',
+        severity: Severity.monitor,
+        conditionIds: const ['pregnancy'],
+        direction: 'neutral',
+      );
+
+      final result = _partition([note], userConditions: const {'pregnancy'});
+
+      expect(result.profile, isEmpty);
+      expect(result.general, [note]);
+    });
+
+    test('neutral non-life-stage guidance stays review-worthy', () {
+      final warning = _w(
+        headline: 'High-dose vitamin D needs monitoring',
+        severity: Severity.monitor,
+        conditionIds: const ['heart_disease'],
+        direction: 'neutral',
+      );
+
+      final result = _partition(
+        [warning],
+        userConditions: const {'heart_disease'},
+      );
+
+      expect(result.profile, [warning]);
+      expect(result.general, isEmpty);
+    });
+
+    test('critical breastfeeding warning stays in the warning bucket', () {
+      final warning = _w(
+        headline: 'Do not use while breastfeeding',
+        severity: Severity.caution,
+        conditionIds: const ['lactation'],
+        displayModeDefault: 'critical',
+      );
+
+      final result = _partition([warning], userConditions: const {'lactation'});
+
+      expect(result.profile, [warning]);
+      expect(result.general, isEmpty);
+    });
+
+    test('breastfeeding medication interaction stays in warning bucket', () {
+      final warning = _w(
+        headline: 'May interact with your medication',
+        severity: Severity.caution,
+        conditionIds: const ['lactation'],
+        drugClassIds: const ['anticoagulants'],
+        displayModeDefault: 'informational',
+      );
+
+      final result = partitionProfileWarnings(
+        warnings: [warning],
+        userConditions: const {'lactation'},
+        userDrugClasses: const {'anticoagulants'},
+        userProfileFlags: const {},
+      );
+
+      expect(result.profile, [warning]);
+      expect(result.general, isEmpty);
+    });
+
+    test('matched no-data advisory → general bucket, not review', () {
+      final advisory = _w(
+        headline: 'Limited safety data',
+        severity: Severity.monitor,
+        evidenceLevel: EvidenceLevel.noData,
+        conditionIds: const ['lactation'],
+      );
+
+      final result = _partition(
+        [advisory],
+        userConditions: const {'lactation'},
+      );
+
+      expect(result.profile, isEmpty);
+      expect(result.general, [advisory]);
+    });
+
+    test('duplicate prenatal advisory collapses into one calm profile note', () {
+      const body =
+          'Vitamin C is required in pregnancy, but high intakes need review.';
+      const action = 'Review total intake with your clinician.';
+      final generic = _w(
+        headline: 'Keep vitamin C within prenatal range',
+        severity: Severity.caution,
+        mechanism: body,
+        management: action,
+        ingredientName: 'Vitamin C',
+        direction: 'neutral',
+      );
+      final profileMatched = _w(
+        headline: '  KEEP VITAMIN C WITHIN PRENATAL RANGE  ',
+        severity: Severity.caution,
+        mechanism:
+            ' vitamin C is required in pregnancy,   but high intakes need review. ',
+        management: ' review TOTAL intake with your clinician. ',
+        ingredientName: ' vitamin c ',
+        conditionIds: const ['pregnancy'],
+        direction: 'neutral',
+      );
+
+      final result = _partition(
+        [generic, profileMatched],
+        userConditions: const {'pregnancy'},
+      );
+
+      expect(result.profile, isEmpty);
+      expect(result.general, hasLength(1));
+      expect(result.general.single.conditionIds, const ['pregnancy']);
+    });
 
     test(
       'same mechanism from separate sources keeps distinct consumer copy',
@@ -246,42 +371,77 @@ void main() {
       },
     );
 
-    test('different severities are not collapsed before final display', () {
-      final guarded = composeGuardedWarnings(
-        detailBlob: const {
-          'warnings': [
-            {
-              'severity': 'monitor',
-              'evidence_level': 'probable',
-              'title': 'Standard nutrient guidance',
-              'detail': 'Review this nutrient in context.',
-              'action': 'Discuss it with your clinician.',
-              'display_mode_default': 'informational',
-            },
-          ],
-          'warnings_profile_gated': [
-            {
-              'severity': 'caution',
-              'evidence_level': 'probable',
-              'title': 'Standard nutrient guidance',
-              'detail': 'Review this nutrient in context.',
-              'action': 'Discuss it with your clinician.',
-              'display_mode_default': 'informational',
-            },
-          ],
-        },
-        personalizedWarnings: const [],
-        userConditions: const {},
-        userDrugClasses: const {},
-        userProfileFlags: const {},
+    test('duplicate visible copy keeps the strongest severity once', () {
+      final monitor = _w(
+        headline: 'Standard nutrient guidance',
+        severity: Severity.monitor,
+        mechanism: 'Review this nutrient in context.',
+      );
+      final caution = _w(
+        headline: 'Standard nutrient guidance',
+        severity: Severity.caution,
+        mechanism: 'Review this nutrient in context.',
       );
 
-      final result = _partition(guarded);
+      final result = _partition([monitor, caution]);
 
-      expect(_all(result).map((warning) => warning.severity), [
-        Severity.monitor,
-        Severity.caution,
-      ]);
+      expect(_all(result), hasLength(1));
+      expect(_all(result).single.severity, Severity.caution);
+    });
+
+    test('dose-evaluated duplicate outranks generic higher severity', () {
+      final evaluated = _w(
+        headline: 'Vitamin B6 / lactation',
+        alertHeadline: 'High-dose B6 may affect milk supply',
+        alertBody: 'Normal multivitamin levels do not trigger this concern.',
+        severity: Severity.informational,
+        ingredientName: 'Vitamin B6',
+        conditionIds: const ['lactation'],
+        direction: 'harmful',
+        doseThresholdEvaluation: const {'evaluated': true},
+      );
+      final generic = _w(
+        headline: 'Vitamin B6 / lactation',
+        alertHeadline: 'High-dose B6 may affect milk supply',
+        alertBody: 'Pharmacologic doses may reduce milk supply.',
+        severity: Severity.caution,
+        ingredientName: 'Vitamin B6',
+        conditionIds: const ['lactation'],
+        direction: 'harmful',
+      );
+
+      final result = _partition(
+        [generic, evaluated],
+        userConditions: const {'lactation'},
+      );
+
+      expect(_all(result), hasLength(1));
+      expect(_all(result).single.severity, Severity.informational);
+      expect(
+        _all(result).single.displayBody,
+        'Normal multivitamin levels do not trigger this concern.',
+      );
+      expect(result.profile, isEmpty);
+      expect(result.general, hasLength(1));
+    });
+
+    test('dose specificity never crosses ingredient subjects', () {
+      final evaluated = _w(
+        headline: 'Standard nutrient guidance',
+        severity: Severity.informational,
+        ingredientName: 'Vitamin B6',
+        doseThresholdEvaluation: const {'evaluated': true},
+      );
+      final caution = _w(
+        headline: 'Standard nutrient guidance',
+        severity: Severity.caution,
+        ingredientName: 'Vitamin D',
+      );
+
+      final result = _partition([evaluated, caution]);
+
+      expect(_all(result), hasLength(1));
+      expect(_all(result).single.severity, Severity.caution);
     });
 
     test(
@@ -313,7 +473,7 @@ void main() {
       },
     );
 
-    test('consumer-meaningful differences remain distinct', () {
+    test('only consumer-visible differences remain distinct', () {
       final baseline = _w(
         headline: 'Standard nutrient guidance',
         severity: Severity.caution,
@@ -322,15 +482,7 @@ void main() {
         ingredientName: 'Magnesium',
         sourceUrls: const ['https://example.test/detail-a'],
       );
-      final variants = <String, InteractionWarning>{
-        'severity': _w(
-          headline: baseline.title,
-          severity: Severity.monitor,
-          mechanism: baseline.mechanism,
-          management: baseline.management,
-          ingredientName: baseline.ingredientName,
-          sourceUrls: baseline.sourceUrls,
-        ),
+      final distinctVariants = <String, InteractionWarning>{
         'title': _w(
           headline: 'Different nutrient guidance',
           severity: baseline.severity,
@@ -347,6 +499,18 @@ void main() {
           ingredientName: baseline.ingredientName,
           sourceUrls: baseline.sourceUrls,
         ),
+      };
+
+      for (final entry in distinctVariants.entries) {
+        final result = _partition([baseline, entry.value]);
+        expect(
+          _all(result),
+          hasLength(2),
+          reason: '${entry.key} is part of warning identity',
+        );
+      }
+
+      final hiddenMetadataVariants = <String, InteractionWarning>{
         'ingredient': _w(
           headline: baseline.title,
           severity: baseline.severity,
@@ -355,7 +519,7 @@ void main() {
           ingredientName: 'Calcium',
           sourceUrls: baseline.sourceUrls,
         ),
-        'action': _w(
+        'clinical action': _w(
           headline: baseline.title,
           severity: baseline.severity,
           mechanism: baseline.mechanism,
@@ -363,7 +527,7 @@ void main() {
           ingredientName: baseline.ingredientName,
           sourceUrls: baseline.sourceUrls,
         ),
-        'detail target': _w(
+        'citation target': _w(
           headline: baseline.title,
           severity: baseline.severity,
           mechanism: baseline.mechanism,
@@ -373,17 +537,17 @@ void main() {
         ),
       };
 
-      for (final entry in variants.entries) {
+      for (final entry in hiddenMetadataVariants.entries) {
         final result = _partition([baseline, entry.value]);
         expect(
           _all(result),
-          hasLength(2),
-          reason: '${entry.key} is part of warning identity',
+          hasLength(1),
+          reason: '${entry.key} is not visible in the collapsed warning row',
         );
       }
     });
 
-    test('different rendered evidence levels remain distinct', () {
+    test('duplicate visible copy with different evidence renders once', () {
       final probable = _w(
         headline: 'Standard nutrient guidance',
         severity: Severity.caution,
@@ -401,7 +565,7 @@ void main() {
 
       final result = _partition([probable, established]);
 
-      expect(result.general, hasLength(2));
+      expect(result.general, hasLength(1));
     });
 
     test('same citation target set in different order dedupes', () {

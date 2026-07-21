@@ -11,8 +11,17 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
-/// All wishlist rows, newest first.
-final favoritesProvider = FutureProvider<List<UserFavorite>>((ref) {
+/// All wishlist rows for the current signed-in session, newest first.
+///
+/// Watching auth here is intentional: it clears the in-memory Riverpod value
+/// immediately on sign-out. The account-switch composition root explicitly
+/// invalidates this provider after clearing the previous owner's local rows,
+/// including signed-in-to-signed-in account changes where [AuthMode] itself
+/// may not change.
+final favoritesProvider = FutureProvider.autoDispose<List<UserFavorite>>((ref) {
+  if (ref.watch(authStateProvider) == AuthMode.guest) {
+    return Future.value(const <UserFavorite>[]);
+  }
   final userDb = ref.watch(userDatabaseProvider);
   return userDb.getFavorites();
 });

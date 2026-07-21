@@ -31,6 +31,7 @@
 
 import 'dart:convert';
 
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/services/recommendations/audience_classifier.dart';
 
@@ -38,17 +39,6 @@ import 'package:pharmaguide/services/recommendations/audience_classifier.dart';
 /// gives the ranker headroom to substitute a top pick if a tier
 /// returns empty.
 const int kDefaultBetterAlternativesLimit = 3;
-
-/// Minimum quality-score lift when the current product is scored.
-///
-/// Blocks "same shelf, 71 vs 72" noise and pack-size SKUs that score a
-/// hair higher after catalog re-scoring. Unscored / blocked currents
-/// keep the existing policy: any scored candidate may pass.
-const double kMinScoreLiftWhenScored = 3.0;
-
-/// Max results allowed from the same brand in one top-N list.
-/// Yuka/SuppCo-style: show competitors, not three Thorne variants.
-const int kMaxAlternativesPerBrand = 1;
 
 /// Pure ranker entrypoint. Given the current product and a candidate
 /// pool, return the best alternatives ordered by tier + tiebreaker.
@@ -74,10 +64,12 @@ List<ProductsCoreData> rankAlternatives({
 
   final currentAudience = inferAudience(current);
   final currentFamily = _ingredientFamily(current);
+  final currentRequiresFamily = _requiresIngredientFamily(
+    current.supplementType ?? current.primaryCategory,
+  );
   final currentGoals = _goalMatches(current);
   final currentIdentity = _nearDuplicateKey(current);
   final currentBrand = _dedupeToken(current.brandName);
-  final currentFingerprint = _normalizedFingerprint(current);
 
   final ranked = <_RankedCandidate>[];
 
@@ -86,7 +78,6 @@ List<ProductsCoreData> rankAlternatives({
       current,
       cand,
       currentIdentityKey: currentIdentity,
-      currentFingerprint: currentFingerprint,
     )) {
       continue;
     }
@@ -97,6 +88,11 @@ List<ProductsCoreData> rankAlternatives({
 
     final candFamily = _ingredientFamily(cand);
     final familyJaccard = _jaccard(currentFamily, candFamily);
+
+    // Broad shape-only taxonomy values are not a substitute intent signal.
+    // Fail closed when the current product is one of these buckets and the
+    // catalog cannot prove any shared canonical ingredient family.
+    if (currentRequiresFamily && familyJaccard <= 0) continue;
 
     // Sport ↔ general carve-out (HARD with ingredient-overlap
     // precondition). Block the swap unless the family Jaccard is at
@@ -162,8 +158,8 @@ List<ProductsCoreData> rankAlternatives({
   //   3. v4 quality score DESC
   //   4. mapped_coverage DESC
   //   5. allergen compatibility DESC
-  //   6. prefer a *different* brand than the product on screen
-  //      (competitor discovery — Yuka/SuppCo pattern)
+  //   6. prefer a *different* brand than the product on screen so the
+  //      comparison offers a genuinely distinct purchase option
   ranked.sort((a, b) {
     final aEff = a.tier + a.audiencePenalty;
     final bEff = b.tier + b.audiencePenalty;
@@ -200,24 +196,33 @@ List<ProductsCoreData> _takeDistinctProducts(
 ) {
   if (limit <= 0) return const [];
 
-  final out = <ProductsCoreData>[];
+  final distinct = <ProductsCoreData>[];
   final seenIdentity = <String>{};
-  final brandCounts = <String, int>{};
 
   for (final candidate in ranked) {
     final key = _nearDuplicateKey(candidate.product);
     if (key != null && !seenIdentity.add(key)) continue;
+    distinct.add(candidate.product);
+  }
 
-    // Brand diversity — prefer competitors over three variants of one
-    // line when the list is short (top 3).
-    final brand = _dedupeToken(candidate.product.brandName);
-    if (brand.isNotEmpty) {
-      final n = brandCounts[brand] ?? 0;
-      if (n >= kMaxAlternativesPerBrand) continue;
-      brandCounts[brand] = n + 1;
-    }
+  // First pass maximizes brand variety without changing the rank order.
+  // Diversity is a preference, not an eligibility gate: if fewer than
+  // [limit] brands are available, the second pass backfills other valid,
+  // distinct products instead of silently returning a short list.
+  final out = <ProductsCoreData>[];
+  final selectedIds = <String>{};
+  final seenBrands = <String>{};
+  for (final product in distinct) {
+    final brand = _dedupeToken(product.brandName);
+    if (brand.isNotEmpty && !seenBrands.add(brand)) continue;
+    out.add(product);
+    selectedIds.add(product.dsldId);
+    if (out.length >= limit) return List.unmodifiable(out);
+  }
 
-    out.add(candidate.product);
+  for (final product in distinct) {
+    if (!selectedIds.add(product.dsldId)) continue;
+    out.add(product);
     if (out.length >= limit) break;
   }
 
@@ -264,12 +269,16 @@ String _normalizedProductNameForDedupe(String value) {
   return value
       .trim()
       .toLowerCase()
-      // Dose / form / pack-size noise (60 capsules, 1000 IU, 30 count…).
+      // Formatting-only thousands separators: "1,000 IU" and "1000 IU"
+      // are the same potency string for identity comparison.
+      .replaceAll(RegExp(r'(?<=\d),(?=\d{3}\b)'), '')
+      // Package-count noise only (60 capsules, 30 count…). Potency is part
+      // of label identity: 1000 IU and 5000 IU must never collapse merely
+      // because the brand and ingredient family match.
       .replaceAll(
         RegExp(
-          r'\b\d+(?:\.\d+)?\s*(?:billion\s*cfu|million\s*cfu|capsules?|'
-          r'tablets?|softgels?|gummies?|servings?|veggie\s*caps?|v?caps?|'
-          r'ct|count|pack|mg|mcg|ug|iu|g|grams?|cfu|ml|oz)\b',
+          r'\b\d+(?:\.\d+)?\s*(?:capsules?|tablets?|softgels?|gummies?|'
+          r'servings?|veggie\s*caps?|v?caps?|ct|count|packs?)\b',
         ),
         ' ',
       )
@@ -285,12 +294,6 @@ String _normalizedProductNameForDedupe(String value) {
       .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
-}
-
-String? _normalizedFingerprint(ProductsCoreData product) {
-  final fp = product.ingredientFingerprint?.trim();
-  if (fp == null || fp.isEmpty) return null;
-  return fp;
 }
 
 // =============================================================================
@@ -317,7 +320,6 @@ bool _passesHardFilters(
   ProductsCoreData current,
   ProductsCoreData candidate, {
   String? currentIdentityKey,
-  String? currentFingerprint,
 }) {
   // No self-recommend (exact catalog row).
   if (candidate.dsldId == current.dsldId) return false;
@@ -329,14 +331,6 @@ bool _passesHardFilters(
   if (currentIdentityKey != null &&
       candIdentity != null &&
       candIdentity == currentIdentityKey) {
-    return false;
-  }
-
-  // Same formula fingerprint → same actives composition; not a swap.
-  final candFp = _normalizedFingerprint(candidate);
-  if (currentFingerprint != null &&
-      candFp != null &&
-      candFp == currentFingerprint) {
     return false;
   }
 
@@ -366,8 +360,13 @@ bool _passesHardFilters(
   // considered preferable if it passes relevance ranking.
   final curScore = effectiveQualityScore(current);
   if (curScore != null) {
-    // Strictly higher AND a meaningful lift — not 71.0 vs 71.2.
-    if (candScore < curScore + kMinScoreLiftWhenScored) return false;
+    // "Higher quality" follows the same named tier contract the consumer
+    // sees everywhere else. This avoids a hidden local +3 heuristic and
+    // prevents a same-tier 70 → 79 change from being marketed as a new
+    // quality class, while still allowing a visible 59 → 60 tier crossing.
+    final currentTier = tierForScore(curScore.round());
+    final candidateTier = tierForScore(candScore.round());
+    if (candidateTier.index >= currentTier.index) return false;
   }
   // Safety flags — never surface a banned/recalled candidate.
   if ((candidate.hasBannedSubstance ?? 0) == 1) return false;
@@ -413,6 +412,22 @@ int? _classifyTier({
   return null;
 }
 
+/// Taxonomy values that describe a broad product shape rather than a
+/// consumer intent. These require canonical ingredient overlap before the
+/// candidate can enter any tier.
+bool _requiresIngredientFamily(String? value) {
+  const familyRequiredTypes = <String>{
+    'general supplement',
+    'single vitamin',
+    'single mineral',
+    'single nutrient',
+    'amino acid',
+    'herbal botanical',
+    'targeted',
+  };
+  return familyRequiredTypes.contains(_dedupeToken(value));
+}
+
 // =============================================================================
 // Ingredient-family extraction + Jaccard
 // =============================================================================
@@ -420,8 +435,7 @@ int? _classifyTier({
 /// Build the candidate's "ingredient family" set:
 ///
 ///   * lowercased entries from the JSON list in `key_ingredient_tags`,
-///     when the field is populated (43% of the catalog as of
-///     2026-05-16)
+///     when the field is populated
 ///   * synthetic markers from the `contains_*` boolean flags
 ///     (`contains_omega3`, `contains_probiotics`, `contains_collagen`,
 ///     `contains_adaptogens`, `contains_nootropics`, `is_probiotic`)

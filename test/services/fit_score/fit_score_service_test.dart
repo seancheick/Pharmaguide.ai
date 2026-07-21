@@ -172,6 +172,44 @@ void main() {
       );
     });
 
+    test(
+      'validated cluster fallback can earn Good fit, never Strong match',
+      () {
+        final service = FitScoreService(
+          e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
+          e2a: E2aGoalCalculator({
+            'user_goal_mappings': [
+              {
+                'id': 'GOAL_SLEEP_QUALITY',
+                'cluster_weights': {'sleep_stack': 1.0},
+                'required_clusters': ['sleep_stack'],
+                'blocked_by_clusters': <Object>[],
+                'min_match_score': 0.5,
+              },
+            ],
+          }),
+          e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
+          e2c: E2cMedicalCalculator(),
+        );
+
+        final result = service.calculate(
+          nutrients: const [],
+          productClusters: const ['sleep_stack'],
+          interactionSummary: const {},
+          ageBracket: '19-30',
+          sex: 'Female',
+          userGoals: const ['GOAL_SLEEP_QUALITY'],
+        );
+
+        expect(result.e2a, 2.0);
+        expect(result.state, FitAssessmentState.goodFit);
+        expect(
+          result.reasons,
+          contains('Its ingredient profile aligns with your selected goals.'),
+        );
+      },
+    );
+
     FitScoreService buildBareService() => FitScoreService(
       e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
       e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),

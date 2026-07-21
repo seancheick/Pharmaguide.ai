@@ -19,47 +19,59 @@ import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// App-bar heart that saves the product to Wishlist when signed in.
-class PGFavoriteButton extends ConsumerWidget {
+class PGFavoriteButton extends ConsumerStatefulWidget {
   final String dsldId;
 
   const PGFavoriteButton({super.key, required this.dsldId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PGFavoriteButton> createState() => _PGFavoriteButtonState();
+}
+
+class _PGFavoriteButtonState extends ConsumerState<PGFavoriteButton> {
+  bool _isUpdating = false;
+
+  @override
+  Widget build(BuildContext context) {
     final authMode = ref.watch(authStateProvider);
     final isGuest = authMode == AuthMode.guest;
-    final savedAsync = ref.watch(isFavoriteProvider(dsldId));
+    final savedAsync = ref.watch(isFavoriteProvider(widget.dsldId));
     final isSaved = !isGuest && (savedAsync.asData?.value ?? false);
+    final label = isSaved ? 'Remove from Wishlist' : 'Save to Wishlist';
 
-    return IconButton(
-      key: const Key('product-favorite-heart'),
-      tooltip: isSaved ? 'Remove from Wishlist' : 'Save to Wishlist',
-      icon: Icon(
-        isSaved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-        color: isSaved ? V2Colors.contraindicated : V2Colors.fg,
+    return Semantics(
+      button: true,
+      toggled: isSaved,
+      label: label,
+      child: IconButton(
+        key: const Key('product-favorite-heart'),
+        tooltip: label,
+        icon: Icon(
+          isSaved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          color: isSaved ? V2Colors.accent : V2Colors.fg,
+        ),
+        onPressed: _isUpdating
+            ? null
+            : () => unawaited(_onTap(isGuest: isGuest)),
       ),
-      onPressed: () => unawaited(_onTap(context, ref, isGuest: isGuest)),
     );
   }
 
-  Future<void> _onTap(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool isGuest,
-  }) async {
+  Future<void> _onTap({required bool isGuest}) async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
     unawaited(PGHaptics.press());
 
-    // Guests never touch the DB — prompt sign-in first.
-    if (isGuest) {
-      if (!context.mounted) return;
-      await context.push(Routes.authInvitation);
-      return;
-    }
-
-    final actions = ref.read(favoritesActionsProvider);
     try {
-      final nowSaved = await actions.toggle(dsldId);
-      if (!context.mounted) return;
+      // Guests never touch the DB — prompt sign-in first.
+      if (isGuest) {
+        await context.push(Routes.authInvitation);
+        return;
+      }
+
+      final actions = ref.read(favoritesActionsProvider);
+      final nowSaved = await actions.toggle(widget.dsldId);
+      if (!mounted) return;
       if (nowSaved) {
         unawaited(PGHaptics.success());
         PGToast.show(
@@ -80,16 +92,18 @@ class PGFavoriteButton extends ConsumerWidget {
       }
     } on StackRequiresSignInException {
       // Session can flip mid-tap; match stack-add auth handoff.
-      if (!context.mounted) return;
+      if (!mounted) return;
       await context.push(Routes.authInvitation);
     } on Exception catch (e, st) {
       CrashReportingService().recordError(e, st, hint: 'wishlist:toggle');
-      if (!context.mounted) return;
+      if (!mounted) return;
       PGToast.show(
         context,
         'Could not update Wishlist.',
         variant: PGToastVariant.error,
       );
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
     }
   }
 }

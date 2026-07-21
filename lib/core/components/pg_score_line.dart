@@ -12,10 +12,9 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// - Geist Sans body for the description (was bodySmall)
 /// - 8pt gaps from V2Spacing
 ///
-/// **Contrast on cream `V2Colors.bg`:** all 6 production score colors
-/// (#059669 Exceptional → #DC2626 Poor) clear 4.5:1 against #FAF9F6 by
-/// inspection — they were tuned for white surfaces and the cream bg is
-/// only 1.5% darker. Confirmed unchanged.
+/// Tier dots retain the brighter chart token; tier-colored text uses the
+/// darker `ScoreTier.textColor` companion so it remains readable on cream and
+/// white surfaces.
 ///
 /// Use anywhere production uses `ScoreLine` — in the hero card under the
 /// product name, on alternative-product cards, etc.
@@ -39,13 +38,19 @@ class PGScoreLine extends StatelessWidget {
   /// expansive layout.
   final bool compact;
 
+  /// Product-detail hero treatment. Keeps the concise one-line layout while
+  /// restoring decision-level emphasis and coloring the numeric score by its
+  /// tier. The adjacent tier label preserves meaning beyond color alone.
+  final bool prominent;
+
   const PGScoreLine({
     super.key,
     required this.score,
     this.descriptionOverride,
     this.dotSize = 10,
     this.compact = false,
-  });
+    this.prominent = false,
+  }) : assert(!compact || !prominent);
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +58,9 @@ class PGScoreLine extends StatelessWidget {
     // Production displays the score AS-GIVEN even if out of range — keeps
     // a "105/100" UI as a clear data-quality signal. Mirror that.
     final displayScore = score;
-    final headlineSize = compact ? 14.0 : 18.0;
+    final headlineSize = prominent ? 22.0 : (compact ? 14.0 : 18.0);
     final dot = compact ? 8.0 : dotSize;
+    final headlineWeight = prominent ? FontWeight.w600 : FontWeight.w500;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,10 +83,14 @@ class PGScoreLine extends StatelessWidget {
             // in widget tests this way).
             Text(
               '$displayScore/100',
-              style: V2Typography.bodyMedium(color: V2Colors.fg).copyWith(
-                fontSize: headlineSize,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+              style:
+                  V2Typography.bodyMedium(
+                    color: prominent ? tier.textColor : V2Colors.fg,
+                  ).copyWith(
+                    fontSize: headlineSize,
+                    fontWeight: headlineWeight,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
             ),
             const SizedBox(width: V2Spacing.space8),
             // Tier label wraps in Flexible + ellipsis so the row
@@ -91,15 +101,15 @@ class PGScoreLine extends StatelessWidget {
               child: Text(
                 tier.label,
                 style: V2Typography.bodyMedium(
-                  color: tier.color,
-                ).copyWith(fontSize: headlineSize),
+                  color: tier.textColor,
+                ).copyWith(fontSize: headlineSize, fontWeight: headlineWeight),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
-        if (!compact) ...[
+        if (!compact && !prominent) ...[
           const SizedBox(height: V2Spacing.space4),
           Text(
             descriptionOverride ?? tier.description,

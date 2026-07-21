@@ -83,8 +83,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Add to my stack'), findsOneWidget);
-      expect(find.text('See safer alternatives'), findsNothing);
+      expect(find.text('See higher-quality options'), findsNothing);
       expect(find.text('Log dose'), findsNothing);
+      expect(
+        find.byKey(const Key('product-favorite-heart')),
+        findsNothing,
+        reason: 'Wishlist belongs in the app bar; the sticky bar has one job.',
+      );
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
@@ -92,7 +97,7 @@ void main() {
     });
 
     testWidgets(
-      'unsafe verdict → "See safer alternatives" replaces "Add to my stack"',
+      'unsafe verdict → quality-options action replaces "Add to my stack"',
       (tester) async {
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
@@ -101,7 +106,7 @@ void main() {
         await tester.pumpWidget(_wrap(coreDb, userDb, isUnsafe: true));
         await tester.pumpAndSettle();
 
-        expect(find.text('See safer alternatives'), findsOneWidget);
+        expect(find.text('See higher-quality options'), findsOneWidget);
         expect(find.text('Add to my stack'), findsNothing);
         expect(find.text('Log dose'), findsNothing);
 
@@ -165,7 +170,7 @@ void main() {
     );
 
     testWidgets(
-      'unsafe wins over in-stack — "See safer alternatives" beats Remove panel',
+      'unsafe wins over in-stack — quality options beat Remove panel',
       (tester) async {
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
@@ -175,7 +180,7 @@ void main() {
         await tester.pumpWidget(_wrap(coreDb, userDb, isUnsafe: true));
         await tester.pumpAndSettle();
 
-        expect(find.text('See safer alternatives'), findsOneWidget);
+        expect(find.text('See higher-quality options'), findsOneWidget);
         expect(find.text('In your stack'), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -185,7 +190,7 @@ void main() {
     );
 
     testWidgets(
-      'tap "See safer alternatives" → fires onSeeAlternatives callback',
+      'tap quality-options action → fires onSeeAlternatives callback',
       (tester) async {
         final coreDb = CoreDatabase.memory();
         final userDb = UserDatabase.memory();
@@ -202,7 +207,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('See safer alternatives'));
+        await tester.tap(find.text('See higher-quality options'));
         await tester.pumpAndSettle();
         expect(taps, 1);
 

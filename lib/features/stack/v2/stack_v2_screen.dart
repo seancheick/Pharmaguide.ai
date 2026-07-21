@@ -1596,8 +1596,7 @@ class _WishlistItemRow extends ConsumerWidget {
         : 'Saved product';
     final displayBrand = product?.brandName?.trim();
     final score = product?.qualityScoreV4100?.round();
-    final showScore =
-        score != null && !isLowCoverage(product?.mappedCoverage);
+    final showScore = score != null && !isLowCoverage(product?.mappedCoverage);
 
     return Dismissible(
       key: ValueKey('wishlist_dismiss_$dsldId'),
@@ -1606,12 +1605,12 @@ class _WishlistItemRow extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: V2Spacing.space24),
         decoration: BoxDecoration(
-          color: V2Colors.caution.withValues(alpha: 0.12),
+          color: V2Colors.accentTint,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
         child: const Icon(
           Icons.favorite_border_rounded,
-          color: V2Colors.caution,
+          color: V2Colors.accent,
           size: 22,
         ),
       ),
@@ -1699,7 +1698,7 @@ class _WishlistItemRow extends ConsumerWidget {
                   tooltip: 'Remove from Wishlist',
                   icon: const Icon(
                     Icons.favorite_rounded,
-                    color: V2Colors.contraindicated,
+                    color: V2Colors.accent,
                     size: 22,
                   ),
                   onPressed: () async {

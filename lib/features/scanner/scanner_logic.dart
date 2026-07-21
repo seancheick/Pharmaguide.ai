@@ -45,14 +45,17 @@ Color verdictFlashColor(String? verdict) {
 /// Policy (v2): no per-tier judgement at scan time — only "recognized,
 /// looks clean" vs "recognized, worth reviewing on the product page".
 ///
-///   SAFE / GOOD / RECOMMENDED / MONITOR → success (green)
-///   everything else (incl. null)        → attention (amber)
+///   SAFE / GOOD / RECOMMENDED → success (green)
+///   everything else (incl. null/unknown) → attention (amber)
+///
+/// `MONITOR` is a severity value, not a shipped product verdict. Fail closed
+/// if it ever arrives here rather than silently turning an invalid contract
+/// value into a green confirmation.
 PGVerdictKind verdictRevealKind(String? verdict) {
   switch (verdict?.trim().toUpperCase()) {
     case 'RECOMMENDED':
     case 'SAFE':
     case 'GOOD':
-    case 'MONITOR':
       return PGVerdictKind.success;
     default:
       return PGVerdictKind.attention;

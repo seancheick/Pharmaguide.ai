@@ -2,11 +2,14 @@
 // layer: open-time index creation, prefix-LIKE search fallback, and
 // user-DB cache eviction.
 
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:sqlite3/sqlite3.dart' as raw;
 
 Future<Set<String>> _indexNames(
   Future<List<QueryRow>> Function(String sql) runSelect,
@@ -133,6 +136,97 @@ void main() {
       expect(names, contains('idx_user_stack_dsld'));
       expect(names, contains('idx_user_scan_dsld'));
       expect(names, contains('idx_user_fav_added'));
+    });
+
+    test(
+      'v8 upgrade deduplicates favorites and enforces one row per product',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'pharmaguide-favorites-v8-',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+        final dbPath = '${tempDir.path}/user_data.db';
+        final legacy = raw.sqlite3.open(dbPath);
+        try {
+          legacy.execute('''
+          CREATE TABLE user_stacks_local (
+            dsld_id TEXT,
+            deleted_at INTEGER,
+            added_at INTEGER
+          );
+        ''');
+          legacy.execute('''
+          CREATE TABLE user_scan_history (dsld_id TEXT);
+        ''');
+          legacy.execute('''
+          CREATE TABLE user_favorites (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            dsld_id TEXT NOT NULL,
+            added_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+          );
+        ''');
+          legacy.execute(
+            "INSERT INTO user_favorites (dsld_id) VALUES ('same')",
+          );
+          legacy.execute(
+            "INSERT INTO user_favorites (dsld_id) VALUES ('same')",
+          );
+          legacy.execute('PRAGMA user_version = 8;');
+        } finally {
+          legacy.dispose();
+        }
+
+        final db = UserDatabase.open(dbPath);
+        addTearDown(db.close);
+
+        expect(await db.getFavorites(), hasLength(1));
+        await db.addFavorite('same');
+        expect(await db.getFavorites(), hasLength(1));
+
+        final version = await db
+            .customSelect('PRAGMA user_version')
+            .getSingle();
+        expect(version.read<int>('user_version'), 9);
+        final names = await _indexNames((sql) => db.customSelect(sql).get());
+        expect(names, contains('idx_user_fav_dsld'));
+      },
+    );
+
+    test('v8 upgrade accepts the beta-era Wishlist index', () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'pharmaguide-favorites-v8-index-',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+      final dbPath = '${tempDir.path}/user_data.db';
+      final legacy = raw.sqlite3.open(dbPath);
+      try {
+        legacy.execute('''
+          CREATE TABLE user_stacks_local (
+            dsld_id TEXT,
+            deleted_at INTEGER,
+            added_at INTEGER
+          );
+          CREATE TABLE user_scan_history (dsld_id TEXT);
+          CREATE TABLE user_favorites (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            dsld_id TEXT NOT NULL,
+            added_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+          );
+          INSERT INTO user_favorites (dsld_id) VALUES ('already-indexed');
+          CREATE UNIQUE INDEX idx_user_fav_dsld
+            ON user_favorites (dsld_id);
+          PRAGMA user_version = 8;
+        ''');
+      } finally {
+        legacy.dispose();
+      }
+
+      final db = UserDatabase.open(dbPath);
+      addTearDown(db.close);
+
+      expect(await db.getFavorites(), hasLength(1));
+      final version = await db.customSelect('PRAGMA user_version').getSingle();
+      expect(version.read<int>('user_version'), 9);
     });
   });
 

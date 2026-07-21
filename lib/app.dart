@@ -46,6 +46,7 @@ import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -1264,6 +1265,8 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
         // so no mounted surface keeps showing the previous user's data.
         ref.invalidate(activeStackProvider);
         ref.invalidate(profileProvider);
+        ref.invalidate(favoritesProvider);
+        ref.invalidate(isFavoriteProvider);
       }
     } on Object catch (e, st) {
       // Fail open for sign-in usability. Safe because ownership is only

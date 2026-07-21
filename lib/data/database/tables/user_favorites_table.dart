@@ -8,5 +8,10 @@ class UserFavorites extends Table {
       dateTime().named('added_at').withDefault(currentDateAndTime)();
 
   @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {dsldId},
+  ];
+
+  @override
   String get tableName => 'user_favorites';
 }

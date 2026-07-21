@@ -5,10 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/better_alternatives_section.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
+
+late UserDatabase _userDb;
 
 Future<void> _seedProduct(
   CoreDatabase coreDb, {
@@ -75,7 +79,11 @@ GoRouter _stubRouter(Widget child) {
 
 Widget _wrap(CoreDatabase coreDb, Widget child) {
   return ProviderScope(
-    overrides: [coreDatabaseProvider.overrideWithValue(coreDb)],
+    overrides: [
+      coreDatabaseProvider.overrideWithValue(coreDb),
+      userDatabaseProvider.overrideWithValue(_userDb),
+      profileProvider.overrideWith((ref) => ProfileNotifier()),
+    ],
     child: MaterialApp.router(routerConfig: _stubRouter(child)),
   );
 }
@@ -83,11 +91,8 @@ Widget _wrap(CoreDatabase coreDb, Widget child) {
 BetterAlternativesSection _section({
   String currentDsldId = 'cur',
   double? score100 = 50,
-  String? category = 'multivitamin',
   bool isBlocked = false,
   bool isNotScored = false,
-  ProfileRelevanceStatus? profileRelevanceStatus =
-      ProfileRelevanceStatus.neutral,
   bool profileIncomplete = false,
 }) {
   return BetterAlternativesSection(
@@ -95,127 +100,81 @@ BetterAlternativesSection _section({
     isBlocked: isBlocked,
     isNotScored: isNotScored,
     score100: score100,
-    category: category,
-    profileRelevanceStatus: profileRelevanceStatus,
     profileIncomplete: profileIncomplete,
   );
 }
 
 void main() {
+  setUp(() => _userDb = UserDatabase.memory());
+  tearDown(() => _userDb.close());
+
   group('shouldShowBetterAlternatives — pure logic', () {
-    test('strong match + high quality → hidden', () {
+    test('Good-or-better quality stays quiet', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 85,
-          profileRelevanceStatus: ProfileRelevanceStatus.strongMatch,
           profileIncomplete: false,
         ),
         isFalse,
       );
     });
 
-    test('good match + adequate quality (60..84) → hidden', () {
+    test('Fair quality stays quiet when the profile is complete', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
-          score100: 70,
-          profileRelevanceStatus: ProfileRelevanceStatus.goodMatch,
+          score100: 65,
           profileIncomplete: false,
         ),
         isFalse,
-      );
-    });
-
-    test('neutral relevance → hidden when quality is adequate', () {
-      expect(
-        shouldShowBetterAlternatives(
-          isBlocked: false,
-          isNotScored: false,
-          score100: 90,
-          profileRelevanceStatus: ProfileRelevanceStatus.neutral,
-          profileIncomplete: false,
-        ),
-        isFalse,
-      );
-    });
-
-    test('review relevance → visible (regardless of score)', () {
-      expect(
-        shouldShowBetterAlternatives(
-          isBlocked: false,
-          isNotScored: false,
-          score100: 90,
-          profileRelevanceStatus: ProfileRelevanceStatus.review,
-          profileIncomplete: false,
-        ),
-        isTrue,
       );
     });
 
     test('high score + incomplete profile → hidden (no fit claims)', () {
-      // S4: incomplete profiles only get *generic* mid-tier alternatives
-      // (score < 75). High scores stay quiet until the profile is complete.
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 90,
-          profileRelevanceStatus: ProfileRelevanceStatus.review,
           profileIncomplete: true,
         ),
         isFalse,
       );
     });
 
-    test('mid score + incomplete profile → visible (generic S4)', () {
+    test('Good-tier score + incomplete profile → hidden', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 70,
-          profileRelevanceStatus: ProfileRelevanceStatus.strongMatch,
-          profileIncomplete: true,
-        ),
-        isTrue,
-      );
-    });
-
-    test('not-recommended relevance → visible (regardless of score)', () {
-      expect(
-        shouldShowBetterAlternatives(
-          isBlocked: false,
-          isNotScored: false,
-          score100: 90,
-          profileRelevanceStatus: ProfileRelevanceStatus.notRecommended,
-          profileIncomplete: false,
-        ),
-        isTrue,
-      );
-    });
-
-    test('not-recommended relevance + incomplete profile → hidden', () {
-      expect(
-        shouldShowBetterAlternatives(
-          isBlocked: false,
-          isNotScored: false,
-          score100: 90,
-          profileRelevanceStatus: ProfileRelevanceStatus.notRecommended,
           profileIncomplete: true,
         ),
         isFalse,
       );
     });
 
-    test('low quality (<60) → visible (regardless of fit)', () {
+    test('Fair-tier score + incomplete profile → visible', () {
+      expect(
+        shouldShowBetterAlternatives(
+          isBlocked: false,
+          isNotScored: false,
+          score100: 65,
+          profileIncomplete: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('low quality (<60) → visible', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
           score100: 59,
-          profileRelevanceStatus: ProfileRelevanceStatus.strongMatch,
           profileIncomplete: true,
         ),
         isTrue,
@@ -229,20 +188,18 @@ void main() {
           isBlocked: false,
           isNotScored: false,
           score100: 60,
-          profileRelevanceStatus: ProfileRelevanceStatus.strongMatch,
           profileIncomplete: false,
         ),
         isFalse,
       );
     });
 
-    test('isBlocked → visible (always, even with fit hidden)', () {
+    test('isBlocked → visible even without a score', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: true,
           isNotScored: false,
           score100: null,
-          profileRelevanceStatus: null,
           profileIncomplete: true,
         ),
         isTrue,
@@ -255,38 +212,7 @@ void main() {
           isBlocked: false,
           isNotScored: true,
           score100: null,
-          profileRelevanceStatus: null,
           profileIncomplete: false,
-        ),
-        isFalse,
-      );
-    });
-
-    test('null profileRelevanceStatus + adequate quality → hidden', () {
-      // Profile relevance hasn't resolved yet. Do not surface
-      // alternatives based on missing personalization alone.
-      expect(
-        shouldShowBetterAlternatives(
-          isBlocked: false,
-          isNotScored: false,
-          score100: 75,
-          profileRelevanceStatus: null,
-          profileIncomplete: false,
-        ),
-        isFalse,
-      );
-    });
-
-    test('incomplete profile + adequate quality → hidden', () {
-      // Profile incomplete — we lack enough data to recommend alternatives.
-      // Defer the alternative push until the profile fills in.
-      expect(
-        shouldShowBetterAlternatives(
-          isBlocked: false,
-          isNotScored: false,
-          score100: 75,
-          profileRelevanceStatus: ProfileRelevanceStatus.incomplete,
-          profileIncomplete: true,
         ),
         isFalse,
       );
@@ -300,7 +226,7 @@ void main() {
         // Category is not a gate. If `findById(currentDsldId)` returns
         // null the section settles to SizedBox.shrink with no error.
         final coreDb = CoreDatabase.memory();
-        await tester.pumpWidget(_wrap(coreDb, _section(category: null)));
+        await tester.pumpWidget(_wrap(coreDb, _section()));
         await tester.pumpAndSettle();
         expect(find.text('Similar higher-quality options'), findsNothing);
         // Defensive — old title also absent.
@@ -377,6 +303,13 @@ void main() {
       expect(find.text('BrandA'), findsOneWidget);
       expect(find.text('Daily Wellness'), findsOneWidget);
       expect(find.text('BrandB'), findsOneWidget);
+      expect(
+        find.byType(ProductImage),
+        findsNWidgets(2),
+        reason:
+            'alternatives must use the same catalog/OFF image resolver as '
+            'Product Detail, Stack, Search, and Wishlist',
+      );
 
       await coreDb.close();
     });
@@ -458,6 +391,27 @@ void main() {
       expect(find.text('Similar higher-quality options'), findsNothing);
       // Defensive — old title also absent.
       expect(find.text('Higher quality alternatives'), findsNothing);
+      await coreDb.close();
+    });
+
+    testWidgets('blocked product keeps an honest destination when none match', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      await _seedCurrent(coreDb);
+
+      await tester.pumpWidget(
+        _wrap(coreDb, _section(isBlocked: true, score100: null)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No comparable alternatives found'), findsOneWidget);
+      expect(
+        find.text(
+          'We couldn\'t find a similar, higher-quality option in this catalog.',
+        ),
+        findsOneWidget,
+      );
       await coreDb.close();
     });
   });

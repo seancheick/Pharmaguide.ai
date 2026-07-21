@@ -183,10 +183,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     // Scan→verdict latency trace begins at the navigation handoff;
     // product detail finishes it when the hero verdict first renders.
     PerfTraceService().startScanToVerdict();
-    // S2 — land on detail; sticky CTA is "Add to my stack" (or safer
-    // alternatives). from=scan keeps a quiet breadcrumb for analytics
-    // without a second decision page.
-    await context.push('${Routes.productDetail(product.dsldId)}?from=scan');
+    // Land directly on the canonical product route. Scan analytics are
+    // recorded before this handoff; do not append unused route state.
+    await context.push(Routes.productDetail(product.dsldId));
 
     if (mounted) {
       setState(() => _hasScanned = false);
@@ -221,9 +220,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   /// Opens the manual barcode entry bottom sheet, then runs the same
   /// `_lookUpProduct` flow that the camera scan uses.
   Future<void> _openManualBarcodeSheet() async {
+    if (_hasScanned) return;
+    setState(() => _hasScanned = true);
     final barcode = await showManualBarcodeSheet(context);
-    if (!mounted || barcode == null) return;
-    unawaited(_lookUpProduct(barcode));
+    if (!mounted) return;
+    if (barcode == null) {
+      setState(() => _hasScanned = false);
+      return;
+    }
+    await _lookUpProduct(barcode);
   }
 
   Future<void> _openAppSettings() {

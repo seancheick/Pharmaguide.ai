@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
+import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 
@@ -103,6 +104,88 @@ void main() {
       await tester.tap(find.text('Search by name'));
 
       expect(searched, isTrue);
+    });
+
+    testWidgets('blocks background semantics and exposes a 44pt close action', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+
+      await tester.pumpWidget(
+        wrap(
+          PGScanNotFound(
+            onRetry: () {},
+            onSearchByName: () {},
+            onManualEntry: () {},
+            onClose: () {},
+          ),
+        ),
+      );
+
+      expect(find.bySemanticsLabel('Product not found'), findsOneWidget);
+      final close = find.byTooltip('Close product not found');
+      expect(close, findsOneWidget);
+      expect(tester.getSize(close).width, greaterThanOrEqualTo(44));
+      expect(tester.getSize(close).height, greaterThanOrEqualTo(44));
+      semantics.dispose();
+    });
+
+    testWidgets('remains scrollable on a small screen with large text', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: wrap(
+            PGScanNotFound(
+              scannedCode: '050428341902',
+              onRetry: () {},
+              onSearchByName: () {},
+              onManualEntry: () {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      await tester.scrollUntilVisible(
+        find.text('Enter code manually'),
+        120,
+        scrollable: find.byType(Scrollable),
+      );
+      expect(find.text('Enter code manually'), findsOneWidget);
+    });
+  });
+
+  group('PGVerdictReveal', () {
+    testWidgets('announces the recognized product as a live status', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+
+      await tester.pumpWidget(
+        wrap(
+          const PGVerdictReveal(
+            kind: PGVerdictKind.success,
+            caption: 'Magnesium Glycinate',
+            autoDismissAfter: null,
+            playHaptic: false,
+          ),
+        ),
+      );
+
+      expect(
+        find.bySemanticsLabel('Product found. Magnesium Glycinate'),
+        findsOneWidget,
+      );
+      semantics.dispose();
     });
   });
 

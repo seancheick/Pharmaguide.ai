@@ -2,7 +2,7 @@
 //
 // Owns the 3 GlobalKey anchors that Product Detail uses for:
 //   • `?section=interactions|research|ingredients|alternatives` deep-link landing
-//   • The unsafe-verdict sticky CTA's "See safer alternatives" jump
+//   • The unsafe-verdict sticky CTA's "See higher-quality options" jump
 //
 // Lives outside the screen state so:
 //   • The screen's build method doesn't carry anchor bookkeeping.
@@ -26,7 +26,7 @@ class ProductDetailScrollAnchors {
   final ScrollController scrollController = ScrollController();
 
   /// Anchor for the Better Alternatives sliver. The unsafe-CTA's
-  /// "See safer alternatives" primary scrolls here.
+  /// "See higher-quality options" primary scrolls here.
   final GlobalKey alternativesKey = GlobalKey();
 
   /// Anchor for `?section=interactions` deep-link landing.

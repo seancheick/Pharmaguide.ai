@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
@@ -31,6 +32,7 @@ FitScoreResult _fit({
 
 InteractionWarning _warning({
   Severity severity = Severity.caution,
+  EvidenceLevel evidenceLevel = EvidenceLevel.established,
   String title = 'Interaction',
   String mechanism = '',
   String management = '',
@@ -44,7 +46,7 @@ InteractionWarning _warning({
 }) {
   return InteractionWarning(
     severity: severity,
-    evidenceLevel: EvidenceLevel.established,
+    evidenceLevel: evidenceLevel,
     title: title,
     mechanism: mechanism,
     management: management,
@@ -79,7 +81,6 @@ ProfileRelevanceSummary _summary({
   List<InteractionWarning> warnings = const [],
   String interactionHint = '',
   List<MatchedAllergen> matchedAllergens = const [],
-  List<FreeFromClaim> freeFromClaims = const [],
   List<String> freeFromConflicts = const [],
   List<String> userConditions = const [],
   List<InteractionWarning> profileBenefitWarnings = const [],
@@ -95,7 +96,6 @@ ProfileRelevanceSummary _summary({
     warnings: warnings,
     interactionHint: interactionHint,
     matchedAllergens: matchedAllergens,
-    freeFromClaims: freeFromClaims,
     freeFromConflicts: freeFromConflicts,
     hasInteractionProfile: hasInteractionProfile,
     hasCriticalGlobalNote: hasCriticalGlobalNote,
@@ -117,17 +117,21 @@ Future<void> _pump(WidgetTester tester, ProfileRelevanceSummary summary) {
 
 void main() {
   group('buildProfileRelevanceSummary', () {
-    test('neutral product uses non-negative copy and no rows', () {
-      final summary = _summary(fitResult: _fit());
+    test(
+      'unmatched product states the result without a vague neutral label',
+      () {
+        final summary = _summary(fitResult: _fit());
 
-      expect(summary.status, ProfileRelevanceStatus.neutral);
-      expect(summary.headline, 'Neutral for your profile');
-      expect(
-        summary.body,
-        'General-use product, not targeted to your profile.',
-      );
-      expect(summary.rows, isEmpty);
-    });
+        expect(summary.status, ProfileRelevanceStatus.neutral);
+        expect(summary.headline, 'No profile-specific concerns found');
+        expect(
+          summary.body,
+          'Based on the information available, this product does not strongly '
+          'match your selected goals.',
+        );
+        expect(summary.rows, isEmpty);
+      },
+    );
 
     test('strong and good fit keep goal/profile match copy', () {
       final summary = _summary(
@@ -295,21 +299,19 @@ void main() {
     );
 
     test('free-from conflict requires review inside the same rows', () {
-      final summary = _summary(
-        freeFromClaims: const [
-          FreeFromClaim(
-            label: 'Gluten-free',
-            concern: 'gluten',
-            status: FreeFromStatus.certified,
-          ),
-        ],
-        freeFromConflicts: const ['gluten'],
-      );
+      final summary = _summary(freeFromConflicts: const ['gluten']);
 
       expect(summary.status, ProfileRelevanceStatus.review);
       expect(
         summary.rows.map((r) => r.headline),
         contains('Conflicting label evidence'),
+      );
+      expect(
+        summary.rows.map((r) => r.headline),
+        isNot(contains('Gluten-free')),
+        reason:
+            'positive label reassurance belongs in Good to know, not the '
+            'risk-focused Profile Relevance card',
       );
     });
 
@@ -322,7 +324,6 @@ void main() {
         warnings: const [],
         interactionHint: '{"has_any": true}',
         matchedAllergens: const [],
-        freeFromClaims: const [],
         freeFromConflicts: const [],
         hasInteractionProfile: false,
       );
@@ -353,15 +354,20 @@ void main() {
   });
 
   group('ProfileRelevanceSection rendering', () {
-    testWidgets('renders one Profile Relevance card for neutral state', (
-      tester,
-    ) async {
+    testWidgets('omits empty neutral Profile Relevance card', (tester) async {
       await _pump(tester, _summary());
 
-      expect(find.text('PROFILE RELEVANCE'), findsOneWidget);
-      expect(find.text('Neutral for your profile'), findsOneWidget);
-      expect(find.text('Review before use'), findsNothing);
-      expect(find.text('YOUR FIT'), findsNothing);
+      expect(find.text('PROFILE RELEVANCE'), findsNothing);
+      expect(find.text('No profile-specific concerns found'), findsNothing);
+    });
+
+    testWidgets('omits coverage-limited result from the profile card', (
+      tester,
+    ) async {
+      await _pump(tester, _summary(fitResult: _fit(mappedCoverage: 0.2)));
+
+      expect(find.text('PROFILE RELEVANCE'), findsNothing);
+      expect(find.text('More label detail needed'), findsNothing);
     });
 
     testWidgets('review rows render inside Profile Relevance', (tester) async {
@@ -404,7 +410,6 @@ void main() {
         warnings: const [],
         interactionHint: '',
         matchedAllergens: const [],
-        freeFromClaims: const [],
         freeFromConflicts: const [],
         hasInteractionProfile: false,
       );
@@ -413,6 +418,9 @@ void main() {
 
       expect(find.text('Add your profile to personalize'), findsOneWidget);
       expect(find.text('Complete profile'), findsOneWidget);
+      final action = tester.widget<PGPillButton>(find.byType(PGPillButton));
+      expect(action.variant, PGPillVariant.ghost);
+      expect(action.icon, Icons.edit_outlined);
     });
 
     testWidgets(
@@ -450,6 +458,9 @@ void main() {
 
       expect(find.text('Why this fits you'), findsOneWidget);
       expect(find.text('Edit profile'), findsOneWidget);
+      final action = tester.widget<PGPillButton>(find.byType(PGPillButton));
+      expect(action.variant, PGPillVariant.ghost);
+      expect(action.icon, Icons.edit_outlined);
     });
 
     testWidgets('good-to-know informational rows do not create warning cards', (
@@ -465,6 +476,98 @@ void main() {
       );
 
       expect(section, isNull);
+    });
+
+    testWidgets('verified free-from reassurance renders in Good to know', (
+      tester,
+    ) async {
+      final section = buildGeneralNotesSection(
+        warnings: const [],
+        freeFromClaims: const [
+          FreeFromClaim(
+            label: 'Gluten-free',
+            concern: 'gluten',
+            status: FreeFromStatus.certified,
+          ),
+          FreeFromClaim(
+            label: 'Soy-free',
+            concern: 'soy',
+            status: FreeFromStatus.unknown,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: section)));
+
+      expect(find.text('GOOD TO KNOW'), findsOneWidget);
+      await tester.tap(find.text('Information for your profile'));
+      await tester.pumpAndSettle();
+      expect(find.text('Gluten-free'), findsOneWidget);
+      expect(find.text('Soy-free'), findsNothing);
+      expect(find.text('PRODUCT SAFETY'), findsNothing);
+    });
+
+    testWidgets('profile-scoped no-data advisory does not create a card', (
+      tester,
+    ) async {
+      final section = buildGeneralNotesSection(
+        warnings: [
+          _warning(
+            severity: Severity.monitor,
+            evidenceLevel: EvidenceLevel.noData,
+            title: 'Limited safety data',
+            alertBody: 'Specific safety evidence is limited.',
+            conditionIds: const ['lactation'],
+          ),
+        ],
+      );
+
+      expect(section, isNull);
+    });
+
+    testWidgets('normal-dose breastfeeding advisory renders in Good to know', (
+      tester,
+    ) async {
+      final section = buildGeneralNotesSection(
+        warnings: [
+          _warning(
+            severity: Severity.informational,
+            evidenceLevel: EvidenceLevel.probable,
+            title: 'High-dose B6 may affect milk supply',
+            alertBody: 'Higher supplemental doses may affect milk supply.',
+            conditionIds: const ['lactation'],
+            displayModeDefault: 'informational',
+            direction: 'harmful',
+          ),
+        ],
+      );
+
+      expect(section, isNotNull);
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: section!)));
+      expect(find.text('GOOD TO KNOW'), findsOneWidget);
+      expect(find.text('Review this product'), findsNothing);
+    });
+
+    testWidgets('profile-matched beneficial note renders as Good to know', (
+      tester,
+    ) async {
+      final section = buildGeneralNotesSection(
+        warnings: [
+          _warning(
+            severity: Severity.monitor,
+            evidenceLevel: EvidenceLevel.probable,
+            title: 'May support blood pressure goals',
+            alertBody: 'This nutrient may support healthy blood pressure.',
+            conditionIds: const ['hypertension'],
+            direction: 'beneficial',
+          ),
+        ],
+      );
+
+      expect(section, isNotNull);
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: section!)));
+      expect(find.text('GOOD TO KNOW'), findsOneWidget);
+      expect(find.text('Review this product'), findsNothing);
     });
 
     testWidgets('material global safety note remains visible', (tester) async {

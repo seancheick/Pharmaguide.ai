@@ -33,7 +33,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -84,6 +84,20 @@ class UserDatabase extends _$UserDatabase {
         await m.addColumn(scanHistory, scanHistory.formulaFingerprint);
         await m.addColumn(scanHistory, scanHistory.catalogSourceVersion);
       }
+      if (from < 9) {
+        // v9: one on-device Wishlist row per catalog product. Early builds
+        // could write duplicates because the idempotency check and insert
+        // were separate operations. Keep the newest row, then enforce the
+        // invariant in SQLite so every caller gets the same contract.
+        await customStatement(
+          'DELETE FROM user_favorites WHERE id NOT IN '
+          '(SELECT MAX(id) FROM user_favorites GROUP BY dsld_id)',
+        );
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_user_fav_dsld '
+          'ON user_favorites (dsld_id)',
+        );
+      }
     },
     beforeOpen: (details) async {
       // WAL keeps readers from blocking on writes (e.g. scan-history
@@ -109,16 +123,6 @@ class UserDatabase extends _$UserDatabase {
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_user_fav_added '
         'ON user_favorites (added_at DESC)',
-      );
-      // One row per product. Collapse any pre-existing duplicates first so
-      // the unique index can install cleanly on upgrades.
-      await customStatement(
-        'DELETE FROM user_favorites WHERE id NOT IN '
-        '(SELECT MAX(id) FROM user_favorites GROUP BY dsld_id)',
-      );
-      await customStatement(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_user_fav_dsld '
-        'ON user_favorites (dsld_id)',
       );
     },
   );
@@ -227,10 +231,10 @@ class UserDatabase extends _$UserDatabase {
 
   /// Bookmark a product by DSLD ID. Idempotent — a second save is a no-op.
   Future<void> addFavorite(String dsldId) async {
-    if (await isFavorite(dsldId)) return;
-    await into(
-      userFavorites,
-    ).insert(UserFavoritesCompanion(dsldId: Value(dsldId)));
+    await into(userFavorites).insert(
+      UserFavoritesCompanion(dsldId: Value(dsldId)),
+      mode: InsertMode.insertOrIgnore,
+    );
   }
 
   /// Remove a product bookmark.

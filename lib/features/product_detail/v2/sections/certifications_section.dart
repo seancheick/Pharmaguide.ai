@@ -1,9 +1,9 @@
 // Certifications section adapter.
 //
-// Reads 4 boolean fields from `certification_detail` blob (gmp,
-// purity_verified, heavy_metal_tested, label_accuracy_verified) plus a
-// `third_party_programs.programs` list. Section is suppressed when none
-// of the fields/programs are present.
+// Reads from `certification_detail` blob: a nested `gmp` object plus three
+// int-0/1 flags (purity_verified, heavy_metal_tested, label_accuracy_verified)
+// and a `third_party_programs.programs` list. Section is suppressed when none
+// of the fields/programs are positive.
 //
 // V2 maps each blob field 1:1 → PGCertification. Third-party programs
 // each get a verified=true entry with the program name as the label.
@@ -27,7 +27,13 @@ Widget buildCertificationsSection({
   // entries since the section title implies positives; unverified
   // checks appear in LabelConfidence (S4) when relevant. Production
   // suppresses the entire section when none are true.
-  if (certificationDetail.safeBool('gmp')) {
+  //
+  // `gmp` is a nested object ({claimed, gmp_certified_or_compliant,
+  // nsf_gmp, fda_registered, text_matched}), NOT a bool — safeBool('gmp')
+  // always read false. A "GMP Certified" badge requires an actual
+  // certification/compliance/program signal; a bare manufacturer `claimed`
+  // does not earn it (under-claim over over-claim on a safety product).
+  if (_gmpCertified(certificationDetail)) {
     certs.add(const PGCertification(label: 'GMP Certified', verified: true));
   }
   if (certificationDetail.safeBool('purity_verified')) {
@@ -70,4 +76,14 @@ Widget buildCertificationsSection({
 
   if (certs.isEmpty) return const SizedBox.shrink();
   return PGCertificationSection(certifications: certs);
+}
+
+/// True when the nested `gmp` object carries a real certification /
+/// compliance / program signal. Bare `claimed` (manufacturer self-assertion)
+/// is deliberately excluded so the "GMP Certified" badge is not overstated.
+bool _gmpCertified(Map<String, dynamic> certificationDetail) {
+  final gmp = certificationDetail.safeMap('gmp');
+  return gmp.safeBool('gmp_certified_or_compliant') ||
+      gmp.safeBool('nsf_gmp') ||
+      gmp.safeBool('fda_registered');
 }

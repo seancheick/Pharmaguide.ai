@@ -88,16 +88,21 @@ void main() {
       expect(await userDb.isFavorite('dsld-1'), isFalse);
     });
 
-    test('isFavoriteProvider is false for guests even if DB has rows', () async {
-      // Simulate leftover local rows from a prior signed-in session on
-      // the same install (clear-on-sign-out is separate; heart must not
-      // claim a guest has a wishlist).
-      await userDb.addFavorite('dsld-stale');
-      container.read(authStateProvider.notifier).onSignedOut();
+    test(
+      'isFavoriteProvider is false for guests even if DB has rows',
+      () async {
+        // Simulate leftover local rows from a prior signed-in session on
+        // the same install (clear-on-sign-out is separate; heart must not
+        // claim a guest has a wishlist).
+        await userDb.addFavorite('dsld-stale');
+        container.read(authStateProvider.notifier).onSignedOut();
 
-      final saved = await container.read(isFavoriteProvider('dsld-stale').future);
-      expect(saved, isFalse);
-    });
+        final saved = await container.read(
+          isFavoriteProvider('dsld-stale').future,
+        );
+        expect(saved, isFalse);
+      },
+    );
 
     test('isFavoriteProvider true after add while signed in', () async {
       final actions = container.read(favoritesActionsProvider);
@@ -105,6 +110,29 @@ void main() {
       final saved = await container.read(isFavoriteProvider('dsld-2').future);
       expect(saved, isTrue);
     });
+
+    test(
+      'favoritesProvider cannot leak rows across an auth boundary',
+      () async {
+        await userDb.addFavorite('previous-user-product');
+        final subscription = container.listen(favoritesProvider, (_, __) {});
+        addTearDown(subscription.close);
+
+        expect(
+          (await container.read(
+            favoritesProvider.future,
+          )).map((row) => row.dsldId),
+          contains('previous-user-product'),
+        );
+
+        container.read(authStateProvider.notifier).onSignedOut();
+        expect(await container.read(favoritesProvider.future), isEmpty);
+
+        await userDb.clearAllLocalUserData();
+        container.read(authStateProvider.notifier).onSignedIn();
+        expect(await container.read(favoritesProvider.future), isEmpty);
+      },
+    );
   });
 
   group('UserDatabase favorites helpers', () {
@@ -114,9 +142,12 @@ void main() {
       expect(await userDb.isFavorite('x'), isTrue);
     });
 
-    test('addFavorite twice yields one row', () async {
-      await userDb.addFavorite('x');
-      await userDb.addFavorite('x');
+    test('concurrent addFavorite calls yield one row', () async {
+      await Future.wait([
+        userDb.addFavorite('x'),
+        userDb.addFavorite('x'),
+        userDb.addFavorite('x'),
+      ]);
       expect(await userDb.getFavorites(), hasLength(1));
     });
   });

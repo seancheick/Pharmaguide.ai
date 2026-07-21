@@ -11,15 +11,18 @@ void main() {
       expect(verdictRevealKind('SAFE'), PGVerdictKind.success);
       expect(verdictRevealKind('GOOD'), PGVerdictKind.success);
       expect(verdictRevealKind('RECOMMENDED'), PGVerdictKind.success);
-      expect(verdictRevealKind('MONITOR'), PGVerdictKind.success);
     });
 
-    test('attention-tier and unknown → attention', () {
-      expect(verdictRevealKind('CAUTION'), PGVerdictKind.attention);
-      expect(verdictRevealKind('BLOCKED'), PGVerdictKind.attention);
-      expect(verdictRevealKind('NOT_SCORED'), PGVerdictKind.attention);
-      expect(verdictRevealKind(null), PGVerdictKind.attention);
-    });
+    test(
+      'attention-tier, invalid contract values, and unknown → attention',
+      () {
+        expect(verdictRevealKind('CAUTION'), PGVerdictKind.attention);
+        expect(verdictRevealKind('BLOCKED'), PGVerdictKind.attention);
+        expect(verdictRevealKind('NOT_SCORED'), PGVerdictKind.attention);
+        expect(verdictRevealKind('MONITOR'), PGVerdictKind.attention);
+        expect(verdictRevealKind(null), PGVerdictKind.attention);
+      },
+    );
   });
 
   group('verdictFlashColor', () {

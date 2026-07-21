@@ -86,6 +86,19 @@ extension ScoreTierMeta on ScoreTier {
     ScoreTier.lowQuality => const Color(0xFFEA580C),
     ScoreTier.poor => const Color(0xFFDC2626),
   };
+
+  /// Accessible foreground companion for tier-colored text on the app's
+  /// cream/white surfaces. The brighter [color] remains the chart/dot token;
+  /// these darker values preserve the same hue while clearing normal-text
+  /// contrast, so a prominent score does not rely on large-text exceptions.
+  Color get textColor => switch (this) {
+    ScoreTier.exceptional => const Color(0xFF047857),
+    ScoreTier.excellent => const Color(0xFF15803D),
+    ScoreTier.good => const Color(0xFF0F766E),
+    ScoreTier.fair => const Color(0xFFA16207),
+    ScoreTier.lowQuality => const Color(0xFFC2410C),
+    ScoreTier.poor => const Color(0xFFB91C1C),
+  };
 }
 
 /// Map a score to its tier. Inclusive at the floor — 90 → Exceptional,

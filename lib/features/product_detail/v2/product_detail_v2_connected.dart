@@ -395,6 +395,15 @@ class _ProductDetailV2ConnectedState
       ...personalizedWarnings,
       ...parseBlobWarnings(detailBlob),
     ]).where((w) => w.direction == 'beneficial').toList(growable: false);
+    final profileBenefitNotes = profileBenefitWarnings
+        .where(
+          (warning) => warning.matchesProfile(
+            userConditions: userConditionsSet,
+            userDrugClasses: userDrugClassesSet,
+            userProfileFlags: userProfileFlagsSet,
+          ),
+        )
+        .toList(growable: false);
     // Split profile-matched/safety warnings (the card) from global
     // educational notes (a separate collapsed "Good to know" section) so the
     // profile card's count reflects only what's relevant to this user.
@@ -416,7 +425,11 @@ class _ProductDetailV2ConnectedState
         ? const <String>[]
         : researchCanonicalIdsForProduct(_product!, detailBlob: detailBlob);
     final blendDetail = _blobMap(detailBlob, 'proprietary_blend_detail');
-    final hasProprietaryBlends = blendDetail?['has_proprietary_blends'] == true;
+    // Pipeline ships has_proprietary_blends as an int 0/1 (not JSON bool), so
+    // `== true` silently read false for all 2,284 blend products. safeBool
+    // coerces bool / 0-1 / "1" identically.
+    final hasProprietaryBlends =
+        blendDetail?.safeBool('has_proprietary_blends') ?? false;
     final labelLedgerAudit = _blobMap(detailBlob, 'label_ledger_audit');
     final labelLedgerAuditPresent =
         detailBlob?.containsKey('label_ledger_audit') == true;
@@ -538,11 +551,12 @@ class _ProductDetailV2ConnectedState
       topGoalLabel: topGoalLabelFromFit(fitResult),
       ingredientNames: ingredientNamesFromBlob(detailBlob),
       userConditions: profile.conditionsForEvaluator,
-      profileBenefitWarnings: profileBenefitWarnings,
+      // Supporting/beneficial notes belong in the calm Good to know surface,
+      // not inside the product-fit verdict or its warning count.
+      profileBenefitWarnings: const [],
       warnings: partitionedWarnings.profile,
       interactionHint: interactionHint,
       matchedAllergens: matchedAllergens,
-      freeFromClaims: freeFromClaims,
       freeFromConflicts: freeFromConflicts,
       hasInteractionProfile:
           profile.conditionsForEvaluator.isNotEmpty ||
@@ -652,17 +666,28 @@ class _ProductDetailV2ConnectedState
                   ],
 
                   if (showProfileRelevance) ...[
-                    KeyedSubtree(
-                      key: _anchors.interactionsKey,
-                      child: ProfileRelevanceSection(
-                        summary: profileRelevanceSummary,
-                        onCompleteProfile: () =>
-                            context.push(Routes.profileSetup),
+                    if (profileRelevanceSummary.shouldRender) ...[
+                      KeyedSubtree(
+                        key: _anchors.interactionsKey,
+                        child: ProfileRelevanceSection(
+                          summary: profileRelevanceSummary,
+                          onCompleteProfile: () =>
+                              context.push(Routes.profileSetup),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
+                      const SizedBox(height: V2Spacing.space12),
+                    ],
                     if (buildGeneralNotesSection(
-                          warnings: partitionedWarnings.general,
+                          warnings: [
+                            ...partitionedWarnings.general,
+                            ...profileBenefitNotes,
+                          ],
+                          freeFromClaims: freeFromClaims
+                              .where(
+                                (claim) =>
+                                    !freeFromConflicts.contains(claim.concern),
+                              )
+                              .toList(growable: false),
                           onTapCitations: (urls) =>
                               showProfileRelevanceCitationsSheet(context, urls),
                         )
@@ -935,8 +960,6 @@ class _ProductDetailV2ConnectedState
                       isBlocked: isBlocked,
                       isNotScored: isNotScored,
                       score100: score100,
-                      category: _product?.primaryCategory,
-                      profileRelevanceStatus: profileRelevanceSummary.status,
                       profileIncomplete:
                           profileRelevanceSummary.profileIncomplete,
                     ),
@@ -1010,7 +1033,7 @@ class _ProductDetailV2ConnectedState
         ),
         // Sticky action bar — production widget reused as-is. Already
         // provider-aware (reads stackEntryForDsldIdProvider), so the
-        // "Add to my stack" / "See safer alternatives" flow works
+        // "Add to my stack" / "See higher-quality options" flow works
         // from day 1.
         bottomNavigationBar: PGStackActionButtons(
           dsldId: widget.dsldId,
@@ -1154,8 +1177,8 @@ class _SkeletonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: height,
       width: double.infinity,
+      constraints: BoxConstraints(minHeight: height),
       decoration: BoxDecoration(
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -1163,6 +1186,7 @@ class _SkeletonCard extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(V2Spacing.space16),
       child: const Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SkeletonBlock(width: 120, height: 12),

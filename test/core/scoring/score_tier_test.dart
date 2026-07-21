@@ -7,6 +7,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 
 void main() {
   group('tierForScore — boundary thresholds', () {
@@ -108,6 +109,26 @@ void main() {
       // want each color to be unique so the visual signal is honest.
       final colors = ScoreTier.values.map((t) => t.color.toARGB32()).toSet();
       expect(colors, hasLength(ScoreTier.values.length));
+    });
+
+    test('tier text colors meet 4.5:1 contrast on the app background', () {
+      final backgroundLuminance = V2Colors.bg.computeLuminance();
+      for (final tier in ScoreTier.values) {
+        final foregroundLuminance = tier.textColor.computeLuminance();
+        final lighter = foregroundLuminance > backgroundLuminance
+            ? foregroundLuminance
+            : backgroundLuminance;
+        final darker = foregroundLuminance > backgroundLuminance
+            ? backgroundLuminance
+            : foregroundLuminance;
+        final contrast = (lighter + 0.05) / (darker + 0.05);
+
+        expect(
+          contrast,
+          greaterThanOrEqualTo(4.5),
+          reason: '${tier.name} text contrast was $contrast',
+        );
+      }
     });
 
     test('locked label copy matches spec', () {

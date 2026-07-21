@@ -506,14 +506,16 @@ class CoreDatabase extends _$CoreDatabase {
         .get();
   }
 
-  /// Phase 11.7L.F — wider candidate pool for the Better Alternatives
-  /// ranker. Applies the SQL-side hard filters (on-market, score
-  /// strictly higher, no banned/recalled, not-self) and matches on
-  /// EITHER `primary_category` OR `supplement_type` so the ranker
-  /// has room to find supplement-type-equivalent swaps even when the
-  /// catalog disagrees on primary_category. Defaults to a pool of
-  /// 50 candidates ordered by score — enough headroom for the
-  /// 4-tier ranker without bloating the in-memory list.
+  /// Phase 11.7L.F — relevance-first candidate pool for the Better
+  /// Alternatives ranker. Applies the SQL-side hard filters (on-market,
+  /// scored, strictly higher, no banned/recalled, not-self), then admits
+  /// candidates that share supplement type, primary category, OR at least
+  /// one canonical `key_ingredient_tags` value.
+  ///
+  /// Type/category and ingredient-family matches are selected as two
+  /// independent channels (up to [poolSize] each) before they are merged.
+  /// That prevents either a broad bucket's highest scores or a common
+  /// ingredient tag from truncating the other signal before Dart can rank.
   ///
   /// Returns `[]` when no candidate clears the SQL hard filters.
   /// Caller is then expected to hand the pool to
@@ -522,73 +524,109 @@ class CoreDatabase extends _$CoreDatabase {
   Future<List<ProductsCoreData>> fetchBetterAlternativesPool(
     ProductsCoreData current, {
     int poolSize = 50,
-  }) {
-    final currentCategory = current.primaryCategory?.trim() ?? '';
-    final currentType = current.supplementType?.trim() ?? '';
+  }) async {
+    if (poolSize <= 0) return const [];
+
+    final currentCategory = current.primaryCategory?.trim().toLowerCase() ?? '';
+    final currentType = current.supplementType?.trim().toLowerCase() ?? '';
+    final currentTags = current.keyIngredientTags?.trim() ?? '[]';
     final currentScore = current.qualityScoreV4100 ?? 0;
-    if (currentCategory.isEmpty && currentType.isEmpty) {
+    if (currentCategory.isEmpty && currentType.isEmpty && currentTags == '[]') {
       // No intent signal to match on — return nothing rather than
       // dump the top-N by raw score.
-      return Future.value(const []);
+      return const [];
     }
-    return (select(productsCore)
-          ..where((t) {
-            // Intent match: same category OR same supplement_type.
-            // We already bail above if BOTH current values are
-            // empty, so at least one branch contributes a real
-            // narrowing clause. Treat the missing side as a no-op
-            // by initialising the expression from whichever signal
-            // is present.
-            Expression<bool>? intent;
-            if (currentCategory.isNotEmpty) {
-              intent = t.primaryCategory.equals(currentCategory);
-            }
-            if (currentType.isNotEmpty) {
-              final typeMatch = t.supplementType.equals(currentType);
-              intent = intent == null ? typeMatch : intent | typeMatch;
-            }
-            // `intent` is guaranteed non-null thanks to the early
-            // return above when both currents are empty.
-            // Strictly higher v4 score. currentScore is a numeric literal —
-            // safe to inline into the comparison.
-            var expr =
-                intent! &
-                CustomExpression<bool>('$effectiveScoreSql > $currentScore');
-            // Exclude self.
-            expr = expr & t.dsldId.equals(current.dsldId).not();
-            // Never recommend a safety-suppressed row (BLOCKED/UNSAFE).
-            // Inlined as a literal (not a Drift bound parameter) so SQLite
-            // can prove the idx_core_cat_score partial-index predicate
-            // (WHERE quality_score_status='scored') and use the index.
-            expr =
-                expr &
-                const CustomExpression<bool>("quality_score_status = 'scored'");
-            // On-market only. The column is nullable text; drift's
-            // `isNull()` matches genuine NULLs, and a defensive
-            // equals('') covers older catalogs that stored empty
-            // strings.
-            expr =
-                expr &
-                (t.discontinuedDate.isNull() | t.discontinuedDate.equals(''));
-            // No banned / recalled.
-            expr =
-                expr &
-                (t.hasBannedSubstance.isNull() |
-                    t.hasBannedSubstance.equals(0));
-            expr =
-                expr &
-                (t.hasRecalledIngredient.isNull() |
-                    t.hasRecalledIngredient.equals(0));
-            return expr;
-          })
-          ..orderBy([
-            (t) => OrderingTerm(
-              expression: const CustomExpression<double>(effectiveScoreSql),
-              mode: OrderingMode.desc,
-            ),
-          ])
-          ..limit(poolSize))
-        .get();
+
+    final rows = await customSelect(
+      '''
+      WITH current_context(type, category, tags, score, dsld_id, pool_size) AS (
+        VALUES (?, ?, ?, ?, ?, ?)
+      ),
+      current_tags(value) AS (
+        SELECT lower(trim(CAST(value AS TEXT)))
+        FROM current_context,
+             json_each(
+               CASE WHEN json_valid(tags) THEN tags ELSE '[]' END
+             )
+        WHERE trim(CAST(value AS TEXT)) <> ''
+      ),
+      eligible AS (
+        SELECT
+          p.*,
+          CASE
+            WHEN lower(trim(COALESCE(p.supplement_type, ''))) = c.type
+                 AND c.type <> '' THEN 1 ELSE 0
+          END AS same_type,
+          CASE
+            WHEN lower(trim(COALESCE(p.primary_category, ''))) = c.category
+                 AND c.category <> '' THEN 1 ELSE 0
+          END AS same_category,
+          CASE WHEN EXISTS (
+            SELECT 1
+            FROM json_each(
+                   CASE
+                     WHEN json_valid(p.key_ingredient_tags)
+                       THEN p.key_ingredient_tags
+                     ELSE '[]'
+                   END
+                 ) AS product_tag
+            JOIN current_tags AS current_tag
+              ON lower(trim(CAST(product_tag.value AS TEXT))) = current_tag.value
+          ) THEN 1 ELSE 0 END AS family_overlap
+        FROM products_core AS p, current_context AS c
+        WHERE p.dsld_id <> c.dsld_id
+          AND p.quality_score_status = 'scored'
+          AND p.$effectiveScoreSql > c.score
+          AND trim(COALESCE(p.discontinued_date, '')) = ''
+          AND COALESCE(p.has_banned_substance, 0) = 0
+          AND COALESCE(p.has_recalled_ingredient, 0) = 0
+      ),
+      family_candidates AS (
+        SELECT *
+        FROM eligible
+        WHERE family_overlap = 1
+        ORDER BY same_type DESC, $effectiveScoreSql DESC, dsld_id ASC
+        LIMIT (SELECT pool_size FROM current_context)
+      ),
+      intent_candidates AS (
+        SELECT *
+        FROM eligible
+        WHERE same_type = 1 OR same_category = 1
+        ORDER BY same_type DESC, $effectiveScoreSql DESC, dsld_id ASC
+        LIMIT (SELECT pool_size FROM current_context)
+      ),
+      candidate_ids AS (
+        SELECT dsld_id FROM family_candidates
+        UNION
+        SELECT dsld_id FROM intent_candidates
+      )
+      SELECT eligible.*
+      FROM eligible
+      JOIN candidate_ids USING (dsld_id)
+      ORDER BY
+        CASE
+          WHEN same_type = 1 AND family_overlap = 1 THEN 0
+          WHEN same_type = 1 THEN 1
+          WHEN family_overlap = 1 THEN 2
+          ELSE 3
+        END,
+        $effectiveScoreSql DESC,
+        dsld_id ASC
+      ''',
+      variables: [
+        Variable.withString(currentType),
+        Variable.withString(currentCategory),
+        Variable.withString(currentTags),
+        Variable.withReal(currentScore),
+        Variable.withString(current.dsldId),
+        Variable.withInt(poolSize),
+      ],
+      readsFrom: {productsCore},
+    ).get();
+
+    return rows
+        .map((row) => productsCore.map(row.data))
+        .toList(growable: false);
   }
 
   /// Category / attribute filter query. All parameters are optional.
