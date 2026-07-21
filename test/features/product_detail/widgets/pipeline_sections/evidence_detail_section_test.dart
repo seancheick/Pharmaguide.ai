@@ -670,7 +670,9 @@ void main() {
       );
     });
 
-    testWidgets('caps displayed citations at five', (tester) async {
+    testWidgets('studies sheet shows every study the button promises', (
+      tester,
+    ) async {
       await _pump(
         tester,
         evidenceData: {
@@ -686,18 +688,19 @@ void main() {
         },
       );
 
-      // Count still reflects all deduped studies (card summary).
+      // Card summary reflects all deduped studies.
       expect(
         find.text('Ingredient evidence: MODERATE · 8 studies'),
         findsOneWidget,
       );
 
-      // The sheet still caps the visible citation rows at five.
+      // The scrollable sheet shows ALL 8 — the "View studies (8)" button must
+      // never promise more rows than the sheet holds (was capped at 5).
       await tester.tap(find.text('View studies (8)'));
       await tester.pumpAndSettle();
 
       expect(find.text('Study 5'), findsOneWidget);
-      expect(find.text('Study 6'), findsNothing);
+      expect(find.text('Study 8'), findsOneWidget);
     });
   });
 }

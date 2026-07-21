@@ -69,9 +69,6 @@ enum EvidenceScope { product, brandedIngredient, ingredient, indirect }
 const Set<String> _strongLevels = {'branded-rct', 'product-human'};
 const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
 
-/// Max citation rows rendered — the blob can carry dozens of structured
-/// references; the section shows the first few, deduped by PMID.
-const int _maxCitations = 5;
 
 /// Whether the clinical-evidence destination can render real rows. A numeric
 /// `match_count` alone is not enough; stale blobs can report a count while the
@@ -493,7 +490,11 @@ Widget buildEvidenceSection({
       EvidenceScope.ingredient => evidenceAttributionHeadline(displayMatches),
       EvidenceScope.brandedIngredient || EvidenceScope.indirect => null,
     },
-    citations: citations.take(_maxCitations).toList(growable: false),
+    // The studies sheet scrolls, so show every deduped citation — the
+    // "View studies (N)" button must not promise more rows than the sheet
+    // holds. citations ⊇ the human-study set, so the sheet always shows at
+    // least the advertised count.
+    citations: citations.toList(growable: false),
     footnote: footnoteLines.join('\n'),
     sheetExtra: relatedResearch,
   );
