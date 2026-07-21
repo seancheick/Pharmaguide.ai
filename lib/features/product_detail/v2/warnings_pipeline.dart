@@ -39,7 +39,7 @@ bool isCalmProfileNote(InteractionWarning warning) {
   if (!hasProfileScope ||
       warning.severity.isHard ||
       warning.evidenceLevel == EvidenceLevel.noData ||
-      _normalizedDisplayMode(warning.displayModeDefault) == 'critical') {
+      isCriticalDisplayMode(warning.displayModeDefault)) {
     return false;
   }
   final direction = _normalizeConsumerText(warning.direction);
@@ -283,7 +283,7 @@ Set<String> _consumerWarningIdentities(InteractionWarning warning) {
   final subject = _canonicalWarningSubject(warning);
   final isCriticalIncident =
       warning.severity.isHard ||
-      _normalizedDisplayMode(warning.displayModeDefault) == 'critical';
+      isCriticalDisplayMode(warning.displayModeDefault);
   if (subject.isNotEmpty && isCriticalIncident) {
     final conditions = [...warning.conditionIds.map(_normalizeConsumerText)]
       ..sort();
@@ -418,6 +418,13 @@ String _normalizedDisplayMode(String? value) {
   // Legacy blobs treat an absent display mode as informational.
   return normalized.isEmpty ? 'informational' : normalized;
 }
+
+/// Whether a pipeline display mode represents a critical consumer warning.
+///
+/// Pipeline values are normalized here so every Product Detail consumer uses
+/// the same case- and whitespace-insensitive decision.
+bool isCriticalDisplayMode(String? value) =>
+    _normalizedDisplayMode(value) == 'critical';
 
 /// Worst-case severity across a warning list. Empty list returns
 /// `Severity.safe` (the no-issues baseline). Used by For-You section

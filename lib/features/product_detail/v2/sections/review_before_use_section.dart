@@ -318,7 +318,7 @@ Widget? buildGeneralNotesSection({
   final materialWarnings = warnings
       .where((warning) {
         return warning.severity.isActionable &&
-            warning.displayModeDefault?.trim().toLowerCase() == 'critical';
+            isCriticalDisplayMode(warning.displayModeDefault);
       })
       .toList(growable: false);
   final profileNotes = warnings

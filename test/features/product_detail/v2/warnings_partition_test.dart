@@ -56,6 +56,14 @@ List<InteractionWarning> _all(
 ) => [...partitioned.profile, ...partitioned.general];
 
 void main() {
+  test('critical display mode ignores case and surrounding whitespace', () {
+    expect(isCriticalDisplayMode('critical'), isTrue);
+    expect(isCriticalDisplayMode('Critical'), isTrue);
+    expect(isCriticalDisplayMode('  CRITICAL  '), isTrue);
+    expect(isCriticalDisplayMode('informational'), isFalse);
+    expect(isCriticalDisplayMode(null), isFalse);
+  });
+
   group('partitionProfileWarnings', () {
     test('global informational note → general bucket', () {
       final note = _w(
