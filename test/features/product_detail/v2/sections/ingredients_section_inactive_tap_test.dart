@@ -192,6 +192,41 @@ void main() {
     },
   );
 
+  testWidgets(
+    'canonical target ignores a harmless trademark mark on a named blend',
+    (tester) async {
+      final targetKey = GlobalKey();
+      await _pumpIngredients(
+        tester,
+        displayIngredients: const [
+          {'label_display_name': 'Vitamin C'},
+          {'label_display_name': 'Daily Botanical Blend™'},
+          {'label_display_name': 'Zinc'},
+        ],
+        blends: const [
+          {'name': 'Daily Botanical Blend'},
+        ],
+        disclosureTargetKey: targetKey,
+      );
+
+      expect(find.byKey(targetKey), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(targetKey),
+          matching: find.text('Daily Botanical Blend™'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(targetKey),
+          matching: find.text('Vitamin C'),
+        ),
+        findsNothing,
+      );
+    },
+  );
+
   testWidgets('canonical target falls back to the first active row', (
     tester,
   ) async {

@@ -47,6 +47,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_help
 import 'package:pharmaguide/features/product_detail/widgets/functional_roles_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_sheet.dart';
 import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 
 /// Whether [buildIngredientsSection] can mount a meaningful active-label row
 /// for disclosure navigation from the same builder inputs.
@@ -132,9 +133,13 @@ String _canonicalRowDisplayLabel(Map<String, dynamic> row) {
   return '';
 }
 
-String _normalizedDisclosureLabel(Object? value) =>
-    value?.toString().trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase() ??
-    '';
+String _normalizedDisclosureLabel(Object? value) {
+  final withoutBrandMarks = value?.toString().replaceAll(RegExp(r'[™®©℠]'), '');
+  return canonicalizeIngredientName(
+    withoutBrandMarks ?? '',
+    applyAliases: false,
+  );
+}
 
 /// Build the Ingredients section. Composes:
 ///   - Canonical label path: tiles built from `blob.display_ingredients` in
