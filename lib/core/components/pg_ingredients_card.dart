@@ -260,11 +260,17 @@ class _PGActiveIngredientsSectionState
       widget.revealSignal?.addListener(_handleRevealSignal);
     }
     if (oldWidget.tiles.length != widget.tiles.length) {
-      final wasFullyRevealed = _visibleTileCount >= oldWidget.tiles.length;
-      if (wasFullyRevealed) {
-        _visibleTileCount = _initialVisibleCount(widget.tiles.length);
-      } else if (_visibleTileCount > widget.tiles.length) {
+      final preserveLatchedReveal =
+          _expanded && widget.revealSignal?.value == true;
+      if (preserveLatchedReveal) {
         _visibleTileCount = widget.tiles.length;
+      } else {
+        final wasFullyRevealed = _visibleTileCount >= oldWidget.tiles.length;
+        if (wasFullyRevealed) {
+          _visibleTileCount = _initialVisibleCount(widget.tiles.length);
+        } else if (_visibleTileCount > widget.tiles.length) {
+          _visibleTileCount = widget.tiles.length;
+        }
       }
     }
     if (revealSignalChanged && widget.revealSignal?.value == true) {

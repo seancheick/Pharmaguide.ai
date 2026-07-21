@@ -427,6 +427,61 @@ void main() {
     },
   );
 
+  testWidgets(
+    'same true reveal keeps a target beyond row 20 mounted after tile updates',
+    (tester) async {
+      final targetKey = GlobalKey();
+      final revealSignal = ValueNotifier<bool>(true);
+      addTearDown(revealSignal.dispose);
+      late StateSetter rebuildParent;
+      var ordinaryIngredientCount = 21;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                rebuildParent = setState;
+                return SingleChildScrollView(
+                  child: buildIngredientsSection(
+                    context: context,
+                    ingredients: const [],
+                    displayIngredients: [
+                      for (
+                        var index = 0;
+                        index < ordinaryIngredientCount;
+                        index++
+                      )
+                        {'label_display_name': 'Ordinary active $index'},
+                      {
+                        'display_type': 'structural_container',
+                        'label_display_name': 'Target beyond row 20',
+                        'children': const ['Blend child'],
+                      },
+                    ],
+                    inactiveIngredients: const [],
+                    ulAnalysis: const [],
+                    blends: const [],
+                    disclosureTargetKey: targetKey,
+                    disclosureRevealSignal: revealSignal,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(targetKey.currentContext, isNotNull);
+
+      rebuildParent(() => ordinaryIngredientCount = 22);
+      await tester.pumpAndSettle();
+
+      expect(targetKey.currentContext, isNotNull);
+      expect(find.byKey(targetKey), findsOneWidget);
+    },
+  );
+
   testWidgets('reveal listener swaps and unregisters on dispose', (
     tester,
   ) async {
