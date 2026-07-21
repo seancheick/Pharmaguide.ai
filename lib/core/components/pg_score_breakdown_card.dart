@@ -91,6 +91,60 @@ class PGScoreBreakdownCard extends StatefulWidget {
 
 class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
   int? _expandedIndex;
+  late List<({String identity, double? score, int max})> _pillarSignature;
+
+  @override
+  void initState() {
+    super.initState();
+    _pillarSignature = _signatureFor(widget.pillars);
+    _expandedIndex = _initialExpandedIndex(widget.pillars);
+  }
+
+  @override
+  void didUpdateWidget(covariant PGScoreBreakdownCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextSignature = _signatureFor(widget.pillars);
+    if (!_sameSignature(_pillarSignature, nextSignature)) {
+      _pillarSignature = nextSignature;
+      _expandedIndex = _initialExpandedIndex(widget.pillars);
+    }
+  }
+
+  static List<({String identity, double? score, int max})> _signatureFor(
+    List<PGPillar> pillars,
+  ) => [
+    for (final pillar in pillars)
+      (identity: pillar.label, score: pillar.score, max: pillar.max),
+  ];
+
+  static bool _sameSignature(
+    List<({String identity, double? score, int max})> previous,
+    List<({String identity, double? score, int max})> next,
+  ) {
+    if (previous.length != next.length) return false;
+    for (var index = 0; index < previous.length; index++) {
+      if (previous[index] != next[index]) return false;
+    }
+    return true;
+  }
+
+  static int? _initialExpandedIndex(List<PGPillar> pillars) {
+    for (var index = 0; index < pillars.length; index++) {
+      final pillar = pillars[index];
+      if (!_isExactZero(pillar)) continue;
+      final hasWiredAction =
+          (pillar.actionLabel?.trim().isNotEmpty ?? false) &&
+          pillar.onAction != null;
+      final hasPipelineFact = pillar.facts.any(
+        (fact) => !fact.id.startsWith('ui_'),
+      );
+      if (hasWiredAction || hasPipelineFact) return index;
+    }
+    return null;
+  }
+
+  static bool _isExactZero(PGPillar pillar) =>
+      pillar.score == 0 && pillar.max > 0;
 
   double? get _pillarSum {
     if (widget.pillars.isEmpty) return null;
@@ -262,11 +316,40 @@ class _PGPillarRow extends StatelessWidget {
     required this.onToggle,
   });
 
-  bool get _hasDetails =>
-      (pillar.effectiveReason?.trim().isNotEmpty ?? false) ||
-      pillar.facts.isNotEmpty ||
+  bool get _isExactZero => pillar.score == 0 && pillar.max > 0;
+
+  bool get _hasReason => pillar.effectiveReason?.trim().isNotEmpty ?? false;
+
+  String? get _inlineZeroReason {
+    final reason = pillar.reason;
+    return _isExactZero && (reason?.trim().isNotEmpty ?? false) ? reason : null;
+  }
+
+  bool get _hasAction =>
       (pillar.actionLabel?.trim().isNotEmpty ?? false) &&
-          pillar.onAction != null;
+      pillar.onAction != null;
+
+  bool get _hasDetails =>
+      (!_isExactZero && _hasReason) || pillar.facts.isNotEmpty || _hasAction;
+
+  String _semanticsLabel({
+    required bool hasScore,
+    required String statusLabel,
+  }) {
+    final parts = <String>[
+      pillar.label,
+      if (hasScore)
+        '${PGScoreBreakdownCard.fmtScore(pillar.score!)}/${pillar.max}'
+      else
+        'No data',
+      if (hasScore) statusLabel,
+      if (_inlineZeroReason != null) _inlineZeroReason!.trim(),
+    ];
+    final label = parts.join('. ');
+    return label.endsWith('.') || label.endsWith('!') || label.endsWith('?')
+        ? label
+        : '$label.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -277,77 +360,106 @@ class _PGPillarRow extends StatelessWidget {
         : 0.0;
     final tone = PGScoreBreakdownCard.pillarTone(score, pillar.max);
     final status = statusForPillar(score, pillar.max);
+    final statusLabel = v4PillarStatusLabel(status);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: _hasDetails ? onToggle : null,
+        excludeFromSemantics: true,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Row(
+              Semantics(
+                container: true,
+                label: _semanticsLabel(
+                  hasScore: hasScore,
+                  statusLabel: statusLabel,
+                ),
+                button: _hasDetails,
+                expanded: _hasDetails ? isExpanded : null,
+                onTap: _hasDetails ? onToggle : null,
+                excludeSemantics: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Flexible(
-                          child: Text(
-                            pillar.label,
-                            style: V2Typography.bodyMedium(color: V2Colors.fg),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  pillar.label,
+                                  style: V2Typography.bodyMedium(
+                                    color: V2Colors.fg,
+                                  ),
+                                ),
+                              ),
+                              if (_hasDetails) ...[
+                                const SizedBox(width: 4),
+                                AnimatedRotation(
+                                  turns: isExpanded ? 0.5 : 0,
+                                  duration: const Duration(milliseconds: 180),
+                                  child: const Icon(
+                                    Icons.expand_more_rounded,
+                                    size: 16,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        if (_hasDetails) ...[
-                          const SizedBox(width: 4),
-                          AnimatedRotation(
-                            turns: isExpanded ? 0.5 : 0,
-                            duration: const Duration(milliseconds: 180),
-                            child: const Icon(
-                              Icons.expand_more_rounded,
-                              size: 16,
+                        const SizedBox(width: V2Spacing.space8),
+                        if (hasScore)
+                          Text(
+                            '${PGScoreBreakdownCard.fmtScore(score)}/${pillar.max}',
+                            style: V2Typography.monoData(color: tone),
+                          )
+                        else
+                          Text(
+                            'No data',
+                            style: V2Typography.caption(
+                              color: V2Colors.fgSubtle,
                             ),
                           ),
-                        ],
                       ],
                     ),
-                  ),
-                  const SizedBox(width: V2Spacing.space8),
-                  if (hasScore)
-                    Text(
-                      '${PGScoreBreakdownCard.fmtScore(score)}/${pillar.max}',
-                      style: V2Typography.monoData(color: tone),
-                    )
-                  else
-                    Text(
-                      'No data',
-                      style: V2Typography.caption(color: V2Colors.fgSubtle),
-                    ),
-                ],
-              ),
-              if (hasScore) ...[
-                const SizedBox(height: V2Spacing.space4),
-                Text(
-                  v4PillarStatusLabel(status),
-                  style: V2Typography.caption(color: tone),
-                ),
-              ],
-              const SizedBox(height: V2Spacing.space8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                child: SizedBox(
-                  height: 6,
-                  child: Stack(
-                    children: [
-                      Container(
-                        color: V2Colors.outline.withValues(alpha: 0.45),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: fill,
-                        child: Container(color: tone),
+                    if (hasScore) ...[
+                      const SizedBox(height: V2Spacing.space4),
+                      Text(
+                        statusLabel,
+                        style: V2Typography.caption(color: tone),
                       ),
                     ],
-                  ),
+                    if (_inlineZeroReason != null) ...[
+                      const SizedBox(height: V2Spacing.space4),
+                      Text(
+                        _inlineZeroReason!,
+                        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      ),
+                    ],
+                    const SizedBox(height: V2Spacing.space8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                      child: SizedBox(
+                        height: 6,
+                        child: Stack(
+                          children: [
+                            Container(
+                              color: V2Colors.outline.withValues(alpha: 0.45),
+                            ),
+                            FractionallySizedBox(
+                              widthFactor: fill,
+                              child: Container(color: tone),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               AnimatedSize(
@@ -359,8 +471,7 @@ class _PGPillarRow extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (pillar.effectiveReason?.trim().isNotEmpty ??
-                                false)
+                            if (!_isExactZero && _hasReason)
                               Text(
                                 pillar.effectiveReason!,
                                 style: V2Typography.bodySm(
@@ -371,9 +482,7 @@ class _PGPillarRow extends StatelessWidget {
                               const SizedBox(height: V2Spacing.space8),
                               _PillarFact(fact: fact),
                             ],
-                            if ((pillar.actionLabel?.trim().isNotEmpty ??
-                                    false) &&
-                                pillar.onAction != null) ...[
+                            if (_hasAction) ...[
                               const SizedBox(height: V2Spacing.space8),
                               TextButton(
                                 onPressed: pillar.onAction,

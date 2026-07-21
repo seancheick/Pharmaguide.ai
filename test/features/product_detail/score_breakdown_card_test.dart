@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
@@ -302,7 +304,396 @@ void main() {
       visit(richText.text);
       expect(numberColor, tierForScore(64).color);
     });
+
+    testWidgets('shows every exact-zero reason inline without duplicating it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Formulation',
+            score: 0,
+            reason: 'No supported forms were identified.',
+            facts: const [
+              V4PillarFact(
+                id: 'supported_forms',
+                label: 'Supported forms',
+                valueDisplay: 'None',
+              ),
+            ],
+          ),
+          _pillar(
+            label: 'Dose',
+            score: 0,
+            reason: 'No studied dose was matched.',
+          ),
+          _pillar(label: 'Evidence', score: 0, reason: '   '),
+        ]),
+      );
+
+      expect(find.text('No supported forms were identified.'), findsOneWidget);
+      expect(find.text('No studied dose was matched.'), findsOneWidget);
+      expect(find.text('   '), findsNothing);
+      expect(find.text('No points'), findsNWidgets(3));
+      expect(find.text('Supported forms'), findsOneWidget);
+    });
+
+    testWidgets('does not substitute compatibility copy for a zero reason', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Formulation',
+            score: 0,
+            microExplanation: 'Locally generated fallback.',
+            facts: const [
+              V4PillarFact(
+                id: 'form_fact',
+                label: 'Form fact',
+                valueDisplay: 'Missing',
+              ),
+            ],
+          ),
+        ]),
+      );
+
+      expect(find.text('Locally generated fallback.'), findsNothing);
+      expect(find.text('Form fact'), findsOneWidget);
+    });
+
+    testWidgets('initially opens only the first eligible exact-zero pillar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Formulation',
+            score: 0,
+            facts: const [
+              V4PillarFact(
+                id: 'form_fact',
+                label: 'Form fact',
+                valueDisplay: 'First',
+              ),
+            ],
+          ),
+          _pillar(
+            label: 'Dose',
+            score: 0,
+            facts: const [
+              V4PillarFact(
+                id: 'dose_fact',
+                label: 'Dose fact',
+                valueDisplay: 'Second',
+              ),
+            ],
+          ),
+        ]),
+      );
+
+      expect(find.text('Form fact'), findsOneWidget);
+      expect(find.text('Dose fact'), findsNothing);
+    });
+
+    testWidgets('a wired action alone makes an exact-zero pillar eligible', (
+      tester,
+    ) async {
+      var actionCount = 0;
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Evidence',
+            score: 0,
+            actionLabel: 'View clinical evidence',
+            onAction: () => actionCount++,
+          ),
+        ]),
+      );
+
+      expect(find.text('View clinical evidence'), findsOneWidget);
+      await tester.tap(find.text('View clinical evidence'));
+      expect(actionCount, 1);
+    });
+
+    testWidgets('an action label without a callback is not eligible', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Evidence',
+            score: 0,
+            actionLabel: 'View clinical evidence',
+          ),
+          _pillar(
+            label: 'Transparency',
+            score: 0,
+            facts: const [
+              V4PillarFact(
+                id: 'label_disclosure',
+                label: 'Pipeline fact',
+                valueDisplay: 'Missing',
+              ),
+            ],
+          ),
+        ]),
+      );
+
+      expect(find.text('View clinical evidence'), findsNothing);
+      expect(find.text('Pipeline fact'), findsOneWidget);
+    });
+
+    testWidgets('ui-only facts do not trigger initial expansion', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Evidence',
+            score: 0,
+            facts: const [
+              V4PillarFact(
+                id: 'ui_evidence_scope',
+                label: 'Evidence scope',
+                valueDisplay: 'Formula-wide',
+              ),
+            ],
+          ),
+        ]),
+      );
+
+      expect(find.text('Evidence scope'), findsNothing);
+
+      await tester.tap(find.text('Evidence'));
+      await tester.pumpAndSettle();
+      expect(find.text('Evidence scope'), findsOneWidget);
+    });
+
+    testWidgets('skips ineligible zero pillars before a pipeline-fact zero', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Evidence',
+            score: 0,
+            facts: const [
+              V4PillarFact(
+                id: 'ui_evidence_scope',
+                label: 'UI-only fact',
+                valueDisplay: 'Display context',
+              ),
+            ],
+          ),
+          _pillar(
+            label: 'Transparency',
+            score: 0,
+            facts: const [
+              V4PillarFact(
+                id: 'label_disclosure',
+                label: 'Pipeline fact',
+                valueDisplay: 'Missing',
+              ),
+            ],
+          ),
+        ]),
+      );
+
+      expect(find.text('UI-only fact'), findsNothing);
+      expect(find.text('Pipeline fact'), findsOneWidget);
+    });
+
+    testWidgets('manual collapse survives rebuilds with the same signature', (
+      tester,
+    ) async {
+      List<PGPillar> pillars() => [
+        _pillar(
+          label: 'Formulation',
+          score: 0,
+          facts: const [
+            V4PillarFact(
+              id: 'form_fact',
+              label: 'Form fact',
+              valueDisplay: 'Missing',
+            ),
+          ],
+        ),
+      ];
+
+      await tester.pumpWidget(_cardWithPillars(pillars()));
+      expect(find.text('Form fact'), findsOneWidget);
+
+      await tester.tap(find.text('Formulation'));
+      await tester.pumpAndSettle();
+      expect(find.text('Form fact'), findsNothing);
+
+      await tester.pumpWidget(_cardWithPillars(pillars()));
+      await tester.pumpAndSettle();
+      expect(find.text('Form fact'), findsNothing);
+    });
+
+    testWidgets('a changed pillar identity-score signature resets expansion', (
+      tester,
+    ) async {
+      List<PGPillar> pillars({required int max}) => [
+        _pillar(
+          label: 'Formulation',
+          score: 0,
+          max: max,
+          facts: const [
+            V4PillarFact(
+              id: 'form_fact',
+              label: 'Form fact',
+              valueDisplay: 'Missing',
+            ),
+          ],
+        ),
+      ];
+
+      await tester.pumpWidget(_cardWithPillars(pillars(max: 20)));
+      await tester.tap(find.text('Formulation'));
+      await tester.pumpAndSettle();
+      expect(find.text('Form fact'), findsNothing);
+
+      await tester.pumpWidget(_cardWithPillars(pillars(max: 15)));
+      await tester.pumpAndSettle();
+      expect(find.text('Form fact'), findsOneWidget);
+    });
+
+    testWidgets('opening another row closes the initially expanded zero row', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Formulation',
+            score: 0,
+            facts: const [
+              V4PillarFact(
+                id: 'form_fact',
+                label: 'Form fact',
+                valueDisplay: 'Missing',
+              ),
+            ],
+          ),
+          _pillar(
+            label: 'Dose',
+            score: 0,
+            facts: const [
+              V4PillarFact(
+                id: 'dose_fact',
+                label: 'Dose fact',
+                valueDisplay: 'Missing',
+              ),
+            ],
+          ),
+        ]),
+      );
+
+      await tester.tap(find.text('Dose'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Form fact'), findsNothing);
+      expect(find.text('Dose fact'), findsOneWidget);
+    });
+
+    testWidgets('zero-row semantics expose score, reason, status, and state', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Formulation',
+            score: 0,
+            reason: 'No supported forms were identified.',
+            facts: const [
+              V4PillarFact(
+                id: 'form_fact',
+                label: 'Form fact',
+                valueDisplay: 'Missing',
+              ),
+            ],
+          ),
+        ]),
+      );
+
+      final row = find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.label ==
+                'Formulation. 0/20. No points. '
+                    'No supported forms were identified.',
+      );
+      var rowNode = tester.getSemantics(row);
+      expect(
+        rowNode.label,
+        'Formulation. 0/20. No points. No supported forms were identified.',
+      );
+      expect(rowNode.flagsCollection.isButton, isTrue);
+      expect(rowNode.flagsCollection.isExpanded, ui.Tristate.isTrue);
+      expect(
+        rowNode.getSemanticsData().hasAction(ui.SemanticsAction.tap),
+        isTrue,
+      );
+
+      await tester.tap(find.text('Formulation'));
+      await tester.pumpAndSettle();
+      rowNode = tester.getSemantics(row);
+      expect(rowNode.flagsCollection.isExpanded, ui.Tristate.isFalse);
+      semantics.dispose();
+    });
+
+    testWidgets('nonzero pillars never auto-expand', (tester) async {
+      await tester.pumpWidget(
+        _cardWithPillars([
+          _pillar(
+            label: 'Formulation',
+            score: 0.1,
+            facts: const [
+              V4PillarFact(
+                id: 'form_fact',
+                label: 'Nonzero fact',
+                valueDisplay: 'Present',
+              ),
+            ],
+          ),
+        ]),
+      );
+
+      expect(find.text('Nonzero fact'), findsNothing);
+    });
   });
+}
+
+Widget _cardWithPillars(List<PGPillar> pillars) {
+  return MaterialApp(
+    home: Scaffold(body: PGScoreBreakdownCard(pillars: pillars)),
+  );
+}
+
+PGPillar _pillar({
+  required String label,
+  required double score,
+  int max = 20,
+  String? reason,
+  List<V4PillarFact> facts = const [],
+  String? actionLabel,
+  VoidCallback? onAction,
+  String? microExplanation,
+}) {
+  return PGPillar(
+    label: label,
+    max: max,
+    score: score,
+    reason: reason,
+    facts: facts,
+    actionLabel: actionLabel,
+    onAction: onAction,
+    // ignore: deprecated_member_use_from_same_package
+    microExplanation: microExplanation,
+  );
 }
 
 Widget _cardHarness({VoidCallback? onAction, VoidCallback? onHowScoringWorks}) {
