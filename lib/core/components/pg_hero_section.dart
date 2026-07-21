@@ -266,6 +266,14 @@ class PGHeroSection extends StatelessWidget {
             // formulation score, so a caution pill rides alongside the
             // tier line (see [heroShowsCautionCue]) — otherwise an over-UL
             // product reads as a plain "Excellent".
+            // Frame the score as PRODUCT QUALITY — a distinct axis from the
+            // personalized "for you" guidance in Profile Relevance below. The
+            // dose-driven caution pill (product-level) rides alongside.
+            Text(
+              'Product quality',
+              style: V2Typography.eyebrow(color: V2Colors.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space4),
             if (showCautionCue)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,

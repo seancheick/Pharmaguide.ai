@@ -92,6 +92,8 @@ void main() {
       );
       // Tier line still renders...
       expect(find.text('85/100'), findsOneWidget);
+      // ...framed as the product-quality axis...
+      expect(find.text('Product quality'), findsOneWidget);
       // ...but the caution cue is now visible next to it.
       expect(find.text('Use caution'), findsOneWidget);
     });
