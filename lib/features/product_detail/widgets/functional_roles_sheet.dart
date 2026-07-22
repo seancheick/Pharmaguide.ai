@@ -14,11 +14,11 @@
 //   • Examples + regulatory references are optional per role.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
-import 'package:pharmaguide/features/product_detail/data/functional_roles_vocab.dart';
 
 /// Open the functional-roles bottom sheet for [ingredient].
 ///
@@ -84,7 +84,7 @@ class _FunctionalRolesSheet extends StatelessWidget {
               if (roles.isEmpty)
                 const _GenericFallback()
               else
-                FutureBuilder<Map<String, FunctionalRole>>(
+                FutureBuilder<Map<String, FunctionalRoleEntry>>(
                   future: loadFunctionalRolesVocab(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
@@ -101,7 +101,7 @@ class _FunctionalRolesSheet extends StatelessWidget {
                     final vocab = snapshot.data!;
                     final matched = roles
                         .map((id) => vocab[id])
-                        .whereType<FunctionalRole>()
+                        .whereType<FunctionalRoleEntry>()
                         .toList(growable: false);
                     if (matched.isEmpty) {
                       // All ids unknown — fall back so the user gets
@@ -132,7 +132,7 @@ class _FunctionalRolesSheet extends StatelessWidget {
 /// title, body (verbatim — clinician-locked), examples chip row,
 /// regulatory deep-link row.
 class _RoleSection extends StatelessWidget {
-  final FunctionalRole role;
+  final FunctionalRoleEntry role;
   const _RoleSection({required this.role});
 
   @override

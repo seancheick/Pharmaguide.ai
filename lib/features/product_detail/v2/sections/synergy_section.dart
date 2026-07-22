@@ -64,6 +64,7 @@ class _SynergySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: const Key('synergy-section-card'),
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
         color: V2Colors.surface,

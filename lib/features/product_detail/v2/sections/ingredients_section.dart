@@ -90,6 +90,21 @@ Map<String, Map<String, dynamic>> _rowsBySourcePath(
       row['raw_source_path'].toString(): row,
 };
 
+/// Nutrition facts from the canonical label ledger, preserving source order
+/// and nested macro rows while excluding nutrition-typed children whose root
+/// belongs to an active ingredient (for example Total Omega-3 under Fish Oil).
+List<Map<String, dynamic>> labelNutritionRowsForDisplayLedger(
+  List<Map<String, dynamic>>? rows,
+) {
+  if (rows == null || rows.isEmpty) return const [];
+  final rowsBySourcePath = _rowsBySourcePath(rows);
+  return _ledgerRowsForSection(
+    rows,
+    _LedgerSection.nutrition,
+    rowsBySourcePath,
+  );
+}
+
 List<Map<String, dynamic>> _ledgerRowsForSection(
   List<Map<String, dynamic>> rows,
   _LedgerSection section,
@@ -182,6 +197,7 @@ Widget buildIngredientsSection({
     return _CanonicalLedgerIngredients(
       key: key,
       ingredients: displayIngredients,
+      inactiveIngredients: inactiveIngredients,
       ulAnalysis: ulAnalysis,
       blends: blends,
       disclosureTargetKey: disclosureTargetKey,
@@ -255,6 +271,7 @@ Widget buildIngredientsSection({
 
 class _CanonicalLedgerIngredients extends StatelessWidget {
   final List<Map<String, dynamic>> ingredients;
+  final List<Map<String, dynamic>> inactiveIngredients;
   final List<Map<String, dynamic>>? ulAnalysis;
   final List<Map<String, dynamic>>? blends;
   final GlobalKey? disclosureTargetKey;
@@ -263,6 +280,7 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
   const _CanonicalLedgerIngredients({
     super.key,
     required this.ingredients,
+    required this.inactiveIngredients,
     required this.ulAnalysis,
     required this.blends,
     required this.disclosureTargetKey,
@@ -280,9 +298,15 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
     final rowsBySourcePath = _rowsBySourcePath(labelRows);
     List<Map<String, dynamic>> rowsFor(_LedgerSection section) =>
         _ledgerRowsForSection(labelRows, section, rowsBySourcePath);
-    final nutritionRows = rowsFor(_LedgerSection.nutrition);
     final otherRows = rowsFor(_LedgerSection.other);
     final activeRows = rowsFor(_LedgerSection.active);
+    final canonicalInactiveRows = _canonicalInactiveRows(
+      otherRows,
+      inactiveIngredients,
+    );
+    final canonicalInactiveIngredients = canonicalInactiveRows
+        .map(inactiveFromMap)
+        .toList(growable: false);
     final disclosureTargetIndex = _canonicalDisclosureTargetIndex(
       activeRows,
       blends,
@@ -309,40 +333,97 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
     }
 
     final sections = [
-      if (nutritionRows.isNotEmpty)
-        ledgerSection('Nutrition facts', nutritionRows),
       if (activeRows.isNotEmpty)
         ledgerSection(
           'Active ingredients',
           activeRows,
           navigableDisclosure: true,
         ),
-      if (otherRows.isNotEmpty) ledgerSection('Other ingredients', otherRows),
     ];
 
     return PGIngredientsCard(
-      activeContent: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var index = 0; index < sections.length; index++) ...[
-            sections[index],
-            if (index != sections.length - 1)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: V2Spacing.space12),
-                child: Divider(
-                  height: 0.5,
-                  thickness: 0.5,
-                  color: V2Colors.outline,
-                ),
-              ),
-          ],
-        ],
-      ),
-      // Other Ingredients are already represented in the canonical ledger.
-      // Reusing the legacy inactive list here would duplicate label content.
-      inactiveIngredients: const [],
+      activeContent: sections.isEmpty
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var index = 0; index < sections.length; index++) ...[
+                  sections[index],
+                  if (index != sections.length - 1)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: V2Spacing.space12,
+                      ),
+                      child: Divider(
+                        height: 0.5,
+                        thickness: 0.5,
+                        color: V2Colors.outline,
+                      ),
+                    ),
+                ],
+              ],
+            ),
+      inactiveIngredients: canonicalInactiveIngredients,
+      onInactiveTap: (index) =>
+          showFunctionalRolesSheet(context, canonicalInactiveRows[index]),
     );
   }
+}
+
+List<Map<String, dynamic>> _canonicalInactiveRows(
+  List<Map<String, dynamic>> labelRows,
+  List<Map<String, dynamic>> inactiveRows,
+) {
+  final consumed = <int>{};
+  return labelRows
+      .map((labelRow) {
+        final labelKey = _canonicalRowDisplayLabel(labelRow);
+        var matchIndex = -1;
+        for (var index = 0; index < inactiveRows.length; index++) {
+          if (!consumed.contains(index) &&
+              _inactiveRowDisplayLabel(inactiveRows[index]) == labelKey) {
+            matchIndex = index;
+            break;
+          }
+        }
+        final merged = matchIndex < 0
+            ? <String, dynamic>{}
+            : Map<String, dynamic>.from(inactiveRows[matchIndex]);
+        if (matchIndex >= 0) consumed.add(matchIndex);
+
+        final literalLabel = _canonicalRowLiteralLabel(labelRow);
+        merged['name'] = literalLabel;
+        merged['label_display'] = literalLabel;
+        merged['raw_source_text'] ??= labelRow['raw_source_text'];
+        return merged;
+      })
+      .toList(growable: false);
+}
+
+String _inactiveRowDisplayLabel(Map<String, dynamic> row) {
+  for (final field in const [
+    'label_display',
+    'name',
+    'raw_source_text',
+    'display_label',
+  ]) {
+    final normalized = _normalizedDisclosureLabel(row[field]);
+    if (normalized.isNotEmpty) return normalized;
+  }
+  return '';
+}
+
+String _canonicalRowLiteralLabel(Map<String, dynamic> row) {
+  for (final field in const [
+    'label_display_name',
+    'display_label',
+    'display_name',
+    'raw_source_text',
+  ]) {
+    final value = row[field]?.toString().trim();
+    if (value != null && value.isNotEmpty) return value;
+  }
+  return 'Other ingredient';
 }
 
 enum _LedgerSection { nutrition, active, other }
@@ -383,7 +464,6 @@ List<Widget> _buildLabelLedgerTiles({
   int? disclosureTargetIndex,
 }) {
   final tiles = <Widget>[];
-  String? openParent;
   for (var index = 0; index < ingredients.length; index++) {
     final ingredient = ingredients[index];
     final rawDepth = ingredient['nested_depth'];
@@ -393,12 +473,6 @@ List<Widget> _buildLabelLedgerTiles({
     final parent = ingredient['parent_label']?.toString().trim();
     final hasParent = depth > 0 && parent != null && parent.isNotEmpty;
     final rowKey = index == disclosureTargetIndex ? disclosureTargetKey : null;
-    if (hasParent && parent != openParent) {
-      tiles.add(_NestedGroupLabel(parent: parent));
-      openParent = parent;
-    } else if (!hasParent) {
-      openParent = null;
-    }
     if (!hasParent &&
         ingredient['display_type']?.toString() == 'structural_container') {
       final total = ingredient['quantity'];
@@ -821,33 +895,6 @@ class _HierarchyChild extends StatelessWidget {
         border: Border(left: BorderSide(color: V2Colors.outline, width: 1)),
       ),
       child: child,
-    );
-  }
-}
-
-class _NestedGroupLabel extends StatelessWidget {
-  final String parent;
-
-  const _NestedGroupLabel({required this.parent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      header: true,
-      label: 'Components of $parent',
-      child: Padding(
-        padding: const EdgeInsets.only(
-          left: V2Spacing.space8,
-          top: V2Spacing.space4,
-        ),
-        child: Text(
-          'Components of $parent',
-          style: V2Typography.caption(
-            color: V2Colors.fgSubtle,
-          ).copyWith(fontWeight: FontWeight.w500, letterSpacing: 0.3),
-        ),
-      ),
     );
   }
 }

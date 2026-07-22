@@ -55,6 +55,8 @@ PGActiveIngredient presentActiveIngredient(
         ingredient['label_display_name'],
         ingredient['name'],
       ]),
+      dose: _doseLabelFor(ingredient),
+      parentheticalDoseText: _trimOrNull(ingredient['parenthetical_dose_text']),
       identityNeedsReview: identityNeedsReview,
       formDisplayState: PGIngredientFormDisplayState.needsReview,
       labelOrder: _readInt(ingredient['label_order']),
@@ -73,8 +75,14 @@ PGActiveIngredient presentActiveIngredient(
   };
 
   final formQuality = formDisplayState == PGIngredientFormDisplayState.assessed
-      ? resolveFormQuality(ingredient['bio_score'])
+      ? resolveFormQuality(_analysisValue(ingredient, 'bio_score'))
       : FormQuality.unknown;
+  final doseIngredient = _withAnalysisSignals(ingredient, const [
+    'standard_name',
+    'quantity',
+    'unit',
+    'below_clinical_dose',
+  ]);
 
   return PGActiveIngredient(
     name: _firstNonEmpty([
@@ -89,9 +97,11 @@ PGActiveIngredient presentActiveIngredient(
     formLabel: formLabel,
     formQuality: formQuality,
     doseCallOut: scoreIncluded
-        ? resolveDoseCallOut(ingredient: ingredient, ulEntry: ulEntry)
+        ? resolveDoseCallOut(ingredient: doseIngredient, ulEntry: ulEntry)
         : DoseCallOut.withinLimits,
-    isSafetyConcern: scoreIncluded && ingredient['is_safety_concern'] == true,
+    isSafetyConcern:
+        scoreIncluded &&
+        _analysisValue(ingredient, 'is_safety_concern') == true,
     isInferredFromLabel:
         ingredient['display_type']?.toString() == 'inferred_from_label',
     identityNeedsReview: false,
@@ -103,6 +113,28 @@ PGActiveIngredient presentActiveIngredient(
     scoreIncluded: scoreIncluded,
     displayDisposition: displayDisposition,
   );
+}
+
+Object? _analysisValue(Map<String, dynamic> ingredient, String key) {
+  if (ingredient.containsKey(key)) return ingredient[key];
+  final analysis = ingredient['analysis'];
+  return analysis is Map ? analysis[key] : null;
+}
+
+Map<String, dynamic> _withAnalysisSignals(
+  Map<String, dynamic> ingredient,
+  List<String> keys,
+) {
+  final analysis = ingredient['analysis'];
+  if (analysis is! Map) return ingredient;
+
+  Map<String, dynamic>? merged;
+  for (final key in keys) {
+    if (ingredient.containsKey(key) || !analysis.containsKey(key)) continue;
+    merged ??= Map<String, dynamic>.from(ingredient);
+    merged[key] = analysis[key];
+  }
+  return merged ?? ingredient;
 }
 
 PGIngredientFormDisplayState _parseFormDisplayState(

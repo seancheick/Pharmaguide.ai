@@ -20,20 +20,22 @@ void main() {
   }) {
     return MaterialApp(
       home: Scaffold(
-        body: buildScoreBreakdownSection(
-          ingredientQuality: 99,
-          safetyPurity: 99,
-          evidenceResearch: 99,
-          brandTrust: 99,
-          heroScore: heroScore,
-          mappedCoverage: mappedCoverage,
-          qualityPillarsV4: _v4Pillars(
-            formulation: formulation,
-            dose: dose,
-            evidence: evidence,
-            transparency: transparency,
-            verification: verification,
-            safetyHygiene: safetyHygiene,
+        body: SingleChildScrollView(
+          child: buildScoreBreakdownSection(
+            ingredientQuality: 99,
+            safetyPurity: 99,
+            evidenceResearch: 99,
+            brandTrust: 99,
+            heroScore: heroScore,
+            mappedCoverage: mappedCoverage,
+            qualityPillarsV4: _v4Pillars(
+              formulation: formulation,
+              dose: dose,
+              evidence: evidence,
+              transparency: transparency,
+              verification: verification,
+              safetyHygiene: safetyHygiene,
+            ),
           ),
         ),
       ),
@@ -44,9 +46,10 @@ void main() {
     testWidgets('header reads "Why this scored {N}" when heroScore present', (
       tester,
     ) async {
-      await tester.pumpWidget(buildTestWidget(heroScore: 84));
+      await tester.pumpWidget(buildTestWidget(heroScore: 63.6));
 
-      expect(find.text('Why this scored 84'), findsOneWidget);
+      expect(find.text('Why this scored 64'), findsOneWidget);
+      expect(find.text('Why this scored 63.6'), findsNothing);
       expect(find.text('Product Analysis'), findsNothing);
     });
 
@@ -177,24 +180,26 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
-              body: buildScoreBreakdownSection(
-                ingredientQuality: null,
-                safetyPurity: null,
-                evidenceResearch: null,
-                brandTrust: null,
-                heroScore: 63.6,
-                mappedCoverage: null,
-                qualityPillarsV4: pillars,
-                onPillarTap: {
-                  'formulation': () {},
-                  'evidence': () => evidenceActions++,
-                },
+              body: SingleChildScrollView(
+                child: buildScoreBreakdownSection(
+                  ingredientQuality: null,
+                  safetyPurity: null,
+                  evidenceResearch: null,
+                  brandTrust: null,
+                  heroScore: 63.6,
+                  mappedCoverage: null,
+                  qualityPillarsV4: pillars,
+                  onPillarTap: {
+                    'formulation': () {},
+                    'evidence': () => evidenceActions++,
+                  },
+                ),
               ),
             ),
           ),
         );
 
-        expect(find.text("How it's scored"), findsOneWidget);
+        expect(find.text('How PG Score works'), findsOneWidget);
         await tester.tap(find.text('Evidence'));
         await tester.pumpAndSettle();
         expect(find.text('Human trials'), findsOneWidget);
@@ -264,26 +269,35 @@ void main() {
       expect(actionCount, 1);
     });
 
-    testWidgets('has a header action and no generic score rationale', (
+    testWidgets('places the PG Score explanation action after coverage', (
       tester,
     ) async {
       var helpCount = 0;
       await tester.pumpWidget(
-        _cardHarness(onHowScoringWorks: () => helpCount++),
+        _cardHarness(mappedCoverage: 0.9, onHowScoringWorks: () => helpCount++),
       );
 
-      expect(find.text("How it's scored"), findsOneWidget);
+      expect(find.text('How PG Score works'), findsOneWidget);
+      expect(find.text("How it's scored"), findsNothing);
       expect(find.textContaining('Biggest opportunity'), findsNothing);
       expect(find.textContaining('See details'), findsNothing);
 
-      await tester.tap(find.text("How it's scored"));
+      final coverageTop = tester.getTopLeft(
+        find.textContaining('high-confidence score'),
+      );
+      final actionTop = tester.getTopLeft(find.text('How PG Score works'));
+      expect(actionTop.dy, greaterThan(coverageTop.dy));
+
+      await tester.tap(find.text('How PG Score works'));
       expect(helpCount, 1);
     });
 
     testWidgets('score number is tinted with its scoring-tier color', (
       tester,
     ) async {
-      await tester.pumpWidget(_cardHarness()); // heroScore: 63.6 → fair tier
+      await tester.pumpWidget(
+        _cardHarness(),
+      ); // heroScore: 63.6 → 64, fair tier
       final richText = tester.widget<RichText>(
         find
             .byWidgetPredicate(
@@ -296,7 +310,7 @@ void main() {
       Color? numberColor;
       void visit(InlineSpan span) {
         if (span is TextSpan) {
-          if (span.text == '63.6') numberColor = span.style?.color;
+          if (span.text == '64') numberColor = span.style?.color;
           span.children?.forEach(visit);
         }
       }
@@ -697,11 +711,16 @@ PGPillar _pillar({
   );
 }
 
-Widget _cardHarness({VoidCallback? onAction, VoidCallback? onHowScoringWorks}) {
+Widget _cardHarness({
+  VoidCallback? onAction,
+  VoidCallback? onHowScoringWorks,
+  double? mappedCoverage,
+}) {
   return MaterialApp(
     home: Scaffold(
       body: PGScoreBreakdownCard(
         heroScore: 63.6,
+        mappedCoverage: mappedCoverage,
         onHowScoringWorks: onHowScoringWorks,
         pillars: [
           const PGPillar(

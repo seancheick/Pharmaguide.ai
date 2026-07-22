@@ -1,14 +1,14 @@
-// Trust Receipts sheet — the single "How we score" surface.
+// PG Score sheet — the single consumer-facing score explanation surface.
 //
 // One reusable bottom sheet with two sections:
-//   1. "How scoring works" — the six v4 pillars, one calm line each.
-//   2. "Our sources" — every data source with LIVE counts + freshness
+//   1. "How PG Score works" — the six v4 pillars, one calm line each.
+//   2. "Data behind the score" — sources with LIVE counts + freshness
 //      from [trustReceiptsProvider]. A count the provider couldn't read
 //      is simply omitted (no invented or hardcoded numbers — they drift).
 //
 // Entry points (both open the SAME sheet):
-//   • Product Detail footer row ("How we score")
-//   • Score breakdown section link ("How scoring works")
+//   • Product Detail footer row
+//   • Score breakdown explanation row
 //
 // Copy rules: calm-advisory voice, no imperatives, no overclaiming. The
 // privacy line is exactly truthful to the architecture — the health
@@ -97,26 +97,16 @@ class PGTrustReceiptsSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const PGEyebrow('Trust receipts'),
+            const PGEyebrow('PG Score'),
             const SizedBox(height: V2Spacing.space8),
             Text(
-              'How we score',
+              'How PG Score works',
               style: V2Typography.titleSm(color: V2Colors.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
-              'Where every number on this page comes from, and how the '
-              'score is built.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
-            ),
-
-            // ---- Section 1: How scoring works --------------------------
-            const SizedBox(height: V2Spacing.space24),
-            const PGEyebrow('How scoring works'),
-            const SizedBox(height: V2Spacing.space8),
-            Text(
               'Six pillars, each scored on its own scale. Together they add '
-              'up to the score out of 100.',
+              'up to your PG Score out of 100.',
               style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space12),
@@ -129,9 +119,9 @@ class PGTrustReceiptsSheet extends StatelessWidget {
               const SizedBox(height: V2Spacing.space8),
             ],
 
-            // ---- Section 2: Our sources ---------------------------------
+            // ---- Section 2: Data behind the score -----------------------
             const SizedBox(height: V2Spacing.space16),
-            const PGEyebrow('Our sources'),
+            const PGEyebrow('Data behind the score'),
             const SizedBox(height: V2Spacing.space12),
             _SourceRow(
               icon: Icons.inventory_2_outlined,

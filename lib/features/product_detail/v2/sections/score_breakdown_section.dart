@@ -77,7 +77,8 @@ Widget buildScoreBreakdownSection({
       child: PGScoreBreakdownCard(
         pillars: pillars,
         mappedCoverage: mappedCoverage,
-        // Unrounded hero so the title matches the "= N/100" pillar-sum line.
+        // Preserve the source value; the card owns the shared whole-number
+        // consumer presentation used by the hero, headline, and total.
         heroScore: heroScore,
         onHowScoringWorks: () => showTrustReceiptsSheet(context),
       ),
@@ -85,9 +86,7 @@ Widget buildScoreBreakdownSection({
   );
 }
 
-/// Quiet text link under the score breakdown card that opens the shared
-/// Trust Receipts sheet (its "How scoring works" section explains the six
-/// v4 pillars).
+/// Quiet fallback link that opens the shared PG Score explanation sheet.
 class _HowScoringWorksLink extends StatelessWidget {
   const _HowScoringWorksLink();
 
@@ -102,7 +101,7 @@ class _HowScoringWorksLink extends StatelessWidget {
           vertical: V2Spacing.space4,
         ),
         child: Text(
-          'How scoring works',
+          'How PG Score works',
           style: V2Typography.caption(color: V2Colors.fgMuted),
         ),
       ),

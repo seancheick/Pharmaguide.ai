@@ -170,8 +170,12 @@ Map<String, dynamic>? matchUlEntry(
 ) {
   if (ulAnalysis == null || ulAnalysis.isEmpty) return null;
 
+  final analysis = ingredient['analysis'];
   final target = _normalizedName(
-    ingredient['standard_name'] ?? ingredient['name'],
+    ingredient['standard_name'] ??
+        (analysis is Map ? analysis['standard_name'] : null) ??
+        ingredient['name'] ??
+        ingredient['label_display_name'],
   );
   if (target == null) return null;
 

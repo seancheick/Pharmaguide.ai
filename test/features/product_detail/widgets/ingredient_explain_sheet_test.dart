@@ -71,20 +71,22 @@ void main() {
     expect(find.text('As Ethyl Esters'), findsNothing);
   });
 
-  testWidgets('undisclosed form renders the explicit disclosure state', (
-    tester,
-  ) async {
-    await _pumpAndOpenSheet(tester, const {
-      'label_display_name': 'Fish Oil',
-      'form_display_state': 'not_disclosed',
-      'exact_dose_text': '2400 mg',
-      'bio_score': 14,
-      'score_included': true,
-    });
+  testWidgets(
+    'ordinary undisclosed form does not render a noisy status block',
+    (tester) async {
+      await _pumpAndOpenSheet(tester, const {
+        'label_display_name': 'Fish Oil',
+        'form_display_state': 'not_disclosed',
+        'exact_dose_text': '2400 mg',
+        'bio_score': 14,
+        'score_included': true,
+      });
 
-    expect(find.text('Form not disclosed'), findsOneWidget);
-    expect(find.text('Form unknown'), findsNothing);
-  });
+      expect(find.text('Form not disclosed'), findsNothing);
+      expect(find.text('Form assessment not applicable'), findsNothing);
+      expect(find.text('Form unknown'), findsNothing);
+    },
+  );
 
   testWidgets('listed unassessed form stays visible without a quality claim', (
     tester,
@@ -96,12 +98,13 @@ void main() {
       'bio_score': 14,
     });
 
-    expect(find.text('Form listed · not yet assessed'), findsOneWidget);
+    expect(find.text('Form listed · not yet assessed'), findsNothing);
     expect(find.text('TRAACS® Albion Chelate'), findsOneWidget);
+    expect(find.text('Form assessment not applicable'), findsNothing);
     expect(find.text('Form unknown'), findsNothing);
   });
 
-  testWidgets('identity review hides unverified form and dose claims', (
+  testWidgets('identity review keeps label dose but hides analysis claims', (
     tester,
   ) async {
     await _pumpAndOpenSheet(tester, const {
@@ -116,9 +119,10 @@ void main() {
     });
 
     expect(find.text('Marine Lipid Concentrate'), findsOneWidget);
-    expect(find.text('Data needs review'), findsOneWidget);
+    expect(find.text('Data needs review'), findsNothing);
+    expect(find.text('Form assessment not applicable'), findsNothing);
     expect(find.text('Secret Triglyceride Claim'), findsNothing);
-    expect(find.text('660 mg'), findsNothing);
+    expect(find.text('660 mg'), findsOneWidget);
     expect(find.text('Form unknown'), findsNothing);
   });
 }

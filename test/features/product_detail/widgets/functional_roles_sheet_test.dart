@@ -6,7 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/features/product_detail/data/functional_roles_vocab.dart';
+import 'package:pharmaguide/core/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/features/product_detail/widgets/functional_roles_sheet.dart';
 
 /// Mounts a tiny host widget that exposes a Button which calls
@@ -36,7 +36,7 @@ Future<void> _pumpAndOpenSheet(
 void main() {
   setUp(() {
     debugSetFunctionalRolesVocabForTesting({
-      'lubricant': const FunctionalRole(
+      'lubricant': const FunctionalRoleEntry(
         id: 'lubricant',
         name: 'Lubricant',
         notes: 'Keeps powder from sticking during pressing.',
@@ -45,7 +45,7 @@ void main() {
         ],
         examples: ['magnesium stearate', 'stearic acid'],
       ),
-      'anti_caking_agent': const FunctionalRole(
+      'anti_caking_agent': const FunctionalRoleEntry(
         id: 'anti_caking_agent',
         name: 'Anti-caking agent',
         notes: 'Prevents clumping in powdered formulations.',

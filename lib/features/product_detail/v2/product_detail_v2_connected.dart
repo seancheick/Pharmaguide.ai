@@ -99,6 +99,16 @@ Map<String, dynamic>? _blobMap(Map<String, dynamic>? blob, String key) {
   return m.isEmpty ? null : m;
 }
 
+/// Section adapters use `SizedBox.shrink()` as their explicit hidden-state
+/// contract. Keep the standard gap only when the adapter renders content so
+/// a run of hidden deep-dive sections cannot accumulate blank vertical space.
+List<Widget> _sectionWithTrailingGap(Widget section) {
+  final suppressed =
+      section is SizedBox && section.width == 0 && section.height == 0;
+  if (suppressed) return const [];
+  return [section, const SizedBox(height: V2Spacing.space12)];
+}
+
 /// Parsed ingredient collections for the Product Detail label surface.
 ///
 /// [displayIngredients] is null only when the canonical ledger key is absent.
@@ -357,6 +367,9 @@ class _ProductDetailV2ConnectedState
     final ingredientSources = productDetailIngredientSourcesFromBlob(
       detailBlob,
     );
+    final labelNutritionRows = labelNutritionRowsForDisplayLedger(
+      ingredientSources.displayIngredients,
+    );
     final blobLoading = blobAsync.isLoading;
     final blobError = blobAsync.hasError;
     final appRdaReferenceData = ref.watch(rdaOptimalUlsProvider).asData?.value;
@@ -446,9 +459,8 @@ class _ProductDetailV2ConnectedState
     final labelLedgerAuditPresent =
         detailBlob?.containsKey('label_ledger_audit') == true;
     final labelRecordPresent = detailBlob?.containsKey('label_record') == true;
-    // Report metadata for the standalone "Doesn't match your bottle?" action
-    // rendered next to the ingredient list (the catalog record itself is
-    // collapsed to the page bottom).
+    // Report metadata for the standalone "Doesn't match your bottle?" feedback
+    // action rendered at the page bottom after catalog provenance.
     final labelMismatchMeta = labelMismatchMetadataFrom(
       detailBlob?['label_record'],
       dsldId: widget.dsldId,
@@ -833,18 +845,8 @@ class _ProductDetailV2ConnectedState
                     buildNutritionSection(
                       caloriesPerServing: _product?.caloriesPerServing,
                       nutritionDetail: _blobMap(detailBlob, 'nutrition_detail'),
+                      labelRows: labelNutritionRows,
                     ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // "Doesn't match your bottle?" — kept next to the ingredient
-                  // list where a user comparing the app to the bottle looks.
-                  // Shown only when a catalog record exists (same visibility as
-                  // the old inline action), now decoupled from its position.
-                  if (showDeepDive &&
-                      labelRecordPresent &&
-                      labelMismatchMeta != null) ...[
-                    LabelMismatchAction(product: labelMismatchMeta),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
@@ -926,45 +928,49 @@ class _ProductDetailV2ConnectedState
                   // (Sprint 21 54-cluster data). Hidden when no
                   // tier ≤ 2 clusters pass — never renders as empty.
                   if (showDeepDive) ...[
-                    buildSynergySection(detailBlob: detailBlob),
-                    const SizedBox(height: V2Spacing.space12),
+                    ..._sectionWithTrailingGap(
+                      buildSynergySection(detailBlob: detailBlob),
+                    ),
                   ],
 
                   // ---- 12. HeavyMetal (WIRED, 11.7e) ---------------
                   if (showDeepDive) ...[
-                    buildHeavyMetalSection(
-                      heavyMetalDetail: _blobMap(
-                        detailBlob,
-                        'heavy_metal_detail',
+                    ..._sectionWithTrailingGap(
+                      buildHeavyMetalSection(
+                        heavyMetalDetail: _blobMap(
+                          detailBlob,
+                          'heavy_metal_detail',
+                        ),
                       ),
                     ),
-                    const SizedBox(height: V2Spacing.space12),
                   ],
 
                   // ---- 13. Formulation (WIRED, 11.7e) --------------
                   if (showDeepDive) ...[
-                    buildFormulationSection(
-                      formulationDetail: _blobMap(
-                        detailBlob,
-                        'formulation_detail',
-                      ),
-                      ingredientQualityData: _blobMap(
-                        detailBlob,
-                        'ingredient_quality_data',
+                    ..._sectionWithTrailingGap(
+                      buildFormulationSection(
+                        formulationDetail: _blobMap(
+                          detailBlob,
+                          'formulation_detail',
+                        ),
+                        ingredientQualityData: _blobMap(
+                          detailBlob,
+                          'ingredient_quality_data',
+                        ),
                       ),
                     ),
-                    const SizedBox(height: V2Spacing.space12),
                   ],
 
                   // ---- 15. ManufacturerViolations (WIRED, 11.7e) ---
                   if (showDeepDive) ...[
-                    buildManufacturerViolationsSection(
-                      manufacturerDetail: _blobMap(
-                        detailBlob,
-                        'manufacturer_detail',
+                    ..._sectionWithTrailingGap(
+                      buildManufacturerViolationsSection(
+                        manufacturerDetail: _blobMap(
+                          detailBlob,
+                          'manufacturer_detail',
+                        ),
                       ),
                     ),
-                    const SizedBox(height: V2Spacing.space12),
                   ],
 
                   // ---- 16. BetterAlternatives (WIRED, 11.7e) -------
@@ -1009,34 +1015,65 @@ class _ProductDetailV2ConnectedState
                   // source dates) is debugging/provenance detail — collapsed
                   // by default at the page bottom, out of the primary scroll.
                   if (showDeepDive && labelRecordPresent) ...[
-                    Theme(
-                      data: Theme.of(
-                        context,
-                      ).copyWith(dividerColor: Colors.transparent),
-                      child: ExpansionTile(
-                        tilePadding: EdgeInsets.zero,
-                        childrenPadding: EdgeInsets.zero,
-                        title: Text(
-                          'Product data & sources',
-                          style: V2Typography.titleSm(color: V2Colors.fg),
+                    Container(
+                      key: const Key('product-data-sources-card'),
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: V2Colors.surface,
+                        borderRadius: BorderRadius.circular(
+                          V2Spacing.radiusCard,
                         ),
-                        children: [
-                          buildLabelMatchSection(
-                            labelRecord: detailBlob?['label_record'],
-                            upc: _product?.upcSku,
-                            currentLabelRows:
-                                ingredientSources.displayIngredients,
-                            onOpenSourceLabel: (uri) async {
-                              await launchUrl(
-                                uri,
-                                mode: LaunchMode.externalApplication,
-                              );
-                            },
-                            showMismatchAction: false,
+                        border: Border.all(color: V2Colors.outline),
+                        boxShadow: V2Shadows.sm,
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Theme(
+                          data: Theme.of(
+                            context,
+                          ).copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            tilePadding: const EdgeInsets.symmetric(
+                              horizontal: V2Spacing.space16,
+                            ),
+                            childrenPadding: const EdgeInsets.fromLTRB(
+                              V2Spacing.space12,
+                              0,
+                              V2Spacing.space12,
+                              V2Spacing.space12,
+                            ),
+                            title: Text(
+                              'Product data & sources',
+                              style: V2Typography.titleSm(color: V2Colors.fg),
+                            ),
+                            children: [
+                              buildLabelMatchSection(
+                                labelRecord: detailBlob?['label_record'],
+                                upc: _product?.upcSku,
+                                currentLabelRows:
+                                    ingredientSources.displayIngredients,
+                                onOpenSourceLabel: (uri) async {
+                                  await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                },
+                                showMismatchAction: false,
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // Feedback belongs after the product content and provenance,
+                  // not inside the primary decision flow.
+                  if (showDeepDive &&
+                      labelRecordPresent &&
+                      labelMismatchMeta != null) ...[
+                    LabelMismatchAction(product: labelMismatchMeta),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 

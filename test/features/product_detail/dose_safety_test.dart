@@ -534,6 +534,21 @@ void main() {
       expect(match!['quantity'], 125);
     });
 
+    test('matches a canonical label row through its analysis namespace', () {
+      final ingredient = <String, dynamic>{
+        'label_display_name': 'Vitamin D',
+        'analysis': {'standard_name': 'Vitamin D3'},
+      };
+      final ulAnalysis = <Map<String, dynamic>>[
+        {'standard_name': 'Vitamin D', 'quantity': 125},
+      ];
+
+      final match = matchUlEntry(ingredient, ulAnalysis);
+
+      expect(match, isNotNull);
+      expect(match!['quantity'], 125);
+    });
+
     test('returns null when no match', () {
       final ingredient = <String, dynamic>{'standard_name': 'Magnesium'};
       final ulAnalysis = <Map<String, dynamic>>[

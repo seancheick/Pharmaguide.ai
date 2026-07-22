@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -653,6 +655,53 @@ void main() {
 
   group('label ingredient ledger', () {
     testWidgets(
+      'product data disclosure is a section card with a compact tail gap',
+      (tester) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: {
+            'quality_pillars_v4': _connectedV4Pillars(),
+            'label_record': _connectedLabelRecord(),
+            'synergy_detail': {
+              'clusters': [
+                {
+                  'name': 'Heart Health',
+                  'evidence_tier': 1,
+                  'match_count': 2,
+                  'all_adequate': 1,
+                },
+              ],
+            },
+          },
+        );
+
+        final disclosureCard = find.byKey(
+          const Key('product-data-sources-card'),
+        );
+        await _scrollConnectedTowardBottomUntil(tester, disclosureCard);
+        expect(disclosureCard, findsOneWidget);
+
+        final synergyCard = find.byKey(const Key('synergy-section-card'));
+        expect(synergyCard, findsOneWidget);
+        final decoration =
+            tester.widget<Container>(disclosureCard).decoration
+                as BoxDecoration;
+        expect(decoration.color, V2Colors.surface);
+        expect(decoration.border, isNotNull);
+        expect(
+          decoration.borderRadius,
+          BorderRadius.circular(V2Spacing.radiusCard),
+        );
+
+        final gap =
+            tester.getTopLeft(disclosureCard).dy -
+            tester.getBottomLeft(synergyCard).dy;
+        expect(gap, inInclusiveRange(8, V2Spacing.space24));
+      },
+    );
+
+    testWidgets(
       'connected catalog action compares history with the canonical ledger',
       (tester) async {
         await _pumpConnectedScreen(
@@ -1074,7 +1123,11 @@ void main() {
       await tester.pumpWidget(
         _ingredientsHarness(
           ingredients: const [
-            {'display_label': 'Legacy scored row', 'quantity': 10, 'unit': 'mg'},
+            {
+              'display_label': 'Legacy scored row',
+              'quantity': 10,
+              'unit': 'mg',
+            },
           ],
         ),
       );
@@ -1133,6 +1186,13 @@ void main() {
         await tester.pumpWidget(
           _ingredientsHarness(
             ingredients: const [],
+            inactiveIngredients: const [
+              {
+                'name': 'Gelatin',
+                'display_role_label': 'Gelatin capsule',
+                'functional_roles': ['coating', 'gelling_agent'],
+              },
+            ],
             displayIngredients: const [
               {
                 'label_display_name': 'Gelatin',
@@ -1149,16 +1209,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        final tile = tester.widget<PGActiveIngredientTile>(
-          find.byType(PGActiveIngredientTile),
-        );
-        expect(tile.ingredient.name, 'Gelatin');
-        expect(tile.ingredient.displayDisposition, 'other_ingredient');
-        expect(tile.ingredient.scoreIncluded, isFalse);
-        expect(
-          tile.ingredient.rawSourcePath,
-          'otheringredients.ingredients[0]',
-        );
+        expect(find.byType(PGActiveIngredientTile), findsNothing);
+        expect(find.text('Other ingredients'), findsOneWidget);
+        expect(find.text('Gelatin'), findsOneWidget);
+        expect(find.text('Gelatin capsule'), findsOneWidget);
       },
     );
 

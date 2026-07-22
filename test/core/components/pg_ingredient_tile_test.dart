@@ -69,8 +69,7 @@ void main() {
   });
 
   testWidgets(
-    'identity-review row shows the normalized review state and hides every '
-    'form/dose/safety claim',
+    'identity-review row keeps exact label dose but hides analysis claims',
     (tester) async {
       await tester.pumpWidget(
         _wrap(
@@ -90,15 +89,15 @@ void main() {
 
       expect(find.text('Marine Lipid Concentrate'), findsOneWidget);
       // "Data needs review" is an internal identity-resolution state — users
-      // never see backend bookkeeping. The row still suppresses every claim,
-      // it just shows the bare label instead of a scary badge.
+      // never see backend bookkeeping. Verified label facts remain visible,
+      // while every form, dose-quality, and safety interpretation is hidden.
       expect(find.text('Data needs review'), findsNothing);
       expect(find.text('Identity needs review'), findsNothing);
       expect(find.text('Excellent form'), findsNothing);
       expect(find.text('High dose'), findsNothing);
       expect(find.text('Safety concern'), findsNothing);
       expect(find.text('as Ethyl Esters'), findsNothing);
-      expect(find.text('660 mg'), findsNothing);
+      expect(find.text('660 mg'), findsOneWidget);
     },
   );
 

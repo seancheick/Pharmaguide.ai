@@ -41,6 +41,66 @@ void main() {
       },
     );
 
+    test('reads form quality from the ledger analysis namespace', () {
+      final active = presentActiveIngredient(const {
+        'label_display_name': 'Magnesium',
+        'label_display_form': 'Magnesium Bisglycinate',
+        'form_display_state': 'assessed',
+        'exact_dose_text': '200 mg',
+        'score_included': true,
+        'analysis': {
+          'standard_name': 'Magnesium',
+          'bio_score': 14,
+          'quantity': 200,
+          'unit': 'mg',
+          'is_safety_concern': false,
+        },
+      });
+
+      expect(active.name, 'Magnesium');
+      expect(active.formLabel, 'Magnesium Bisglycinate');
+      expect(active.formQuality, FormQuality.excellent);
+      expect(active.dose, '200 mg');
+    });
+
+    test('reads a low-dose callout from the ledger analysis namespace', () {
+      final active = presentActiveIngredient(const {
+        'label_display_name': 'Curcumin',
+        'exact_dose_text': '50 mg',
+        'score_included': true,
+        'analysis': {
+          'standard_name': 'Curcumin',
+          'quantity': 50,
+          'unit': 'mg',
+          'below_clinical_dose': true,
+        },
+      });
+
+      expect(active.dose, '50 mg');
+      expect(active.doseCallOut, DoseCallOut.low);
+    });
+
+    test(
+      'does not call a disclosed ledger dose undisclosed when UL is skipped',
+      () {
+        final active = presentActiveIngredient(
+          const {
+            'label_display_name': 'Vitamin A',
+            'exact_dose_text': '900 mcg RAE',
+            'score_included': true,
+            'analysis': {
+              'standard_name': 'Vitamin A',
+              'quantity': 900,
+              'unit': 'mcg RAE',
+            },
+          },
+          ulEntry: const {'standard_name': 'Vitamin A', 'skip_ul_check': true},
+        );
+
+        expect(active.doseCallOut, DoseCallOut.withinLimits);
+      },
+    );
+
     test('not_disclosed does not silently claim a good or excellent form', () {
       final active = presentActiveIngredient(const {
         'label_display_name': 'Fish Oil',
@@ -121,7 +181,7 @@ void main() {
       },
     );
 
-    test('needs_review suppresses form, dose, and safety claims', () {
+    test('needs_review keeps label dose and suppresses analysis claims', () {
       final active = presentActiveIngredient(const {
         'label_display_name': 'Marine Lipid Concentrate',
         'raw_source_text': 'Marine Lipid Concentrate',
@@ -136,11 +196,11 @@ void main() {
       });
 
       expect(active.formDisplayState, PGIngredientFormDisplayState.needsReview);
-      expect(active.formStatusLabel, 'Data needs review');
+      expect(active.formStatusLabel, isNull);
       expect(active.identityNeedsReview, isTrue);
       expect(active.formLabel, isNull);
       expect(active.formQuality, FormQuality.unknown);
-      expect(active.dose, isNull);
+      expect(active.dose, '660 mg');
       expect(active.doseCallOut, DoseCallOut.withinLimits);
       expect(active.isSafetyConcern, isFalse);
     });
@@ -158,7 +218,7 @@ void main() {
         });
 
         expect(active.name, 'TRAACS® Albion mineral chelate');
-        expect(active.formStatusLabel, 'Data needs review');
+        expect(active.formStatusLabel, isNull);
         expect(active.identityNeedsReview, isTrue);
       },
     );
@@ -179,10 +239,10 @@ void main() {
       expect(active.name, 'Unreadable label line');
       expect(active.identityNeedsReview, isTrue);
       expect(active.formDisplayState, PGIngredientFormDisplayState.needsReview);
-      expect(active.formStatusLabel, 'Data needs review');
+      expect(active.formStatusLabel, isNull);
       expect(active.formQuality, FormQuality.unknown);
       expect(active.formLabel, isNull);
-      expect(active.dose, isNull);
+      expect(active.dose, '100 mg');
       expect(active.isSafetyConcern, isFalse);
     });
 
@@ -198,10 +258,10 @@ void main() {
       });
 
       expect(active.formDisplayState, PGIngredientFormDisplayState.needsReview);
-      expect(active.formStatusLabel, 'Data needs review');
+      expect(active.formStatusLabel, isNull);
       expect(active.formLabel, isNull);
       expect(active.formQuality, FormQuality.unknown);
-      expect(active.dose, isNull);
+      expect(active.dose, '200 mg');
       expect(active.isSafetyConcern, isFalse);
     });
 

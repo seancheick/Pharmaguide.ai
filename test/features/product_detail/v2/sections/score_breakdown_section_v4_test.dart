@@ -91,6 +91,8 @@ void main() {
     expect(find.text('Safety & Purity'), findsNothing);
     expect(find.text('Evidence & Research'), findsNothing);
     expect(find.text('Transparency & Verification'), findsNothing);
+    expect(find.text('How PG Score works'), findsOneWidget);
+    expect(find.text('How scoring works'), findsNothing);
     for (final label in _v4Labels) {
       expect(find.text(label), findsNothing);
     }
@@ -158,9 +160,7 @@ void main() {
     expect(find.text('= 94/100'), findsOneWidget); // all six still sum
   });
 
-  testWidgets('sum line matches the 0.1-rounded values the rows display', (
-    tester,
-  ) async {
+  testWidgets('consumer total matches the rounded hero score', (tester) async {
     // Raw values whose unrounded sum (93.38 → "93.4") disagrees with the
     // sum of the displayed 0.1-rounded row values
     // (17.5 + 20 + 18.5 + 13.5 + 15 + 9 = 93.5).
@@ -173,9 +173,10 @@ void main() {
     expect(find.text('17.5/20'), findsOneWidget);
     expect(find.text('18.5/20'), findsOneWidget);
     expect(find.text('13.5/15'), findsOneWidget);
-    // The sum line must reproduce the arithmetic a user can do from the
-    // visible rows — 93.5, not the raw 93.4.
-    expect(find.text('= 93.5/100'), findsOneWidget);
+    // Pillars retain their useful decimal precision, while the consumer total
+    // uses the same whole-number presentation as the hero.
+    expect(find.text('= 94/100'), findsOneWidget);
+    expect(find.text('= 93.5/100'), findsNothing);
     expect(find.text('= 93.4/100'), findsNothing);
   });
 }

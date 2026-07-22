@@ -21,7 +21,7 @@ extension PGIngredientFormDisplayStatePresentation
     PGIngredientFormDisplayState.listedNotAssessed =>
       'Form listed · not yet assessed',
     PGIngredientFormDisplayState.notApplicable => null,
-    PGIngredientFormDisplayState.needsReview => 'Data needs review',
+    PGIngredientFormDisplayState.needsReview => null,
   };
 }
 
@@ -69,9 +69,9 @@ class PGActiveIngredient {
 
   /// True when the pipeline could not resolve this ingredient's identity
   /// (`identity_conflict` / `missing_display_label`). The tile then shows the
-  /// literal label with an "Identity needs review" note and hides form/dose/
-  /// safety claims — defense-in-depth for a cached/stale blob that slipped past
-  /// the release audit.
+  /// literal label facts while hiding form-quality, dose-quality, and safety
+  /// claims — defense-in-depth for a cached/stale blob that slipped past the
+  /// release audit.
   final bool identityNeedsReview;
 
   /// Closed presentation state for label/native form truth.

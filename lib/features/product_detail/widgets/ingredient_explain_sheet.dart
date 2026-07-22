@@ -84,12 +84,13 @@ class _SheetBody extends StatelessWidget {
         const SizedBox(height: V2Spacing.space16),
         const Divider(color: V2Colors.outline, height: 1, thickness: 0.4),
         const SizedBox(height: V2Spacing.space16),
-        _Block(
-          accent: _formAccent(explain.formQuality),
-          tint: _formTint(explain.formQuality),
-          heading: explain.formHeading,
-          body: explain.formExplanation,
-        ),
+        if (explain.formHeading != null && explain.formExplanation != null)
+          _Block(
+            accent: _formAccent(explain.formQuality),
+            tint: _formTint(explain.formQuality),
+            heading: explain.formHeading!,
+            body: explain.formExplanation!,
+          ),
         if (explain.doseExplanation.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space12),
           _Block(

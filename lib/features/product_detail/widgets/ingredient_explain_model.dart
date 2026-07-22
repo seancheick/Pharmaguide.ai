@@ -13,6 +13,7 @@
 // In the explain sheet the chip label gets a "form" suffix because we
 // have room for clarity ("Excellent form" vs the chip's "Excellent").
 
+import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
 import 'package:pharmaguide/features/product_detail/label_ingredient_presenter.dart';
 import 'package:pharmaguide/features/product_detail/label_ingredient_types.dart';
 
@@ -42,14 +43,14 @@ class IngredientExplain {
   final String? formStatusLabel;
 
   /// Heading that preserves assessed/not-disclosed/not-assessed/review state.
-  final String formHeading;
+  final String? formHeading;
 
   /// Dose call-out — drives the dose block heading.
   final DoseCallOut doseCallOut;
 
-  /// 1–2 sentence pharmacist-style copy explaining the form. Always
-  /// present — generic when no form is known.
-  final String formExplanation;
+  /// 1–2 sentence pharmacist-style copy explaining a verified form signal.
+  /// Null keeps unassessed/internal states out of the consumer sheet.
+  final String? formExplanation;
 
   /// Sentence explaining the dose call-out. Empty for `withinLimits`.
   final String doseExplanation;
@@ -87,12 +88,24 @@ IngredientExplain buildIngredientExplain({
   final presented = presentActiveIngredient(ingredient, ulEntry: ulEntry);
 
   final evidenceLabel = ingredient['evidence_level']?.toString().trim();
-  final formStatusLabel = presented.formStatusLabel;
+  final materialUndisclosedForm =
+      ingredient['form_disclosure_material'] == true &&
+      presented.formDisplayState == PGIngredientFormDisplayState.notDisclosed;
+  final formStatusLabel = materialUndisclosedForm
+      ? presented.formStatusLabel
+      : null;
   final formHeading =
       formStatusLabel ??
       (presented.formQuality == FormQuality.unknown
-          ? 'Form assessment not applicable'
+          ? null
           : formBlockHeading(presented.formQuality));
+  final formExplanation = formHeading == null
+      ? null
+      : _formExplanationForPresentation(
+          formStatusLabel: formStatusLabel,
+          quality: presented.formQuality,
+          form: presented.formLabel,
+        );
 
   return IngredientExplain(
     title: presented.name,
@@ -106,11 +119,7 @@ IngredientExplain buildIngredientExplain({
     formStatusLabel: formStatusLabel,
     formHeading: formHeading,
     doseCallOut: presented.doseCallOut,
-    formExplanation: _formExplanationForPresentation(
-      formStatusLabel: formStatusLabel,
-      quality: presented.formQuality,
-      form: presented.formLabel,
-    ),
+    formExplanation: formExplanation,
     doseExplanation: _doseExplanationFor(presented.doseCallOut),
     identityNeedsReview: presented.identityNeedsReview,
     scoreIncluded: presented.scoreIncluded,
@@ -129,9 +138,6 @@ String _formExplanationForPresentation({
     case 'Form listed · not yet assessed':
       return 'The label lists this form, but our form reference has not '
           'assessed it yet. No form-quality rating is shown.';
-    case 'Data needs review':
-      return 'We could not verify this label row, so form and dose claims are '
-          'hidden pending review.';
     default:
       if (quality == FormQuality.unknown) {
         return 'A form-quality rating does not apply to this label row.';
@@ -204,12 +210,8 @@ String formBlockHeading(FormQuality q) {
     case FormQuality.poor:
       return 'Poor form';
     case FormQuality.unknown:
-      // Unreachable in the consumer path — buildIngredientExplain intercepts
-      // unknown quality and substitutes 'Form assessment not applicable'
-      // before this is ever called. Kept only for switch exhaustiveness, and
-      // aligned with that copy so the old confusing "Form unknown" string
-      // cannot exist anywhere.
-      return 'Form assessment not applicable';
+      // Unknown/unassessed is intentionally silent in consumer UI.
+      return '';
   }
 }
 

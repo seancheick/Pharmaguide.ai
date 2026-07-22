@@ -35,7 +35,15 @@ import 'package:pharmaguide/core/components/pg_nutrition_panel.dart';
 Widget buildNutritionSection({
   required double? caloriesPerServing,
   required Map<String, dynamic>? nutritionDetail,
+  List<Map<String, dynamic>> labelRows = const [],
 }) {
+  if (labelRows.isNotEmpty) {
+    return _buildFromLabelRows(
+      labelRows,
+      fallbackCaloriesPerServing: caloriesPerServing,
+    );
+  }
+
   // Calories: column is canonical. Falls back to blob value when null.
   final calories =
       caloriesPerServing ??
@@ -99,6 +107,77 @@ Widget buildNutritionSection({
     // Production title — verbatim "Nutrition Facts" (FDA label vocabulary).
     title: 'Nutrition Facts',
   );
+}
+
+Widget _buildFromLabelRows(
+  List<Map<String, dynamic>> rows, {
+  required double? fallbackCaloriesPerServing,
+}) {
+  int? calories;
+  final facts = <PGNutritionFact>[];
+  for (final row in rows) {
+    final label = _firstText(row, const [
+      'label_display_name',
+      'display_label',
+      'display_name',
+      'raw_source_text',
+    ]);
+    final value = _firstText(row, const [
+      'exact_dose_text',
+      'display_dose_label',
+    ]);
+    if (label == null || value == null) continue;
+
+    if (label.trim().toLowerCase() == 'calories') {
+      calories = _firstNumber(value)?.round();
+      continue;
+    }
+
+    final depth = _readInt(row['nested_depth']);
+    facts.add(
+      PGNutritionFact(
+        label: label,
+        value: value,
+        dailyValue: _dailyValueLabel(row),
+        isHeadline: depth == 0,
+        indentLevel: depth,
+      ),
+    );
+  }
+
+  calories ??= fallbackCaloriesPerServing?.round();
+  if (calories == null && facts.isEmpty) return const SizedBox.shrink();
+  return PGNutritionPanel(
+    caloriesPerServing: calories,
+    facts: facts,
+    title: 'Nutrition Facts',
+  );
+}
+
+String? _firstText(Map<String, dynamic> row, List<String> keys) {
+  for (final key in keys) {
+    final value = row[key]?.toString().trim();
+    if (value != null && value.isNotEmpty) return value;
+  }
+  return null;
+}
+
+double? _firstNumber(String value) {
+  final match = RegExp(r'-?\d+(?:\.\d+)?').firstMatch(value);
+  return double.tryParse(match?.group(0) ?? '');
+}
+
+int _readInt(Object? value) {
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+String? _dailyValueLabel(Map<String, dynamic> row) {
+  final value = _firstText(row, const [
+    'daily_value_text',
+    'percent_daily_value_text',
+  ]);
+  return value?.contains('%') == true ? value : null;
 }
 
 /// Read a numeric field from the blob, accepting both `int` and `double`.

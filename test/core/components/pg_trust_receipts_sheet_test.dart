@@ -1,10 +1,10 @@
-// Widget tests for the Trust Receipts sheet ("How we score").
+// Widget tests for the consumer-facing PG Score explanation sheet.
 //
 // Covers:
-//   - both sections render (How scoring works + Our sources)
+//   - PG Score explanation and its data sources render
 //   - live counts render when provided
 //   - counts are OMITTED (not faked) when null
-//   - the score-breakdown "How it's scored" control opens the sheet
+//   - the score-breakdown "How PG Score works" control opens the sheet
 //
 // Run: flutter test test/core/components/pg_trust_receipts_sheet_test.dart
 
@@ -33,15 +33,17 @@ void _useTallSurface(WidgetTester tester) {
 
 void main() {
   group('PGTrustReceiptsSheet', () {
-    testWidgets('renders both sections and all source rows', (tester) async {
+    testWidgets('renders PG Score explanation and all source rows', (
+      tester,
+    ) async {
       _useTallSurface(tester);
       await tester.pumpWidget(_host(const PGTrustReceiptsSheet(data: null)));
 
-      expect(find.text('How we score'), findsOneWidget);
-      expect(find.text('Why trust this?'), findsNothing);
+      expect(find.text('How PG Score works'), findsOneWidget);
       // PGEyebrow renders uppercase.
-      expect(find.text('HOW SCORING WORKS'), findsOneWidget);
-      expect(find.text('OUR SOURCES'), findsOneWidget);
+      expect(find.text('PG SCORE'), findsOneWidget);
+      expect(find.text('DATA BEHIND THE SCORE'), findsOneWidget);
+      expect(find.text('TRUST RECEIPTS'), findsNothing);
 
       // Six pillars with their maxes — derived from kV4PillarSpec (the
       // single source of truth) so the test can never drift from it.
@@ -120,7 +122,7 @@ void main() {
   });
 
   group('score breakdown entry point', () {
-    testWidgets('"How it\'s scored" control opens the Trust Receipts sheet', (
+    testWidgets('"How PG Score works" opens the PG Score sheet', (
       tester,
     ) async {
       _useTallSurface(tester);
@@ -180,14 +182,15 @@ void main() {
         ),
       );
 
-      expect(find.text("How it's scored"), findsOneWidget);
-      await tester.tap(find.text("How it's scored"));
+      expect(find.text('How PG Score works'), findsOneWidget);
+      await tester.tap(find.text('How PG Score works'));
       await tester.pumpAndSettle();
 
       // Sheet is open with the live count from the (overridden) provider.
-      expect(find.text('How we score'), findsWidgets);
-      expect(find.text('Why trust this?'), findsNothing);
-      expect(find.text('OUR SOURCES'), findsOneWidget);
+      expect(find.text('How PG Score works'), findsWidgets);
+      expect(find.text('PG SCORE'), findsOneWidget);
+      expect(find.text('DATA BEHIND THE SCORE'), findsOneWidget);
+      expect(find.text('TRUST RECEIPTS'), findsNothing);
       expect(find.text('42 products'), findsOneWidget);
     });
   });

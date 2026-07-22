@@ -13,7 +13,7 @@ import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_m
 ///   (Geist Mono for tabular figures)
 /// - Optional parenthetical component amount and exact form text
 /// - Chips Wrap (spacing 6, runSpacing 4):
-///   - `Data needs review` only when source identity is unresolved; ordinary
+///   - Internal identity-review states never render as consumer badges;
 ///     missing/unassessed form disclosure stays quiet on the consumer row
 ///   - `_FormChip` only for an explicitly assessed form
 ///   - `_DoseChip` when `doseCallOut != withinLimits` — High dose /
@@ -67,9 +67,8 @@ class PGActiveIngredientTile extends StatelessWidget {
     final suppressClaims = needsReview || dataNeedsReview;
     final isAssessed = formState == PGIngredientFormDisplayState.assessed;
     final rowFormStatusLabel = _rowFormStatusLabel(formState, i);
-    // Unresolved identity: the row shows only its literal label and the shared
-    // Data-needs-review state — every quality/dose/safety claim is hidden even
-    // if a stale typed model still carries one (defense-in-depth).
+    // Unresolved identity keeps literal label facts while every interpreted
+    // form/dose-quality/safety claim stays hidden (defense-in-depth).
     final showChips =
         rowFormStatusLabel != null ||
         (!suppressClaims &&
@@ -77,9 +76,8 @@ class PGActiveIngredientTile extends StatelessWidget {
                 i.doseCallOut != DoseCallOut.withinLimits ||
                 i.isSafetyConcern ||
                 i.isInferredFromLabel));
-    final hasDose = !suppressClaims && i.dose != null && i.dose!.isNotEmpty;
+    final hasDose = i.dose != null && i.dose!.isNotEmpty;
     final hasParentheticalDose =
-        !suppressClaims &&
         i.parentheticalDoseText != null &&
         i.parentheticalDoseText!.trim().isNotEmpty;
     final hasForm =

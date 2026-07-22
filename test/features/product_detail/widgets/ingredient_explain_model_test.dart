@@ -150,20 +150,39 @@ void main() {
       expect(sheet.formHeading, 'Excellent form');
     });
 
-    test('Fish Oil undisclosed form never inherits bio_score quality', () {
-      const ingredient = <String, dynamic>{
-        'label_display_name': 'Fish Oil',
-        'form_display_state': 'not_disclosed',
-        'exact_dose_text': '2400 mg',
-        'bio_score': 14,
-        'score_included': true,
-      };
+    test(
+      'ordinary undisclosed form stays quiet and never inherits quality',
+      () {
+        const ingredient = <String, dynamic>{
+          'label_display_name': 'Fish Oil',
+          'form_display_state': 'not_disclosed',
+          'exact_dose_text': '2400 mg',
+          'bio_score': 14,
+          'score_included': true,
+        };
 
-      final row = activeFromMap(ingredient);
-      final sheet = buildIngredientExplain(ingredient: ingredient);
+        final row = activeFromMap(ingredient);
+        final sheet = buildIngredientExplain(ingredient: ingredient);
 
-      expect(row.formQuality, FormQuality.unknown);
-      expect(sheet.formQuality, FormQuality.unknown);
+        expect(row.formQuality, FormQuality.unknown);
+        expect(sheet.formQuality, FormQuality.unknown);
+        expect(sheet.formStatusLabel, isNull);
+        expect(sheet.formHeading, isNull);
+        expect(sheet.formExplanation, isNull);
+      },
+    );
+
+    test('pipeline-marked material form disclosure remains visible', () {
+      final sheet = buildIngredientExplain(
+        ingredient: const {
+          'label_display_name': 'Fish Oil',
+          'form_display_state': 'not_disclosed',
+          'exact_dose_text': '1200 mg',
+          'form_disclosure_material': true,
+          'score_included': true,
+        },
+      );
+
       expect(sheet.formStatusLabel, 'Form not disclosed');
       expect(sheet.formHeading, 'Form not disclosed');
       expect(sheet.formExplanation, contains('label does not disclose'));
@@ -184,11 +203,11 @@ void main() {
       expect(sheet.formName, 'TRAACS® Albion Chelate');
       expect(row.formQuality, FormQuality.unknown);
       expect(sheet.formQuality, FormQuality.unknown);
-      expect(sheet.formStatusLabel, 'Form listed · not yet assessed');
-      expect(sheet.formHeading, 'Form listed · not yet assessed');
+      expect(sheet.formStatusLabel, isNull);
+      expect(sheet.formHeading, isNull);
     });
 
-    test('needs_review suppresses sheet claims exactly like the row', () {
+    test('needs_review keeps label dose but suppresses analysis claims', () {
       const ingredient = <String, dynamic>{
         'raw_source_text': 'Marine Lipid Concentrate',
         'label_display_name': 'EPA',
@@ -206,11 +225,11 @@ void main() {
 
       expect(sheet.title, row.name);
       expect(sheet.identityNeedsReview, isTrue);
-      expect(sheet.formStatusLabel, 'Data needs review');
-      expect(sheet.formHeading, 'Data needs review');
+      expect(sheet.formStatusLabel, isNull);
+      expect(sheet.formHeading, isNull);
       expect(sheet.formName, isNull);
       expect(sheet.formQuality, FormQuality.unknown);
-      expect(sheet.doseLabel, isNull);
+      expect(sheet.doseLabel, '660 mg');
       expect(sheet.doseCallOut, DoseCallOut.withinLimits);
     });
 
@@ -375,10 +394,7 @@ void main() {
       expect(formBlockHeading(FormQuality.poor), 'Poor form');
       // Unknown is intercepted upstream; the exhaustiveness fallback no longer
       // emits the confusing "Form unknown" string.
-      expect(
-        formBlockHeading(FormQuality.unknown),
-        'Form assessment not applicable',
-      );
+      expect(formBlockHeading(FormQuality.unknown), '');
     });
 
     test('doseChipLabel and doseBlockHeading match', () {

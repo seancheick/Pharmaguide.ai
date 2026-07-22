@@ -63,8 +63,8 @@ void main() {
   });
 
   group('activeFromMap identity-review suppression', () {
-    test('identity_conflict row shows the literal source label, flags review, '
-        'and suppresses every quality/dose/safety claim', () {
+    test('identity_conflict row preserves literal label facts but suppresses '
+        'quality and safety interpretation', () {
       final active = activeFromMap(const {
         'identity_disposition': 'identity_conflict',
         'source_label_name': 'Marine Lipid Concentrate',
@@ -82,7 +82,7 @@ void main() {
       expect(active.formQuality, FormQuality.unknown);
       expect(active.formLabel, isNull);
       expect(active.doseCallOut, DoseCallOut.withinLimits);
-      expect(active.dose, isNull);
+      expect(active.dose, '660 mg');
       expect(active.isSafetyConcern, isFalse);
     });
 

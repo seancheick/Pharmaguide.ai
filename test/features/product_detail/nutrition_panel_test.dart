@@ -13,6 +13,58 @@ Future<void> _pump(WidgetTester tester, Widget child) {
 
 void main() {
   group('Nutrition section', () {
+    testWidgets('canonical label rows replace aggregate nutrition fields', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        buildNutritionSection(
+          caloriesPerServing: 99,
+          nutritionDetail: const {'total_fat_g': 9, 'protein_g': 9},
+          labelRows: const [
+            {
+              'label_display_name': 'Calories',
+              'exact_dose_text': '10 Calories',
+              'nested_depth': 0,
+            },
+            {
+              'label_display_name': 'Total Fat',
+              'exact_dose_text': '1 g',
+              'nested_depth': 0,
+            },
+            {
+              'label_display_name': 'Polyunsaturated Fat',
+              'exact_dose_text': '1 g',
+              'nested_depth': 1,
+            },
+            {
+              'label_display_name': 'Cholesterol',
+              'exact_dose_text': '10 mg',
+              'nested_depth': 0,
+            },
+          ],
+        ),
+      );
+
+      expect(find.text('Nutrition Facts'), findsOneWidget);
+      expect(find.text('Calories'), findsOneWidget);
+      expect(find.text('10'), findsOneWidget);
+      expect(find.text('99'), findsNothing);
+      expect(find.text('Total Fat'), findsOneWidget);
+      expect(find.text('Polyunsaturated Fat'), findsOneWidget);
+      expect(find.text('Cholesterol'), findsOneWidget);
+      expect(find.text('9 g'), findsNothing);
+      final panel = tester.widget<PGNutritionPanel>(
+        find.byType(PGNutritionPanel),
+      );
+      expect(
+        panel.facts
+            .singleWhere((fact) => fact.label == 'Polyunsaturated Fat')
+            .indentLevel,
+        1,
+      );
+    });
+
     testWidgets('renders nothing when both inputs are absent', (tester) async {
       await _pump(
         tester,

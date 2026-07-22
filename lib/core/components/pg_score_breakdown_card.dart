@@ -79,6 +79,10 @@ class PGScoreBreakdownCard extends StatefulWidget {
         : rounded.toStringAsFixed(1);
   }
 
+  /// Consumer-facing product totals use the same whole-number presentation
+  /// as the hero. Pillar rows keep one-decimal precision through [fmtScore].
+  static String fmtTotalScore(num value) => value.round().toString();
+
   static Color pillarTone(double? rawScore, num max) {
     if (rawScore == null || max <= 0) return V2Colors.fgSubtle;
     final fraction = (rawScore / max).clamp(0.0, 1.0);
@@ -189,7 +193,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                           children: [
                             const TextSpan(text: 'Why this scored '),
                             TextSpan(
-                              text: PGScoreBreakdownCard.fmtScore(
+                              text: PGScoreBreakdownCard.fmtTotalScore(
                                 widget.heroScore!,
                               ),
                               style: V2Typography.titleSm(
@@ -206,8 +210,6 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                         style: V2Typography.titleSm(color: V2Colors.fg),
                       ),
               ),
-              if (widget.onHowScoringWorks != null)
-                _HowItsScoredButton(onTap: widget.onHowScoringWorks!),
             ],
           ),
           const SizedBox(height: V2Spacing.space4),
@@ -231,7 +233,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                '= ${PGScoreBreakdownCard.fmtScore(sum)}/100',
+                '= ${PGScoreBreakdownCard.fmtTotalScore(sum)}/100',
                 style: V2Typography.monoData(color: V2Colors.fg),
               ),
             ),
@@ -242,17 +244,20 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
             const SizedBox(height: V2Spacing.space12),
             _PGCoverageLine(coverage: widget.mappedCoverage!),
           ],
+          if (widget.onHowScoringWorks != null) ...[
+            const SizedBox(height: V2Spacing.space8),
+            _HowPGScoreWorksButton(onTap: widget.onHowScoringWorks!),
+          ],
         ],
       ),
     );
   }
 }
 
-/// Explicit "How it's scored" affordance — a tinted pill with an info icon and
-/// chevron, ≥44pt tap target and button semantics, so it no longer reads as
-/// plain text. Opens the shared Trust Receipts sheet via [onTap].
-class _HowItsScoredButton extends StatelessWidget {
-  const _HowItsScoredButton({required this.onTap});
+/// Full-width explanation row after the score evidence, where it reads as the
+/// next step rather than competing with the score-card headline.
+class _HowPGScoreWorksButton extends StatelessWidget {
+  const _HowPGScoreWorksButton({required this.onTap});
 
   final VoidCallback onTap;
 
@@ -260,10 +265,11 @@ class _HowItsScoredButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'How the score works',
+      label: 'How PG Score works',
+      excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),
           child: Container(
@@ -274,27 +280,25 @@ class _HowItsScoredButton extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: V2Colors.accentTint,
-              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-              border: Border.all(
-                color: V2Colors.accent.withValues(alpha: 0.35),
-              ),
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
                   Icons.info_outline_rounded,
-                  size: 14,
+                  size: 18,
                   color: V2Colors.accent,
                 ),
-                const SizedBox(width: V2Spacing.space4),
-                Text(
-                  "How it's scored",
-                  style: V2Typography.caption(color: V2Colors.accent),
+                const SizedBox(width: V2Spacing.space8),
+                Expanded(
+                  child: Text(
+                    'How PG Score works',
+                    style: V2Typography.bodyMedium(color: V2Colors.accent),
+                  ),
                 ),
                 const Icon(
                   Icons.chevron_right_rounded,
-                  size: 16,
+                  size: 20,
                   color: V2Colors.accent,
                 ),
               ],

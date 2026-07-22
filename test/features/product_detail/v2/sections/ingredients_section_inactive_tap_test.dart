@@ -11,18 +11,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
-import 'package:pharmaguide/features/product_detail/data/functional_roles_vocab.dart';
+import 'package:pharmaguide/core/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 
 void main() {
   setUp(() {
     debugSetFunctionalRolesVocabForTesting({
-      'lubricant': const FunctionalRole(
+      'lubricant': const FunctionalRoleEntry(
         id: 'lubricant',
         name: 'Lubricant',
         notes: 'Keeps powder from sticking during pressing.',
         regulatoryReferences: [],
         examples: ['magnesium stearate'],
+      ),
+      'filler': const FunctionalRoleEntry(
+        id: 'filler',
+        name: 'Filler',
+        notes: 'Adds volume so the product can be manufactured consistently.',
+        regulatoryReferences: [],
+        examples: ['rice flour'],
       ),
     });
   });
@@ -689,7 +696,7 @@ void main() {
     },
   );
 
-  testWidgets('nutrient total renders label forms as nested components', (
+  testWidgets('nutrient total groups label forms without a redundant header', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -736,7 +743,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Vitamin A'), findsOneWidget);
-    expect(find.text('Components of Vitamin A'), findsOneWidget);
+    expect(find.text('Components of Vitamin A'), findsNothing);
     expect(find.text('Beta-Carotene'), findsOneWidget);
     expect(find.text('Vitamin A Palmitate'), findsOneWidget);
     expect(find.text('retinyl palmitate'), findsOneWidget);
@@ -805,7 +812,7 @@ void main() {
 
     expect(find.text('Proprietary blend'), findsOneWidget);
     expect(find.text('Botanical Blend'), findsOneWidget);
-    expect(find.text('Components of Botanical Blend'), findsOneWidget);
+    expect(find.text('Components of Botanical Blend'), findsNothing);
     expect(find.text('100 mg'), findsOneWidget);
     expect(find.text('Ashwagandha'), findsOneWidget);
     expect(find.text('Rhodiola'), findsOneWidget);
@@ -876,7 +883,7 @@ void main() {
   });
 
   testWidgets(
-    'canonical ledger has clear nutrition active and other sections',
+    'canonical ledger keeps nutrition out of active and other sections',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -923,7 +930,13 @@ void main() {
                       'score_included': false,
                     },
                   ],
-                  inactiveIngredients: const [],
+                  inactiveIngredients: const [
+                    {
+                      'name': 'Rice Flour',
+                      'display_role_label': 'Bulking agent',
+                      'functional_roles': ['filler'],
+                    },
+                  ],
                   ulAnalysis: const [],
                   blends: const [],
                 ),
@@ -934,15 +947,28 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Nutrition facts'), findsOneWidget);
+      expect(find.text('Nutrition facts'), findsNothing);
       expect(find.text('Active ingredients'), findsOneWidget);
       expect(find.text('Other ingredients'), findsOneWidget);
       expect(find.text('What the label lists'), findsNothing);
-      // Four actual label rows render as tiles. The structural blend parent is
-      // a header, not a fifth ingredient tile.
-      expect(find.byType(PGActiveIngredientTile), findsNWidgets(4));
-      expect(find.text('Calories'), findsOneWidget);
+      // Nutrition rows belong to the dedicated Nutrition Facts panel. Only
+      // active label rows use the active presenter; Other Ingredients use the
+      // excipient presenter so taxonomy and explainers remain available.
+      expect(find.byType(PGActiveIngredientTile), findsNWidgets(2));
+      expect(find.text('Calories'), findsNothing);
       expect(find.text('Rice Flour'), findsOneWidget);
+      expect(find.text('Bulking agent'), findsOneWidget);
+
+      await tester.tap(find.text('Rice Flour'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filler'), findsOneWidget);
+      expect(
+        find.text(
+          'Adds volume so the product can be manufactured consistently.',
+        ),
+        findsOneWidget,
+      );
     },
   );
 
