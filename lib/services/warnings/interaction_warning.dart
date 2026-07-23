@@ -1,6 +1,125 @@
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
+/// Compact, declarative dose rule shipped by the pipeline.
+///
+/// Clinical thresholds and copy remain pipeline-owned. The app only uses this
+/// rule to scale already-normalized exposure for the user's selected quantity.
+class DoseDecisionRule {
+  const DoseDecisionRule({
+    this.basis,
+    this.comparator,
+    this.threshold,
+    this.thresholdUnit,
+    this.consumerDispositionIfMet,
+    this.consumerDispositionIfNotMet,
+    this.amountMissingDisposition,
+    this.unknownFormDisposition,
+    this.conversionFailurePolicy,
+  });
+
+  final String? basis;
+  final String? comparator;
+  final double? threshold;
+  final String? thresholdUnit;
+  final String? consumerDispositionIfMet;
+  final String? consumerDispositionIfNotMet;
+  final String? amountMissingDisposition;
+  final String? unknownFormDisposition;
+  final String? conversionFailurePolicy;
+
+  factory DoseDecisionRule.fromJson(Map<String, dynamic> json) {
+    return DoseDecisionRule(
+      basis: json['basis']?.toString(),
+      comparator: json['comparator']?.toString(),
+      threshold: _asDouble(json['threshold']),
+      thresholdUnit: json['threshold_unit']?.toString(),
+      consumerDispositionIfMet: json['consumer_disposition_if_met']?.toString(),
+      consumerDispositionIfNotMet: json['consumer_disposition_if_not_met']
+          ?.toString(),
+      amountMissingDisposition: json['amount_missing_disposition']?.toString(),
+      unknownFormDisposition: json['unknown_form_disposition']?.toString(),
+      conversionFailurePolicy: json['conversion_failure_policy']?.toString(),
+    );
+  }
+}
+
+/// Pipeline-authored result of evaluating one clinical dose rule.
+///
+/// The three axes are deliberately independent: clinical severity is retained
+/// for compatibility, evaluation status states what the dose comparison found,
+/// and consumer disposition alone controls whether the result is shown.
+class DoseDecision {
+  const DoseDecision({
+    this.clinicalSeverity,
+    this.evaluationStatus,
+    this.consumerDisposition,
+    this.releaseBlocking = false,
+    this.evaluatedDailyAmount,
+    this.evaluatedUnit,
+    this.normalizedPerServingAmount,
+    this.normalizedPerServingUnit,
+    this.evaluatedServingMultiplier,
+    this.threshold,
+    this.thresholdUnit,
+    this.comparator,
+    this.conversionMethod,
+    this.doseSource,
+    this.formContext,
+    this.decisionRule,
+  });
+
+  final String? clinicalSeverity;
+  final String? evaluationStatus;
+  final String? consumerDisposition;
+  final bool releaseBlocking;
+  final double? evaluatedDailyAmount;
+  final String? evaluatedUnit;
+  final double? normalizedPerServingAmount;
+  final String? normalizedPerServingUnit;
+  final double? evaluatedServingMultiplier;
+  final double? threshold;
+  final String? thresholdUnit;
+  final String? comparator;
+  final String? conversionMethod;
+  final String? doseSource;
+  final String? formContext;
+  final DoseDecisionRule? decisionRule;
+
+  factory DoseDecision.fromJson(Map<String, dynamic> json) {
+    final rawRule = json['decision_rule'];
+    return DoseDecision(
+      clinicalSeverity: json['clinical_severity']?.toString(),
+      evaluationStatus: json['evaluation_status']?.toString(),
+      consumerDisposition: json['consumer_disposition']?.toString(),
+      releaseBlocking: json['release_blocking'] == true,
+      evaluatedDailyAmount: _asDouble(json['evaluated_daily_amount']),
+      evaluatedUnit: json['evaluated_unit']?.toString(),
+      normalizedPerServingAmount: _asDouble(
+        json['normalized_per_serving_amount'],
+      ),
+      normalizedPerServingUnit: json['normalized_per_serving_unit']?.toString(),
+      evaluatedServingMultiplier: _asDouble(
+        json['evaluated_serving_multiplier'],
+      ),
+      threshold: _asDouble(json['threshold']),
+      thresholdUnit: json['threshold_unit']?.toString(),
+      comparator: json['comparator']?.toString(),
+      conversionMethod: json['conversion_method']?.toString(),
+      doseSource: json['dose_source']?.toString(),
+      formContext: json['form_context']?.toString(),
+      decisionRule: rawRule is Map
+          ? DoseDecisionRule.fromJson(Map<String, dynamic>.from(rawRule))
+          : null,
+    );
+  }
+}
+
+double? _asDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '');
+}
+
 /// A single interaction warning entry parsed from the detail blob.
 ///
 /// This class is public because [product_detail_screen.dart] parses it
@@ -102,6 +221,10 @@ class InteractionWarning {
   /// detail sheet can render conditional phrasing.
   final Map<String, dynamic>? doseThresholdEvaluation;
 
+  /// Compact three-axis dose result. When present, this is authoritative for
+  /// consumer visibility; legacy floor fields are ignored for this warning.
+  final DoseDecision? doseDecision;
+
   /// Pipeline `regulatory_date` + `regulatory_date_label` for
   /// banned_recalled / high_risk_ingredient warnings — "First FDA
   /// enforcement action: 2019-04" style context.
@@ -133,6 +256,10 @@ class InteractionWarning {
   /// drawer cross-reference). Null when the warning is not
   /// ingredient-specific (e.g., manufacturer trust violations).
   final String? ingredientName;
+
+  /// Pipeline-owned canonical identity for [ingredientName]. New declarative
+  /// dose rules use this value directly instead of reinterpreting display copy.
+  final String? ingredientCanonicalId;
 
   /// v6.0 `profile_gate` — deterministic predicate the evaluator runs
   /// against (user_profile, product_context) to decide whether this
@@ -192,6 +319,7 @@ class InteractionWarning {
     this.mechanismOfHarm,
     this.populationWarnings = const [],
     this.doseThresholdEvaluation,
+    this.doseDecision,
     this.regulatoryDate,
     this.regulatoryDateLabel,
     this.additiveCategory,
@@ -199,6 +327,7 @@ class InteractionWarning {
     this.supplementContext,
     this.identifiers,
     this.ingredientName,
+    this.ingredientCanonicalId,
     this.profileGate,
     this.direction,
     this.materiality,
@@ -227,6 +356,7 @@ class InteractionWarning {
     mechanismOfHarm: mechanismOfHarm,
     populationWarnings: populationWarnings,
     doseThresholdEvaluation: doseThresholdEvaluation,
+    doseDecision: doseDecision,
     regulatoryDate: regulatoryDate,
     regulatoryDateLabel: regulatoryDateLabel,
     additiveCategory: additiveCategory,
@@ -234,6 +364,7 @@ class InteractionWarning {
     supplementContext: supplementContext,
     identifiers: identifiers,
     ingredientName: ingredientName,
+    ingredientCanonicalId: ingredientCanonicalId,
     profileGate: profileGate,
     direction: direction,
     materiality: materiality,
@@ -299,6 +430,11 @@ class InteractionWarning {
         ? Map<String, dynamic>.from(rawDoseEval)
         : null;
 
+    final rawDoseDecision = json['dose_decision'];
+    final doseDecision = rawDoseDecision is Map
+        ? DoseDecision.fromJson(Map<String, dynamic>.from(rawDoseDecision))
+        : null;
+
     final rawIdentifiers = json['identifiers'];
     final identifiers = rawIdentifiers is Map<String, dynamic>
         ? Map<String, dynamic>.from(rawIdentifiers)
@@ -341,6 +477,7 @@ class InteractionWarning {
       mechanismOfHarm: json['mechanism_of_harm']?.toString(),
       populationWarnings: popWarnings,
       doseThresholdEvaluation: doseEval,
+      doseDecision: doseDecision,
       regulatoryDate:
           json['regulatory_date']?.toString() ?? json['date']?.toString(),
       regulatoryDateLabel: json['regulatory_date_label']?.toString(),
@@ -349,6 +486,7 @@ class InteractionWarning {
       supplementContext: json['supplement_context']?.toString(),
       identifiers: identifiers,
       ingredientName: json['ingredient_name']?.toString(),
+      ingredientCanonicalId: json['ingredient_canonical_id']?.toString(),
       profileGate: profileGate,
       direction: json['direction']?.toString(),
       materiality: json['materiality']?.toString(),
@@ -478,7 +616,8 @@ class InteractionWarning {
     // duplicates (same warning in both blob lists) still share these values and
     // collapse as before.
     return '${conditions.join(',')}|${drugClasses.join(',')}|$headline|$body|$gateKey'
-        '|$direction|$materiality|$doseFloorStatus';
+        '|$direction|$materiality|$doseFloorStatus'
+        '|${doseDecision?.evaluationStatus}|${doseDecision?.consumerDisposition}';
   }
 
   /// Collapse duplicate warnings into a single entry per [_dedupeKey],

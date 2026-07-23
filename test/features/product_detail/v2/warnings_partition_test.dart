@@ -18,6 +18,7 @@ InteractionWarning _w({
   Map<String, dynamic>? doseThresholdEvaluation,
   String? alertHeadline,
   String? alertBody,
+  DoseDecision? doseDecision,
 }) {
   return InteractionWarning(
     severity: severity,
@@ -34,6 +35,7 @@ InteractionWarning _w({
     doseThresholdEvaluation: doseThresholdEvaluation,
     alertHeadline: alertHeadline,
     alertBody: alertBody,
+    doseDecision: doseDecision,
   );
 }
 
@@ -65,6 +67,84 @@ void main() {
   });
 
   group('partitionProfileWarnings', () {
+    test('explicit good-to-know disposition stays out of review', () {
+      final note = _w(
+        headline: 'Amount not disclosed',
+        severity: Severity.avoid,
+        conditionIds: const ['pregnancy'],
+        doseDecision: const DoseDecision(
+          clinicalSeverity: 'avoid',
+          evaluationStatus: 'amount_unknown',
+          consumerDisposition: 'good_to_know',
+        ),
+      );
+
+      final result = _partition([note], userConditions: const {'pregnancy'});
+
+      expect(result.profile, isEmpty);
+      expect(result.general, [note]);
+    });
+
+    test(
+      'explicit review disposition is actionable independent of severity',
+      () {
+        final warning = _w(
+          headline: 'Dose reaches reviewed threshold',
+          severity: Severity.informational,
+          conditionIds: const ['pregnancy'],
+          doseDecision: const DoseDecision(
+            clinicalSeverity: 'informational',
+            evaluationStatus: 'above_threshold',
+            consumerDisposition: 'review',
+          ),
+        );
+
+        final result = _partition(
+          [warning],
+          userConditions: const {'pregnancy'},
+        );
+
+        expect(result.profile, [warning]);
+        expect(result.general, isEmpty);
+      },
+    );
+
+    test('evaluated decision outranks a legacy hard duplicate', () {
+      final evaluated = _w(
+        headline: 'High-dose niacin and statins',
+        mechanism: 'This amount does not reach the interaction threshold.',
+        severity: Severity.informational,
+        ingredientName: 'Niacin',
+        drugClassIds: const ['statins'],
+        doseDecision: const DoseDecision(
+          clinicalSeverity: 'caution',
+          evaluationStatus: 'amount_unknown',
+          consumerDisposition: 'good_to_know',
+        ),
+      );
+      final legacy = _w(
+        headline: 'High-dose niacin and statins',
+        mechanism: 'This amount does not reach the interaction threshold.',
+        severity: Severity.avoid,
+        ingredientName: 'Niacin',
+        drugClassIds: const ['statins'],
+      );
+
+      final result = partitionProfileWarnings(
+        warnings: [legacy, evaluated],
+        userConditions: const {},
+        userDrugClasses: const {'statins'},
+        userProfileFlags: const {},
+      );
+
+      expect(_all(result), hasLength(1));
+      expect(
+        _all(result).single.doseDecision?.consumerDisposition,
+        'good_to_know',
+      );
+      expect(result.profile, isEmpty);
+    });
+
     test('global informational note → general bucket', () {
       final note = _w(
         headline: 'May lower blood sugar',

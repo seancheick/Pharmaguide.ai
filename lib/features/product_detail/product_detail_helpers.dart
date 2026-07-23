@@ -60,10 +60,15 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
 }) {
   final combinedWarnings = [..._synthesizeUlWarnings(detailBlob), ...warnings];
 
+  // Three-axis dose contract: the pipeline-authored consumer disposition is
+  // authoritative. Apply it before profile matching so a matching profile can
+  // never promote a below-threshold `suppress` result back into the UI.
+  final dispositionGated = applyConsumerDispositionGate(combinedWarnings);
+
   // Emitted-floor gate: drop rows the pipeline marked immaterial at this
   // product's dose (harmful + dose_dependent + below its form-scoped floor),
   // before the profile filter can promote them back (G2).
-  final flooredWarnings = applyEmittedFloorGate(combinedWarnings);
+  final flooredWarnings = applyEmittedFloorGate(dispositionGated);
 
   // Emitted-beneficial gate: drop condition warnings the pipeline tagged
   // direction=beneficial (the nutrient HELPS the condition — a monitor flag is

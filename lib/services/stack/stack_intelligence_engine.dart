@@ -175,7 +175,7 @@ class StackIntelligenceEngine {
     for (final alert in doseThresholdAlerts) {
       out.add(
         StackIssue(
-          severity: Severity.caution,
+          severity: Severity.fromString(alert.clinicalSeverity),
           headline: alert.isIncomplete
               ? 'Cumulative ${alert.displayName} could not be fully evaluated; '
                     'known subtotal is ${_formatDose(alert.totalValue)} '

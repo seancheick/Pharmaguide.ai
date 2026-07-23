@@ -20,6 +20,24 @@ import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 /// Single ingredient's dose entry as extracted from the detail blob.
 typedef IngredientDose = ({double value, String unit});
 
+/// Applies the pipeline-authored consumer disposition for the three-axis dose
+/// contract. This gate performs no clinical interpretation or dose math.
+///
+/// `suppress` is the only hidden state. Known visible dispositions remain in
+/// the stream for presentation routing. Missing or drifted values fail visible
+/// so a schema mismatch cannot silently remove a potentially important result.
+List<InteractionWarning> applyConsumerDispositionGate(
+  List<InteractionWarning> warnings,
+) {
+  return warnings
+      .where((warning) {
+        final decision = warning.doseDecision;
+        if (decision == null) return true;
+        return decision.consumerDisposition?.trim().toLowerCase() != 'suppress';
+      })
+      .toList(growable: false);
+}
+
 /// Shared dose-suppression guardrail (G3) for BOTH dose gates — the
 /// emitted-floor condition gate below AND the pairwise structured-threshold
 /// gate in `stack_interaction_checker.dart`.
@@ -85,6 +103,9 @@ List<InteractionWarning> applyEmittedFloorGate(
   const suppressibleStatuses = {'below', 'form_mismatch'};
   return warnings
       .where((w) {
+        // The compact three-axis decision is authoritative. Do not reinterpret
+        // it with the legacy severity-based floor contract.
+        if (w.doseDecision != null) return true;
         if (!suppressibleStatuses.contains(w.doseFloorStatus)) return true;
         if (!doseSuppressionGuardsPass(
           severityRaw: w.severityRaw,

@@ -6,6 +6,7 @@ import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 InteractionWarning _niacin({
   required String? doseFloorStatus,
+  DoseDecision? doseDecision,
   String? direction = 'harmful',
   String? materiality = 'dose_dependent',
   Severity severity = Severity.caution,
@@ -23,6 +24,7 @@ InteractionWarning _niacin({
     direction: direction,
     materiality: materiality,
     doseFloorStatus: doseFloorStatus,
+    doseDecision: doseDecision,
   );
 }
 
@@ -30,6 +32,109 @@ bool _hasNiacin(List<InteractionWarning> ws) =>
     ws.any((w) => w.ingredientName == 'Niacin');
 
 void main() {
+  group('three-axis dose decision gate', () {
+    test('authored suppress disposition hides a below-threshold result', () {
+      final warning = _niacin(
+        doseFloorStatus: null,
+        doseDecision: const DoseDecision(
+          clinicalSeverity: 'caution',
+          evaluationStatus: 'below_threshold',
+          consumerDisposition: 'suppress',
+        ),
+      );
+      expect(applyConsumerDispositionGate([warning]), isEmpty);
+    });
+
+    test('consumer disposition is independent from hard clinical severity', () {
+      final warning = _niacin(
+        doseFloorStatus: null,
+        severity: Severity.avoid,
+        doseDecision: const DoseDecision(
+          clinicalSeverity: 'avoid',
+          evaluationStatus: 'below_threshold',
+          consumerDisposition: 'suppress',
+        ),
+      );
+      expect(applyConsumerDispositionGate([warning]), isEmpty);
+    });
+
+    test('review and block dispositions remain visible', () {
+      for (final disposition in const ['review', 'block']) {
+        final warning = _niacin(
+          doseFloorStatus: null,
+          doseDecision: DoseDecision(
+            clinicalSeverity: 'caution',
+            evaluationStatus: 'above_threshold',
+            consumerDisposition: disposition,
+          ),
+        );
+        expect(applyConsumerDispositionGate([warning]), [warning]);
+      }
+    });
+
+    test('unknown disposition fails visible instead of silently hiding', () {
+      final warning = _niacin(
+        doseFloorStatus: null,
+        doseDecision: const DoseDecision(
+          clinicalSeverity: 'caution',
+          evaluationStatus: 'below_threshold',
+          consumerDisposition: 'maybe',
+        ),
+      );
+      expect(applyConsumerDispositionGate([warning]), [warning]);
+    });
+
+    test('parses compact pipeline dose decision', () {
+      final warning = InteractionWarning.fromJson({
+        'severity': 'caution',
+        'title': 'Niacin / statins',
+        'ingredient_name': 'Niacin',
+        'ingredient_canonical_id': 'niacin',
+        'dose_decision': {
+          'clinical_severity': 'caution',
+          'evaluation_status': 'below_threshold',
+          'consumer_disposition': 'suppress',
+          'evaluated_daily_amount': 20,
+          'evaluated_unit': 'mg',
+          'normalized_per_serving_amount': 20,
+          'normalized_per_serving_unit': 'mg',
+          'evaluated_serving_multiplier': 1,
+          'threshold': 1000,
+          'threshold_unit': 'mg',
+          'comparator': '>=',
+          'decision_rule': {
+            'consumer_disposition_if_met': 'review',
+            'consumer_disposition_if_not_met': 'suppress',
+            'amount_missing_disposition': 'suppress',
+            'unknown_form_disposition': 'suppress',
+            'conversion_failure_policy': 'release_block',
+          },
+        },
+      });
+
+      expect(warning.doseDecision?.consumerDisposition, 'suppress');
+      expect(warning.ingredientCanonicalId, 'niacin');
+      expect(warning.doseDecision?.evaluatedDailyAmount, 20);
+      expect(warning.doseDecision?.threshold, 1000);
+      expect(
+        warning.doseDecision?.decisionRule?.consumerDispositionIfMet,
+        'review',
+      );
+      expect(
+        warning.doseDecision?.decisionRule?.amountMissingDisposition,
+        'suppress',
+      );
+      expect(
+        warning.doseDecision?.decisionRule?.unknownFormDisposition,
+        'suppress',
+      );
+      expect(
+        warning.doseDecision?.decisionRule?.conversionFailurePolicy,
+        'release_block',
+      );
+    });
+  });
+
   group('applyEmittedFloorGate — narrow suppression predicate (G3)', () {
     test('below floor + harmful + dose_dependent → suppressed', () {
       expect(
@@ -155,6 +260,29 @@ void main() {
   });
 
   group('canary: end-to-end through the product-detail filter (G2)', () {
+    test(
+      'new-contract suppress result cannot be revived by a matching profile',
+      () {
+        final out = filterProductDetailWarningsForProfile(
+          detailBlob: const <String, dynamic>{},
+          warnings: [
+            _niacin(
+              doseFloorStatus: null,
+              severity: Severity.avoid,
+              doseDecision: const DoseDecision(
+                clinicalSeverity: 'avoid',
+                evaluationStatus: 'below_threshold',
+                consumerDisposition: 'suppress',
+              ),
+            ),
+          ],
+          userConditions: const {'diabetes'},
+          userDrugClasses: const {},
+        );
+        expect(out, isEmpty);
+      },
+    );
+
     test('below-floor niacin dropped even for a matching diabetes profile', () {
       final out = filterProductDetailWarningsForProfile(
         detailBlob: const <String, dynamic>{},

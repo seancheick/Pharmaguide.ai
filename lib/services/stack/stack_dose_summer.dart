@@ -7,24 +7,81 @@ import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
-  Iterable<InteractionWarning> warnings,
-) {
+  Iterable<InteractionWarning> warnings, {
+  String stackEntryId = '',
+  String productName = '',
+}) {
   final rules = <StackDoseThresholdRule>[];
   final seen = <String>{};
 
   for (final warning in warnings) {
     final ingredientName = warning.ingredientName?.trim();
     if (ingredientName == null || ingredientName.isEmpty) continue;
-    final canonicalId = canonicalizeIngredientName(ingredientName);
+    final decision = warning.doseDecision;
+    final emittedCanonicalId = warning.ingredientCanonicalId?.trim() ?? '';
+    // New declarative rules must use the pipeline-owned identity. Name-based
+    // canonicalization remains only for pre-contract cached blobs.
+    final canonicalId = decision != null
+        ? emittedCanonicalId
+        : canonicalizeIngredientName(ingredientName);
     if (canonicalId.isEmpty) continue;
+    final targets = <({String type, String id})>[
+      for (final value in warning.conditionIds) (type: 'condition', id: value),
+      for (final value in warning.drugClassIds) (type: 'drug_class', id: value),
+    ];
+
+    final decisionRule = decision?.decisionRule;
+    final decisionThreshold = decisionRule?.threshold ?? decision?.threshold;
+    final decisionUnit =
+        decisionRule?.thresholdUnit?.trim() ?? decision?.thresholdUnit?.trim();
+    final decisionComparator =
+        decisionRule?.comparator?.trim() ?? decision?.comparator?.trim();
+    if (decision != null &&
+        decisionThreshold != null &&
+        decisionThreshold > 0 &&
+        decisionUnit != null &&
+        decisionUnit.isNotEmpty &&
+        decisionComparator != null &&
+        decisionComparator.isNotEmpty) {
+      for (final target in targets) {
+        final targetId = target.id.trim().toLowerCase();
+        if (targetId.isEmpty) continue;
+        final marker =
+            '${target.type}|$targetId|$canonicalId|$decisionThreshold|'
+            '${decisionUnit.toLowerCase()}|$decisionComparator';
+        if (!seen.add(marker)) continue;
+        rules.add(
+          StackDoseThresholdRule(
+            conditionId: targetId,
+            targetType: target.type,
+            canonicalId: canonicalId,
+            displayName: ingredientName,
+            thresholdValue: decisionThreshold,
+            thresholdUnit: decisionUnit,
+            comparator: decisionComparator,
+            clinicalSeverity:
+                decision.clinicalSeverity ?? warning.severity.name,
+            consumerDispositionIfMet:
+                decisionRule?.consumerDispositionIfMet ?? 'review',
+            consumerDispositionIfNotMet:
+                decisionRule?.consumerDispositionIfNotMet ?? 'suppress',
+            normalizedDailyAmount: decision.evaluatedDailyAmount,
+            normalizedDailyUnit: decision.evaluatedUnit,
+            sourceStackEntryId: stackEntryId,
+            sourceProductName: productName,
+          ),
+        );
+      }
+      continue;
+    }
 
     final rawThresholds =
         warning.doseThresholdEvaluation?['thresholds_checked'];
     if (rawThresholds is! List) continue;
 
-    for (final rawCondition in warning.conditionIds) {
-      final conditionId = rawCondition.trim().toLowerCase();
-      if (conditionId.isEmpty) continue;
+    for (final target in targets) {
+      final targetId = target.id.trim().toLowerCase();
+      if (targetId.isEmpty) continue;
 
       for (final rawThreshold in rawThresholds) {
         if (rawThreshold is! Map) continue;
@@ -38,16 +95,21 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
         }
 
         final marker =
-            '$conditionId|$canonicalId|$thresholdValue|${thresholdUnit.toLowerCase()}';
+            '${target.type}|$targetId|$canonicalId|$thresholdValue|${thresholdUnit.toLowerCase()}';
         if (!seen.add(marker)) continue;
 
         rules.add(
           StackDoseThresholdRule(
-            conditionId: conditionId,
+            conditionId: targetId,
+            targetType: target.type,
             canonicalId: canonicalId,
             displayName: ingredientName,
             thresholdValue: thresholdValue,
             thresholdUnit: thresholdUnit,
+            comparator: rawThreshold['comparator']?.toString().trim() ?? '>=',
+            clinicalSeverity: warning.severity.name,
+            sourceStackEntryId: stackEntryId,
+            sourceProductName: productName,
           ),
         );
       }
@@ -175,6 +237,103 @@ class StackDoseSummer {
         ),
       ),
     );
+  }
+
+  /// Evaluate cumulative exposure using only pipeline-normalized values.
+  ///
+  /// No unit conversion or clinical inference occurs here. Every product's
+  /// warning contributes the daily exposure already converted by the pipeline
+  /// into the rule's semantic threshold unit. Missing exposure is omitted; it
+  /// never becomes an assumed maximum or an incomplete warning.
+  List<StackDoseThresholdAlert> thresholdAlertsFromNormalizedRules({
+    required Iterable<String> userConditions,
+    Iterable<String> userDrugClasses = const <String>[],
+    required Iterable<StackDoseThresholdRule> thresholdRules,
+  }) {
+    final activeConditions = userConditions
+        .map((value) => value.trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final activeDrugClasses = userDrugClasses
+        .map((value) => value.trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    if (activeConditions.isEmpty && activeDrugClasses.isEmpty) return const [];
+
+    final grouped = <String, List<StackDoseThresholdRule>>{};
+    for (final rule in thresholdRules) {
+      final targetId = rule.conditionId.trim().toLowerCase();
+      final targetIsActive = rule.targetType == 'drug_class'
+          ? activeDrugClasses.contains(targetId)
+          : activeConditions.contains(targetId);
+      if (!targetIsActive) continue;
+      final unit = normalizeDoseUnit(rule.thresholdUnit);
+      final key =
+          '${rule.targetType}|$targetId|${rule.canonicalId}|${rule.thresholdValue}|'
+          '$unit|${rule.comparator}|${rule.consumerDispositionIfMet}';
+      grouped.putIfAbsent(key, () => []).add(rule);
+    }
+
+    final alerts = <StackDoseThresholdAlert>[];
+    for (final rules in grouped.values) {
+      final representative = rules.first;
+      final thresholdUnit = normalizeDoseUnit(representative.thresholdUnit);
+      var total = 0.0;
+      final contributions = <StackDoseContribution>[];
+      for (final rule in rules) {
+        final amount = rule.normalizedDailyAmount;
+        final unit = normalizeDoseUnit(rule.normalizedDailyUnit ?? '');
+        if (amount == null || amount <= 0 || unit != thresholdUnit) continue;
+        total += amount;
+        contributions.add(
+          StackDoseContribution(
+            stackEntryId: rule.sourceStackEntryId,
+            productName: rule.sourceProductName,
+            amount: amount,
+            unit: thresholdUnit,
+          ),
+        );
+      }
+      if (contributions.isEmpty ||
+          !_compareDose(
+            total,
+            representative.comparator,
+            representative.thresholdValue,
+          ) ||
+          !const {
+            'review',
+            'block',
+          }.contains(representative.consumerDispositionIfMet)) {
+        continue;
+      }
+      alerts.add(
+        StackDoseThresholdAlert(
+          conditionId: representative.conditionId,
+          targetType: representative.targetType,
+          canonicalId: representative.canonicalId,
+          displayName: representative.displayName ?? representative.canonicalId,
+          totalValue: total,
+          unit: thresholdUnit,
+          thresholdValue: representative.thresholdValue,
+          thresholdUnit: thresholdUnit,
+          contributions: List.unmodifiable(contributions),
+          clinicalSeverity: representative.clinicalSeverity,
+          consumerDisposition: representative.consumerDispositionIfMet,
+        ),
+      );
+    }
+    return alerts;
+  }
+
+  bool _compareDose(double amount, String comparator, double threshold) {
+    return switch (comparator.trim()) {
+      '>' => amount > threshold,
+      '>=' => amount >= threshold,
+      '<' => amount < threshold,
+      '<=' => amount <= threshold,
+      '==' => amount == threshold,
+      _ => false,
+    };
   }
 
   List<StackDoseThresholdAlert> thresholdAlerts({
@@ -579,17 +738,38 @@ class StackDoseSummer {
 class StackDoseThresholdRule {
   const StackDoseThresholdRule({
     required this.conditionId,
+    this.targetType = 'condition',
     required this.canonicalId,
     this.displayName,
     required this.thresholdValue,
     required this.thresholdUnit,
+    this.comparator = '>=',
+    this.clinicalSeverity = 'caution',
+    this.consumerDispositionIfMet = 'review',
+    this.consumerDispositionIfNotMet = 'suppress',
+    this.normalizedDailyAmount,
+    this.normalizedDailyUnit,
+    this.sourceStackEntryId = '',
+    this.sourceProductName = '',
   });
 
   final String conditionId;
+
+  /// `condition` or `drug_class`. [conditionId] is retained as the stable
+  /// target-id field for compatibility with existing consumers.
+  final String targetType;
   final String canonicalId;
   final String? displayName;
   final double thresholdValue;
   final String thresholdUnit;
+  final String comparator;
+  final String clinicalSeverity;
+  final String consumerDispositionIfMet;
+  final String consumerDispositionIfNotMet;
+  final double? normalizedDailyAmount;
+  final String? normalizedDailyUnit;
+  final String sourceStackEntryId;
+  final String sourceProductName;
 }
 
 @immutable
@@ -651,6 +831,7 @@ class StackDoseTotal {
 class StackDoseThresholdAlert {
   const StackDoseThresholdAlert({
     required this.conditionId,
+    this.targetType = 'condition',
     required this.canonicalId,
     required this.displayName,
     required this.totalValue,
@@ -659,9 +840,12 @@ class StackDoseThresholdAlert {
     required this.thresholdUnit,
     required this.contributions,
     this.isIncomplete = false,
+    this.clinicalSeverity = 'caution',
+    this.consumerDisposition = 'review',
   });
 
   final String conditionId;
+  final String targetType;
   final String canonicalId;
   final String displayName;
   final double totalValue;
@@ -675,6 +859,8 @@ class StackDoseThresholdAlert {
   /// surfaced so the stack does not look cleared by an undercount, but callers
   /// should use hedge copy rather than claiming the threshold was proven.
   final bool isIncomplete;
+  final String clinicalSeverity;
+  final String consumerDisposition;
 }
 
 enum StackDoseThresholdComparison { below, atOrAbove, unavailable }

@@ -59,6 +59,173 @@ void main() {
       expect(rules.single.thresholdUnit, 'mg');
     });
 
+    test('extracts compact declarative rule and normalized exposure', () {
+      final rules = stackDoseThresholdRulesFromWarnings(
+        [
+          const InteractionWarning(
+            severity: Severity.caution,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Vitamin D / heart disease',
+            mechanism: 'High-dose context.',
+            management: 'Review high doses.',
+            conditionIds: ['heart_disease'],
+            ingredientName: 'Vitamin D',
+            ingredientCanonicalId: 'vitamin_d',
+            doseDecision: DoseDecision(
+              clinicalSeverity: 'caution',
+              evaluationStatus: 'below_threshold',
+              consumerDisposition: 'suppress',
+              evaluatedDailyAmount: 2000,
+              evaluatedUnit: 'IU',
+              normalizedPerServingAmount: 2000,
+              normalizedPerServingUnit: 'IU',
+              evaluatedServingMultiplier: 1,
+              decisionRule: DoseDecisionRule(
+                comparator: '>',
+                threshold: 4000,
+                thresholdUnit: 'IU',
+                consumerDispositionIfMet: 'review',
+                consumerDispositionIfNotMet: 'suppress',
+              ),
+            ),
+          ),
+        ],
+        stackEntryId: 'stack-a',
+        productName: 'Vitamin D A',
+      );
+
+      expect(rules, hasLength(1));
+      expect(rules.single.comparator, '>');
+      expect(rules.single.clinicalSeverity, 'caution');
+      expect(rules.single.consumerDispositionIfMet, 'review');
+      expect(rules.single.normalizedDailyAmount, 2000);
+      expect(rules.single.normalizedDailyUnit, 'IU');
+      expect(rules.single.sourceStackEntryId, 'stack-a');
+    });
+
+    test('does not reinterpret display names for new declarative rules', () {
+      final rules = stackDoseThresholdRulesFromWarnings([
+        const InteractionWarning(
+          severity: Severity.caution,
+          evidenceLevel: EvidenceLevel.established,
+          title: 'Vitamin D / heart disease',
+          mechanism: 'High-dose context.',
+          management: 'Review high doses.',
+          conditionIds: ['heart_disease'],
+          ingredientName: 'Vitamin D',
+          doseDecision: DoseDecision(
+            evaluatedDailyAmount: 2000,
+            evaluatedUnit: 'IU',
+            decisionRule: DoseDecisionRule(
+              comparator: '>',
+              threshold: 4000,
+              thresholdUnit: 'IU',
+            ),
+          ),
+        ),
+      ]);
+
+      expect(rules, isEmpty);
+    });
+
+    test('aggregates pipeline-normalized exposures without app conversion', () {
+      const rules = [
+        StackDoseThresholdRule(
+          conditionId: 'heart_disease',
+          canonicalId: 'vitamin_d',
+          displayName: 'Vitamin D',
+          thresholdValue: 4000,
+          thresholdUnit: 'IU',
+          comparator: '>',
+          clinicalSeverity: 'caution',
+          consumerDispositionIfMet: 'review',
+          normalizedDailyAmount: 2000,
+          normalizedDailyUnit: 'IU',
+          sourceStackEntryId: 'a',
+          sourceProductName: 'Vitamin D A',
+        ),
+        StackDoseThresholdRule(
+          conditionId: 'heart_disease',
+          canonicalId: 'vitamin_d',
+          displayName: 'Vitamin D',
+          thresholdValue: 4000,
+          thresholdUnit: 'IU',
+          comparator: '>',
+          clinicalSeverity: 'caution',
+          consumerDispositionIfMet: 'review',
+          normalizedDailyAmount: 2500,
+          normalizedDailyUnit: 'IU',
+          sourceStackEntryId: 'b',
+          sourceProductName: 'Vitamin D B',
+        ),
+      ];
+
+      final alerts = const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+        userConditions: const ['heart_disease'],
+        thresholdRules: rules,
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.totalValue, 4500);
+      expect(alerts.single.unit, 'iu');
+      expect(alerts.single.clinicalSeverity, 'caution');
+      expect(alerts.single.consumerDisposition, 'review');
+      expect(alerts.single.contributions, hasLength(2));
+    });
+
+    test('aggregates declarative drug-class thresholds across products', () {
+      final rules = [
+        for (final entry in const [('a', 600.0), ('b', 500.0)])
+          StackDoseThresholdRule(
+            conditionId: 'statins',
+            targetType: 'drug_class',
+            canonicalId: 'vitamin_b3_niacin',
+            displayName: 'Niacin',
+            thresholdValue: 1000,
+            thresholdUnit: 'mg',
+            comparator: '>=',
+            normalizedDailyAmount: entry.$2,
+            normalizedDailyUnit: 'mg',
+            sourceStackEntryId: entry.$1,
+            sourceProductName: 'Niacin ${entry.$1}',
+          ),
+      ];
+
+      final alerts = const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+        userConditions: const [],
+        userDrugClasses: const ['statins'],
+        thresholdRules: rules,
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.targetType, 'drug_class');
+      expect(alerts.single.conditionId, 'statins');
+      expect(alerts.single.totalValue, 1100);
+    });
+
+    test(
+      'normalized stack comparison honors strict greater-than comparator',
+      () {
+        const rule = StackDoseThresholdRule(
+          conditionId: 'heart_disease',
+          canonicalId: 'vitamin_d',
+          thresholdValue: 4000,
+          thresholdUnit: 'IU',
+          comparator: '>',
+          normalizedDailyAmount: 4000,
+          normalizedDailyUnit: 'IU',
+        );
+
+        final alerts = const StackDoseSummer()
+            .thresholdAlertsFromNormalizedRules(
+              userConditions: const ['heart_disease'],
+              thresholdRules: const [rule],
+            );
+
+        expect(alerts, isEmpty);
+      },
+    );
+
     test('extracts stack threshold rules from detail blob warning lists', () {
       final rules = stackDoseThresholdRulesFromDetailBlob({
         'warnings_profile_gated': [

@@ -179,7 +179,179 @@ void main() {
         expect(alerts.single.contributions, hasLength(4));
       },
     );
+
+    test(
+      'uses pipeline-normalized semantic units for fresh catalog decisions',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
+        await userDb.saveProfile(
+          const ProfileState(
+            ageBracket: '19-30',
+            sex: 'Male',
+            conditions: ['heart_disease'],
+          ).toCompanion(),
+        );
+
+        for (final seed in const [
+          (dsldId: 'VITD_A', name: 'Vitamin D A', amountIu: 2000),
+          (dsldId: 'VITD_B', name: 'Vitamin D B', amountIu: 2500),
+        ]) {
+          await _seedProduct(coreDb, dsldId: seed.dsldId, name: seed.name);
+          await _seedStack(userDb, dsldId: seed.dsldId, name: seed.name);
+          await userDb.cacheDetail(
+            seed.dsldId,
+            jsonEncode({
+              // Deliberately incompatible with the IU rule. The app must use
+              // the pipeline-normalized decision exposure, not convert this.
+              'ingredients': [
+                {'name': 'Vitamin D', 'quantity': 50, 'unit': 'mcg'},
+              ],
+              'warnings': [
+                _compactThresholdWarning(
+                  targetId: 'heart_disease',
+                  ingredientName: 'Vitamin D',
+                  ingredientCanonicalId: 'vitamin_d',
+                  evaluatedAmount: seed.amountIu.toDouble(),
+                  threshold: 4000,
+                  unit: 'IU',
+                  comparator: '>',
+                ),
+              ],
+            }),
+            null,
+          );
+        }
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final alerts = await container.read(
+          stackDoseThresholdAlertsProvider.future,
+        );
+
+        expect(alerts, hasLength(1));
+        expect(alerts.single.totalValue, 4500);
+        expect(alerts.single.unit, 'iu');
+        expect(alerts.single.consumerDisposition, 'review');
+      },
+    );
+
+    test(
+      'aggregates drug-class thresholds using current-stack medication classes',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
+        await userDb.saveProfile(
+          const ProfileState(ageBracket: '19-30', sex: 'Male').toCompanion(),
+        );
+        await userDb.addToStack(
+          UserStacksLocalCompanion(
+            id: const Value('med-statin'),
+            type: const Value('medication'),
+            name: const Value('Statin'),
+            drugClassesCol: Value(jsonEncode(['class:statins'])),
+          ),
+        );
+
+        for (final seed in const [
+          (dsldId: 'NIACIN_A', name: 'Niacin A', amountMg: 600),
+          (dsldId: 'NIACIN_B', name: 'Niacin B', amountMg: 500),
+        ]) {
+          await _seedProduct(coreDb, dsldId: seed.dsldId, name: seed.name);
+          await _seedStack(userDb, dsldId: seed.dsldId, name: seed.name);
+          await userDb.cacheDetail(
+            seed.dsldId,
+            jsonEncode({
+              'warnings': [
+                _compactThresholdWarning(
+                  targetId: 'statins',
+                  targetType: 'drug_class',
+                  ingredientName: 'Niacin',
+                  ingredientCanonicalId: 'vitamin_b3_niacin',
+                  evaluatedAmount: seed.amountMg.toDouble(),
+                  threshold: 1000,
+                  unit: 'mg',
+                  comparator: '>=',
+                ),
+              ],
+            }),
+            null,
+          );
+        }
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final alerts = await container.read(
+          stackDoseThresholdAlertsProvider.future,
+        );
+
+        expect(alerts, hasLength(1));
+        expect(alerts.single.targetType, 'drug_class');
+        expect(alerts.single.conditionId, 'statins');
+        expect(alerts.single.totalValue, 1100);
+      },
+    );
   });
+}
+
+Map<String, Object?> _compactThresholdWarning({
+  required String targetId,
+  String targetType = 'condition',
+  required String ingredientName,
+  required String ingredientCanonicalId,
+  required double evaluatedAmount,
+  required double threshold,
+  required String unit,
+  required String comparator,
+}) {
+  return {
+    'severity': 'caution',
+    'evidence_level': 'established',
+    'title': '$ingredientName / $targetId',
+    'detail': 'Dose-aware fixture.',
+    'action': 'Review cumulative dose.',
+    if (targetType == 'condition') 'condition_ids': [targetId],
+    if (targetType == 'drug_class') 'drug_class_ids': [targetId],
+    'ingredient_name': ingredientName,
+    'ingredient_canonical_id': ingredientCanonicalId,
+    'dose_decision': {
+      'clinical_severity': 'caution',
+      'evaluation_status': 'below_threshold',
+      'consumer_disposition': 'suppress',
+      'evaluated_daily_amount': evaluatedAmount,
+      'evaluated_unit': unit,
+      'normalized_per_serving_amount': evaluatedAmount,
+      'normalized_per_serving_unit': unit,
+      'evaluated_serving_multiplier': 1,
+      'decision_rule': {
+        'comparator': comparator,
+        'threshold': threshold,
+        'threshold_unit': unit,
+        'consumer_disposition_if_met': 'review',
+        'consumer_disposition_if_not_met': 'suppress',
+      },
+    },
+  };
 }
 
 Map<String, Object?> _thresholdWarning(

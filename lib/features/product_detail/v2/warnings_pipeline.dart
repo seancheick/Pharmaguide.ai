@@ -36,8 +36,13 @@ bool isCalmProfileNote(InteractionWarning warning) {
       warning.conditionIds.isNotEmpty ||
       warning.drugClassIds.isNotEmpty ||
       warning.profileGate != null;
-  if (!hasProfileScope ||
-      warning.severity.isHard ||
+  if (!hasProfileScope) return false;
+  final disposition = _normalizeConsumerText(
+    warning.doseDecision?.consumerDisposition,
+  );
+  if (disposition == 'good_to_know') return true;
+  if (disposition == 'review' || disposition == 'block') return false;
+  if (warning.severity.isHard ||
       warning.evidenceLevel == EvidenceLevel.noData ||
       isCriticalDisplayMode(warning.displayModeDefault)) {
     return false;
@@ -202,7 +207,11 @@ partitionProfileWarnings({
       userDrugClasses: userDrugClasses,
       userProfileFlags: userProfileFlags,
     );
-    final isHard = w.severity.isHard;
+    final disposition = _normalizeConsumerText(
+      w.doseDecision?.consumerDisposition,
+    );
+    final hasDoseDecision = w.doseDecision != null;
+    final isHard = hasDoseDecision ? disposition == 'block' : w.severity.isHard;
     // Only actionable severities (caution / monitor — a real, if mild,
     // negative signal) count as "review before use". Informational / safe
     // rows carry no penalty: they are neutral context or positive notes
@@ -222,10 +231,11 @@ partitionProfileWarnings({
     // drop is deliberate and test-locked (review_before_use_card_test —
     // "intentionally suppressed"); do NOT "restore" it to Good to know.
     // Hard warnings remain hard regardless of evidence availability.
-    final isActionable =
-        w.severity.isActionable &&
-        w.evidenceLevel != EvidenceLevel.noData &&
-        !isCalmProfileNote(w);
+    final isActionable = hasDoseDecision
+        ? disposition == 'review'
+        : w.severity.isActionable &&
+              w.evidenceLevel != EvidenceLevel.noData &&
+              !isCalmProfileNote(w);
     final belongsInProfile = isHard || (matched && isActionable);
     final identities = _consumerWarningIdentities(w);
     final existingIndex = representativeIdentities.indexWhere(
@@ -362,11 +372,6 @@ InteractionWarning _preferredWarning(
   required bool existingMatchesProfile,
   required bool incomingMatchesProfile,
 }) {
-  // A hard warning can never be displaced by a lower tier, even when the
-  // latter has richer product metadata.
-  if (incoming.severity.isHard != existing.severity.isHard) {
-    return incoming.severity.isHard ? incoming : existing;
-  }
   // Prefer the row that was actually evaluated against this product's dose.
   // Older catalog producers can emit a generic pregnancy/lactation row beside
   // a dose-aware condition row for the same hazard; choosing by severity first
@@ -378,6 +383,13 @@ InteractionWarning _preferredWarning(
     return incomingDoseSpecificity > existingDoseSpecificity
         ? incoming
         : existing;
+  }
+  // Once dose specificity is equal, a hard warning cannot be displaced by a
+  // lower tier. A compact three-axis decision outranks a legacy presence-only
+  // duplicate above because its consumer disposition is pipeline-authored for
+  // this product's evaluated exposure.
+  if (incoming.severity.isHard != existing.severity.isHard) {
+    return incoming.severity.isHard ? incoming : existing;
   }
   if (incoming.severity.weight != existing.severity.weight) {
     return incoming.severity.weight > existing.severity.weight
@@ -395,6 +407,12 @@ InteractionWarning _preferredWarning(
 }
 
 int _doseSpecificity(InteractionWarning warning) {
+  if (warning.doseDecision != null &&
+      _normalizeConsumerText(
+        warning.doseDecision?.evaluationStatus,
+      ).isNotEmpty) {
+    return 4;
+  }
   if (warning.doseThresholdEvaluation?['evaluated'] == true) return 3;
   if (_normalizeConsumerText(warning.doseFloorStatus).isNotEmpty) return 2;
   if (warning.profileGate?['dose'] is Map) return 1;

@@ -14,6 +14,8 @@
 // Storage. Errors are surfaced as [AsyncError] so the widget can show
 // a retry affordance.
 
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
@@ -21,6 +23,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as ref_data;
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
@@ -133,7 +136,33 @@ final stackDoseThresholdAlertsProvider =
       final profile = await ref.watch(loadedProfileProvider.future);
 
       final stackEntries = await userDb.getActiveStack();
-      if (stackEntries.isEmpty || profile.conditions.isEmpty) {
+      if (stackEntries.isEmpty) {
+        return const <StackDoseThresholdAlert>[];
+      }
+      final activeDrugClasses = profile.drugClasses.toSet();
+      final bridgeClassIds = <String>[];
+      for (final entry in stackEntries) {
+        if (entry.type != 'medication') continue;
+        final raw = entry.drugClassesCol;
+        if (raw == null || raw.isEmpty) continue;
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) {
+            bridgeClassIds.addAll(
+              decoded
+                  .map((value) => value.toString().trim())
+                  .where((value) => value.isNotEmpty),
+            );
+          }
+        } on FormatException {
+          // Malformed local metadata contributes no class. The existing
+          // medication safety surface remains responsible for its diagnostics.
+        }
+      }
+      activeDrugClasses.addAll(
+        MedicationClassBridge.profileGateIdsForClasses(bridgeClassIds),
+      );
+      if (profile.conditions.isEmpty && activeDrugClasses.isEmpty) {
         return const <StackDoseThresholdAlert>[];
       }
 
@@ -161,7 +190,11 @@ final stackDoseThresholdAlertsProvider =
 
         final facts = ProductHealthFacts.fromDetailBlob(blob);
         thresholdRules.addAll(
-          stackDoseThresholdRulesFromWarnings(facts.warnings),
+          stackDoseThresholdRulesFromWarnings(
+            facts.warnings,
+            stackEntryId: entry.id,
+            productName: entry.name,
+          ),
         );
 
         final ingredients = facts.doseRowsForThresholds;
@@ -175,9 +208,26 @@ final stackDoseThresholdAlertsProvider =
         );
       }
 
-      if (items.isEmpty) return const <StackDoseThresholdAlert>[];
+      if (thresholdRules.isEmpty) return const <StackDoseThresholdAlert>[];
 
       const summer = StackDoseSummer();
+      final hasNormalizedRules = thresholdRules.any(
+        (rule) =>
+            rule.normalizedDailyAmount != null &&
+            rule.normalizedDailyUnit?.isNotEmpty == true,
+      );
+      if (hasNormalizedRules) {
+        return summer.thresholdAlertsFromNormalizedRules(
+          userConditions: profile.conditions,
+          userDrugClasses: activeDrugClasses,
+          thresholdRules: thresholdRules,
+        );
+      }
+
+      // Compatibility for a cached pre-contract catalog. Fresh catalogs use
+      // only the normalized path above; this branch can be removed after the
+      // catalog cache rollover window.
+      if (items.isEmpty) return const <StackDoseThresholdAlert>[];
       return summer.thresholdAlerts(
         totals: summer.sum(items),
         userConditions: profile.conditions,
