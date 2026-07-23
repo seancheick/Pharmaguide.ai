@@ -42,12 +42,6 @@ Widget buildTradeoffsSection({
   if (detailBlob == null) return const SizedBox.shrink();
   final healthFacts = ProductHealthFacts.fromDetailBlob(detailBlob);
   final productRdaData = _mapValue(detailBlob['rda_ul_data']);
-  final hasProductUlData =
-      productRdaData != null &&
-      ((productRdaData['safety_flags'] is List &&
-              (productRdaData['safety_flags'] as List).isNotEmpty) ||
-          (productRdaData['analyzed_ingredients'] is List &&
-              (productRdaData['analyzed_ingredients'] as List).isNotEmpty));
   final rdaReferenceIsCurrent = hasCurrentRdaReference(
     appReferenceData: appReferenceData,
     productRdaUlData: productRdaData,
@@ -85,13 +79,6 @@ Widget buildTradeoffsSection({
         ulAnalysis: rdaReferenceIsCurrent ? healthFacts.ulAnalysis : const [],
         existing: penaltyConsiderations,
       ),
-      if (hasProductUlData && !rdaReferenceIsCurrent)
-        const PGTradeoff(
-          headline: 'Upper-limit data needs an update',
-          caption:
-              'This product uses an older dose reference, so upper-limit '
-              'details are not shown.',
-        ),
     ]),
   );
   if (pros.isEmpty && considerations.isEmpty && safetySummary == null) {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
+import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -383,7 +384,7 @@ void main() {
       (name: 'string true', value: 'true'),
     ];
     for (final flag in trueBlendFlags) {
-      testWidgets('tolerates ${flag.name} proprietary-blend flag', (
+      testWidgets('keeps bare ${flag.name} blend audit flag internal', (
         tester,
       ) async {
         await _pumpConnectedScreen(
@@ -399,7 +400,7 @@ void main() {
 
         final disclosure = find.text('Blend amounts not disclosed');
         await _scrollConnectedTowardBottomUntil(tester, disclosure);
-        expect(disclosure, findsOneWidget);
+        expect(disclosure, findsNothing);
       });
     }
 
@@ -429,7 +430,7 @@ void main() {
     }
 
     testWidgets(
-      'active canonical disclosure wires action without label-confidence signal',
+      'transparency never repeats the visible label as a details action',
       (tester) async {
         await _pumpConnectedScreen(
           tester,
@@ -441,11 +442,12 @@ void main() {
           },
         );
 
-        final action = find.text('View label details');
-        await _scrollConnectedTowardBottomUntil(tester, action);
+        final transparency = find.text('Transparency');
+        await _scrollConnectedTowardBottomUntil(tester, transparency);
 
         expect(find.text('Blend amounts not disclosed'), findsNothing);
-        expect(action, findsOneWidget);
+        expect(transparency, findsOneWidget);
+        expect(find.text('View label details'), findsNothing);
       },
     );
 
@@ -491,165 +493,59 @@ void main() {
         expect(find.text('View label details'), findsNothing);
       });
     }
+  });
 
-    testWidgets(
-      'offscreen action reveals and lands on the preferred named blend row',
-      (tester) async {
-        final activeRows = [
-          for (var index = 0; index < 6; index++)
-            _activeLedgerRow('Active ${index + 1}', index),
-          {
-            ..._activeLedgerRow('Named Disclosure Blend', 6),
-            'display_type': 'structural_container',
-            'exact_dose_text': '500 mg',
-          },
-        ];
-        await _pumpConnectedScreen(
-          tester,
-          initialSection: null,
-          detailBlob: {
-            'ingredients': const <Map<String, dynamic>>[],
-            'display_ingredients': activeRows,
-            'quality_pillars_v4': _zeroTransparencyPillars(),
-            'proprietary_blend_detail': const {
-              'blends': [
-                {'name': 'Named Disclosure Blend'},
-              ],
-            },
-          },
-        );
-
-        final action = find.text('View label details');
-        await _scrollConnectedTowardBottomUntil(tester, action);
-        expect(action, findsOneWidget);
-        await tester.ensureVisible(action);
-        await tester.pumpAndSettle();
-        expect(find.text('Named Disclosure Blend'), findsNothing);
-
-        await tester.tap(action);
-        await tester.pumpAndSettle();
-
-        final target = find.text('Named Disclosure Blend');
-        expect(target, findsOneWidget);
-        final targetRect = tester.getRect(target);
-        final viewportRect = tester.getRect(find.byType(CustomScrollView));
-        expect(targetRect.overlaps(viewportRect), isTrue);
-      },
-    );
-
-    testWidgets('repeated action re-reveals after manual ingredient collapse', (
+  group('connected certification action', () {
+    testWidgets('is hidden when no certification section can render', (
       tester,
     ) async {
-      final activeRows = [
-        for (var index = 0; index < 6; index++)
-          _activeLedgerRow('Active ${index + 1}', index),
-      ];
+      await _pumpConnectedScreen(
+        tester,
+        initialSection: null,
+        detailBlob: {'quality_pillars_v4': _connectedV4Pillars()},
+      );
+
+      final testingBrand = find.text('Testing & Brand');
+      await _scrollConnectedTowardBottomUntil(tester, testingBrand);
+      expect(testingBrand, findsOneWidget);
+      final scoreCard = tester.widget<PGScoreBreakdownCard>(
+        find.byType(PGScoreBreakdownCard),
+      );
+      final verification = scoreCard.pillars.singleWhere(
+        (pillar) => pillar.label == 'Testing & Brand',
+      );
+      expect(verification.actionLabel, isNull);
+      expect(verification.onAction, isNull);
+    });
+
+    testWidgets('is shown when a verified certification can render', (
+      tester,
+    ) async {
       await _pumpConnectedScreen(
         tester,
         initialSection: null,
         detailBlob: {
-          'ingredients': const <Map<String, dynamic>>[],
-          'display_ingredients': activeRows,
-          'quality_pillars_v4': _zeroTransparencyPillars(),
+          'quality_pillars_v4': _connectedV4Pillars(),
+          'certification_detail': {
+            'third_party_programs': {
+              'programs': [
+                {'name': 'USP Verified', 'verified': true},
+              ],
+            },
+          },
         },
       );
 
-      final action = find.text('View label details');
-      await _scrollConnectedTowardBottomUntil(tester, action);
-      await tester.ensureVisible(action);
-      await tester.pumpAndSettle();
-      await tester.tap(action);
-      await tester.pumpAndSettle();
-      expect(find.text('Active 6'), findsOneWidget);
-
-      await tester.tap(find.text('Active ingredients'));
-      await tester.pumpAndSettle();
-      expect(find.text('Active 6'), findsNothing);
-
-      await tester.ensureVisible(action);
-      await tester.pumpAndSettle();
-      await tester.tap(action);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Active 6'), findsOneWidget);
-    });
-
-    testWidgets('switching products clears a latched disclosure reveal', (
-      tester,
-    ) async {
-      const firstId = 'disclosure-first';
-      const secondId = 'disclosure-second';
-      final coreDb = CoreDatabase.memory();
-      final userDb = UserDatabase.memory();
-      await _seedProduct(coreDb, dsldId: firstId, productName: 'First Product');
-      await _seedProduct(
-        coreDb,
-        dsldId: secondId,
-        productName: 'Second Product',
+      final testingBrand = find.text('Testing & Brand');
+      await _scrollConnectedTowardBottomUntil(tester, testingBrand);
+      final scoreCard = tester.widget<PGScoreBreakdownCard>(
+        find.byType(PGScoreBreakdownCard),
       );
-      addTearDown(() async {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await coreDb.close();
-        await userDb.close();
-      });
-
-      Map<String, dynamic> blob(String prefix) => {
-        'ingredients': const <Map<String, dynamic>>[],
-        'display_ingredients': [
-          for (var index = 0; index < 6; index++)
-            _activeLedgerRow('$prefix ${index + 1}', index),
-        ],
-        'quality_pillars_v4': _zeroTransparencyPillars(),
-      };
-      final blobs = {firstId: blob('First'), secondId: blob('Second')};
-      final selectedId = ValueNotifier(firstId);
-      addTearDown(selectedId.dispose);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            coreDatabaseProvider.overrideWithValue(coreDb),
-            userDatabaseProvider.overrideWithValue(userDb),
-            detailBlobProvider.overrideWith(
-              (ref, dsldId) async => blobs[dsldId],
-            ),
-            personalizedInteractionWarningsProvider.overrideWith(
-              (ref, dsldId) async => const [],
-            ),
-            fitScoreForProductProvider.overrideWith(
-              (ref, dsldId) async => null,
-            ),
-            currentStackMedicationClassIdsProvider.overrideWith(
-              (ref) async => const <String>{},
-            ),
-            rdaOptimalUlsProvider.overrideWith((ref) async => const {}),
-          ],
-          child: MaterialApp(
-            home: ValueListenableBuilder<String>(
-              valueListenable: selectedId,
-              builder: (context, dsldId, _) => ProductDetailV2ConnectedScreen(
-                dsldId: dsldId,
-                initialSection: dsldId == firstId ? null : 'ingredients',
-              ),
-            ),
-          ),
-        ),
+      final verification = scoreCard.pillars.singleWhere(
+        (pillar) => pillar.label == 'Testing & Brand',
       );
-      await tester.pumpAndSettle();
-
-      final action = find.text('View label details');
-      await _scrollConnectedTowardBottomUntil(tester, action);
-      await tester.ensureVisible(action);
-      await tester.pumpAndSettle();
-      await tester.tap(action);
-      await tester.pumpAndSettle();
-      expect(find.text('First 6'), findsOneWidget);
-
-      selectedId.value = secondId;
-      await tester.pumpAndSettle();
-
-      expect(find.text('Active ingredients'), findsOneWidget);
-      expect(find.text('Second 6'), findsNothing);
+      expect(verification.actionLabel, 'View certifications');
+      expect(verification.onAction, isNotNull);
     });
   });
 
@@ -865,7 +761,7 @@ void main() {
       },
     );
 
-    testWidgets('connected screen surfaces unsupported label audit safely', (
+    testWidgets('connected screen keeps unsupported label audit internal', (
       tester,
     ) async {
       await _pumpConnectedScreen(
@@ -897,8 +793,8 @@ void main() {
       );
 
       await _scrollConnectedTowardTop(tester);
-      expect(find.text('Label completeness unavailable'), findsOneWidget);
-      expect(find.textContaining('Label data unavailable'), findsOneWidget);
+      expect(find.text('Label completeness unavailable'), findsNothing);
+      expect(find.textContaining('Label data unavailable'), findsNothing);
       expect(find.text('Label completeness: 100%'), findsNothing);
       expect(find.textContaining('Analysis coverage'), findsNothing);
     });
@@ -910,7 +806,7 @@ void main() {
     ];
     for (final auditCase in malformedAuditCases) {
       testWidgets(
-        'connected screen fails closed for present ${auditCase.name} audit',
+        'connected screen keeps present ${auditCase.name} audit internal',
         (tester) async {
           await _pumpConnectedScreen(
             tester,
@@ -933,8 +829,8 @@ void main() {
           );
 
           await _scrollConnectedTowardTop(tester);
-          expect(find.text('Label completeness unavailable'), findsOneWidget);
-          expect(find.textContaining('Label data unavailable'), findsOneWidget);
+          expect(find.text('Label completeness unavailable'), findsNothing);
+          expect(find.textContaining('Label data unavailable'), findsNothing);
           expect(find.textContaining('Label completeness:'), findsNothing);
           expect(find.textContaining('Analysis coverage'), findsNothing);
         },

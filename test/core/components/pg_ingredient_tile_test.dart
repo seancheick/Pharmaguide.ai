@@ -248,8 +248,7 @@ void main() {
   });
 
   testWidgets(
-    'semantics keep undisclosed form quiet while announcing hierarchy and '
-    'score participation',
+    'semantics keep undisclosed form quiet and announce label hierarchy',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(
@@ -267,10 +266,39 @@ void main() {
 
       expect(
         find.bySemanticsLabel(
-          'EPA. Nested level 2 under Total Omega-3 Fatty Acids. 360 mg. '
-          'Included in analysis.',
+          'EPA. Nested level 2 under Total Omega-3 Fatty Acids. 360 mg.',
         ),
         findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp(r'Included in analysis')),
+        findsNothing,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp(r'Not included in analysis')),
+        findsNothing,
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'ordinary missing dose does not render a generic disclosure badge',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(
+          const PGActiveIngredient(
+            name: 'Vitamin C',
+            doseCallOut: DoseCallOut.notDisclosed,
+          ),
+        ),
+      );
+
+      expect(find.text('Dose not disclosed'), findsNothing);
+      expect(
+        find.bySemanticsLabel(RegExp(r'Dose not disclosed')),
+        findsNothing,
       );
       semantics.dispose();
     },

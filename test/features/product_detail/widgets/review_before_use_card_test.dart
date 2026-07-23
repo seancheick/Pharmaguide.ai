@@ -82,23 +82,22 @@ ProfileRelevanceSummary _summary({
   String interactionHint = '',
   List<MatchedAllergen> matchedAllergens = const [],
   List<String> freeFromConflicts = const [],
-  List<String> userConditions = const [],
-  List<InteractionWarning> profileBenefitWarnings = const [],
   bool hasInteractionProfile = true,
   bool hasCriticalGlobalNote = false,
+  bool hasProfileInformation = true,
+  List<String> selectedGoalLabels = const [],
 }) {
   return buildProfileRelevanceSummary(
     fitResult: fitResult ?? _fit(),
     topGoalLabel: null,
-    ingredientNames: const [],
-    userConditions: userConditions,
-    profileBenefitWarnings: profileBenefitWarnings,
     warnings: warnings,
     interactionHint: interactionHint,
     matchedAllergens: matchedAllergens,
     freeFromConflicts: freeFromConflicts,
     hasInteractionProfile: hasInteractionProfile,
     hasCriticalGlobalNote: hasCriticalGlobalNote,
+    hasProfileInformation: hasProfileInformation,
+    selectedGoalLabels: selectedGoalLabels,
   );
 }
 
@@ -124,26 +123,24 @@ void main() {
 
         expect(summary.status, ProfileRelevanceStatus.neutral);
         expect(summary.headline, 'No profile-specific concerns found');
-        expect(
-          summary.body,
-          'Based on the information available, this product does not strongly '
-          'match your selected goals.',
-        );
+        expect(summary.body, contains('Based on the profile information'));
+        expect(summary.body, contains('Add goals'));
         expect(summary.rows, isEmpty);
       },
     );
 
-    test('strong and good fit keep goal/profile match copy', () {
+    test('strong and good fit keep safety primary and goal match secondary', () {
       final summary = _summary(
         fitResult: _fit(
           state: FitAssessmentState.goodFit,
           reasons: const ['Backed by clinical evidence.'],
         ),
+        selectedGoalLabels: const ['Sleep'],
       );
 
       expect(summary.status, ProfileRelevanceStatus.goodMatch);
-      expect(summary.headline, 'Good match for your profile');
-      expect(summary.body, 'Backed by clinical evidence.');
+      expect(summary.headline, 'No profile-specific concerns found');
+      expect(summary.body, contains('No specific match found'));
     });
 
     test('critical global substance note removes the green safe all-clear', () {
@@ -172,28 +169,6 @@ void main() {
         expect(gated.status, green.status, reason: 'goal-fit status unchanged');
         expect(gated.headline, green.headline, reason: 'headline unchanged');
       }
-    });
-
-    test('good fit can explain emitted beneficial profile warnings', () {
-      final summary = _summary(
-        fitResult: _fit(state: FitAssessmentState.goodFit),
-        userConditions: const ['hypertension'],
-        profileBenefitWarnings: [
-          _warning(
-            severity: Severity.monitor,
-            title: 'Coenzyme Q10 / hypertension',
-            mechanism: 'CoQ10 modestly supports blood pressure.',
-            management: 'Continue as directed.',
-            conditionIds: const ['hypertension'],
-            ingredientName: 'Coenzyme Q10',
-            direction: 'beneficial',
-          ),
-        ],
-      );
-
-      expect(summary.status, ProfileRelevanceStatus.goodMatch);
-      expect(summary.body, 'Coenzyme Q10 supports your blood pressure goal.');
-      expect(summary.rows, isEmpty);
     });
 
     test('barley product plus non-barley profile does not show barley', () {
@@ -243,7 +218,7 @@ void main() {
       );
 
       expect(summary.status, ProfileRelevanceStatus.review);
-      expect(summary.headline, 'Review for your profile');
+      expect(summary.headline, 'Review before use');
       expect(summary.rows.single.headline, 'Tree nuts');
     });
 
@@ -274,7 +249,8 @@ void main() {
       );
 
       expect(summary.status, ProfileRelevanceStatus.review);
-      expect(summary.body, '1 thing to review before use');
+      expect(summary.headline, 'Review before use');
+      expect(summary.body, 'Condition note.');
     });
 
     test(
@@ -282,6 +258,7 @@ void main() {
       () {
         final summary = _summary(
           fitResult: _fit(state: FitAssessmentState.incompleteProfile),
+          hasProfileInformation: false,
           warnings: [
             _warning(
               severity: Severity.caution,
@@ -293,8 +270,8 @@ void main() {
 
         expect(summary.status, ProfileRelevanceStatus.review);
         expect(summary.profileIncomplete, isTrue);
-        expect(summary.headline, 'Review for your profile');
-        expect(summary.body, '1 thing to review before use');
+        expect(summary.headline, 'Review before use');
+        expect(summary.body, 'Condition note.');
       },
     );
 
@@ -319,17 +296,16 @@ void main() {
       final summary = buildProfileRelevanceSummary(
         fitResult: null,
         topGoalLabel: null,
-        ingredientNames: const [],
-        userConditions: const [],
         warnings: const [],
         interactionHint: '{"has_any": true}',
         matchedAllergens: const [],
         freeFromConflicts: const [],
         hasInteractionProfile: false,
+        hasProfileInformation: false,
       );
 
       expect(summary.status, ProfileRelevanceStatus.incomplete);
-      expect(summary.headline, 'Add your profile to personalize');
+      expect(summary.headline, 'Check this product for you');
       expect(summary.body, contains('known interactions'));
     });
 
@@ -344,8 +320,8 @@ void main() {
       );
 
       expect(summary.status, ProfileRelevanceStatus.coverageLimited);
-      expect(summary.headline, 'More label detail needed');
-      expect(summary.body, contains("couldn't be fully analyzed"));
+      expect(summary.headline, 'Profile assessment unavailable');
+      expect(summary.body, isNull);
       expect(
         summary.body,
         isNot('General-use product, not targeted to your profile.'),
@@ -354,11 +330,14 @@ void main() {
   });
 
   group('ProfileRelevanceSection rendering', () {
-    testWidgets('omits empty neutral Profile Relevance card', (tester) async {
+    testWidgets('renders the clean profile decision even without a goal', (
+      tester,
+    ) async {
       await _pump(tester, _summary());
 
-      expect(find.text('PROFILE RELEVANCE'), findsNothing);
-      expect(find.text('No profile-specific concerns found'), findsNothing);
+      expect(find.text('FOR YOU'), findsOneWidget);
+      expect(find.text('No profile-specific concerns found'), findsOneWidget);
+      expect(find.text('Add goals'), findsOneWidget);
     });
 
     testWidgets('omits coverage-limited result from the profile card', (
@@ -366,8 +345,8 @@ void main() {
     ) async {
       await _pump(tester, _summary(fitResult: _fit(mappedCoverage: 0.2)));
 
-      expect(find.text('PROFILE RELEVANCE'), findsNothing);
-      expect(find.text('More label detail needed'), findsNothing);
+      expect(find.text('FOR YOU'), findsNothing);
+      expect(find.text('Profile assessment unavailable'), findsNothing);
     });
 
     testWidgets('review rows render inside Profile Relevance', (tester) async {
@@ -381,8 +360,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('PROFILE RELEVANCE'), findsOneWidget);
-      expect(find.text('Review for your profile'), findsOneWidget);
+      expect(find.text('FOR YOU'), findsOneWidget);
+      expect(find.text('Review before use'), findsOneWidget);
       expect(find.text('Caution row'), findsOneWidget);
     });
 
@@ -405,19 +384,18 @@ void main() {
       final summary = buildProfileRelevanceSummary(
         fitResult: null,
         topGoalLabel: null,
-        ingredientNames: const [],
-        userConditions: const [],
         warnings: const [],
         interactionHint: '',
         matchedAllergens: const [],
         freeFromConflicts: const [],
         hasInteractionProfile: false,
+        hasProfileInformation: false,
       );
 
       await _pump(tester, summary);
 
-      expect(find.text('Add your profile to personalize'), findsOneWidget);
-      expect(find.text('Complete profile'), findsOneWidget);
+      expect(find.text('Check this product for you'), findsOneWidget);
+      expect(find.text('Add profile information'), findsOneWidget);
       final action = tester.widget<PGPillButton>(find.byType(PGPillButton));
       expect(action.variant, PGPillVariant.ghost);
       expect(action.icon, Icons.edit_outlined);
@@ -430,6 +408,7 @@ void main() {
           tester,
           _summary(
             fitResult: _fit(state: FitAssessmentState.incompleteProfile),
+            hasProfileInformation: false,
             warnings: [
               _warning(severity: Severity.caution, title: 'Caution row'),
             ],
@@ -437,9 +416,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Review for your profile'), findsOneWidget);
+        expect(find.text('Review before use'), findsOneWidget);
         expect(find.text('Caution row'), findsOneWidget);
-        expect(find.text('Complete profile'), findsOneWidget);
+        expect(find.text('Add profile information'), findsOneWidget);
       },
     );
 
@@ -453,6 +432,7 @@ void main() {
             state: FitAssessmentState.goodFit,
             reasons: const ['Backed by clinical evidence.'],
           ),
+          selectedGoalLabels: const ['Sleep'],
         ),
       );
 

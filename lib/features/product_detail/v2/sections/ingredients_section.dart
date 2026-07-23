@@ -188,6 +188,7 @@ Widget buildIngredientsSection({
   required List<Map<String, dynamic>>? blends,
   GlobalKey? disclosureTargetKey,
   ValueListenable<bool>? disclosureRevealSignal,
+  Widget? nutritionContent,
 }) {
   // Null means the canonical ledger contract is absent (a stale blob), so the
   // legacy score-oriented lists remain the explicit compatibility fallback.
@@ -202,6 +203,7 @@ Widget buildIngredientsSection({
       blends: blends,
       disclosureTargetKey: disclosureTargetKey,
       disclosureRevealSignal: disclosureRevealSignal,
+      nutritionContent: nutritionContent,
     );
   }
 
@@ -222,7 +224,9 @@ Widget buildIngredientsSection({
         (m['raw_source_text']?.toString().isNotEmpty == true),
   );
 
-  if (!hasActive && !hasInactive) return const SizedBox.shrink();
+  if (!hasActive && !hasInactive && nutritionContent == null) {
+    return const SizedBox.shrink();
+  }
 
   // -------------------------------------------------------------
   // Build active tiles — flat OR blend-grouped per T16.2f.
@@ -264,6 +268,7 @@ Widget buildIngredientsSection({
   return PGIngredientsCard(
     activeContent: activeContent,
     inactiveIngredients: inactiveMapped,
+    additionalContent: nutritionContent,
     onInactiveTap: (index) =>
         showFunctionalRolesSheet(context, filteredRawInactive[index]),
   );
@@ -276,6 +281,7 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
   final List<Map<String, dynamic>>? blends;
   final GlobalKey? disclosureTargetKey;
   final ValueListenable<bool>? disclosureRevealSignal;
+  final Widget? nutritionContent;
 
   const _CanonicalLedgerIngredients({
     super.key,
@@ -285,12 +291,19 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
     required this.blends,
     required this.disclosureTargetKey,
     required this.disclosureRevealSignal,
+    required this.nutritionContent,
   });
 
   @override
   Widget build(BuildContext context) {
     final labelRows = ingredients;
-    if (labelRows.isEmpty) return const SizedBox.shrink();
+    if (labelRows.isEmpty) {
+      return PGIngredientsCard(
+        activeContent: null,
+        inactiveIngredients: const [],
+        additionalContent: nutritionContent,
+      );
+    }
 
     // One bottle-faithful label view: Nutrition facts / Active / Other. The
     // scoring engine keeps its own score_included representation internally;
@@ -364,6 +377,7 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
               ],
             ),
       inactiveIngredients: canonicalInactiveIngredients,
+      additionalContent: nutritionContent,
       onInactiveTap: (index) =>
           showFunctionalRolesSheet(context, canonicalInactiveRows[index]),
     );
@@ -477,6 +491,22 @@ List<Widget> _buildLabelLedgerTiles({
         ingredient['display_type']?.toString() == 'structural_container') {
       final total = ingredient['quantity'];
       final childNames = ingredient['children'];
+      final sourcePath = ingredient['raw_source_path']?.toString().trim();
+      final blendChildren = sourcePath == null || sourcePath.isEmpty
+          ? ingredients
+                .where(
+                  (row) =>
+                      row['parent_label']?.toString().trim() ==
+                      ingredient['label_display_name']?.toString().trim(),
+                )
+                .toList(growable: false)
+          : ingredients
+                .where(
+                  (row) =>
+                      row['parent_source_path']?.toString().trim() ==
+                      sourcePath,
+                )
+                .toList(growable: false);
       tiles.add(
         _BlendHeaderRow(
           key: rowKey,
@@ -489,7 +519,7 @@ List<Widget> _buildLabelLedgerTiles({
                 'Proprietary Blend',
             totalAmount: total is num ? total : null,
             unit: ingredient['unit']?.toString() ?? '',
-            children: const [],
+            children: blendChildren,
             childCount: childNames is List ? childNames.length : 0,
           ),
           exactAmountLabel: ingredient['exact_dose_text']?.toString(),
@@ -724,11 +754,16 @@ class _BlendHeaderRow extends StatelessWidget {
     final totalLabel = amountLabel ?? 'Amount not disclosed';
     final hasUndisclosedChildren = blend.children.any((child) {
       final quantity = child['quantity'];
-      return quantity is! num || quantity <= 0;
+      if (quantity is num && quantity > 0) return false;
+      final exactDose = child['exact_dose_text']?.toString().trim() ?? '';
+      return exactDose.isEmpty ||
+          exactDose.toLowerCase().contains('not disclosed');
     });
     final helperLabel = [
       if (countLabel != null) countLabel,
-      if (hasUndisclosedChildren) 'individual amounts not disclosed',
+      if (hasUndisclosedChildren)
+        'Individual ingredient amounts are not disclosed on the label. '
+            'This limits dose-specific evaluation of the blend.',
     ].join(' · ');
 
     return Semantics(

@@ -118,47 +118,15 @@ void main() {
       },
     );
 
-    testWidgets('coverage 0.92 shows percentage and high-confidence copy', (
+    testWidgets('internal coverage never renders in the consumer score card', (
       tester,
     ) async {
       await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.92));
 
-      expect(find.text('92%'), findsOneWidget);
-      expect(find.textContaining('high-confidence'), findsOneWidget);
-    });
-
-    testWidgets('coverage 0.5 shows percentage and partial-coverage copy', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.5));
-
-      expect(find.text('50%'), findsOneWidget);
-      expect(find.textContaining('partial coverage'), findsOneWidget);
-    });
-
-    testWidgets('coverage 0.15 shows percentage and limited-data copy', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.15));
-
-      expect(find.text('15%'), findsOneWidget);
-      expect(find.textContaining('Limited data'), findsOneWidget);
-    });
-
-    testWidgets('coverage clamps out-of-range values to 100%', (tester) async {
-      await tester.pumpWidget(buildTestWidget(mappedCoverage: 1.5));
-
-      expect(find.text('100%'), findsOneWidget);
-      expect(find.text('150%'), findsNothing);
-    });
-
-    testWidgets('coverage line hidden when mappedCoverage is null', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildTestWidget(formulation: 20));
-
-      expect(find.textContaining('database'), findsNothing);
-      expect(find.textContaining('%'), findsNothing);
+      expect(find.text('92%'), findsNothing);
+      expect(find.textContaining('high-confidence'), findsNothing);
+      expect(find.textContaining('partial coverage'), findsNothing);
+      expect(find.textContaining('Limited data'), findsNothing);
     });
 
     testWidgets(
@@ -269,12 +237,12 @@ void main() {
       expect(actionCount, 1);
     });
 
-    testWidgets('places the PG Score explanation action after coverage', (
+    testWidgets('places the PG Score explanation action after the pillars', (
       tester,
     ) async {
       var helpCount = 0;
       await tester.pumpWidget(
-        _cardHarness(mappedCoverage: 0.9, onHowScoringWorks: () => helpCount++),
+        _cardHarness(onHowScoringWorks: () => helpCount++),
       );
 
       expect(find.text('How PG Score works'), findsOneWidget);
@@ -282,11 +250,9 @@ void main() {
       expect(find.textContaining('Biggest opportunity'), findsNothing);
       expect(find.textContaining('See details'), findsNothing);
 
-      final coverageTop = tester.getTopLeft(
-        find.textContaining('high-confidence score'),
-      );
       final actionTop = tester.getTopLeft(find.text('How PG Score works'));
-      expect(actionTop.dy, greaterThan(coverageTop.dy));
+      final totalTop = tester.getTopLeft(find.text('= 35/100'));
+      expect(actionTop.dy, greaterThan(totalTop.dy));
 
       await tester.tap(find.text('How PG Score works'));
       expect(helpCount, 1);
@@ -711,16 +677,11 @@ PGPillar _pillar({
   );
 }
 
-Widget _cardHarness({
-  VoidCallback? onAction,
-  VoidCallback? onHowScoringWorks,
-  double? mappedCoverage,
-}) {
+Widget _cardHarness({VoidCallback? onAction, VoidCallback? onHowScoringWorks}) {
   return MaterialApp(
     home: Scaffold(
       body: PGScoreBreakdownCard(
         heroScore: 63.6,
-        mappedCoverage: mappedCoverage,
         onHowScoringWorks: onHowScoringWorks,
         pillars: [
           const PGPillar(

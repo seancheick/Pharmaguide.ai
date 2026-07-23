@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/components/pg_tradeoffs_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
 
 Map<String, dynamic> _bonus(String label, [String detail = '']) => {
@@ -168,7 +169,7 @@ void main() {
       expect(find.text('Vitamin D exceeds the upper limit'), findsNothing);
     });
 
-    testWidgets('hedges instead of rendering a stale embedded UL verdict', (
+    testWidgets('suppresses stale embedded UL data without maintenance copy', (
       tester,
     ) async {
       await _pump(
@@ -196,8 +197,9 @@ void main() {
         },
       );
 
-      expect(find.text('Upper-limit data needs an update'), findsOneWidget);
+      expect(find.text('Upper-limit data needs an update'), findsNothing);
       expect(find.text('Vitamin D exceeds the upper limit'), findsNothing);
+      expect(find.byType(PGTradeoffsSection), findsNothing);
     });
 
     testWidgets(

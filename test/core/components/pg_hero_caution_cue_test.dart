@@ -10,8 +10,8 @@
 // After: `heroShowsCautionCue` decides (pure) whether a caution pill
 // rides alongside the tier score line. It fires only when the verdict is
 // CAUTION *and* the hero is actually showing a tier line — the BLOCKED
-// banner, the NOT_SCORED hedge, and the low-coverage hedge each own their
-// slot and must be left untouched.
+// banner and neutral score-unavailable fallback each own their slot and
+// must be left untouched.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,8 +43,7 @@ void main() {
     test('no cue when the hero is not showing a tier line', () {
       for (final d in const [
         HeroScoreDisplay.none, // BLOCKED — banner owns it
-        HeroScoreDisplay.notScored, // hedge owns it
-        HeroScoreDisplay.limitedData, // low-coverage hedge owns it
+        HeroScoreDisplay.notScored, // unavailable fallback owns it
       ]) {
         expect(
           heroShowsCautionCue(verdict: 'CAUTION', scoreDisplay: d),

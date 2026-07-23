@@ -140,11 +140,9 @@ Widget buildHeroSection({
     score: score100?.round(),
     isNotScored: isNotScored,
     isBlocked: isBlocked,
-    // FIX 2 — low-coverage guard. Derived from the same product row the
-    // connected screen reads (`_product?.mappedCoverage ?? 0.0`), so the
-    // hero hedges exactly when the LabelConfidence card does. When
-    // coverage is below the 0.3 trust floor, PGHeroSection replaces the
-    // tier-colored score line with the neutral "Limited data" hedge.
+    // Defensive release guard: an incomplete record must never receive a
+    // positive quality verdict. Consumer copy stays neutral; the underlying
+    // catalog diagnosis belongs to the release gate.
     lowCoverage: productHasLowCoverage(product),
     limitedAssessment: hasLimitedAssessmentConfidence(product?.v4Confidence),
     bottomBanner: bottomBanner,

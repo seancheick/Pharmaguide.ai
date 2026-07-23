@@ -19,13 +19,13 @@ const List<(String, String, int)> kV4PillarSpec = [
   ('safety_hygiene', 'Safety Hygiene', 10),
 ];
 
-/// Named in-page destinations for the three navigable pillars only. Formulation,
-/// Dose, and Safety Hygiene are explained in place and never link out (no dead
-/// "See details" navigation). Keyed by pillar blob key.
+/// Named in-page destinations for consumer-useful supporting detail only.
+/// Transparency is already explained by the visible label ledger, so repeating
+/// it as a "View label details" action adds navigation without new information.
+/// Keyed by pillar blob key.
 const Map<String, String> kV4PillarActionLabels = {
   'evidence': 'View clinical evidence',
   'verification': 'View certifications',
-  'transparency': 'View label details',
 };
 
 /// Consumer presentation status for one pillar, derived from its fraction of max.

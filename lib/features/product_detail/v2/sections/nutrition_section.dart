@@ -36,11 +36,13 @@ Widget buildNutritionSection({
   required double? caloriesPerServing,
   required Map<String, dynamic>? nutritionDetail,
   List<Map<String, dynamic>> labelRows = const [],
+  bool embedded = false,
 }) {
   if (labelRows.isNotEmpty) {
     return _buildFromLabelRows(
       labelRows,
       fallbackCaloriesPerServing: caloriesPerServing,
+      embedded: embedded,
     );
   }
 
@@ -106,12 +108,16 @@ Widget buildNutritionSection({
     facts: facts,
     // Production title — verbatim "Nutrition Facts" (FDA label vocabulary).
     title: 'Nutrition Facts',
+    collapsible: true,
+    initiallyExpanded: false,
+    embedded: embedded,
   );
 }
 
 Widget _buildFromLabelRows(
   List<Map<String, dynamic>> rows, {
   required double? fallbackCaloriesPerServing,
+  required bool embedded,
 }) {
   int? calories;
   final facts = <PGNutritionFact>[];
@@ -151,6 +157,9 @@ Widget _buildFromLabelRows(
     caloriesPerServing: calories,
     facts: facts,
     title: 'Nutrition Facts',
+    collapsible: true,
+    initiallyExpanded: false,
+    embedded: embedded,
   );
 }
 

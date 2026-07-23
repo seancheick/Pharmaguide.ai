@@ -60,14 +60,12 @@ class PGPillarBadge {
 
 class PGScoreBreakdownCard extends StatefulWidget {
   final List<PGPillar> pillars;
-  final double? mappedCoverage;
   final num? heroScore;
   final VoidCallback? onHowScoringWorks;
 
   const PGScoreBreakdownCard({
     super.key,
     required this.pillars,
-    this.mappedCoverage,
     this.heroScore,
     this.onHowScoringWorks,
   });
@@ -237,12 +235,6 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                 style: V2Typography.monoData(color: V2Colors.fg),
               ),
             ),
-          ],
-          if (widget.mappedCoverage != null) ...[
-            const SizedBox(height: V2Spacing.space16),
-            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
-            const SizedBox(height: V2Spacing.space12),
-            _PGCoverageLine(coverage: widget.mappedCoverage!),
           ],
           if (widget.onHowScoringWorks != null) ...[
             const SizedBox(height: V2Spacing.space8),
@@ -526,53 +518,4 @@ class _PillarFact extends StatelessWidget {
       ],
     ],
   );
-}
-
-class _PGCoverageLine extends StatelessWidget {
-  final double coverage;
-  const _PGCoverageLine({required this.coverage});
-
-  ({Color tone, String label}) _tierFor(double value) {
-    if (value >= 0.7) {
-      return (
-        tone: V2Colors.safe,
-        label: 'Most ingredients in our database — high-confidence score',
-      );
-    }
-    if (value >= 0.3) {
-      return (
-        tone: V2Colors.caution,
-        label: 'Some ingredients aren\'t in our database — partial coverage',
-      );
-    }
-    return (
-      tone: V2Colors.fgSubtle,
-      label: 'Limited data — only part of this product is in our database',
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tier = _tierFor(coverage);
-    final percent = (coverage.clamp(0.0, 1.0) * 100).round();
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: tier.tone, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: V2Spacing.space8),
-        Expanded(
-          child: Text(
-            tier.label,
-            style: V2Typography.caption(color: V2Colors.fgMuted),
-            maxLines: 2,
-          ),
-        ),
-        const SizedBox(width: V2Spacing.space8),
-        Text('$percent%', style: V2Typography.monoData(color: tier.tone)),
-      ],
-    );
-  }
 }

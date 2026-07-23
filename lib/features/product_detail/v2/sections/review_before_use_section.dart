@@ -48,6 +48,7 @@ class ProfileRelevanceSummary {
   final List<PGReviewRow> rows;
   final List<String> whyThisFitsReasons;
   final bool profileIncomplete;
+  final bool needsGoals;
   final bool startExpanded;
 
   const ProfileRelevanceSummary({
@@ -58,27 +59,26 @@ class ProfileRelevanceSummary {
     this.rows = const [],
     this.whyThisFitsReasons = const [],
     this.profileIncomplete = false,
+    this.needsGoals = false,
     this.startExpanded = false,
   });
 
-  /// Empty neutral and coverage-uncertain states do not earn a consumer card.
-  /// The latter remains available to the dedicated label-confidence surface.
+  /// A defensive low-coverage state remains silent in consumer UI. Catalog
+  /// completeness is enforced by the release gate, not explained here.
   bool get shouldRender =>
-      status != ProfileRelevanceStatus.neutral &&
       status != ProfileRelevanceStatus.coverageLimited;
 }
 
 ProfileRelevanceSummary buildProfileRelevanceSummary({
   required FitScoreResult? fitResult,
   required String? topGoalLabel,
-  required List<String> ingredientNames,
-  required List<String> userConditions,
-  List<InteractionWarning> profileBenefitWarnings = const [],
   required List<InteractionWarning> warnings,
   required String interactionHint,
   required List<MatchedAllergen> matchedAllergens,
   required List<String> freeFromConflicts,
   required bool hasInteractionProfile,
+  bool hasProfileInformation = true,
+  List<String> selectedGoalLabels = const [],
   // True when a substance-level `display_mode_default == 'critical'` note
   // (moderate harmful additive, high-risk ingredient) exists for this product
   // but lives in the calm general "Good to know" bucket rather than the
@@ -127,7 +127,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
           verdict: worstSeverityOf(warnings),
           fitResult: fitResult,
         );
-  final profileIncomplete = fitDisplay is FitIncomplete;
+  final profileIncomplete = !hasProfileInformation;
 
   if (hasContainsAllergen || hasHardWarning) {
     return ProfileRelevanceSummary(
@@ -145,63 +145,76 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   }
 
   if (hasMayContainAllergen || hasReviewWarning || hasFreeFromConflict) {
+    final concern = _primaryConcernBody(
+      warnings: warnings.where(_isReviewWarning).toList(growable: false),
+      matchedAllergens: matchedAllergens,
+      hasFreeFromConflict: hasFreeFromConflict,
+    );
+    final goalContext = _goalPriorityCopy(topGoalLabel);
     return ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.review,
       tone: PGReviewTone.caution,
-      headline: 'Review for your profile',
-      body: reviewItemCount > 0 ? countCopy(reviewItemCount) : null,
+      headline: 'Review before use',
+      body: [
+        concern ?? (reviewItemCount > 0 ? countCopy(reviewItemCount) : null),
+        goalContext,
+      ].whereType<String>().join(' '),
       rows: rows,
       profileIncomplete: profileIncomplete,
       startExpanded: rows.isNotEmpty,
     );
   }
 
+  if (!hasProfileInformation) {
+    return ProfileRelevanceSummary(
+      status: ProfileRelevanceStatus.incomplete,
+      tone: PGReviewTone.info,
+      headline: 'Check this product for you',
+      body: _incompleteBody(
+        interactionHint: interactionHint,
+        hasInteractionProfile: hasInteractionProfile,
+      ),
+      rows: rows,
+      profileIncomplete: true,
+      startExpanded: _shouldExpandInformationalRows(rows),
+    );
+  }
+
+  // Consumer catalog rows must pass the release completeness gate. Keep this
+  // defensive branch silent rather than exposing backend coverage language or
+  // claiming a profile all-clear from an invalid record.
+  if (isLowCoverage(fitResult?.mappedCoverage)) {
+    return const ProfileRelevanceSummary(
+      status: ProfileRelevanceStatus.coverageLimited,
+      tone: PGReviewTone.info,
+      headline: 'Profile assessment unavailable',
+    );
+  }
+
   return switch (fitDisplay) {
-    FitStrongMatch() => _fitSummary(
+    FitStrongMatch() => _cleanProfileSummary(
       status: ProfileRelevanceStatus.strongMatch,
       tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
-      headline: personalFitHeadline(fitDisplay, topGoalLabel),
-      fit: fitDisplay,
+      topGoalLabel: topGoalLabel,
+      selectedGoalLabels: selectedGoalLabels,
       fitReasons: fitResult?.reasons ?? const [],
-      ingredientNames: ingredientNames,
-      userConditions: userConditions,
-      profileBenefitWarnings: profileBenefitWarnings,
       rows: rows,
     ),
-    FitGoodMatch() => _fitSummary(
+    FitGoodMatch() => _cleanProfileSummary(
       status: ProfileRelevanceStatus.goodMatch,
       tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
-      headline: personalFitHeadline(fitDisplay, topGoalLabel),
-      fit: fitDisplay,
+      topGoalLabel: topGoalLabel,
+      selectedGoalLabels: selectedGoalLabels,
       fitReasons: fitResult?.reasons ?? const [],
-      ingredientNames: ingredientNames,
-      userConditions: userConditions,
-      profileBenefitWarnings: profileBenefitWarnings,
       rows: rows,
     ),
-    FitLimitedFit() => ProfileRelevanceSummary(
-      status: isLowCoverage(fitResult?.mappedCoverage)
-          ? ProfileRelevanceStatus.coverageLimited
-          : ProfileRelevanceStatus.neutral,
-      tone: PGReviewTone.info,
-      headline: isLowCoverage(fitResult?.mappedCoverage)
-          ? 'More label detail needed'
-          : 'No profile-specific concerns found',
-      body: isLowCoverage(fitResult?.mappedCoverage)
-          ? coverageHedge('profile relevance may be incomplete')
-          : 'Based on the information available, this product does not '
-                'strongly match your selected goals.',
+    FitLimitedFit() || FitNotRecommended() => _cleanProfileSummary(
+      status: ProfileRelevanceStatus.neutral,
+      tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
+      topGoalLabel: null,
+      selectedGoalLabels: selectedGoalLabels,
+      fitReasons: const [],
       rows: rows,
-      startExpanded: _shouldExpandInformationalRows(rows),
-    ),
-    FitNotRecommended() => ProfileRelevanceSummary(
-      status: ProfileRelevanceStatus.notRecommended,
-      tone: PGReviewTone.caution,
-      headline: 'Not recommended for your profile',
-      body: 'This product is not a useful match for your current profile.',
-      rows: rows,
-      profileIncomplete: profileIncomplete,
-      startExpanded: rows.isNotEmpty,
     ),
     FitHidden() => ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.notRecommended,
@@ -216,15 +229,15 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
       startExpanded: rows.isNotEmpty,
     ),
     FitIncomplete() => ProfileRelevanceSummary(
-      status: ProfileRelevanceStatus.incomplete,
-      tone: PGReviewTone.info,
-      headline: 'Add your profile to personalize',
-      body: _incompleteBody(
-        interactionHint: interactionHint,
-        hasInteractionProfile: hasInteractionProfile,
+      status: ProfileRelevanceStatus.neutral,
+      tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
+      headline: 'No profile-specific concerns found',
+      body: _cleanProfileBody(
+        topGoalLabel: null,
+        selectedGoalLabels: selectedGoalLabels,
       ),
       rows: rows,
-      profileIncomplete: true,
+      needsGoals: selectedGoalLabels.isEmpty,
       startExpanded: _shouldExpandInformationalRows(rows),
     ),
   };
@@ -274,12 +287,14 @@ class ProfileRelevanceSection extends StatelessWidget {
     }
 
     final actionLabel = summary.profileIncomplete
-        ? 'Complete profile'
+        ? 'Add profile information'
+        : summary.needsGoals
+        ? 'Add goals'
         : 'Edit profile';
     final hasReasons = summary.whyThisFitsReasons.isNotEmpty;
 
     return PGReviewBeforeUseCard(
-      eyebrow: 'Profile Relevance',
+      eyebrow: 'For You',
       tone: summary.tone,
       title: summary.headline,
       body: summary.body,
@@ -398,31 +413,25 @@ PGReviewRow _rowForProfileNote(
   );
 }
 
-ProfileRelevanceSummary _fitSummary({
+ProfileRelevanceSummary _cleanProfileSummary({
   required ProfileRelevanceStatus status,
   required PGReviewTone tone,
-  required String headline,
-  required FitDisplay fit,
+  required String? topGoalLabel,
+  required List<String> selectedGoalLabels,
   required List<String> fitReasons,
-  required List<String> ingredientNames,
-  required List<String> userConditions,
-  required List<InteractionWarning> profileBenefitWarnings,
   required List<PGReviewRow> rows,
 }) {
-  final bullets = personalFitBullets(
-    fit: fit,
-    fitReasons: fitReasons,
-    ingredientNames: ingredientNames,
-    userConditions: userConditions,
-    profileBenefitWarnings: profileBenefitWarnings,
-  );
   return ProfileRelevanceSummary(
     status: status,
     tone: tone,
-    headline: headline,
-    body: _positiveBody(bullets),
+    headline: 'No profile-specific concerns found',
+    body: _cleanProfileBody(
+      topGoalLabel: topGoalLabel,
+      selectedGoalLabels: selectedGoalLabels,
+    ),
     rows: rows,
     whyThisFitsReasons: _cleanWhyThisFitsReasons(fitReasons),
+    needsGoals: selectedGoalLabels.isEmpty,
     startExpanded: _shouldExpandInformationalRows(rows),
   );
 }
@@ -440,9 +449,46 @@ bool _shouldExpandInformationalRows(List<PGReviewRow> rows) {
   });
 }
 
-String? _positiveBody(List<String> bullets) {
-  if (bullets.isEmpty) return null;
-  return bullets.take(2).map(_withPeriod).join(' ');
+String _cleanProfileBody({
+  required String? topGoalLabel,
+  required List<String> selectedGoalLabels,
+}) {
+  const scope = 'Based on the profile information you’ve shared.';
+  final goal = topGoalLabel?.trim();
+  if (goal != null && goal.isNotEmpty) {
+    return '$scope\nMatches your goal: $goal.';
+  }
+  if (selectedGoalLabels.isNotEmpty) {
+    return '$scope\nNo specific match found for your selected goals.';
+  }
+  return '$scope\nAdd goals to see whether this product matches what you '
+      'want to improve.';
+}
+
+String? _goalPriorityCopy(String? topGoalLabel) {
+  final goal = topGoalLabel?.trim();
+  if (goal == null || goal.isEmpty) return null;
+  return 'This product matches your $goal goal, but the concern takes priority.';
+}
+
+String? _primaryConcernBody({
+  required List<InteractionWarning> warnings,
+  required List<MatchedAllergen> matchedAllergens,
+  required bool hasFreeFromConflict,
+}) {
+  final allergen = matchedAllergens.isEmpty ? null : matchedAllergens.first;
+  if (allergen != null) {
+    final verb = allergen.presenceType == 'contains' ? 'Contains' : 'May contain';
+    return '$verb ${allergen.displayName}, which is in your allergy profile.';
+  }
+  final warning = warnings.isEmpty ? null : warnings.first;
+  if (warning != null && warning.displayHeadline.trim().isNotEmpty) {
+    return _withPeriod(warning.displayHeadline);
+  }
+  if (hasFreeFromConflict) {
+    return 'The label contains conflicting claim information.';
+  }
+  return null;
 }
 
 List<String> _cleanWhyThisFitsReasons(List<String> reasons) {
@@ -486,11 +532,11 @@ String _incompleteBody({
 }) {
   final parsedHint = parseInteractionHint(interactionHint);
   if (!hasInteractionProfile && parsedHint?.hasAny == true) {
-    return 'This product has known interactions. Add health conditions and '
-        'medications to personalize them.';
+    return 'Add your medications, conditions, and allergies to check known '
+        'interactions for your profile.';
   }
-  return 'Add goals, conditions, medications, and allergies to personalize '
-      'this product.';
+  return 'Add your medications, conditions, allergies, and relevant life-stage '
+      'information to run a personalized check.';
 }
 
 /// Show the citations bottom sheet. Mirrors production's citation modal,

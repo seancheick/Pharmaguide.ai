@@ -4,8 +4,8 @@
 // `score != null && !isBlocked && !isNotScored`, so a scored product with
 // mapped_coverage < 0.3 rendered a confident tier-colored "85/100" line.
 // The pure decision `heroScoreDisplayFor` now owns that gate: low coverage
-// renders the neutral "Limited data — not enough to score confidently."
-// line instead (same treatment as isNotScored).
+// renders the neutral score-unavailable line instead (same treatment as
+// isNotScored), without exposing catalog diagnostics to consumers.
 //
 // FIX 4 — positive trust/cert chips ("Third-Party Tested") previously
 // rendered on BLOCKED products, above the does-not-recommend banner.
@@ -29,7 +29,7 @@ void main() {
       );
     });
 
-    test('low scoring confidence keeps score but suppresses quality tier', () {
+    test('low scoring confidence suppresses the quality verdict', () {
       expect(
         heroScoreDisplayFor(
           score: 84,
@@ -38,7 +38,7 @@ void main() {
           lowCoverage: false,
           limitedAssessment: true,
         ),
-        HeroScoreDisplay.limitedAssessment,
+        HeroScoreDisplay.notScored,
       );
     });
 
@@ -103,7 +103,7 @@ void main() {
       );
     });
 
-    test('scored but mapped_coverage < 0.3 renders the limited-data line', () {
+    test('scored but mapped_coverage < 0.3 suppresses the quality verdict', () {
       expect(
         heroScoreDisplayFor(
           score: 85,
@@ -111,7 +111,7 @@ void main() {
           isNotScored: false,
           lowCoverage: true,
         ),
-        HeroScoreDisplay.limitedData,
+        HeroScoreDisplay.notScored,
       );
     });
   });
@@ -140,8 +140,9 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('low coverage replaces the tier score line with the '
-        'limited-data hedge', (tester) async {
+    testWidgets('low coverage replaces the tier score with a neutral fallback', (
+      tester,
+    ) async {
       await pump(
         tester,
         const PGHeroSection(
@@ -154,7 +155,7 @@ void main() {
       );
       expect(find.text('85/100'), findsNothing);
       expect(
-        find.text('Limited data — not enough to score confidently.'),
+        find.text('Product quality score unavailable.'),
         findsOneWidget,
       );
     });
@@ -174,7 +175,7 @@ void main() {
       expect(find.text('85/100'), findsOneWidget);
     });
 
-    testWidgets('limited assessment keeps number without Excellent label', (
+    testWidgets('limited assessment hides the score and quality label', (
       tester,
     ) async {
       await pump(
@@ -187,7 +188,8 @@ void main() {
           limitedAssessment: true,
         ),
       );
-      expect(find.text('85/100 · Limited assessment'), findsOneWidget);
+      expect(find.text('85/100'), findsNothing);
+      expect(find.text('Product quality score unavailable.'), findsOneWidget);
       expect(find.text('Excellent'), findsNothing);
     });
 

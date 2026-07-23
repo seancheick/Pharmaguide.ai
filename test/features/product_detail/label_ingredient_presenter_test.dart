@@ -36,7 +36,6 @@ void main() {
         expect(active.nestedDepth, 1);
         expect(active.parentLabel, 'Fish Oil');
         expect(active.scoreIncluded, isTrue);
-        expect(active.scoreParticipationLabel, 'Included in analysis');
         expect(active.displayDisposition, 'scored');
       },
     );
@@ -158,7 +157,6 @@ void main() {
         expect(active.formLabel, isNull);
         expect(active.formQuality, FormQuality.unknown);
         expect(active.scoreIncluded, isFalse);
-        expect(active.scoreParticipationLabel, 'Not included in analysis');
         expect(active.displayDisposition, 'other_ingredient');
       },
     );

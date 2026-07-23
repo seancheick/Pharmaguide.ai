@@ -33,6 +33,10 @@ class PGIngredientsCard extends StatefulWidget {
   /// hides the inactive sub-section.
   final List<PGInactiveIngredient> inactiveIngredients;
 
+  /// Optional label-adjacent content, such as the collapsed Nutrition Facts
+  /// panel. It shares this card so bottle identity reads as one system.
+  final Widget? additionalContent;
+
   /// Auto-expand threshold. Lists ≤ this size start expanded; longer
   /// lists start collapsed.
   final int autoExpandThreshold;
@@ -46,6 +50,7 @@ class PGIngredientsCard extends StatefulWidget {
     super.key,
     required this.activeContent,
     required this.inactiveIngredients,
+    this.additionalContent,
     this.autoExpandThreshold = 5,
     this.onInactiveTap,
   });
@@ -69,7 +74,15 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
   Widget build(BuildContext context) {
     final hasActive = widget.activeContent != null;
     final hasInactive = widget.inactiveIngredients.isNotEmpty;
-    if (!hasActive && !hasInactive) return const SizedBox.shrink();
+    final additional = widget.additionalContent;
+    final hasAdditional =
+        additional != null &&
+        !(additional is SizedBox &&
+            additional.width == 0 &&
+            additional.height == 0);
+    if (!hasActive && !hasInactive && !hasAdditional) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
@@ -82,6 +95,13 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'What’s inside',
+            style: V2Typography.titleSm(color: V2Colors.fg),
+          ),
+          const SizedBox(height: V2Spacing.space12),
+          const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+          const SizedBox(height: V2Spacing.space8),
           if (hasActive) widget.activeContent!,
           if (hasActive && hasInactive) ...[
             const SizedBox(height: V2Spacing.space16),
@@ -89,6 +109,14 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
             const SizedBox(height: V2Spacing.space16),
           ],
           if (hasInactive) _buildInactiveSection(),
+          if (hasAdditional) ...[
+            if (hasActive || hasInactive) ...[
+              const SizedBox(height: V2Spacing.space16),
+              const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+              const SizedBox(height: V2Spacing.space8),
+            ],
+            additional,
+          ],
         ],
       ),
     );

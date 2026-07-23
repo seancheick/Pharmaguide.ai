@@ -319,13 +319,13 @@ void main() {
       expect(out.doseExplanation, contains('Upper Limit'));
     });
 
-    test('skip with no dose → not-disclosed explanation', () {
+    test('skip with no dose keeps generic disclosure analysis silent', () {
       final out = buildIngredientExplain(
         ingredient: const {'standard_name': 'm'},
         ulEntry: const {'standard_name': 'm', 'skip_ul_check': true},
       );
       expect(out.doseCallOut, DoseCallOut.notDisclosed);
-      expect(out.doseExplanation, contains('not evaluated'));
+      expect(out.doseExplanation, isEmpty);
     });
 
     test('skip with disclosed dose → withinLimits (no chip)', () {
@@ -400,9 +400,10 @@ void main() {
     test('doseChipLabel and doseBlockHeading match', () {
       expect(doseChipLabel(DoseCallOut.high), 'High dose');
       expect(doseChipLabel(DoseCallOut.low), 'Low dose');
-      expect(doseChipLabel(DoseCallOut.notDisclosed), 'Dose not disclosed');
+      expect(doseChipLabel(DoseCallOut.notDisclosed), '');
       expect(doseChipLabel(DoseCallOut.withinLimits), '');
       expect(doseBlockHeading(DoseCallOut.high), 'High dose');
+      expect(doseBlockHeading(DoseCallOut.notDisclosed), '');
     });
   });
 }

@@ -99,10 +99,6 @@ class PGActiveIngredient {
   /// rows intentionally return null.
   String? get formStatusLabel => formDisplayState.statusLabel;
 
-  /// Accessible context explaining whether this label row affected analysis.
-  String get scoreParticipationLabel =>
-      scoreIncluded ? 'Included in analysis' : 'Not included in analysis';
-
   const PGActiveIngredient({
     required this.name,
     this.dose,

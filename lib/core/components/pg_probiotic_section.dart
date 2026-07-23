@@ -5,32 +5,23 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 
-enum PGProbioticResearchStatus {
-  exactStrain,
-  formulaOnly,
-  speciesLevel,
-  pendingReview,
-  rejected,
-  none,
-}
+enum PGProbioticResearchStatus { exactStrain, formulaOnly, speciesLevel, none }
 
 extension PGProbioticResearchStatusMeta on PGProbioticResearchStatus {
   String get label => switch (this) {
-    PGProbioticResearchStatus.exactStrain => 'Research match found',
+    PGProbioticResearchStatus.exactStrain =>
+      'Research found for this exact strain',
     PGProbioticResearchStatus.formulaOnly =>
-      'Studied only as part of a formula',
-    PGProbioticResearchStatus.speciesLevel => 'General research only',
-    PGProbioticResearchStatus.pendingReview => 'Research match under review',
-    PGProbioticResearchStatus.rejected => 'Research match not eligible',
+      'Research applies to the formula, not necessarily each strain',
+    PGProbioticResearchStatus.speciesLevel =>
+      'Research is available for this species, but not this exact strain',
     PGProbioticResearchStatus.none =>
-      'No strain-specific research match in our database',
+      'No verified strain-specific research found',
   };
 
   IconData get icon => switch (this) {
     PGProbioticResearchStatus.exactStrain => Icons.verified_outlined,
     PGProbioticResearchStatus.formulaOnly => Icons.groups_outlined,
-    PGProbioticResearchStatus.pendingReview => Icons.schedule_outlined,
-    PGProbioticResearchStatus.rejected => Icons.report_outlined,
     PGProbioticResearchStatus.speciesLevel ||
     PGProbioticResearchStatus.none => Icons.search_off_outlined,
   };
@@ -38,8 +29,6 @@ extension PGProbioticResearchStatusMeta on PGProbioticResearchStatus {
   Color get color => switch (this) {
     PGProbioticResearchStatus.exactStrain => V2Colors.safe,
     PGProbioticResearchStatus.formulaOnly => V2Colors.accent,
-    PGProbioticResearchStatus.rejected => V2Colors.caution,
-    PGProbioticResearchStatus.pendingReview ||
     PGProbioticResearchStatus.speciesLevel ||
     PGProbioticResearchStatus.none => V2Colors.fgMuted,
   };
@@ -260,9 +249,9 @@ class PGProbioticSection extends StatelessWidget {
             ),
             SizedBox(height: V2Spacing.space12),
             Text(
-              '“No match in our database” does not prove that no research '
-              'exists. It means we could not verify a strain-specific match '
-              'from the evidence currently reviewed by PharmaGuide.',
+              '“No verified strain-specific research found” does not prove '
+              'that no research exists. It means PharmaGuide could not '
+              'verify an exact-strain match in the evidence reviewed so far.',
             ),
           ],
         ),

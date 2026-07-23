@@ -15,18 +15,9 @@ enum HeroScoreDisplay {
   /// [PGScoreLine].
   tierScore,
 
-  /// Insufficient verified data (isNotScored, or a null score that a
-  /// caller failed to flag) → "Not enough verified data to score."
+  /// A product quality score is unavailable. This is intentionally
+  /// consumer-neutral: release diagnostics belong to the catalog gate.
   notScored,
-
-  /// Scored, but mapped_coverage is below the trust floor (see
-  /// core/scoring/coverage.dart) → neutral "Limited data" hedge. A
-  /// tier-colored line must never render here.
-  limitedData,
-
-  /// A numeric score exists, but formula-wide input confidence is low.
-  /// Keep the number while suppressing the quality adjective/color.
-  limitedAssessment,
 
   /// BLOCKED — the score slot stays empty; the bottom banner owns the
   /// verdict.
@@ -47,8 +38,7 @@ HeroScoreDisplay heroScoreDisplayFor({
 }) {
   if (isBlocked) return HeroScoreDisplay.none;
   if (isNotScored || score == null) return HeroScoreDisplay.notScored;
-  if (lowCoverage) return HeroScoreDisplay.limitedData;
-  if (limitedAssessment) return HeroScoreDisplay.limitedAssessment;
+  if (lowCoverage || limitedAssessment) return HeroScoreDisplay.notScored;
   return HeroScoreDisplay.tierScore;
 }
 
@@ -91,9 +81,8 @@ bool heroShowsCautionCue({
 ///   cleanly when missing)
 /// - Trust chips: outline pills (primary tone for certifications, green
 ///   for dietary tags), max 4 visible + `+N more` overflow chip
-/// - ScoreLine (suppressed when `isBlocked` — banner replaces it;
-///   "Not enough verified data to score" when `isNotScored`; neutral
-///   "Limited data" hedge when `lowCoverage` — see [heroScoreDisplayFor])
+/// - ScoreLine (suppressed when `isBlocked` — banner replaces it; a neutral
+///   score-unavailable fallback covers every unscored defensive state)
 /// - 240ms entrance fade + 8pt translate (skipped under reduce-motion)
 ///
 /// Wraps the whole hero in a v2 elevated card (cream surface + outline +
@@ -127,9 +116,7 @@ class PGHeroSection extends StatelessWidget {
   /// [PGScoreLine] underneath.
   final int? score;
 
-  /// True when the product has insufficient verified data to score.
-  /// Renders "Not enough verified data to score." in place of the
-  /// score line.
+  /// True when no consumer product-quality score is available.
   final bool isNotScored;
 
   /// True when the product is BLOCKED — suppresses the score line
@@ -140,10 +127,8 @@ class PGHeroSection extends StatelessWidget {
   final bool isBlocked;
 
   /// True when the product's mapped_coverage is below the 0.3 trust
-  /// floor (core/scoring/coverage.dart). Replaces the tier-colored
-  /// score line with a neutral "Limited data — not enough to score
-  /// confidently." hedge — a low-coverage product must never render
-  /// a confident tier color.
+  /// floor (core/scoring/coverage.dart). Suppresses the tier-colored
+  /// score: a low-coverage product must never render a positive verdict.
   final bool lowCoverage;
 
   /// True when v4 confidence is low even though a score is available.
@@ -288,19 +273,7 @@ class PGHeroSection extends StatelessWidget {
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
-              'Not enough verified data to score.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
-            ),
-          ] else if (scoreDisplay == HeroScoreDisplay.limitedData) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Text(
-              'Limited data — not enough to score confidently.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
-            ),
-          ] else if (scoreDisplay == HeroScoreDisplay.limitedAssessment) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Text(
-              '$score/100 · Limited assessment',
+              'Product quality score unavailable.',
               style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
           ],

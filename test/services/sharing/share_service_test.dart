@@ -3,56 +3,60 @@ import 'package:pharmaguide/services/sharing/share_service.dart';
 
 void main() {
   group('ShareService', () {
-    test('shareProduct builds formatted text with highlights', () async {
+    test('shareProduct builds a product-quality summary', () async {
       String? capturedText;
+      String? capturedSubject;
       final service = ShareService(
-        shareOverride: (text, {subject}) async => capturedText = text,
+        shareOverride: (text, {subject}) async {
+          capturedText = text;
+          capturedSubject = subject;
+        },
       );
 
       await service.shareProduct(
-        shareTitle: 'Magnesium Glycinate',
-        shareDescription: 'Well-absorbed form.',
-        shareHighlights: '["Third-party tested","No fillers"]',
+        productName: 'Magnesium Glycinate',
+        brandName: 'Example Labs',
+        qualityScore: 88.4,
+        qualityTier: 'Excellent',
+        qualityHighlights: const ['Third-party tested', 'No fillers'],
       );
 
-      expect(capturedText, contains('Magnesium Glycinate'));
+      expect(capturedSubject, 'Magnesium Glycinate — Example Labs');
+      expect(capturedText, contains('PharmaGuide quality: 88/100 · Excellent'));
       expect(capturedText, contains('- Third-party tested'));
       expect(capturedText, contains('- No fillers'));
+      expect(capturedText, contains('Personal fit depends on your profile'));
     });
 
-    test('shareProduct tolerates non-list highlights JSON', () async {
-      // A drifted blob could carry a JSON object instead of a list. The
-      // old `as List` cast threw a TypeError past the FormatException
-      // handler; now it degrades to no highlights.
+    test(
+      'shareProduct omits missing score without inventing quality',
+      () async {
+        String? capturedText;
+        final service = ShareService(
+          shareOverride: (text, {subject}) async => capturedText = text,
+        );
+
+        await service.shareProduct(productName: 'Magnesium Glycinate');
+
+        expect(capturedText, isNotNull);
+        expect(capturedText, isNot(contains('PharmaGuide quality:')));
+      },
+    );
+
+    test('shareProduct never includes a sender profile verdict', () async {
       String? capturedText;
       final service = ShareService(
         shareOverride: (text, {subject}) async => capturedText = text,
       );
 
       await service.shareProduct(
-        shareTitle: 'Magnesium Glycinate',
-        shareDescription: '',
-        shareHighlights: '{"unexpected":"object"}',
+        productName: 'Daily Multi',
+        qualityScore: 90,
+        qualityTier: 'Exceptional',
       );
 
-      expect(capturedText, isNotNull);
-      expect(capturedText, isNot(contains('Key highlights')));
-    });
-
-    test('shareProduct tolerates invalid highlights JSON', () async {
-      String? capturedText;
-      final service = ShareService(
-        shareOverride: (text, {subject}) async => capturedText = text,
-      );
-
-      await service.shareProduct(
-        shareTitle: null,
-        shareDescription: null,
-        shareHighlights: 'not-json',
-      );
-
-      expect(capturedText, contains('Check out this supplement'));
-      expect(capturedText, isNot(contains('Key highlights')));
+      expect(capturedText, isNot(contains('for your profile')));
+      expect(capturedText, isNot(contains('No profile-specific concerns')));
     });
   });
 

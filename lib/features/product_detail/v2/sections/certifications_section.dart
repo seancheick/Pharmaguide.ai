@@ -18,8 +18,20 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 Widget buildCertificationsSection({
   required Map<String, dynamic>? certificationDetail,
 }) {
-  if (certificationDetail == null) return const SizedBox.shrink();
+  final certs = _certificationsFromDetail(certificationDetail);
+  if (certs.isEmpty) return const SizedBox.shrink();
+  return PGCertificationSection(certifications: certs);
+}
 
+/// Mirrors [buildCertificationsSection]'s visibility contract so callers only
+/// offer navigation when the destination can render real certificate data.
+bool hasRenderableCertifications(Map<String, dynamic>? certificationDetail) =>
+    _certificationsFromDetail(certificationDetail).isNotEmpty;
+
+List<PGCertification> _certificationsFromDetail(
+  Map<String, dynamic>? certificationDetail,
+) {
+  if (certificationDetail == null) return const [];
   final certs = <PGCertification>[];
 
   // Four standard quality checks — production renders these even when
@@ -74,8 +86,7 @@ Widget buildCertificationsSection({
     );
   }
 
-  if (certs.isEmpty) return const SizedBox.shrink();
-  return PGCertificationSection(certifications: certs);
+  return certs;
 }
 
 /// True when the nested `gmp` object carries a real GMP certification /

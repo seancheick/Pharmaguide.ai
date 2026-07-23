@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
@@ -53,33 +52,39 @@ class ShareService {
     );
   }
 
-  /// Share a product using pre-computed fields from products_core.
+  /// Share a product-quality summary. Profile results are deliberately absent:
+  /// the recipient has a different health context and must run their own check.
   Future<void> shareProduct({
-    required String? shareTitle,
-    required String? shareDescription,
-    required String? shareHighlights,
+    required String productName,
+    String? brandName,
+    double? qualityScore,
+    String? qualityTier,
+    List<String> qualityHighlights = const [],
   }) async {
-    final title = shareTitle ?? 'Check out this supplement';
-    final desc = shareDescription ?? '';
-
-    String highlights = '';
-    if (shareHighlights != null && shareHighlights.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(shareHighlights);
-        if (decoded is List) {
-          highlights = decoded.map((e) => '- $e').join('\n');
-        }
-      } on FormatException {
-        highlights = '';
-      }
-    }
+    final cleanName = productName.trim().isEmpty
+        ? 'Supplement'
+        : productName.trim();
+    final cleanBrand = brandName?.trim() ?? '';
+    final title = cleanBrand.isEmpty ? cleanName : '$cleanName — $cleanBrand';
+    final tier = qualityTier?.trim() ?? '';
+    final scoreLine = qualityScore == null
+        ? null
+        : 'PharmaGuide quality: ${qualityScore.round()}/100'
+              '${tier.isEmpty ? '' : ' · $tier'}';
+    final highlights = qualityHighlights
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .take(3)
+        .map((value) => '- $value')
+        .join('\n');
 
     final text = [
       title,
-      if (desc.isNotEmpty) '\n$desc',
-      if (highlights.isNotEmpty) '\nKey highlights:\n$highlights',
-      '\nAnalyzed by PharmaGuide',
-    ].join('\n');
+      if (scoreLine != null) scoreLine,
+      if (highlights.isNotEmpty) 'Highlights:\n$highlights',
+      'Quality reflects the product itself. Personal fit depends on your profile.',
+      'Reviewed in PharmaGuide',
+    ].join('\n\n');
 
     await _share(text, subject: title);
   }

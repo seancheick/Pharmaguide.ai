@@ -817,6 +817,12 @@ void main() {
     expect(find.text('Ashwagandha'), findsOneWidget);
     expect(find.text('Rhodiola'), findsOneWidget);
     expect(find.text('Amount not disclosed'), findsNWidgets(2));
+    expect(
+      find.textContaining(
+        'Individual ingredient amounts are not disclosed on the label',
+      ),
+      findsOneWidget,
+    );
 
     // Blend header and every label child render directly in the single label
     // view — there is no Analysis toggle to switch between.

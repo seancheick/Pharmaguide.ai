@@ -303,10 +303,10 @@ void main() {
 
       expect(find.text('Probiotic label & research'), findsOneWidget);
       expect(find.text('1 of 2 matched to verified research'), findsOneWidget);
-      expect(find.text('Research match found'), findsOneWidget);
+      expect(find.text('Research found for this exact strain'), findsOneWidget);
       expect(find.text('Moderate support · Digestive support'), findsOneWidget);
       expect(
-        find.text('No strain-specific research match in our database'),
+        find.text('No verified strain-specific research found'),
         findsOneWidget,
       );
       expect(find.byIcon(Icons.circle_outlined), findsNothing);
@@ -344,11 +344,53 @@ void main() {
         ),
       );
 
-      expect(find.text('Research match found'), findsNothing);
-      expect(find.text('Research match under review'), findsOneWidget);
-      expect(find.text('Studied only as part of a formula'), findsOneWidget);
-      expect(find.text('Research match not eligible'), findsOneWidget);
+      expect(find.text('Research found for this exact strain'), findsNothing);
+      expect(find.text('Research match under review'), findsNothing);
+      expect(find.text('Research match not eligible'), findsNothing);
+      expect(
+        find.text(
+          'Research applies to the formula, not necessarily each strain',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('No verified strain-specific research found'),
+        findsNWidgets(2),
+      );
     });
+
+    testWidgets(
+      'species-level evidence states its scope without implying an exact match',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            buildProbioticSection(
+              probioticDetail: {
+                'probiotic_blends': [
+                  {
+                    'strains': ['Lactobacillus acidophilus LA-1'],
+                  },
+                ],
+                'clinical_strains': [
+                  {
+                    'strain': 'Lactobacillus acidophilus LA-1',
+                    'research_match_status': 'species_level',
+                  },
+                ],
+              },
+            ),
+          ),
+        );
+
+        expect(
+          find.text(
+            'Research is available for this species, but not this exact strain',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Research found for this exact strain'), findsNothing);
+      },
+    );
 
     testWidgets('explains the card and exposes accessible research sources', (
       tester,
@@ -387,7 +429,9 @@ void main() {
       );
       expect(
         find.bySemanticsLabel(
-          RegExp('Lactobacillus acidophilus NCFM.*Research match found'),
+          RegExp(
+            'Lactobacillus acidophilus NCFM.*Research found for this exact strain',
+          ),
         ),
         findsOneWidget,
       );

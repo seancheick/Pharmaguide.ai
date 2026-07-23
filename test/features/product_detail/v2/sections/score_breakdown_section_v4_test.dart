@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 
@@ -69,7 +70,7 @@ void main() {
     expect(find.text('Why this scored 95'), findsOneWidget);
   });
 
-  testWidgets('no quality_pillars_v4 → unavailable state, not v3 math', (
+  testWidgets('no quality_pillars_v4 suppresses the optional score section', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -86,19 +87,19 @@ void main() {
       ),
     );
 
-    expect(find.text('Score breakdown unavailable'), findsOneWidget);
+    expect(find.byType(PGScoreBreakdownCard), findsNothing);
     expect(find.text('Ingredient Quality'), findsNothing);
     expect(find.text('Safety & Purity'), findsNothing);
     expect(find.text('Evidence & Research'), findsNothing);
     expect(find.text('Transparency & Verification'), findsNothing);
-    expect(find.text('How PG Score works'), findsOneWidget);
+    expect(find.text('How PG Score works'), findsNothing);
     expect(find.text('How scoring works'), findsNothing);
     for (final label in _v4Labels) {
       expect(find.text(label), findsNothing);
     }
   });
 
-  testWidgets('malformed quality_pillars_v4 shows unavailable state', (
+  testWidgets('malformed quality_pillars_v4 suppresses the score section', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -115,12 +116,12 @@ void main() {
       ),
     );
 
-    expect(find.text('Score breakdown unavailable'), findsOneWidget);
+    expect(find.byType(PGScoreBreakdownCard), findsNothing);
     expect(find.text('Ingredient Quality'), findsNothing);
     expect(find.text('Formulation'), findsNothing);
   });
 
-  testWidgets('SHIP RULE: partial blob (4/6 pillars) shows unavailable state — '
+  testWidgets('SHIP RULE: partial blob (4/6 pillars) is suppressed — '
       'never a partial native-scale sum under the hero', (tester) async {
     final partial = _v4Pillars();
     partial.remove('verification');
@@ -140,9 +141,9 @@ void main() {
       ),
     );
 
-    // Unavailable state rendered — NOT four v4 pillars with a "= 70/100"
-    // sum line contradicting the 98.1 hero, and not stale v3 section math.
-    expect(find.text('Score breakdown unavailable'), findsOneWidget);
+    // No maintenance state and no partial sum contradicting the hero.
+    expect(find.byType(PGScoreBreakdownCard), findsNothing);
+    expect(find.text('Score breakdown unavailable'), findsNothing);
     expect(find.text('Ingredient Quality'), findsNothing);
     expect(find.text('Formulation'), findsNothing);
     expect(find.textContaining('= '), findsNothing);
@@ -245,17 +246,13 @@ void evidenceScopeReconciliationTests() {
 
     expect(
       find.text(
-        'Formula-wide evidence depends on coverage, not one strong ingredient. Limited human evidence for these ingredients.',
+        'Formula-wide evidence reflects the full ingredient profile, not one strongly supported ingredient. Limited human evidence for these ingredients.',
       ),
       findsOneWidget,
     );
-    expect(find.text('Analysis metadata'), findsOneWidget);
-    expect(
-      find.text(
-        '40% analysis coverage · 2 evidence sources · 1 matched evidence record',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Analysis metadata'), findsNothing);
+    expect(find.textContaining('analysis coverage'), findsNothing);
+    expect(find.textContaining('matched evidence record'), findsNothing);
   });
 
   testWidgets('exact-product evidence is claimed only for product-human data', (
@@ -458,53 +455,14 @@ void evidenceScopeReconciliationTests() {
     },
   );
 
-  testWidgets('scope facts have accessible text labels', (tester) async {
-    final pillars = _v4Pillars();
-    pillars['evidence'] = {
-      'score': 6.8,
-      'max': 20,
-      'reason': 'Limited formula coverage.',
-    };
-
-    await tester.pumpWidget(
-      _wrap(
-        buildScoreBreakdownSection(
-          ingredientQuality: null,
-          safetyPurity: null,
-          evidenceResearch: null,
-          brandTrust: null,
-          heroScore: 80,
-          mappedCoverage: 0.68,
-          qualityPillarsV4: pillars,
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Evidence'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.bySemanticsLabel(
-        RegExp(
-          r'Evidence pillar, 6\.8 out of 20\. Formula-wide, coverage-dependent',
-        ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.bySemanticsLabel(RegExp(r'Analysis coverage, 68 percent mapped')),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('evidence metadata semantics use singular count grammar', (
+  testWidgets('score semantics exclude internal coverage diagnostics', (
     tester,
   ) async {
     final pillars = _v4Pillars();
     pillars['evidence'] = {
       'score': 6.8,
       'max': 20,
-      'reason': 'Limited formula coverage.',
+      'reason': 'Limited formula evidence.',
     };
 
     await tester.pumpWidget(
@@ -516,9 +474,6 @@ void evidenceScopeReconciliationTests() {
           brandTrust: null,
           heroScore: 80,
           mappedCoverage: 0.68,
-          sectionBreakdown: const {
-            'evidence_research': {'source_count': 1, 'matched_entries': 1},
-          },
           qualityPillarsV4: pillars,
         ),
       ),
@@ -527,23 +482,10 @@ void evidenceScopeReconciliationTests() {
     await tester.tap(find.text('Evidence'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text(
-        '68% analysis coverage · 1 evidence source · 1 matched evidence record',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.bySemanticsLabel(
-        RegExp(r'1 evidence source\. 1 matched evidence record\.'),
-      ),
-      findsOneWidget,
-    );
-    expect(find.bySemanticsLabel(RegExp(r'1 evidence sources')), findsNothing);
-    expect(
-      find.bySemanticsLabel(RegExp(r'1 matched evidence records')),
-      findsNothing,
-    );
+    expect(find.bySemanticsLabel(RegExp(r'Evidence.*6\.8/20')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'coverage')), findsNothing);
+    expect(find.bySemanticsLabel(RegExp(r'mapped')), findsNothing);
+    expect(find.bySemanticsLabel(RegExp(r'matched evidence')), findsNothing);
   });
 }
 
@@ -618,7 +560,8 @@ void nativeScaleTests() {
       ),
     );
 
-    expect(find.text('Score breakdown unavailable'), findsOneWidget);
+    expect(find.byType(PGScoreBreakdownCard), findsNothing);
+    expect(find.text('Score breakdown unavailable'), findsNothing);
     expect(find.text('8/10'), findsNothing);
     expect(find.text('10/10'), findsNothing);
     expect(find.text('5/10'), findsNothing);
@@ -628,12 +571,10 @@ void nativeScaleTests() {
 }
 
 // ---------------------------------------------------------------------------
-// Named pillar actions — the three navigable pillars (evidence, verification,
-// transparency) render a named action inside their expanded reveal when a
-// destination callback is wired. Formulation, Dose, and Safety Hygiene are
-// explained in place and NEVER render an action (no dead scroll links), even
-// when a callback is supplied for them. Replaces the retired "See details →"
-// deep link and the removed "Biggest opportunity" gap line.
+// Named pillar actions — evidence and verification render a named action when
+// a real destination callback is wired. Transparency is already represented by
+// the visible label ledger; Formulation, Dose, and Safety Hygiene are explained
+// in place and never render an action. Replaces dead/redundant deep links.
 // ---------------------------------------------------------------------------
 
 void namedActionTests() {

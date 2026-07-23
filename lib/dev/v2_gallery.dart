@@ -371,7 +371,6 @@ class V2Gallery extends StatelessWidget {
                     onTap: () {},
                   ),
                 ],
-                mappedCoverage: 0.78,
               ),
               const SizedBox(height: V2Spacing.space12),
               // 2. Interaction Warnings — personalized + generic

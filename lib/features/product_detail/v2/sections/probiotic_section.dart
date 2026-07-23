@@ -132,13 +132,11 @@ Widget buildProbioticSection({
 
 PGProbioticResearchStatus _researchStatus(Map<String, dynamic>? row) {
   if (row == null) return PGProbioticResearchStatus.none;
-  if (row.safeBool('is_blocked')) return PGProbioticResearchStatus.rejected;
+  if (row.safeBool('is_blocked')) return PGProbioticResearchStatus.none;
   return switch (row.safeString('research_match_status').trim().toLowerCase()) {
     'exact_strain' => PGProbioticResearchStatus.exactStrain,
     'formula_only' => PGProbioticResearchStatus.formulaOnly,
     'species_level' => PGProbioticResearchStatus.speciesLevel,
-    'pending_review' => PGProbioticResearchStatus.pendingReview,
-    'rejected' => PGProbioticResearchStatus.rejected,
     _ => PGProbioticResearchStatus.none,
   };
 }

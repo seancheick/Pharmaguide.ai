@@ -205,10 +205,10 @@ void main() {
     expect(v4PillarStatusLabel(V4PillarStatus.noPoints), 'No points');
   });
 
-  test('action-label map keys only the three navigable pillars', () {
+  test('action-label map excludes redundant label-detail navigation', () {
     expect(kV4PillarActionLabels['evidence'], 'View clinical evidence');
     expect(kV4PillarActionLabels['verification'], 'View certifications');
-    expect(kV4PillarActionLabels['transparency'], 'View label details');
+    expect(kV4PillarActionLabels.containsKey('transparency'), isFalse);
     expect(kV4PillarActionLabels.containsKey('formulation'), isFalse);
     expect(kV4PillarActionLabels.containsKey('dose'), isFalse);
     expect(kV4PillarActionLabels.containsKey('safety_hygiene'), isFalse);

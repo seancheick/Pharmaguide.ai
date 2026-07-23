@@ -190,8 +190,10 @@ String _doseExplanationFor(DoseCallOut d) {
       return 'This dose is below amounts shown to produce a meaningful '
           'effect in studies.';
     case DoseCallOut.notDisclosed:
-      return 'Label dose is incomplete or hidden in a proprietary blend, so '
-          'this ingredient was not evaluated against safety thresholds.';
+      // Material disclosure limitations are shown by the label structure
+      // itself (blend header, probiotic CFU, omega composition), not as a
+      // generic analysis block on every ingredient sheet.
+      return '';
     case DoseCallOut.withinLimits:
       return '';
   }
@@ -223,7 +225,7 @@ String doseBlockHeading(DoseCallOut d) {
     case DoseCallOut.low:
       return 'Low dose';
     case DoseCallOut.notDisclosed:
-      return 'Dose not disclosed';
+      return '';
     case DoseCallOut.withinLimits:
       return '';
   }
@@ -254,7 +256,7 @@ String doseChipLabel(DoseCallOut d) {
     case DoseCallOut.low:
       return 'Low dose';
     case DoseCallOut.notDisclosed:
-      return 'Dose not disclosed';
+      return '';
     case DoseCallOut.withinLimits:
       return '';
   }

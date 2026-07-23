@@ -16,13 +16,14 @@ import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_m
 ///   - Internal identity-review states never render as consumer badges;
 ///     missing/unassessed form disclosure stays quiet on the consumer row
 ///   - `_FormChip` only for an explicitly assessed form
-///   - `_DoseChip` when `doseCallOut != withinLimits` — High dose /
-///     Low dose / Dose not disclosed (High is the only red — real safety)
+///   - `_DoseChip` for High dose / Low dose only. Missing amounts are shown
+///     by their material structure (blend, probiotic, omega), not as a generic
+///     badge on ordinary ingredient rows.
 ///   - `_MiniChip` 'Safety concern' when `isSafetyConcern` (red, error tone)
 ///   - `_MiniChip` 'Inferred from label' when `isInferredFromLabel`
 /// - Bottom hairline divider (0.5pt outlineVariant). Final row skips it.
-/// - Source hierarchy is visible as indentation and announced with scoring
-///   participation through one row-level Semantics node.
+/// - Source hierarchy is visible as indentation and announced through one
+///   consumer-focused row-level Semantics node.
 /// - Tap anywhere → `onTap` (parent opens the explain sheet — production
 ///   delegates to `showIngredientExplainSheet`)
 ///
@@ -67,13 +68,14 @@ class PGActiveIngredientTile extends StatelessWidget {
     final suppressClaims = needsReview || dataNeedsReview;
     final isAssessed = formState == PGIngredientFormDisplayState.assessed;
     final rowFormStatusLabel = _rowFormStatusLabel(formState, i);
+    final showDoseCallOut = _isMaterialDoseCallOut(i.doseCallOut);
     // Unresolved identity keeps literal label facts while every interpreted
     // form/dose-quality/safety claim stays hidden (defense-in-depth).
     final showChips =
         rowFormStatusLabel != null ||
         (!suppressClaims &&
             ((isAssessed && i.formQuality != FormQuality.unknown) ||
-                i.doseCallOut != DoseCallOut.withinLimits ||
+                showDoseCallOut ||
                 i.isSafetyConcern ||
                 i.isInferredFromLabel));
     final hasDose = i.dose != null && i.dose!.isNotEmpty;
@@ -191,8 +193,7 @@ class PGActiveIngredientTile extends StatelessWidget {
                                   quality: i.formQuality,
                                   onTap: onTap,
                                 ),
-                              if (!suppressClaims &&
-                                  i.doseCallOut != DoseCallOut.withinLimits)
+                              if (!suppressClaims && showDoseCallOut)
                                 _DoseChipV2(
                                   callOut: i.doseCallOut,
                                   onTap: onTap,
@@ -266,7 +267,7 @@ String _semanticsLabel({
       ingredient.formQuality != FormQuality.unknown) {
     parts.add(formChipLabel(ingredient.formQuality));
   }
-  if (!suppressClaims && ingredient.doseCallOut != DoseCallOut.withinLimits) {
+  if (!suppressClaims && _isMaterialDoseCallOut(ingredient.doseCallOut)) {
     parts.add(doseChipLabel(ingredient.doseCallOut));
   }
   if (!suppressClaims && ingredient.isSafetyConcern) {
@@ -275,9 +276,11 @@ String _semanticsLabel({
   if (!suppressClaims && ingredient.isInferredFromLabel) {
     parts.add('Inferred from label');
   }
-  parts.add(ingredient.scoreParticipationLabel);
   return '${parts.join('. ')}.';
 }
+
+bool _isMaterialDoseCallOut(DoseCallOut callOut) =>
+    callOut == DoseCallOut.high || callOut == DoseCallOut.low;
 
 /// The consumer row shows a disclosure chip ONLY where an undisclosed
 /// form/strain actually changes what the user gets — today that is probiotics
@@ -371,9 +374,8 @@ class _DoseChipV2 extends StatelessWidget {
 
   const _DoseChipV2({required this.callOut, required this.onTap});
 
-  /// Color mapping mirrors production meaning:
-  /// **high → avoid (actual safety signal)**, low → caution,
-  /// notDisclosed → subtle, withinLimits → safe (chip not rendered).
+  /// Color mapping mirrors production meaning. Only high and low instantiate
+  /// this widget; the remaining cases keep the switch exhaustive.
   static Color _color(DoseCallOut d) => switch (d) {
     DoseCallOut.high => V2Colors.avoid,
     DoseCallOut.low => V2Colors.caution,

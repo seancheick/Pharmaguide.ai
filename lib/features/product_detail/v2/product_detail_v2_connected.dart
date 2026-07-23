@@ -33,6 +33,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_empty_state.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -63,12 +64,10 @@ import 'package:pharmaguide/features/product_detail/v2/sections/formulation_sect
 import 'package:pharmaguide/features/product_detail/v2/sections/heavy_metal_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/manufacturer_violations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/probiotic_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/research_evidence_section.dart';
@@ -201,21 +200,45 @@ class _ProductDetailV2ConnectedState
   /// section file itself is owned by another change in flight.
   final GlobalKey _evidenceSectionKey = GlobalKey();
   final GlobalKey _certificationsSectionKey = GlobalKey();
-  final GlobalKey _labelConfidenceSectionKey = GlobalKey();
-  final GlobalKey _ingredientDisclosureTargetKey = GlobalKey();
-  final ValueNotifier<bool> _ingredientDisclosureReveal = ValueNotifier(false);
 
   /// One-shot guard: finish the scan→verdict perf trace exactly once per
   /// screen, on the first frame where the hero verdict is visible.
   /// Products opened from search/stack (no active transaction) no-op
   /// inside PerfTraceService.
   bool _verdictTraceFinished = false;
+  bool _isSharing = false;
 
   @override
   void initState() {
     super.initState();
     _loadProduct();
     _scheduleInitialSectionScroll();
+  }
+
+  Future<void> _shareProduct() async {
+    final product = _product;
+    if (product == null || _isSharing) return;
+    setState(() => _isSharing = true);
+    try {
+      await ShareService().shareProduct(
+        productName: product.productName,
+        brandName: product.brandName,
+        qualityScore: product.qualityScoreV4100,
+        qualityTier: product.qualityTier,
+        qualityHighlights: buildHeroTrustTags(
+          product,
+        ).map((tag) => tag.label).toList(growable: false),
+      );
+    } on Exception {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t open the share sheet. Try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
   }
 
   @override
@@ -231,7 +254,6 @@ class _ProductDetailV2ConnectedState
       // New product on the same screen instance — re-arm the one-shot
       // perf-trace finish for the fresh hero render.
       _verdictTraceFinished = false;
-      _ingredientDisclosureReveal.value = false;
       setState(() {
         _product = null;
         _productLoading = true;
@@ -274,14 +296,6 @@ class _ProductDetailV2ConnectedState
     );
   }
 
-  void _showIngredientDisclosure() {
-    // A reveal can be requested before the lazy Ingredients sliver mounts.
-    // Pulse so a second action re-opens it after a manual collapse.
-    _ingredientDisclosureReveal.value = false;
-    _ingredientDisclosureReveal.value = true;
-    _scrollToSection(_ingredientDisclosureTargetKey, primeFraction: 0.55);
-  }
-
   @override
   void dispose() {
     // Backing out before the hero verdict ever rendered would leave the
@@ -290,7 +304,6 @@ class _ProductDetailV2ConnectedState
     if (!_verdictTraceFinished) {
       PerfTraceService().abandonScanToVerdict();
     }
-    _ingredientDisclosureReveal.dispose();
     _anchors.dispose();
     super.dispose();
   }
@@ -449,15 +462,6 @@ class _ProductDetailV2ConnectedState
     final researchCanonicalIds = _product == null
         ? const <String>[]
         : researchCanonicalIdsForProduct(_product!, detailBlob: detailBlob);
-    final blendDetail = _blobMap(detailBlob, 'proprietary_blend_detail');
-    // Pipeline ships has_proprietary_blends as an int 0/1 (not JSON bool), so
-    // `== true` silently read false for all 2,284 blend products. safeBool
-    // coerces bool / 0-1 / "1" identically.
-    final hasProprietaryBlends =
-        blendDetail?.safeBool('has_proprietary_blends') ?? false;
-    final labelLedgerAudit = _blobMap(detailBlob, 'label_ledger_audit');
-    final labelLedgerAuditPresent =
-        detailBlob?.containsKey('label_ledger_audit') == true;
     final labelRecordPresent = detailBlob?.containsKey('label_record') == true;
     // Report metadata for the standalone "Doesn't match your bottle?" feedback
     // action rendered at the page bottom after catalog provenance.
@@ -468,28 +472,10 @@ class _ProductDetailV2ConnectedState
     );
 
     // -------------------------------------------------------------
-    // LabelConfidence signal probe — checked here so we can gate the
-    // section sliver the same way production does (line 403).
-    // -------------------------------------------------------------
-    final labelConfidenceHasSignal = labelConfidenceHasAnySignal(
-      mappedCoverage: mappedCoverage,
-      hasProprietaryBlends: hasProprietaryBlends,
-      isNotScored: isNotScored,
-      productStatus: _blobMap(detailBlob, 'product_status'),
-      unmappedActives: _blobMap(detailBlob, 'unmapped_actives'),
-      labelLedgerAudit: labelLedgerAudit,
-      labelLedgerAuditPresent: labelLedgerAuditPresent,
-    );
-
-    // -------------------------------------------------------------
     // Gate booleans (see gating.dart)
     // -------------------------------------------------------------
     final showProfileRelevance = shouldShowProfileRelevance(
       isBlocked: isBlocked,
-    );
-    final showLabelConfidence = shouldShowLabelConfidence(
-      isBlocked: isBlocked,
-      hasAnySignal: labelConfidenceHasSignal,
     );
     final showScoreBreakdown = shouldShowScoreBreakdown(
       isBlocked: isBlocked,
@@ -500,16 +486,12 @@ class _ProductDetailV2ConnectedState
       blobLoading: blobLoading,
       blobError: blobError,
     );
-    final hasDisclosureTarget =
-        showDeepDive &&
-        hasIngredientDisclosureTarget(
-          ingredients: ingredientSources.ingredients,
-          displayIngredients: ingredientSources.displayIngredients,
-          blends: ingredientSources.blends,
-        );
     final evidenceData = _blobMap(detailBlob, 'evidence_data');
     final showClinicalEvidence =
         showDeepDive && hasRenderableClinicalEvidence(evidenceData);
+    final certificationDetail = _blobMap(detailBlob, 'certification_detail');
+    final showCertifications =
+        showDeepDive && hasRenderableCertifications(certificationDetail);
 
     // -------------------------------------------------------------
     // Scan→verdict perf trace — finish once, after the first frame in
@@ -526,14 +508,13 @@ class _ProductDetailV2ConnectedState
     }
 
     // -------------------------------------------------------------
-    // Score-breakdown pillar named actions (v4 only). ONLY the three
-    // navigable pillars whose target section actually renders on this page
+    // Score-breakdown pillar named actions (v4 only). Only destinations that
+    // add supporting information and actually render on this page
     // get a destination callback — others render no action (no dead links).
     //   evidence            → clinical Evidence section
     //   verification        → Certifications (third-party) section
-    //   transparency        → Ingredients label-disclosure row
-    // Formulation, Dose, and Safety Hygiene are explained in place — they
-    // have no destination section and are intentionally never wired.
+    // Transparency already has the visible label ledger; Formulation, Dose,
+    // and Safety Hygiene are explained in place. None need another link.
     // -------------------------------------------------------------
     // Prime fractions approximate each target's position in the page so
     // the lazy SliverList builds it before the keyed ensureVisible lands
@@ -542,11 +523,10 @@ class _ProductDetailV2ConnectedState
       if (showClinicalEvidence)
         'evidence': () =>
             _scrollToSection(_evidenceSectionKey, primeFraction: 0.65),
-      if (showDeepDive) ...{
+      if (showCertifications) ...{
         'verification': () =>
             _scrollToSection(_certificationsSectionKey, primeFraction: 0.60),
       },
-      if (hasDisclosureTarget) 'transparency': _showIngredientDisclosure,
     };
 
     // -------------------------------------------------------------
@@ -578,11 +558,6 @@ class _ProductDetailV2ConnectedState
     final profileRelevanceSummary = buildProfileRelevanceSummary(
       fitResult: fitResult,
       topGoalLabel: topGoalLabelFromFit(fitResult),
-      ingredientNames: ingredientNamesFromBlob(detailBlob),
-      userConditions: profile.conditionsForEvaluator,
-      // Supporting/beneficial notes belong in the calm Good to know surface,
-      // not inside the product-fit verdict or its warning count.
-      profileBenefitWarnings: const [],
       warnings: partitionedWarnings.profile,
       interactionHint: interactionHint,
       matchedAllergens: matchedAllergens,
@@ -590,6 +565,16 @@ class _ProductDetailV2ConnectedState
       hasInteractionProfile:
           profile.conditionsForEvaluator.isNotEmpty ||
           profile.drugClassesForEvaluator.isNotEmpty,
+      hasProfileInformation:
+          profile.ageBracket != null ||
+          profile.sex != null ||
+          profile.conditions.isNotEmpty ||
+          profile.drugClasses.isNotEmpty ||
+          profile.allergens.isNotEmpty ||
+          profile.profileFlags.isNotEmpty,
+      selectedGoalLabels: profile.goalsForEvaluator
+          .map((goal) => SchemaIds.goalLabels[goal] ?? goal)
+          .toList(growable: false),
       // A pipeline-flagged substance hazard (moderate additive / high-risk
       // ingredient) sits in the calm general bucket; it must still stop the
       // verdict from rendering a green "safe" all-clear.
@@ -726,30 +711,6 @@ class _ProductDetailV2ConnectedState
                     ],
                   ],
 
-                  // ---- 4. LabelConfidence (WIRED, 11.7c.4) ---------
-                  // PRODUCTION ORDER: LabelConfidence sits BEFORE
-                  // ScoreBreakdown so the low-coverage caveat sets
-                  // expectation before the score it caveats.
-                  if (showLabelConfidence) ...[
-                    KeyedSubtree(
-                      key: _labelConfidenceSectionKey,
-                      child: buildLabelConfidenceSection(
-                        context: context,
-                        mappedCoverage: mappedCoverage,
-                        hasProprietaryBlends: hasProprietaryBlends,
-                        isNotScored: isNotScored,
-                        productStatus: _blobMap(detailBlob, 'product_status'),
-                        unmappedActives: _blobMap(
-                          detailBlob,
-                          'unmapped_actives',
-                        ),
-                        labelLedgerAudit: labelLedgerAudit,
-                        labelLedgerAuditPresent: labelLedgerAuditPresent,
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
                   // ---- 4.5 Allergen summary fallback ---------------
                   // Renders ONLY when the product has free-text
                   // allergenSummary AND the blob has no structured
@@ -785,31 +746,6 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 5. ScoreBreakdown (WIRED, 11.7d.1) ----------
-                  if (showScoreBreakdown) ...[
-                    buildScoreBreakdownSection(
-                      ingredientQuality: _product?.scoreIngredientQuality,
-                      safetyPurity: _product?.scoreSafetyPurity,
-                      evidenceResearch: _product?.scoreEvidenceResearch,
-                      brandTrust: _product?.scoreBrandTrust,
-                      heroScore: score100,
-                      mappedCoverage: mappedCoverage,
-                      sectionBreakdown: _blobMap(
-                        detailBlob,
-                        'section_breakdown',
-                      ),
-                      // v4: require the six-pillar breakdown from the blob.
-                      // Missing/partial pillars render an unavailable state,
-                      // never stale v3 section math.
-                      qualityPillarsV4: _blobMap(
-                        detailBlob,
-                        'quality_pillars_v4',
-                      ),
-                      onPillarTap: onPillarTap,
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
                   // Catalog label record moved to the collapsed
                   // "Product data & sources" section at the page bottom; the
                   // "Doesn't match your bottle?" action stays next to the
@@ -831,21 +767,16 @@ class _ProductDetailV2ConnectedState
                             ?.whereType<Map<String, dynamic>>()
                             .toList(growable: false),
                         blends: ingredientSources.blends,
-                        disclosureTargetKey: _ingredientDisclosureTargetKey,
-                        disclosureRevealSignal: _ingredientDisclosureReveal,
+                        nutritionContent: buildNutritionSection(
+                          caloriesPerServing: _product?.caloriesPerServing,
+                          nutritionDetail: _blobMap(
+                            detailBlob,
+                            'nutrition_detail',
+                          ),
+                          labelRows: labelNutritionRows,
+                          embedded: true,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- Nutrition (conditional) — bottle data beside the
-                  // ingredient list; buildNutritionSection hides itself unless
-                  // there is real calorie/macro data to show.
-                  if (showDeepDive) ...[
-                    buildNutritionSection(
-                      caloriesPerServing: _product?.caloriesPerServing,
-                      nutritionDetail: _blobMap(detailBlob, 'nutrition_detail'),
-                      labelRows: labelNutritionRows,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -859,6 +790,30 @@ class _ProductDetailV2ConnectedState
                       probioticDetail: _blobMap(detailBlob, 'probiotic_detail'),
                       onTapSources: (urls) =>
                           showProfileRelevanceCitationsSheet(context, urls),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- Quality breakdown --------------------------
+                  // The label identity comes first; scoring explains the
+                  // already-visible product rather than interrupting it.
+                  if (showScoreBreakdown) ...[
+                    buildScoreBreakdownSection(
+                      ingredientQuality: _product?.scoreIngredientQuality,
+                      safetyPurity: _product?.scoreSafetyPurity,
+                      evidenceResearch: _product?.scoreEvidenceResearch,
+                      brandTrust: _product?.scoreBrandTrust,
+                      heroScore: score100,
+                      mappedCoverage: mappedCoverage,
+                      sectionBreakdown: _blobMap(
+                        detailBlob,
+                        'section_breakdown',
+                      ),
+                      qualityPillarsV4: _blobMap(
+                        detailBlob,
+                        'quality_pillars_v4',
+                      ),
+                      onPillarTap: onPillarTap,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -891,10 +846,7 @@ class _ProductDetailV2ConnectedState
                     KeyedSubtree(
                       key: _certificationsSectionKey,
                       child: buildCertificationsSection(
-                        certificationDetail: _blobMap(
-                          detailBlob,
-                          'certification_detail',
-                        ),
+                        certificationDetail: certificationDetail,
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -990,25 +942,6 @@ class _ProductDetailV2ConnectedState
                     ),
                   ),
                   const SizedBox(height: V2Spacing.space12),
-
-                  // ---- "No additional details available." fallback -
-                  // Mirrors production DetailSection.build() line 1935:
-                  // when blob resolved but is null, surface a quiet
-                  // honest line so users understand the data state
-                  // (rather than wondering whether content failed to
-                  // load). Renders for blocked + non-blocked alike.
-                  if (!blobLoading && !blobError && detailBlob == null) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: V2Spacing.space16,
-                      ),
-                      child: Text(
-                        'No additional details available.',
-                        style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
 
                   // ---- Product data & sources (collapsed) ---------
                   // Catalog provenance (record IDs, versions, fingerprint,
@@ -1143,15 +1076,15 @@ class _ProductDetailV2ConnectedState
           ),
         if (_product != null)
           IconButton(
-            icon: const Icon(Icons.ios_share_rounded, color: V2Colors.fg),
+            tooltip: 'Share product',
+            icon: _isSharing
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.ios_share_rounded, color: V2Colors.fg),
             // No haptic — iOS share sheet fires its own present haptic.
-            onPressed: () {
-              ShareService().shareProduct(
-                shareTitle: _product!.shareTitle,
-                shareDescription: _product!.shareDescription,
-                shareHighlights: _product!.shareHighlights,
-              );
-            },
+            onPressed: _isSharing ? null : _shareProduct,
           ),
       ],
     );

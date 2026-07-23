@@ -11,6 +11,11 @@ Future<void> _pump(WidgetTester tester, Widget child) {
   return tester.pumpWidget(MaterialApp(home: Scaffold(body: child)));
 }
 
+Future<void> _expandNutrition(WidgetTester tester) async {
+  await tester.tap(find.text('Nutrition Facts'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   group('Nutrition section', () {
     testWidgets('canonical label rows replace aggregate nutrition fields', (
@@ -47,6 +52,8 @@ void main() {
       );
 
       expect(find.text('Nutrition Facts'), findsOneWidget);
+      expect(find.text('Calories'), findsNothing);
+      await _expandNutrition(tester);
       expect(find.text('Calories'), findsOneWidget);
       expect(find.text('10'), findsOneWidget);
       expect(find.text('99'), findsNothing);
@@ -106,6 +113,7 @@ void main() {
 
       expect(find.byType(PGNutritionPanel), findsOneWidget);
       expect(find.text('Nutrition Facts'), findsOneWidget);
+      await _expandNutrition(tester);
       expect(find.text('Calories'), findsOneWidget);
       expect(find.text('120'), findsOneWidget);
       // Macros not present → no rows for them.
@@ -129,6 +137,7 @@ void main() {
       );
 
       expect(find.text('Nutrition Facts'), findsOneWidget);
+      await _expandNutrition(tester);
       expect(find.text('Calories'), findsOneWidget);
       expect(find.text('15'), findsOneWidget);
       expect(find.text('Total Carbs'), findsOneWidget);
@@ -159,6 +168,7 @@ void main() {
         ),
       );
 
+      await _expandNutrition(tester);
       expect(find.text('Calories'), findsOneWidget);
       expect(find.text('100'), findsOneWidget);
       expect(find.text('Total Fat'), findsOneWidget);
@@ -184,6 +194,7 @@ void main() {
         ),
       );
 
+      await _expandNutrition(tester);
       // Whole numbers: no ".0"
       expect(find.text('200'), findsOneWidget);
       expect(find.text('10 g'), findsOneWidget);
@@ -211,6 +222,7 @@ void main() {
           ),
         );
 
+        await _expandNutrition(tester);
         expect(find.text('50'), findsOneWidget);
         expect(find.text('99'), findsNothing);
       },
@@ -235,6 +247,7 @@ void main() {
         ),
       );
 
+      await _expandNutrition(tester);
       expect(find.text('80'), findsOneWidget);
       expect(find.text('12 g'), findsOneWidget);
       expect(find.text('3.2 g'), findsOneWidget);
