@@ -129,19 +129,22 @@ void main() {
       },
     );
 
-    test('strong and good fit keep safety primary and goal match secondary', () {
-      final summary = _summary(
-        fitResult: _fit(
-          state: FitAssessmentState.goodFit,
-          reasons: const ['Backed by clinical evidence.'],
-        ),
-        selectedGoalLabels: const ['Sleep'],
-      );
+    test(
+      'strong and good fit keep safety primary and goal match secondary',
+      () {
+        final summary = _summary(
+          fitResult: _fit(
+            state: FitAssessmentState.goodFit,
+            reasons: const ['Backed by clinical evidence.'],
+          ),
+          selectedGoalLabels: const ['Sleep'],
+        );
 
-      expect(summary.status, ProfileRelevanceStatus.goodMatch);
-      expect(summary.headline, 'No profile-specific concerns found');
-      expect(summary.body, contains('No specific match found'));
-    });
+        expect(summary.status, ProfileRelevanceStatus.goodMatch);
+        expect(summary.headline, 'No profile-specific concerns found');
+        expect(summary.body, contains('No specific match found'));
+      },
+    );
 
     test('critical global substance note removes the green safe all-clear', () {
       // A moderate harmful additive / high-risk ingredient (caution severity,

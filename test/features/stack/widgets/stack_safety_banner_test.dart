@@ -461,46 +461,45 @@ void main() {
     expect(find.byType(PGSeverityBanner), findsNothing);
   });
 
-  testWidgets(
-    'food advisory never becomes the headline over a real concern '
-    '(disposition-first), even at higher underlying severity',
-    (tester) async {
-      final report = StackSafetyReport(
-        // Displays informational, truly avoid — but placed as good_to_know.
-        medicationInteractions: [
-          makeInteraction(
-            id: 'fa',
-            severity: Severity.informational,
-            curated: Severity.avoid,
-            agent1: 'Grapefruit',
-            agent2: 'Atorvastatin',
-            alertStyle: 'food_advisory_note',
-          ),
-        ],
-        // A real, actionable concern.
-        stackInteractions: [
-          makeInteraction(
-            id: 'concern',
-            severity: Severity.caution,
-            agent1: 'Iron',
-            agent2: 'Calcium',
-            management: 'Space doses apart.',
-          ),
-        ],
-      );
-      await pumpBanner(tester, report: report);
+  testWidgets('food advisory never becomes the headline over a real concern '
+      '(disposition-first), even at higher underlying severity', (
+    tester,
+  ) async {
+    final report = StackSafetyReport(
+      // Displays informational, truly avoid — but placed as good_to_know.
+      medicationInteractions: [
+        makeInteraction(
+          id: 'fa',
+          severity: Severity.informational,
+          curated: Severity.avoid,
+          agent1: 'Grapefruit',
+          agent2: 'Atorvastatin',
+          alertStyle: 'food_advisory_note',
+        ),
+      ],
+      // A real, actionable concern.
+      stackInteractions: [
+        makeInteraction(
+          id: 'concern',
+          severity: Severity.caution,
+          agent1: 'Iron',
+          agent2: 'Calcium',
+          management: 'Space doses apart.',
+        ),
+      ],
+    );
+    await pumpBanner(tester, report: report);
 
-      final banner = tester.widget<PGSeverityBanner>(
-        find.byType(PGSeverityBanner),
-      );
-      // The caution concern is the headline; the food advisory's higher
-      // underlying severity does NOT hijack the banner tone or title.
-      expect(banner.tone, PGBannerTone.caution);
-      expect(banner.title, contains('Iron'));
-      expect(banner.title, contains('Calcium'));
-      expect(banner.title, isNot(contains('Grapefruit')));
-      expect(banner.body, contains('Space doses'));
-      expect(banner.body, contains('1 more signal'));
-    },
-  );
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
+    // The caution concern is the headline; the food advisory's higher
+    // underlying severity does NOT hijack the banner tone or title.
+    expect(banner.tone, PGBannerTone.caution);
+    expect(banner.title, contains('Iron'));
+    expect(banner.title, contains('Calcium'));
+    expect(banner.title, isNot(contains('Grapefruit')));
+    expect(banner.body, contains('Space doses'));
+    expect(banner.body, contains('1 more signal'));
+  });
 }

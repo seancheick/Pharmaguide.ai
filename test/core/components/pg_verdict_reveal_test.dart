@@ -11,10 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 
-Future<void> _pumpReveal(
-  WidgetTester tester,
-  VoidCallback onDismiss,
-) {
+Future<void> _pumpReveal(WidgetTester tester, VoidCallback onDismiss) {
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(

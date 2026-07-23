@@ -119,7 +119,8 @@ class PGEvidenceSection extends StatelessWidget {
                 ),
             ],
             if (sheetExtra != null) ...[
-              if (citations.isNotEmpty) const SizedBox(height: V2Spacing.space24),
+              if (citations.isNotEmpty)
+                const SizedBox(height: V2Spacing.space24),
               sheetExtra!,
             ],
           ],
@@ -284,7 +285,10 @@ class _ViewStudiesButton extends StatelessWidget {
                   color: V2Colors.accent,
                 ),
                 const SizedBox(width: V2Spacing.space4),
-                Text(label, style: V2Typography.caption(color: V2Colors.accent)),
+                Text(
+                  label,
+                  style: V2Typography.caption(color: V2Colors.accent),
+                ),
                 const Icon(
                   Icons.chevron_right_rounded,
                   size: 16,

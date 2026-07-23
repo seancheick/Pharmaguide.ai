@@ -65,8 +65,7 @@ class ProfileRelevanceSummary {
 
   /// A defensive low-coverage state remains silent in consumer UI. Catalog
   /// completeness is enforced by the release gate, not explained here.
-  bool get shouldRender =>
-      status != ProfileRelevanceStatus.coverageLimited;
+  bool get shouldRender => status != ProfileRelevanceStatus.coverageLimited;
 }
 
 ProfileRelevanceSummary buildProfileRelevanceSummary({
@@ -478,7 +477,9 @@ String? _primaryConcernBody({
 }) {
   final allergen = matchedAllergens.isEmpty ? null : matchedAllergens.first;
   if (allergen != null) {
-    final verb = allergen.presenceType == 'contains' ? 'Contains' : 'May contain';
+    final verb = allergen.presenceType == 'contains'
+        ? 'Contains'
+        : 'May contain';
     return '$verb ${allergen.displayName}, which is in your allergy profile.';
   }
   final warning = warnings.isEmpty ? null : warnings.first;

@@ -169,7 +169,10 @@ class StackSafetyBanner extends StatelessWidget {
 
   /// Body describes the headline signal's management / mechanism and appends a
   /// "+N more" hint when the stack has additional signals.
-  static String? _bodyFor(List<ClinicalSignal> signals, ClinicalSignal headline) {
+  static String? _bodyFor(
+    List<ClinicalSignal> signals,
+    ClinicalSignal headline,
+  ) {
     String? primary;
     switch (headline.payload) {
       case InteractionPayload(:final result):
