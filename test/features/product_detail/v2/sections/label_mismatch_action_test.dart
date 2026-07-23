@@ -24,10 +24,9 @@ void main() {
 
     test('returns null (never throws) on malformed provenance', () {
       expect(
-        labelMismatchMetadataFrom(
-          const {'formula_fingerprint': 'not-a-sha256'},
-          dsldId: '12345',
-        ),
+        labelMismatchMetadataFrom(const {
+          'formula_fingerprint': 'not-a-sha256',
+        }, dsldId: '12345'),
         isNull,
       );
     });
@@ -55,9 +54,9 @@ void main() {
     });
 
     test('falls back to source_record_id when dsldId is absent', () {
-      final meta = labelMismatchMetadataFrom(
-        const {'source_record_id': 'SRC-9'},
-      );
+      final meta = labelMismatchMetadataFrom(const {
+        'source_record_id': 'SRC-9',
+      });
       expect(meta?.dsldId, 'SRC-9');
     });
 

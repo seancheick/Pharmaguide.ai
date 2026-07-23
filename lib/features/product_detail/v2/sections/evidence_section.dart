@@ -69,7 +69,6 @@ enum EvidenceScope { product, brandedIngredient, ingredient, indirect }
 const Set<String> _strongLevels = {'branded-rct', 'product-human'};
 const Set<String> _moderateLevels = {'ingredient-human', 'strain-clinical'};
 
-
 /// Whether the clinical-evidence destination can render real rows. A numeric
 /// `match_count` alone is not enough; stale blobs can report a count while the
 /// parsed match list is empty.

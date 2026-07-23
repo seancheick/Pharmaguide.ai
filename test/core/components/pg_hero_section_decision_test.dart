@@ -140,25 +140,23 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('low coverage replaces the tier score with a neutral fallback', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        const PGHeroSection(
-          imageWidget: SizedBox(),
-          productName: 'Test Product',
-          brandName: 'Test Brand',
-          score: 85,
-          lowCoverage: true,
-        ),
-      );
-      expect(find.text('85/100'), findsNothing);
-      expect(
-        find.text('Product quality score unavailable.'),
-        findsOneWidget,
-      );
-    });
+    testWidgets(
+      'low coverage replaces the tier score with a neutral fallback',
+      (tester) async {
+        await pump(
+          tester,
+          const PGHeroSection(
+            imageWidget: SizedBox(),
+            productName: 'Test Product',
+            brandName: 'Test Brand',
+            score: 85,
+            lowCoverage: true,
+          ),
+        );
+        expect(find.text('85/100'), findsNothing);
+        expect(find.text('Product quality score unavailable.'), findsOneWidget);
+      },
+    );
 
     testWidgets('trusted coverage still renders the tier score line', (
       tester,

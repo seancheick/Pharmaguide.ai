@@ -56,7 +56,11 @@ void main() {
           jsonDecode(fixture.readAsStringSync()) as Map<String, dynamic>;
       final meta = data['_metadata'] as Map<String, dynamic>;
       final n = (data['test_cases'] as List).length;
-      expect(meta['total_entries'], n, reason: '_metadata.total_entries != cases');
+      expect(
+        meta['total_entries'],
+        n,
+        reason: '_metadata.total_entries != cases',
+      );
       expect(meta['case_count'], n, reason: '_metadata.case_count != cases');
     });
   });

@@ -45,7 +45,8 @@ class StackSafetyDetailsSheet extends StatelessWidget {
     final goodToKnow = signals
         .where((s) => s.consumerDisposition == ConsumerDisposition.goodToKnow)
         .toList();
-    final checkIncomplete = report.checksIncomplete || report.coverageIncomplete;
+    final checkIncomplete =
+        report.checksIncomplete || report.coverageIncomplete;
 
     return Semantics(
       label: 'Stack safety signals',
@@ -60,9 +61,15 @@ class StackSafetyDetailsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PGEyebrow('Review ${signals.length} signals', color: V2Colors.caution),
+            PGEyebrow(
+              'Review ${signals.length} signals',
+              color: V2Colors.caution,
+            ),
             const SizedBox(height: V2Spacing.space8),
-            Text('Stack safety', style: V2Typography.titleSm(color: V2Colors.fg)),
+            Text(
+              'Stack safety',
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               'Review supplement totals and interactions found in your stack.',

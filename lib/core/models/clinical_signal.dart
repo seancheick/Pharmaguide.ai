@@ -49,7 +49,9 @@ String canonicalSignalId({
   switch (family) {
     case SignalFamily.cumulativeExposure:
       if (nutrientId == null || nutrientId.trim().isEmpty) {
-        throw ArgumentError('cumulativeExposure signal id requires a nutrientId');
+        throw ArgumentError(
+          'cumulativeExposure signal id requires a nutrientId',
+        );
       }
       return '$signalIdNamespace:${family.name}:'
           '${normalizeSignalSubject(nutrientId)}';
@@ -59,11 +61,12 @@ String canonicalSignalId({
       if (sourceRuleId == null || sourceRuleId.trim().isEmpty) {
         throw ArgumentError('${family.name} signal id requires a sourceRuleId');
       }
-      final subjects = subjectIds
-          .map(normalizeSignalSubject)
-          .where((s) => s.isNotEmpty)
-          .toList()
-        ..sort();
+      final subjects =
+          subjectIds
+              .map(normalizeSignalSubject)
+              .where((s) => s.isNotEmpty)
+              .toList()
+            ..sort();
       return '$signalIdNamespace:${family.name}:'
           '${normalizeSignalSubject(sourceRuleId)}:${subjects.join(',')}';
   }

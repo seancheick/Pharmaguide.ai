@@ -47,10 +47,7 @@ const Map<String, Set<String>> _allowlist = {
   'stack_nutrient_aggregator.dart': {'>=150.0'},
 };
 
-const List<String> _scanDirs = [
-  'lib/services/stack',
-  'lib/services/warnings',
-];
+const List<String> _scanDirs = ['lib/services/stack', 'lib/services/warnings'];
 
 /// Return `<file>: <literal>` violations for band literals in [source] not
 /// permitted for [fileName] by [allowlist]. Inline/line comments are ignored.

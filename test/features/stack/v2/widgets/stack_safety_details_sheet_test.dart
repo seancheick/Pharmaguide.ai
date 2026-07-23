@@ -66,7 +66,12 @@ NutrientStatus _nut({
 /// supplement interaction, and a cumulative-UL breach.
 StackSafetyReport _report() => StackSafetyReport(
   medicationPairInteractions: [
-    _ix(id: 'p1', a1: 'Warfarin', a2: 'Aspirin', severity: Severity.contraindicated),
+    _ix(
+      id: 'p1',
+      a1: 'Warfarin',
+      a2: 'Aspirin',
+      severity: Severity.contraindicated,
+    ),
   ],
   medicationInteractions: [
     _ix(
@@ -86,7 +91,9 @@ StackSafetyReport _report() => StackSafetyReport(
 
 Future<void> _pump(WidgetTester tester, StackSafetyReport report) =>
     tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: StackSafetyDetailsSheet(report: report))),
+      MaterialApp(
+        home: Scaffold(body: StackSafetyDetailsSheet(report: report)),
+      ),
     );
 
 void main() {
@@ -151,13 +158,22 @@ void main() {
       final needsY = tester.getTopLeft(find.text('NEEDS ATTENTION')).dy;
       final goodY = tester.getTopLeft(find.text('GOOD TO KNOW')).dy;
       final warfarinY = tester.getTopLeft(find.text('Warfarin x Aspirin')).dy;
-      final advisoryY =
-          tester.getTopLeft(find.text('Grapefruit x Atorvastatin')).dy;
+      final advisoryY = tester
+          .getTopLeft(find.text('Grapefruit x Atorvastatin'))
+          .dy;
 
       expect(needsY, lessThan(goodY), reason: 'Needs attention comes first');
       expect(warfarinY, greaterThan(needsY));
-      expect(warfarinY, lessThan(goodY), reason: 'the hard interaction is a concern');
-      expect(advisoryY, greaterThan(goodY), reason: 'food advisory is never a concern');
+      expect(
+        warfarinY,
+        lessThan(goodY),
+        reason: 'the hard interaction is a concern',
+      );
+      expect(
+        advisoryY,
+        greaterThan(goodY),
+        reason: 'food advisory is never a concern',
+      );
     });
 
     testWidgets('a suppress-disposition (safe) signal does not render', (
@@ -167,8 +183,18 @@ void main() {
         tester,
         StackSafetyReport(
           stackInteractions: [
-            _ix(id: 'safe1', a1: 'Neutral', a2: 'Pair', severity: Severity.safe),
-            _ix(id: 'c1', a1: 'Iron', a2: 'Calcium', severity: Severity.caution),
+            _ix(
+              id: 'safe1',
+              a1: 'Neutral',
+              a2: 'Pair',
+              severity: Severity.safe,
+            ),
+            _ix(
+              id: 'c1',
+              a1: 'Iron',
+              a2: 'Calcium',
+              severity: Severity.caution,
+            ),
           ],
         ),
       );
@@ -183,7 +209,12 @@ void main() {
         tester,
         StackSafetyReport(
           stackInteractions: [
-            _ix(id: 'c1', a1: 'Iron', a2: 'Calcium', severity: Severity.caution),
+            _ix(
+              id: 'c1',
+              a1: 'Iron',
+              a2: 'Calcium',
+              severity: Severity.caution,
+            ),
           ],
           checksIncomplete: true,
         ),
