@@ -134,6 +134,57 @@ void main() {
     });
   });
 
+  group('medNutrientRelationshipLabel (B1.1)', () {
+    test('maps each relationship type to consumer language', () {
+      expect(
+        medNutrientRelationshipLabel('depletion'),
+        'Associated nutrient to monitor',
+      );
+      expect(
+        medNutrientRelationshipLabel('condition_related'),
+        'Condition-related nutrient consideration',
+      );
+      expect(
+        medNutrientRelationshipLabel('functional_antagonism'),
+        'May affect nutrient function',
+      );
+      expect(
+        medNutrientRelationshipLabel('monitoring_stability'),
+        'Monitoring consideration',
+      );
+      expect(
+        medNutrientRelationshipLabel('supplement_interaction'),
+        'Supplement consideration',
+      );
+    });
+
+    test('non-depletion types never read as "depletion"', () {
+      for (final t in const [
+        'functional_antagonism',
+        'monitoring_stability',
+        'supplement_interaction',
+        'condition_related',
+        'unknown_future_type',
+      ]) {
+        expect(
+          medNutrientRelationshipLabel(t).toLowerCase(),
+          isNot(contains('deplet')),
+        );
+      }
+    });
+
+    test('unknown type falls back to a neutral label', () {
+      expect(medNutrientRelationshipLabel('something_new'), 'Nutrient consideration');
+    });
+
+    test('is case/whitespace tolerant', () {
+      expect(
+        medNutrientRelationshipLabel('  Depletion '),
+        'Associated nutrient to monitor',
+      );
+    });
+  });
+
   group('DepletionChecker — medication matching', () {
     test('no medications returns empty results', () {
       final out = checker.check(

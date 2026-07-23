@@ -138,6 +138,27 @@ class DepletionMatch {
   });
 }
 
+/// Consumer-facing label for a medication–nutrient relationship. Keeps each
+/// [DepletionMatch.depletionType] honest: a functional antagonism or a
+/// monitoring note is never presented as a "depletion" (PM-locked, B1.1).
+/// Unknown/future types fall back to a neutral label, never "depletion".
+String medNutrientRelationshipLabel(String depletionType) {
+  switch (depletionType.trim().toLowerCase()) {
+    case 'depletion':
+      return 'Associated nutrient to monitor';
+    case 'condition_related':
+      return 'Condition-related nutrient consideration';
+    case 'functional_antagonism':
+      return 'May affect nutrient function';
+    case 'monitoring_stability':
+      return 'Monitoring consideration';
+    case 'supplement_interaction':
+      return 'Supplement consideration';
+    default:
+      return 'Nutrient consideration';
+  }
+}
+
 /// Minimal supplement-in-stack description used for dose-aware coverage
 /// computation. One entry per (supplement, ingredient) pair the user
 /// is currently taking.
