@@ -19,46 +19,70 @@ enum SignalFamily {
   cumulativeExposure,
 }
 
-String _norm(String s) => s.trim().toLowerCase();
+/// Namespace + version prefix for every signal's canonical identity. Bump the
+/// version ONLY on an intentional, breaking change to the id recipe.
+const String signalIdNamespace = 'pg_signal:v1';
 
-/// Deterministic, stable signal identity (execution brief §3.1).
+/// Normalize a subject / nutrient token for identity — case- and
+/// whitespace-insensitive, so 'Warfarin' and ' warfarin ' collapse.
+String normalizeSignalSubject(String s) => s.trim().toLowerCase();
+
+/// The debug-readable canonical identity string, hashed by [deriveSignalId].
+/// Retaining this pre-hash form makes lifecycle/diff diagnostics legible, e.g.
+/// `pg_signal:v1:cumulativeExposure:vitamin_d`.
 ///
-/// Hashes ONLY identity inputs — never severity, copy, list order, timestamp,
-/// catalog version, or (for cumulative exposure) the contributing products — so
-/// a signal keeps its id across re-evaluation, stack reordering, and
-/// copy/threshold updates. That stable id is what lets the lifecycle layer track
-/// a concern as new → ongoing → changed → resolved.
-///
-/// Per-family recipe:
+/// Per-family recipe (execution brief §3.1) — identity inputs ONLY, never
+/// severity, copy, list order, timestamp, or catalog version:
 ///   - pairwiseInteraction / medicationProfile / medicationNutrient:
-///       sha256(family | sourceRuleId | sorted(normalized subjectIds))
+///       namespace : family : sourceRuleId : sorted(normalized subjectIds)
 ///     `sourceRuleId` is the PERMANENT rule identity (never a revision), so an
 ///     evidence/threshold update surfaces as a `changed` on the SAME signal.
 ///   - cumulativeExposure:
-///       sha256(family | nutrientId)   — deliberately NOT the products, so the
-///     signal survives products being added/removed from the stack.
-String deriveSignalId({
+///       namespace : family : nutrientId   — deliberately NOT the products, so
+///     the signal survives products being added to / removed from the stack.
+String canonicalSignalId({
   required SignalFamily family,
   String? sourceRuleId,
   List<String> subjectIds = const [],
   String? nutrientId,
 }) {
-  final String key;
   switch (family) {
     case SignalFamily.cumulativeExposure:
       if (nutrientId == null || nutrientId.trim().isEmpty) {
         throw ArgumentError('cumulativeExposure signal id requires a nutrientId');
       }
-      key = 'cumulativeExposure|${_norm(nutrientId)}';
+      return '$signalIdNamespace:${family.name}:'
+          '${normalizeSignalSubject(nutrientId)}';
     case SignalFamily.pairwiseInteraction:
     case SignalFamily.medicationProfile:
     case SignalFamily.medicationNutrient:
       if (sourceRuleId == null || sourceRuleId.trim().isEmpty) {
         throw ArgumentError('${family.name} signal id requires a sourceRuleId');
       }
-      final subjects = subjectIds.map(_norm).where((s) => s.isNotEmpty).toList()
+      final subjects = subjectIds
+          .map(normalizeSignalSubject)
+          .where((s) => s.isNotEmpty)
+          .toList()
         ..sort();
-      key = '${family.name}|${_norm(sourceRuleId)}|${subjects.join(',')}';
+      return '$signalIdNamespace:${family.name}:'
+          '${normalizeSignalSubject(sourceRuleId)}:${subjects.join(',')}';
   }
-  return sha256.convert(utf8.encode(key)).toString();
+}
+
+/// Deterministic, stable signal id — sha256 of [canonicalSignalId]. The stable
+/// id is what lets the lifecycle layer track a concern as
+/// new → ongoing → changed → resolved.
+String deriveSignalId({
+  required SignalFamily family,
+  String? sourceRuleId,
+  List<String> subjectIds = const [],
+  String? nutrientId,
+}) {
+  final canonical = canonicalSignalId(
+    family: family,
+    sourceRuleId: sourceRuleId,
+    subjectIds: subjectIds,
+    nutrientId: nutrientId,
+  );
+  return sha256.convert(utf8.encode(canonical)).toString();
 }
