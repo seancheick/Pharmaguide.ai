@@ -4,38 +4,30 @@
 //
 // Input: a [StackSafetyReport] already built by the stack-scoring layer
 // (spec §8.3). The banner is intentionally pure — no Riverpod hooks, no
-// I/O, no async. The provider wiring lives in G11; tests drive this
-// widget directly with synthetic reports so we can exhaustively cover
-// every severity / content combination without spinning up a database.
+// I/O, no async. Rows are driven from [orderedSignalsFrom] (the typed
+// clinical-signal aggregation), so tone, title, and body all come from the
+// SAME headline signal — the disposition-first top of the list.
 //
 // Visual behavior:
-//   - `report.isEmpty`      → hidden (SizedBox.shrink) so an all-clear
-//                              stack doesn't push the product list down.
-//   - non-empty, worst=safe → rendered as a success banner ("All clear")
-//                              when the only signals are sub-warn
-//                              nutrient entries that still made it into
-//                              the report. In practice this branch is
-//                              rare because `isEmpty` already filters
-//                              most clean cases, but it protects
-//                              against odd upstream data.
-//   - monitor / caution     → amber caution banner with the top warning
-//                              title + a "N more" suffix when there
-//                              are additional signals.
-//   - avoid / contraindicated → red danger banner. The highest-severity
-//                                signal drives the title; the count
-//                                line summarizes the rest.
+//   - no signals            → hidden (SizedBox.shrink) so an all-clear stack
+//                              doesn't push the product list down — UNLESS a
+//                              check/coverage flag is set, in which case we
+//                              hedge instead of implying "all clear".
+//   - headline = block/avoid → red danger banner.
+//   - caution / monitor     → amber caution banner.
+//   - a "+N more" suffix summarizes the remaining signals.
 //
-// The banner renders the single most-severe signal verbatim and lets
-// the caller tap through for the full list. We deliberately do NOT
-// show every warning inline — the banner is a summary, not a panel.
+// Suppress-disposition signals (e.g. a safe interaction) are excluded upstream
+// by orderedSignalsFrom, so a safe-only stack collapses to the hedge/hidden
+// path rather than a success banner — never a false all-clear.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
-import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
@@ -64,41 +56,35 @@ class StackSafetyBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (report.isEmpty) {
-      if (report.checksIncomplete) return _checksIncompleteBanner();
-      // Low label-mapping coverage means the interaction checks may
-      // not have seen every ingredient — never imply "all clear".
-      if (report.coverageIncomplete) return _coverageHedgeBanner();
-      return const SizedBox.shrink();
-    }
+    final signals = orderedSignalsFrom(report);
 
-    final worst = report.overallSeverity;
-    final ordered = report.orderedWarnings;
-    // Defensive — the report claims isEmpty==false so there should be
-    // at least one warning, but we guard anyway so a malformed report
-    // can never tear down the stack screen.
-    if (ordered.isEmpty) {
+    // No renderable signal. Never imply "all clear" when a check or coverage
+    // gap means we may not have seen everything.
+    if (signals.isEmpty) {
       if (report.checksIncomplete) return _checksIncompleteBanner();
       if (report.coverageIncomplete) return _coverageHedgeBanner();
       return const SizedBox.shrink();
     }
 
-    // A success-toned summary is only honest when every label was
-    // analyzed. With low coverage in the stack, downgrade to the
-    // caution-toned hedge instead.
-    if (report.coverageIncomplete && _toneFor(worst) == PGBannerTone.success) {
+    final headline = signals.first;
+    final worst = headline.clinicalSeverity;
+    final tone = _toneFor(worst);
+
+    // A success-toned summary is only honest when every label was analyzed and
+    // every check finished. (In practice the headline is never `safe`, since
+    // suppress signals are excluded — this guards odd upstream data.)
+    if (report.coverageIncomplete && tone == PGBannerTone.success) {
       return _coverageHedgeBanner();
     }
-
-    if (report.checksIncomplete && _toneFor(worst) == PGBannerTone.success) {
+    if (report.checksIncomplete && tone == PGBannerTone.success) {
       return _checksIncompleteBanner();
     }
 
     return PGSeverityBanner(
       key: const Key('stack-safety-banner'),
-      tone: _toneFor(worst),
-      title: _titleFor(ordered.first, worst),
-      body: _bodyFor(ordered, worst),
+      tone: tone,
+      title: _titleFor(headline, worst),
+      body: _bodyFor(signals, headline),
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,
@@ -155,64 +141,67 @@ class StackSafetyBanner extends StatelessWidget {
     }
   }
 
-  /// Title is the top warning rendered as a short one-liner. We prefix
-  /// with the severity label so the user can scan by color + text in
-  /// one glance ("AVOID — Warfarin × Fish Oil").
-  static String _titleFor(Object topWarning, Severity worst) {
+  /// Title is the headline signal rendered as a short one-liner, prefixed with
+  /// the severity label so the user can scan by color + text in one glance
+  /// ("Not recommended — Warfarin × Fish Oil"). Text comes from the typed
+  /// payload, so it is identical to the pre-migration rendering.
+  static String _titleFor(ClinicalSignal signal, Severity worst) {
     final prefix = worst.label;
-    if (topWarning is InteractionResult) {
-      if (topWarning.isFoodAdvisoryNote) {
-        return 'Food note — ${topWarning.agent1Name} × ${topWarning.agent2Name}';
-      }
-      return '$prefix — ${topWarning.agent1Name} × ${topWarning.agent2Name}';
+    switch (signal.payload) {
+      case InteractionPayload(:final result):
+        if (result.isFoodAdvisoryNote) {
+          return 'Food note — ${result.agent1Name} × ${result.agent2Name}';
+        }
+        return '$prefix — ${result.agent1Name} × ${result.agent2Name}';
+      case MedicationProfilePayload(:final warning):
+        return '$prefix — ${warning.medicationName}';
+      case CumulativeExposurePayload(:final status):
+        if (status.tier == NutrientTier.exceedsUl) {
+          return 'Upper limit - ${status.total.displayName}';
+        }
+        return '$prefix — ${status.total.displayName}';
+      case MedicationNutrientPayload(:final match):
+        // Not in the banner's data source today (depletions come from a
+        // separate provider); reserved for when they are folded in.
+        return '$prefix — ${match.drugDisplayName}';
     }
-    if (topWarning is MedicationProfileWarning) {
-      return '$prefix — ${topWarning.medicationName}';
-    }
-    if (topWarning is NutrientStatus) {
-      if (topWarning.tier == NutrientTier.exceedsUl) {
-        return 'Upper limit - ${topWarning.total.displayName}';
-      }
-      return '$prefix — ${topWarning.total.displayName}';
-    }
-    // Unknown payload — fall back to the severity label alone so we
-    // never crash on an unexpected type.
-    return prefix;
   }
 
-  /// Body describes the top warning's management / mechanism and
-  /// appends a "+N more" hint when the stack has additional signals.
-  static String? _bodyFor(List<Object> ordered, Severity worst) {
-    final first = ordered.first;
+  /// Body describes the headline signal's management / mechanism and appends a
+  /// "+N more" hint when the stack has additional signals.
+  static String? _bodyFor(List<ClinicalSignal> signals, ClinicalSignal headline) {
     String? primary;
-    if (first is InteractionResult) {
-      // Prefer management (what the user should do); fall back to the
-      // mechanism summary if management is empty. Always append the
-      // evidence level — safety rule: interaction warnings must show
-      // their evidence tier (mirrors rowForWarning in
-      // review_before_use_helpers.dart).
-      final base = first.management.trim().isNotEmpty
-          ? first.management
-          : first.mechanism;
-      primary = base.trim().isEmpty
-          ? first.evidenceLevel.label
-          : '$base · ${first.evidenceLevel.label}';
-    } else if (first is MedicationProfileWarning) {
-      final base = first.body.trim().isNotEmpty ? first.body : first.management;
-      primary = base.trim().isEmpty
-          ? first.evidenceLevel.label
-          : '$base · ${first.evidenceLevel.label}';
-    } else if (first is NutrientStatus) {
-      primary = _nutrientHint(first);
+    switch (headline.payload) {
+      case InteractionPayload(:final result):
+        // Prefer management (what the user should do); fall back to the
+        // mechanism summary if management is empty. Always append the evidence
+        // level — safety rule: interaction warnings must show their tier.
+        final base = result.management.trim().isNotEmpty
+            ? result.management
+            : result.mechanism;
+        primary = base.trim().isEmpty
+            ? result.evidenceLevel.label
+            : '$base · ${result.evidenceLevel.label}';
+      case MedicationProfilePayload(:final warning):
+        final base = warning.body.trim().isNotEmpty
+            ? warning.body
+            : warning.management;
+        primary = base.trim().isEmpty
+            ? warning.evidenceLevel.label
+            : '$base · ${warning.evidenceLevel.label}';
+      case CumulativeExposurePayload(:final status):
+        primary = _nutrientHint(status);
+      case MedicationNutrientPayload(:final match):
+        primary = match.clinicalImpact ?? match.mechanism;
     }
 
-    final extraCount = ordered.length - 1;
+    final extraCount = signals.length - 1;
     if (extraCount <= 0) return primary;
 
     final extraLabel = extraCount == 1
         ? '1 more signal'
         : '$extraCount more signals';
-    if (primary == null || primary.isEmpty) return extraLabel;
+    if (primary.isEmpty) return extraLabel;
     return '$primary  ·  $extraLabel';
   }
 
