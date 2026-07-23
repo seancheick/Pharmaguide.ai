@@ -70,7 +70,10 @@ void main() {
 
     test('no source detected', () {
       final c = copy(MedNutrientSupplyState.noDetectedSource);
-      expect(c, contains('No Vitamin B12 source detected in your current stack'));
+      expect(
+        c,
+        contains('No Vitamin B12 source detected in your current stack'),
+      );
       expect(
         c,
         contains(
@@ -89,7 +92,10 @@ void main() {
         comp: 100,
         compUnit: 'mcg',
       );
-      expect(c, contains('Your current stack contains 50 mcg of Vitamin B12 per day'));
+      expect(
+        c,
+        contains('Your current stack contains 50 mcg of Vitamin B12 per day'),
+      );
       expect(
         c,
         contains(
@@ -110,9 +116,15 @@ void main() {
         comp: 100,
         compUnit: 'mcg',
       );
-      expect(c, contains('Your current stack contains 250 mcg of Vitamin B12 per day'));
+      expect(
+        c,
+        contains('Your current stack contains 250 mcg of Vitamin B12 per day'),
+      );
       expect(c, contains('This meets the comparison amount'));
-      expect(c, contains('does not confirm your blood level or nutrient status'));
+      expect(
+        c,
+        contains('does not confirm your blood level or nutrient status'),
+      );
       _assertNoBannedWords(c);
     });
 
@@ -150,7 +162,9 @@ void main() {
       final c = copy('monitoring_stability');
       expect(
         c,
-        contains('Monitoring Magnesium may be relevant while taking Furosemide'),
+        contains(
+          'Monitoring Magnesium may be relevant while taking Furosemide',
+        ),
       );
       expect(c, contains('Ask your clinician whether testing or follow-up'));
       expect(c, isNot(contains('Keep an eye')));
@@ -180,9 +194,14 @@ void main() {
       );
       expect(
         c,
-        contains('Vitamin D may be relevant to monitor with Chronic kidney disease'),
+        contains(
+          'Vitamin D may be relevant to monitor with Chronic kidney disease',
+        ),
       );
-      expect(c, contains('Your current stack contains 1000 IU of Vitamin D per day'));
+      expect(
+        c,
+        contains('Your current stack contains 1000 IU of Vitamin D per day'),
+      );
       expect(c, isNot(contains('medication-related')));
       _assertNoBannedWords(c);
     });

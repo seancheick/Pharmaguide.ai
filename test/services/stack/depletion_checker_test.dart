@@ -72,15 +72,18 @@ void main() {
 
     const metformin = (name: 'Metformin', drugClassId: null);
 
-    test('entry with missing id is dropped, never emitted with an empty id', () {
-      final out = checker.check(
-        medications: const [metformin],
-        depletionsData: {
-          'depletions': [metforminEntry(id: null)],
-        },
-      );
-      expect(out, isEmpty);
-    });
+    test(
+      'entry with missing id is dropped, never emitted with an empty id',
+      () {
+        final out = checker.check(
+          medications: const [metformin],
+          depletionsData: {
+            'depletions': [metforminEntry(id: null)],
+          },
+        );
+        expect(out, isEmpty);
+      },
+    );
 
     test('entry with empty-string id is dropped', () {
       final out = checker.check(
@@ -92,18 +95,25 @@ void main() {
       expect(out, isEmpty);
     });
 
-    test('duplicate ids across entries are all dropped (no colliding signals)', () {
-      final out = checker.check(
-        medications: const [metformin],
-        depletionsData: {
-          'depletions': [
-            metforminEntry(id: 'DUP'),
-            metforminEntry(id: 'DUP', nutrient: 'Folate', canonicalId: 'folate'),
-          ],
-        },
-      );
-      expect(out, isEmpty);
-    });
+    test(
+      'duplicate ids across entries are all dropped (no colliding signals)',
+      () {
+        final out = checker.check(
+          medications: const [metformin],
+          depletionsData: {
+            'depletions': [
+              metforminEntry(id: 'DUP'),
+              metforminEntry(
+                id: 'DUP',
+                nutrient: 'Folate',
+                canonicalId: 'folate',
+              ),
+            ],
+          },
+        );
+        expect(out, isEmpty);
+      },
+    );
 
     test('valid unique id still emits normally', () {
       final out = checker.check(
@@ -124,7 +134,11 @@ void main() {
           'depletions': [
             metforminEntry(id: null),
             metforminEntry(id: 'DUP'),
-            metforminEntry(id: 'DUP', nutrient: 'Folate', canonicalId: 'folate'),
+            metforminEntry(
+              id: 'DUP',
+              nutrient: 'Folate',
+              canonicalId: 'folate',
+            ),
           ],
         },
         onDataIssue: issues.add,
@@ -273,7 +287,10 @@ void main() {
     });
 
     test('unknown type falls back to a neutral label', () {
-      expect(medNutrientRelationshipLabel('something_new'), 'Nutrient consideration');
+      expect(
+        medNutrientRelationshipLabel('something_new'),
+        'Nutrient consideration',
+      );
     });
 
     test('is case/whitespace tolerant', () {

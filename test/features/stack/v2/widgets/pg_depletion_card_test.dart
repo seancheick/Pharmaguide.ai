@@ -63,7 +63,10 @@ void main() {
     await _pump(tester, [
       _dep(type: 'depletion', nutrient: 'Vitamin B12', drug: 'Metformin'),
     ]);
-    expect(find.textContaining('ASSOCIATED NUTRIENT TO MONITOR'), findsOneWidget);
+    expect(
+      find.textContaining('ASSOCIATED NUTRIENT TO MONITOR'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('No Vitamin B12 source detected'),
       findsOneWidget,
@@ -88,7 +91,10 @@ void main() {
       find.textContaining('contains 250 mcg of Vitamin B12 per day'),
       findsOneWidget,
     );
-    expect(find.textContaining('This meets the comparison amount'), findsOneWidget);
+    expect(
+      find.textContaining('This meets the comparison amount'),
+      findsOneWidget,
+    );
     expect(find.textContaining('covered'), findsNothing);
     expect(find.textContaining('adequate'), findsNothing);
   });

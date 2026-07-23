@@ -219,7 +219,8 @@ String medNutrientBodyCopy({
   final n = nutrient.trim().isEmpty ? 'this nutrient' : nutrient.trim();
   final subj = subject.trim().isEmpty ? 'your medication' : subject.trim();
 
-  final amountPhrase = (detectedAmount != null && (detectedUnit ?? '').isNotEmpty)
+  final amountPhrase =
+      (detectedAmount != null && (detectedUnit ?? '').isNotEmpty)
       ? '${_fmtAmt(detectedAmount)} ${detectedUnit!.trim()}'
       : '';
 

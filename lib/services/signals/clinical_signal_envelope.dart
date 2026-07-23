@@ -211,8 +211,9 @@ class ClinicalSignal {
     );
     final importance = m.severity.trim().toLowerCase();
     final ruleId = m.depletionId;
-    final drugSubject =
-        m.drugClassId.isNotEmpty ? m.drugClassId : m.drugDisplayName;
+    final drugSubject = m.drugClassId.isNotEmpty
+        ? m.drugClassId
+        : m.drugDisplayName;
     final subjects = [drugSubject, m.nutrientCanonicalId];
     return ClinicalSignal(
       signalId: deriveSignalId(
@@ -274,11 +275,8 @@ class ClinicalSignal {
   }
 }
 
-List<String> _sortedSubjects(List<String> xs) => xs
-    .map(normalizeSignalSubject)
-    .where((s) => s.isNotEmpty)
-    .toList()
-  ..sort();
+List<String> _sortedSubjects(List<String> xs) =>
+    xs.map(normalizeSignalSubject).where((s) => s.isNotEmpty).toList()..sort();
 
 /// Disposition fallback from ranking severity. Depletions and food advisories do
 /// NOT use this (they are pinned to good_to_know). Authored dispositions
