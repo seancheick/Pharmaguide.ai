@@ -168,6 +168,71 @@ void main() {
     });
   });
 
+  group('DepletionChecker — canonical subject validation (B1.1)', () {
+    // A signal's subjects are the drug/condition + the nutrient canonical id.
+    // A matched entry missing the nutrient canonical id would emit a signal
+    // with no stable nutrient subject, so it is dropped (app-defensive; the
+    // pipeline is the primary gate that resolves ids against the catalog).
+    const metformin = (name: 'Metformin', drugClassId: null);
+
+    Map<String, dynamic> entry({Object? canonicalId = 'vitamin_b12'}) => {
+      'id': 'DEP_METFORMIN_VITAMINB12',
+      'drug_ref': {
+        'id': '860974',
+        'display_name': 'Metformin (type 2 diabetes medication)',
+      },
+      'depleted_nutrient': {
+        'standard_name': 'Vitamin B12',
+        if (canonicalId != null) 'canonical_id': canonicalId,
+      },
+      'depletion_type': 'depletion',
+      'severity': 'significant',
+    };
+
+    test('entry missing the nutrient canonical_id is dropped', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(canonicalId: null)],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('entry with a blank nutrient canonical_id is dropped', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(canonicalId: '   ')],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('onDataIssue reports the dropped canonical subject', () {
+      final issues = <String>[];
+      checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(canonicalId: null)],
+        },
+        onDataIssue: issues.add,
+      );
+      expect(issues.any((m) => m.contains('canonical subject')), isTrue);
+    });
+
+    test('valid nutrient canonical_id still emits', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry()],
+        },
+      );
+      expect(out, hasLength(1));
+      expect(out.single.nutrientCanonicalId, 'vitamin_b12');
+    });
+  });
+
   group('medNutrientRelationshipLabel (B1.1)', () {
     test('maps each relationship type to consumer language', () {
       expect(

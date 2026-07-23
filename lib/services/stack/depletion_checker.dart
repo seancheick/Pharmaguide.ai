@@ -483,7 +483,23 @@ class DepletionChecker {
 
       final nutrient = dep['depleted_nutrient'] as Map<String, dynamic>? ?? {};
       final canonicalId = (nutrient['canonical_id']?.toString() ?? '')
+          .trim()
           .toLowerCase();
+
+      // Canonical-subject validation (B1.1, app-defensive): the signal subjects
+      // are the drug/condition + the nutrient canonical id. Missing either makes
+      // the signal identity unstable, so drop it. The pipeline is the primary
+      // gate that resolves these ids against the catalog and rejects a malformed
+      // asset outright.
+      final hasDrugSubject =
+          drugId.trim().isNotEmpty || drugDisplayName.trim().isNotEmpty;
+      if (canonicalId.isEmpty || !hasDrugSubject) {
+        onDataIssue?.call(
+          'medication_depletions: dropped $depId — missing canonical subject '
+          '(nutrient="$canonicalId", drug="$drugId"/"$drugDisplayName")',
+        );
+        continue;
+      }
 
       final sourceUrls =
           (dep['sources'] as List?)
