@@ -14,6 +14,8 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/synergy_result.dart' as core_models;
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
@@ -144,31 +146,43 @@ class StackIntelligenceEngine {
       out.add(StackIssue(severity: v.worstSeverity, headline: v.bannerMessage));
     }
 
-    for (final entry in safetyReport.orderedWarnings) {
-      if (entry is InteractionResult) {
-        out.add(
-          StackIssue(severity: entry.severity, headline: entry.mechanism),
-        );
-      } else if (entry is MedicationProfileWarning) {
-        out.add(
-          StackIssue(
-            severity: entry.severity,
-            headline: _medicationProfileIssueHeadline(entry),
-          ),
-        );
-      } else if (entry is NutrientStatus) {
-        final warning = entry.warning;
-        if (warning == null && entry.tier != NutrientTier.exceedsUl) continue;
-        final hasUpperLimitDetail = entry.ul != null && entry.pctOfUl != null;
-        out.add(
-          StackIssue(
-            severity: StackSafetyReport.severityForNutrient(entry),
-            headline:
-                entry.tier == NutrientTier.exceedsUl && hasUpperLimitDetail
-                ? StackSafetyReport.nutrientUpperLimitSummary(entry)
-                : warning!,
-          ),
-        );
+    // Organized by the typed signal collection: disposition-first (block/review
+    // actionable summaries lead, good_to_know context follows) with suppress
+    // excluded upstream. The engine READS the envelope's ordering and each
+    // payload's authored severity/copy — it never re-derives severity,
+    // disposition, or medical conclusions.
+    for (final signal in orderedSignalsFrom(safetyReport)) {
+      switch (signal.payload) {
+        case InteractionPayload(:final result):
+          out.add(
+            StackIssue(severity: result.severity, headline: result.mechanism),
+          );
+        case MedicationProfilePayload(:final warning):
+          out.add(
+            StackIssue(
+              severity: warning.severity,
+              headline: _medicationProfileIssueHeadline(warning),
+            ),
+          );
+        case CumulativeExposurePayload(:final status):
+          final warning = status.warning;
+          if (warning == null && status.tier != NutrientTier.exceedsUl) {
+            continue;
+          }
+          final hasUpperLimitDetail =
+              status.ul != null && status.pctOfUl != null;
+          out.add(
+            StackIssue(
+              severity: StackSafetyReport.severityForNutrient(status),
+              headline:
+                  status.tier == NutrientTier.exceedsUl && hasUpperLimitDetail
+                  ? StackSafetyReport.nutrientUpperLimitSummary(status)
+                  : warning!,
+            ),
+          );
+        case MedicationNutrientPayload():
+          // Depletions are not part of the safety report's aggregation.
+          continue;
       }
     }
 
