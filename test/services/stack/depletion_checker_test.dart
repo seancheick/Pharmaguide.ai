@@ -134,6 +134,40 @@ void main() {
     });
   });
 
+  group('DepletionChecker — detected amount plumbing (B1.1)', () {
+    // Factual supply copy ("your stack contains X mcg per day") needs the
+    // detected stack amount + unit surfaced on the match, not just the
+    // computed coverage band.
+    const metformin = (name: 'Metformin', drugClassId: null);
+
+    test('emits detected amount + unit from the matched stack dose', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: _metforminB12Fixture(adequacyMcg: 100),
+        stackDoses: const [
+          StackSupplementDose(
+            canonicalId: 'vitamin_b12',
+            doseAmount: 50,
+            doseUnit: 'mcg',
+          ),
+        ],
+      );
+      expect(out, hasLength(1));
+      expect(out.single.detectedAmount, 50);
+      expect(out.single.detectedUnit, 'mcg');
+    });
+
+    test('detected amount + unit are null when no dose is supplied', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: _metforminB12Fixture(),
+      );
+      expect(out, hasLength(1));
+      expect(out.single.detectedAmount, isNull);
+      expect(out.single.detectedUnit, isNull);
+    });
+  });
+
   group('medNutrientRelationshipLabel (B1.1)', () {
     test('maps each relationship type to consumer language', () {
       expect(
