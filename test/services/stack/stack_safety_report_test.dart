@@ -6,12 +6,10 @@
 // We test the three exposed views:
 //   - overallSeverity   (worst across all signals)
 //   - severityCounts    (per-bucket counts)
-//   - orderedWarnings   (most-severe-first, deterministic ordering
-//                          by source bucket inside a tier)
 //
-// Plus the golden-path test the spec calls out: a stack with 3
-// supplements + 2 medications produces the expected ordered warning
-// list.
+// Rendering order + the golden-path ordering test moved to the signals
+// layer (test/services/signals/stack_signal_aggregator_test.dart) when
+// the legacy orderedWarnings getter was removed.
 //
 // Run:
 //   flutter test test/services/stack/stack_safety_report_test.dart
@@ -96,7 +94,6 @@ void main() {
       const report = StackSafetyReport();
       expect(report.isEmpty, isTrue);
       expect(report.overallSeverity, Severity.safe);
-      expect(report.orderedWarnings, isEmpty);
       for (final s in Severity.values) {
         expect(report.severityCounts[s], 0);
       }
@@ -190,63 +187,6 @@ void main() {
       expect(report.severityCounts[Severity.safe], 0);
     });
 
-    test('orderedWarnings sorts by severity descending', () {
-      final monitor = _interaction(id: 'M', severity: Severity.monitor);
-      final caution = _interaction(id: 'C', severity: Severity.caution);
-      final avoid = _interaction(id: 'A', severity: Severity.avoid);
-      final report = StackSafetyReport(
-        stackInteractions: [monitor, caution, avoid],
-      );
-      final ordered = report.orderedWarnings;
-      expect(ordered, hasLength(3));
-      expect((ordered[0] as InteractionResult).id, 'A');
-      expect((ordered[1] as InteractionResult).id, 'C');
-      expect((ordered[2] as InteractionResult).id, 'M');
-    });
-
-    test('inside same severity tier, warning buckets render in risk order', () {
-      final medPair = _interaction(
-        id: 'med_pair',
-        severity: Severity.caution,
-        type: InteractionType.drugDrug,
-      );
-      final medProfile = _profileWarning(
-        id: 'med_profile',
-        severity: Severity.caution,
-      );
-      final med = _interaction(
-        id: 'med',
-        severity: Severity.caution,
-        type: InteractionType.drugSupplement,
-      );
-      final stack = _interaction(id: 'stack', severity: Severity.caution);
-      final cat = _interaction(
-        id: 'cat',
-        severity: Severity.caution,
-        source: InteractionSource.stackEngine,
-      );
-      final nut = _nutrient(
-        canonicalId: 'b6',
-        tier: NutrientTier.approachingUl,
-      );
-      final report = StackSafetyReport(
-        medicationPairInteractions: [medPair],
-        medicationProfileWarnings: [medProfile],
-        stackInteractions: [stack],
-        medicationInteractions: [med],
-        categoryWarnings: [cat],
-        nutrientStatuses: [nut],
-      );
-      final ordered = report.orderedWarnings;
-      expect(ordered, hasLength(6));
-      expect((ordered[0] as InteractionResult).id, 'med_pair');
-      expect((ordered[1] as MedicationProfileWarning).id, 'med_profile');
-      expect((ordered[2] as InteractionResult).id, 'med');
-      expect((ordered[3] as InteractionResult).id, 'stack');
-      expect((ordered[4] as InteractionResult).id, 'cat');
-      expect(ordered[5], isA<NutrientStatus>());
-    });
-
     test('medication-profile warnings contribute counts and emptiness', () {
       final report = StackSafetyReport(
         medicationProfileWarnings: [
@@ -257,98 +197,6 @@ void main() {
       expect(report.isEmpty, isFalse);
       expect(report.overallSeverity, Severity.caution);
       expect(report.severityCounts[Severity.caution], 1);
-      expect(report.orderedWarnings.single, isA<MedicationProfileWarning>());
-    });
-
-    test('orderedWarnings preserves source-list order within a bucket', () {
-      final s1 = _interaction(id: 's1', severity: Severity.caution);
-      final s2 = _interaction(id: 's2', severity: Severity.caution);
-      final s3 = _interaction(id: 's3', severity: Severity.caution);
-      final report = StackSafetyReport(stackInteractions: [s1, s2, s3]);
-      final ordered = report.orderedWarnings;
-      expect((ordered[0] as InteractionResult).id, 's1');
-      expect((ordered[1] as InteractionResult).id, 's2');
-      expect((ordered[2] as InteractionResult).id, 's3');
-    });
-
-    test('safe-tier nutrients are not surfaced in orderedWarnings', () {
-      final report = StackSafetyReport(
-        nutrientStatuses: [
-          _nutrient(canonicalId: 'iron', tier: NutrientTier.adequate),
-          _nutrient(canonicalId: 'b6', tier: NutrientTier.exceedsUl),
-        ],
-      );
-      final ordered = report.orderedWarnings;
-      expect(ordered, hasLength(1));
-      expect((ordered.single as NutrientStatus).total.canonicalId, 'b6');
-    });
-
-    test('GOLDEN: 3 sups + 2 meds yields expected ordered warnings', () {
-      // Spec §8.6: "stack with 3 sups + 2 meds produces expected
-      // ordered warnings". Build a representative report and lock the
-      // exact order so future refactors don't accidentally reshuffle
-      // the rendering contract.
-      final medAvoid = _interaction(
-        id: 'WARFARIN_VITK',
-        severity: Severity.avoid,
-        type: InteractionType.drugSupplement,
-        agent1: 'Coumadin',
-        agent2: 'Vitamin K2',
-      );
-      final medContra = _interaction(
-        id: 'SSRI_SJW',
-        severity: Severity.contraindicated,
-        type: InteractionType.drugSupplement,
-        agent1: 'Sertraline',
-        agent2: 'St Johns Wort',
-      );
-      final stackCaution = _interaction(
-        id: 'IRON_CALCIUM',
-        severity: Severity.caution,
-        agent1: 'Calcium 500mg',
-        agent2: 'Iron 30mg',
-      );
-      final categoryMonitor = _interaction(
-        id: 'STACK_DUP_0',
-        severity: Severity.monitor,
-        source: InteractionSource.stackEngine,
-        agent1: 'Multi A',
-        agent2: 'Multi B',
-      );
-      final ulIron = _nutrient(
-        canonicalId: 'iron',
-        tier: NutrientTier.exceedsUl,
-      );
-
-      final report = StackSafetyReport(
-        stackInteractions: [stackCaution],
-        medicationInteractions: [medAvoid, medContra],
-        categoryWarnings: [categoryMonitor],
-        nutrientStatuses: [ulIron],
-      );
-
-      expect(report.overallSeverity, Severity.contraindicated);
-      expect(report.severityCounts[Severity.contraindicated], 1);
-      expect(report.severityCounts[Severity.avoid], 2); // medAvoid + ulIron
-      expect(report.severityCounts[Severity.caution], 1);
-      expect(report.severityCounts[Severity.monitor], 1);
-
-      final ordered = report.orderedWarnings;
-      expect(ordered, hasLength(5));
-
-      // contraindicated → medication interaction (med bucket sorts
-      // before nutrients)
-      expect((ordered[0] as InteractionResult).id, 'SSRI_SJW');
-
-      // avoid tier — medication first, then nutrient
-      expect((ordered[1] as InteractionResult).id, 'WARFARIN_VITK');
-      expect((ordered[2] as NutrientStatus).total.canonicalId, 'iron');
-
-      // caution → stack pair interaction
-      expect((ordered[3] as InteractionResult).id, 'IRON_CALCIUM');
-
-      // monitor → category heuristic
-      expect((ordered[4] as InteractionResult).id, 'STACK_DUP_0');
     });
 
     test('isEmpty is true when only flagged-source lists are empty', () {

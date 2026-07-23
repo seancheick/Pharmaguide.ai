@@ -10,6 +10,8 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 
 /// Forces the medication-profile-gate rule asset to fail loading so the
 /// fail-open path (report still returns, flagged incomplete) can be exercised.
@@ -179,8 +181,10 @@ void main() {
         report.medicationProfileWarnings.single.ruleId,
         'MCR_PREGNANCY_NSAIDS',
       );
+      final signal = orderedSignalsFrom(report).first;
+      expect(signal.family, SignalFamily.medicationProfile);
       expect(
-        report.orderedWarnings.first,
+        (signal.payload as MedicationProfilePayload).warning,
         report.medicationProfileWarnings.single,
       );
     },
@@ -205,8 +209,10 @@ void main() {
         report.medicationProfileWarnings.single.headline,
         'NSAIDs are not recommended with kidney disease',
       );
+      final signal = orderedSignalsFrom(report).first;
+      expect(signal.family, SignalFamily.medicationProfile);
       expect(
-        report.orderedWarnings.first,
+        (signal.payload as MedicationProfilePayload).warning,
         report.medicationProfileWarnings.single,
       );
     },

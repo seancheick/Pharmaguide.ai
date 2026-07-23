@@ -9,9 +9,8 @@
 //                       Drives the top-level banner color.
 //   - severityCounts:   how many signals fall in each severity bucket.
 //                       Drives the small badge ("3 cautions, 1 avoid").
-//   - orderedWarnings:  every flagged item ordered most-severe-first
-//                       so the UI can render them as a list without
-//                       re-sorting.
+//   (Ordering for rendering now lives in the signals layer —
+//    orderedSignalsFrom() builds the typed ClinicalSignal collection.)
 //
 // The class is intentionally pure: no I/O, no Riverpod hooks, no
 // mutation after construction. Build it once per stack-update and pass
@@ -52,8 +51,8 @@ class StackSafetyReport {
   final bool checksIncomplete;
 
   /// M1 per-nutrient classifications. Only those with `shouldWarn` are
-  /// counted toward [overallSeverity] and surfaced in [orderedWarnings];
-  /// the rest are kept here so the detail screen can render the full
+  /// counted toward [overallSeverity]; the rest are kept here so the
+  /// detail screen can render the full
   /// nutrient table.
   final List<NutrientStatus> nutrientStatuses;
 
@@ -147,75 +146,6 @@ class StackSafetyReport {
     return counts;
   }
 
-  /// Every flagged signal ordered most-severe-first. The list mixes
-  /// [InteractionResult] and [NutrientStatus] entries — the UI is
-  /// expected to runtime-switch on type when rendering.
-  ///
-  /// Within the same severity tier the order is:
-  ///   1. medication-pair interactions (highest stakes — drug-drug)
-  ///   2. medication-profile warnings (condition/profile × medication)
-  ///   3. medication interactions (drug-supp)
-  ///   4. stack supplement-pair interactions
-  ///   5. category heuristics
-  ///   6. nutrient UL warnings
-  ///
-  /// Inside each bucket the relative order from the source list is
-  /// preserved so callers passing pre-sorted inputs see deterministic
-  /// output.
-  List<Object> get orderedWarnings {
-    final entries = <_RankedEntry>[];
-
-    void addInteractions(List<InteractionResult> rs, int bucket) {
-      for (var i = 0; i < rs.length; i++) {
-        entries.add(
-          _RankedEntry(
-            severity: rs[i].severity,
-            bucket: bucket,
-            ordinal: i,
-            payload: rs[i],
-          ),
-        );
-      }
-    }
-
-    addInteractions(medicationPairInteractions, 0);
-    for (var i = 0; i < medicationProfileWarnings.length; i++) {
-      entries.add(
-        _RankedEntry(
-          severity: medicationProfileWarnings[i].severity,
-          bucket: 1,
-          ordinal: i,
-          payload: medicationProfileWarnings[i],
-        ),
-      );
-    }
-    addInteractions(medicationInteractions, 2);
-    addInteractions(stackInteractions, 3);
-    addInteractions(categoryWarnings, 4);
-
-    final flagged = _flaggedNutrients;
-    for (var i = 0; i < flagged.length; i++) {
-      entries.add(
-        _RankedEntry(
-          severity: severityForNutrient(flagged[i]),
-          bucket: 5,
-          ordinal: i,
-          payload: flagged[i],
-        ),
-      );
-    }
-
-    entries.sort((a, b) {
-      final s = b.severity.weight.compareTo(a.severity.weight);
-      if (s != 0) return s;
-      final bk = a.bucket.compareTo(b.bucket);
-      if (bk != 0) return bk;
-      return a.ordinal.compareTo(b.ordinal);
-    });
-
-    return entries.map((e) => e.payload).toList(growable: false);
-  }
-
   // ---------------------------------------------------------------------------
   // internals
   // ---------------------------------------------------------------------------
@@ -288,18 +218,4 @@ class StackSafetyReport {
     if (amount == amount.roundToDouble()) return amount.toStringAsFixed(0);
     return amount.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
   }
-}
-
-class _RankedEntry {
-  const _RankedEntry({
-    required this.severity,
-    required this.bucket,
-    required this.ordinal,
-    required this.payload,
-  });
-
-  final Severity severity;
-  final int bucket;
-  final int ordinal;
-  final Object payload;
 }

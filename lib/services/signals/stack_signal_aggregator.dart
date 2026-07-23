@@ -12,8 +12,8 @@
 //
 // Lives in the signals layer and CONSUMES StackSafetyReport (one direction) so
 // there is no circular import with the envelope, which depends on the report for
-// severityForNutrient. The UI consumers still read orderedWarnings today; they
-// migrate onto this in the next slice, after which orderedWarnings is removed.
+// severityForNutrient. All stack-safety UI consumers now read this; the legacy
+// orderedWarnings / List<Object> path has been removed.
 
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
