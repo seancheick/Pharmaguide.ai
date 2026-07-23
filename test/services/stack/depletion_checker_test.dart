@@ -45,6 +45,262 @@ Map<String, dynamic> _metforminB12Fixture({
 void main() {
   final checker = DepletionChecker();
 
+  group('DepletionChecker — identity integrity (B1.1)', () {
+    // A medication-nutrient signal's stable identity derives from the entry
+    // `id`. A missing id (previously silently emitted as '') or a duplicate id
+    // makes that identity unstable/colliding, so the entry must NOT produce a
+    // signal — the app defensively drops it (the pipeline is the primary gate).
+    Map<String, dynamic> metforminEntry({
+      required Object? id,
+      String nutrient = 'Vitamin B12',
+      String canonicalId = 'vitamin_b12',
+    }) => {
+      if (id != null) 'id': id,
+      'drug_ref': {
+        'id': '860974',
+        'display_name': 'Metformin (type 2 diabetes medication)',
+      },
+      'depleted_nutrient': {
+        'standard_name': nutrient,
+        'canonical_id': canonicalId,
+      },
+      'depletion_type': 'depletion',
+      'severity': 'significant',
+      'mechanism': 'x',
+      'recommendation': 'y',
+    };
+
+    const metformin = (name: 'Metformin', drugClassId: null);
+
+    test(
+      'entry with missing id is dropped, never emitted with an empty id',
+      () {
+        final out = checker.check(
+          medications: const [metformin],
+          depletionsData: {
+            'depletions': [metforminEntry(id: null)],
+          },
+        );
+        expect(out, isEmpty);
+      },
+    );
+
+    test('entry with empty-string id is dropped', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [metforminEntry(id: '')],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test(
+      'duplicate ids across entries are all dropped (no colliding signals)',
+      () {
+        final out = checker.check(
+          medications: const [metformin],
+          depletionsData: {
+            'depletions': [
+              metforminEntry(id: 'DUP'),
+              metforminEntry(
+                id: 'DUP',
+                nutrient: 'Folate',
+                canonicalId: 'folate',
+              ),
+            ],
+          },
+        );
+        expect(out, isEmpty);
+      },
+    );
+
+    test('valid unique id still emits normally', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [metforminEntry(id: 'DEP_METFORMIN_VITAMINB12')],
+        },
+      );
+      expect(out, hasLength(1));
+      expect(out.single.depletionId, 'DEP_METFORMIN_VITAMINB12');
+    });
+
+    test('onDataIssue reports missing and duplicate ids', () {
+      final issues = <String>[];
+      checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [
+            metforminEntry(id: null),
+            metforminEntry(id: 'DUP'),
+            metforminEntry(
+              id: 'DUP',
+              nutrient: 'Folate',
+              canonicalId: 'folate',
+            ),
+          ],
+        },
+        onDataIssue: issues.add,
+      );
+      expect(issues.any((m) => m.contains('missing id')), isTrue);
+      expect(issues.any((m) => m.contains('duplicate')), isTrue);
+    });
+  });
+
+  group('DepletionChecker — detected amount plumbing (B1.1)', () {
+    // Factual supply copy ("your stack contains X mcg per day") needs the
+    // detected stack amount + unit surfaced on the match, not just the
+    // computed coverage band.
+    const metformin = (name: 'Metformin', drugClassId: null);
+
+    test('emits detected amount + unit from the matched stack dose', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: _metforminB12Fixture(adequacyMcg: 100),
+        stackDoses: const [
+          StackSupplementDose(
+            canonicalId: 'vitamin_b12',
+            doseAmount: 50,
+            doseUnit: 'mcg',
+          ),
+        ],
+      );
+      expect(out, hasLength(1));
+      expect(out.single.detectedAmount, 50);
+      expect(out.single.detectedUnit, 'mcg');
+    });
+
+    test('detected amount + unit are null when no dose is supplied', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: _metforminB12Fixture(),
+      );
+      expect(out, hasLength(1));
+      expect(out.single.detectedAmount, isNull);
+      expect(out.single.detectedUnit, isNull);
+    });
+  });
+
+  group('DepletionChecker — canonical subject validation (B1.1)', () {
+    // A signal's subjects are the drug/condition + the nutrient canonical id.
+    // A matched entry missing the nutrient canonical id would emit a signal
+    // with no stable nutrient subject, so it is dropped (app-defensive; the
+    // pipeline is the primary gate that resolves ids against the catalog).
+    const metformin = (name: 'Metformin', drugClassId: null);
+
+    Map<String, dynamic> entry({Object? canonicalId = 'vitamin_b12'}) => {
+      'id': 'DEP_METFORMIN_VITAMINB12',
+      'drug_ref': {
+        'id': '860974',
+        'display_name': 'Metformin (type 2 diabetes medication)',
+      },
+      'depleted_nutrient': {
+        'standard_name': 'Vitamin B12',
+        if (canonicalId != null) 'canonical_id': canonicalId,
+      },
+      'depletion_type': 'depletion',
+      'severity': 'significant',
+    };
+
+    test('entry missing the nutrient canonical_id is dropped', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(canonicalId: null)],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('entry with a blank nutrient canonical_id is dropped', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(canonicalId: '   ')],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('onDataIssue reports the dropped canonical subject', () {
+      final issues = <String>[];
+      checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(canonicalId: null)],
+        },
+        onDataIssue: issues.add,
+      );
+      expect(issues.any((m) => m.contains('canonical subject')), isTrue);
+    });
+
+    test('valid nutrient canonical_id still emits', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry()],
+        },
+      );
+      expect(out, hasLength(1));
+      expect(out.single.nutrientCanonicalId, 'vitamin_b12');
+    });
+  });
+
+  group('medNutrientRelationshipLabel (B1.1)', () {
+    test('maps each relationship type to consumer language', () {
+      expect(
+        medNutrientRelationshipLabel('depletion'),
+        'Associated nutrient to monitor',
+      );
+      expect(
+        medNutrientRelationshipLabel('condition_related'),
+        'Condition-related nutrient consideration',
+      );
+      expect(
+        medNutrientRelationshipLabel('functional_antagonism'),
+        'May affect nutrient function',
+      );
+      expect(
+        medNutrientRelationshipLabel('monitoring_stability'),
+        'Monitoring consideration',
+      );
+      expect(
+        medNutrientRelationshipLabel('supplement_interaction'),
+        'Supplement consideration',
+      );
+    });
+
+    test('non-depletion types never read as "depletion"', () {
+      for (final t in const [
+        'functional_antagonism',
+        'monitoring_stability',
+        'supplement_interaction',
+        'condition_related',
+        'unknown_future_type',
+      ]) {
+        expect(
+          medNutrientRelationshipLabel(t).toLowerCase(),
+          isNot(contains('deplet')),
+        );
+      }
+    });
+
+    test('unknown type falls back to a neutral label', () {
+      expect(
+        medNutrientRelationshipLabel('something_new'),
+        'Nutrient consideration',
+      );
+    });
+
+    test('is case/whitespace tolerant', () {
+      expect(
+        medNutrientRelationshipLabel('  Depletion '),
+        'Associated nutrient to monitor',
+      );
+    });
+  });
+
   group('DepletionChecker — medication matching', () {
     test('no medications returns empty results', () {
       final out = checker.check(

@@ -97,24 +97,56 @@ NutrientStatus _nutrient({
 );
 
 void main() {
-  group('fromDepletion — medication–nutrient never escalates (PM-locked)', () {
-    test('every importance maps to monitor + good_to_know, never avoid/contra', () {
-      for (final importance in ['critical', 'significant', 'moderate', 'mild']) {
-        final s = ClinicalSignal.fromDepletion(_depletion(severity: importance));
-        expect(
-          s.clinicalSeverity,
-          Severity.monitor,
-          reason: '"$importance" must cap at monitor for a monitoring relationship',
-        );
-        expect(s.clinicalSeverity, isNot(Severity.avoid));
-        expect(s.clinicalSeverity, isNot(Severity.contraindicated));
-        expect(s.clinicalSeverity, isNot(Severity.caution));
-        expect(s.consumerDisposition, ConsumerDisposition.goodToKnow);
-      }
+  group('fromDepletion — identity (B1.1)', () {
+    test('requires a non-empty depletionId (no composed fallback)', () {
+      // The checker guarantees a stable id; the adapter must NOT silently
+      // synthesize one from drugClass+nutrient. Empty id is a contract breach.
+      expect(
+        () => ClinicalSignal.fromDepletion(_depletion(id: '')),
+        throwsA(isA<AssertionError>()),
+      );
     });
 
+    test('signal identity derives from depletionId only', () {
+      final a = ClinicalSignal.fromDepletion(_depletion(id: 'DEP_A'));
+      final b = ClinicalSignal.fromDepletion(_depletion(id: 'DEP_B'));
+      expect(a.sourceRuleId, 'DEP_A');
+      expect(b.sourceRuleId, 'DEP_B');
+      expect(a.signalId, isNot(b.signalId));
+    });
+  });
+
+  group('fromDepletion — medication–nutrient never escalates (PM-locked)', () {
+    test(
+      'every importance maps to monitor + good_to_know, never avoid/contra',
+      () {
+        for (final importance in [
+          'critical',
+          'significant',
+          'moderate',
+          'mild',
+        ]) {
+          final s = ClinicalSignal.fromDepletion(
+            _depletion(severity: importance),
+          );
+          expect(
+            s.clinicalSeverity,
+            Severity.monitor,
+            reason:
+                '"$importance" must cap at monitor for a monitoring relationship',
+          );
+          expect(s.clinicalSeverity, isNot(Severity.avoid));
+          expect(s.clinicalSeverity, isNot(Severity.contraindicated));
+          expect(s.clinicalSeverity, isNot(Severity.caution));
+          expect(s.consumerDisposition, ConsumerDisposition.goodToKnow);
+        }
+      },
+    );
+
     test('preserves the raw source importance in the typed payload', () {
-      final s = ClinicalSignal.fromDepletion(_depletion(severity: 'significant'));
+      final s = ClinicalSignal.fromDepletion(
+        _depletion(severity: 'significant'),
+      );
       final payload = s.payload as MedicationNutrientPayload;
       expect(payload.relationshipImportance, 'significant');
       expect(payload.relationshipType, 'depletion');
@@ -122,7 +154,9 @@ void main() {
     });
 
     test('different nutrient (same drug) → distinct signal ids', () {
-      final coq10 = ClinicalSignal.fromDepletion(_depletion(nutrientId: 'coenzyme_q10'));
+      final coq10 = ClinicalSignal.fromDepletion(
+        _depletion(nutrientId: 'coenzyme_q10'),
+      );
       final b12 = ClinicalSignal.fromDepletion(
         _depletion(id: 'DEP_STATINS_B12', nutrientId: 'vitamin_b12'),
       );
@@ -132,35 +166,52 @@ void main() {
 
   group('fromInteraction — identity + severity', () {
     test('agent order does not change the signal id (A×B == B×A)', () {
-      final ab = ClinicalSignal.fromInteraction(_interaction(a1: 'Warfarin', a2: 'Fish Oil'));
-      final ba = ClinicalSignal.fromInteraction(_interaction(a1: 'Fish Oil', a2: 'Warfarin'));
+      final ab = ClinicalSignal.fromInteraction(
+        _interaction(a1: 'Warfarin', a2: 'Fish Oil'),
+      );
+      final ba = ClinicalSignal.fromInteraction(
+        _interaction(a1: 'Fish Oil', a2: 'Warfarin'),
+      );
       expect(ab.signalId, ba.signalId);
     });
 
     test('same rule + agents but changed severity keeps the same id', () {
-      final avoid = ClinicalSignal.fromInteraction(_interaction(severity: Severity.avoid));
-      final caution = ClinicalSignal.fromInteraction(_interaction(severity: Severity.caution));
+      final avoid = ClinicalSignal.fromInteraction(
+        _interaction(severity: Severity.avoid),
+      );
+      final caution = ClinicalSignal.fromInteraction(
+        _interaction(severity: Severity.caution),
+      );
       expect(avoid.signalId, caution.signalId);
       expect(avoid.clinicalSeverity, isNot(caution.clinicalSeverity));
     });
 
-    test('heuristic ids collapse the stack-position index (same pair → same id)', () {
-      final i1 = ClinicalSignal.fromInteraction(
-        _interaction(id: 'STACK_BT_1', source: InteractionSource.stackEngine),
-      );
-      final i7 = ClinicalSignal.fromInteraction(
-        _interaction(id: 'STACK_BT_7', source: InteractionSource.stackEngine),
-      );
-      expect(i1.signalId, i7.signalId);
-      expect(i1.sourceRuleId, 'STACK_BT');
-    });
+    test(
+      'heuristic ids collapse the stack-position index (same pair → same id)',
+      () {
+        final i1 = ClinicalSignal.fromInteraction(
+          _interaction(id: 'STACK_BT_1', source: InteractionSource.stackEngine),
+        );
+        final i7 = ClinicalSignal.fromInteraction(
+          _interaction(id: 'STACK_BT_7', source: InteractionSource.stackEngine),
+        );
+        expect(i1.signalId, i7.signalId);
+        expect(i1.sourceRuleId, 'STACK_BT');
+      },
+    );
 
-    test('curated ids are NOT index-stripped (only stackEngine heuristics are)', () {
-      final s = ClinicalSignal.fromInteraction(
-        _interaction(id: 'curated_rule_9', source: InteractionSource.pipeline),
-      );
-      expect(s.sourceRuleId, 'curated_rule_9');
-    });
+    test(
+      'curated ids are NOT index-stripped (only stackEngine heuristics are)',
+      () {
+        final s = ClinicalSignal.fromInteraction(
+          _interaction(
+            id: 'curated_rule_9',
+            source: InteractionSource.pipeline,
+          ),
+        );
+        expect(s.sourceRuleId, 'curated_rule_9');
+      },
+    );
 
     test('food advisory keeps true severity but is PLACED as good_to_know', () {
       // Displays informational; curatedSeverity holds the true weight; the
@@ -173,12 +224,18 @@ void main() {
           alertStyle: 'food_advisory_note',
         ),
       );
-      expect(s.clinicalSeverity, Severity.avoid, reason: 'true weight retained');
+      expect(
+        s.clinicalSeverity,
+        Severity.avoid,
+        reason: 'true weight retained',
+      );
       expect(s.consumerDisposition, ConsumerDisposition.goodToKnow);
     });
 
     test('disposition is review for an actionable/hard interaction', () {
-      final s = ClinicalSignal.fromInteraction(_interaction(severity: Severity.avoid));
+      final s = ClinicalSignal.fromInteraction(
+        _interaction(severity: Severity.avoid),
+      );
       expect(s.consumerDisposition, ConsumerDisposition.review);
     });
 
@@ -207,7 +264,9 @@ void main() {
     });
 
     test('id is the nutrient alone (no sourceRuleId)', () {
-      final s = ClinicalSignal.fromNutrientStatus(_nutrient(canonicalId: 'vitamin_d'));
+      final s = ClinicalSignal.fromNutrientStatus(
+        _nutrient(canonicalId: 'vitamin_d'),
+      );
       expect(s.sourceRuleId, isNull);
       expect(s.signalIdCanonical, 'pg_signal:v1:cumulativeExposure:vitamin_d');
     });
@@ -221,16 +280,27 @@ void main() {
       expect((s.payload as InteractionPayload).result, same(r));
     });
 
-    test('adapters over a producer result emit evaluationStatus.applicable', () {
-      expect(ClinicalSignal.fromInteraction(_interaction()).evaluationStatus,
-          EvaluationStatus.applicable);
-      expect(ClinicalSignal.fromDepletion(_depletion()).evaluationStatus,
-          EvaluationStatus.applicable);
-      expect(ClinicalSignal.fromMedicationProfile(_medProfile()).evaluationStatus,
-          EvaluationStatus.applicable);
-      expect(ClinicalSignal.fromNutrientStatus(_nutrient()).evaluationStatus,
-          EvaluationStatus.applicable);
-    });
+    test(
+      'adapters over a producer result emit evaluationStatus.applicable',
+      () {
+        expect(
+          ClinicalSignal.fromInteraction(_interaction()).evaluationStatus,
+          EvaluationStatus.applicable,
+        );
+        expect(
+          ClinicalSignal.fromDepletion(_depletion()).evaluationStatus,
+          EvaluationStatus.applicable,
+        );
+        expect(
+          ClinicalSignal.fromMedicationProfile(_medProfile()).evaluationStatus,
+          EvaluationStatus.applicable,
+        );
+        expect(
+          ClinicalSignal.fromNutrientStatus(_nutrient()).evaluationStatus,
+          EvaluationStatus.applicable,
+        );
+      },
+    );
 
     test('every signal id is namespaced + versioned', () {
       final signals = [

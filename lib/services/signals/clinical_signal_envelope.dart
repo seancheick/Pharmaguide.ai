@@ -202,12 +202,18 @@ class ClinicalSignal {
   }
 
   factory ClinicalSignal.fromDepletion(DepletionMatch m) {
+    // Identity comes from the checker's stable, validated id — never a
+    // synthesized drugClass+nutrient fallback (B1.1). The checker drops
+    // empty/duplicate ids, so a non-empty id here is an invariant.
+    assert(
+      m.depletionId.isNotEmpty,
+      'fromDepletion requires a non-empty depletionId (checker drops empty ids)',
+    );
     final importance = m.severity.trim().toLowerCase();
-    final ruleId = m.depletionId.isNotEmpty
-        ? m.depletionId
-        : '${m.drugClassId}:${m.nutrientCanonicalId}';
-    final drugSubject =
-        m.drugClassId.isNotEmpty ? m.drugClassId : m.drugDisplayName;
+    final ruleId = m.depletionId;
+    final drugSubject = m.drugClassId.isNotEmpty
+        ? m.drugClassId
+        : m.drugDisplayName;
     final subjects = [drugSubject, m.nutrientCanonicalId];
     return ClinicalSignal(
       signalId: deriveSignalId(
@@ -269,11 +275,8 @@ class ClinicalSignal {
   }
 }
 
-List<String> _sortedSubjects(List<String> xs) => xs
-    .map(normalizeSignalSubject)
-    .where((s) => s.isNotEmpty)
-    .toList()
-  ..sort();
+List<String> _sortedSubjects(List<String> xs) =>
+    xs.map(normalizeSignalSubject).where((s) => s.isNotEmpty).toList()..sort();
 
 /// Disposition fallback from ranking severity. Depletions and food advisories do
 /// NOT use this (they are pinned to good_to_know). Authored dispositions

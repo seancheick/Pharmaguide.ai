@@ -104,6 +104,12 @@ class DepletionMatch {
   final num? adequacyThresholdMcg;
   final num? adequacyThresholdMg;
 
+  /// Detected total stack supply of this nutrient (summed across the stack),
+  /// null when no dose data is available. Drives the factual "your stack
+  /// contains X {unit} per day" supply copy (B1.1).
+  final num? detectedAmount;
+  final String? detectedUnit;
+
   /// Three-state coverage outcome for this user's stack. See
   /// [CoverageLevel].
   final CoverageLevel coverageLevel;
@@ -134,8 +140,158 @@ class DepletionMatch {
     this.foodSourcesShort,
     this.adequacyThresholdMcg,
     this.adequacyThresholdMg,
+    this.detectedAmount,
+    this.detectedUnit,
     this.coverageLevel = CoverageLevel.none,
   });
+}
+
+/// Consumer-facing label for a medication–nutrient relationship. Keeps each
+/// [DepletionMatch.depletionType] honest: a functional antagonism or a
+/// monitoring note is never presented as a "depletion" (PM-locked, B1.1).
+/// Unknown/future types fall back to a neutral label, never "depletion".
+String medNutrientRelationshipLabel(String depletionType) {
+  switch (depletionType.trim().toLowerCase()) {
+    case 'depletion':
+      return 'Associated nutrient to monitor';
+    case 'condition_related':
+      return 'Condition-related nutrient consideration';
+    case 'functional_antagonism':
+      return 'May affect nutrient function';
+    case 'monitoring_stability':
+      return 'Monitoring consideration';
+    case 'supplement_interaction':
+      return 'Supplement consideration';
+    default:
+      return 'Nutrient consideration';
+  }
+}
+
+/// Consumer-facing supply state for a medication–nutrient row. Deliberately
+/// distinct from the internal [CoverageLevel] — the card renders these, never
+/// none/partial/adequate (PM-locked, B1.1).
+enum MedNutrientSupplyState {
+  noDetectedSource,
+  sourceDetectedBelowComparison,
+  meetsComparisonAmount,
+  sourceAmountUnknown,
+}
+
+/// Translate the internal coverage band + amount availability into the
+/// consumer supply state. An "adequate" band with no known amount is
+/// [sourceAmountUnknown] (present but unquantified), never a sufficiency claim.
+MedNutrientSupplyState medNutrientSupplyStateFrom(
+  CoverageLevel coverage, {
+  required bool hasAmount,
+}) {
+  switch (coverage) {
+    case CoverageLevel.none:
+      return MedNutrientSupplyState.noDetectedSource;
+    case CoverageLevel.partial:
+      return MedNutrientSupplyState.sourceDetectedBelowComparison;
+    case CoverageLevel.adequate:
+      return hasAmount
+          ? MedNutrientSupplyState.meetsComparisonAmount
+          : MedNutrientSupplyState.sourceAmountUnknown;
+  }
+}
+
+String _fmtAmt(num n) => n == n.roundToDouble() ? n.round().toString() : '$n';
+
+/// Factual body copy for one medication–nutrient row, selected from an explicit
+/// relationship_type × supply_state template — never one interpolated universal
+/// sentence (PM-locked, B1.1). Stays factual: no "covered"/"adequate"/
+/// replacement claims, always "comparison amount" (not "reference amount"),
+/// amounts carry "per day", never implies a measured deficiency or physiological
+/// sufficiency. [subject] is the drug (depletion / antagonism / monitoring /
+/// interaction) or the condition (condition_related).
+String medNutrientBodyCopy({
+  required String relationshipType,
+  required String nutrient,
+  required String subject,
+  MedNutrientSupplyState? supplyState,
+  num? detectedAmount,
+  String? detectedUnit,
+  num? comparisonAmount,
+  String? comparisonUnit,
+}) {
+  final type = relationshipType.trim().toLowerCase();
+  final n = nutrient.trim().isEmpty ? 'this nutrient' : nutrient.trim();
+  final subj = subject.trim().isEmpty ? 'your medication' : subject.trim();
+
+  final amountPhrase =
+      (detectedAmount != null && (detectedUnit ?? '').isNotEmpty)
+      ? '${_fmtAmt(detectedAmount)} ${detectedUnit!.trim()}'
+      : '';
+
+  switch (type) {
+    case 'functional_antagonism':
+      return '$subj may affect how the body uses $n. This does not confirm '
+          'that your $n level is low. Ask your clinician whether monitoring '
+          'is appropriate for you.';
+    case 'monitoring_stability':
+      return 'Monitoring $n may be relevant while taking $subj. Ask your '
+          'clinician whether testing or follow-up is appropriate.';
+    case 'supplement_interaction':
+      return '$n may interact with $subj. Review the interaction details and '
+          'discuss timing or use with your clinician or pharmacist.';
+    case 'condition_related':
+      final lead = '$n may be relevant to monitor with $subj.';
+      final supply = switch (supplyState) {
+        MedNutrientSupplyState.noDetectedSource =>
+          'No $n source was detected in your current stack.',
+        MedNutrientSupplyState.sourceAmountUnknown =>
+          'Your current stack includes a source of $n, but the daily amount '
+              'could not be determined.',
+        _ when amountPhrase.isNotEmpty =>
+          'Your current stack contains $amountPhrase of $n per day.',
+        _ => 'Your current stack includes a source of $n.',
+      };
+      return '$lead $supply Supplement intake does not confirm your blood '
+          'level or nutrient status.';
+    case 'depletion':
+    default:
+      // Unknown/future types get a safe informational line, never "depletion".
+      if (type != 'depletion') {
+        return '$n may be relevant to review alongside $subj. Supplement '
+            'intake does not confirm your $n status.';
+      }
+      // A below/meets state with no known amount degrades to amount-unknown
+      // so we never render "contains  of X per day".
+      var state = supplyState ?? MedNutrientSupplyState.sourceAmountUnknown;
+      if ((state == MedNutrientSupplyState.sourceDetectedBelowComparison ||
+              state == MedNutrientSupplyState.meetsComparisonAmount) &&
+          amountPhrase.isEmpty) {
+        state = MedNutrientSupplyState.sourceAmountUnknown;
+      }
+      switch (state) {
+        case MedNutrientSupplyState.noDetectedSource:
+          return 'No $n source detected in your current stack. $subj use has '
+              'been associated with lower $n status in some people. Consider '
+              'asking your clinician whether monitoring is appropriate.';
+        case MedNutrientSupplyState.sourceDetectedBelowComparison:
+          final comp =
+              (comparisonAmount != null && (comparisonUnit ?? '').isNotEmpty)
+              ? '${_fmtAmt(comparisonAmount)} ${comparisonUnit!.trim()}'
+              : null;
+          final compSentence = comp != null
+              ? 'The comparison amount used for this medication-related '
+                    'consideration is $comp per day. '
+              : '';
+          return 'Your current stack contains $amountPhrase of $n per day. '
+              '${compSentence}Supplement intake does not confirm your $n '
+              'status.';
+        case MedNutrientSupplyState.meetsComparisonAmount:
+          return 'Your current stack contains $amountPhrase of $n per day. '
+              'This meets the comparison amount used for this '
+              'medication-related consideration. Supplement intake does not '
+              'confirm your blood level or nutrient status.';
+        case MedNutrientSupplyState.sourceAmountUnknown:
+          return 'Your current stack includes a source of $n, but the daily '
+              'amount could not be determined. Supplement intake does not '
+              'confirm your $n status.';
+      }
+  }
 }
 
 /// Minimal supplement-in-stack description used for dose-aware coverage
@@ -201,6 +357,7 @@ class DepletionChecker {
     required Map<String, dynamic> depletionsData,
     Set<String> stackCanonicalIds = const {},
     List<StackSupplementDose> stackDoses = const [],
+    void Function(String message)? onDataIssue,
   }) {
     final depletions = depletionsData['depletions'] as List? ?? [];
     final results = <DepletionMatch>[];
@@ -258,8 +415,43 @@ class DepletionChecker {
         .map((e) => e.toLowerCase())
         .toSet();
 
+    // Identity integrity (B1.1): every entry's stable `id` must be present and
+    // unique. A missing id (previously silently emitted as '') or a duplicate id
+    // makes the derived signal identity unstable/colliding, so the entry is
+    // dropped. The pipeline is the primary asset gate; this is the app's
+    // defensive skip so no signal is ever emitted without a stable identity.
+    final idCounts = <String, int>{};
+    var missingIdCount = 0;
     for (final dep in depletions) {
       if (dep is! Map<String, dynamic>) continue;
+      final id = dep['id']?.toString().trim() ?? '';
+      if (id.isEmpty) {
+        missingIdCount++;
+      } else {
+        idCounts[id] = (idCounts[id] ?? 0) + 1;
+      }
+    }
+    final duplicateIds = <String>{
+      for (final e in idCounts.entries)
+        if (e.value > 1) e.key,
+    };
+    if (missingIdCount > 0) {
+      onDataIssue?.call(
+        'medication_depletions: dropped $missingIdCount '
+        '${missingIdCount == 1 ? 'entry' : 'entries'} with a missing id',
+      );
+    }
+    if (duplicateIds.isNotEmpty) {
+      onDataIssue?.call(
+        'medication_depletions: dropped duplicate ids — '
+        '${(duplicateIds.toList()..sort()).join(', ')}',
+      );
+    }
+
+    for (final dep in depletions) {
+      if (dep is! Map<String, dynamic>) continue;
+      final depId = dep['id']?.toString().trim() ?? '';
+      if (depId.isEmpty || duplicateIds.contains(depId)) continue;
 
       final drugRef = dep['drug_ref'] as Map<String, dynamic>? ?? {};
       final drugIdRaw = drugRef['id']?.toString().trim() ?? '';
@@ -292,7 +484,23 @@ class DepletionChecker {
 
       final nutrient = dep['depleted_nutrient'] as Map<String, dynamic>? ?? {};
       final canonicalId = (nutrient['canonical_id']?.toString() ?? '')
+          .trim()
           .toLowerCase();
+
+      // Canonical-subject validation (B1.1, app-defensive): the signal subjects
+      // are the drug/condition + the nutrient canonical id. Missing either makes
+      // the signal identity unstable, so drop it. The pipeline is the primary
+      // gate that resolves these ids against the catalog and rejects a malformed
+      // asset outright.
+      final hasDrugSubject =
+          drugId.trim().isNotEmpty || drugDisplayName.trim().isNotEmpty;
+      if (canonicalId.isEmpty || !hasDrugSubject) {
+        onDataIssue?.call(
+          'medication_depletions: dropped $depId — missing canonical subject '
+          '(nutrient="$canonicalId", drug="$drugId"/"$drugDisplayName")',
+        );
+        continue;
+      }
 
       final sourceUrls =
           (dep['sources'] as List?)
@@ -306,11 +514,12 @@ class DepletionChecker {
       final adequacyMg = _asNum(dep['adequacy_threshold_mg']);
       final depletionType = _normalizeDepletionType(dep['depletion_type']);
 
+      final matchedDose = dosesByCid[canonicalId];
       final coverage = _isSupplementCoverageRelevant(depletionType)
           ? _resolveCoverage(
               canonicalId: canonicalId,
               coveredIds: coveredIdsLower,
-              dose: dosesByCid[canonicalId],
+              dose: matchedDose,
               thresholdMcg: adequacyMcg,
               thresholdMg: adequacyMg,
             )
@@ -318,7 +527,7 @@ class DepletionChecker {
 
       results.add(
         DepletionMatch(
-          depletionId: dep['id']?.toString() ?? '',
+          depletionId: depId,
           drugDisplayName: drugDisplayName,
           drugClassId: drugId,
           nutrientName: nutrient['standard_name']?.toString() ?? '',
@@ -337,6 +546,8 @@ class DepletionChecker {
           foodSourcesShort: dep['food_sources_short']?.toString(),
           adequacyThresholdMcg: adequacyMcg,
           adequacyThresholdMg: adequacyMg,
+          detectedAmount: matchedDose?.doseAmount,
+          detectedUnit: matchedDose?.doseUnit,
           coverageLevel: coverage,
         ),
       );
