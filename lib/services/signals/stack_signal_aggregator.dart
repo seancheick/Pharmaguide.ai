@@ -3,16 +3,17 @@
 // StackSafetyReport.orderedWarnings (List<Object>): the SAME six buckets, in the
 // same bucket priority, adapted into ClinicalSignal.
 //
-// One deliberate difference from orderedWarnings: ranking is on
-// clinical_severity (= effectiveSeverity for interactions), which corrects the
-// seam where a food advisory was ranked by its INFORMATIONAL display severity
-// instead of its true weight. Membership is otherwise identical — depletions are
-// NOT folded in here (that is a separate, deliberate behavior change).
+// Deliberate differences from orderedWarnings (both intentional behavior
+// changes, separately tested): (1) ranking is by consumer_disposition FIRST,
+// then clinical severity — so a good_to_know food advisory / medication–nutrient
+// monitor never displaces a review concern, even when its underlying severity is
+// higher; (2) suppress-disposition signals are excluded. Membership is otherwise
+// identical — depletions are NOT folded in here (a separate behavior change).
 //
 // Lives in the signals layer and CONSUMES StackSafetyReport (one direction) so
 // there is no circular import with the envelope, which depends on the report for
-// severityForNutrient. The UI consumers still read orderedWarnings today; they
-// migrate onto this in the next slice, after which orderedWarnings is removed.
+// severityForNutrient. All stack-safety UI consumers now read this; the legacy
+// orderedWarnings / List<Object> path has been removed.
 
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
@@ -56,12 +57,24 @@ List<ClinicalSignal> orderedSignalsFrom(StackSafetyReport report) {
     ));
   }
 
-  // Rank on clinical_severity (effectiveSeverity for interactions), then bucket
-  // priority, then stable source order. This is the ONE intentional difference
-  // from orderedWarnings, which ranked on display severity.
+  // Suppressed signals do not surface.
+  entries.removeWhere(
+    (e) => e.signal.consumerDisposition == ConsumerDisposition.suppress,
+  );
+
+  // Rank by consumer disposition FIRST (block > review > good_to_know), then by
+  // clinical severity within a disposition, then bucket priority, then stable
+  // source order. Disposition-first keeps a good_to_know food advisory /
+  // medication–nutrient monitor from displacing a genuine review concern even
+  // when its underlying clinical severity is higher.
   entries.sort((a, b) {
-    final s = b.signal.clinicalSeverity.weight
-        .compareTo(a.signal.clinicalSeverity.weight);
+    final d = b.signal.consumerDisposition.rank.compareTo(
+      a.signal.consumerDisposition.rank,
+    );
+    if (d != 0) return d;
+    final s = b.signal.clinicalSeverity.weight.compareTo(
+      a.signal.clinicalSeverity.weight,
+    );
     if (s != 0) return s;
     final bk = a.bucket.compareTo(b.bucket);
     if (bk != 0) return bk;

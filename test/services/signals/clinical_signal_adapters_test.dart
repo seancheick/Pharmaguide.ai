@@ -20,6 +20,7 @@ InteractionResult _interaction({
   Severity severity = Severity.avoid,
   Severity? curated,
   InteractionSource source = InteractionSource.pipeline,
+  String? alertStyle,
 }) => InteractionResult(
   id: id,
   type: InteractionType.drugSupplement,
@@ -33,6 +34,7 @@ InteractionResult _interaction({
   doseThreshold: null,
   sourceUrls: const ['https://example.org/1'],
   source: source,
+  alertStyle: alertStyle,
   curatedSeverity: curated,
 );
 
@@ -160,17 +162,31 @@ void main() {
       expect(s.sourceRuleId, 'curated_rule_9');
     });
 
-    test('ranks on effectiveSeverity — food-advisory display downgrade is undone', () {
-      // severity displays informational, curatedSeverity holds the true weight.
+    test('food advisory keeps true severity but is PLACED as good_to_know', () {
+      // Displays informational; curatedSeverity holds the true weight; the
+      // food_advisory_note style forces calm placement so it is never the
+      // primary safety headline (the app can't confirm the food exposure).
       final s = ClinicalSignal.fromInteraction(
-        _interaction(severity: Severity.informational, curated: Severity.avoid),
+        _interaction(
+          severity: Severity.informational,
+          curated: Severity.avoid,
+          alertStyle: 'food_advisory_note',
+        ),
       );
-      expect(s.clinicalSeverity, Severity.avoid);
+      expect(s.clinicalSeverity, Severity.avoid, reason: 'true weight retained');
+      expect(s.consumerDisposition, ConsumerDisposition.goodToKnow);
     });
 
     test('disposition is review for an actionable/hard interaction', () {
       final s = ClinicalSignal.fromInteraction(_interaction(severity: Severity.avoid));
       expect(s.consumerDisposition, ConsumerDisposition.review);
+    });
+
+    test('contraindicated interaction → block disposition', () {
+      final s = ClinicalSignal.fromInteraction(
+        _interaction(severity: Severity.contraindicated),
+      );
+      expect(s.consumerDisposition, ConsumerDisposition.block);
     });
   });
 

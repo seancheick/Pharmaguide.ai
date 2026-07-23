@@ -8,6 +8,8 @@ import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/services/sharing/clinician_pdf_builder.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
@@ -374,10 +376,10 @@ void main() {
           ),
         ],
       );
-      final ordered = report.orderedWarnings;
+      final ordered = orderedSignalsFrom(report);
       expect(ordered, hasLength(2));
-      expect((ordered[0] as InteractionResult).id, 'mp-1');
-      expect((ordered[1] as InteractionResult).id, 'mi-1');
+      expect((ordered[0].payload as InteractionPayload).result.id, 'mp-1');
+      expect((ordered[1].payload as InteractionPayload).result.id, 'mi-1');
     },
   );
 

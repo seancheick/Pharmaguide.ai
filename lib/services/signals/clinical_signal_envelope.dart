@@ -29,6 +29,18 @@ export 'package:pharmaguide/core/models/clinical_signal.dart';
 /// dispositions (Workstream B) will override these adapter fallbacks.
 enum ConsumerDisposition { block, review, goodToKnow, suppress }
 
+extension ConsumerDispositionRank on ConsumerDisposition {
+  /// Higher = more prominent. Primary selection ranks by this BEFORE clinical
+  /// severity, so a good_to_know food advisory never displaces a review concern,
+  /// and a medication–nutrient monitor never overrides an interaction caution.
+  int get rank => switch (this) {
+    ConsumerDisposition.block => 3,
+    ConsumerDisposition.review => 2,
+    ConsumerDisposition.goodToKnow => 1,
+    ConsumerDisposition.suppress => 0,
+  };
+}
+
 /// Whether / how the underlying rule was actually evaluated. Lets the lifecycle
 /// layer represent "the check could not complete" ([checkFailed]) separately
 /// from "checked, no concern". Adapters over a producer result always emit
@@ -146,7 +158,12 @@ class ClinicalSignal {
       sourceRuleId: ruleId,
       subjectIds: _sortedSubjects(subjects),
       clinicalSeverity: severity,
-      consumerDisposition: _dispositionForSeverity(severity),
+      // A food advisory keeps its true severity (for the record and for ordering
+      // within good_to_know) but is PLACED as good_to_know: the app can't confirm
+      // the food exposure, so it must never become the primary safety headline.
+      consumerDisposition: r.isFoodAdvisoryNote
+          ? ConsumerDisposition.goodToKnow
+          : _dispositionForSeverity(severity),
       evaluationStatus: EvaluationStatus.applicable,
       title: '${r.agent1Name} × ${r.agent2Name}',
       body: r.mechanism,
@@ -258,10 +275,14 @@ List<String> _sortedSubjects(List<String> xs) => xs
     .toList()
   ..sort();
 
-/// Disposition fallback from ranking severity. Depletions do NOT use this (they
-/// are pinned to good_to_know). Authored dispositions (Workstream B) override.
-ConsumerDisposition _dispositionForSeverity(Severity s) {
-  if (s == Severity.safe) return ConsumerDisposition.suppress;
-  if (s.isHard || s.isActionable) return ConsumerDisposition.review;
-  return ConsumerDisposition.goodToKnow; // informational
-}
+/// Disposition fallback from ranking severity. Depletions and food advisories do
+/// NOT use this (they are pinned to good_to_know). Authored dispositions
+/// (Workstream B) override.
+ConsumerDisposition _dispositionForSeverity(Severity s) => switch (s) {
+  Severity.contraindicated => ConsumerDisposition.block,
+  Severity.avoid ||
+  Severity.caution ||
+  Severity.monitor => ConsumerDisposition.review,
+  Severity.informational => ConsumerDisposition.goodToKnow,
+  Severity.safe => ConsumerDisposition.suppress,
+};

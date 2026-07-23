@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_product_thumbnail.dart';
+import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
@@ -726,7 +727,7 @@ class _StackSummaryCard extends ConsumerWidget {
     final insightLine = describeStackSummary(intelligence);
     final reviewReport = reportAsync.asData?.value;
     final canReviewSignals =
-        reviewReport != null && reviewReport.orderedWarnings.isNotEmpty;
+        reviewReport != null && orderedSignalsFrom(reviewReport).isNotEmpty;
 
     final card = Container(
       decoration: BoxDecoration(
