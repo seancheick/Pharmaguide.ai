@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
-import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
@@ -22,8 +22,11 @@ Future<void> showStackSafetyDetailsSheet(
   );
 }
 
-/// Every row is driven directly from [StackSafetyReport.orderedWarnings], so
-/// the sheet and its triggering banner cannot disagree on signal count.
+/// Rows are driven from [orderedSignalsFrom] — the typed clinical-signal
+/// aggregation — grouped by consumer disposition (Needs attention = block /
+/// review; Good to know = good_to_know; suppress is excluded upstream). Check
+/// completeness is a SEPARATE concern (report flags), never mixed in with
+/// clinical findings, so "couldn't check" never reads as "we found a concern".
 class StackSafetyDetailsSheet extends StatelessWidget {
   const StackSafetyDetailsSheet({super.key, required this.report});
 
@@ -31,7 +34,19 @@ class StackSafetyDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final warnings = report.orderedWarnings;
+    final signals = orderedSignalsFrom(report);
+    final needsAttention = signals
+        .where(
+          (s) =>
+              s.consumerDisposition == ConsumerDisposition.block ||
+              s.consumerDisposition == ConsumerDisposition.review,
+        )
+        .toList();
+    final goodToKnow = signals
+        .where((s) => s.consumerDisposition == ConsumerDisposition.goodToKnow)
+        .toList();
+    final checkIncomplete = report.checksIncomplete || report.coverageIncomplete;
+
     return Semantics(
       label: 'Stack safety signals',
       child: Padding(
@@ -45,15 +60,9 @@ class StackSafetyDetailsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PGEyebrow(
-              'Review ${warnings.length} signals',
-              color: V2Colors.caution,
-            ),
+            PGEyebrow('Review ${signals.length} signals', color: V2Colors.caution),
             const SizedBox(height: V2Spacing.space8),
-            Text(
-              'Stack safety',
-              style: V2Typography.titleSm(color: V2Colors.fg),
-            ),
+            Text('Stack safety', style: V2Typography.titleSm(color: V2Colors.fg)),
             const SizedBox(height: V2Spacing.space4),
             Text(
               'Review supplement totals and interactions found in your stack.',
@@ -61,17 +70,15 @@ class StackSafetyDetailsSheet extends StatelessWidget {
             ),
             const SizedBox(height: V2Spacing.space16),
             Flexible(
-              child: ListView.separated(
+              child: ListView(
                 shrinkWrap: true,
-                itemCount: warnings.length,
-                separatorBuilder: (_, __) => const Divider(
-                  height: V2Spacing.space24,
-                  color: V2Colors.outline,
-                ),
-                itemBuilder: (context, index) => _SafetySignalRow(
-                  key: Key('stack-safety-signal-$index'),
-                  warning: warnings[index],
-                ),
+                children: [
+                  if (needsAttention.isNotEmpty)
+                    ..._section('Needs attention', needsAttention),
+                  if (goodToKnow.isNotEmpty)
+                    ..._section('Good to know', goodToKnow),
+                  if (checkIncomplete) const _CheckStatusNotice(),
+                ],
               ),
             ),
           ],
@@ -79,16 +86,71 @@ class StackSafetyDetailsSheet extends StatelessWidget {
       ),
     );
   }
+
+  List<Widget> _section(String heading, List<ClinicalSignal> signals) {
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+        child: PGEyebrow(heading, color: V2Colors.fgMuted),
+      ),
+      for (var i = 0; i < signals.length; i++) ...[
+        if (i > 0)
+          const Divider(height: V2Spacing.space24, color: V2Colors.outline),
+        _SafetySignalRow(
+          key: Key('stack-safety-signal-${signals[i].signalId}'),
+          signal: signals[i],
+        ),
+      ],
+      const SizedBox(height: V2Spacing.space16),
+    ];
+  }
 }
 
-class _SafetySignalRow extends StatelessWidget {
-  const _SafetySignalRow({super.key, required this.warning});
-
-  final Object warning;
+/// Assessment-completeness notice. NOT a clinical finding — kept separate so an
+/// incomplete check can never read as an all-clear, and never displaces or
+/// mixes with a known concern.
+class _CheckStatusNotice extends StatelessWidget {
+  const _CheckStatusNotice();
 
   @override
   Widget build(BuildContext context) {
-    final model = _SignalPresentation.from(warning);
+    return Semantics(
+      label: 'Check status: some checks could not be completed',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PGEyebrow('Check status', color: V2Colors.fgMuted),
+          const SizedBox(height: V2Spacing.space8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.help_outline, color: V2Colors.fgMuted, size: 20),
+              const SizedBox(width: V2Spacing.space12),
+              Expanded(
+                child: Text(
+                  'Some checks could not be completed. This is not an all-clear '
+                  '— review your stack with your clinician.',
+                  style: V2Typography.bodySm(
+                    color: V2Colors.fgMuted,
+                  ).copyWith(height: 1.35),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SafetySignalRow extends StatelessWidget {
+  const _SafetySignalRow({super.key, required this.signal});
+
+  final ClinicalSignal signal;
+
+  @override
+  Widget build(BuildContext context) {
+    final model = _SignalPresentation.from(signal);
     return Semantics(
       label: '${model.severity.label}: ${model.title}. ${model.body}',
       child: Row(
@@ -135,6 +197,9 @@ class _SafetySignalRow extends StatelessWidget {
   }
 }
 
+/// Row presentation. Text is sourced from the typed payload so it stays BYTE-FOR-
+/// BYTE identical to the pre-migration rendering (no clinical copy is regenerated
+/// here); severity comes from the envelope's clinical_severity.
 class _SignalPresentation {
   const _SignalPresentation({
     required this.severity,
@@ -148,47 +213,50 @@ class _SignalPresentation {
   final String body;
   final IconData icon;
 
-  static _SignalPresentation from(Object warning) {
-    if (warning is InteractionResult) {
-      final body = warning.management.trim().isNotEmpty
-          ? warning.management
-          : warning.mechanism;
-      return _SignalPresentation(
-        severity: warning.effectiveSeverity,
-        title: '${warning.agent1Name} x ${warning.agent2Name}',
-        body: body.trim().isEmpty ? warning.evidenceLevel.label : body,
-        icon: Icons.warning_amber_rounded,
-      );
+  static _SignalPresentation from(ClinicalSignal signal) {
+    final severity = signal.clinicalSeverity;
+    switch (signal.payload) {
+      case InteractionPayload(:final result):
+        final body = result.management.trim().isNotEmpty
+            ? result.management
+            : result.mechanism;
+        return _SignalPresentation(
+          severity: severity,
+          title: '${result.agent1Name} x ${result.agent2Name}',
+          body: body.trim().isEmpty ? result.evidenceLevel.label : body,
+          icon: Icons.warning_amber_rounded,
+        );
+      case MedicationProfilePayload(:final warning):
+        final body = warning.body.trim().isNotEmpty
+            ? warning.body
+            : warning.management;
+        return _SignalPresentation(
+          severity: severity,
+          title: warning.medicationName,
+          body: body.trim().isEmpty ? warning.headline : body,
+          icon: Icons.medical_information_outlined,
+        );
+      case CumulativeExposurePayload(:final status):
+        final exceeds = status.tier == NutrientTier.exceedsUl;
+        return _SignalPresentation(
+          severity: severity,
+          title: exceeds
+              ? 'Upper limit - ${status.total.displayName}'
+              : '${status.total.displayName} is near its upper limit',
+          body: exceeds
+              ? StackSafetyReport.nutrientUpperLimitSummary(status)
+              : '${status.total.displayName} is nearing its upper limit across your stack.',
+          icon: Icons.health_and_safety_outlined,
+        );
+      case MedicationNutrientPayload(:final match):
+        // Not in this sheet's data source today (depletions come from a separate
+        // provider); reserved for when they are folded into the unified list.
+        return _SignalPresentation(
+          severity: severity,
+          title: '${match.drugDisplayName} - ${match.nutrientName}',
+          body: match.clinicalImpact ?? match.mechanism,
+          icon: Icons.medical_information_outlined,
+        );
     }
-    if (warning is MedicationProfileWarning) {
-      final body = warning.body.trim().isNotEmpty
-          ? warning.body
-          : warning.management;
-      return _SignalPresentation(
-        severity: warning.severity,
-        title: warning.medicationName,
-        body: body.trim().isEmpty ? warning.headline : body,
-        icon: Icons.medical_information_outlined,
-      );
-    }
-    if (warning is NutrientStatus) {
-      final exceeds = warning.tier == NutrientTier.exceedsUl;
-      return _SignalPresentation(
-        severity: StackSafetyReport.severityForNutrient(warning),
-        title: exceeds
-            ? 'Upper limit - ${warning.total.displayName}'
-            : '${warning.total.displayName} is near its upper limit',
-        body: exceeds
-            ? StackSafetyReport.nutrientUpperLimitSummary(warning)
-            : '${warning.total.displayName} is nearing its upper limit across your stack.',
-        icon: Icons.health_and_safety_outlined,
-      );
-    }
-    return const _SignalPresentation(
-      severity: Severity.caution,
-      title: 'Safety signal',
-      body: 'Review this item in your stack.',
-      icon: Icons.warning_amber_rounded,
-    );
   }
 }
