@@ -21,6 +21,7 @@ InteractionResult _ix({
   Severity severity = Severity.caution,
   Severity? curated,
   InteractionSource source = InteractionSource.pipeline,
+  String? alertStyle,
 }) => InteractionResult(
   id: id,
   type: InteractionType.drugSupplement,
@@ -34,6 +35,7 @@ InteractionResult _ix({
   doseThreshold: null,
   sourceUrls: const [],
   source: source,
+  alertStyle: alertStyle,
   curatedSeverity: curated,
 );
 
@@ -74,26 +76,28 @@ void main() {
     expect(signals.last.clinicalSeverity, Severity.monitor);
   });
 
-  test('food advisory ranks by TRUE severity, fixing the display-downgrade seam', () {
-    // Displays informational but is truly avoid (curatedSeverity).
+  test('food advisory (good_to_know) never displaces a review concern', () {
+    // Truly avoid (curatedSeverity) but a food advisory → good_to_know.
     final foodAdvisory = _ix(
       id: 'm1',
       severity: Severity.informational,
       curated: Severity.avoid,
+      alertStyle: 'food_advisory_note',
     );
-    final plainCaution = _ix(id: 's1', severity: Severity.caution);
+    final plainCaution = _ix(id: 's1', severity: Severity.caution); // → review
     final report = StackSafetyReport(
       medicationInteractions: [foodAdvisory],
       stackInteractions: [plainCaution],
     );
 
-    // Old path ranks on display severity: caution (3) > informational (1).
-    expect((report.orderedWarnings.first as InteractionResult).id, 's1');
-
-    // New path ranks on effective severity: avoid (4) > caution (3).
     final signals = orderedSignalsFrom(report);
-    expect(signals.first.clinicalSeverity, Severity.avoid);
-    expect((signals.first.payload as InteractionPayload).result.id, 'm1');
+    // Disposition-first: the review caution outranks the good_to_know advisory
+    // even though the advisory's clinical severity (avoid) is higher.
+    expect(signals.first.consumerDisposition, ConsumerDisposition.review);
+    expect((signals.first.payload as InteractionPayload).result.id, 's1');
+    // The advisory still appears — with its true severity — just not first.
+    expect(signals.last.consumerDisposition, ConsumerDisposition.goodToKnow);
+    expect(signals.last.clinicalSeverity, Severity.avoid);
   });
 
   test('maps families correctly', () {
@@ -117,6 +121,30 @@ void main() {
         .where((s) => s.family == SignalFamily.cumulativeExposure)
         .toList();
     expect(cumulative.length, 1);
+  });
+
+  test('a block (contraindicated) signal wins the headline', () {
+    final report = StackSafetyReport(
+      medicationPairInteractions: [
+        _ix(id: 'p1', severity: Severity.contraindicated),
+      ],
+      stackInteractions: [_ix(id: 's1', severity: Severity.avoid)],
+    );
+    final signals = orderedSignalsFrom(report);
+    expect(signals.first.consumerDisposition, ConsumerDisposition.block);
+    expect((signals.first.payload as InteractionPayload).result.id, 'p1');
+  });
+
+  test('suppress-disposition signals are excluded', () {
+    final report = StackSafetyReport(
+      stackInteractions: [
+        _ix(id: 's1', severity: Severity.safe), // → suppress, excluded
+        _ix(id: 's2', severity: Severity.caution), // → review
+      ],
+    );
+    final signals = orderedSignalsFrom(report);
+    expect(signals.length, 1);
+    expect((signals.first.payload as InteractionPayload).result.id, 's2');
   });
 
   test('empty report yields no signals', () {
