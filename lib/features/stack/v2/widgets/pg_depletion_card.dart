@@ -1,24 +1,13 @@
-// PGDepletionCard — Phase 11.7L.C.
+// PGDepletionCard — Medication & Nutrient Monitor surface (B1.1 rewrite).
 //
-// V2 depletion coverage surface. Same three-state machine
-// (all_covered / partial / none_or_mixed), same data shape,
-// same calm-not-alarming tone. The fallback copy is preserved verbatim —
-// these messages were tuned in the Sprint 16 Path C calibration and
-// remain Sean-approved.
-//
-// What's different visually:
-//
-//   * Cream `V2Colors.surface` card with a severity-tinted left
-//     stripe (4px) that signals the coverage state without
-//     dominating the surface.
-//   * Header: mono-caps eyebrow + Newsreader serif title + body
-//     subtitle (Geist Sans muted).
-//   * Per-depletion rows render as nested cream tiles with the
-//     coverage icon at the leading edge and an expandable "Why this
-//     happens" disclosure.
-//   * Source URL chips use accent-tinted pills.
-//
-// Behavior + content preserve the production card contract.
+// States what the user's stack SUPPLIES for medication-related nutrient
+// relationships — it never authors a coverage verdict ("covered"/"adequate")
+// and never implies a measured deficiency or physiological sufficiency. Copy is
+// generated from explicit relationship_type × supply_state templates
+// (medNutrientBodyCopy); the relationship kind is surfaced per row
+// (medNutrientRelationshipLabel) so a functional antagonism or monitoring note
+// is never presented as a depletion. Affirmation copy (acknowledgement_note)
+// is no longer rendered.
 
 import 'dart:async';
 
@@ -31,8 +20,6 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum _CardState { allCovered, partial, noneOrMixed, empty }
-
 class PGDepletionCard extends StatelessWidget {
   final List<DepletionMatch> depletions;
   final EdgeInsetsGeometry margin;
@@ -43,81 +30,9 @@ class PGDepletionCard extends StatelessWidget {
     this.margin = EdgeInsets.zero,
   });
 
-  _CardState get _state {
-    if (depletions.isEmpty) return _CardState.empty;
-    final anyUncovered = depletions.any(
-      (d) => d.coverageLevel == CoverageLevel.none,
-    );
-    final anyPartial = depletions.any(
-      (d) => d.coverageLevel == CoverageLevel.partial,
-    );
-    if (!anyUncovered && !anyPartial) return _CardState.allCovered;
-    if (!anyUncovered) return _CardState.partial;
-    return _CardState.noneOrMixed;
-  }
-
-  ({
-    Color stripe,
-    Color iconColor,
-    IconData icon,
-    String eyebrow,
-    String title,
-    String subtitle,
-  })
-  _chrome() {
-    switch (_state) {
-      case _CardState.allCovered:
-        // Sean 2026-05-16: "You're covered" felt a touch casual for
-        // a clinical card. "Coverage looks good" matches the calm-
-        // clinical tone of the rest of the depletion surfaces.
-        return (
-          stripe: V2Colors.safe,
-          iconColor: V2Colors.safe,
-          icon: Icons.check_circle_outline_rounded,
-          eyebrow: 'Medication nutrient notes',
-          title: 'Nutrient notes look covered',
-          subtitle:
-              'Your stack already addresses the medication-related '
-              'nutrient notes we found.',
-        );
-      case _CardState.partial:
-        return (
-          stripe: V2Colors.monitor,
-          iconColor: V2Colors.monitor,
-          icon: Icons.info_outline_rounded,
-          eyebrow: 'Medication nutrient notes',
-          title: 'A couple of things worth knowing',
-          subtitle:
-              'Some medication-related nutrient notes are partly covered '
-              '— here are gentle suggestions.',
-        );
-      case _CardState.noneOrMixed:
-        return (
-          stripe: V2Colors.monitor,
-          iconColor: V2Colors.monitor,
-          icon: Icons.info_outline_rounded,
-          eyebrow: 'Medication nutrient notes',
-          title: 'Things worth knowing about your medications',
-          subtitle:
-              'Some medications can affect nutrients, supplement timing, '
-              'or monitoring needs — here are a few to keep in mind.',
-        );
-      case _CardState.empty:
-        return (
-          stripe: Colors.transparent,
-          iconColor: Colors.transparent,
-          icon: Icons.info_outline,
-          eyebrow: '',
-          title: '',
-          subtitle: '',
-        );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (depletions.isEmpty) return const SizedBox.shrink();
-    final chrome = _chrome();
 
     return Padding(
       padding: margin,
@@ -132,28 +47,37 @@ class PGDepletionCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(width: 4, color: chrome.stripe),
+            Container(width: 4, color: V2Colors.monitor),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(V2Spacing.space16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    const Row(
                       children: [
-                        Icon(chrome.icon, size: 16, color: chrome.iconColor),
-                        const SizedBox(width: V2Spacing.space8),
-                        PGEyebrow(chrome.eyebrow, color: chrome.iconColor),
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 16,
+                          color: V2Colors.monitor,
+                        ),
+                        SizedBox(width: V2Spacing.space8),
+                        PGEyebrow(
+                          'Medication & nutrients',
+                          color: V2Colors.monitor,
+                        ),
                       ],
                     ),
                     const SizedBox(height: V2Spacing.space8),
                     Text(
-                      chrome.title,
+                      'Nutrients to monitor',
                       style: V2Typography.titleSm(color: V2Colors.fg),
                     ),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
-                      chrome.subtitle,
+                      'Some medications are associated with changes in nutrient '
+                      'status or function. Your supplement stack shows intake—'
+                      'not your blood level or nutrient status.',
                       style: V2Typography.bodySm(color: V2Colors.fgMuted),
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -184,89 +108,40 @@ class _DepletionRow extends StatefulWidget {
 class _DepletionRowState extends State<_DepletionRow> {
   bool _expanded = false;
 
-  String _fallbackAlertBody() {
+  String _bodyCopy() {
     final d = widget.dep;
-    if (d.clinicalImpact != null && d.clinicalImpact!.isNotEmpty) {
-      return d.clinicalImpact!;
+    num? compAmt;
+    String? compUnit;
+    if (d.adequacyThresholdMcg != null) {
+      compAmt = d.adequacyThresholdMcg;
+      compUnit = 'mcg';
+    } else if (d.adequacyThresholdMg != null) {
+      compAmt = d.adequacyThresholdMg;
+      compUnit = 'mg';
     }
-    if (d.recommendation.isNotEmpty) return d.recommendation;
-    return 'Your medication may gradually affect this nutrient over time.';
+    return medNutrientBodyCopy(
+      relationshipType: d.depletionType,
+      nutrient: d.nutrientName,
+      subject: d.drugDisplayName,
+      supplyState: medNutrientSupplyStateFrom(
+        d.coverageLevel,
+        hasAmount: d.detectedAmount != null,
+      ),
+      detectedAmount: d.detectedAmount,
+      detectedUnit: d.detectedUnit,
+      comparisonAmount: compAmt,
+      comparisonUnit: compUnit,
+    );
   }
 
-  String _fallbackHeadline() {
-    final d = widget.dep;
-    final n = d.nutrientName.isEmpty ? 'a nutrient' : d.nutrientName;
-    if (d.depletionType == 'functional_antagonism') {
-      return '${d.drugDisplayName} changes how your body uses $n';
-    }
-    if (d.depletionType == 'monitoring_stability') {
-      return 'Keep $n status steady while on ${d.drugDisplayName}';
-    }
-    if (d.depletionType == 'supplement_interaction') {
-      return '$n can affect ${d.drugDisplayName} timing';
-    }
-    if (d.depletionType == 'condition_related') {
-      return '${d.drugDisplayName} may be linked with $n status';
-    }
-    return 'Your medication may affect $n over time';
-  }
-
-  String _fallbackAck() {
-    final d = widget.dep;
-    final n = d.nutrientName.isEmpty ? 'this nutrient' : d.nutrientName;
-    if (d.depletionType == 'condition_related') {
-      return "You're already taking $n — useful context for your clinician.";
-    }
-    return "You're already taking $n — helpful while on ${d.drugDisplayName}.";
-  }
-
-  String _fallbackPartial() {
-    final d = widget.dep;
-    final n = d.nutrientName.isEmpty ? 'this nutrient' : d.nutrientName;
-    if (d.depletionType == 'condition_related') {
-      return "You're taking some $n — your health context may warrant a "
-          'closer look with your clinician.';
-    }
-    return "You're taking some $n — your medication may warrant a "
-        'higher dose over time. Worth a quick conversation with your doctor.';
-  }
-
-  (IconData, Color, String) _renderSignals() {
-    final d = widget.dep;
-    switch (d.coverageLevel) {
-      case CoverageLevel.adequate:
-        return (
-          Icons.check_circle_rounded,
-          V2Colors.safe,
-          d.acknowledgementNote ?? _fallbackAck(),
-        );
-      case CoverageLevel.partial:
-        return (
-          Icons.check_circle_outline_rounded,
-          V2Colors.monitor,
-          _fallbackPartial(),
-        );
-      case CoverageLevel.none:
-        return (
-          Icons.info_outline_rounded,
-          V2Colors.monitor,
-          d.alertBody ?? _fallbackAlertBody(),
-        );
-    }
-  }
-
-  String _subtitleForCoverage(DepletionMatch d) {
-    final drugShort = d.drugDisplayName.isEmpty
-        ? 'your medication'
-        : d.drugDisplayName;
-    final onset = d.onsetTimeline?.toLowerCase();
-    final cue = switch (onset) {
+  String? _onsetCue() {
+    final onset = widget.dep.onsetTimeline?.toLowerCase();
+    return switch (onset) {
       'years' => 'long-term',
       'months' => 'with regular use',
       'weeks' => 'over weeks',
       _ => null,
     };
-    return cue == null ? drugShort : '$drugShort • $cue';
   }
 
   bool _hasExpandableDetail() {
@@ -280,7 +155,14 @@ class _DepletionRowState extends State<_DepletionRow> {
   @override
   Widget build(BuildContext context) {
     final d = widget.dep;
-    final (icon, iconColor, primaryCopy) = _renderSignals();
+    final nutrientTitle = d.nutrientName.isEmpty
+        ? 'This nutrient'
+        : d.nutrientName;
+    final subject = d.drugDisplayName.isEmpty
+        ? 'your medication'
+        : d.drugDisplayName;
+    final onset = _onsetCue();
+    final subjectLine = onset == null ? subject : '$subject • $onset';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: V2Spacing.space8),
@@ -297,24 +179,33 @@ class _DepletionRowState extends State<_DepletionRow> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 18, color: iconColor),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: V2Colors.monitor,
+                ),
                 const SizedBox(width: V2Spacing.space8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      PGEyebrow(
+                        medNutrientRelationshipLabel(d.depletionType),
+                        color: V2Colors.fgMuted,
+                      ),
+                      const SizedBox(height: V2Spacing.space4),
                       Text(
-                        d.alertHeadline ?? _fallbackHeadline(),
+                        nutrientTitle,
                         style: V2Typography.bodyMedium(color: V2Colors.fg),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _subtitleForCoverage(d),
+                        subjectLine,
                         style: V2Typography.caption(color: V2Colors.fgMuted),
                       ),
                       const SizedBox(height: V2Spacing.space8),
                       Text(
-                        primaryCopy,
+                        _bodyCopy(),
                         style: V2Typography.bodySm(color: V2Colors.fg),
                       ),
                       if (d.monitoringTipShort != null &&
