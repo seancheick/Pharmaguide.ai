@@ -422,6 +422,48 @@ void main() {
       expect(intelligence.issues.first.headline, 'real concern');
       expect(intelligence.issues[1].headline, 'food note');
     });
+
+    test('suppress + good_to_know signals change neither the actionable count '
+        'nor the tier (control comparison)', () {
+      final concernOnly = StackSafetyReport(
+        stackInteractions: [_interaction(id: 'c', severity: Severity.caution)],
+      );
+      final withContext = StackSafetyReport(
+        stackInteractions: [
+          _interaction(id: 'c', severity: Severity.caution),
+          _interaction(id: 'safe', severity: Severity.safe), // → suppress
+        ],
+        medicationInteractions: [
+          _interaction(
+            id: 'fa',
+            severity: Severity.informational,
+            alertStyle: 'food_advisory_note', // → good_to_know
+          ),
+        ],
+      );
+
+      final a = engine.diagnose(
+        stackSize: 3,
+        safetyReport: concernOnly,
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+      );
+      final b = engine.diagnose(
+        stackSize: 3,
+        safetyReport: withContext,
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+      );
+
+      // Adding the safe (suppress) + informational (good_to_know) entries adds
+      // nothing to the actionable interaction count or the tier.
+      expect(b.interactionCount, a.interactionCount);
+      expect(b.interactionCount, 1); // only the caution concern
+      expect(b.tier, a.tier);
+      expect(b.hasContraindicatedInteraction, isFalse);
+    });
   });
 
   group('StackIntelligenceEngine.diagnoseFromReports', () {
