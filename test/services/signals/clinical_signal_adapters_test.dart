@@ -97,6 +97,25 @@ NutrientStatus _nutrient({
 );
 
 void main() {
+  group('fromDepletion — identity (B1.1)', () {
+    test('requires a non-empty depletionId (no composed fallback)', () {
+      // The checker guarantees a stable id; the adapter must NOT silently
+      // synthesize one from drugClass+nutrient. Empty id is a contract breach.
+      expect(
+        () => ClinicalSignal.fromDepletion(_depletion(id: '')),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('signal identity derives from depletionId only', () {
+      final a = ClinicalSignal.fromDepletion(_depletion(id: 'DEP_A'));
+      final b = ClinicalSignal.fromDepletion(_depletion(id: 'DEP_B'));
+      expect(a.sourceRuleId, 'DEP_A');
+      expect(b.sourceRuleId, 'DEP_B');
+      expect(a.signalId, isNot(b.signalId));
+    });
+  });
+
   group('fromDepletion — medication–nutrient never escalates (PM-locked)', () {
     test('every importance maps to monitor + good_to_know, never avoid/contra', () {
       for (final importance in ['critical', 'significant', 'moderate', 'mild']) {

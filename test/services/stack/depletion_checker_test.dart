@@ -45,6 +45,95 @@ Map<String, dynamic> _metforminB12Fixture({
 void main() {
   final checker = DepletionChecker();
 
+  group('DepletionChecker — identity integrity (B1.1)', () {
+    // A medication-nutrient signal's stable identity derives from the entry
+    // `id`. A missing id (previously silently emitted as '') or a duplicate id
+    // makes that identity unstable/colliding, so the entry must NOT produce a
+    // signal — the app defensively drops it (the pipeline is the primary gate).
+    Map<String, dynamic> metforminEntry({
+      required Object? id,
+      String nutrient = 'Vitamin B12',
+      String canonicalId = 'vitamin_b12',
+    }) => {
+      if (id != null) 'id': id,
+      'drug_ref': {
+        'id': '860974',
+        'display_name': 'Metformin (type 2 diabetes medication)',
+      },
+      'depleted_nutrient': {
+        'standard_name': nutrient,
+        'canonical_id': canonicalId,
+      },
+      'depletion_type': 'depletion',
+      'severity': 'significant',
+      'mechanism': 'x',
+      'recommendation': 'y',
+    };
+
+    const metformin = (name: 'Metformin', drugClassId: null);
+
+    test('entry with missing id is dropped, never emitted with an empty id', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [metforminEntry(id: null)],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('entry with empty-string id is dropped', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [metforminEntry(id: '')],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('duplicate ids across entries are all dropped (no colliding signals)', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [
+            metforminEntry(id: 'DUP'),
+            metforminEntry(id: 'DUP', nutrient: 'Folate', canonicalId: 'folate'),
+          ],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('valid unique id still emits normally', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [metforminEntry(id: 'DEP_METFORMIN_VITAMINB12')],
+        },
+      );
+      expect(out, hasLength(1));
+      expect(out.single.depletionId, 'DEP_METFORMIN_VITAMINB12');
+    });
+
+    test('onDataIssue reports missing and duplicate ids', () {
+      final issues = <String>[];
+      checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [
+            metforminEntry(id: null),
+            metforminEntry(id: 'DUP'),
+            metforminEntry(id: 'DUP', nutrient: 'Folate', canonicalId: 'folate'),
+          ],
+        },
+        onDataIssue: issues.add,
+      );
+      expect(issues.any((m) => m.contains('missing id')), isTrue);
+      expect(issues.any((m) => m.contains('duplicate')), isTrue);
+    });
+  });
+
   group('DepletionChecker — medication matching', () {
     test('no medications returns empty results', () {
       final out = checker.check(

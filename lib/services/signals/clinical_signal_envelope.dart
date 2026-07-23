@@ -202,10 +202,15 @@ class ClinicalSignal {
   }
 
   factory ClinicalSignal.fromDepletion(DepletionMatch m) {
+    // Identity comes from the checker's stable, validated id — never a
+    // synthesized drugClass+nutrient fallback (B1.1). The checker drops
+    // empty/duplicate ids, so a non-empty id here is an invariant.
+    assert(
+      m.depletionId.isNotEmpty,
+      'fromDepletion requires a non-empty depletionId (checker drops empty ids)',
+    );
     final importance = m.severity.trim().toLowerCase();
-    final ruleId = m.depletionId.isNotEmpty
-        ? m.depletionId
-        : '${m.drugClassId}:${m.nutrientCanonicalId}';
+    final ruleId = m.depletionId;
     final drugSubject =
         m.drugClassId.isNotEmpty ? m.drugClassId : m.drugDisplayName;
     final subjects = [drugSubject, m.nutrientCanonicalId];

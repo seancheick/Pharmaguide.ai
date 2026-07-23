@@ -201,6 +201,7 @@ class DepletionChecker {
     required Map<String, dynamic> depletionsData,
     Set<String> stackCanonicalIds = const {},
     List<StackSupplementDose> stackDoses = const [],
+    void Function(String message)? onDataIssue,
   }) {
     final depletions = depletionsData['depletions'] as List? ?? [];
     final results = <DepletionMatch>[];
@@ -258,8 +259,43 @@ class DepletionChecker {
         .map((e) => e.toLowerCase())
         .toSet();
 
+    // Identity integrity (B1.1): every entry's stable `id` must be present and
+    // unique. A missing id (previously silently emitted as '') or a duplicate id
+    // makes the derived signal identity unstable/colliding, so the entry is
+    // dropped. The pipeline is the primary asset gate; this is the app's
+    // defensive skip so no signal is ever emitted without a stable identity.
+    final idCounts = <String, int>{};
+    var missingIdCount = 0;
     for (final dep in depletions) {
       if (dep is! Map<String, dynamic>) continue;
+      final id = dep['id']?.toString().trim() ?? '';
+      if (id.isEmpty) {
+        missingIdCount++;
+      } else {
+        idCounts[id] = (idCounts[id] ?? 0) + 1;
+      }
+    }
+    final duplicateIds = <String>{
+      for (final e in idCounts.entries)
+        if (e.value > 1) e.key,
+    };
+    if (missingIdCount > 0) {
+      onDataIssue?.call(
+        'medication_depletions: dropped $missingIdCount '
+        '${missingIdCount == 1 ? 'entry' : 'entries'} with a missing id',
+      );
+    }
+    if (duplicateIds.isNotEmpty) {
+      onDataIssue?.call(
+        'medication_depletions: dropped duplicate ids — '
+        '${(duplicateIds.toList()..sort()).join(', ')}',
+      );
+    }
+
+    for (final dep in depletions) {
+      if (dep is! Map<String, dynamic>) continue;
+      final depId = dep['id']?.toString().trim() ?? '';
+      if (depId.isEmpty || duplicateIds.contains(depId)) continue;
 
       final drugRef = dep['drug_ref'] as Map<String, dynamic>? ?? {};
       final drugIdRaw = drugRef['id']?.toString().trim() ?? '';
@@ -318,7 +354,7 @@ class DepletionChecker {
 
       results.add(
         DepletionMatch(
-          depletionId: dep['id']?.toString() ?? '',
+          depletionId: depId,
           drugDisplayName: drugDisplayName,
           drugClassId: drugId,
           nutrientName: nutrient['standard_name']?.toString() ?? '',
