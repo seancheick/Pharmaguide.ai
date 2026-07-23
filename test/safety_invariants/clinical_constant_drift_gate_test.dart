@@ -5,9 +5,10 @@
 // dirs for hardcoded classification-band literals (a comparison against a
 // multi-digit `.0` float, e.g. `>= 100.0`) and fails if a NEW one appears.
 //
-// Today two files still carry pipeline-owned bands in Dart (tracked debt, slated
-// to move into the shipped clinical contract). They are frozen on the allowlist
-// below: a new value, or a band literal in any other file, trips the gate.
+// Two files carry classification-band literals today (see _allowlist for the
+// breakdown: app-owned UI tiers vs the parity-locked B7 clinical value). They
+// are frozen on the allowlist below: a new value, or a band literal in any
+// other file, trips the gate.
 //
 // Backstop, not the primary guard: the primary is "enforce by construction"
 // (bands come from a typed contract object), which lands with the migration
@@ -22,13 +23,19 @@ import 'package:flutter_test/flutter_test.dart';
 /// — `length >= 3`, `* 1000`, index `> 0`, single-digit ints — do NOT match.
 final RegExp _clinicalBandPattern = RegExp(r'[<>]=?\s*\d{2,3}\.0(?![0-9])');
 
-/// Files permitted to contain clinical band literals today, mapped to the exact
-/// normalized literals they may contain. TRACKED DEBT — pipeline-owned policy
-/// still living in Dart, to be migrated into the shipped contract.
+/// Files permitted to contain classification-band literals today, mapped to the
+/// exact normalized literals they may contain. Two categories, both intentional:
+///   - stack_ul_checker.dart (50/80/100/200): app-owned UI classification tiers
+///     (intake-adequacy / UL display bands). NOT clinical policy — the pipeline
+///     owns the UL verdict via `over_ul`, which the app defers to. No pipeline
+///     equivalent exists to migrate to; these legitimately live in the app.
+///   - stack_nutrient_aggregator.dart (150.0): the B7 UL-exceedance fallback.
+///     This IS pipeline clinical policy (mirrors b7_ul_pct_threshold) and is
+///     LOCKED to the pipeline value by clinical_threshold_parity_test.dart, so
+///     it cannot silently drift.
 ///
-/// Known limitations (acceptable for v1 — the migration removes these constants
-/// entirely, and the gate targets the dominant accidental-drift pattern: a dev
-/// copying an inline `>= X.0` comparison to add another band):
+/// Known limitations (acceptable — the gate targets the dominant accidental-drift
+/// pattern: a dev copying an inline `>= X.0` comparison to add another band):
 ///   1. Presence-keyed, not count-keyed — a new occurrence of an already-listed
 ///      literal in the SAME file is not caught. New values and new files ARE.
 ///   2. Comparison-anchored — a threshold hidden in a named constant
