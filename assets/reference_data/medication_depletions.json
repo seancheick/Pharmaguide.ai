@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.23",
-    "content_hash": "sha256:d3315f2574163c52fe17d34c14cdf2db2fac856577e0e119dd2d53e9a1f243d2",
+    "content_hash": "sha256:d14a0d8f0501f82d4f1c4efb902931262843d9cd0dad43aeceff09bf2a873280",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -405,14 +405,19 @@
         "canonical_id": "vitamin_b6"
       },
       "depletion_type": "depletion",
-      "severity": "significant",
-      "mechanism": "Estrogen in oral contraceptives increases tryptophan oxygenase activity, shunting tryptophan toward kynurenine pathway metabolism, which increases demand for vitamin B6 as a cofactor. This accelerated B6 utilization depletes plasma pyridoxal phosphate levels.",
-      "clinical_impact": "B6 deficiency causes depression, irritability, cognitive changes, peripheral neuropathy, and impaired immune function. The mood symptoms associated with some OCP use may partly reflect B6 depletion.",
-      "recommendation": "Consider a B-complex supplement or a daily multivitamin providing 25–50 mg of B6. Women on OCPs who experience mood changes may particularly benefit.",
+      "severity": "moderate",
+      "mechanism": "Estrogen-containing oral contraceptives are associated with lower plasma pyridoxal-5'-phosphate (the active form of vitamin B6) in population studies. The effect is modest with today's low-dose formulations and was larger with the higher-estrogen pills of earlier decades.",
+      "clinical_impact": "The change in B6 status is usually subclinical. The main practical concern is entering pregnancy with reduced B6 reserves in someone who stops the pill and conceives soon after.",
+      "recommendation": "A normal diet (poultry, fish, potatoes, chickpeas, bananas) or a standard multivitamin typically provides enough B6 — high-dose B6 supplements are not recommended, because chronic intake well above the daily requirement can cause nerve symptoms. If you are planning pregnancy, discuss B6 and folate with your clinician.",
       "onset_timeline": "months",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Wilson SMC et al. Oral contraceptive use: impact on folate, vitamin B6, and vitamin B12 status. Nutr Rev. 2011;69(10):572-83",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21967158/"
+        },
         {
           "source_type": "reference",
           "label": "NIH ODS — Vitamin B6 Fact Sheet for Health Professionals",
@@ -420,14 +425,15 @@
         }
       ],
       "alert_headline": "May lower vitamin B6 over time",
-      "alert_body": "Hormonal birth control can gradually increase the body's demand for vitamin B6. With regular use over months, levels may drift lower in some people.",
+      "alert_body": "Combined hormonal birth control is linked to modestly lower vitamin B6 (PLP) levels in some people over months of use. Levels usually stay in a range that isn't clinically obvious.",
       "acknowledgement_note": "Nice — B6 intake supports levels while using hormonal birth control.",
-      "monitoring_tip_short": "Consider a B-complex if you notice mood changes; discuss with your clinician.",
-      "adequacy_threshold_mg": 25,
+      "monitoring_tip_short": "If you are planning pregnancy, consider discussing B6 and folate adequacy with your clinician.",
+      "adequacy_threshold_mg": 2,
       "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals.",
-      "citation_review_status": "needs_revision",
+      "citation_review_status": "verified",
       "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewer": "lead_clinician_fix_sprint_01",
+      "citation_review_note": "Downgraded to possible evidence (Wilson 2011); 25–50 mg B6 recommendation cut — chronic high-dose B6 exceeds the EFSA 12 mg UL (neuropathy risk); reframed around pre-pregnancy adequacy."
     },
     {
       "id": "DEP_OCP_VITAMINB12",
@@ -482,13 +488,13 @@
       "clinical_impact": "Folate depletion increases homocysteine and neural tube defect risk. Women stopping OCPs who become pregnant within months may have insufficient folate stores during critical early fetal development.",
       "recommendation": "Take a daily multivitamin with 400–800 mcg folate (methylfolate preferred) throughout OCP use. This is especially critical for anyone who may become pregnant after stopping.",
       "onset_timeline": "months",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": "Consider starting 5-methyltetrahydrofolate supplementation at least 3 months before attempting conception after stopping OCPs.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Folate Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Wilson SMC et al. Oral contraceptive use: impact on folate, vitamin B6, and vitamin B12 status. Nutr Rev. 2011;69(10):572-83 — finds current OCs do not negatively impact folate status",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21967158/"
         }
       ],
       "alert_headline": "May slightly lower folate over time",
@@ -497,9 +503,10 @@
       "monitoring_tip_short": "Consider discussing folate intake during routine visits, particularly when planning ahead.",
       "adequacy_threshold_mcg": 400,
       "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
-      "citation_review_status": "needs_revision",
+      "citation_review_status": "rejected",
       "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewer": "lead_clinician_fix_sprint_01",
+      "citation_review_note": "Rejected: modern low-dose oral contraceptives do not meaningfully deplete folate (Wilson 2011, Nutr Rev — older depletion evidence was confounded and used higher-estrogen pills). Preconception folate adequacy is standard prenatal guidance independent of OCP use."
     },
     {
       "id": "DEP_OCP_MAGNESIUM",
@@ -1774,9 +1781,9 @@
       },
       "depletion_type": "supplement_interaction",
       "severity": "moderate",
-      "mechanism": "Calcium supplements and calcium-rich foods bind levothyroxine in the gastrointestinal tract through a direct physicochemical interaction, reducing drug absorption rather than depleting body calcium stores. Hyperthyroid states (levothyroxine excess) also increase bone turnover and urinary calcium loss.",
-      "clinical_impact": "Co-administration of calcium with levothyroxine reduces thyroid hormone absorption by up to 40%, leading to inadequate thyroid control and hypothyroid symptoms. Additionally, excessive thyroid hormone (over-replacement) directly increases bone resorption and fracture risk.",
-      "recommendation": "Take levothyroxine at least 4 hours apart from calcium supplements or calcium-rich meals. Ensure your thyroid levels are within range with your prescribed dose, as over-replacement depletes bone calcium.",
+      "mechanism": "Calcium supplements and calcium-rich foods bind levothyroxine in the gastrointestinal tract through a direct physicochemical interaction, reducing drug absorption rather than depleting body calcium stores. Levothyroxine adsorbs to calcium carbonate in an acidic environment, lowering its bioavailability.",
+      "clinical_impact": "Taking calcium together with levothyroxine reduces thyroid hormone absorption and can raise TSH into the underactive range — in a pharmacokinetic study, levothyroxine uptake fell from about 84% to 58% when taken with a large (2 g) calcium dose. The result can be inadequate thyroid control and hypothyroid symptoms.",
+      "recommendation": "Take levothyroxine at least 4 hours apart from calcium supplements or calcium-rich meals. If you start, stop, or change calcium timing, ask your clinician about checking your thyroid levels.",
       "onset_timeline": "weeks",
       "evidence_level": "established",
       "monitoring_note": "Check TSH 6–8 weeks after any change to calcium supplement timing or dose. Annual bone density assessment if on long-term thyroid replacement, especially postmenopausal women.",
@@ -1798,9 +1805,10 @@
       "monitoring_tip_short": "Consider taking levothyroxine at least 4 hours apart from calcium-rich meals or supplements.",
       "adequacy_threshold_mg": 500,
       "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
-      "citation_review_status": "needs_revision",
+      "citation_review_status": "verified",
       "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewer": "lead_clinician_fix_sprint_01",
+      "citation_review_note": "Ca–levothyroxine absorption interaction is well-documented (Singh 2000 JAMA, 2001 Thyroid); overstated 40% figure corrected to the study values and out-of-scope bone-calcium claims removed."
     },
     {
       "id": "DEP_LEVOTHYROXINE_IRON",
@@ -1815,17 +1823,17 @@
       },
       "depletion_type": "supplement_interaction",
       "severity": "moderate",
-      "mechanism": "Iron supplements form insoluble chelation complexes with levothyroxine in the gut, reducing levothyroxine absorption by up to 30–45%. This is a drug-nutrient interaction affecting drug bioavailability rather than a direct iron depletion. Hypothyroid states also impair iron absorption by reducing gastric acid secretion.",
-      "clinical_impact": "Co-administration leads to inadequate thyroid hormone levels (persistent hypothyroid symptoms) and poor thyroid control. Iron deficiency anemia itself impairs thyroid hormone synthesis by reducing the heme-containing thyroperoxidase enzyme activity.",
-      "recommendation": "Take iron supplements at least 4 hours before or after levothyroxine. Correcting iron deficiency anemia is important for optimal thyroid function.",
+      "mechanism": "Iron supplements form an insoluble complex with levothyroxine in the gut, reducing levothyroxine absorption. This is a drug-nutrient interaction affecting drug bioavailability rather than a direct iron depletion; in a controlled trial, taking ferrous sulfate with levothyroxine raised TSH from 1.6 to 5.4 mU/L over 12 weeks.",
+      "clinical_impact": "Co-administration can lead to inadequate thyroid hormone levels and a return of hypothyroid symptoms; the effect is variable but clinically significant in some patients.",
+      "recommendation": "Take iron supplements at least 4 hours before or after levothyroxine. If you start or stop iron, ask your clinician about rechecking your thyroid levels.",
       "onset_timeline": "weeks",
       "evidence_level": "established",
       "monitoring_note": "Check TSH within 6–8 weeks of starting iron supplementation in levothyroxine-treated patients. Separate administration times by at least 4 hours.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Iron Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Campbell NR et al. Ferrous sulfate reduces thyroxine efficacy in patients with hypothyroidism. Ann Intern Med. 1992;117(12):1010-3",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/1443969/"
         }
       ],
       "alert_headline": "Iron can reduce thyroid-med absorption",
@@ -1834,9 +1842,10 @@
       "monitoring_tip_short": "Consider taking iron at least 4 hours apart from your levothyroxine dose.",
       "adequacy_threshold_mg": 18,
       "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals.",
-      "citation_review_status": "needs_revision",
+      "citation_review_status": "verified",
       "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewer": "lead_clinician_fix_sprint_01",
+      "citation_review_note": "Placeholder NIH-ODS Iron sheet replaced with the primary controlled trial (Campbell 1992); unsupported 30–45% figure and out-of-scope claims (gastric acid, thyroperoxidase) removed."
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_VITAMIND",
