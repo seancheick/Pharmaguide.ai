@@ -2031,7 +2031,10 @@ class _DepletionSlot extends ConsumerWidget {
         return PGDepletionCard(depletions: report.matches, margin: margin);
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      // An exception is NOT a clean state — a load/parse failure must never
+      // render as "no medication–nutrient considerations" (B1.2 App-1:
+      // unavailable is never clean). Surface it like the unavailable status.
+      error: (_, __) => const PGDepletionUnavailableCard(margin: margin),
     );
   }
 }
