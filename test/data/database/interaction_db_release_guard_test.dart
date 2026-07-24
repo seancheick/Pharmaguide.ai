@@ -47,6 +47,9 @@ const _positives = <String, ({String rxcui, String name})>{
   '$_acidsupp/famotidine': (rxcui: '4278', name: 'famotidine (H2)'),
   // Corrected rxcui — lansoprazole is 17128, not the retired 112002.
   '$_ppi/lansoprazole': (rxcui: '17128', name: 'lansoprazole'),
+  // Completeness 2026-07-24 — dexlansoprazole (Dexilant) is a current PPI.
+  '$_ppi/dexlansoprazole': (rxcui: '816346', name: 'dexlansoprazole'),
+  '$_acidsupp/dexlansoprazole': (rxcui: '816346', name: 'dexlansoprazole (PPI)'),
 };
 
 // Negative: these must NOT resolve to the given class (safety-critical).
@@ -61,9 +64,12 @@ const _negatives = <String, ({String rxcui, String name})>{
   '$_loop/spironolactone': (rxcui: '9997', name: 'spironolactone'),
 };
 
-// The PPI class must resolve exactly the five proton-pump inhibitors — no
-// neutralising antacid (e.g. magnesium hydroxide) may leak in.
-const _ppiExactRxcuis = <String>{'283742', '17128', '7646', '40790', '114979'};
+// The PPI class must resolve exactly the six proton-pump inhibitors (Section 2's
+// five + dexlansoprazole 816346, added 2026-07-24) — no neutralising antacid
+// (e.g. magnesium hydroxide) may leak in.
+const _ppiExactRxcuis = <String>{
+  '283742', '17128', '7646', '40790', '114979', '816346',
+};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -128,7 +134,7 @@ void main() {
     });
 
     test(
-      'PPI class resolves exactly the five PPIs (no antacid leakage)',
+      'PPI class resolves exactly the six PPIs (no antacid leakage)',
       () async {
         final members = (await db.rxcuisForDrugClass(_ppi)).toSet();
         expect(
