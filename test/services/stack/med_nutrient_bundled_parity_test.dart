@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 // content_hash = sha256 over the clinical entries (not the release stamp).
 // MUST equal the pipeline test's pinned value.
 const _pinnedContentHash =
-    'sha256:d14a0d8f0501f82d4f1c4efb902931262843d9cd0dad43aeceff09bf2a873280';
+    'sha256:12f7597461fd5c94762abeb32781cf3f8767bef457df4ad154c95b11845db120';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {
