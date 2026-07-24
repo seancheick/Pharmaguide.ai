@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.23",
-    "content_hash": "sha256:f1cb6d938df3384ba0ef9c508d612949a28eaa9f044112b90397763f80f36bb9",
+    "content_hash": "sha256:d3315f2574163c52fe17d34c14cdf2db2fac856577e0e119dd2d53e9a1f243d2",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -425,9 +425,9 @@
       "monitoring_tip_short": "Consider a B-complex if you notice mood changes; discuss with your clinician.",
       "adequacy_threshold_mg": 25,
       "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_OCP_VITAMINB12",
@@ -497,9 +497,9 @@
       "monitoring_tip_short": "Consider discussing folate intake during routine visits, particularly when planning ahead.",
       "adequacy_threshold_mcg": 400,
       "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_OCP_MAGNESIUM",
@@ -1137,18 +1137,18 @@
       "monitoring_note": "Check serum sodium at baseline and 2–4 weeks after starting SSRI therapy in elderly patients or those on concurrent diuretics.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Sodium Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Sodium-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "De Picker L et al. Antidepressants and the risk of hyponatremia: a class-by-class review of literature. Psychosomatics. 2014;55(6):536-47",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/25262043/"
         }
       ],
       "alert_headline": "May affect sodium early in treatment",
       "alert_body": "In the first weeks of an SSRI, sodium levels can gradually drift lower, especially in older adults or those on water pills. Your prescriber often checks this early.",
       "acknowledgement_note": "Good — your care plan includes sodium awareness, which helps catch changes early.",
       "monitoring_tip_short": "Consider asking for a sodium check 2-4 weeks after starting an SSRI.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_SSRIS_CALCIUM",
@@ -2082,9 +2082,9 @@
       "alert_body": "Warfarin works by blocking vitamin K's role in clotting — this is long-term by design. Changes in vitamin K intake can shift your INR over weeks.",
       "acknowledgement_note": "Good — steady vitamin K intake supports consistent INR during warfarin therapy.",
       "monitoring_tip_short": "Consider keeping your vitamin K intake steady day to day; discuss changes with your prescriber.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_MAOIS_VITAMINB6",
@@ -2521,7 +2521,7 @@
       "sources": [
         {
           "source_type": "pubmed",
-          "label": "PubMed — systematic review on anti-tuberculosis treatment and pyridoxine",
+          "label": "van der Watt JJ et al. Polyneuropathy, anti-tuberculosis treatment and the role of pyridoxine in the HIV/AIDS era: a systematic review. Int J Tuberc Lung Dis. 2011;15(6):722-8",
           "url": "https://pubmed.ncbi.nlm.nih.gov/21477422/"
         },
         {
@@ -2535,9 +2535,9 @@
       "acknowledgement_note": "Good — vitamin B6 intake supports balance during isoniazid therapy.",
       "monitoring_tip_short": "Consider asking your TB clinician whether pyridoxine is already included in your plan.",
       "adequacy_threshold_mg": 25,
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_METHOTREXATE_FOLATE",
@@ -2561,17 +2561,22 @@
       "sources": [
         {
           "source_type": "pubmed",
-          "label": "PubMed — folate supplementation with methotrexate in rheumatoid arthritis",
+          "label": "Morgan SL, Baggott JE, Alarcon GS. Methotrexate in rheumatoid arthritis: folate supplementation should always be given. BioDrugs. 1997;8(3):164-75",
           "url": "https://pubmed.ncbi.nlm.nih.gov/18020507/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Shea B et al. Folic acid and folinic acid for reducing side effects in patients receiving methotrexate for rheumatoid arthritis. Cochrane Database Syst Rev. 2013;(5):CD000951",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/23728635/"
         }
       ],
       "alert_headline": "Methotrexate changes folate pathways",
       "alert_body": "Methotrexate works on folate-dependent pathways over time, so folic acid is often managed as part of the treatment plan rather than added casually.",
       "acknowledgement_note": "Good — folate intake is worth tracking while your clinician manages methotrexate therapy.",
       "monitoring_tip_short": "Consider confirming your exact folic-acid schedule with the clinician who prescribes methotrexate.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_ORLISTAT_VITAMINA",
@@ -2637,9 +2642,9 @@
       "alert_body": "Orlistat can gradually reduce absorption of Vitamin D over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
       "acknowledgement_note": "Good — vitamin D intake helps cover the fat-soluble vitamin gap during orlistat use.",
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_ORLISTAT_VITAMINE",
@@ -2740,9 +2745,9 @@
       "acknowledgement_note": "Good — folate intake supports balance during sulfasalazine therapy.",
       "monitoring_tip_short": "Consider reviewing folate needs with your clinician, especially before pregnancy.",
       "adequacy_threshold_mcg": 400,
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_COLCHICINE_VITAMINB12",
@@ -2768,6 +2773,11 @@
           "source_type": "fda",
           "label": "DailyMed — Cyanocobalamin label, B12 malabsorption causes",
           "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=9172ca9d-6419-41de-829c-4f9a16220b46"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Webb DI et al. Mechanism of vitamin B12 malabsorption in patients receiving colchicine. N Engl J Med. 1968;279(16):845-50",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/5677718/"
         }
       ],
       "alert_headline": "May affect B12 absorption over time",
@@ -2775,9 +2785,9 @@
       "acknowledgement_note": "Good — vitamin B12 intake supports balance during long-term colchicine therapy.",
       "monitoring_tip_short": "Consider asking about B12 testing if colchicine is part of your long-term plan.",
       "adequacy_threshold_mcg": 250,
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINA",
@@ -2911,9 +2921,9 @@
       "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin K over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
       "acknowledgement_note": "Good — steady vitamin K intake helps keep cholestyramine-related monitoring clearer.",
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-23",
+      "reviewer": "lead_clinician_audit_2026_07"
     }
   ]
 }
