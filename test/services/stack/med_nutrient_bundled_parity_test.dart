@@ -17,8 +17,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 // content_hash = sha256 over the clinical entries (not the release stamp).
 // MUST equal the pipeline test's pinned value.
+// Repinned 2026-07-24: the two antibiotics_broadspectrum depletion rules were
+// set to needs_revision (dead synthetic drug id, suppressed pending Section 8).
 const _pinnedContentHash =
-    'sha256:507ebb91d97172084c0b28ccbdd450d2e2529fbb66b700ef575fc98e55db8840';
+    'sha256:76a4368377d41cc5a8f3074c0c3ad6f161b13136ad09d7258ef56f191b0f53e4';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

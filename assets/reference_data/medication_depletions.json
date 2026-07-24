@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.24",
-    "content_hash": "sha256:507ebb91d97172084c0b28ccbdd450d2e2529fbb66b700ef575fc98e55db8840",
+    "content_hash": "sha256:76a4368377d41cc5a8f3074c0c3ad6f161b13136ad09d7258ef56f191b0f53e4",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -1834,9 +1834,10 @@
       "monitoring_tip_short": "Consider a B-complex and fermented foods during and after a course of antibiotics.",
       "adequacy_threshold_mcg": 250,
       "food_sources_short": "Food sources of B vitamins include meat, poultry, fish, eggs, dairy, leafy greens, legumes, and fortified grains.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "citation_review_note": "drug_ref.id 'antibiotics_broadspectrum' is a synthetic non-RxCUI identifier; the app matches medications by numeric RxCUI, so this rule can never fire. Suppressed (needs_revision) pending Section 8 conversion to class:broad_spectrum_antibiotics with real member rxcuis. The mechanism/citation are sound — the defect is the drug identifier, not the evidence.",
+      "reviewer": "identifier-audit-2026-07-24",
+      "reviewed_at": "2026-07-24"
     },
     {
       "id": "DEP_ANTIBIOTICS_VITAMINK",
@@ -1868,9 +1869,10 @@
       "alert_body": "Broad-spectrum antibiotics can gradually reduce gut-bacteria vitamin K production during a course. This matters most for people on warfarin and is managed medically.",
       "acknowledgement_note": "Good — vitamin K awareness is helpful during and after antibiotic courses.",
       "monitoring_tip_short": "If you take warfarin, ask about INR checks during and after an antibiotic course.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "citation_review_note": "drug_ref.id 'antibiotics_broadspectrum' is a synthetic non-RxCUI identifier; the app matches medications by numeric RxCUI, so this rule can never fire. Suppressed (needs_revision) pending Section 8 conversion to class:broad_spectrum_antibiotics with real member rxcuis. The mechanism/citation are sound — the defect is the drug identifier, not the evidence.",
+      "reviewer": "identifier-audit-2026-07-24",
+      "reviewed_at": "2026-07-24"
     },
     {
       "id": "DEP_LEVOTHYROXINE_CALCIUM",
