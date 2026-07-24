@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.24",
-    "content_hash": "sha256:f9022cf67185b745f3ab1acb14d6311052b7d75b5a59e80966165f529c21aeb9",
+    "content_hash": "sha256:507ebb91d97172084c0b28ccbdd450d2e2529fbb66b700ef575fc98e55db8840",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -181,44 +181,63 @@
       "id": "DEP_ANTACIDS_CALCIUM",
       "drug_ref": {
         "type": "class",
-        "id": "class:antacids",
-        "display_name": "PPIs and antacids (acid-reducing medications)"
+        "id": "class:proton_pump_inhibitors",
+        "display_name": "Proton pump inhibitors (PPIs)"
       },
       "depleted_nutrient": {
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
       "depletion_type": "depletion",
-      "severity": "significant",
-      "mechanism": "Gastric acid converts insoluble calcium salts into ionized calcium for absorption in the small intestine. Acid suppression impairs this conversion, reducing absorption of calcium carbonate specifically. Calcium citrate is less affected.",
-      "clinical_impact": "Long-term impaired calcium absorption increases fracture risk. Multiple studies and an FDA label update link long-term PPI use to hip, wrist, and spine fractures.",
-      "recommendation": "Take calcium citrate rather than calcium carbonate (citrate does not need acid for absorption). Ensure adequate intake of 1,000–1,200 mg/day from diet and supplements combined.",
+      "severity": "moderate",
+      "mechanism": "Stomach acid converts insoluble calcium carbonate into absorbable ionized calcium. PPIs strongly suppress acid, so calcium carbonate taken on an empty stomach is absorbed less well. Calcium citrate does not need acid, and taking carbonate with food restores absorption.",
+      "clinical_impact": "Long-term PPI use is linked in observational studies to a modestly higher fracture risk (hip, wrist, spine), behind a 2010 FDA safety communication. The association is modest and partly confounded, and is not seen with H2 blockers.",
+      "recommendation": "If you take a PPI long-term, prefer calcium citrate (it does not need stomach acid to absorb) or take calcium carbonate with a meal. Aim for adequate calcium and vitamin D, and ask your doctor about bone health.",
       "onset_timeline": "years",
       "evidence_level": "established",
       "monitoring_note": "Consider DEXA scan for bone density assessment with long-term PPI use, especially postmenopausal women.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Calcium Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Recker RR. Calcium absorption and achlorhydria. N Engl J Med. 1985",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/4000241/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "O'Connell MB et al. Effects of proton pump inhibitors on calcium carbonate absorption in women: a randomized crossover trial. Am J Med. 2005",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15989913/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Yang YX et al. Long-term proton pump inhibitor therapy and risk of hip fracture. JAMA. 2006",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17190895/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Poly TN et al. Proton pump inhibitors and risk of hip fracture: a meta-analysis of observational studies. Osteoporos Int. 2019",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/30539272/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Serfaty-Lacrosniere C et al. Hypochlorhydria from short-term omeprazole treatment does not inhibit intestinal absorption of calcium, phosphorus, magnesium or zinc from food in humans. J Am Coll Nutr. 1995",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/8568113/"
         }
       ],
       "alert_headline": "May affect calcium absorption over years",
-      "alert_body": "Long-term acid suppression can gradually reduce how well calcium is absorbed, which over years may influence bone strength.",
+      "alert_body": "Long-term PPI use can gradually reduce how well calcium carbonate is absorbed, which over years may influence bone strength. H2 blockers and occasional antacids are not a concern here.",
       "acknowledgement_note": "Good — calcium intake is part of standard support during long-term acid-reducer use.",
       "monitoring_tip_short": "Consider discussing bone health and calcium form with your doctor; citrate is often preferred.",
-      "adequacy_threshold_mg": 500,
       "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-24",
+      "reviewer": "lead_clinician_acid_reduction"
     },
     {
       "id": "DEP_ANTACIDS_IRON",
       "drug_ref": {
         "type": "class",
-        "id": "class:antacids",
-        "display_name": "PPIs and antacids (acid-reducing medications)"
+        "id": "class:acid_suppressants",
+        "display_name": "Acid reducers (PPIs and H2 blockers)"
       },
       "depleted_nutrient": {
         "standard_name": "Iron",
@@ -226,28 +245,32 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Gastric acid is required to reduce dietary non-heme iron (Fe³⁺) to the absorbable ferrous form (Fe²⁺) and to release iron from food complexes. Acid suppression impairs both steps, reducing non-heme iron bioavailability.",
-      "clinical_impact": "Chronic iron depletion can cause iron-deficiency anemia, fatigue, reduced exercise capacity, and impaired immune function. Most concerning in premenopausal women and individuals with marginal iron intake.",
-      "recommendation": "If you are on long-term acid reducers, consider periodic iron/ferritin testing. Take iron supplements (if needed) at least 2 hours away from antacid medication, and use ferrous bisglycinate which is better absorbed at higher pH.",
+      "mechanism": "Gastric acid reduces dietary non-heme iron (Fe3+) to the absorbable ferrous form (Fe2+) and frees iron from food. Both PPIs and H2 blockers suppress acid, so long-term use can lower non-heme iron absorption; the effect is dose-related and reverses after stopping.",
+      "clinical_impact": "Over months to years this can contribute to iron deficiency and, if unaddressed, iron-deficiency anemia — most relevant for menstruating women, frequent blood donors, and people with low dietary iron. Heme iron from meat is less affected.",
+      "recommendation": "If you take a PPI or H2 blocker long-term and are at risk (menstruating, low iron, plant-based diet), ask your doctor to check ferritin. Take any iron supplement a couple of hours apart from your acid reducer, and with vitamin C to aid absorption.",
       "onset_timeline": "months",
       "evidence_level": "established",
       "monitoring_note": "Check serum ferritin and CBC annually with long-term PPI use, especially in women of childbearing age.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Iron Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Lam JR et al. Proton pump inhibitor and histamine-2 receptor antagonist use and iron deficiency. Gastroenterology. 2017",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27890768/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Hutchinson C et al. Proton pump inhibitors suppress absorption of dietary non-haem iron in hereditary haemochromatosis. Gut. 2007",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/17344278/"
         }
       ],
       "alert_headline": "May lower iron absorption over time",
       "alert_body": "Long-term use of acid-reducing medications can gradually reduce iron absorption from food. Some people develop lower iron stores over months of use.",
       "acknowledgement_note": "You're taking iron — a thoughtful step while using acid-reducing medication long-term.",
       "monitoring_tip_short": "Consider asking about periodic ferritin checks, particularly for women of childbearing age.",
-      "adequacy_threshold_mg": 18,
       "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-24",
+      "reviewer": "lead_clinician_acid_reduction"
     },
     {
       "id": "DEP_ANTACIDS_VITAMINC",
@@ -270,20 +293,25 @@
       "monitoring_note": null,
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
-          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+          "source_type": "pubmed",
+          "label": "Henry EB et al. Proton pump inhibitors reduce the bioavailability of dietary vitamin C. Aliment Pharmacol Ther. 2005",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/16167970/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Mowat C et al. Omeprazole and dietary nitrate independently affect levels of vitamin C and nitrite in gastric juice. Gastroenterology. 1999",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10092303/"
         }
       ],
       "alert_headline": "May modestly affect vitamin C over time",
       "alert_body": "Higher stomach pH from acid-reducers can gradually reduce how well vitamin C holds up through digestion. The effect is typically modest with regular use.",
       "acknowledgement_note": "Nice — your vitamin C intake supports levels while using acid-reducing medication.",
       "monitoring_tip_short": "Consider taking vitamin C at a different time of day from acid-reducing medication.",
-      "adequacy_threshold_mg": 200,
       "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_note": "Rejected as a consumer depletion warning (evidence-based, not a data gap). Only one small systemic study (Henry 2005: omeprazole 40 mg x 4 wk → plasma vitamin C -12.3%, authors state 'clinical significance is unclear', concentrated in H. pylori+/low-baseline). The remaining literature is intragastric gastric-juice ascorbate (an N-nitrosation/cancer mechanism, not body vitamin C status). No clinically meaningful depletion; no H2/antacid data. Retired the Pelton handbook citation.",
+      "citation_review_status": "rejected",
+      "reviewed_at": "2026-07-24",
+      "reviewer": "lead_clinician_acid_reduction"
     },
     {
       "id": "DEP_ANTACIDS_ZINC",
@@ -306,20 +334,30 @@
       "monitoring_note": null,
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
-          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+          "source_type": "pubmed",
+          "label": "Sturniolo GC et al. Inhibition of gastric acid secretion reduces zinc absorption in man. J Am Coll Nutr. 1991",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/1894892/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Ozutemiz AO et al. Effect of omeprazole on plasma zinc levels after oral zinc administration. Indian J Gastroenterol. 2002 (PMID 12546170)",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/12546170/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Serfaty-Lacrosniere C et al. Hypochlorhydria from short-term omeprazole treatment does not inhibit intestinal absorption of calcium, phosphorus, magnesium or zinc from food in humans. J Am Coll Nutr. 1995",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/8568113/"
         }
       ],
       "alert_headline": "May slightly lower zinc over time",
       "alert_body": "With long-term use, acid-reducing medications can gradually reduce how well zinc is freed from food and absorbed. The effect is usually mild.",
       "acknowledgement_note": "Good — your zinc intake helps support levels while on acid-reducing medication.",
       "monitoring_tip_short": "Consider taking zinc at a different time of day from acid-reducing medication.",
-      "adequacy_threshold_mg": 10,
       "food_sources_short": "Food sources of zinc include oysters, meat, poultry, beans, lentils, nuts, seeds, and whole grains.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_note": "Rejected as a consumer depletion warning (evidence-based, not a data gap). Support exists only for reduced acute absorption of a fasting soluble zinc-salt load (H2: Sturniolo 1991; PPI: Ozutemiz 2002) — a supplement-timing pharmacokinetic effect. A food-based study (Serfaty-Lacrosniere 1995) found NO change in zinc absorption from a meal, and no study shows actual zinc deficiency from acid suppression. Retired the Pelton handbook citation.",
+      "citation_review_status": "rejected",
+      "reviewed_at": "2026-07-24",
+      "reviewer": "lead_clinician_acid_reduction"
     },
     {
       "id": "DEP_METFORMIN_VITAMINB12",

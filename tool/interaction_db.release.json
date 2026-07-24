@@ -1,14 +1,14 @@
 {
-  "_comment": "Immutable pin for the build-time hydration of assets/db/interaction_db.sqlite. The sha256 is the integrity authority (a release asset can be replaced under the same tag). Consumed by tool/fetch_interaction_db.sh, the CI hydrate step, and the packaging-guard test — the ONE source of these values. clinical_content_hash is a provenance cross-ref to the med-nutrient artifact (a SEPARATE identity from the SQLite sha256); the med-nutrient parity pin lives in test/services/stack/med_nutrient_bundled_parity_test.dart.",
+  "_comment": "Immutable pin for the build-time hydration of assets/db/interaction_db.sqlite. The sha256 is the integrity authority (a release asset can be replaced under the same tag). Consumed by tool/fetch_interaction_db.sh, the CI hydrate step, and the packaging-guard test \u2014 the ONE source of these values. clinical_content_hash is a provenance cross-ref to the med-nutrient artifact (a SEPARATE identity from the SQLite sha256); the med-nutrient parity pin lives in test/services/stack/med_nutrient_bundled_parity_test.dart.",
   "repo": "seancheick/PharmaGuide_Pipeline",
-  "tag": "clinical-db-2026.07.24.1",
+  "tag": "clinical-db-2026.07.24.2",
   "filename": "interaction_db.sqlite",
-  "url": "https://github.com/seancheick/PharmaGuide_Pipeline/releases/download/clinical-db-2026.07.24.1/interaction_db.sqlite",
-  "sha256": "2332ef30abb62439367bfa3ae21220efb6c70e045948d4380d892b2b2be0cd6a",
+  "url": "https://github.com/seancheick/PharmaGuide_Pipeline/releases/download/clinical-db-2026.07.24.2/interaction_db.sqlite",
+  "sha256": "b96bac2b5762dde447d094e1cb0c18346ce9f5d89741c00742f4614da8749c59",
   "size_bytes": 23269376,
   "min_size_bytes": 1048576,
-  "pipeline_commit": "919369e9a5af273268ccf89398267e535a9ad5bd",
+  "pipeline_commit": "4c30eae1c91f8968900ff1b85644ede2a98150c2",
   "interaction_db_version": "1.0.2",
-  "clinical_content_hash": "sha256:f9022cf67185b745f3ab1acb14d6311052b7d75b5a59e80966165f529c21aeb9",
+  "clinical_content_hash": "sha256:507ebb91d97172084c0b28ccbdd450d2e2529fbb66b700ef575fc98e55db8840",
   "runtime_contract": 1
 }

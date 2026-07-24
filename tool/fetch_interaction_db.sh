@@ -69,14 +69,18 @@ try:
 finally:
     con.close()
 REQUIRED = ["class:loop_and_thiazide_diuretics", "class:proton_pump_inhibitors",
-            "class:enzyme_inducing_antiseizure_medications", "class:loop_diuretics"]
+            "class:enzyme_inducing_antiseizure_medications", "class:loop_diuretics",
+            "class:acid_suppressants"]
 POS = [("class:loop_and_thiazide_diuretics", "4603", "furosemide"),
        ("class:loop_and_thiazide_diuretics", "5487", "hydrochlorothiazide"),
        ("class:proton_pump_inhibitors", "7646", "omeprazole"),
        ("class:proton_pump_inhibitors", "40790", "pantoprazole"),
        ("class:enzyme_inducing_antiseizure_medications", "8183", "phenytoin"),
        ("class:enzyme_inducing_antiseizure_medications", "2002", "carbamazepine"),
-       ("class:loop_diuretics", "4603", "furosemide")]
+       ("class:loop_diuretics", "4603", "furosemide"),
+       ("class:acid_suppressants", "7646", "omeprazole (PPI)"),
+       ("class:acid_suppressants", "4278", "famotidine (H2)"),
+       ("class:proton_pump_inhibitors", "17128", "lansoprazole (corrected rxcui)")]
 NEG = [("class:loop_and_thiazide_diuretics", "9997", "spironolactone"),
        ("class:loop_and_thiazide_diuretics", "644", "amiloride"),
        ("class:loop_and_thiazide_diuretics", "298869", "eplerenone"),
@@ -84,7 +88,8 @@ NEG = [("class:loop_and_thiazide_diuretics", "9997", "spironolactone"),
        ("class:enzyme_inducing_antiseizure_medications", "40254", "valproate"),
        ("class:enzyme_inducing_antiseizure_medications", "32624", "oxcarbazepine"),
        ("class:loop_diuretics", "5487", "hydrochlorothiazide"),
-       ("class:loop_diuretics", "9997", "spironolactone")]
+       ("class:loop_diuretics", "9997", "spironolactone"),
+       ("class:proton_pump_inhibitors", "112002", "STALE lansoprazole rxcui (must be gone)")]
 errs = []
 for cid in REQUIRED:
     if cid not in rows or not rows[cid]:
@@ -99,7 +104,7 @@ if errs:
     print("CLINICAL VALIDATION FAILED:", file=sys.stderr)
     for e in errs: print("  -", e, file=sys.stderr)
     sys.exit(1)
-print("clinical drug_class_map validated: 3 classes, positive+negative membership OK")
+print(f"clinical drug_class_map validated: {len(REQUIRED)} required classes, positive+negative membership OK")
 PY
 }
 

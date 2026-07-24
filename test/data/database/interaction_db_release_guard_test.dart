@@ -29,6 +29,7 @@ const _loopThiazide = 'class:loop_and_thiazide_diuretics';
 const _ppi = 'class:proton_pump_inhibitors';
 const _eiasm = 'class:enzyme_inducing_antiseizure_medications';
 const _loop = 'class:loop_diuretics'; // Section 1 — calcium is loop-specific
+const _acidsupp = 'class:acid_suppressants'; // Section 2 — iron (PPI + H2)
 
 // Positive: these MUST resolve to the given class.
 const _positives = <String, ({String rxcui, String name})>{
@@ -42,6 +43,10 @@ const _positives = <String, ({String rxcui, String name})>{
   '$_eiasm/phenytoin': (rxcui: '8183', name: 'phenytoin'),
   '$_eiasm/carbamazepine': (rxcui: '2002', name: 'carbamazepine'),
   '$_loop/furosemide': (rxcui: '4603', name: 'furosemide'),
+  '$_acidsupp/omeprazole': (rxcui: '7646', name: 'omeprazole (PPI)'),
+  '$_acidsupp/famotidine': (rxcui: '4278', name: 'famotidine (H2)'),
+  // Corrected rxcui — lansoprazole is 17128, not the retired 112002.
+  '$_ppi/lansoprazole': (rxcui: '17128', name: 'lansoprazole'),
 };
 
 // Negative: these must NOT resolve to the given class (safety-critical).
@@ -58,7 +63,7 @@ const _negatives = <String, ({String rxcui, String name})>{
 
 // The PPI class must resolve exactly the five proton-pump inhibitors — no
 // neutralising antacid (e.g. magnesium hydroxide) may leak in.
-const _ppiExactRxcuis = <String>{'283742', '112002', '7646', '40790', '114979'};
+const _ppiExactRxcuis = <String>{'283742', '17128', '7646', '40790', '114979'};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -112,7 +117,7 @@ void main() {
 
   group('interaction DB release guard: Sprint-3 taxonomy present', () {
     test('required clinical classes exist and are non-empty', () async {
-      for (final cid in const [_loopThiazide, _ppi, _eiasm, _loop]) {
+      for (final cid in const [_loopThiazide, _ppi, _eiasm, _loop, _acidsupp]) {
         final members = await db.rxcuisForDrugClass(cid);
         expect(
           members,
@@ -164,4 +169,22 @@ void main() {
       });
     });
   });
+
+  group(
+    'interaction DB release guard: rxcui-identity fix (2026-07-24 audit)',
+    () {
+      test('retired lansoprazole rxcui 112002 resolves to nothing', () async {
+        // The shipped DB must carry the corrected 17128, not the retired 112002.
+        expect(await db.drugClassesForRxcui('112002'), isEmpty);
+      });
+
+      test('metronidazole 6922 is not a fluoroquinolone', () async {
+        // 6922 = metronidazole was mislabelled moxifloxacin; the swap is fixed.
+        expect(
+          await db.drugClassesForRxcui('6922'),
+          isNot(contains('class:fluoroquinolones')),
+        );
+      });
+    },
+  );
 }
