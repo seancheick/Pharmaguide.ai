@@ -115,4 +115,23 @@ void main() {
     );
     expect(find.textContaining('MAY AFFECT NUTRIENT FUNCTION'), findsOneWidget);
   });
+
+  testWidgets('unavailable card is an explicit not-all-clear state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: PGDepletionUnavailableCard(),
+          ),
+        ),
+      ),
+    );
+    expect(find.textContaining('Check unavailable'), findsOneWidget);
+    expect(find.textContaining('not an all-clear'), findsOneWidget);
+    // Must not read as a clean state.
+    expect(find.textContaining('No '), findsNothing);
+  });
 }

@@ -8,6 +8,7 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
+import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
@@ -48,7 +49,12 @@ void main() {
           (ref) async => RecalledIngredientsReport.empty(),
         ),
         stackDoseThresholdAlertsProvider.overrideWith((ref) async => const []),
-        depletionReportProvider.overrideWith((ref) async => const []),
+        depletionReportProvider.overrideWith(
+          (ref) async => (
+            status: MedNutrientLoadStatus.loaded,
+            matches: const <DepletionMatch>[],
+          ),
+        ),
       ],
       child: MaterialApp(
         home: Scaffold(appBar: AppBar(actions: [child])),

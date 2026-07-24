@@ -52,28 +52,33 @@ void main() {
     expect(r.compatible, isFalse);
   });
 
-  test('activate returns the artifact unchanged when compatible', () {
+  test('activate returns loaded + the artifact when compatible', () {
     final data = versioned();
-    expect(activateMedicationDepletionsArtifact(data), same(data));
+    final out = activateMedicationDepletionsArtifact(data);
+    expect(out.status, MedNutrientLoadStatus.loaded);
+    expect(out.data, same(data));
   });
 
   test(
-    'activate degrades an incompatible artifact to no depletions + logs',
+    'activate marks an incompatible artifact UNAVAILABLE (not empty-success)',
     () {
       String? reason;
       final out = activateMedicationDepletionsArtifact(
         versioned(minRuntime: kMedNutrientRuntimeContract + 1),
         onIncompatible: (r) => reason = r,
       );
-      expect(out['depletions'], isEmpty);
+      // Unavailable must be distinguishable from a clean "no depletions" load —
+      // the caller shows an unavailable state, never a false all-clear.
+      expect(out.status, MedNutrientLoadStatus.unavailable);
+      expect(out.data['depletions'], isEmpty);
       expect(reason, isNotNull);
     },
   );
 
-  test('activate preserves _metadata on degrade', () {
+  test('activate preserves _metadata on an unavailable result', () {
     final out = activateMedicationDepletionsArtifact(
       versioned(minRuntime: kMedNutrientRuntimeContract + 1),
     );
-    expect(out['_metadata'], isNotNull);
+    expect(out.data['_metadata'], isNotNull);
   });
 }

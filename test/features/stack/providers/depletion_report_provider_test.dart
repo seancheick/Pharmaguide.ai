@@ -17,8 +17,9 @@ class _FakeReferenceDataRepository extends ReferenceDataRepository {
   final Map<String, dynamic> _depletionsPayload;
 
   @override
-  Future<Map<String, dynamic>> loadMedicationDepletions() async {
-    return _depletionsPayload;
+  Future<({MedNutrientLoadStatus status, Map<String, dynamic> data})>
+  loadMedicationDepletions() async {
+    return (status: MedNutrientLoadStatus.loaded, data: _depletionsPayload);
   }
 }
 
@@ -145,11 +146,12 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final matches = await container.read(depletionReportProvider.future);
+      final report = await container.read(depletionReportProvider.future);
 
-      expect(matches, hasLength(1));
-      expect(matches.single.depletionId, 'DEP_METFORMIN_VITAMINB12');
-      expect(matches.single.coverageLevel, CoverageLevel.adequate);
+      expect(report.status, MedNutrientLoadStatus.loaded);
+      expect(report.matches, hasLength(1));
+      expect(report.matches.single.depletionId, 'DEP_METFORMIN_VITAMINB12');
+      expect(report.matches.single.coverageLevel, CoverageLevel.adequate);
     },
   );
 
@@ -184,10 +186,10 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final matches = await container.read(depletionReportProvider.future);
+      final report = await container.read(depletionReportProvider.future);
 
-      expect(matches, hasLength(1));
-      expect(matches.single.depletionId, 'DEP_ORLISTAT_VITAMIND');
+      expect(report.matches, hasLength(1));
+      expect(report.matches.single.depletionId, 'DEP_ORLISTAT_VITAMIND');
     },
   );
 }

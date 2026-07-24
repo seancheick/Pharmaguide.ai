@@ -53,18 +53,21 @@ class ReferenceDataRepository {
     return _bannedRecalledCache!;
   }
 
-  Future<Map<String, dynamic>> loadMedicationDepletions() async {
-    // B1.2 App-1: gate the versioned artifact on activation — an incompatible
-    // or corrupt clinical asset degrades to no depletions (never renders
-    // garbage); a legacy pre-B1.2 asset passes through unchanged.
-    _depletionsCache ??= activateMedicationDepletionsArtifact(
-      await _loadJson('assets/reference_data/medication_depletions.json'),
+  Future<({MedNutrientLoadStatus status, Map<String, dynamic> data})>
+  loadMedicationDepletions() async {
+    // B1.2 App-1: gate the versioned artifact on activation. An incompatible or
+    // corrupt clinical asset yields status=unavailable — the caller MUST show a
+    // "check unavailable" state, never a false clean state. A legacy pre-B1.2
+    // asset passes through as loaded.
+    _depletionsCache ??= await _loadJson(
+      'assets/reference_data/medication_depletions.json',
+    );
+    return activateMedicationDepletionsArtifact(
+      _depletionsCache!,
       onIncompatible: (reason) => debugPrint(
-        'medication_depletions artifact incompatible ($reason) — '
-        'degrading to no depletions',
+        'medication_depletions artifact incompatible ($reason) — unavailable',
       ),
     );
-    return _depletionsCache!;
   }
 
   Future<Map<String, dynamic>> loadMedicationProfileGateRules() async {

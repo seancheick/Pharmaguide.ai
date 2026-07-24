@@ -917,9 +917,7 @@ final recalledIngredientsReportProvider =
 /// Depletion checker — matches medications against known nutrient
 /// depletions and highlights which ones the user's supplement stack
 /// already covers.
-final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
-  ref,
-) async {
+final depletionReportProvider = FutureProvider<MedNutrientReport>((ref) async {
   final stack = await ref.watch(activeStackProvider.future);
   final medications = stack
       .where((e) => e.type == 'medication')
@@ -934,10 +932,24 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
       )
       .toList(growable: false);
 
-  if (medications.isEmpty) return const [];
+  if (medications.isEmpty) {
+    return (
+      status: MedNutrientLoadStatus.loaded,
+      matches: const <DepletionMatch>[],
+    );
+  }
 
   final repo = ref.watch(reference_data.referenceDataRepositoryProvider);
-  final depletionsData = await repo.loadMedicationDepletions();
+  final load = await repo.loadMedicationDepletions();
+  if (load.status == MedNutrientLoadStatus.unavailable) {
+    // The clinical asset could not be activated. Surface UNAVAILABLE, never an
+    // empty "no depletions" result that reads as an all-clear.
+    return (
+      status: MedNutrientLoadStatus.unavailable,
+      matches: const <DepletionMatch>[],
+    );
+  }
+  final depletionsData = load.data;
 
   // Build canonical IDs and real dose rows from the supplement stack.
   // `keyIngredientTags` is a useful presence fallback, but depletion
@@ -1006,12 +1018,15 @@ final depletionReportProvider = FutureProvider<List<DepletionMatch>>((
   }
 
   final checker = DepletionChecker();
-  return checker.check(
-    medications: const [],
-    medicationIdentities: medications,
-    depletionsData: depletionsData,
-    stackCanonicalIds: coveredIds,
-    stackDoses: stackDoses,
+  return (
+    status: load.status,
+    matches: checker.check(
+      medications: const [],
+      medicationIdentities: medications,
+      depletionsData: depletionsData,
+      stackCanonicalIds: coveredIds,
+      stackDoses: stackDoses,
+    ),
   );
 });
 

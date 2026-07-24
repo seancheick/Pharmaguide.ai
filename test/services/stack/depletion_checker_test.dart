@@ -376,6 +376,38 @@ void main() {
     );
   });
 
+  group('medNutrientPublicationPolicy (B1.2)', () {
+    test('verified allows display, persistence, and notification', () {
+      final p = medNutrientPublicationPolicy('verified');
+      expect(p.displayAllowed, isTrue);
+      expect(p.persistenceAllowed, isTrue);
+      expect(p.notificationAllowed, isTrue);
+    });
+
+    test('unverified allows display only (migration), no persist/notify', () {
+      final p = medNutrientPublicationPolicy('unverified');
+      expect(p.displayAllowed, isTrue);
+      expect(p.persistenceAllowed, isFalse);
+      expect(p.notificationAllowed, isFalse);
+    });
+
+    test('needs_revision and rejected are fully suppressed', () {
+      for (final s in const ['needs_revision', 'rejected']) {
+        final p = medNutrientPublicationPolicy(s);
+        expect(p.displayAllowed, isFalse, reason: s);
+        expect(p.persistenceAllowed, isFalse, reason: s);
+        expect(p.notificationAllowed, isFalse, reason: s);
+      }
+    });
+
+    test('unknown status is treated as unverified (conservative)', () {
+      final p = medNutrientPublicationPolicy('mystery');
+      expect(p.displayAllowed, isTrue);
+      expect(p.persistenceAllowed, isFalse);
+      expect(p.notificationAllowed, isFalse);
+    });
+  });
+
   group('DepletionChecker — medication matching', () {
     test('no medications returns empty results', () {
       final out = checker.check(

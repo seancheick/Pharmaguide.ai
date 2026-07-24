@@ -110,7 +110,7 @@ final coverageReportProvider = FutureProvider.autoDispose<CoverageReport>((
   // a depletion failure must not take the whole card down.
   List<DepletionMatch> depletions;
   try {
-    depletions = await ref.watch(depletionReportProvider.future);
+    depletions = (await ref.watch(depletionReportProvider.future)).matches;
   } on Object {
     depletions = const <DepletionMatch>[];
   }
