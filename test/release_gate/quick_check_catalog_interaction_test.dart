@@ -1,5 +1,8 @@
 // Release gate: bundled catalog canonical IDs must drive Quick Check hits.
 
+@Tags(['bundle'])
+library;
+
 import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;

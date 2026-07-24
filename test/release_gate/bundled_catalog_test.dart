@@ -23,6 +23,9 @@
 //
 // Run with: flutter test test/release_gate/bundled_catalog_test.dart
 
+@Tags(['bundle'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 

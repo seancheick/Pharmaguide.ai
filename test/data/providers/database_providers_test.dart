@@ -150,6 +150,9 @@ void main() {
 
         expect(await file.readAsBytes(), newerBytes);
       },
+      // Reads the real LFS-backed bundle via rootBundle — unlike its
+      // siblings in this group, which use a synthetic in-memory bundle.
+      tags: 'bundle',
     );
   });
 
@@ -226,6 +229,7 @@ void main() {
               'probe should have rejected an empty catalog',
         );
       },
+      tags: 'bundle',
     );
 
     test('corruption fallback: byte-length-matched garbage on disk → restore '
@@ -284,7 +288,7 @@ void main() {
             'asset size (restored verbatim, then grown by the beforeOpen '
             'compat-column backfill)',
       );
-    });
+    }, tags: 'bundle');
 
     test(
       'first-launch path: no on-disk file → bundle materializes via '
@@ -302,6 +306,7 @@ void main() {
         expect(await File(dbPath).exists(), isTrue);
         expect(await db.countProducts(), greaterThan(0));
       },
+      tags: 'bundle',
     );
   });
 }

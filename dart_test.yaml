@@ -1,3 +1,5 @@
 tags:
   golden:
     description: "Golden-image tests — skipped on CI (font rendering differs across platforms)"
+  bundle:
+    description: "Tests that read the real Git-LFS catalog assets (assets/db/*.db, *.sqlite) — skipped when LFS objects are unavailable"

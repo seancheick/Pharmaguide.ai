@@ -27,6 +27,9 @@
 //
 // Run with: flutter test test/release_gate/bundled_interaction_db_test.dart
 
+@Tags(['bundle'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
