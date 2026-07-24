@@ -53,9 +53,11 @@ class ShareClinicianReportButton extends ConsumerWidget {
       final recalledReport = await ref.read(
         recalledIngredientsReportProvider.future,
       );
-      final depletions = (await ref.read(
-        depletionReportProvider.future,
-      )).matches;
+      // Carry the load status, not just the matches: an `unavailable` report has
+      // empty matches but must NOT print as "no depletions" (MedNutrientReport
+      // contract) — the PDF states the analysis was unavailable instead.
+      final depletionReport = await ref.read(depletionReportProvider.future);
+      final depletions = depletionReport.matches;
       final doseAlerts = await ref.read(
         stackDoseThresholdAlertsProvider.future,
       );
@@ -96,6 +98,7 @@ class ShareClinicianReportButton extends ConsumerWidget {
         intelligence: intelligence,
         safetyReport: safetyReport,
         depletions: depletions,
+        depletionStatus: depletionReport.status,
         generatedAt: DateTime.now(),
         logoBytes: logoBytes,
         regularFontBytes: regularFontBytes,

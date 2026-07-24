@@ -107,21 +107,31 @@ final coverageReportProvider = FutureProvider.autoDispose<CoverageReport>((
   // hasStackOverride so the card renders with the hedge.
 
   // Depletion matches — reuse the existing checker output. Best-effort:
-  // a depletion failure must not take the whole card down.
+  // a depletion failure must not take the whole card down. But an `unavailable`
+  // status (or a thrown failure) with empty matches is NOT "no depletions" —
+  // per the MedNutrientReport contract, mark coverage incomplete so the card
+  // hedges instead of implying a false all-clear.
   List<DepletionMatch> depletions;
   try {
-    depletions = (await ref.watch(depletionReportProvider.future)).matches;
+    final depReport = await ref.watch(depletionReportProvider.future);
+    depletions = depReport.matches;
+    if (depReport.status == MedNutrientLoadStatus.unavailable) {
+      coverageIncomplete = true;
+    }
   } on Object {
     depletions = const <DepletionMatch>[];
+    coverageIncomplete = true;
   }
 
   // RDA/UL nutrient statuses — needs cached detail blobs; degrade to
-  // an empty UNDERDOSED (RDA) bucket when unavailable.
+  // an empty UNDERDOSED (RDA) bucket when unavailable, and hedge (a failure
+  // here likewise must not read as "no underdosed nutrients").
   List<NutrientStatus> nutrientStatuses;
   try {
     nutrientStatuses = await ref.watch(stackNutrientStatusesProvider.future);
   } on Object {
     nutrientStatuses = const <NutrientStatus>[];
+    coverageIncomplete = true;
   }
 
   return const CoverageAnalyzer().analyze(

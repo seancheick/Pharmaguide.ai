@@ -21,6 +21,7 @@ class ClinicianPdfBuilder {
     required StackIntelligence intelligence,
     required StackSafetyReport safetyReport,
     required List<DepletionMatch> depletions,
+    MedNutrientLoadStatus depletionStatus = MedNutrientLoadStatus.loaded,
     required DateTime generatedAt,
     Uint8List? logoBytes,
     Uint8List? regularFontBytes,
@@ -55,7 +56,7 @@ class ClinicianPdfBuilder {
           _warningsSection(theme, intelligence),
           _nutrientSection(theme, safetyReport.nutrientStatuses),
           _timingSection(theme, safetyReport.timingOptimizations),
-          _depletionSection(theme, depletions),
+          _depletionSection(theme, depletions, depletionStatus),
           _limitations(theme),
         ],
       ),
@@ -257,7 +258,23 @@ class ClinicianPdfBuilder {
     );
   }
 
-  pw.Widget _depletionSection(_Theme theme, List<DepletionMatch> depletions) {
+  pw.Widget _depletionSection(
+    _Theme theme,
+    List<DepletionMatch> depletions,
+    MedNutrientLoadStatus status,
+  ) {
+    // An unavailable analysis must be stated, never silently omitted: a clinician
+    // cannot otherwise tell "none found" from "the check did not run".
+    if (status == MedNutrientLoadStatus.unavailable) {
+      return _section(theme, 'Medication nutrient notes', [
+        _line(
+          theme,
+          'Medication-nutrient depletion analysis was unavailable when this '
+          'report was generated. This is not evidence that no interactions '
+          'exist - the check could not run.',
+        ),
+      ]);
+    }
     if (depletions.isEmpty) return pw.SizedBox.shrink();
 
     return _section(

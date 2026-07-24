@@ -407,4 +407,29 @@ void main() {
     expect(body, contains('No'));
     expect(body, contains('warnings'));
   });
+
+  test('states depletion analysis was unavailable rather than omitting it', () async {
+    // Regression (2026-07-24): an `unavailable` load status has empty matches but
+    // must NOT read as a clean "no depletions" — the PDF must say so explicitly.
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: const StackIntelligence(
+        tier: StackTier.incomplete,
+        stackSize: 0,
+        issues: [],
+        interactionCount: 0,
+        nutrientWarningCount: 0,
+        hasRecalledIngredient: false,
+        hasContraindicatedInteraction: false,
+        hasBannedIngredient: false,
+      ),
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      depletionStatus: MedNutrientLoadStatus.unavailable,
+      generatedAt: DateTime.utc(2026, 5, 28),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('unavailable'));
+  });
 }
