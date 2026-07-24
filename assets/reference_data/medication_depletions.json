@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.24",
-    "content_hash": "sha256:a82a2ee585e3ef5d9b4193cf60f70754fc35dbf26d6152cf962858488715d4a5",
+    "content_hash": "sha256:f9022cf67185b745f3ab1acb14d6311052b7d75b5a59e80966165f529c21aeb9",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -747,80 +747,103 @@
       "id": "DEP_DIURETICS_ZINC",
       "drug_ref": {
         "type": "class",
-        "id": "class:diuretics",
-        "display_name": "Diuretics (water pills)"
+        "id": "class:thiazide_diuretics",
+        "display_name": "Thiazide diuretics (e.g., hydrochlorothiazide)"
       },
       "depleted_nutrient": {
         "standard_name": "Zinc",
         "canonical_id": "zinc"
       },
       "depletion_type": "depletion",
-      "severity": "moderate",
-      "mechanism": "Increased urinary volume from diuretics enhances renal zinc excretion. Thiazide diuretics also reduce proximal tubular zinc reabsorption. Cumulative urinary zinc losses over time deplete body stores.",
-      "clinical_impact": "Zinc deficiency impairs wound healing, immune function, taste acuity, and testosterone production. Particularly relevant in elderly patients on long-term diuretics who already have borderline zinc intake.",
-      "recommendation": "Consider a modest zinc supplement (10–15 mg/day as zinc glycinate). Ensure dietary zinc from meat, shellfish, legumes, or a multivitamin.",
+      "severity": "mild",
+      "mechanism": "Thiazide diuretics increase urinary zinc excretion; loop diuretics have a much smaller effect. Over long-term use this can modestly lower tissue zinc, although blood zinc usually remains in the normal range.",
+      "clinical_impact": "A clear zinc deficiency from thiazides has not been established — blood zinc typically stays normal — so this is a mild, long-term consideration. It is most relevant for people whose dietary zinc is already low.",
+      "recommendation": "A true shortfall is unlikely. If you take a thiazide long-term and eat little zinc-rich food, a modest zinc intake (10-15 mg/day) or a multivitamin is reasonable. Zinc from meat, shellfish, and legumes covers most needs.",
       "onset_timeline": "months",
       "evidence_level": "probable",
       "monitoring_note": null,
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
-          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+          "source_type": "pubmed",
+          "label": "Wester PO. Urinary zinc excretion during treatment with different diuretics. Acta Med Scand. 1980",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/7001863/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Golik A et al. Hydrochlorothiazide-amiloride causes excessive urinary zinc excretion. Clin Pharmacol Ther. 1987",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/3595066/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Wester PO. Tissue zinc at autopsy - relation to medication with diuretics. Acta Med Scand. 1980",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/7446206/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Mountokalakis T et al. Zinc deficiency in mild hypertensive patients treated with diuretics. J Hypertens Suppl. 1984",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/6152785/"
         }
       ],
-      "alert_headline": "May lower zinc over time",
-      "alert_body": "Diuretics can gradually increase urinary zinc loss with long-term use. Over months, stores may drift lower, especially in older adults.",
-      "acknowledgement_note": "Good — your zinc intake supports levels while on long-term diuretic therapy.",
+      "alert_headline": "Thiazides may lower zinc over time",
+      "alert_body": "Thiazide diuretics can gradually increase urinary zinc loss with long-term use. Blood zinc usually stays normal, though tissue stores may drift a little lower over time.",
+      "acknowledgement_note": "Good - your zinc intake supports levels while on long-term thiazide therapy.",
       "monitoring_tip_short": "Consider a multivitamin with zinc; ask your clinician if it's a fit.",
-      "adequacy_threshold_mg": 10,
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-24",
+      "reviewer": "lead_clinician_diuretics_remaining"
     },
     {
       "id": "DEP_DIURETICS_CALCIUM",
       "drug_ref": {
         "type": "class",
-        "id": "class:diuretics",
-        "display_name": "Diuretics (water pills) — loop diuretics specifically"
+        "id": "class:loop_diuretics",
+        "display_name": "Loop diuretics (water pills like furosemide)"
       },
       "depleted_nutrient": {
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
       "depletion_type": "depletion",
-      "severity": "significant",
-      "mechanism": "Loop diuretics (furosemide, torsemide, ethacrynic acid) inhibit the NKCC2 transporter in the thick ascending limb, which is also required for calcium reabsorption, causing substantial urinary calcium losses. Note: thiazide diuretics spare calcium (may actually increase retention).",
-      "clinical_impact": "Chronic calcium wasting from loop diuretics increases risk of osteoporosis and fractures, particularly in elderly patients. It also contributes to hypocalcemia in susceptible individuals.",
-      "recommendation": "Ensure adequate calcium intake (1,000–1,200 mg/day) from diet and supplements if on long-term loop diuretics. This depletion applies specifically to loop diuretics, not thiazides.",
+      "severity": "moderate",
+      "mechanism": "Loop diuretics (furosemide, bumetanide, torsemide) inhibit the NKCC2 transporter in the thick ascending limb, which is also needed for calcium reabsorption, so more calcium is lost in the urine. Thiazide diuretics do the opposite and retain calcium.",
+      "clinical_impact": "Long-term loop-diuretic use is linked to a modestly higher fracture risk, mainly in older adults, and part of that may reflect falls rather than bone loss alone. It is a modest effect and does not by itself mean a calcium shortfall.",
+      "recommendation": "If you take a loop diuretic long-term, aim for adequate dietary calcium and vitamin D and ask your doctor about bone health. Most people do not need high-dose calcium supplements.",
       "onset_timeline": "months",
       "evidence_level": "established",
       "monitoring_note": "Check serum calcium and consider bone density assessment in patients on long-term loop diuretic therapy.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Quamme GA. Renal handling of magnesium: drug and hormone interactions. Magnesium. 1986",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/3537199/"
+          "source_type": "pubmed",
+          "label": "Rejnmark L et al. Fracture risk in patients treated with loop diuretics. J Intern Med. 2006",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/16336519/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Corrao G et al. Antihypertensive medications, loop diuretics, and risk of hip fracture in the elderly. Drugs Aging. 2015",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26589307/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Warshaw BL et al. The effect of chronic furosemide administration on urinary calcium excretion and calcium balance in growing rats. Pediatr Res. 1980",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/7465281/"
         }
       ],
       "alert_headline": "Loop diuretics may lower calcium over time",
       "alert_body": "Loop diuretics like furosemide can gradually increase calcium loss in urine with long-term use. This applies to loop diuretics, not thiazides.",
       "acknowledgement_note": "Good — calcium intake supports bone health during long-term loop diuretic therapy.",
       "monitoring_tip_short": "Consider discussing bone health screening if on a loop diuretic long-term.",
-      "adequacy_threshold_mg": 500,
       "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-24",
+      "reviewer": "lead_clinician_diuretics_remaining"
     },
     {
       "id": "DEP_DIURETICS_THIAMINE",
       "drug_ref": {
-        "type": "class",
-        "id": "class:diuretics",
-        "display_name": "Diuretics (water pills) — especially furosemide"
+        "type": "drug",
+        "id": "4603",
+        "display_name": "Furosemide (Lasix)"
       },
       "depleted_nutrient": {
         "standard_name": "Thiamin",
@@ -828,64 +851,87 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Furosemide (loop diuretic) significantly increases renal thiamine excretion through urinary losses. The mechanism involves displacement of thiamine from plasma protein binding and increased proximal tubular secretion. Chronic high-dose furosemide use commonly produces thiamine deficiency.",
-      "clinical_impact": "Thiamine deficiency in heart failure patients on furosemide causes Wernicke encephalopathy risk, worsens cardiac function (wet beriberi contributes to heart failure), and may worsen prognosis. This depletion is clinically significant and underrecognized.",
-      "recommendation": "Patients on furosemide, especially for heart failure, should take a thiamine supplement (100 mg/day) or at minimum ensure a B-complex with adequate thiamine. Discuss with your cardiologist or prescribing physician.",
+      "mechanism": "Furosemide increases urine flow, and thiamine is carried out with it, so urinary thiamine loss rises. The effect tracks with the degree of diuresis and is greatest with higher doses and long-term use.",
+      "clinical_impact": "In people on chronic, higher-dose furosemide — especially for heart failure — this can lead to thiamine deficiency, which may worsen heart function and, when severe, affect the nervous system. Everyday low-dose users with good intake are at much lower risk.",
+      "recommendation": "If you take furosemide long-term, especially for heart failure, ask your doctor about checking thiamine or taking a thiamine-containing supplement. Do not change your diuretic on your own.",
       "onset_timeline": "months",
       "evidence_level": "established",
       "monitoring_note": "Consider measuring whole-blood thiamine in heart failure patients on chronic high-dose furosemide, especially those with poor nutritional status.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Thiamin Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Thiamin-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Seligmann H et al. Thiamine deficiency in patients with congestive heart failure receiving long-term furosemide therapy: a pilot study. Am J Med. 1991",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/1867241/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Zenuk C et al. Thiamine deficiency in congestive heart failure patients receiving long term furosemide therapy. Can J Clin Pharmacol. 2003",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/14712323/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Hanninen SA et al. The prevalence of thiamin deficiency in hospitalized patients with congestive heart failure. J Am Coll Cardiol. 2006",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/16412860/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Rieck J et al. Urinary loss of thiamine is increased by low doses of furosemide in healthy volunteers. J Lab Clin Med. 1999",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10482308/"
         }
       ],
       "alert_headline": "Furosemide may lower thiamine over time",
       "alert_body": "Furosemide can gradually increase thiamine loss in urine with ongoing use over months. This matters especially for people managing heart failure.",
       "acknowledgement_note": "Nice — thiamine intake supports levels while on long-term furosemide.",
       "monitoring_tip_short": "Consider asking your cardiologist about a thiamine supplement with long-term furosemide.",
-      "adequacy_threshold_mg": 50,
       "food_sources_short": "Food sources of thiamine include pork, fish, whole grains, fortified cereals, beans, lentils, and seeds.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-24",
+      "reviewer": "lead_clinician_diuretics_remaining"
     },
     {
       "id": "DEP_DIURETICS_FOLATE",
       "drug_ref": {
-        "type": "class",
-        "id": "class:diuretics",
-        "display_name": "Diuretics — triamterene specifically"
+        "type": "drug",
+        "id": "10763",
+        "display_name": "Triamterene (in Dyazide, Maxzide)"
       },
       "depleted_nutrient": {
         "standard_name": "Folate",
         "canonical_id": "folate"
       },
-      "depletion_type": "depletion",
-      "severity": "moderate",
-      "mechanism": "Triamterene (a potassium-sparing diuretic) is a structural analog of folate and acts as a dihydrofolate reductase inhibitor, impairing folate metabolism. It also reduces renal tubular reabsorption of folate.",
-      "clinical_impact": "Folate depletion causes elevated homocysteine, increased cardiovascular risk, megaloblastic anemia, and is particularly dangerous in pregnant women (neural tube defects). The combination of triamterene with methotrexate is especially hazardous.",
-      "recommendation": "Patients on triamterene-containing products (e.g., Dyazide, Maxzide) should take a folic acid supplement (400–800 mcg/day). Discuss with your doctor if you take methotrexate.",
+      "depletion_type": "functional_antagonism",
+      "severity": "mild",
+      "mechanism": "Triamterene is a structural analog of folate and a weak inhibitor of dihydrofolate reductase, the enzyme that activates folate. At usual doses cells largely compensate, so the effect on folate status is modest.",
+      "clinical_impact": "For most folate-replete people at normal doses, meaningful folate depletion is uncommon. The concern is greater in pregnancy (a class of folate-blocking drugs is linked to higher birth-defect rates), in people already low in folate, in heavy alcohol use, or when combined with another folate antagonist such as methotrexate.",
+      "recommendation": "Most people on triamterene do not need a folate supplement. If you are pregnant, planning pregnancy, have low folate, or take methotrexate, discuss folate with your doctor.",
       "onset_timeline": "months",
       "evidence_level": "established",
       "monitoring_note": "Check serum folate and homocysteine in patients on long-term triamterene therapy.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
-          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+          "source_type": "pubmed",
+          "label": "Sidhom MB et al. Monitoring the effect of triamterene and hydrochlorothiazide on dihydrofolate reductase activity. J Pharm Biomed Anal. 1989",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/2490542/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Schalhorn A et al. Antifolate effect of triamterene on human leucocytes and on a human lymphoma cell line. Eur J Clin Pharmacol. 1981",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/7286039/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Hernandez-Diaz S et al. Folic acid antagonists during pregnancy and the risk of birth defects. N Engl J Med. 2000",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/11096168/"
         }
       ],
       "alert_headline": "Triamterene may lower folate over time",
-      "alert_body": "Triamterene (found in some combination diuretics) can gradually interfere with folate metabolism with long-term use. Over months, levels may drift lower.",
-      "acknowledgement_note": "Nice — folate intake aligns with guidance for long-term triamterene use.",
-      "monitoring_tip_short": "Consider discussing folate intake with your doctor, particularly if also on methotrexate.",
-      "adequacy_threshold_mcg": 400,
+      "alert_body": "Over long-term use triamterene can mildly interfere with folate, but at usual doses the effect is small for most people. It matters more in pregnancy or if folate is already low.",
+      "acknowledgement_note": "Good — folate is a sensible thing to cover, especially in pregnancy or if your folate tends to run low.",
+      "monitoring_tip_short": "Consider discussing folate with your doctor if you are pregnant, planning pregnancy, or also take methotrexate.",
       "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-24",
+      "reviewer": "lead_clinician_diuretics_remaining"
     },
     {
       "id": "DEP_CORTICOSTEROIDS_CALCIUM",

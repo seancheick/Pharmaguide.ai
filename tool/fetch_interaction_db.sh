@@ -69,19 +69,22 @@ try:
 finally:
     con.close()
 REQUIRED = ["class:loop_and_thiazide_diuretics", "class:proton_pump_inhibitors",
-            "class:enzyme_inducing_antiseizure_medications"]
+            "class:enzyme_inducing_antiseizure_medications", "class:loop_diuretics"]
 POS = [("class:loop_and_thiazide_diuretics", "4603", "furosemide"),
        ("class:loop_and_thiazide_diuretics", "5487", "hydrochlorothiazide"),
        ("class:proton_pump_inhibitors", "7646", "omeprazole"),
        ("class:proton_pump_inhibitors", "40790", "pantoprazole"),
        ("class:enzyme_inducing_antiseizure_medications", "8183", "phenytoin"),
-       ("class:enzyme_inducing_antiseizure_medications", "2002", "carbamazepine")]
+       ("class:enzyme_inducing_antiseizure_medications", "2002", "carbamazepine"),
+       ("class:loop_diuretics", "4603", "furosemide")]
 NEG = [("class:loop_and_thiazide_diuretics", "9997", "spironolactone"),
        ("class:loop_and_thiazide_diuretics", "644", "amiloride"),
        ("class:loop_and_thiazide_diuretics", "298869", "eplerenone"),
        ("class:loop_and_thiazide_diuretics", "10763", "triamterene"),
        ("class:enzyme_inducing_antiseizure_medications", "40254", "valproate"),
-       ("class:enzyme_inducing_antiseizure_medications", "32624", "oxcarbazepine")]
+       ("class:enzyme_inducing_antiseizure_medications", "32624", "oxcarbazepine"),
+       ("class:loop_diuretics", "5487", "hydrochlorothiazide"),
+       ("class:loop_diuretics", "9997", "spironolactone")]
 errs = []
 for cid in REQUIRED:
     if cid not in rows or not rows[cid]:
