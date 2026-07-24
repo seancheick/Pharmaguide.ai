@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.07.23",
-    "content_hash": "sha256:12f7597461fd5c94762abeb32781cf3f8767bef457df4ad154c95b11845db120",
+    "content_version": "2026.07.24",
+    "content_hash": "sha256:a82a2ee585e3ef5d9b4193cf60f70754fc35dbf26d6152cf962858488715d4a5",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -50,7 +50,7 @@
         }
       ],
       "alert_headline": "May lower circulating CoQ10 levels",
-      "alert_body": "Statins can lower the amount of CoQ10 measured in the blood. Whether that causes symptoms is not established.",
+      "alert_body": "With regular use, statins can lower the amount of CoQ10 measured in the blood. Whether that causes symptoms is not established.",
       "acknowledgement_note": "You're taking CoQ10. Evidence that it improves statin-related muscle symptoms is mixed.",
       "monitoring_tip_short": "Consider mentioning any persistent muscle symptoms at your next visit.",
       "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts — and the body also makes its own.",
@@ -99,8 +99,8 @@
       "id": "DEP_ANTACIDS_VITAMINB12",
       "drug_ref": {
         "type": "class",
-        "id": "class:antacids",
-        "display_name": "PPIs and antacids (acid-reducing medications)"
+        "id": "class:proton_pump_inhibitors",
+        "display_name": "Proton pump inhibitors (PPIs)"
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin B12",
@@ -140,8 +140,8 @@
       "id": "DEP_ANTACIDS_MAGNESIUM",
       "drug_ref": {
         "type": "class",
-        "id": "class:antacids",
-        "display_name": "PPIs and antacids (acid-reducing medications)"
+        "id": "class:proton_pump_inhibitors",
+        "display_name": "Proton pump inhibitors (PPIs)"
       },
       "depleted_nutrient": {
         "standard_name": "Magnesium",
@@ -158,7 +158,7 @@
       "sources": [
         {
           "source_type": "pubmed",
-          "label": "Danziger J et al. Proton-pump inhibitor use is associated with low serum magnesium concentrations. Kidney Int. 2013",
+          "label": "Hess MW et al. Systematic review: hypomagnesaemia induced by proton pump inhibition. Aliment Pharmacol Ther. 2012",
           "url": "https://pubmed.ncbi.nlm.nih.gov/22762246/"
         },
         {
@@ -671,7 +671,7 @@
       "id": "DEP_DIURETICS_POTASSIUM",
       "drug_ref": {
         "type": "class",
-        "id": "class:diuretics",
+        "id": "class:loop_and_thiazide_diuretics",
         "display_name": "Diuretics (water pills)"
       },
       "depleted_nutrient": {
@@ -682,7 +682,7 @@
       "severity": "significant",
       "mechanism": "Loop diuretics (furosemide, bumetanide) and thiazide diuretics (hydrochlorothiazide, chlorthalidone) increase urine volume and renal potassium wasting. They inhibit sodium reabsorption, which increases tubular flow and potassium secretion in the collecting duct.",
       "clinical_impact": "Hypokalemia causes muscle weakness, leg cramps, fatigue, constipation, and dangerously abnormal heart rhythms (arrhythmias). Particularly serious in patients also taking digoxin, where hypokalemia increases toxicity risk.",
-      "recommendation": "Potassium-sparing foods (bananas, potatoes, spinach) are often recommended, but many patients require potassium supplementation (typically 20–40 mEq/day as prescribed). Regular monitoring is essential.",
+      "recommendation": "Potassium-rich foods (bananas, potatoes, spinach) are often recommended, but many patients require potassium supplementation (typically 20–40 mEq/day as prescribed). Regular monitoring is essential.",
       "onset_timeline": "weeks",
       "evidence_level": "established",
       "monitoring_note": "Check serum potassium at baseline and within 1–2 weeks of starting or dose-changing a diuretic. Ongoing monitoring frequency depends on dose and clinical stability.",
@@ -706,7 +706,7 @@
       "id": "DEP_DIURETICS_MAGNESIUM",
       "drug_ref": {
         "type": "class",
-        "id": "class:diuretics",
+        "id": "class:loop_and_thiazide_diuretics",
         "display_name": "Diuretics (water pills)"
       },
       "depleted_nutrient": {
@@ -920,7 +920,7 @@
       ],
       "alert_headline": "Can affect calcium balance with long-term systemic use",
       "alert_body": "Taken systemically over months, corticosteroids can reduce calcium absorption and increase calcium loss, which affects bone strength over time.",
-      "acknowledgement_note": "You're taking calcium. Whether you need it, and how much, depends on your diet and fracture risk — worth confirming with your clinician.",
+      "acknowledgement_note": "You're taking calcium — sensible with long-term steroid use. How much you need depends on your diet and bone health.",
       "monitoring_tip_short": "Consider discussing bone health and fracture-risk screening if systemic use continues.",
       "food_sources_short": "Food sources of calcium include dairy products, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
       "citation_review_status": "verified",
@@ -1253,8 +1253,8 @@
       "id": "DEP_ANTICONVULSANTS_VITAMIND",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants / antiepileptic drugs"
+        "id": "class:enzyme_inducing_antiseizure_medications",
+        "display_name": "Enzyme-inducing antiseizure medications"
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin D",
