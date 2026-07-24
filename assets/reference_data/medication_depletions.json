@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.23",
-    "content_hash": "sha256:2f869d42ac017dd235688f510c2047855def2e06481052aa1d80b105fd31670e",
+    "content_hash": "sha256:f1cb6d938df3384ba0ef9c508d612949a28eaa9f044112b90397763f80f36bb9",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -40,7 +40,7 @@
       "monitoring_tip_short": "Consider mentioning any muscle symptoms at your next visit; this often guides next steps.",
       "adequacy_threshold_mg": 100,
       "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
-      "citation_review_status": "verified",
+      "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-23",
       "reviewer": "lead_clinician_audit_2026_07"
     },
@@ -320,7 +320,7 @@
       "depletion_type": "depletion",
       "severity": "significant",
       "mechanism": "Metformin impairs B12 absorption by interfering with a calcium-dependent intrinsic factor-B12 receptor complex on the ileal mucosa. This disrupts the final step of B12 uptake from the small intestine. The effect is dose-dependent and reverses with calcium supplementation in some patients.",
-      "clinical_impact": "Up to 30% of long-term metformin users develop B12 deficiency. This causes peripheral neuropathy (which may be misattributed to diabetic neuropathy), megaloblastic anemia, and cognitive changes. Deficiency may develop insidiously over years.",
+      "clinical_impact": "Roughly 6-30% of long-term metformin users show low or deficient B12, depending on how deficiency is defined and how long metformin is taken. Low B12 can cause peripheral neuropathy (which may be misattributed to diabetic neuropathy), megaloblastic anemia, and cognitive changes, and may develop insidiously over years.",
       "recommendation": "The ADA recommends periodic B12 monitoring for all patients on metformin. Supplement with sublingual methylcobalamin 1,000 mcg/day if levels are borderline or low.",
       "onset_timeline": "years",
       "evidence_level": "established",
@@ -897,7 +897,7 @@
       "monitoring_tip_short": "Consider discussing bone health and screening if use continues over time.",
       "adequacy_threshold_mg": 500,
       "food_sources_short": "Food sources of calcium include dairy products, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
-      "citation_review_status": "verified",
+      "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-23",
       "reviewer": "lead_clinician_audit_2026_07"
     },
