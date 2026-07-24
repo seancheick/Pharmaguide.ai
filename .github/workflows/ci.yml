@@ -17,26 +17,33 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      # The catalog DBs (assets/db/*.db, *.sqlite) ship via Git LFS.
-      # `lfs: true` here USED to be correct, but it makes checkout a
-      # hard gate: when the LFS fetch fails the whole job dies before
-      # analyze/test/format ever run, so every PR goes red for a reason
-      # that has nothing to do with the code under review.
-      #
-      # That is exactly what happens today — the repo has blown past its
-      # GitHub LFS budget ("This repository exceeded its LFS budget"),
-      # which only the account owner can restore. A permanently red CI
-      # masks real regressions, so checkout no longer depends on it.
+      # Only pharmaguide_core.db still ships via Git LFS. interaction_db.sqlite
+      # was migrated OUT of LFS to a versioned GitHub Release asset (hydrated
+      # below). `lfs: false` keeps checkout from being a hard gate: when the
+      # LFS fetch fails the whole job would otherwise die before
+      # analyze/test/format ever run, turning every PR red for a reason
+      # unrelated to the code under review.
       - uses: actions/checkout@v7
         with:
           lfs: false
 
-      # Fetch the LFS objects best-effort and record whether we got them.
-      # The tests that read the real bundle are tagged `bundle` (see
-      # dart_test.yaml) and are excluded when the objects are
-      # unavailable; analyze, format, and the rest of the suite run
-      # either way. When the LFS budget is restored this step simply
-      # succeeds and the bundle gates run again — no workflow change.
+      # interaction_db.sqlite is distributed as a versioned GitHub Release asset
+      # (not Git LFS). Hydrate + verify it BEFORE analyze/test/package.
+      # fetch_interaction_db.sh fails closed on a bad checksum, header, size, or
+      # a missing/hazardous drug_class_map — a broken DB or a 133-byte LFS
+      # pointer can never reach the test or package steps.
+      - name: Hydrate interaction DB (release asset)
+        run: bash tool/fetch_interaction_db.sh
+
+      - name: Validate hydration fail-closed logic
+        run: bash test/tool/fetch_interaction_db_test.sh
+
+      # Fetch the LFS objects (only pharmaguide_core.db now) best-effort and
+      # record whether we got them. The catalog-DB tests are tagged `bundle`
+      # (see dart_test.yaml) and are excluded when the object is unavailable;
+      # analyze, format, and the rest of the suite run either way. When the LFS
+      # budget is restored this step simply succeeds and the catalog gates run
+      # again — no workflow change.
       - name: Fetch LFS objects (best effort)
         run: |
           git lfs install --local

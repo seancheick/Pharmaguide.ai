@@ -1,2 +1,6 @@
-assets/db/*.db filter=lfs diff=lfs merge=lfs -text
-assets/db/*.sqlite filter=lfs diff=lfs merge=lfs -text
+# pharmaguide_core.db stays in Git LFS (large catalog DB; migration is a
+# separate follow-up). interaction_db.sqlite was moved OUT of LFS to a versioned
+# GitHub Release asset — it is hydrated + verified at build time by
+# tool/fetch_interaction_db.sh and is gitignored. Do NOT re-add a broad
+# assets/db/*.sqlite LFS wildcard.
+assets/db/pharmaguide_core.db filter=lfs diff=lfs merge=lfs -text
