@@ -21,6 +21,9 @@
 //
 // Run: flutter test test/data/database/interaction_database_test.dart
 
+@Tags(['bundle'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 

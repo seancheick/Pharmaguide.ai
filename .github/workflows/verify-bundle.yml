@@ -60,6 +60,13 @@ jobs:
       # only get the LFS pointer text and the SHA256 verification would
       # fail on every run — exactly the test that proves the verifier
       # is doing something useful, but not what we want from CI.
+      #
+      # NOTE: unlike ci.yml, this job keeps lfs:true deliberately. Its
+      # entire purpose is verifying the real bundle, so there is nothing
+      # useful to run without it — a green "verified" here that never
+      # read the DB would be worse than a failure. If this step dies with
+      # "This repository exceeded its LFS budget", that is the account's
+      # LFS budget, not a bundle defect; restore the budget and re-run.
       - uses: actions/checkout@v7
         with:
           lfs: true

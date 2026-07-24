@@ -18,11 +18,13 @@ void main() {
       'content_hash': 'sha256:abc',
       if (minRuntime != null) 'minimum_runtime_contract': minRuntime,
     },
-    'depletions': const [],
+    'depletions': const <Map<String, dynamic>>[],
   };
 
   test('a legacy asset with no _metadata is allowed (migration)', () {
-    final r = checkMedicationDepletionsArtifact({'depletions': const []});
+    final r = checkMedicationDepletionsArtifact({
+      'depletions': const <Map<String, dynamic>>[],
+    });
     expect(r.compatible, isTrue);
     expect(r.isLegacy, isTrue);
   });
