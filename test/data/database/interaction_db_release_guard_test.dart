@@ -28,6 +28,7 @@ const _sqliteMagic = 'SQLite format 3';
 const _loopThiazide = 'class:loop_and_thiazide_diuretics';
 const _ppi = 'class:proton_pump_inhibitors';
 const _eiasm = 'class:enzyme_inducing_antiseizure_medications';
+const _loop = 'class:loop_diuretics'; // Section 1 — calcium is loop-specific
 
 // Positive: these MUST resolve to the given class.
 const _positives = <String, ({String rxcui, String name})>{
@@ -40,6 +41,7 @@ const _positives = <String, ({String rxcui, String name})>{
   '$_ppi/pantoprazole': (rxcui: '40790', name: 'pantoprazole'),
   '$_eiasm/phenytoin': (rxcui: '8183', name: 'phenytoin'),
   '$_eiasm/carbamazepine': (rxcui: '2002', name: 'carbamazepine'),
+  '$_loop/furosemide': (rxcui: '4603', name: 'furosemide'),
 };
 
 // Negative: these must NOT resolve to the given class (safety-critical).
@@ -49,6 +51,9 @@ const _negatives = <String, ({String rxcui, String name})>{
   '$_loopThiazide/eplerenone': (rxcui: '298869', name: 'eplerenone'),
   '$_loopThiazide/triamterene': (rxcui: '10763', name: 'triamterene'),
   '$_eiasm/oxcarbazepine': (rxcui: '32624', name: 'oxcarbazepine'),
+  // Loop class is calciuric-only: thiazides retain calcium, K-sparing don't apply.
+  '$_loop/hydrochlorothiazide': (rxcui: '5487', name: 'hydrochlorothiazide'),
+  '$_loop/spironolactone': (rxcui: '9997', name: 'spironolactone'),
 };
 
 // The PPI class must resolve exactly the five proton-pump inhibitors — no
@@ -106,8 +111,8 @@ void main() {
   });
 
   group('interaction DB release guard: Sprint-3 taxonomy present', () {
-    test('all three Sprint-3 classes exist and are non-empty', () async {
-      for (final cid in const [_loopThiazide, _ppi, _eiasm]) {
+    test('required clinical classes exist and are non-empty', () async {
+      for (final cid in const [_loopThiazide, _ppi, _eiasm, _loop]) {
         final members = await db.rxcuisForDrugClass(cid);
         expect(
           members,
