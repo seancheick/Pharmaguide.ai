@@ -110,6 +110,12 @@ class DepletionMatch {
   final num? detectedAmount;
   final String? detectedUnit;
 
+  /// Citation-review status from the versioned artifact (B1.2): unverified /
+  /// verified / needs_revision / rejected. needs_revision + rejected are
+  /// suppressed by the checker; unverified still displays (migration) but must
+  /// not enter persisted history. Defaults to 'unverified' for a pre-B1.2 asset.
+  final String citationReviewStatus;
+
   /// Three-state coverage outcome for this user's stack. See
   /// [CoverageLevel].
   final CoverageLevel coverageLevel;
@@ -142,6 +148,7 @@ class DepletionMatch {
     this.adequacyThresholdMg,
     this.detectedAmount,
     this.detectedUnit,
+    this.citationReviewStatus = 'unverified',
     this.coverageLevel = CoverageLevel.none,
   });
 }
@@ -482,6 +489,25 @@ class DepletionChecker {
 
       if (!matches) continue;
 
+      // Citation-review publication rule (B1.2): needs_revision/rejected never
+      // surface; unverified still displays during the migration but is carried
+      // so A2 can keep it out of persisted history. Unknown → conservative
+      // 'unverified'.
+      var reviewStatus =
+          (dep['citation_review_status']?.toString() ?? 'unverified')
+              .trim()
+              .toLowerCase();
+      if (reviewStatus == 'needs_revision' || reviewStatus == 'rejected') {
+        onDataIssue?.call(
+          'medication_depletions: suppressed $depId '
+          '(citation_review_status=$reviewStatus)',
+        );
+        continue;
+      }
+      if (reviewStatus != 'verified' && reviewStatus != 'unverified') {
+        reviewStatus = 'unverified';
+      }
+
       final nutrient = dep['depleted_nutrient'] as Map<String, dynamic>? ?? {};
       final canonicalId = (nutrient['canonical_id']?.toString() ?? '')
           .trim()
@@ -548,6 +574,7 @@ class DepletionChecker {
           adequacyThresholdMg: adequacyMg,
           detectedAmount: matchedDose?.doseAmount,
           detectedUnit: matchedDose?.doseUnit,
+          citationReviewStatus: reviewStatus,
           coverageLevel: coverage,
         ),
       );

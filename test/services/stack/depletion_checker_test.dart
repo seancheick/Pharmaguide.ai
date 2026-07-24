@@ -301,6 +301,81 @@ void main() {
     });
   });
 
+  group('DepletionChecker — citation-review publication rule (B1.2)', () {
+    // needs_revision / rejected are SUPPRESSED; verified emits normally;
+    // unverified (and absent, back-compat) still emits so the migration doesn't
+    // blank the monitor — but the status is carried so A2 can gate persistence.
+    const metformin = (name: 'Metformin', drugClassId: null);
+
+    Map<String, dynamic> entry({Object? status}) => {
+      'id': 'DEP_METFORMIN_VITAMINB12',
+      'drug_ref': {
+        'id': '860974',
+        'display_name': 'Metformin (type 2 diabetes medication)',
+      },
+      'depleted_nutrient': {
+        'standard_name': 'Vitamin B12',
+        'canonical_id': 'vitamin_b12',
+      },
+      'depletion_type': 'depletion',
+      'severity': 'significant',
+      if (status != null) 'citation_review_status': status,
+    };
+
+    test('needs_revision entries are suppressed', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(status: 'needs_revision')],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('rejected entries are suppressed', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(status: 'rejected')],
+        },
+      );
+      expect(out, isEmpty);
+    });
+
+    test('verified entries emit and carry the status', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(status: 'verified')],
+        },
+      );
+      expect(out, hasLength(1));
+      expect(out.single.citationReviewStatus, 'verified');
+    });
+
+    test(
+      'unverified and absent still emit (migration) and default sensibly',
+      () {
+        final present = checker.check(
+          medications: const [metformin],
+          depletionsData: {
+            'depletions': [entry(status: 'unverified')],
+          },
+        );
+        final absent = checker.check(
+          medications: const [metformin],
+          depletionsData: {
+            'depletions': [entry()],
+          },
+        );
+        expect(present, hasLength(1));
+        expect(present.single.citationReviewStatus, 'unverified');
+        expect(absent, hasLength(1));
+        expect(absent.single.citationReviewStatus, 'unverified');
+      },
+    );
+  });
+
   group('DepletionChecker — medication matching', () {
     test('no medications returns empty results', () {
       final out = checker.check(
