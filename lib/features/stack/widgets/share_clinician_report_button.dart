@@ -53,7 +53,9 @@ class ShareClinicianReportButton extends ConsumerWidget {
       final recalledReport = await ref.read(
         recalledIngredientsReportProvider.future,
       );
-      final depletions = await ref.read(depletionReportProvider.future);
+      final depletions = (await ref.read(
+        depletionReportProvider.future,
+      )).matches;
       final doseAlerts = await ref.read(
         stackDoseThresholdAlertsProvider.future,
       );

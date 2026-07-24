@@ -93,6 +93,71 @@ class PGDepletionCard extends StatelessWidget {
   }
 }
 
+/// Shown when the medication–nutrient artifact could not be activated (B1.2
+/// App-1). This is an EXPLICIT unavailable state — never a clean "no depletions"
+/// state, which would be a false all-clear.
+class PGDepletionUnavailableCard extends StatelessWidget {
+  final EdgeInsetsGeometry margin;
+  const PGDepletionUnavailableCard({super.key, this.margin = EdgeInsets.zero});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: margin,
+      child: Container(
+        decoration: BoxDecoration(
+          color: V2Colors.surface,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          border: Border.all(color: V2Colors.outline),
+          boxShadow: V2Shadows.sm,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(width: 4, color: V2Colors.monitor),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline_rounded,
+                          size: 16,
+                          color: V2Colors.monitor,
+                        ),
+                        SizedBox(width: V2Spacing.space8),
+                        PGEyebrow(
+                          'Medication & nutrients',
+                          color: V2Colors.monitor,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      'Check unavailable',
+                      style: V2Typography.titleSm(color: V2Colors.fg),
+                    ),
+                    const SizedBox(height: V2Spacing.space4),
+                    Text(
+                      "We couldn't load the medication & nutrient checks right "
+                      "now. This is not an all-clear — please try again later.",
+                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // =============================================================================
 // Per-depletion row — stateful for the "Why this happens" disclosure.
 // =============================================================================

@@ -1,68 +1,11 @@
 {
   "_metadata": {
-    "description": "Medication-nutrient effects — true depletions, functional antagonism, monitoring notes, condition-related effects, and supplement interactions",
-    "purpose": "depletion_checker",
-    "schema_version": "5.3.0",
-    "last_updated": "2026-06-08",
+    "schema_version": "5.4.0",
+    "content_version": "2026.07.23",
+    "content_hash": "sha256:4ec2977791f449c072d75ceffd55fad620e4e132bcd2d1a4dc39475c9afaa28b",
+    "minimum_runtime_contract": 1,
     "total_entries": 80,
-    "data_sources": [
-      "NIH Office of Dietary Supplements",
-      "Drug-Induced Nutrient Depletion Handbook (Pelton et al.)",
-      "Clinical pharmacology literature",
-      "FDA Drug Safety Communications"
-    ],
-    "clinical_disclaimer": "Informational only. Consult healthcare provider before supplementing.",
-    "notes": "Two entries (DEP_BETABLOCKERS_MELATONIN, DEP_BENZODIAZEPINES_MELATONIN) reference canonical_id 'melatonin' which is not in rda_optimal_uls.json. These are valid clinical depletions; rda_optimal_uls.json should be extended to include melatonin if depletion checker requires canonical_id resolution.",
-    "flutter_schema_version": "5.3.0",
-    "flutter_top_level_key": "depletions",
-    "migration": {
-      "completed_migrations": [
-        {
-          "from": "5.0.0",
-          "to": "5.2.0",
-          "date": "2026-04-17",
-          "summary": "Authored layperson copy fields (alert_headline, alert_body, acknowledgement_note, monitoring_tip_short) + optional adequacy_threshold + flutter_top_level_key invariant"
-        },
-        {
-          "from": "5.2.0",
-          "to": "5.2.1",
-          "date": "2026-04-17",
-          "summary": "Added optional food_sources_short field + clinical nocebo-safe validator rules (numeric stat ban, absolute claims ban, acute framing ban, catastrophizing warn, symptom-list cap, sentence cap)"
-        },
-        {
-          "from": "5.2.1",
-          "to": "5.3.0",
-          "date": "2026-06-08",
-          "summary": "Added required depletion_type taxonomy so true depletions are separated from functional antagonism, monitoring/stability notes, condition-related nutrient issues, and supplement interactions."
-        },
-        {
-          "from": "5.3.0",
-          "to": "5.3.0",
-          "date": "2026-06-08",
-          "summary": "High-value expansion batch: isoniazid→B6, methotrexate→folate, and orlistat→fat-soluble vitamins A/D/E/K after taxonomy cleanup."
-        },
-        {
-          "from": "5.3.0",
-          "to": "5.3.0",
-          "date": "2026-06-08",
-          "summary": "High-value expansion batch 2: sulfasalazine→folate, colchicine→B12, and cholestyramine→fat-soluble vitamins A/D/E/K."
-        }
-      ]
-    },
-    "v52_added_fields": {
-      "alert_headline": "authored string per entry, 20-60 chars, calm voicing (no \"Depleted by X\")",
-      "alert_body": "authored string, 60-200 chars, includes onset framing (over time, long-term, gradually)",
-      "acknowledgement_note": "authored string, 40-120 chars, positive validation shown when user's stack already covers the depletion — MUST NOT contain caution verbs",
-      "monitoring_tip_short": "authored string, 40-120 chars, layperson action tip — always shown",
-      "adequacy_threshold_mcg / adequacy_threshold_mg": "optional numeric threshold; dose at or above this qualifies as adequate coverage (vs partial)",
-      "food_sources_short": "optional string, 40-160 chars, inclusive framing only. For absorption-blocked depletions (metformin/B12, PPI/B12, statin/CoQ10) use the explicit hint pattern: \"Because <drug> reduces <nutrient> absorption, food sources may not be enough on their own — a supplement is often more reliable.\""
-    },
-    "reviewed_by": "Lead Clinician (PharmaGuide)",
-    "reviewed_date": "2026-06-08",
-    "review_round": "taxonomy_audit_v1_plus_high_value_expansion_2",
-    "v53_added_fields": {
-      "depletion_type": "Required taxonomy enum: depletion, functional_antagonism, monitoring_stability, condition_related, supplement_interaction. Flutter uses this to avoid treating interaction/monitoring rows as supplement-covered depletions."
-    }
+    "generated_by": "build_medication_depletions_artifact"
   },
   "depletions": [
     {
@@ -96,7 +39,10 @@
       "acknowledgement_note": "You're taking CoQ10 — a common and reasonable addition for people on statins.",
       "monitoring_tip_short": "Consider mentioning any muscle symptoms at your next visit; this often guides next steps.",
       "adequacy_threshold_mg": 100,
-      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route."
+      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_STATINS_VITAMIND",
@@ -129,7 +75,10 @@
       "acknowledgement_note": "Nice — vitamin D intake helps support levels while on statin therapy.",
       "monitoring_tip_short": "Consider asking about a vitamin D check at your annual visit, especially in winter.",
       "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTACIDS_VITAMINB12",
@@ -167,7 +116,10 @@
       "acknowledgement_note": "You're taking B12 — a helpful way to support levels while using acid-reducing medication.",
       "monitoring_tip_short": "Consider asking about a B12 check if you've been using these medications long-term.",
       "adequacy_threshold_mcg": 250,
-      "food_sources_short": "Because these medications can limit B12 absorption, food sources may not be enough on their own — a supplement is often more reliable."
+      "food_sources_short": "Because these medications can limit B12 absorption, food sources may not be enough on their own — a supplement is often more reliable.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTACIDS_MAGNESIUM",
@@ -205,7 +157,10 @@
       "acknowledgement_note": "Good — your magnesium intake supports maintaining levels while using this medication.",
       "monitoring_tip_short": "Consider checking magnesium if you've been on this medication long-term.",
       "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTACIDS_CALCIUM",
@@ -238,7 +193,10 @@
       "acknowledgement_note": "Good — calcium intake is part of standard support during long-term acid-reducer use.",
       "monitoring_tip_short": "Consider discussing bone health and calcium form with your doctor; citrate is often preferred.",
       "adequacy_threshold_mg": 500,
-      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTACIDS_IRON",
@@ -271,7 +229,10 @@
       "acknowledgement_note": "You're taking iron — a thoughtful step while using acid-reducing medication long-term.",
       "monitoring_tip_short": "Consider asking about periodic ferritin checks, particularly for women of childbearing age.",
       "adequacy_threshold_mg": 18,
-      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals."
+      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTACIDS_VITAMINC",
@@ -304,7 +265,10 @@
       "acknowledgement_note": "Nice — your vitamin C intake supports levels while using acid-reducing medication.",
       "monitoring_tip_short": "Consider taking vitamin C at a different time of day from acid-reducing medication.",
       "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes."
+      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTACIDS_ZINC",
@@ -337,7 +301,10 @@
       "acknowledgement_note": "Good — your zinc intake helps support levels while on acid-reducing medication.",
       "monitoring_tip_short": "Consider taking zinc at a different time of day from acid-reducing medication.",
       "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include oysters, meat, poultry, beans, lentils, nuts, seeds, and whole grains."
+      "food_sources_short": "Food sources of zinc include oysters, meat, poultry, beans, lentils, nuts, seeds, and whole grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_METFORMIN_VITAMINB12",
@@ -380,7 +347,10 @@
       "acknowledgement_note": "Nice — you're taking B12, which aligns with guidance for long-term metformin use.",
       "monitoring_tip_short": "Consider checking B12 levels every 2-3 years; easy to review at a routine visit.",
       "adequacy_threshold_mcg": 500,
-      "food_sources_short": "Because metformin reduces B12 absorption, food sources may not be enough on their own — a supplement is often more reliable."
+      "food_sources_short": "Because metformin reduces B12 absorption, food sources may not be enough on their own — a supplement is often more reliable.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_METFORMIN_FOLATE",
@@ -418,7 +388,10 @@
       "acknowledgement_note": "Nice — folate intake is a thoughtful complement to long-term metformin use.",
       "monitoring_tip_short": "Consider discussing folate at your routine visits, especially when planning ahead.",
       "adequacy_threshold_mcg": 400,
-      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_OCP_VITAMINB6",
@@ -451,7 +424,10 @@
       "acknowledgement_note": "Nice — B6 intake supports levels while using hormonal birth control.",
       "monitoring_tip_short": "Consider a B-complex if you notice mood changes; discuss with your clinician.",
       "adequacy_threshold_mg": 25,
-      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_OCP_VITAMINB12",
@@ -484,7 +460,10 @@
       "acknowledgement_note": "Good — B12 intake helps support levels while using hormonal birth control.",
       "monitoring_tip_short": "Consider discussing B12 at a routine visit, especially if planning pregnancy ahead.",
       "adequacy_threshold_mcg": 250,
-      "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals."
+      "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_OCP_FOLATE",
@@ -517,7 +496,10 @@
       "acknowledgement_note": "Nice — maintaining folate intake is a thoughtful step, especially if pregnancy may be a future consideration.",
       "monitoring_tip_short": "Consider discussing folate intake during routine visits, particularly when planning ahead.",
       "adequacy_threshold_mcg": 400,
-      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_OCP_MAGNESIUM",
@@ -550,7 +532,10 @@
       "acknowledgement_note": "Good — your magnesium intake supports levels while on hormonal birth control.",
       "monitoring_tip_short": "Consider discussing magnesium at a routine visit if you notice frequent headaches.",
       "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_OCP_ZINC",
@@ -583,7 +568,10 @@
       "acknowledgement_note": "Nice — zinc intake helps support levels while using hormonal birth control.",
       "monitoring_tip_short": "Consider a balanced multivitamin that includes zinc; discuss with your clinician.",
       "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_OCP_VITAMINC",
@@ -616,7 +604,10 @@
       "acknowledgement_note": "Nice — your vitamin C intake supports levels while on hormonal birth control.",
       "monitoring_tip_short": "Consider daily fruit and vegetable variety; a supplement is optional.",
       "adequacy_threshold_mg": 75,
-      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes."
+      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_OCP_VITAMINE",
@@ -649,7 +640,10 @@
       "acknowledgement_note": "Good — vitamin E intake supports antioxidant balance during long-term use.",
       "monitoring_tip_short": "Consider variety in nuts, seeds, and vegetable oils in daily meals.",
       "adequacy_threshold_mg": 15,
-      "food_sources_short": "Food sources of vitamin E include almonds, sunflower seeds, vegetable oils, avocado, and leafy greens."
+      "food_sources_short": "Food sources of vitamin E include almonds, sunflower seeds, vegetable oils, avocado, and leafy greens.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_DIURETICS_POTASSIUM",
@@ -681,7 +675,10 @@
       "alert_body": "Certain diuretics increase potassium loss through urine. With ongoing use over weeks to months, levels may gradually decline.",
       "acknowledgement_note": "Good — potassium is typically monitored closely with these medications, and your care plan helps keep levels on track.",
       "monitoring_tip_short": "Ask about periodic potassium checks; this is a standard part of follow-up.",
-      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, and tomatoes."
+      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, and tomatoes.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_DIURETICS_MAGNESIUM",
@@ -714,7 +711,10 @@
       "acknowledgement_note": "Good — your magnesium intake supports steady levels while on diuretic therapy.",
       "monitoring_tip_short": "Ask about periodic magnesium checks alongside your potassium tests.",
       "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_DIURETICS_ZINC",
@@ -747,7 +747,10 @@
       "acknowledgement_note": "Good — your zinc intake supports levels while on long-term diuretic therapy.",
       "monitoring_tip_short": "Consider a multivitamin with zinc; ask your clinician if it's a fit.",
       "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_DIURETICS_CALCIUM",
@@ -780,7 +783,10 @@
       "acknowledgement_note": "Good — calcium intake supports bone health during long-term loop diuretic therapy.",
       "monitoring_tip_short": "Consider discussing bone health screening if on a loop diuretic long-term.",
       "adequacy_threshold_mg": 500,
-      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_DIURETICS_THIAMINE",
@@ -813,7 +819,10 @@
       "acknowledgement_note": "Nice — thiamine intake supports levels while on long-term furosemide.",
       "monitoring_tip_short": "Consider asking your cardiologist about a thiamine supplement with long-term furosemide.",
       "adequacy_threshold_mg": 50,
-      "food_sources_short": "Food sources of thiamine include pork, fish, whole grains, fortified cereals, beans, lentils, and seeds."
+      "food_sources_short": "Food sources of thiamine include pork, fish, whole grains, fortified cereals, beans, lentils, and seeds.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_DIURETICS_FOLATE",
@@ -846,7 +855,10 @@
       "acknowledgement_note": "Nice — folate intake aligns with guidance for long-term triamterene use.",
       "monitoring_tip_short": "Consider discussing folate intake with your doctor, particularly if also on methotrexate.",
       "adequacy_threshold_mcg": 400,
-      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CORTICOSTEROIDS_CALCIUM",
@@ -879,7 +891,10 @@
       "acknowledgement_note": "Good — calcium is part of standard support for long-term corticosteroid use.",
       "monitoring_tip_short": "Consider discussing bone health and screening if use continues over time.",
       "adequacy_threshold_mg": 500,
-      "food_sources_short": "Food sources of calcium include dairy products, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
+      "food_sources_short": "Food sources of calcium include dairy products, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CORTICOSTEROIDS_VITAMIND",
@@ -912,7 +927,10 @@
       "acknowledgement_note": "Good — vitamin D intake is part of standard support for long-term corticosteroid use.",
       "monitoring_tip_short": "Consider a 25-OH-vitamin D check; your clinician can guide target levels.",
       "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CORTICOSTEROIDS_POTASSIUM",
@@ -944,7 +962,10 @@
       "alert_body": "Corticosteroids can gradually increase potassium loss through the kidneys with regular use over weeks to months. The effect is more noticeable at higher doses.",
       "acknowledgement_note": "Good — potassium is typically monitored during corticosteroid therapy, and your care plan helps keep levels steady.",
       "monitoring_tip_short": "Ask about periodic potassium checks during long-term corticosteroid therapy.",
-      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, tomatoes, and leafy greens."
+      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, tomatoes, and leafy greens.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CORTICOSTEROIDS_MAGNESIUM",
@@ -977,7 +998,10 @@
       "acknowledgement_note": "Good — magnesium intake supports bone and muscle balance during long-term corticosteroid use.",
       "monitoring_tip_short": "Consider asking about magnesium alongside calcium and vitamin D during therapy.",
       "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CORTICOSTEROIDS_VITAMINC",
@@ -1010,7 +1034,10 @@
       "acknowledgement_note": "Good — vitamin C intake supports skin and tissue health during long-term corticosteroid use.",
       "monitoring_tip_short": "Consider daily fruits and vegetables; a supplement is reasonable during therapy.",
       "adequacy_threshold_mg": 500,
-      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes."
+      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CORTICOSTEROIDS_ZINC",
@@ -1043,7 +1070,10 @@
       "acknowledgement_note": "Good — zinc intake supports skin and immune balance during long-term corticosteroid use.",
       "monitoring_tip_short": "Consider a multivitamin with zinc if skin healing feels slower than usual.",
       "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CORTICOSTEROIDS_VITAMINB6",
@@ -1076,7 +1106,10 @@
       "acknowledgement_note": "Nice — B6 intake supports levels during long-term corticosteroid therapy.",
       "monitoring_tip_short": "Consider a B-complex if mood changes are noticeable; discuss with your clinician.",
       "adequacy_threshold_mg": 25,
-      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_SSRIS_SODIUM",
@@ -1107,7 +1140,10 @@
       "alert_headline": "May affect sodium early in treatment",
       "alert_body": "In the first weeks of an SSRI, sodium levels can gradually drift lower, especially in older adults or those on water pills. Your prescriber often checks this early.",
       "acknowledgement_note": "Good — your care plan includes sodium awareness, which helps catch changes early.",
-      "monitoring_tip_short": "Consider asking for a sodium check 2-4 weeks after starting an SSRI."
+      "monitoring_tip_short": "Consider asking for a sodium check 2-4 weeks after starting an SSRI.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_SSRIS_CALCIUM",
@@ -1140,7 +1176,10 @@
       "acknowledgement_note": "Good — calcium intake supports bone health during long-term SSRI therapy.",
       "monitoring_tip_short": "Consider discussing bone density screening if on an SSRI long-term.",
       "adequacy_threshold_mg": 500,
-      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_SSRIS_VITAMIND",
@@ -1173,7 +1212,10 @@
       "acknowledgement_note": "Good — vitamin D intake supports overall balance during SSRI therapy.",
       "monitoring_tip_short": "Consider checking vitamin D at your annual visit, especially in winter months.",
       "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMIND",
@@ -1206,7 +1248,10 @@
       "acknowledgement_note": "Good — vitamin D intake aligns with guidance for long-term seizure-medication use.",
       "monitoring_tip_short": "Consider asking for a 25-OH-D check; your neurologist can guide dosing.",
       "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTICONVULSANTS_CALCIUM",
@@ -1239,7 +1284,10 @@
       "acknowledgement_note": "Good — calcium intake supports bone balance during long-term seizure-medication use.",
       "monitoring_tip_short": "Consider discussing calcium and vitamin D together at your neurology visits.",
       "adequacy_threshold_mg": 500,
-      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTICONVULSANTS_FOLATE",
@@ -1272,7 +1320,10 @@
       "acknowledgement_note": "Nice — folate intake reflects thoughtful planning during long-term therapy.",
       "monitoring_tip_short": "Consider discussing folate dose with your neurologist, especially when planning pregnancy.",
       "adequacy_threshold_mcg": 400,
-      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINB12",
@@ -1305,7 +1356,10 @@
       "acknowledgement_note": "Nice — B12 intake supports levels during long-term seizure-medication use.",
       "monitoring_tip_short": "Consider including B12 in your routine labs during long-term therapy.",
       "adequacy_threshold_mcg": 250,
-      "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals."
+      "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINK",
@@ -1336,7 +1390,10 @@
       "alert_headline": "May affect vitamin K with long-term use",
       "alert_body": "Certain seizure medications can gradually increase vitamin K turnover over months. This matters especially during pregnancy and is managed medically.",
       "acknowledgement_note": "Good — vitamin K awareness is part of thoughtful care during long-term therapy.",
-      "monitoring_tip_short": "Consider discussing vitamin K with your neurologist — self-supplementing isn't recommended."
+      "monitoring_tip_short": "Consider discussing vitamin K with your neurologist — self-supplementing isn't recommended.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTICONVULSANTS_BIOTIN",
@@ -1369,7 +1426,10 @@
       "acknowledgement_note": "Nice — biotin intake supports hair and skin balance during long-term therapy.",
       "monitoring_tip_short": "Consider discussing biotin with your neurologist if hair thinning is noticeable.",
       "adequacy_threshold_mcg": 30,
-      "food_sources_short": "Food sources of biotin include eggs, salmon, pork, sunflower seeds, almonds, sweet potatoes, and spinach."
+      "food_sources_short": "Food sources of biotin include eggs, salmon, pork, sunflower seeds, almonds, sweet potatoes, and spinach.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTICONVULSANTS_LCARNITINE",
@@ -1402,7 +1462,10 @@
       "acknowledgement_note": "Nice — carnitine intake aligns with clinical guidance for long-term valproate use.",
       "monitoring_tip_short": "Consider discussing L-carnitine with your neurologist, especially for children on valproate.",
       "adequacy_threshold_mg": 1000,
-      "food_sources_short": "Food sources of carnitine include red meat, poultry, fish, and dairy products."
+      "food_sources_short": "Food sources of carnitine include red meat, poultry, fish, and dairy products.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ACEINHIBITORS_ZINC",
@@ -1435,7 +1498,10 @@
       "acknowledgement_note": "Good — zinc intake supports taste and immune balance during long-term therapy.",
       "monitoring_tip_short": "Consider a modest zinc supplement if taste feels duller than usual.",
       "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_BETABLOCKERS_COQ10",
@@ -1473,7 +1539,10 @@
       "acknowledgement_note": "Nice — CoQ10 intake supports energy balance during long-term beta-blocker use.",
       "monitoring_tip_short": "Consider discussing CoQ10 with your cardiologist if fatigue feels persistent.",
       "adequacy_threshold_mg": 100,
-      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route."
+      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_BETABLOCKERS_MELATONIN",
@@ -1504,7 +1573,10 @@
       "alert_headline": "Can affect nighttime melatonin over time",
       "alert_body": "Beta blockers can gradually reduce the body's nighttime melatonin release with regular use over weeks. Some people notice changes in sleep onset.",
       "acknowledgement_note": "Nice — low-dose melatonin aligns with guidance for people using beta blockers long-term.",
-      "monitoring_tip_short": "Consider discussing low-dose melatonin with your prescriber for sleep support."
+      "monitoring_tip_short": "Consider discussing low-dose melatonin with your prescriber for sleep support.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_NSAIDS_FOLATE",
@@ -1537,7 +1609,10 @@
       "acknowledgement_note": "Nice — folate intake supports levels during regular NSAID use.",
       "monitoring_tip_short": "Consider a multivitamin with folate if NSAID use is frequent; discuss with your clinician.",
       "adequacy_threshold_mcg": 400,
-      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals."
+      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_NSAIDS_IRON",
@@ -1570,7 +1645,10 @@
       "acknowledgement_note": "Good — iron awareness is helpful during long-term NSAID use.",
       "monitoring_tip_short": "Consider asking for periodic ferritin and CBC labs if NSAID use is long-term.",
       "adequacy_threshold_mg": 18,
-      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals."
+      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_NSAIDS_VITAMINC",
@@ -1603,7 +1681,10 @@
       "acknowledgement_note": "Nice — vitamin C intake supports levels during regular aspirin use.",
       "monitoring_tip_short": "Consider taking vitamin C at a different time of day from aspirin.",
       "adequacy_threshold_mg": 250,
-      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes."
+      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTIBIOTICS_BVITAMINS",
@@ -1636,7 +1717,10 @@
       "acknowledgement_note": "Nice — a B-complex is a reasonable companion during and after antibiotic treatment.",
       "monitoring_tip_short": "Consider a B-complex and fermented foods during and after a course of antibiotics.",
       "adequacy_threshold_mcg": 250,
-      "food_sources_short": "Food sources of B vitamins include meat, poultry, fish, eggs, dairy, leafy greens, legumes, and fortified grains."
+      "food_sources_short": "Food sources of B vitamins include meat, poultry, fish, eggs, dairy, leafy greens, legumes, and fortified grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTIBIOTICS_VITAMINK",
@@ -1667,7 +1751,10 @@
       "alert_headline": "Can affect vitamin K during a course",
       "alert_body": "Broad-spectrum antibiotics can gradually reduce gut-bacteria vitamin K production during a course. This matters most for people on warfarin and is managed medically.",
       "acknowledgement_note": "Good — vitamin K awareness is helpful during and after antibiotic courses.",
-      "monitoring_tip_short": "If you take warfarin, ask about INR checks during and after an antibiotic course."
+      "monitoring_tip_short": "If you take warfarin, ask about INR checks during and after an antibiotic course.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_LEVOTHYROXINE_CALCIUM",
@@ -1700,7 +1787,10 @@
       "acknowledgement_note": "Good — calcium intake supports bone health; timing separately keeps your thyroid dose steady.",
       "monitoring_tip_short": "Consider taking levothyroxine at least 4 hours apart from calcium-rich meals or supplements.",
       "adequacy_threshold_mg": 500,
-      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones."
+      "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_LEVOTHYROXINE_IRON",
@@ -1733,7 +1823,10 @@
       "acknowledgement_note": "Good — iron intake supports overall balance; timing separately keeps your thyroid dose steady.",
       "monitoring_tip_short": "Consider taking iron at least 4 hours apart from your levothyroxine dose.",
       "adequacy_threshold_mg": 18,
-      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals."
+      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_VITAMIND",
@@ -1766,7 +1859,10 @@
       "acknowledgement_note": "Good — vitamin D intake supports overall balance during long-term therapy.",
       "monitoring_tip_short": "Consider an annual 25-OH-D check during long-term antipsychotic therapy.",
       "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_COQ10",
@@ -1799,7 +1895,10 @@
       "acknowledgement_note": "Nice — CoQ10 intake supports energy balance during long-term therapy.",
       "monitoring_tip_short": "Consider discussing CoQ10 with your prescriber if fatigue feels persistent.",
       "adequacy_threshold_mg": 100,
-      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route."
+      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_STIMULANTS_MAGNESIUM",
@@ -1832,7 +1931,10 @@
       "acknowledgement_note": "Good — magnesium intake supports calm and sleep balance during stimulant therapy.",
       "monitoring_tip_short": "Consider magnesium in the evening; discuss with your prescriber if sleep is restless.",
       "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_STIMULANTS_VITAMINC",
@@ -1863,7 +1965,10 @@
       "alert_headline": "Vitamin C timing can affect stimulant dose",
       "alert_body": "High-dose vitamin C taken near an amphetamine-based stimulant can gradually affect how well the dose works over weeks. Separating them by time usually resolves it.",
       "acknowledgement_note": "Good — vitamin C supports overall balance; timing separately keeps your medication steady.",
-      "monitoring_tip_short": "Consider taking high-dose vitamin C at least 1-2 hours apart from stimulant doses."
+      "monitoring_tip_short": "Consider taking high-dose vitamin C at least 1-2 hours apart from stimulant doses.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_HIVPI_VITAMIND",
@@ -1896,7 +2001,10 @@
       "acknowledgement_note": "Good — vitamin D intake aligns with standard care during long-term ART.",
       "monitoring_tip_short": "Consider regular 25-OH-D checks; your HIV clinician can guide targets.",
       "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_HIVPI_ZINC",
@@ -1929,7 +2037,10 @@
       "acknowledgement_note": "Good — zinc intake supports immune balance during long-term ART.",
       "monitoring_tip_short": "Consider discussing a modest zinc supplement with your HIV clinician.",
       "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTICOAGULANTS_VITAMINK",
@@ -1960,7 +2071,10 @@
       "alert_headline": "Warfarin changes how vitamin K works",
       "alert_body": "Warfarin works by blocking vitamin K's role in clotting — this is long-term by design. Changes in vitamin K intake can shift your INR over weeks.",
       "acknowledgement_note": "Good — steady vitamin K intake supports consistent INR during warfarin therapy.",
-      "monitoring_tip_short": "Consider keeping your vitamin K intake steady day to day; discuss changes with your prescriber."
+      "monitoring_tip_short": "Consider keeping your vitamin K intake steady day to day; discuss changes with your prescriber.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_MAOIS_VITAMINB6",
@@ -1998,7 +2112,10 @@
       "acknowledgement_note": "Nice — B6 intake aligns with guidance for long-term phenelzine-class MAOI use.",
       "monitoring_tip_short": "Consider discussing a B6 supplement with your prescribing psychiatrist.",
       "adequacy_threshold_mg": 50,
-      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_DIABETESMEDS_MAGNESIUM",
@@ -2036,7 +2153,10 @@
       "acknowledgement_note": "Good — magnesium intake supports blood-sugar and overall balance during diabetes therapy.",
       "monitoring_tip_short": "Consider discussing magnesium with your diabetes care team at routine visits.",
       "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_IMMUNOSUPPRESSANTS_MAGNESIUM",
@@ -2074,7 +2194,10 @@
       "acknowledgement_note": "Good — magnesium intake is part of standard care during calcineurin-inhibitor therapy.",
       "monitoring_tip_short": "Ask your transplant team about your magnesium schedule — this is a routine part of care.",
       "adequacy_threshold_mg": 400,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_IMMUNOSUPPRESSANTS_VITAMIND",
@@ -2107,7 +2230,10 @@
       "acknowledgement_note": "Good — vitamin D intake is standard of care during transplant follow-up.",
       "monitoring_tip_short": "Ask your transplant team about your vitamin D target and dosing plan.",
       "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CALCIUMCHANNELBLOCKERS_POTASSIUM",
@@ -2139,7 +2265,10 @@
       "alert_body": "Calcium channel blockers can gradually shift potassium levels with long-term use over months. The effect is usually mild unless combined with other blood-pressure medications.",
       "acknowledgement_note": "Good — potassium awareness is helpful, and your care plan tracks levels.",
       "monitoring_tip_short": "Consider asking for electrolyte checks if you're on combination blood-pressure therapy.",
-      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, and tomatoes."
+      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, and tomatoes.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTIHYPERTENSIVES_ZINC",
@@ -2172,7 +2301,10 @@
       "acknowledgement_note": "Good — zinc intake supports taste and immune balance during long-term therapy.",
       "monitoring_tip_short": "Consider a modest zinc supplement; discuss with your prescriber if taste feels duller.",
       "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ANTIHYPERTENSIVES_COQ10",
@@ -2205,7 +2337,10 @@
       "acknowledgement_note": "Nice — CoQ10 intake supports energy balance during long-term therapy.",
       "monitoring_tip_short": "Consider discussing CoQ10 with your prescriber if fatigue feels persistent.",
       "adequacy_threshold_mg": 100,
-      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route."
+      "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_INSULINS_MAGNESIUM",
@@ -2243,7 +2378,10 @@
       "acknowledgement_note": "Good — magnesium intake supports blood-sugar and overall balance during insulin therapy.",
       "monitoring_tip_short": "Consider asking about magnesium as part of your routine diabetes labs.",
       "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate."
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_SEDATIVES_VITAMIND",
@@ -2276,7 +2414,10 @@
       "acknowledgement_note": "Good — vitamin D intake supports bone and muscle balance during long-term therapy.",
       "monitoring_tip_short": "Consider an annual 25-OH-D check and a daytime walk routine where possible.",
       "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals."
+      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_BENZODIAZEPINES_MELATONIN",
@@ -2307,7 +2448,10 @@
       "alert_headline": "Can affect nighttime melatonin over time",
       "alert_body": "Benzodiazepines can gradually disrupt the body's nighttime melatonin rhythm with regular use over weeks. Some people notice less restorative sleep.",
       "acknowledgement_note": "Nice — low-dose melatonin aligns with guidance for people using benzodiazepines.",
-      "monitoring_tip_short": "Consider discussing low-dose melatonin and sleep strategy with your prescriber."
+      "monitoring_tip_short": "Consider discussing low-dose melatonin and sleep strategy with your prescriber.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_BVITAMINS_INTERACTIONS",
@@ -2340,7 +2484,10 @@
       "acknowledgement_note": "Good — your zinc intake supports balance alongside regular folate use.",
       "monitoring_tip_short": "Consider a balanced multivitamin rather than high single-nutrient doses; check with your clinician.",
       "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains."
+      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ISONIAZID_VITAMINB6",
@@ -2377,7 +2524,10 @@
       "alert_body": "Isoniazid can gradually lower active vitamin B6 over months, which is why clinicians often pair it with pyridoxine during TB treatment.",
       "acknowledgement_note": "Good — vitamin B6 intake supports balance during isoniazid therapy.",
       "monitoring_tip_short": "Consider asking your TB clinician whether pyridoxine is already included in your plan.",
-      "adequacy_threshold_mg": 25
+      "adequacy_threshold_mg": 25,
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_METHOTREXATE_FOLATE",
@@ -2408,7 +2558,10 @@
       "alert_headline": "Methotrexate changes folate pathways",
       "alert_body": "Methotrexate works on folate-dependent pathways over time, so folic acid is often managed as part of the treatment plan rather than added casually.",
       "acknowledgement_note": "Good — folate intake is worth tracking while your clinician manages methotrexate therapy.",
-      "monitoring_tip_short": "Consider confirming your exact folic-acid schedule with the clinician who prescribes methotrexate."
+      "monitoring_tip_short": "Consider confirming your exact folic-acid schedule with the clinician who prescribes methotrexate.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ORLISTAT_VITAMINA",
@@ -2439,7 +2592,10 @@
       "alert_headline": "May lower vitamin A absorption",
       "alert_body": "Orlistat can gradually reduce absorption of Vitamin A over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
       "acknowledgement_note": "Good — vitamin A intake helps cover the fat-soluble vitamin gap during orlistat use.",
-      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat."
+      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ORLISTAT_VITAMIND",
@@ -2470,7 +2626,10 @@
       "alert_headline": "May lower vitamin D absorption",
       "alert_body": "Orlistat can gradually reduce absorption of Vitamin D over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
       "acknowledgement_note": "Good — vitamin D intake helps cover the fat-soluble vitamin gap during orlistat use.",
-      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat."
+      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ORLISTAT_VITAMINE",
@@ -2501,7 +2660,10 @@
       "alert_headline": "May lower vitamin E absorption",
       "alert_body": "Orlistat can gradually reduce absorption of Vitamin E over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
       "acknowledgement_note": "Good — vitamin E intake helps cover the fat-soluble vitamin gap during orlistat use.",
-      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat."
+      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_ORLISTAT_VITAMINK",
@@ -2532,7 +2694,10 @@
       "alert_headline": "May lower vitamin K absorption",
       "alert_body": "Orlistat can gradually reduce absorption of Vitamin K over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
       "acknowledgement_note": "Good — steady vitamin K intake helps keep orlistat-related monitoring clearer.",
-      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat."
+      "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_SULFASALAZINE_FOLATE",
@@ -2564,7 +2729,10 @@
       "alert_body": "Sulfasalazine can gradually reduce folate absorption and metabolism over months, so folate support is often worth reviewing during long-term use.",
       "acknowledgement_note": "Good — folate intake supports balance during sulfasalazine therapy.",
       "monitoring_tip_short": "Consider reviewing folate needs with your clinician, especially before pregnancy.",
-      "adequacy_threshold_mcg": 400
+      "adequacy_threshold_mcg": 400,
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_COLCHICINE_VITAMINB12",
@@ -2596,7 +2764,10 @@
       "alert_body": "With long-term colchicine use, vitamin B12 absorption can gradually become less reliable over months, especially when other B12 risks are present.",
       "acknowledgement_note": "Good — vitamin B12 intake supports balance during long-term colchicine therapy.",
       "monitoring_tip_short": "Consider asking about B12 testing if colchicine is part of your long-term plan.",
-      "adequacy_threshold_mcg": 250
+      "adequacy_threshold_mcg": 250,
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINA",
@@ -2627,7 +2798,10 @@
       "alert_headline": "May lower vitamin A absorption",
       "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin A over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
       "acknowledgement_note": "Good — vitamin A intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
-      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician."
+      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMIND",
@@ -2658,7 +2832,10 @@
       "alert_headline": "May lower vitamin D absorption",
       "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin D over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
       "acknowledgement_note": "Good — vitamin D intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
-      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician."
+      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINE",
@@ -2689,7 +2866,10 @@
       "alert_headline": "May lower vitamin E absorption",
       "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin E over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
       "acknowledgement_note": "Good — vitamin E intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
-      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician."
+      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINK",
@@ -2720,7 +2900,10 @@
       "alert_headline": "May lower vitamin K absorption",
       "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin K over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
       "acknowledgement_note": "Good — steady vitamin K intake helps keep cholestyramine-related monitoring clearer.",
-      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician."
+      "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
+      "citation_review_status": "unverified",
+      "reviewed_at": null,
+      "reviewer": null
     }
   ]
 }

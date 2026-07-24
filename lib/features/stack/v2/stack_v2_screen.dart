@@ -31,6 +31,8 @@ import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
+import 'package:pharmaguide/services/stack/depletion_checker.dart'
+    show MedNutrientLoadStatus;
 import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/stack_safety_details_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
@@ -2012,18 +2014,21 @@ class _DepletionSlot extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final depletionAsync = ref.watch(depletionReportProvider);
+    const margin = EdgeInsets.fromLTRB(
+      V2Spacing.space24,
+      V2Spacing.space12,
+      V2Spacing.space24,
+      0,
+    );
     return depletionAsync.when(
-      data: (depletions) {
-        if (depletions.isEmpty) return const SizedBox.shrink();
-        return PGDepletionCard(
-          depletions: depletions,
-          margin: const EdgeInsets.fromLTRB(
-            V2Spacing.space24,
-            V2Spacing.space12,
-            V2Spacing.space24,
-            0,
-          ),
-        );
+      data: (report) {
+        // UNAVAILABLE is not a clean state — show it explicitly, never hide it
+        // as if there were no medication–nutrient considerations (B1.2 App-1).
+        if (report.status == MedNutrientLoadStatus.unavailable) {
+          return const PGDepletionUnavailableCard(margin: margin);
+        }
+        if (report.matches.isEmpty) return const SizedBox.shrink();
+        return PGDepletionCard(depletions: report.matches, margin: margin);
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),

@@ -110,6 +110,12 @@ class DepletionMatch {
   final num? detectedAmount;
   final String? detectedUnit;
 
+  /// Citation-review status from the versioned artifact (B1.2): unverified /
+  /// verified / needs_revision / rejected. needs_revision + rejected are
+  /// suppressed by the checker; unverified still displays (migration) but must
+  /// not enter persisted history. Defaults to 'unverified' for a pre-B1.2 asset.
+  final String citationReviewStatus;
+
   /// Three-state coverage outcome for this user's stack. See
   /// [CoverageLevel].
   final CoverageLevel coverageLevel;
@@ -142,6 +148,7 @@ class DepletionMatch {
     this.adequacyThresholdMg,
     this.detectedAmount,
     this.detectedUnit,
+    this.citationReviewStatus = 'unverified',
     this.coverageLevel = CoverageLevel.none,
   });
 }
@@ -337,6 +344,133 @@ class DepletionMedicationIdentity {
   });
 }
 
+/// The medication-nutrient artifact runtime contract this app build supports.
+/// The app can render a versioned artifact whose minimum_runtime_contract is
+/// <= this value (B1.2). Bump when the app learns to render a newer shape.
+const int kMedNutrientRuntimeContract = 1;
+
+/// Activation-compatibility verdict for a loaded medication-depletions artifact
+/// (B1.2 App-1). A legacy asset with no _metadata is allowed (migration — never
+/// blank the monitor); a versioned asset is rejected only when it declares a
+/// newer runtime contract than this build supports, or is structurally corrupt.
+({bool compatible, bool isLegacy, String reason})
+checkMedicationDepletionsArtifact(Map<String, dynamic> data) {
+  final depletions = data['depletions'];
+  if (depletions is! List) {
+    return (
+      compatible: false,
+      isLegacy: false,
+      reason: 'missing depletions list',
+    );
+  }
+  final meta = data['_metadata'];
+  if (meta is! Map) {
+    // Pre-B1.2 asset: no versioning. Allowed so the migration keeps working.
+    return (compatible: true, isLegacy: true, reason: 'legacy (no _metadata)');
+  }
+  final minRuntime = meta['minimum_runtime_contract'];
+  if (minRuntime is! int) {
+    return (
+      compatible: false,
+      isLegacy: false,
+      reason: 'missing/invalid minimum_runtime_contract',
+    );
+  }
+  if (minRuntime > kMedNutrientRuntimeContract) {
+    return (
+      compatible: false,
+      isLegacy: false,
+      reason:
+          'artifact requires runtime contract $minRuntime > '
+          'supported $kMedNutrientRuntimeContract',
+    );
+  }
+  return (compatible: true, isLegacy: false, reason: 'ok');
+}
+
+/// Outcome of loading + activating the medication-depletions artifact (B1.2).
+/// [unavailable] must NOT be rendered as a clean "no depletions" state — a
+/// failed activation is not an all-clear. [fallbackLoaded] is reserved for when
+/// a last-known-good artifact is used (no OTA/last-good support yet, so the
+/// bundled artifact is currently the only source).
+enum MedNutrientLoadStatus { loaded, fallbackLoaded, unavailable }
+
+/// The medication-nutrient report: an activation [status] plus the matched
+/// depletions. Consumers MUST branch on [status] — an [unavailable] status with
+/// empty [matches] is NOT the same as a [loaded] status with empty matches (the
+/// former shows a "check unavailable" state, never a false all-clear).
+typedef MedNutrientReport = ({
+  MedNutrientLoadStatus status,
+  List<DepletionMatch> matches,
+});
+
+/// Apply the App-1 activation gate to a loaded artifact. Returns [loaded] with
+/// the artifact when compatible; otherwise [unavailable] with a safe empty
+/// payload (no depletions) and invokes [onIncompatible] with the reason. The
+/// caller MUST surface [unavailable] as an explicit "check unavailable" state,
+/// never a false clean state (a failed activation is not an all-clear).
+({MedNutrientLoadStatus status, Map<String, dynamic> data})
+activateMedicationDepletionsArtifact(
+  Map<String, dynamic> data, {
+  void Function(String reason)? onIncompatible,
+}) {
+  final check = checkMedicationDepletionsArtifact(data);
+  if (check.compatible) {
+    return (status: MedNutrientLoadStatus.loaded, data: data);
+  }
+  onIncompatible?.call(check.reason);
+  return (
+    status: MedNutrientLoadStatus.unavailable,
+    data: <String, dynamic>{
+      if (data['_metadata'] is Map) '_metadata': data['_metadata'],
+      'depletions': const <dynamic>[],
+    },
+  );
+}
+
+/// Consumer-facing publication eligibility for a medication–nutrient entry,
+/// derived from its `citation_review_status` (B1.2). This is the ONE place the
+/// policy lives — the checker gates display on it, and A2 must consume these
+/// fields rather than reinterpret the raw status. `notificationAllowed` is the
+/// review-status permission only; the signal's disposition decides separately.
+typedef MedNutrientPublication = ({
+  bool displayAllowed,
+  bool persistenceAllowed,
+  bool notificationAllowed,
+});
+
+/// Map a `citation_review_status` to its publication eligibility (B1.2).
+/// verified → display+persist+notify; unverified → display only (migration);
+/// needs_revision / rejected → suppressed; unknown → conservative unverified.
+MedNutrientPublication medNutrientPublicationPolicy(
+  String citationReviewStatus,
+) {
+  switch (citationReviewStatus.trim().toLowerCase()) {
+    case 'verified':
+      return (
+        displayAllowed: true,
+        persistenceAllowed: true,
+        notificationAllowed: true,
+      );
+    case 'needs_revision':
+    case 'rejected':
+      return (
+        displayAllowed: false,
+        persistenceAllowed: false,
+        notificationAllowed: false,
+      );
+    case 'unverified':
+    default:
+      // Migration: may display, but never persist or notify. Unknown statuses
+      // are treated as unverified (conservative).
+      return (
+        displayAllowed: true,
+        persistenceAllowed: false,
+        notificationAllowed: false,
+      );
+  }
+}
+
 class DepletionChecker {
   /// Check user's medications against known medication-nutrient notes.
   ///
@@ -482,6 +616,25 @@ class DepletionChecker {
 
       if (!matches) continue;
 
+      // Citation-review publication rule (B1.2): needs_revision/rejected never
+      // surface; unverified still displays during the migration but is carried
+      // so A2 can keep it out of persisted history. Unknown → conservative
+      // 'unverified'.
+      var reviewStatus =
+          (dep['citation_review_status']?.toString() ?? 'unverified')
+              .trim()
+              .toLowerCase();
+      if (!medNutrientPublicationPolicy(reviewStatus).displayAllowed) {
+        onDataIssue?.call(
+          'medication_depletions: suppressed $depId '
+          '(citation_review_status=$reviewStatus, display not allowed)',
+        );
+        continue;
+      }
+      if (reviewStatus != 'verified' && reviewStatus != 'unverified') {
+        reviewStatus = 'unverified';
+      }
+
       final nutrient = dep['depleted_nutrient'] as Map<String, dynamic>? ?? {};
       final canonicalId = (nutrient['canonical_id']?.toString() ?? '')
           .trim()
@@ -548,6 +701,7 @@ class DepletionChecker {
           adequacyThresholdMg: adequacyMg,
           detectedAmount: matchedDose?.doseAmount,
           detectedUnit: matchedDose?.doseUnit,
+          citationReviewStatus: reviewStatus,
           coverageLevel: coverage,
         ),
       );
