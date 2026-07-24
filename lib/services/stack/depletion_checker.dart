@@ -344,6 +344,67 @@ class DepletionMedicationIdentity {
   });
 }
 
+/// The medication-nutrient artifact runtime contract this app build supports.
+/// The app can render a versioned artifact whose minimum_runtime_contract is
+/// <= this value (B1.2). Bump when the app learns to render a newer shape.
+const int kMedNutrientRuntimeContract = 1;
+
+/// Activation-compatibility verdict for a loaded medication-depletions artifact
+/// (B1.2 App-1). A legacy asset with no _metadata is allowed (migration — never
+/// blank the monitor); a versioned asset is rejected only when it declares a
+/// newer runtime contract than this build supports, or is structurally corrupt.
+({bool compatible, bool isLegacy, String reason})
+checkMedicationDepletionsArtifact(Map<String, dynamic> data) {
+  final depletions = data['depletions'];
+  if (depletions is! List) {
+    return (
+      compatible: false,
+      isLegacy: false,
+      reason: 'missing depletions list',
+    );
+  }
+  final meta = data['_metadata'];
+  if (meta is! Map) {
+    // Pre-B1.2 asset: no versioning. Allowed so the migration keeps working.
+    return (compatible: true, isLegacy: true, reason: 'legacy (no _metadata)');
+  }
+  final minRuntime = meta['minimum_runtime_contract'];
+  if (minRuntime is! int) {
+    return (
+      compatible: false,
+      isLegacy: false,
+      reason: 'missing/invalid minimum_runtime_contract',
+    );
+  }
+  if (minRuntime > kMedNutrientRuntimeContract) {
+    return (
+      compatible: false,
+      isLegacy: false,
+      reason:
+          'artifact requires runtime contract $minRuntime > '
+          'supported $kMedNutrientRuntimeContract',
+    );
+  }
+  return (compatible: true, isLegacy: false, reason: 'ok');
+}
+
+/// Apply the App-1 activation gate to a loaded artifact: return it when
+/// compatible, otherwise a safe degraded artifact (no depletions) so an
+/// incompatible or corrupt clinical asset never renders. [onIncompatible] is
+/// invoked with the reason so the caller can log/report it.
+Map<String, dynamic> activateMedicationDepletionsArtifact(
+  Map<String, dynamic> data, {
+  void Function(String reason)? onIncompatible,
+}) {
+  final check = checkMedicationDepletionsArtifact(data);
+  if (check.compatible) return data;
+  onIncompatible?.call(check.reason);
+  return <String, dynamic>{
+    if (data['_metadata'] is Map) '_metadata': data['_metadata'],
+    'depletions': const <dynamic>[],
+  };
+}
+
 class DepletionChecker {
   /// Check user's medications against known medication-nutrient notes.
   ///

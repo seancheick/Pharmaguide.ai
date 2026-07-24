@@ -1,5 +1,9 @@
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
+import 'package:pharmaguide/services/stack/depletion_checker.dart';
 
 class ReferenceDataRepository {
   Map<String, dynamic>? _taxonomyCache;
@@ -50,8 +54,15 @@ class ReferenceDataRepository {
   }
 
   Future<Map<String, dynamic>> loadMedicationDepletions() async {
-    _depletionsCache ??= await _loadJson(
-      'assets/reference_data/medication_depletions.json',
+    // B1.2 App-1: gate the versioned artifact on activation — an incompatible
+    // or corrupt clinical asset degrades to no depletions (never renders
+    // garbage); a legacy pre-B1.2 asset passes through unchanged.
+    _depletionsCache ??= activateMedicationDepletionsArtifact(
+      await _loadJson('assets/reference_data/medication_depletions.json'),
+      onIncompatible: (reason) => debugPrint(
+        'medication_depletions artifact incompatible ($reason) — '
+        'degrading to no depletions',
+      ),
     );
     return _depletionsCache!;
   }
