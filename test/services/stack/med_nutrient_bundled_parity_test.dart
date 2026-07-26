@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 // Repinned 2026-07-24: the two antibiotics_broadspectrum depletion rules were
 // set to needs_revision (dead synthetic drug id, suppressed pending Section 8).
 const _pinnedContentHash =
-    'sha256:76a4368377d41cc5a8f3074c0c3ad6f161b13136ad09d7258ef56f191b0f53e4';
+    'sha256:d883d898bc6e5c476cc49edceecab32e0327ae90658473d19c964276cd6c578e';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

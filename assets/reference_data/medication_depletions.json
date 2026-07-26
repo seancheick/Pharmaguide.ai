@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.07.25",
-    "content_hash": "sha256:76a4368377d41cc5a8f3074c0c3ad6f161b13136ad09d7258ef56f191b0f53e4",
+    "content_version": "2026.07.26",
+    "content_hash": "sha256:d883d898bc6e5c476cc49edceecab32e0327ae90658473d19c964276cd6c578e",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -1373,8 +1373,8 @@
       "id": "DEP_ANTICONVULSANTS_CALCIUM",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants / antiepileptic drugs"
+        "id": "class:enzyme_inducing_antiseizure_medications",
+        "display_name": "Enzyme-inducing antiseizure medications"
       },
       "depleted_nutrient": {
         "standard_name": "Calcium",
@@ -1409,8 +1409,8 @@
       "id": "DEP_ANTICONVULSANTS_FOLATE",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants / antiepileptic drugs"
+        "id": "class:enzyme_inducing_antiseizure_medications",
+        "display_name": "Enzyme-inducing antiseizure medications"
       },
       "depleted_nutrient": {
         "standard_name": "Folate",
@@ -1418,9 +1418,9 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Phenytoin, carbamazepine, and valproate impair folate absorption and metabolism through multiple mechanisms: inhibiting intestinal folate conjugase, competing with folate transport, inhibiting dihydrofolate reductase, and accelerating hepatic folate catabolism via CYP induction.",
+      "mechanism": "Phenytoin and carbamazepine impair folate absorption and metabolism through multiple mechanisms: inhibiting intestinal folate conjugase, competing with folate transport, inhibiting dihydrofolate reductase, and accelerating hepatic folate catabolism via CYP induction. Phenobarbital and primidone share the CYP-induction pathway.",
       "clinical_impact": "Folate deficiency causes megaloblastic anemia, elevated homocysteine, increased cardiovascular risk, and neural tube defects in offspring. Paradoxically, high-dose folate supplementation can reduce phenytoin efficacy, requiring careful management.",
-      "recommendation": "Low-dose folic acid (0.4–1 mg/day) is generally recommended for patients on these AEDs. Women of childbearing age should take 4–5 mg/day under medical supervision. Discuss folate supplementation with your neurologist before starting.",
+      "recommendation": "Low-dose folic acid (0.4–1 mg/day) is generally recommended for patients on enzyme-inducing AEDs. Women of childbearing age should take 4–5 mg/day under medical supervision. Discuss folate supplementation with your neurologist before starting.",
       "onset_timeline": "months",
       "evidence_level": "established",
       "monitoring_note": "Check serum folate and CBC annually. In women of childbearing age, discuss with neurologist regarding folate dose that balances maternal deficiency risk against potential seizure threshold effects.",
@@ -1473,7 +1473,8 @@
       "monitoring_tip_short": "Consider including B12 in your routine labs during long-term therapy.",
       "adequacy_threshold_mcg": 250,
       "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals.",
-      "citation_review_status": "unverified",
+      "citation_review_status": "needs_revision",
+      "citation_review_note": "Section 3 (2026-07-26): suppressed pending citation. The mechanism is hedged (\"may reduce\", \"may also increase\"), evidence_level is only \"probable\", and the sole source is an NLM catalog entry rather than a study. Attributing a B12 depletion claim to a whole antiseizure class on that basis over-warns. Re-enable only with a content-verified PMID and a drug-specific scope.",
       "reviewed_at": null,
       "reviewer": null
     },
@@ -1481,8 +1482,8 @@
       "id": "DEP_ANTICONVULSANTS_VITAMINK",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants / antiepileptic drugs — enzyme-inducing AEDs"
+        "id": "class:enzyme_inducing_antiseizure_medications",
+        "display_name": "Enzyme-inducing antiseizure medications"
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin K",
@@ -1515,8 +1516,8 @@
       "id": "DEP_ANTICONVULSANTS_BIOTIN",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants — valproic acid and carbamazepine"
+        "id": "class:valproate",
+        "display_name": "Valproate (valproic acid, divalproex / Depakote)"
       },
       "depleted_nutrient": {
         "standard_name": "Biotin",
@@ -1524,9 +1525,9 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Valproic acid and carbamazepine impair biotin absorption from the gut, accelerate biotin catabolism via beta-oxidation of the valproyl side chain, and may compete with biotin for intestinal transport. They also impair biotinidase activity needed for biotin recycling.",
+      "mechanism": "Valproic acid accelerates biotin catabolism via beta-oxidation of the valproyl side chain and impairs biotinidase activity needed for biotin recycling; it may also compete with biotin for intestinal transport.",
       "clinical_impact": "Biotin deficiency causes hair loss, skin rash, neurological symptoms (depression, hallucinations, numbness), and impaired glucose metabolism. Symptoms can mimic other conditions and may be overlooked.",
-      "recommendation": "Consider biotin supplementation (5–10 mg/day) for patients on valproate or carbamazepine, especially if experiencing hair thinning or skin changes.",
+      "recommendation": "Consider biotin supplementation (5–10 mg/day) for patients on valproate, especially if experiencing hair thinning or skin changes.",
       "onset_timeline": "months",
       "evidence_level": "established",
       "monitoring_note": null,
@@ -1538,7 +1539,7 @@
         }
       ],
       "alert_headline": "May lower biotin over time",
-      "alert_body": "Valproate and carbamazepine can gradually reduce biotin levels with long-term use over months. Some people notice hair thinning or skin changes.",
+      "alert_body": "Valproate can gradually reduce biotin levels with long-term use over months. Some people notice hair thinning or skin changes.",
       "acknowledgement_note": "Nice — biotin intake supports hair and skin balance during long-term therapy.",
       "monitoring_tip_short": "Consider discussing biotin with your neurologist if hair thinning is noticeable.",
       "adequacy_threshold_mcg": 30,
@@ -1551,8 +1552,8 @@
       "id": "DEP_ANTICONVULSANTS_LCARNITINE",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants — valproic acid"
+        "id": "class:valproate",
+        "display_name": "Valproate (valproic acid, divalproex / Depakote)"
       },
       "depleted_nutrient": {
         "standard_name": "L-Carnitine",
