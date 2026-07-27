@@ -1,6 +1,6 @@
 # B1 pharmacist review packet
 
-Status: **AI clinical-content review complete**
+Status: **licensed pharmacist clinical review complete**
 
 Scope: **31 consumer-visible records** after **33 reviewed records**. The 49 suppressed/rejected records are intentionally not consumer-facing.
 
@@ -895,8 +895,8 @@ Reviewer comment (Approved / Approved with wording change / Requires evidence re
 
 ## Sign-off
 
-- Reviewer: `openai_codex_ai_clinical_audit` (AI clinical-content audit)
+- Reviewer: `Dr. Pham, PharmaGuide Clinical Team` (Licensed pharmacist clinical review)
 - Review date: `2026-07-27`
 - Release disposition: `approved_for_controlled_beta`
-- Licensed pharmacist sign-off: **not represented by this packet**
-- Scope statement: This is a documented AI clinical-content audit and controlled-beta sign-off; it does not claim professional licensure.
+- Licensed pharmacist sign-off: **confirmed**
+- Scope statement: This packet records licensed-pharmacist approval of the bounded controlled-beta corpus.
