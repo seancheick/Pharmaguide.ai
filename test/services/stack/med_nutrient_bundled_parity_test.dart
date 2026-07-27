@@ -17,10 +17,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 // content_hash = sha256 over the clinical entries (not the release stamp).
 // MUST equal the pipeline test's pinned value.
-// Repinned 2026-07-26: Section 3 content-audited antiseizure citations,
-// direct-drug scopes, and suppression of known real-but-unrelated PMIDs.
+// Repinned 2026-07-27: B1 closure copy plus the live-RxNorm-verified metformin
+// ingredient identity (6809), replacing the dose concept that caused misses.
 const _pinnedContentHash =
-    'sha256:bbaa3498dd86609b0e178638981a94937b36da7b0cad74ab909d5242d761c4a6';
+    'sha256:98259507ef920a503084f748b11c9bbcc1d7ec7fabdadb9d3d7326610bef2753';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

@@ -564,6 +564,31 @@ enum PgFeedbackCategory {
   wrongProductData('wrong_product_data', 'Wrong product data'),
   missingProduct('missing_product', 'Missing product'),
   featureRequest('feature_request', 'Feature request'),
+  clinicalFalsePositive(
+    'clinical_false_positive',
+    'Medication note looks wrong',
+  ),
+  clinicalFalseNegative(
+    'clinical_false_negative',
+    'Expected medication note is missing',
+  ),
+  medicationNormalizationFailure(
+    'clinical_identity_normalization_failure',
+    "Medication wasn't recognized",
+  ),
+  clinicalWordingConfusion(
+    'clinical_wording_confusion',
+    'Medication wording is unclear',
+  ),
+  clinicianReportInterpretation(
+    'clinician_report_interpretation',
+    'Clinician report is unclear',
+  ),
+  searchNoResult('search_no_result', 'Search returned no result'),
+  missingMedicationClassMapping(
+    'clinical_class_mapping_missing',
+    'Medication class looks missing',
+  ),
   other('other', 'Other');
 
   const PgFeedbackCategory(this.tag, this.label);

@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.07.27",
-    "content_hash": "sha256:bbaa3498dd86609b0e178638981a94937b36da7b0cad74ab909d5242d761c4a6",
+    "content_version": "2026-07-27",
+    "content_hash": "sha256:98259507ef920a503084f748b11c9bbcc1d7ec7fabdadb9d3d7326610bef2753",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -86,9 +86,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "B1 closure suppression: this record was unreviewed; no consumer claim may publish pending claim-matched evidence and scope.",
@@ -363,7 +363,7 @@
       "id": "DEP_METFORMIN_VITAMINB12",
       "drug_ref": {
         "type": "drug",
-        "id": "860974",
+        "id": "6809",
         "display_name": "Metformin (type 2 diabetes medication)"
       },
       "depleted_nutrient": {
@@ -409,7 +409,7 @@
       "id": "DEP_METFORMIN_FOLATE",
       "drug_ref": {
         "type": "drug",
-        "id": "860974",
+        "id": "6809",
         "display_name": "Metformin (type 2 diabetes medication)"
       },
       "depleted_nutrient": {
@@ -437,9 +437,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "Suppressed: PMID 20488910 reports no significant adjusted folate effect; the evidence does not establish folate deficiency or this consumer supplementation claim.",
@@ -1080,9 +1080,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "B1 closure suppression: this record was unreviewed; no consumer claim may publish pending claim-matched evidence and scope.",
@@ -1116,9 +1116,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "B1 closure suppression: this record was unreviewed; no consumer claim may publish pending claim-matched evidence and scope.",
@@ -1152,9 +1152,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "B1 closure suppression: this record was unreviewed; no consumer claim may publish pending claim-matched evidence and scope.",
@@ -1188,9 +1188,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "B1 closure suppression: this record was unreviewed; no consumer claim may publish pending claim-matched evidence and scope.",
@@ -1224,9 +1224,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "B1 closure suppression: this record was unreviewed; no consumer claim may publish pending claim-matched evidence and scope.",
@@ -1749,9 +1749,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "rejected",
       "citation_review_note": "Rejected: broad NSAID folate depletion and routine supplementation lack claim-matched clinical evidence.",
@@ -1785,9 +1785,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "Suppressed: NSAID-associated GI bleeding can cause iron-deficiency anaemia, but this all-NSAID record lacks a dose, duration, and bleeding-risk scope for a consumer nutrient alert.",
@@ -1821,9 +1821,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "rejected",
       "citation_review_note": "Rejected: no claim-matched clinical citation supports routine NSAID or aspirin vitamin-C depletion supplementation.",
@@ -1857,9 +1857,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "rejected",
       "citation_review_note": "Rejected: microbiome disruption does not establish broad-antibiotic vitamin B12 depletion; the synthetic non-RxCUI subject is not runtime-mappable.",
@@ -1893,9 +1893,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "citation_review_status": "needs_revision",
       "citation_review_note": "Suppressed: vitamin-K coagulopathy evidence is limited to narrow high-risk scenarios and the synthetic non-RxCUI subject is not runtime-mappable.",
       "reviewer": "medication_depletion_section_08_antibiotics_nsaids_audit",
@@ -2154,14 +2154,14 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
       "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
-      "citation_review_note": "Suppressed: current PMID is content-mismatched and the record conflates HIV disease with protease-inhibitor effects."
+      "citation_review_note": "Suppressed: PMID 21694637 is a content mismatch and the record conflates HIV disease with protease-inhibitor effects."
     },
     {
       "id": "DEP_HIVPI_ZINC",
@@ -2190,14 +2190,14 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
       "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
-      "citation_review_note": "Suppressed: current PMID is content-mismatched and the record conflates HIV disease with protease-inhibitor effects."
+      "citation_review_note": "Suppressed: PMID 12591569 is a content mismatch and the record conflates HIV disease with protease-inhibitor effects."
     },
     {
       "id": "DEP_ANTICOAGULANTS_VITAMINK",
@@ -2307,9 +2307,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "rejected",
       "citation_review_note": "Rejected: this is diabetes-associated hypomagnesemia, not evidence that sulfonylureas or thiazolidinediones deplete magnesium.",
@@ -2348,14 +2348,14 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
       "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
-      "citation_review_note": "Suppressed: current PMID is content-mismatched; calcineurin-specific magnesium evidence needs a verified replacement and narrow scope."
+      "citation_review_note": "Suppressed: PMID 16641596 is a content mismatch; calcineurin-specific magnesium evidence needs a verified replacement and narrow scope."
     },
     {
       "id": "DEP_IMMUNOSUPPRESSANTS_VITAMIND",
@@ -2384,14 +2384,14 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
       "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
-      "citation_review_note": "Suppressed: transplant-associated vitamin-D status does not establish a class-wide immunosuppressant depletion claim."
+      "citation_review_note": "Suppressed: PMID 19528952 is a content mismatch; transplant-associated vitamin-D status does not establish a class-wide immunosuppressant depletion claim."
     },
     {
       "id": "DEP_CALCIUMCHANNELBLOCKERS_POTASSIUM",
@@ -2535,9 +2535,9 @@
         }
       ],
       "alert_headline": "No medication-specific depletion alert",
-      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "alert_body": "No medication-caused nutrient depletion has been established over time; no consumer warning is emitted.",
       "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
-      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "monitoring_tip_short": "Discuss individual monitoring needs with your treating clinician.",
       "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "rejected",
       "citation_review_note": "Rejected: PMID 26696633 reviews diabetes-associated hypomagnesemia and does not establish insulin-caused chronic magnesium depletion.",

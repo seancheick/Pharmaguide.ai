@@ -103,74 +103,76 @@ class _BetaFeedbackSheetState extends State<BetaFeedbackSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        V2Spacing.space24,
-        V2Spacing.space8,
-        V2Spacing.space24,
-        V2Spacing.space24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Send beta feedback',
-            style: V2Typography.titleSm(color: V2Colors.fg),
-          ),
-          const SizedBox(height: V2Spacing.space8),
-          Text(
-            'A quick, anonymous note — just the category and how much it '
-            'affects you. No health details are attached. To add detail, the '
-            'email option keeps it in your own inbox.',
-            style: V2Typography.body(color: V2Colors.fgMuted),
-          ),
-          const SizedBox(height: V2Spacing.space24),
-          _label('What is it about?'),
-          const SizedBox(height: V2Spacing.space8),
-          Wrap(
-            spacing: V2Spacing.space8,
-            runSpacing: V2Spacing.space8,
-            children: [
-              for (final c in PgFeedbackCategory.values)
-                PGGoalChip(
-                  label: c.label,
-                  selected: _category == c,
-                  onTap: () => setState(() => _category = c),
-                ),
-            ],
-          ),
-          const SizedBox(height: V2Spacing.space16),
-          _label('How much does it affect you?'),
-          const SizedBox(height: V2Spacing.space8),
-          Wrap(
-            spacing: V2Spacing.space8,
-            runSpacing: V2Spacing.space8,
-            children: [
-              for (final i in PgFeedbackImpact.values)
-                PGGoalChip(
-                  label: i.label,
-                  selected: _impact == i,
-                  onTap: () => setState(() => _impact = i),
-                ),
-            ],
-          ),
-          const SizedBox(height: V2Spacing.space24),
-          PGPillButton(
-            label: _sending ? 'Sending…' : 'Send feedback',
-            variant: PGPillVariant.primary,
-            expand: true,
-            onPressed: _canSend ? _send : null,
-          ),
-          const SizedBox(height: V2Spacing.space8),
-          PGPillButton(
-            label: 'Add detail by email',
-            icon: Icons.mail_outline_rounded,
-            variant: PGPillVariant.secondary,
-            expand: true,
-            onPressed: _emailDetail,
-          ),
-        ],
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space8,
+          V2Spacing.space24,
+          V2Spacing.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Send beta feedback',
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'A quick, anonymous note — just the category and how much it '
+              'affects you. No health details are attached. To add detail, the '
+              'email option keeps it in your own inbox.',
+              style: V2Typography.body(color: V2Colors.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space24),
+            _label('What is it about?'),
+            const SizedBox(height: V2Spacing.space8),
+            Wrap(
+              spacing: V2Spacing.space8,
+              runSpacing: V2Spacing.space8,
+              children: [
+                for (final c in PgFeedbackCategory.values)
+                  PGGoalChip(
+                    label: c.label,
+                    selected: _category == c,
+                    onTap: () => setState(() => _category = c),
+                  ),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space16),
+            _label('How much does it affect you?'),
+            const SizedBox(height: V2Spacing.space8),
+            Wrap(
+              spacing: V2Spacing.space8,
+              runSpacing: V2Spacing.space8,
+              children: [
+                for (final i in PgFeedbackImpact.values)
+                  PGGoalChip(
+                    label: i.label,
+                    selected: _impact == i,
+                    onTap: () => setState(() => _impact = i),
+                  ),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space24),
+            PGPillButton(
+              label: _sending ? 'Sending…' : 'Send feedback',
+              variant: PGPillVariant.primary,
+              expand: true,
+              onPressed: _canSend ? _send : null,
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            PGPillButton(
+              label: 'Add detail by email',
+              icon: Icons.mail_outline_rounded,
+              variant: PGPillVariant.secondary,
+              expand: true,
+              onPressed: _emailDetail,
+            ),
+          ],
+        ),
       ),
     );
   }
