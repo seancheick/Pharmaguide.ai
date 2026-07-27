@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.27",
-    "content_hash": "sha256:4f690545bd319269fad732e81025420b9b235d94b88859a3fa97f8ba710996f8",
+    "content_hash": "sha256:9622620bc15df13df46102feef7262dfab484014463c70599a766524de10f5d7",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -1279,11 +1279,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Serotonin signaling (via 5-HT2A receptors on osteoclasts) regulates bone remodeling. SSRI-induced chronic elevation of serotonin activity increases osteoclast activation and bone resorption, leading to measurable decreases in bone density over time.",
-      "clinical_impact": "Long-term SSRI use is associated with significantly decreased bone mineral density and increased fracture risk, particularly in elderly women. Calcium depletion from bone contributes to this risk.",
-      "recommendation": "Ensure adequate calcium intake (1,000–1,200 mg/day) and vitamin D supplementation. Discuss bone density monitoring with your doctor if on long-term SSRI therapy.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "years",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": "Consider DEXA scan for bone density assessment in patients on long-term SSRI therapy, especially elderly women.",
       "sources": [
         {
@@ -1298,9 +1298,10 @@
       "monitoring_tip_short": "Consider discussing bone density screening if on an SSRI long-term.",
       "adequacy_threshold_mg": 500,
       "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "SSRI calcium depletion claim lacks claim-matched clinical evidence.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_06_psychiatry_audit"
     },
     {
       "id": "DEP_SSRIS_VITAMIND",
@@ -1315,11 +1316,11 @@
       },
       "depletion_type": "condition_related",
       "severity": "moderate",
-      "mechanism": "The bone density effects of SSRIs increase vitamin D demand for calcium regulation. Additionally, depression itself is associated with vitamin D deficiency, and lifestyle factors in depressed patients (reduced sun exposure, poor diet) may compound the association.",
-      "clinical_impact": "Low vitamin D worsens depression outcomes (inverse relationship between vitamin D and depression is well-documented), creates a reinforcing cycle, and compounds SSRI-related bone density effects.",
-      "recommendation": "Check your vitamin D level when starting SSRI therapy. Many patients benefit from supplementation with 1,000–2,000 IU vitamin D3 daily to maintain optimal levels.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "months",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": "Test serum 25-OH vitamin D at baseline and annually in patients on long-term SSRIs.",
       "sources": [
         {
@@ -1334,9 +1335,10 @@
       "monitoring_tip_short": "Consider checking vitamin D at your annual visit, especially in winter months.",
       "adequacy_threshold_mcg": 25,
       "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "SSRI vitamin D depletion claim lacks claim-matched clinical evidence.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_06_psychiatry_audit"
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMIND",
@@ -1991,11 +1993,11 @@
       },
       "depletion_type": "condition_related",
       "severity": "moderate",
-      "mechanism": "Atypical antipsychotics promote weight gain and metabolic syndrome, which are associated with reduced vitamin D bioavailability (vitamin D is sequestered in adipose tissue). Sedation and reduced outdoor activity decrease sun exposure and cutaneous vitamin D synthesis.",
-      "clinical_impact": "Vitamin D deficiency is highly prevalent in patients on antipsychotics and is associated with metabolic syndrome, depression, immune dysfunction, and bone loss — all already increased by antipsychotic therapy.",
-      "recommendation": "Check vitamin D levels at baseline and annually in all patients on antipsychotic medications. Supplement with vitamin D3 1,000–2,000 IU daily, adjusting dose based on blood levels.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "months",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": "Test serum 25-OH vitamin D at baseline and every 12 months. Target >30 ng/mL.",
       "sources": [
         {
@@ -2012,8 +2014,8 @@
       "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 25638514 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_06_psychiatry_audit",
+      "citation_review_note": "Suppressed: PMID 25638514 is a content mismatch; no antipsychotic vitamin D consumer claim is emitted."
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_COQ10",
@@ -2028,9 +2030,9 @@
       },
       "depletion_type": "depletion",
       "severity": "mild",
-      "mechanism": "Several antipsychotic drugs have been shown to inhibit mitochondrial Complex I activity and reduce CoQ10-dependent electron transport chain function. This may contribute to antipsychotic-induced metabolic side effects and fatigue.",
-      "clinical_impact": "Reduced CoQ10 availability may worsen antipsychotic-induced fatigue and contribute to the metabolic and mitochondrial dysfunction increasingly recognized with these medications.",
-      "recommendation": "Consider 100–200 mg CoQ10 daily if experiencing marked fatigue or metabolic side effects while on antipsychotic therapy.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "months",
       "evidence_level": "possible",
       "monitoring_note": null,
@@ -2049,8 +2051,8 @@
       "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 18316143 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_06_psychiatry_audit",
+      "citation_review_note": "Suppressed: PMID 18316143 is a content mismatch; no antipsychotic CoQ10 consumer claim is emitted."
     },
     {
       "id": "DEP_STIMULANTS_MAGNESIUM",
@@ -2065,11 +2067,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Stimulants increase sympathetic nervous system activity and catecholamine release, which promote urinary magnesium excretion. Appetite suppression (a common stimulant side effect) also reduces dietary magnesium intake.",
-      "clinical_impact": "Magnesium deficiency exacerbates hyperactivity, impulsivity, anxiety, and sleep disturbance — the very symptoms being treated in ADHD patients. Low magnesium also worsens insomnia, a common complaint with stimulant therapy.",
-      "recommendation": "Consider magnesium glycinate supplementation (100–300 mg daily, taken in the evening to support sleep) in patients on stimulant medications. Foods rich in magnesium include dark chocolate, nuts, seeds, and leafy greens.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "months",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -2084,9 +2086,10 @@
       "monitoring_tip_short": "Consider magnesium in the evening; discuss with your prescriber if sleep is restless.",
       "adequacy_threshold_mg": 200,
       "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: PMID 9368236 is a supplementation trial, not evidence that stimulants deplete magnesium.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_06_psychiatry_audit"
     },
     {
       "id": "DEP_STIMULANTS_VITAMINC",
@@ -2101,11 +2104,11 @@
       },
       "depletion_type": "supplement_interaction",
       "severity": "mild",
-      "mechanism": "Acidic urine (created by vitamin C supplementation) increases renal excretion of amphetamines by ion trapping, effectively reducing their bioavailability and duration of action. Conversely, vitamin C is not depleted by stimulants, but the interaction can reduce stimulant efficacy. This is an absorption/efficacy interaction rather than a true depletion.",
-      "clinical_impact": "Taking high-dose vitamin C within 1–2 hours of amphetamine-based medications can reduce drug absorption and efficacy by up to 50% via pH-dependent ion trapping in the gut and accelerated renal elimination.",
-      "recommendation": "Avoid taking large doses of vitamin C (>250 mg) within 1–2 hours before or after taking amphetamine-based ADHD medications. This helps maintain consistent medication levels and effectiveness.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "weeks",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -2120,8 +2123,8 @@
       "monitoring_tip_short": "Consider taking high-dose vitamin C at least 1-2 hours apart from stimulant doses.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 10870150 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_06_psychiatry_audit",
+      "citation_review_note": "Suppressed: PMID 10870150 is a content mismatch; no stimulant vitamin C consumer claim is emitted."
     },
     {
       "id": "DEP_HIVPI_VITAMIND",
@@ -2244,11 +2247,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Some MAOIs, particularly hydrazine-based compounds (phenelzine), form hydrazones with pyridoxal phosphate (the active form of vitamin B6), inactivating it and promoting its urinary excretion. This mechanism is similar to isoniazid-induced B6 deficiency.",
-      "clinical_impact": "B6 deficiency from hydrazine MAOIs can cause peripheral neuropathy, dermatitis, stomatitis, and mood disturbances. Phenelzine-induced B6 deficiency presenting as peripheral neuropathy is a recognized clinical problem.",
-      "recommendation": "Patients on phenelzine or other hydrazine-class MAOIs should take vitamin B6 supplementation (50–100 mg/day as pyridoxine) to prevent neuropathy. Discuss timing and dose with your prescribing psychiatrist.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "months",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": "Monitor for signs of peripheral neuropathy (numbness, tingling in hands/feet) in patients on phenelzine. Check plasma pyridoxal phosphate if neuropathy develops.",
       "sources": [
         {
@@ -2268,9 +2271,10 @@
       "monitoring_tip_short": "Consider discussing a B6 supplement with your prescribing psychiatrist.",
       "adequacy_threshold_mg": 50,
       "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "MAOI vitamin B6 depletion claim lacks claim-matched clinical evidence.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_06_psychiatry_audit"
     },
     {
       "id": "DEP_DIABETESMEDS_MAGNESIUM",
@@ -2556,11 +2560,11 @@
       },
       "depletion_type": "condition_related",
       "severity": "mild",
-      "mechanism": "Barbiturates and long-acting benzodiazepines induce hepatic CYP enzymes that accelerate vitamin D catabolism. Sedation from these medications also reduces physical activity and outdoor sun exposure, further limiting cutaneous vitamin D synthesis.",
-      "clinical_impact": "Chronic sedative use is associated with falls and fractures in elderly patients — vitamin D deficiency compounds fracture risk by reducing bone density and increasing fall propensity through muscle weakness.",
-      "recommendation": "Ensure adequate vitamin D supplementation (1,000–2,000 IU daily) in patients on chronic sedative therapy, especially the elderly. Exercise programs to maintain muscle strength are also important.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "months",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": "Check 25-OH vitamin D annually in elderly patients on chronic sedative therapy.",
       "sources": [
         {
@@ -2575,9 +2579,10 @@
       "monitoring_tip_short": "Consider an annual 25-OH-D check and a daytime walk routine where possible.",
       "adequacy_threshold_mcg": 25,
       "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "Sedative vitamin D depletion claim lacks claim-matched clinical evidence.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_06_psychiatry_audit"
     },
     {
       "id": "DEP_BENZODIAZEPINES_MELATONIN",
@@ -2592,11 +2597,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Benzodiazepines alter circadian rhythm regulation by modulating GABA-A receptors in the suprachiasmatic nucleus (the brain's master clock), which suppresses normal nighttime melatonin secretion. This disrupts the natural sleep-wake cycle architecture.",
-      "clinical_impact": "Benzodiazepine-induced suppression of melatonin disrupts the natural sleep architecture, contributing to dependence, rebound insomnia on discontinuation, and long-term circadian disruption. This is separate from the drug's direct sedative effect.",
-      "recommendation": "Discuss with your doctor about long-term use of benzodiazepines for sleep. Low-dose melatonin (0.5–1 mg taken 30–60 minutes before bed) may help normalize sleep architecture and support tapering strategies. Do not stop benzodiazepines abruptly.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication class.",
       "onset_timeline": "weeks",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -2611,8 +2616,8 @@
       "monitoring_tip_short": "Consider discussing low-dose melatonin and sleep strategy with your prescriber.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 2733455 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_06_psychiatry_audit",
+      "citation_review_note": "Suppressed: PMID 2733455 is a content mismatch; no benzodiazepine melatonin consumer claim is emitted."
     },
     {
       "id": "DEP_BVITAMINS_INTERACTIONS",
