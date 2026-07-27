@@ -64,7 +64,22 @@ void main() {
       'DEP_METFORMIN_VITAMINB12',
       'DEP_ANTICOAGULANTS_VITAMINK',
     });
+    final metformin = matches.singleWhere(
+      (match) => match.depletionId == 'DEP_METFORMIN_VITAMINB12',
+    );
+    final warfarin = matches.singleWhere(
+      (match) => match.depletionId == 'DEP_ANTICOAGULANTS_VITAMINK',
+    );
+    expect(metformin.recommendation, contains('4–5 years'));
+    expect(
+      warfarin.recommendation,
+      contains('Keep vitamin K intake reasonably consistent'),
+    );
     await _pumpCard(tester, PGDepletionCard(depletions: matches));
+    expect(find.text('Vitamin B12'), findsOneWidget);
+    expect(find.text('Vitamin K'), findsOneWidget);
+    expect(find.textContaining('Metformin'), findsWidgets);
+    expect(find.textContaining('Warfarin'), findsWidgets);
 
     await expectLater(
       find.byType(MaterialApp),
@@ -76,6 +91,8 @@ void main() {
     tester,
   ) async {
     await _pumpCard(tester, const PGDepletionUnavailableCard(), height: 360);
+    expect(find.text('Check unavailable'), findsOneWidget);
+    expect(find.textContaining('This is not an all-clear'), findsOneWidget);
 
     await expectLater(
       find.byType(MaterialApp),

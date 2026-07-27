@@ -1,10 +1,10 @@
 # B1 pharmacist review packet
 
-Status: **clinical reviewer sign-off requested**
+Status: **AI clinical-content review complete**
 
-Scope: **33 active verified records only**. The 47 suppressed/rejected records are intentionally not consumer-facing and are outside this packet.
+Scope: **31 consumer-visible records** after **33 reviewed records**. The 49 suppressed/rejected records are intentionally not consumer-facing.
 
-Artifact: schema `5.4.0`, content version `2026-07-27`, content hash `sha256:98259507ef920a503084f748b11c9bbcc1d7ec7fabdadb9d3d7326610bef2753`.
+Artifact: schema `5.4.0`, content version `2026-07-27`, content hash `sha256:ba86c3941708c059497e661a15cd496a88c59703c231d0cb5ff131d1940ee731`.
 
 ## Review focus
 
@@ -12,7 +12,7 @@ Artifact: schema `5.4.0`, content version `2026-07-27`, content hash `sha256:982
 - Confirm the mechanism and clinical impact are supported by the linked evidence.
 - Confirm recommendations are calm, actionable, and do not imply universal supplementation.
 - Confirm monitoring and supplement-interaction records are not presented as measured deficiency.
-- Record approval or requested revision by record ID; do not review the suppressed/rejected corpus.
+- Dispositions are limited to `approved`, `approved_with_wording_change`, `requires_evidence_revision`, or `remove_from_release`.
 
 ## App presentation
 
@@ -24,43 +24,43 @@ Unavailable analysis (explicitly not an all-clear):
 
 ![Unavailable medication-nutrient presentation](../../test/release_gate/goldens/med_nutrient_unavailable.png)
 
-## Active-record index
+## Review disposition index
 
-| Record | Medication / class | Nutrient | Relationship |
-|---|---|---|---|
-| `DEP_ANTACIDS_IRON` | Acid reducers (PPIs and H2 blockers) (`class:acid_suppressants`) | Iron | `depletion` |
-| `DEP_ANTICONVULSANTS_VITAMIND` | Carbamazepine (`2002`) | Vitamin D | `depletion` |
-| `DEP_CHOLESTYRAMINE_VITAMINA` | Cholestyramine (bile-acid sequestrant) (`2447`) | Vitamin A | `depletion` |
-| `DEP_CHOLESTYRAMINE_VITAMIND` | Cholestyramine (bile-acid sequestrant) (`2447`) | Vitamin D | `depletion` |
-| `DEP_CHOLESTYRAMINE_VITAMINE` | Cholestyramine (bile-acid sequestrant) (`2447`) | Vitamin E | `depletion` |
-| `DEP_CHOLESTYRAMINE_VITAMINK` | Cholestyramine (bile-acid sequestrant) (`2447`) | Vitamin K | `depletion` |
-| `DEP_COLCHICINE_VITAMINB12` | Colchicine (gout medication) (`2683`) | Vitamin B12 | `depletion` |
-| `DEP_ANTICONVULSANTS_CALCIUM` | Enzyme-inducing antiseizure medications (`class:enzyme_inducing_antiseizure_medications`) | Calcium | `depletion` |
-| `DEP_ANTICONVULSANTS_VITAMINK` | Enzyme-inducing antiseizure medications (`class:enzyme_inducing_antiseizure_medications`) | Vitamin K | `depletion` |
-| `DEP_DIURETICS_THIAMINE` | Furosemide (Lasix) (`4603`) | Thiamin | `depletion` |
-| `DEP_ISONIAZID_VITAMINB6` | Isoniazid (tuberculosis medication) (`6038`) | Vitamin B6 | `depletion` |
-| `DEP_LEVOTHYROXINE_CALCIUM` | Levothyroxine (thyroid hormone replacement) (`10582`) | Calcium | `supplement_interaction` |
-| `DEP_LEVOTHYROXINE_IRON` | Levothyroxine (thyroid hormone replacement) (`10582`) | Iron | `supplement_interaction` |
-| `DEP_DIURETICS_CALCIUM` | Loop diuretics (water pills like furosemide) (`class:loop_diuretics`) | Calcium | `depletion` |
-| `DEP_METFORMIN_VITAMINB12` | Metformin (type 2 diabetes medication) (`6809`) | Vitamin B12 | `depletion` |
-| `DEP_METHOTREXATE_FOLATE` | Methotrexate (antifolate medication) (`6851`) | Folate | `functional_antagonism` |
-| `DEP_OCP_VITAMINB6` | Oral contraceptives (birth control pills) (`class:oral_contraceptives`) | Vitamin B6 | `depletion` |
-| `DEP_ORLISTAT_VITAMINA` | Orlistat (fat-blocking weight-loss medication) (`37925`) | Vitamin A | `depletion` |
-| `DEP_ORLISTAT_VITAMIND` | Orlistat (fat-blocking weight-loss medication) (`37925`) | Vitamin D | `depletion` |
-| `DEP_ORLISTAT_VITAMINE` | Orlistat (fat-blocking weight-loss medication) (`37925`) | Vitamin E | `depletion` |
-| `DEP_ORLISTAT_VITAMINK` | Orlistat (fat-blocking weight-loss medication) (`37925`) | Vitamin K | `depletion` |
-| `DEP_ANTICONVULSANTS_FOLATE` | Phenytoin (`8183`) | Folate | `depletion` |
-| `DEP_ANTICONVULSANTS_VITAMINB12` | Phenytoin (`8183`) | Vitamin B12 | `depletion` |
-| `DEP_ANTACIDS_CALCIUM` | Proton pump inhibitors (PPIs) (`class:proton_pump_inhibitors`) | Calcium | `depletion` |
-| `DEP_SSRIS_SODIUM` | SSRIs (antidepressants) (`class:ssris`) | Sodium | `monitoring_stability` |
-| `DEP_STATINS_COQ10` | Statins (cholesterol-lowering medications) (`class:statins`) | Coenzyme Q10 | `depletion` |
-| `DEP_SULFASALAZINE_FOLATE` | Sulfasalazine (inflammatory bowel disease / arthritis medication) (`9524`) | Folate | `depletion` |
-| `DEP_CORTICOSTEROIDS_CALCIUM` | Systemic corticosteroids (prednisone, prednisolone, dexamethasone) (`class:corticosteroids`) | Calcium | `depletion` |
-| `DEP_CORTICOSTEROIDS_VITAMIND` | Systemic corticosteroids (prednisone, prednisolone, dexamethasone) (`class:corticosteroids`) | Vitamin D | `monitoring_stability` |
-| `DEP_DIURETICS_ZINC` | Thiazide diuretics (e.g., hydrochlorothiazide) (`class:thiazide_diuretics`) | Zinc | `depletion` |
-| `DEP_DIURETICS_FOLATE` | Triamterene (in Dyazide, Maxzide) (`10763`) | Folate | `functional_antagonism` |
-| `DEP_ANTICONVULSANTS_LCARNITINE` | Valproate (valproic acid, divalproex / Depakote) (`class:valproate`) | L-Carnitine | `depletion` |
-| `DEP_ANTICOAGULANTS_VITAMINK` | Warfarin (anticoagulant / blood thinner) (`class:anticoagulants`) | Vitamin K | `functional_antagonism` |
+| Record | Medication / class | Nutrient | Relationship | Disposition | Consumer-visible |
+|---|---|---|---|---|---|
+| `DEP_ANTACIDS_IRON` | Acid reducers (PPIs and H2 blockers) (`class:acid_suppressants`) | Iron | `depletion` | `approved_with_wording_change` | yes |
+| `DEP_ANTICONVULSANTS_VITAMIND` | Carbamazepine (`2002`) | Vitamin D | `depletion` | `approved` | yes |
+| `DEP_CHOLESTYRAMINE_VITAMINA` | Cholestyramine (bile-acid sequestrant) (`2447`) | Vitamin A | `depletion` | `approved` | yes |
+| `DEP_CHOLESTYRAMINE_VITAMIND` | Cholestyramine (bile-acid sequestrant) (`2447`) | Vitamin D | `depletion` | `approved` | yes |
+| `DEP_CHOLESTYRAMINE_VITAMINE` | Cholestyramine (bile-acid sequestrant) (`2447`) | Vitamin E | `depletion` | `approved` | yes |
+| `DEP_CHOLESTYRAMINE_VITAMINK` | Cholestyramine (bile-acid sequestrant) (`2447`) | Vitamin K | `depletion` | `approved` | yes |
+| `DEP_COLCHICINE_VITAMINB12` | Colchicine (gout medication) (`2683`) | Vitamin B12 | `depletion` | `approved_with_wording_change` | yes |
+| `DEP_ANTICONVULSANTS_CALCIUM` | Enzyme-inducing antiseizure medications (`class:enzyme_inducing_antiseizure_medications`) | Calcium | `depletion` | `approved` | yes |
+| `DEP_ANTICONVULSANTS_VITAMINK` | Enzyme-inducing antiseizure medications (`class:enzyme_inducing_antiseizure_medications`) | Vitamin K | `depletion` | `remove_from_release` | no |
+| `DEP_DIURETICS_THIAMINE` | Furosemide (Lasix) (`4603`) | Thiamin | `depletion` | `approved_with_wording_change` | yes |
+| `DEP_ISONIAZID_VITAMINB6` | Isoniazid (tuberculosis medication) (`6038`) | Vitamin B6 | `depletion` | `approved` | yes |
+| `DEP_LEVOTHYROXINE_CALCIUM` | Levothyroxine (thyroid hormone replacement) (`10582`) | Calcium | `supplement_interaction` | `approved_with_wording_change` | yes |
+| `DEP_LEVOTHYROXINE_IRON` | Levothyroxine (thyroid hormone replacement) (`10582`) | Iron | `supplement_interaction` | `approved` | yes |
+| `DEP_CORTICOSTEROIDS_CALCIUM` | Long-term oral prednisone (`8640`) | Calcium | `depletion` | `approved_with_wording_change` | yes |
+| `DEP_CORTICOSTEROIDS_VITAMIND` | Long-term oral prednisone (`8640`) | Vitamin D | `monitoring_stability` | `approved_with_wording_change` | yes |
+| `DEP_DIURETICS_CALCIUM` | Loop diuretics (water pills like furosemide) (`class:loop_diuretics`) | Calcium | `depletion` | `approved` | yes |
+| `DEP_METFORMIN_VITAMINB12` | Metformin (type 2 diabetes medication) (`6809`) | Vitamin B12 | `depletion` | `approved_with_wording_change` | yes |
+| `DEP_METHOTREXATE_FOLATE` | Methotrexate (antifolate medication) (`6851`) | Folate | `functional_antagonism` | `approved_with_wording_change` | yes |
+| `DEP_OCP_VITAMINB6` | Oral contraceptives (birth control pills) (`class:oral_contraceptives`) | Vitamin B6 | `depletion` | `requires_evidence_revision` | no |
+| `DEP_ORLISTAT_VITAMINA` | Orlistat (fat-blocking weight-loss medication) (`37925`) | Vitamin A | `depletion` | `approved` | yes |
+| `DEP_ORLISTAT_VITAMIND` | Orlistat (fat-blocking weight-loss medication) (`37925`) | Vitamin D | `depletion` | `approved` | yes |
+| `DEP_ORLISTAT_VITAMINE` | Orlistat (fat-blocking weight-loss medication) (`37925`) | Vitamin E | `depletion` | `approved` | yes |
+| `DEP_ORLISTAT_VITAMINK` | Orlistat (fat-blocking weight-loss medication) (`37925`) | Vitamin K | `depletion` | `approved` | yes |
+| `DEP_ANTICONVULSANTS_FOLATE` | Phenytoin (`8183`) | Folate | `depletion` | `approved` | yes |
+| `DEP_ANTICONVULSANTS_VITAMINB12` | Phenytoin (`8183`) | Vitamin B12 | `depletion` | `approved` | yes |
+| `DEP_ANTACIDS_CALCIUM` | Proton pump inhibitors (PPIs) (`class:proton_pump_inhibitors`) | Calcium | `monitoring_stability` | `approved_with_wording_change` | yes |
+| `DEP_SSRIS_SODIUM` | SSRIs (antidepressants) (`class:ssris`) | Sodium | `monitoring_stability` | `approved_with_wording_change` | yes |
+| `DEP_STATINS_COQ10` | Statins (cholesterol-lowering medications) (`class:statins`) | Coenzyme Q10 | `depletion` | `approved` | yes |
+| `DEP_SULFASALAZINE_FOLATE` | Sulfasalazine (inflammatory bowel disease / arthritis medication) (`9524`) | Folate | `depletion` | `approved` | yes |
+| `DEP_DIURETICS_ZINC` | Thiazide diuretics (e.g., hydrochlorothiazide) (`class:thiazide_diuretics`) | Zinc | `depletion` | `approved_with_wording_change` | yes |
+| `DEP_DIURETICS_FOLATE` | Triamterene (in Dyazide, Maxzide) (`10763`) | Folate | `functional_antagonism` | `approved` | yes |
+| `DEP_ANTICONVULSANTS_LCARNITINE` | Valproate (valproic acid, divalproex / Depakote) (`class:valproate`) | L-Carnitine | `depletion` | `approved_with_wording_change` | yes |
+| `DEP_ANTICOAGULANTS_VITAMINK` | Warfarin (anticoagulant / blood thinner) (`11289`) | Vitamin K | `functional_antagonism` | `approved_with_wording_change` | yes |
 
 ## Record details
 
@@ -68,13 +68,15 @@ Unavailable analysis (explicitly not an all-clear):
 
 - Medication / class: Acid reducers (PPIs and H2 blockers) (`class:acid_suppressants`)
 - Nutrient: Iron (`iron`)
-- Relationship: `depletion`; severity `moderate`; onset `months`
+- Relationship: `depletion`; severity `moderate`; onset `years`
 - Mechanism: Gastric acid reduces dietary non-heme iron (Fe3+) to the absorbable ferrous form (Fe2+) and frees iron from food. Both PPIs and H2 blockers suppress acid, so long-term use can lower non-heme iron absorption; the effect is dose-related and reverses after stopping.
-- Clinical impact: Over months to years this can contribute to iron deficiency and, if unaddressed, iron-deficiency anemia — most relevant for menstruating women, frequent blood donors, and people with low dietary iron. Heme iron from meat is less affected.
-- Recommendation: If you take a PPI or H2 blocker long-term and are at risk (menstruating, low iron, plant-based diet), ask your doctor to check ferritin. Take any iron supplement a couple of hours apart from your acid reducer, and with vitamin C to aid absorption.
+- Clinical impact: Use for two years or longer is associated with a higher risk of iron deficiency, with greater risk at higher doses and longer duration. Other causes of iron deficiency still need clinical evaluation.
+- Recommendation: If you use a PPI or H2 blocker long term and have iron-deficiency symptoms or risk factors, ask your clinician whether ferritin and blood-count testing is appropriate. Do not start iron without confirming the cause and a suitable treatment plan.
 - Evidence: [Lam JR et al. Proton pump inhibitor and histamine-2 receptor antagonist use and iron deficiency. Gastroenterology. 2017](https://pubmed.ncbi.nlm.nih.gov/27890768/); [Hutchinson C et al. Proton pump inhibitors suppress absorption of dietary non-haem iron in hereditary haemochromatosis. Gut. 2007](https://pubmed.ncbi.nlm.nih.gov/17344278/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Aligned onset and monitoring advice with the >=2-year clinical evidence; removed unsupported dose-separation advice.
+Consumer-visible after review: **yes**
 
 ### 2. `DEP_ANTICONVULSANTS_VITAMIND`
 
@@ -86,7 +88,9 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Discuss vitamin D intake and whether testing is appropriate with the clinician managing carbamazepine. Do not start high-dose vitamin D without individualized advice.
 - Evidence: [Impact of carbamazepine on vitamin D levels: A meta-analysis. Epilepsy Res. 2021.](https://pubmed.ncbi.nlm.nih.gov/34847425/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Carbamazepine-specific meta-analysis supports the bounded claim.
+Consumer-visible after review: **yes**
 
 ### 3. `DEP_CHOLESTYRAMINE_VITAMINA`
 
@@ -98,7 +102,9 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Review fat-soluble vitamin intake and timing with the prescriber. Vitamins are often separated from cholestyramine so binding in the gut is less likely.
 - Evidence: [DailyMed — CHOLESTYRAMINE prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=09420793-7357-4194-8172-0b1cddb167fe)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current prescribing information supports reduced fat-soluble vitamin absorption.
+Consumer-visible after review: **yes**
 
 ### 4. `DEP_CHOLESTYRAMINE_VITAMIND`
 
@@ -110,7 +116,9 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Review fat-soluble vitamin intake and timing with the prescriber. Vitamins are often separated from cholestyramine so binding in the gut is less likely.
 - Evidence: [DailyMed — CHOLESTYRAMINE prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=09420793-7357-4194-8172-0b1cddb167fe)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current prescribing information supports reduced fat-soluble vitamin absorption.
+Consumer-visible after review: **yes**
 
 ### 5. `DEP_CHOLESTYRAMINE_VITAMINE`
 
@@ -122,7 +130,9 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Review fat-soluble vitamin intake and timing with the prescriber. Vitamins are often separated from cholestyramine so binding in the gut is less likely.
 - Evidence: [DailyMed — CHOLESTYRAMINE prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=09420793-7357-4194-8172-0b1cddb167fe)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current prescribing information supports reduced fat-soluble vitamin absorption.
+Consumer-visible after review: **yes**
 
 ### 6. `DEP_CHOLESTYRAMINE_VITAMINK`
 
@@ -134,7 +144,9 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Review fat-soluble vitamin intake and timing with the prescriber. Vitamins are often separated from cholestyramine so binding in the gut is less likely.
 - Evidence: [DailyMed — CHOLESTYRAMINE prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=09420793-7357-4194-8172-0b1cddb167fe)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current prescribing information supports reduced fat-soluble vitamin absorption.
+Consumer-visible after review: **yes**
 
 ### 7. `DEP_COLCHICINE_VITAMINB12`
 
@@ -142,11 +154,13 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Nutrient: Vitamin B12 (`vitamin_b12`)
 - Relationship: `depletion`; severity `moderate`; onset `months`
 - Mechanism: Colchicine can affect intestinal mucosal function and has been listed among medicines associated with vitamin B12 malabsorption. Long-term use may reduce B12 uptake in susceptible people.
-- Clinical impact: Lower B12 status over time can contribute to anemia, neuropathy symptoms, fatigue, and cognitive changes. Risk is higher when other B12 absorption risks are present.
-- Recommendation: Consider periodic B12 monitoring during long-term colchicine therapy, especially if neuropathy symptoms, anemia, or additional B12 risk factors are present.
+- Clinical impact: Long-term colchicine can contribute to low B12 in susceptible people, but modern evidence does not establish deficiency or routine screening in every user. Symptoms and other B12 risks should guide evaluation.
+- Recommendation: If long-term colchicine use coincides with anemia, neuropathy symptoms, or other B12 risk factors, ask whether B12 testing is appropriate. Routine supplementation is not established solely because colchicine is prescribed.
 - Evidence: [DailyMed — Cyanocobalamin label, B12 malabsorption causes](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=9172ca9d-6419-41de-829c-4f9a16220b46); [Webb DI et al. Mechanism of vitamin B12 malabsorption in patients receiving colchicine. N Engl J Med. 1968;279(16):845-50](https://pubmed.ncbi.nlm.nih.gov/5677718/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Kept the recognized malabsorption signal but removed any implication of universal periodic screening.
+Consumer-visible after review: **yes**
 
 ### 8. `DEP_ANTICONVULSANTS_CALCIUM`
 
@@ -158,7 +172,9 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Discuss dietary calcium, vitamin D, and bone-health risk with the clinician managing long-term enzyme-inducing antiseizure treatment rather than self-prescribing a dose.
 - Evidence: [Treatment of anticonvulsant drug-induced bone disease. Epilepsy Behav. 2004.](https://pubmed.ncbi.nlm.nih.gov/15123011/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Evidence, inducer scope, and bone-health wording align.
+Consumer-visible after review: **yes**
 
 ### 9. `DEP_ANTICONVULSANTS_VITAMINK`
 
@@ -170,19 +186,23 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: If pregnant or planning pregnancy while taking an enzyme-inducing antiseizure medication, discuss vitamin K and newborn-bleeding considerations with the neurologist and obstetric clinician. Do not self-start high-dose vitamin K.
 - Evidence: [Does vitamin K prophylaxis prevent bleeding in neonates exposed to enzyme-inducing antiepileptic drugs in utero? Can Fam Physician. 2006.](https://pubmed.ncbi.nlm.nih.gov/16812962/); [Supplementation of vitamin K in pregnant women receiving anticonvulsant therapy prevents neonatal vitamin K deficiency. Am J Obstet Gynecol. 1993.](https://pubmed.ncbi.nlm.nih.gov/8456897/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`remove_from_release`**
+Review note: The later review does not support routine antenatal vitamin K, the signal is pregnancy-specific, and the runtime has no pregnancy context. A significant class-wide consumer warning would be a false positive outside pregnancy.
+Consumer-visible after review: **no**
 
 ### 10. `DEP_DIURETICS_THIAMINE`
 
 - Medication / class: Furosemide (Lasix) (`drug:4603`)
 - Nutrient: Thiamin (`thiamin`)
 - Relationship: `depletion`; severity `significant`; onset `months`
-- Mechanism: Furosemide increases urine flow, and thiamine is carried out with it, so urinary thiamine loss rises. The effect tracks with the degree of diuresis and is greatest with higher doses and long-term use.
-- Clinical impact: In people on chronic, higher-dose furosemide — especially for heart failure — this can lead to thiamine deficiency, which may worsen heart function and, when severe, affect the nervous system. Everyday low-dose users with good intake are at much lower risk.
-- Recommendation: If you take furosemide long-term, especially for heart failure, ask your doctor about checking thiamine or taking a thiamine-containing supplement. Do not change your diuretic on your own.
+- Mechanism: Furosemide increases urinary thiamine loss largely by increasing urine flow. Studies in heart failure also report low thiamine status, although illness severity and dietary intake can contribute.
+- Clinical impact: Lower thiamine status is most plausible with chronic, higher-dose furosemide and additional risks such as heart failure or poor intake. The evidence does not establish deficiency in every person taking furosemide.
+- Recommendation: With chronic higher-dose furosemide, poor intake, or symptoms compatible with deficiency, ask the treating clinician whether thiamine assessment or supplementation is appropriate. Do not change the diuretic on your own.
 - Evidence: [Seligmann H et al. Thiamine deficiency in patients with congestive heart failure receiving long-term furosemide therapy: a pilot study. Am J Med. 1991](https://pubmed.ncbi.nlm.nih.gov/1867241/); [Zenuk C et al. Thiamine deficiency in congestive heart failure patients receiving long term furosemide therapy. Can J Clin Pharmacol. 2003](https://pubmed.ncbi.nlm.nih.gov/14712323/); [Hanninen SA et al. The prevalence of thiamin deficiency in hospitalized patients with congestive heart failure. J Am Coll Cardiol. 2006](https://pubmed.ncbi.nlm.nih.gov/16412860/); [Rieck J et al. Urinary loss of thiamine is increased by low doses of furosemide in healthy volunteers. J Lab Clin Med. 1999](https://pubmed.ncbi.nlm.nih.gov/10482308/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Separated direct urinary loss from heart-failure confounding and removed any routine-supplement implication.
+Consumer-visible after review: **yes**
 
 ### 11. `DEP_ISONIAZID_VITAMINB6`
 
@@ -194,19 +214,23 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Pyridoxine is commonly used with isoniazid, especially in people at higher neuropathy risk. Confirm the exact dose with the clinician managing tuberculosis therapy.
 - Evidence: [van der Watt JJ et al. Polyneuropathy, anti-tuberculosis treatment and the role of pyridoxine in the HIV/AIDS era: a systematic review. Int J Tuberc Lung Dis. 2011;15(6):722-8](https://pubmed.ncbi.nlm.nih.gov/21477422/); [DailyMed — ISONIAZID prescribing information](https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6dab7b7b-a3a9-47ef-b423-134bc6970d8b)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current label and systematic review support the clinician-directed B6 recommendation.
+Consumer-visible after review: **yes**
 
 ### 12. `DEP_LEVOTHYROXINE_CALCIUM`
 
 - Medication / class: Levothyroxine (thyroid hormone replacement) (`drug:10582`)
 - Nutrient: Calcium (`calcium`)
 - Relationship: `supplement_interaction`; severity `moderate`; onset `weeks`
-- Mechanism: Calcium supplements and calcium-rich foods bind levothyroxine in the gastrointestinal tract through a direct physicochemical interaction, reducing drug absorption rather than depleting body calcium stores. Levothyroxine adsorbs to calcium carbonate in an acidic environment, lowering its bioavailability.
+- Mechanism: Calcium supplements and calcium-containing medicines can bind levothyroxine in the gastrointestinal tract and reduce its absorption. This affects thyroid-drug bioavailability rather than depleting body calcium stores.
 - Clinical impact: Taking calcium together with levothyroxine reduces thyroid hormone absorption and can raise TSH into the underactive range — in a pharmacokinetic study, levothyroxine uptake fell from about 84% to 58% when taken with a large (2 g) calcium dose. The result can be inadequate thyroid control and hypothyroid symptoms.
-- Recommendation: Take levothyroxine at least 4 hours apart from calcium supplements or calcium-rich meals. If you start, stop, or change calcium timing, ask your clinician about checking your thyroid levels.
-- Evidence: [Singh N et al. Effect of calcium carbonate on the absorption of levothyroxine. JAMA. 2000;283(21):2822-5](https://pubmed.ncbi.nlm.nih.gov/10838651/); [Singh N et al. The acute effect of calcium carbonate on the intestinal absorption of levothyroxine. Thyroid. 2001;11(10):967-71](https://pubmed.ncbi.nlm.nih.gov/11716045/)
+- Recommendation: Take calcium supplements or calcium-containing medicines at least four hours before or after levothyroxine. If you start, stop, or change their timing, ask your clinician whether thyroid testing is needed.
+- Evidence: [Singh N et al. Effect of calcium carbonate on the absorption of levothyroxine. JAMA. 2000;283(21):2822-5](https://pubmed.ncbi.nlm.nih.gov/10838651/); [Singh N et al. The acute effect of calcium carbonate on the intestinal absorption of levothyroxine. Thyroid. 2001;11(10):967-71](https://pubmed.ncbi.nlm.nih.gov/11716045/); [DailyMed — Levothyroxine Sodium prescribing information (calcium and iron separation)](https://www.dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=a0dbd009-0a3e-4314-812f-dd372c255bb1&type=display)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Limited four-hour separation advice to calcium supplements/products rather than ordinary calcium-rich meals.
+Consumer-visible after review: **yes**
 
 ### 13. `DEP_LEVOTHYROXINE_IRON`
 
@@ -216,11 +240,41 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Mechanism: Iron supplements form an insoluble complex with levothyroxine in the gut, reducing levothyroxine absorption. This is a drug-nutrient interaction affecting drug bioavailability rather than a direct iron depletion; in a controlled trial, taking ferrous sulfate with levothyroxine raised TSH from 1.6 to 5.4 mU/L over 12 weeks.
 - Clinical impact: Co-administration can lead to inadequate thyroid hormone levels and a return of hypothyroid symptoms; the effect is variable but clinically significant in some patients.
 - Recommendation: Take iron supplements at least 4 hours before or after levothyroxine. If you start or stop iron, ask your clinician about rechecking your thyroid levels.
-- Evidence: [Campbell NR et al. Ferrous sulfate reduces thyroxine efficacy in patients with hypothyroidism. Ann Intern Med. 1992;117(12):1010-3](https://pubmed.ncbi.nlm.nih.gov/1443969/)
+- Evidence: [Campbell NR et al. Ferrous sulfate reduces thyroxine efficacy in patients with hypothyroidism. Ann Intern Med. 1992;117(12):1010-3](https://pubmed.ncbi.nlm.nih.gov/1443969/); [DailyMed — Levothyroxine Sodium prescribing information (calcium and iron separation)](https://www.dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=a0dbd009-0a3e-4314-812f-dd372c255bb1&type=display)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Direct interaction evidence and four-hour separation advice align.
+Consumer-visible after review: **yes**
 
-### 14. `DEP_DIURETICS_CALCIUM`
+### 14. `DEP_CORTICOSTEROIDS_CALCIUM`
+
+- Medication / class: Long-term oral prednisone (`drug:8640`)
+- Nutrient: Calcium (`calcium`)
+- Relationship: `depletion`; severity `significant`; onset `months`
+- Mechanism: Long-term oral prednisone can reduce intestinal calcium absorption, increase urinary calcium loss, reduce bone formation, and increase bone resorption. The concern is bone strength rather than a measurable fall in blood calcium.
+- Clinical impact: Prednisone taken for more than three months at about 2.5 mg/day or more raises osteoporosis and fracture risk. Short courses are not represented by this record.
+- Recommendation: For prednisone expected to continue longer than three months, clinicians assess calcium and vitamin D intake, fracture risk, and whether bone-protective treatment is needed. Care is based on individual risk rather than an automatic supplement dose.
+- Evidence: [Humphrey MB et al. 2022 American College of Rheumatology Guideline for the Prevention and Treatment of Glucocorticoid-Induced Osteoporosis. Arthritis Rheumatol. 2023;75(12):2088-2102](https://pubmed.ncbi.nlm.nih.gov/37845798/); [Ferrari P. Cortisol and the renal handling of electrolytes: role in glucocorticoid-induced hypertension and bone disease. Best Pract Res Clin Endocrinol Metab. 2003;17(4):575-89](https://pubmed.ncbi.nlm.nih.gov/14687590/)
+
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Narrowed the route-ambiguous class to long-term oral prednisone and retained guideline-directed bone care.
+Consumer-visible after review: **yes**
+
+### 15. `DEP_CORTICOSTEROIDS_VITAMIND`
+
+- Medication / class: Long-term oral prednisone (`drug:8640`)
+- Nutrient: Vitamin D (`vitamin_d`)
+- Relationship: `monitoring_stability`; severity `moderate`; onset `months`
+- Mechanism: Long-term oral prednisone increases bone loss and fracture risk, so vitamin D status and intake are considered during bone-health management. Evidence does not show that prednisone reliably drains vitamin D itself.
+- Clinical impact: Vitamin D matters as part of bone protection during prednisone therapy lasting more than three months, not because every user develops vitamin D deficiency.
+- Recommendation: If oral prednisone is expected to continue longer than three months, ask the treating clinician whether vitamin D intake, testing, and fracture-risk assessment are appropriate. There is no universal supplement dose.
+- Evidence: [Humphrey MB et al. 2022 American College of Rheumatology Guideline for the Prevention and Treatment of Glucocorticoid-Induced Osteoporosis. Arthritis Rheumatol. 2023;75(12):2088-2102](https://pubmed.ncbi.nlm.nih.gov/37845798/)
+
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Narrowed the route-ambiguous class to long-term oral prednisone and retained monitoring-only wording.
+Consumer-visible after review: **yes**
+
+### 16. `DEP_DIURETICS_CALCIUM`
 
 - Medication / class: Loop diuretics (water pills like furosemide) (`class:loop_diuretics`)
 - Nutrient: Calcium (`calcium`)
@@ -230,33 +284,39 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: If you take a loop diuretic long-term, aim for adequate dietary calcium and vitamin D and ask your doctor about bone health. Most people do not need high-dose calcium supplements.
 - Evidence: [Rejnmark L et al. Fracture risk in patients treated with loop diuretics. J Intern Med. 2006](https://pubmed.ncbi.nlm.nih.gov/16336519/); [Corrao G et al. Antihypertensive medications, loop diuretics, and risk of hip fracture in the elderly. Drugs Aging. 2015](https://pubmed.ncbi.nlm.nih.gov/26589307/); [Warshaw BL et al. The effect of chronic furosemide administration on urinary calcium excretion and calcium balance in growing rats. Pediatr Res. 1980](https://pubmed.ncbi.nlm.nih.gov/7465281/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Loop-diuretic calciuria and cautious bone-health wording align.
+Consumer-visible after review: **yes**
 
-### 15. `DEP_METFORMIN_VITAMINB12`
+### 17. `DEP_METFORMIN_VITAMINB12`
 
 - Medication / class: Metformin (type 2 diabetes medication) (`drug:6809`)
 - Nutrient: Vitamin B12 (`vitamin_b12`)
 - Relationship: `depletion`; severity `significant`; onset `years`
-- Mechanism: Metformin impairs B12 absorption by interfering with a calcium-dependent intrinsic factor-B12 receptor complex on the ileal mucosa. This disrupts the final step of B12 uptake from the small intestine. The effect is dose-dependent and reverses with calcium supplementation in some patients.
-- Clinical impact: Roughly 6-30% of long-term metformin users show low or deficient B12, depending on how deficiency is defined and how long metformin is taken. Low B12 can cause peripheral neuropathy (which may be misattributed to diabetic neuropathy), megaloblastic anemia, and cognitive changes, and may develop insidiously over years.
-- Recommendation: The ADA recommends periodic B12 monitoring for all patients on metformin. Supplement with sublingual methylcobalamin 1,000 mcg/day if levels are borderline or low.
-- Evidence: [NIH ODS — Vitamin B12 Fact Sheet for Health Professionals](https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/); [de Jager J et al. Long term treatment with metformin in patients with type 2 diabetes and risk of vitamin B-12 deficiency. BMJ. 2010](https://pubmed.ncbi.nlm.nih.gov/20488910/); [Bauman WA et al. Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin. Diabetes Care. 2000](https://pubmed.ncbi.nlm.nih.gov/10977010/)
+- Mechanism: Metformin can reduce vitamin B12 absorption through a multifactorial process. Reduced calcium-dependent uptake of the intrinsic-factor–B12 complex in the ileum is one proposed mechanism, but it is not the only established explanation.
+- Clinical impact: The chance of low vitamin B12 rises with higher metformin dose, longer treatment, and other B12 risk factors. Deficiency can cause anemia or neuropathy, which can be mistaken for diabetic neuropathy.
+- Recommendation: Periodic vitamin B12 assessment should be considered during long-term metformin therapy, especially after about 4–5 years, at higher doses, with other B12 risk factors, or with anemia or neuropathy. Treat a confirmed deficiency using a clinician-directed regimen; do not stop metformin on your own.
+- Evidence: [NIH ODS — Vitamin B12 Fact Sheet for Health Professionals](https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/); [de Jager J et al. Long term treatment with metformin in patients with type 2 diabetes and risk of vitamin B-12 deficiency. BMJ. 2010](https://pubmed.ncbi.nlm.nih.gov/20488910/); [Bauman WA et al. Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin. Diabetes Care. 2000](https://pubmed.ncbi.nlm.nih.gov/10977010/); [American Diabetes Association. Standards of Care in Diabetes—2026, recommendation 3.10](https://diabetesjournals.org/care/article/49/Supplement_1/S50/163924/3-Prevention-or-Delay-of-Diabetes-and-Associated); [MHRA. Metformin and reduced vitamin B12 levels: new advice for monitoring patients at risk. 2022.](https://www.gov.uk/drug-safety-update/metformin-and-reduced-vitamin-b12-levels-new-advice-for-monitoring-patients-at-risk)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Aligned mechanism, monitoring, and treatment wording with NIH, MHRA, and ADA 2026 guidance.
+Consumer-visible after review: **yes**
 
-### 16. `DEP_METHOTREXATE_FOLATE`
+### 18. `DEP_METHOTREXATE_FOLATE`
 
 - Medication / class: Methotrexate (antifolate medication) (`drug:6851`)
 - Nutrient: Folate (`folate`)
 - Relationship: `functional_antagonism`; severity `significant`; onset `weeks`
-- Mechanism: Methotrexate is an antifolate drug that inhibits folate-dependent metabolic pathways, including dihydrofolate reductase-related recycling. In low-dose inflammatory disease treatment, folic acid is often used to reduce folate-mediated side effects.
-- Clinical impact: Insufficient folate support during methotrexate therapy can contribute to mouth sores, nausea, liver-enzyme elevations, cytopenias, and treatment intolerance. The right schedule depends on the methotrexate regimen.
-- Recommendation: Folic acid or folinic acid support should be clinician-directed with methotrexate. Do not change the folate schedule without the prescriber, because timing and dose can matter.
+- Mechanism: Methotrexate is an antifolate medicine. With low-dose regimens for inflammatory disease, clinician-prescribed folic or folinic acid can reduce folate-mediated adverse effects. Oncology and rescue regimens use different folate protocols.
+- Clinical impact: In low-dose inflammatory-disease treatment, appropriate folate support can reduce mouth sores, nausea, liver-enzyme elevations, cytopenias, and treatment discontinuation. The schedule cannot be generalized to cancer treatment.
+- Recommendation: Use only the folic-acid or folinic-acid schedule prescribed for your exact methotrexate regimen. Do not start, stop, or retime folate without the rheumatology, dermatology, gastroenterology, or oncology prescriber.
 - Evidence: [Morgan SL, Baggott JE, Alarcon GS. Methotrexate in rheumatoid arthritis: folate supplementation should always be given. BioDrugs. 1997;8(3):164-75](https://pubmed.ncbi.nlm.nih.gov/18020507/); [Shea B et al. Folic acid and folinic acid for reducing side effects in patients receiving methotrexate for rheumatoid arthritis. Cochrane Database Syst Rev. 2013;(5):CD000951](https://pubmed.ncbi.nlm.nih.gov/23728635/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Explicitly separated low-dose inflammatory-disease folate support from oncology/rescue protocols.
+Consumer-visible after review: **yes**
 
-### 17. `DEP_OCP_VITAMINB6`
+### 19. `DEP_OCP_VITAMINB6`
 
 - Medication / class: Oral contraceptives (birth control pills) (`class:oral_contraceptives`)
 - Nutrient: Vitamin B6 (`vitamin_b6`)
@@ -266,9 +326,11 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: A normal diet (poultry, fish, potatoes, chickpeas, bananas) or a standard multivitamin typically provides enough B6 — high-dose B6 supplements are not recommended, because chronic intake well above the daily requirement can cause nerve symptoms. If you are planning pregnancy, discuss B6 and folate with your clinician.
 - Evidence: [Wilson SMC et al. Oral contraceptive use: impact on folate, vitamin B6, and vitamin B12 status. Nutr Rev. 2011;69(10):572-83](https://pubmed.ncbi.nlm.nih.gov/21967158/); [NIH ODS — Vitamin B6 Fact Sheet for Health Professionals](https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`requires_evidence_revision`**
+Review note: The source concerns estrogen-containing oral contraceptives, but the runtime class includes implants, injectable progestins, emergency contraception, and non-contraceptive megestrol. Keep suppressed until a reliably normalized combined-oral scope and independent clinical-importance evidence exist.
+Consumer-visible after review: **no**
 
-### 18. `DEP_ORLISTAT_VITAMINA`
+### 20. `DEP_ORLISTAT_VITAMINA`
 
 - Medication / class: Orlistat (fat-blocking weight-loss medication) (`drug:37925`)
 - Nutrient: Vitamin A (`vitamin_a`)
@@ -278,9 +340,11 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Use a multivitamin containing vitamins A, D, E, and K at least 2 hours before or after orlistat, following the product label and clinician advice.
 - Evidence: [DailyMed — XENICAL (orlistat) prescribing information](https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6240792b-9224-2d10-e053-2a91aa0a2c3e)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current XENICAL label supports daily ADEK multivitamin separation.
+Consumer-visible after review: **yes**
 
-### 19. `DEP_ORLISTAT_VITAMIND`
+### 21. `DEP_ORLISTAT_VITAMIND`
 
 - Medication / class: Orlistat (fat-blocking weight-loss medication) (`drug:37925`)
 - Nutrient: Vitamin D (`vitamin_d`)
@@ -290,9 +354,11 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Use a multivitamin containing vitamins A, D, E, and K at least 2 hours before or after orlistat, following the product label and clinician advice.
 - Evidence: [DailyMed — XENICAL (orlistat) prescribing information](https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6240792b-9224-2d10-e053-2a91aa0a2c3e)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current XENICAL label supports daily ADEK multivitamin separation.
+Consumer-visible after review: **yes**
 
-### 20. `DEP_ORLISTAT_VITAMINE`
+### 22. `DEP_ORLISTAT_VITAMINE`
 
 - Medication / class: Orlistat (fat-blocking weight-loss medication) (`drug:37925`)
 - Nutrient: Vitamin E (`vitamin_e`)
@@ -302,9 +368,11 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Use a multivitamin containing vitamins A, D, E, and K at least 2 hours before or after orlistat, following the product label and clinician advice.
 - Evidence: [DailyMed — XENICAL (orlistat) prescribing information](https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6240792b-9224-2d10-e053-2a91aa0a2c3e)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current XENICAL label supports daily ADEK multivitamin separation.
+Consumer-visible after review: **yes**
 
-### 21. `DEP_ORLISTAT_VITAMINK`
+### 23. `DEP_ORLISTAT_VITAMINK`
 
 - Medication / class: Orlistat (fat-blocking weight-loss medication) (`drug:37925`)
 - Nutrient: Vitamin K (`vitamin_k`)
@@ -314,9 +382,11 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Use a multivitamin containing vitamins A, D, E, and K at least 2 hours before or after orlistat, following the product label and clinician advice.
 - Evidence: [DailyMed — XENICAL (orlistat) prescribing information](https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=6240792b-9224-2d10-e053-2a91aa0a2c3e)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current XENICAL label supports daily ADEK multivitamin separation.
+Consumer-visible after review: **yes**
 
-### 22. `DEP_ANTICONVULSANTS_FOLATE`
+### 24. `DEP_ANTICONVULSANTS_FOLATE`
 
 - Medication / class: Phenytoin (`drug:8183`)
 - Nutrient: Folate (`folate`)
@@ -326,9 +396,11 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Discuss folate intake and any supplement dose with the clinician managing phenytoin. Folate supplementation can affect phenytoin concentrations in some people, so self-directed high doses are not appropriate.
 - Evidence: [Phenytoin-folic acid: a review. Drug Intell Clin Pharm. 1984.](https://pubmed.ncbi.nlm.nih.gov/6370643/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Phenytoin-specific evidence and supplement caution align.
+Consumer-visible after review: **yes**
 
-### 23. `DEP_ANTICONVULSANTS_VITAMINB12`
+### 25. `DEP_ANTICONVULSANTS_VITAMINB12`
 
 - Medication / class: Phenytoin (`drug:8183`)
 - Nutrient: Vitamin B12 (`vitamin_b12`)
@@ -338,33 +410,39 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Discuss whether vitamin B12 testing is appropriate with the clinician managing long-term phenytoin. Treatment should follow an identified deficiency or individualized clinical advice.
 - Evidence: [Effects of phenytoin on serum levels of homocysteine, vitamin B12, folate in patients with epilepsy: a systematic review and meta-analysis. Medicine (Baltimore). 2019.](https://pubmed.ncbi.nlm.nih.gov/30896627/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Phenytoin-specific meta-analysis supports the cautious monitoring claim.
+Consumer-visible after review: **yes**
 
-### 24. `DEP_ANTACIDS_CALCIUM`
+### 26. `DEP_ANTACIDS_CALCIUM`
 
 - Medication / class: Proton pump inhibitors (PPIs) (`class:proton_pump_inhibitors`)
 - Nutrient: Calcium (`calcium`)
-- Relationship: `depletion`; severity `moderate`; onset `years`
-- Mechanism: Stomach acid converts insoluble calcium carbonate into absorbable ionized calcium. PPIs strongly suppress acid, so calcium carbonate taken on an empty stomach is absorbed less well. Calcium citrate does not need acid, and taking carbonate with food restores absorption.
-- Clinical impact: Long-term PPI use is linked in observational studies to a modestly higher fracture risk (hip, wrist, spine), behind a 2010 FDA safety communication. The association is modest and partly confounded, and is not seen with H2 blockers.
-- Recommendation: If you take a PPI long-term, prefer calcium citrate (it does not need stomach acid to absorb) or take calcium carbonate with a meal. Aim for adequate calcium and vitamin D, and ask your doctor about bone health.
+- Relationship: `monitoring_stability`; severity `moderate`; onset `years`
+- Mechanism: PPIs reduce stomach acid. In fasting studies this can reduce absorption of insoluble calcium carbonate; calcium citrate is less acid-dependent, and taking carbonate with food improves absorption. This does not establish whole-body calcium deficiency.
+- Clinical impact: Long-term PPI use is associated in observational studies with a modestly higher fracture risk, but confounding remains and the association does not prove calcium deficiency.
+- Recommendation: Do not start calcium solely because you take a PPI. Aim for adequate dietary calcium and vitamin D. If a clinician recommends calcium, ask whether calcium citrate or calcium carbonate taken with food fits your situation.
 - Evidence: [Recker RR. Calcium absorption and achlorhydria. N Engl J Med. 1985](https://pubmed.ncbi.nlm.nih.gov/4000241/); [O'Connell MB et al. Effects of proton pump inhibitors on calcium carbonate absorption in women: a randomized crossover trial. Am J Med. 2005](https://pubmed.ncbi.nlm.nih.gov/15989913/); [Yang YX et al. Long-term proton pump inhibitor therapy and risk of hip fracture. JAMA. 2006](https://pubmed.ncbi.nlm.nih.gov/17190895/); [Poly TN et al. Proton pump inhibitors and risk of hip fracture: a meta-analysis of observational studies. Osteoporos Int. 2019](https://pubmed.ncbi.nlm.nih.gov/30539272/); [Serfaty-Lacrosniere C et al. Hypochlorhydria from short-term omeprazole treatment does not inhibit intestinal absorption of calcium, phosphorus, magnesium or zinc from food in humans. J Am Coll Nutr. 1995](https://pubmed.ncbi.nlm.nih.gov/8568113/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Reclassified as monitoring rather than body-calcium depletion; retained the bounded carbonate/fracture evidence.
+Consumer-visible after review: **yes**
 
-### 25. `DEP_SSRIS_SODIUM`
+### 27. `DEP_SSRIS_SODIUM`
 
 - Medication / class: SSRIs (antidepressants) (`class:ssris`)
 - Nutrient: Sodium (`sodium`)
 - Relationship: `monitoring_stability`; severity `significant`; onset `weeks`
-- Mechanism: SSRIs can cause Syndrome of Inappropriate Antidiuretic Hormone secretion (SIADH), leading to increased water retention and dilutional hyponatremia. Serotonin directly stimulates ADH release from the hypothalamus.
-- Clinical impact: Hyponatremia causes nausea, headache, confusion, seizures, and in severe cases coma. Elderly patients and those on diuretics are at highest risk. Onset is often within the first few weeks of treatment.
-- Recommendation: If you are elderly or on diuretics and starting an SSRI, sodium levels should be checked within 2–4 weeks. Report symptoms of confusion, nausea, or headache to your doctor promptly. This is a monitoring concern, not a supplementation target.
+- Mechanism: SSRIs are associated with SIADH and dilutional hyponatremia, in which excess water lowers blood sodium. Serotonergic effects on antidiuretic hormone are proposed, but the exact mechanism is not fully established.
+- Clinical impact: Risk is highest soon after starting or increasing an SSRI and in older adults, people taking thiazide diuretics, and those with prior hyponatremia. Severe hyponatremia can cause marked confusion, seizures, or reduced consciousness.
+- Recommendation: If you have hyponatremia risk factors, your prescriber may check sodium at baseline and during early treatment. Report new nausea, headache, unsteadiness, or confusion promptly; seizures or reduced consciousness require urgent care. This is not treated by self-supplementing sodium.
 - Evidence: [De Picker L et al. Antidepressants and the risk of hyponatremia: a class-by-class review of literature. Psychosomatics. 2014;55(6):536-47](https://pubmed.ncbi.nlm.nih.gov/25262043/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Made the SIADH mechanism and monitoring timing appropriately non-categorical.
+Consumer-visible after review: **yes**
 
-### 26. `DEP_STATINS_COQ10`
+### 28. `DEP_STATINS_COQ10`
 
 - Medication / class: Statins (cholesterol-lowering medications) (`class:statins`)
 - Nutrient: Coenzyme Q10 (`coenzyme_q10`)
@@ -374,9 +452,11 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Statins can lower circulating CoQ10 levels. It is uncertain whether this contributes to muscle symptoms or whether CoQ10 supplements consistently help. Discuss persistent muscle symptoms with your prescriber, and do not stop a statin on your own.
 - Evidence: [Banach M et al. Statin therapy and plasma coenzyme Q10 concentrations — a systematic review and meta-analysis of placebo-controlled trials. Pharmacol Res. 2015;99:329-36](https://pubmed.ncbi.nlm.nih.gov/26192349/); [Ghirlanda G et al. Evidence of plasma CoQ10-lowering effect by HMG-CoA reductase inhibitors: a double-blind, placebo-controlled study. J Clin Pharmacol. 1993;33(3):226-9](https://pubmed.ncbi.nlm.nih.gov/8463436/); [Qu H et al. Effects of coenzyme Q10 on statin-induced myopathy: an updated meta-analysis of randomized controlled trials. J Am Heart Assoc. 2018;7(19):e009835 — reports symptom improvement](https://pubmed.ncbi.nlm.nih.gov/30371340/); [Kennedy C et al. Effect of coenzyme Q10 on statin-associated myalgia and adherence to statin therapy: a systematic review and meta-analysis. Atherosclerosis. 2020;299:1-8 — finds no benefit](https://pubmed.ncbi.nlm.nih.gov/32179207/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Blood-level reduction is established and the copy preserves uncertain clinical significance.
+Consumer-visible after review: **yes**
 
-### 27. `DEP_SULFASALAZINE_FOLATE`
+### 29. `DEP_SULFASALAZINE_FOLATE`
 
 - Medication / class: Sulfasalazine (inflammatory bowel disease / arthritis medication) (`drug:9524`)
 - Nutrient: Folate (`folate`)
@@ -386,31 +466,9 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Folate support should be clinician-directed with sulfasalazine, especially before pregnancy or during long-term use. Confirm the form and dose with the prescriber.
 - Evidence: [DailyMed — SULFASALAZINE prescribing information](https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=48fbc535-a33a-45ee-85ff-9d1ec9b31d9c)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
-
-### 28. `DEP_CORTICOSTEROIDS_CALCIUM`
-
-- Medication / class: Systemic corticosteroids (prednisone, prednisolone, dexamethasone) (`class:corticosteroids`)
-- Nutrient: Calcium (`calcium`)
-- Relationship: `depletion`; severity `significant`; onset `months`
-- Mechanism: Systemic glucocorticoids reduce intestinal calcium absorption and increase urinary calcium loss, while also lowering bone formation and increasing bone resorption. The net effect is negative calcium balance and bone loss, so the concern is bone strength rather than a measurable drop in blood calcium.
-- Clinical impact: Prolonged systemic glucocorticoid use — more than 3 months at about 2.5 mg/day prednisone-equivalent or more — raises the risk of osteoporosis and fracture. This applies to tablets and injections taken over months, not to short courses, inhalers, creams, or a single joint injection.
-- Recommendation: With prolonged systemic corticosteroid use, clinicians may assess calcium and vitamin D intake, fracture risk, and whether bone-protective treatment is needed. Guideline care is directed by your individual fracture risk rather than an automatic supplement dose.
-- Evidence: [Humphrey MB et al. 2022 American College of Rheumatology Guideline for the Prevention and Treatment of Glucocorticoid-Induced Osteoporosis. Arthritis Rheumatol. 2023;75(12):2088-2102](https://pubmed.ncbi.nlm.nih.gov/37845798/); [Ferrari P. Cortisol and the renal handling of electrolytes: role in glucocorticoid-induced hypertension and bone disease. Best Pract Res Clin Endocrinol Metab. 2003;17(4):575-89](https://pubmed.ncbi.nlm.nih.gov/14687590/)
-
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
-
-### 29. `DEP_CORTICOSTEROIDS_VITAMIND`
-
-- Medication / class: Systemic corticosteroids (prednisone, prednisolone, dexamethasone) (`class:corticosteroids`)
-- Nutrient: Vitamin D (`vitamin_d`)
-- Relationship: `monitoring_stability`; severity `moderate`; onset `months`
-- Mechanism: Long-term systemic glucocorticoid therapy increases bone loss and fracture risk, and vitamin D status is assessed as part of that bone-health management. There is no reliable evidence that corticosteroids themselves directly lower vitamin D levels — studies reporting low vitamin D in steroid-treated patients are confounded by the underlying illness and reduced sun exposure.
-- Clinical impact: Vitamin D matters here because of bone health during prolonged steroid therapy, not because the medication drains it.
-- Recommendation: With prolonged systemic corticosteroid use, clinicians commonly assess vitamin D status and intake as part of bone-health management. Ask your clinician whether testing or supplementation is appropriate for you — there is no universal dose.
-- Evidence: [Humphrey MB et al. 2022 American College of Rheumatology Guideline for the Prevention and Treatment of Glucocorticoid-Induced Osteoporosis. Arthritis Rheumatol. 2023;75(12):2088-2102](https://pubmed.ncbi.nlm.nih.gov/37845798/)
-
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Current label supports impaired folate absorption/metabolism and clinician direction.
+Consumer-visible after review: **yes**
 
 ### 30. `DEP_DIURETICS_ZINC`
 
@@ -419,10 +477,12 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Relationship: `depletion`; severity `mild`; onset `months`
 - Mechanism: Thiazide diuretics increase urinary zinc excretion; loop diuretics have a much smaller effect. Over long-term use this can modestly lower tissue zinc, although blood zinc usually remains in the normal range.
 - Clinical impact: A clear zinc deficiency from thiazides has not been established — blood zinc typically stays normal — so this is a mild, long-term consideration. It is most relevant for people whose dietary zinc is already low.
-- Recommendation: A true shortfall is unlikely. If you take a thiazide long-term and eat little zinc-rich food, a modest zinc intake (10-15 mg/day) or a multivitamin is reasonable. Zinc from meat, shellfish, and legumes covers most needs.
+- Recommendation: Routine zinc supplementation is not established solely because you take a thiazide. Aim for zinc-rich foods; if you have symptoms or additional deficiency risks, discuss whether testing or supplementation is appropriate.
 - Evidence: [Wester PO. Urinary zinc excretion during treatment with different diuretics. Acta Med Scand. 1980](https://pubmed.ncbi.nlm.nih.gov/7001863/); [Golik A et al. Hydrochlorothiazide-amiloride causes excessive urinary zinc excretion. Clin Pharmacol Ther. 1987](https://pubmed.ncbi.nlm.nih.gov/3595066/); [Wester PO. Tissue zinc at autopsy - relation to medication with diuretics. Acta Med Scand. 1980](https://pubmed.ncbi.nlm.nih.gov/7446206/); [Mountokalakis T et al. Zinc deficiency in mild hypertensive patients treated with diuretics. J Hypertens Suppl. 1984](https://pubmed.ncbi.nlm.nih.gov/6152785/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Removed an unsupported 10-15 mg/day supplement suggestion; retained the mild thiazide urinary-loss signal.
+Consumer-visible after review: **yes**
 
 ### 31. `DEP_DIURETICS_FOLATE`
 
@@ -434,36 +494,42 @@ Reviewer disposition: ☐ approve ☐ revise ☐ suppress
 - Recommendation: Most people on triamterene do not need a folate supplement. If you are pregnant, planning pregnancy, have low folate, or take methotrexate, discuss folate with your doctor.
 - Evidence: [Sidhom MB et al. Monitoring the effect of triamterene and hydrochlorothiazide on dihydrofolate reductase activity. J Pharm Biomed Anal. 1989](https://pubmed.ncbi.nlm.nih.gov/2490542/); [Schalhorn A et al. Antifolate effect of triamterene on human leucocytes and on a human lymphoma cell line. Eur J Clin Pharmacol. 1981](https://pubmed.ncbi.nlm.nih.gov/7286039/); [Hernandez-Diaz S et al. Folic acid antagonists during pregnancy and the risk of birth defects. N Engl J Med. 2000](https://pubmed.ncbi.nlm.nih.gov/11096168/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved`**
+Review note: Triamterene-specific antifolate evidence and risk-qualified wording align.
+Consumer-visible after review: **yes**
 
 ### 32. `DEP_ANTICONVULSANTS_LCARNITINE`
 
 - Medication / class: Valproate (valproic acid, divalproex / Depakote) (`class:valproate`)
 - Nutrient: L-Carnitine (`l_carnitine`)
-- Relationship: `depletion`; severity `significant`; onset `months`
-- Mechanism: Long-term valproic acid treatment can reduce carnitine availability and impair fatty-acid oxidation. A pediatric study observed an altered fuel-use pattern that improved after carnitine supplementation.
-- Clinical impact: Carnitine depletion is a recognized concern in long-term valproate care, particularly in children and people with clinical risk factors. Acute valproate toxicity is a separate urgent clinical situation and is not represented by this routine monitoring record.
-- Recommendation: Discuss symptoms, risk factors, and whether carnitine testing or supplementation is appropriate with the clinician managing valproate. Do not self-dose based on this record.
-- Evidence: [Carnitine-dependent changes of metabolic fuel consumption during long-term treatment with valproic acid. J Pediatr. 1994.](https://pubmed.ncbi.nlm.nih.gov/8040784/)
+- Relationship: `depletion`; severity `moderate`; onset `months`
+- Mechanism: Long-term valproate can reduce carnitine availability and alter fatty-acid oxidation. The cited supplementation study was small and conducted in children, so it does not establish routine deficiency or treatment for every valproate user.
+- Clinical impact: Carnitine depletion is most relevant in children and people with risk factors such as poor nutrition, metabolic disease, multiple antiseizure medicines, or suspected valproate toxicity. Acute toxicity is a separate urgent-care situation.
+- Recommendation: Do not start carnitine routinely from this alert. Discuss risk factors, symptoms, and whether testing or supplementation is appropriate with the clinician managing valproate.
+- Evidence: [Carnitine-dependent changes of metabolic fuel consumption during long-term treatment with valproic acid. J Pediatr. 1994.](https://pubmed.ncbi.nlm.nih.gov/8040784/); [Raskind JY, El-Chaar GM. The role of carnitine supplementation during valproic acid therapy. Ann Pharmacother. 2000.](https://pubmed.ncbi.nlm.nih.gov/10852092/)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Downgraded severity and made the small pediatric evidence/routine-supplement uncertainty explicit.
+Consumer-visible after review: **yes**
 
 ### 33. `DEP_ANTICOAGULANTS_VITAMINK`
 
-- Medication / class: Warfarin (anticoagulant / blood thinner) (`class:anticoagulants`)
+- Medication / class: Warfarin (anticoagulant / blood thinner) (`drug:11289`)
 - Nutrient: Vitamin K (`vitamin_k`)
 - Relationship: `functional_antagonism`; severity `significant`; onset `weeks`
-- Mechanism: Warfarin inhibits vitamin K epoxide reductase (VKORC1), blocking the recycling of vitamin K from its epoxide form back to the active hydroquinone form. This functional depletion of active vitamin K prevents carboxylation of clotting factors II, VII, IX, and X, as well as proteins C and S. This is the intended pharmacological mechanism.
-- Clinical impact: While the depletion of active vitamin K is the therapeutic goal of warfarin, it also depletes vitamin K-dependent proteins involved in bone metabolism (osteocalcin, matrix Gla protein), potentially contributing to vascular calcification and osteoporosis with long-term use.
-- Recommendation: Do NOT supplement with additional vitamin K without medical guidance — it will reduce warfarin's anticoagulant effect. Instead, maintain a consistent daily vitamin K intake from diet (green leafy vegetables). Sudden changes in vitamin K intake (including starting/stopping supplements) destabilize INR control.
-- Evidence: [Hirsh J et al. Oral anticoagulants: mechanism of action, clinical effectiveness, and optimal therapeutic range. Chest. 2001](https://pubmed.ncbi.nlm.nih.gov/11157640/)
+- Mechanism: Warfarin inhibits vitamin K epoxide reductase (VKORC1), reducing the recycling of vitamin K needed to activate clotting factors II, VII, IX, and X and proteins C and S. This is warfarin's intended drug action, not dietary vitamin K deficiency.
+- Clinical impact: Large or sudden changes in vitamin K intake can change the INR and make warfarin less or more anticoagulant, increasing clotting or bleeding risk. Consistency matters more than avoiding vitamin K-rich foods.
+- Recommendation: Keep vitamin K intake reasonably consistent. Contact the warfarin prescriber or anticoagulation service before starting or stopping vitamin K supplements or making a major dietary change; do not change warfarin on your own.
+- Evidence: [Hirsh J et al. Oral anticoagulants: mechanism of action, clinical effectiveness, and optimal therapeutic range. Chest. 2001](https://pubmed.ncbi.nlm.nih.gov/11157640/); [DailyMed — Warfarin Sodium prescribing information (consistent vitamin K intake)](https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=801e4da1-5459-47d2-b67b-009f0a3247cc&type=display)
 
-Reviewer disposition: ☐ approve ☐ revise ☐ suppress
+Reviewer disposition: **`approved_with_wording_change`**
+Review note: Narrowed the overbroad anticoagulant class to warfarin and removed speculative bone/vascular outcomes.
+Consumer-visible after review: **yes**
 
 ## Sign-off
 
-- Reviewer name / credentials:
-- Review date:
-- Approved records:
-- Records requiring revision:
-- Notes:
+- Reviewer: `openai_codex_ai_clinical_audit` (AI clinical-content audit)
+- Review date: `2026-07-27`
+- Release disposition: `approved_for_controlled_beta`
+- Licensed pharmacist sign-off: **not represented by this packet**
+- Scope statement: This is a documented AI clinical-content audit and controlled-beta sign-off; it does not claim professional licensure.

@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026-07-27",
-    "content_hash": "sha256:98259507ef920a503084f748b11c9bbcc1d7ec7fabdadb9d3d7326610bef2753",
+    "content_hash": "sha256:ba86c3941708c059497e661a15cd496a88c59703c231d0cb5ff131d1940ee731",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -57,7 +57,11 @@
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-23",
       "reviewer": "lead_clinician_fix_sprint_02",
-      "citation_review_note": "Circulating-CoQ10 reduction kept (Banach 2015 meta-analysis, Ghirlanda 1993). Removed causal myopathy claim, unsupported cardiac tissue language, routine 100-200 mg recommendation, non-standard plasma CoQ10 testing, and the 100 mg comparison amount. Supplementation evidence conflicts (Qu 2018 vs Kennedy 2020) — both cited; severity lowered to mild."
+      "citation_review_note": "Circulating-CoQ10 reduction kept (Banach 2015 meta-analysis, Ghirlanda 1993). Removed causal myopathy claim, unsupported cardiac tissue language, routine 100-200 mg recommendation, non-standard plasma CoQ10 testing, and the 100 mg comparison amount. Supplementation evidence conflicts (Qu 2018 vs Kennedy 2020) — both cited; severity lowered to mild.",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Blood-level reduction is established and the copy preserves uncertain clinical significance."
     },
     {
       "id": "DEP_STATINS_VITAMIND",
@@ -188,11 +192,11 @@
         "standard_name": "Calcium",
         "canonical_id": "calcium"
       },
-      "depletion_type": "depletion",
+      "depletion_type": "monitoring_stability",
       "severity": "moderate",
-      "mechanism": "Stomach acid converts insoluble calcium carbonate into absorbable ionized calcium. PPIs strongly suppress acid, so calcium carbonate taken on an empty stomach is absorbed less well. Calcium citrate does not need acid, and taking carbonate with food restores absorption.",
-      "clinical_impact": "Long-term PPI use is linked in observational studies to a modestly higher fracture risk (hip, wrist, spine), behind a 2010 FDA safety communication. The association is modest and partly confounded, and is not seen with H2 blockers.",
-      "recommendation": "If you take a PPI long-term, prefer calcium citrate (it does not need stomach acid to absorb) or take calcium carbonate with a meal. Aim for adequate calcium and vitamin D, and ask your doctor about bone health.",
+      "mechanism": "PPIs reduce stomach acid. In fasting studies this can reduce absorption of insoluble calcium carbonate; calcium citrate is less acid-dependent, and taking carbonate with food improves absorption. This does not establish whole-body calcium deficiency.",
+      "clinical_impact": "Long-term PPI use is associated in observational studies with a modestly higher fracture risk, but confounding remains and the association does not prove calcium deficiency.",
+      "recommendation": "Do not start calcium solely because you take a PPI. Aim for adequate dietary calcium and vitamin D. If a clinician recommends calcium, ask whether calcium citrate or calcium carbonate taken with food fits your situation.",
       "onset_timeline": "years",
       "evidence_level": "established",
       "monitoring_note": "Consider DEXA scan for bone density assessment with long-term PPI use, especially postmenopausal women.",
@@ -223,14 +227,19 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/8568113/"
         }
       ],
-      "alert_headline": "May affect calcium absorption over years",
-      "alert_body": "Long-term PPI use can gradually reduce how well calcium carbonate is absorbed, which over years may influence bone strength. H2 blockers and occasional antacids are not a concern here.",
-      "acknowledgement_note": "Good — calcium intake is part of standard support during long-term acid-reducer use.",
-      "monitoring_tip_short": "Consider discussing bone health and calcium form with your doctor; citrate is often preferred.",
+      "alert_headline": "Long-term PPI use can affect calcium planning",
+      "alert_body": "With long-term use, PPIs can reduce fasting absorption of calcium carbonate, but they do not automatically cause calcium deficiency.",
+      "acknowledgement_note": "You're considering calcium intake thoughtfully; the amount that fits depends on diet and individual bone-health needs.",
+      "monitoring_tip_short": "For long-term PPI use, discuss calcium intake and bone risk rather than self-starting a dose.",
       "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-24",
-      "reviewer": "lead_clinician_acid_reduction"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Reclassified as monitoring rather than body-calcium depletion; retained the bounded carbonate/fracture evidence.",
+      "citation_review_note": "Reclassified as monitoring rather than body-calcium depletion; retained the bounded carbonate/fracture evidence."
     },
     {
       "id": "DEP_ANTACIDS_IRON",
@@ -246,9 +255,9 @@
       "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Gastric acid reduces dietary non-heme iron (Fe3+) to the absorbable ferrous form (Fe2+) and frees iron from food. Both PPIs and H2 blockers suppress acid, so long-term use can lower non-heme iron absorption; the effect is dose-related and reverses after stopping.",
-      "clinical_impact": "Over months to years this can contribute to iron deficiency and, if unaddressed, iron-deficiency anemia — most relevant for menstruating women, frequent blood donors, and people with low dietary iron. Heme iron from meat is less affected.",
-      "recommendation": "If you take a PPI or H2 blocker long-term and are at risk (menstruating, low iron, plant-based diet), ask your doctor to check ferritin. Take any iron supplement a couple of hours apart from your acid reducer, and with vitamin C to aid absorption.",
-      "onset_timeline": "months",
+      "clinical_impact": "Use for two years or longer is associated with a higher risk of iron deficiency, with greater risk at higher doses and longer duration. Other causes of iron deficiency still need clinical evaluation.",
+      "recommendation": "If you use a PPI or H2 blocker long term and have iron-deficiency symptoms or risk factors, ask your clinician whether ferritin and blood-count testing is appropriate. Do not start iron without confirming the cause and a suitable treatment plan.",
+      "onset_timeline": "years",
       "evidence_level": "established",
       "monitoring_note": "Check serum ferritin and CBC annually with long-term PPI use, especially in women of childbearing age.",
       "sources": [
@@ -263,14 +272,19 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/17344278/"
         }
       ],
-      "alert_headline": "May lower iron absorption over time",
-      "alert_body": "Long-term use of acid-reducing medications can gradually reduce iron absorption from food. Some people develop lower iron stores over months of use.",
+      "alert_headline": "Long-term acid suppression can affect iron status",
+      "alert_body": "PPI or H2-blocker use for two years or longer is associated with a higher chance of iron deficiency, especially at higher doses.",
       "acknowledgement_note": "You're taking iron — a thoughtful step while using acid-reducing medication long-term.",
-      "monitoring_tip_short": "Consider asking about periodic ferritin checks, particularly for women of childbearing age.",
+      "monitoring_tip_short": "Discuss ferritin and blood-count testing if long-term use coincides with symptoms or other iron-deficiency risks.",
       "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-24",
-      "reviewer": "lead_clinician_acid_reduction"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Aligned onset and monitoring advice with the >=2-year clinical evidence; removed unsupported dose-separation advice.",
+      "citation_review_note": "Aligned onset and monitoring advice with the >=2-year clinical evidence; removed unsupported dose-separation advice."
     },
     {
       "id": "DEP_ANTACIDS_VITAMINC",
@@ -372,9 +386,9 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Metformin impairs B12 absorption by interfering with a calcium-dependent intrinsic factor-B12 receptor complex on the ileal mucosa. This disrupts the final step of B12 uptake from the small intestine. The effect is dose-dependent and reverses with calcium supplementation in some patients.",
-      "clinical_impact": "Roughly 6-30% of long-term metformin users show low or deficient B12, depending on how deficiency is defined and how long metformin is taken. Low B12 can cause peripheral neuropathy (which may be misattributed to diabetic neuropathy), megaloblastic anemia, and cognitive changes, and may develop insidiously over years.",
-      "recommendation": "The ADA recommends periodic B12 monitoring for all patients on metformin. Supplement with sublingual methylcobalamin 1,000 mcg/day if levels are borderline or low.",
+      "mechanism": "Metformin can reduce vitamin B12 absorption through a multifactorial process. Reduced calcium-dependent uptake of the intrinsic-factor–B12 complex in the ileum is one proposed mechanism, but it is not the only established explanation.",
+      "clinical_impact": "The chance of low vitamin B12 rises with higher metformin dose, longer treatment, and other B12 risk factors. Deficiency can cause anemia or neuropathy, which can be mistaken for diabetic neuropathy.",
+      "recommendation": "Periodic vitamin B12 assessment should be considered during long-term metformin therapy, especially after about 4–5 years, at higher doses, with other B12 risk factors, or with anemia or neuropathy. Treat a confirmed deficiency using a clinician-directed regimen; do not stop metformin on your own.",
       "onset_timeline": "years",
       "evidence_level": "established",
       "monitoring_note": "ADA Standards of Care recommend checking B12 levels every 2–3 years in all metformin-treated patients. Methylmalonic acid is a sensitive functional marker for early deficiency.",
@@ -393,17 +407,32 @@
           "source_type": "pubmed",
           "label": "Bauman WA et al. Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin. Diabetes Care. 2000",
           "url": "https://pubmed.ncbi.nlm.nih.gov/10977010/"
+        },
+        {
+          "source_type": "reference",
+          "label": "American Diabetes Association. Standards of Care in Diabetes—2026, recommendation 3.10",
+          "url": "https://diabetesjournals.org/care/article/49/Supplement_1/S50/163924/3-Prevention-or-Delay-of-Diabetes-and-Associated"
+        },
+        {
+          "source_type": "reference",
+          "label": "MHRA. Metformin and reduced vitamin B12 levels: new advice for monitoring patients at risk. 2022.",
+          "url": "https://www.gov.uk/drug-safety-update/metformin-and-reduced-vitamin-b12-levels-new-advice-for-monitoring-patients-at-risk"
         }
       ],
-      "alert_headline": "May lower vitamin B12 over time",
-      "alert_body": "With long-term use, metformin can reduce how well vitamin B12 is absorbed. Some people develop lower levels over years, which may show up as fatigue or tingling in the hands and feet.",
-      "acknowledgement_note": "Nice — you're taking B12, which aligns with guidance for long-term metformin use.",
-      "monitoring_tip_short": "Consider checking B12 levels every 2-3 years; easy to review at a routine visit.",
+      "alert_headline": "Long-term metformin can lower vitamin B12",
+      "alert_body": "With long-term use, the chance of low B12 rises with higher doses and other B12 factors. Symptoms and low results need clinical evaluation.",
+      "acknowledgement_note": "You're addressing B12 thoughtfully; treatment can be tailored to your test results and clinician's plan.",
+      "monitoring_tip_short": "Consider B12 testing with long-term use, anemia, neuropathy, or other B12 risk factors.",
       "adequacy_threshold_mcg": 500,
       "food_sources_short": "Because metformin reduces B12 absorption, food sources may not be enough on their own — a supplement is often more reliable.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Aligned mechanism, monitoring, and treatment wording with NIH, MHRA, and ADA 2026 guidance.",
+      "citation_review_note": "Aligned mechanism, monitoring, and treatment wording with NIH, MHRA, and ADA 2026 guidance."
     },
     {
       "id": "DEP_METFORMIN_FOLATE",
@@ -483,10 +512,14 @@
       "monitoring_tip_short": "If you are planning pregnancy, consider discussing B6 and folate adequacy with your clinician.",
       "adequacy_threshold_mg": 2,
       "food_sources_short": "Food sources of vitamin B6 include poultry, fish, potatoes, chickpeas, bananas, and fortified cereals.",
-      "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_fix_sprint_01",
-      "citation_review_note": "Downgraded to possible evidence (Wilson 2011); 25–50 mg B6 recommendation cut — chronic high-dose B6 exceeds the EFSA 12 mg UL (neuropathy risk); reframed around pre-pregnancy adequacy."
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "citation_review_note": "The source concerns estrogen-containing oral contraceptives, but the runtime class includes implants, injectable progestins, emergency contraception, and non-contraceptive megestrol. Keep suppressed until a reliably normalized combined-oral scope and independent clinical-importance evidence exist.",
+      "b1_clinical_review_disposition": "requires_evidence_revision",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "The source concerns estrogen-containing oral contraceptives, but the runtime class includes implants, injectable progestins, emergency contraception, and non-contraceptive megestrol. Keep suppressed until a reliably normalized combined-oral scope and independent clinical-importance evidence exist."
     },
     {
       "id": "DEP_OCP_VITAMINB12",
@@ -801,7 +834,7 @@
       "severity": "mild",
       "mechanism": "Thiazide diuretics increase urinary zinc excretion; loop diuretics have a much smaller effect. Over long-term use this can modestly lower tissue zinc, although blood zinc usually remains in the normal range.",
       "clinical_impact": "A clear zinc deficiency from thiazides has not been established — blood zinc typically stays normal — so this is a mild, long-term consideration. It is most relevant for people whose dietary zinc is already low.",
-      "recommendation": "A true shortfall is unlikely. If you take a thiazide long-term and eat little zinc-rich food, a modest zinc intake (10-15 mg/day) or a multivitamin is reasonable. Zinc from meat, shellfish, and legumes covers most needs.",
+      "recommendation": "Routine zinc supplementation is not established solely because you take a thiazide. Aim for zinc-rich foods; if you have symptoms or additional deficiency risks, discuss whether testing or supplementation is appropriate.",
       "onset_timeline": "months",
       "evidence_level": "probable",
       "monitoring_note": null,
@@ -829,12 +862,17 @@
       ],
       "alert_headline": "Thiazides may lower zinc over time",
       "alert_body": "Thiazide diuretics can gradually increase urinary zinc loss with long-term use. Blood zinc usually stays normal, though tissue stores may drift a little lower over time.",
-      "acknowledgement_note": "Good - your zinc intake supports levels while on long-term thiazide therapy.",
-      "monitoring_tip_short": "Consider a multivitamin with zinc; ask your clinician if it's a fit.",
+      "acknowledgement_note": "Diet usually covers zinc needs during thiazide therapy; more is not automatically better.",
+      "monitoring_tip_short": "Consider zinc evaluation only when symptoms or additional deficiency risks are present.",
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-24",
-      "reviewer": "lead_clinician_diuretics_remaining"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Removed an unsupported 10-15 mg/day supplement suggestion; retained the mild thiazide urinary-loss signal.",
+      "citation_review_note": "Removed an unsupported 10-15 mg/day supplement suggestion; retained the mild thiazide urinary-loss signal."
     },
     {
       "id": "DEP_DIURETICS_CALCIUM",
@@ -879,7 +917,11 @@
       "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-24",
-      "reviewer": "lead_clinician_diuretics_remaining"
+      "reviewer": "lead_clinician_diuretics_remaining",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Loop-diuretic calciuria and cautious bone-health wording align."
     },
     {
       "id": "DEP_DIURETICS_THIAMINE",
@@ -894,9 +936,9 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Furosemide increases urine flow, and thiamine is carried out with it, so urinary thiamine loss rises. The effect tracks with the degree of diuresis and is greatest with higher doses and long-term use.",
-      "clinical_impact": "In people on chronic, higher-dose furosemide — especially for heart failure — this can lead to thiamine deficiency, which may worsen heart function and, when severe, affect the nervous system. Everyday low-dose users with good intake are at much lower risk.",
-      "recommendation": "If you take furosemide long-term, especially for heart failure, ask your doctor about checking thiamine or taking a thiamine-containing supplement. Do not change your diuretic on your own.",
+      "mechanism": "Furosemide increases urinary thiamine loss largely by increasing urine flow. Studies in heart failure also report low thiamine status, although illness severity and dietary intake can contribute.",
+      "clinical_impact": "Lower thiamine status is most plausible with chronic, higher-dose furosemide and additional risks such as heart failure or poor intake. The evidence does not establish deficiency in every person taking furosemide.",
+      "recommendation": "With chronic higher-dose furosemide, poor intake, or symptoms compatible with deficiency, ask the treating clinician whether thiamine assessment or supplementation is appropriate. Do not change the diuretic on your own.",
       "onset_timeline": "months",
       "evidence_level": "established",
       "monitoring_note": "Consider measuring whole-blood thiamine in heart failure patients on chronic high-dose furosemide, especially those with poor nutritional status.",
@@ -923,13 +965,18 @@
         }
       ],
       "alert_headline": "Furosemide may lower thiamine over time",
-      "alert_body": "Furosemide can gradually increase thiamine loss in urine with ongoing use over months. This matters especially for people managing heart failure.",
+      "alert_body": "Furosemide increases urinary thiamine loss. Clinical relevance is greatest with long-term higher doses and other deficiency risks.",
       "acknowledgement_note": "Nice — thiamine intake supports levels while on long-term furosemide.",
       "monitoring_tip_short": "Consider asking your cardiologist about a thiamine supplement with long-term furosemide.",
       "food_sources_short": "Food sources of thiamine include pork, fish, whole grains, fortified cereals, beans, lentils, and seeds.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-24",
-      "reviewer": "lead_clinician_diuretics_remaining"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Separated direct urinary loss from heart-failure confounding and removed any routine-supplement implication.",
+      "citation_review_note": "Separated direct urinary loss from heart-failure confounding and removed any routine-supplement implication."
     },
     {
       "id": "DEP_DIURETICS_FOLATE",
@@ -974,14 +1021,18 @@
       "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-24",
-      "reviewer": "lead_clinician_diuretics_remaining"
+      "reviewer": "lead_clinician_diuretics_remaining",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Triamterene-specific antifolate evidence and risk-qualified wording align."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_CALCIUM",
       "drug_ref": {
-        "type": "class",
-        "id": "class:corticosteroids",
-        "display_name": "Systemic corticosteroids (prednisone, prednisolone, dexamethasone)"
+        "type": "drug",
+        "id": "8640",
+        "display_name": "Long-term oral prednisone"
       },
       "depleted_nutrient": {
         "standard_name": "Calcium",
@@ -989,9 +1040,9 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Systemic glucocorticoids reduce intestinal calcium absorption and increase urinary calcium loss, while also lowering bone formation and increasing bone resorption. The net effect is negative calcium balance and bone loss, so the concern is bone strength rather than a measurable drop in blood calcium.",
-      "clinical_impact": "Prolonged systemic glucocorticoid use — more than 3 months at about 2.5 mg/day prednisone-equivalent or more — raises the risk of osteoporosis and fracture. This applies to tablets and injections taken over months, not to short courses, inhalers, creams, or a single joint injection.",
-      "recommendation": "With prolonged systemic corticosteroid use, clinicians may assess calcium and vitamin D intake, fracture risk, and whether bone-protective treatment is needed. Guideline care is directed by your individual fracture risk rather than an automatic supplement dose.",
+      "mechanism": "Long-term oral prednisone can reduce intestinal calcium absorption, increase urinary calcium loss, reduce bone formation, and increase bone resorption. The concern is bone strength rather than a measurable fall in blood calcium.",
+      "clinical_impact": "Prednisone taken for more than three months at about 2.5 mg/day or more raises osteoporosis and fracture risk. Short courses are not represented by this record.",
+      "recommendation": "For prednisone expected to continue longer than three months, clinicians assess calcium and vitamin D intake, fracture risk, and whether bone-protective treatment is needed. Care is based on individual risk rather than an automatic supplement dose.",
       "onset_timeline": "months",
       "evidence_level": "established",
       "monitoring_note": "American College of Rheumatology guidance recommends assessing fracture risk soon after starting long-term glucocorticoids — clinical fracture assessment, bone mineral density with vertebral fracture assessment, and FRAX scoring for adults 40 and older.",
@@ -1007,22 +1058,26 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/14687590/"
         }
       ],
-      "alert_headline": "Can affect calcium balance with long-term systemic use",
-      "alert_body": "Taken systemically over months, corticosteroids can reduce calcium absorption and increase calcium loss, which affects bone strength over time.",
+      "alert_headline": "Long-term oral prednisone can affect calcium balance",
+      "alert_body": "Oral prednisone used for more than three months can affect calcium balance and bone strength.",
       "acknowledgement_note": "You're taking calcium — sensible with long-term steroid use. How much you need depends on your diet and bone health.",
       "monitoring_tip_short": "Consider discussing bone health and fracture-risk screening if systemic use continues.",
       "food_sources_short": "Food sources of calcium include dairy products, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_fix_sprint_02",
-      "citation_review_note": "Scope narrowed to prolonged systemic use (ACR 2022: >3 months at ≥2.5 mg/day); removed the universal 'all patients should take 1,000-1,500 mg calcium' recommendation and the 500 mg comparison amount (guideline targets TOTAL intake including diet, which the app cannot observe). Mechanism cited to Ferrari 2003."
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "citation_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained guideline-directed bone care.",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained guideline-directed bone care."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_VITAMIND",
       "drug_ref": {
-        "type": "class",
-        "id": "class:corticosteroids",
-        "display_name": "Systemic corticosteroids (prednisone, prednisolone, dexamethasone)"
+        "type": "drug",
+        "id": "8640",
+        "display_name": "Long-term oral prednisone"
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin D",
@@ -1030,9 +1085,9 @@
       },
       "depletion_type": "monitoring_stability",
       "severity": "moderate",
-      "mechanism": "Long-term systemic glucocorticoid therapy increases bone loss and fracture risk, and vitamin D status is assessed as part of that bone-health management. There is no reliable evidence that corticosteroids themselves directly lower vitamin D levels — studies reporting low vitamin D in steroid-treated patients are confounded by the underlying illness and reduced sun exposure.",
-      "clinical_impact": "Vitamin D matters here because of bone health during prolonged steroid therapy, not because the medication drains it.",
-      "recommendation": "With prolonged systemic corticosteroid use, clinicians commonly assess vitamin D status and intake as part of bone-health management. Ask your clinician whether testing or supplementation is appropriate for you — there is no universal dose.",
+      "mechanism": "Long-term oral prednisone increases bone loss and fracture risk, so vitamin D status and intake are considered during bone-health management. Evidence does not show that prednisone reliably drains vitamin D itself.",
+      "clinical_impact": "Vitamin D matters as part of bone protection during prednisone therapy lasting more than three months, not because every user develops vitamin D deficiency.",
+      "recommendation": "If oral prednisone is expected to continue longer than three months, ask the treating clinician whether vitamin D intake, testing, and fracture-risk assessment are appropriate. There is no universal supplement dose.",
       "onset_timeline": "months",
       "evidence_level": "probable",
       "monitoring_note": "American College of Rheumatology guidance recommends assessing fracture risk soon after starting long-term glucocorticoids; vitamin D status is commonly reviewed alongside it.",
@@ -1043,15 +1098,19 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/37845798/"
         }
       ],
-      "alert_headline": "Vitamin D is monitored during long-term steroid use",
-      "alert_body": "Long-term systemic corticosteroid use raises bone-loss risk, so clinicians often review vitamin D as part of bone care. This is a monitoring consideration, not a sign the medication drains vitamin D.",
+      "alert_headline": "Long-term oral prednisone needs bone-health planning",
+      "alert_body": "With long-term oral prednisone, vitamin D is considered as part of bone care; the drug does not automatically cause deficiency.",
       "acknowledgement_note": "You're taking vitamin D. Whether you need it, and how much, is worth confirming with your clinician.",
       "monitoring_tip_short": "Consider asking whether a vitamin D check fits your bone-health plan.",
       "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_fix_sprint_02",
-      "citation_review_note": "Retyped depletion → monitoring_stability: no reliable human evidence of a direct corticosteroid-driven vitamin D depletion (Peracchi 2014 found no association with medication intake; other reports are confounded cross-sectional or veterinary). The 'hepatic CYP24A1 induction' mechanism was removed as unsupported (CYP24A1 is the renal/target-tissue 24-hydroxylase). Vitamin D assessment during prolonged systemic GC therapy is guideline-backed (ACR 2022)."
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "citation_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained monitoring-only wording.",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained monitoring-only wording."
     },
     {
       "id": "DEP_CORTICOSTEROIDS_POTASSIUM",
@@ -1246,9 +1305,9 @@
       },
       "depletion_type": "monitoring_stability",
       "severity": "significant",
-      "mechanism": "SSRIs can cause Syndrome of Inappropriate Antidiuretic Hormone secretion (SIADH), leading to increased water retention and dilutional hyponatremia. Serotonin directly stimulates ADH release from the hypothalamus.",
-      "clinical_impact": "Hyponatremia causes nausea, headache, confusion, seizures, and in severe cases coma. Elderly patients and those on diuretics are at highest risk. Onset is often within the first few weeks of treatment.",
-      "recommendation": "If you are elderly or on diuretics and starting an SSRI, sodium levels should be checked within 2–4 weeks. Report symptoms of confusion, nausea, or headache to your doctor promptly. This is a monitoring concern, not a supplementation target.",
+      "mechanism": "SSRIs are associated with SIADH and dilutional hyponatremia, in which excess water lowers blood sodium. Serotonergic effects on antidiuretic hormone are proposed, but the exact mechanism is not fully established.",
+      "clinical_impact": "Risk is highest soon after starting or increasing an SSRI and in older adults, people taking thiazide diuretics, and those with prior hyponatremia. Severe hyponatremia can cause marked confusion, seizures, or reduced consciousness.",
+      "recommendation": "If you have hyponatremia risk factors, your prescriber may check sodium at baseline and during early treatment. Report new nausea, headache, unsteadiness, or confusion promptly; seizures or reduced consciousness require urgent care. This is not treated by self-supplementing sodium.",
       "onset_timeline": "weeks",
       "evidence_level": "established",
       "monitoring_note": "Check serum sodium at baseline and 2–4 weeks after starting SSRI therapy in elderly patients or those on concurrent diuretics.",
@@ -1259,13 +1318,18 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/25262043/"
         }
       ],
-      "alert_headline": "May affect sodium early in treatment",
-      "alert_body": "In the first weeks of an SSRI, sodium levels can gradually drift lower, especially in older adults or those on water pills. Your prescriber often checks this early.",
+      "alert_headline": "SSRIs can rarely lower blood sodium",
+      "alert_body": "Over time, especially in the first weeks of treatment, risk is greater with older age, thiazide use, or prior low sodium.",
       "acknowledgement_note": "Good — your care plan includes sodium awareness, which helps catch changes early.",
-      "monitoring_tip_short": "Consider asking for a sodium check 2-4 weeks after starting an SSRI.",
+      "monitoring_tip_short": "Ask whether early sodium monitoring fits your risk factors; report new symptoms promptly.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Made the SIADH mechanism and monitoring timing appropriately non-categorical.",
+      "citation_review_note": "Made the SIADH mechanism and monitoring timing appropriately non-categorical."
     },
     {
       "id": "DEP_SSRIS_CALCIUM",
@@ -1376,7 +1440,11 @@
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
       "reviewer": "medication_depletion_section_03_content_audit",
-      "citation_review_note": "Section 3 content audit: PMID 34847425 is a carbamazepine-specific meta-analysis of lower 25-hydroxyvitamin D. The record is direct-drug scoped; no class-wide inference is shipped."
+      "citation_review_note": "Section 3 content audit: PMID 34847425 is a carbamazepine-specific meta-analysis of lower 25-hydroxyvitamin D. The record is direct-drug scoped; no class-wide inference is shipped.",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Carbamazepine-specific meta-analysis supports the bounded claim."
     },
     {
       "id": "DEP_ANTICONVULSANTS_CALCIUM",
@@ -1413,7 +1481,11 @@
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
       "reviewer": "medication_depletion_section_03_content_audit",
-      "citation_review_note": "Section 3 content audit: PMID 15123011 reviews anticonvulsant-associated bone disease and calcium intake. Copy is limited to bone-health discussion, not a universal supplement dose."
+      "citation_review_note": "Section 3 content audit: PMID 15123011 reviews anticonvulsant-associated bone disease and calcium intake. Copy is limited to bone-health discussion, not a universal supplement dose.",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Evidence, inducer scope, and bone-health wording align."
     },
     {
       "id": "DEP_ANTICONVULSANTS_FOLATE",
@@ -1450,7 +1522,11 @@
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
       "reviewer": "medication_depletion_section_03_content_audit",
-      "citation_review_note": "Section 3 content audit: PMID 6370643 is a phenytoin-folate review. The record is direct-drug scoped and avoids unsupported claims for other antiseizure medicines."
+      "citation_review_note": "Section 3 content audit: PMID 6370643 is a phenytoin-folate review. The record is direct-drug scoped and avoids unsupported claims for other antiseizure medicines.",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Phenytoin-specific evidence and supplement caution align."
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINB12",
@@ -1487,7 +1563,11 @@
       "citation_review_status": "verified",
       "citation_review_note": "Section 3 content audit: PMID 30896627 is a phenytoin-monotherapy meta-analysis reporting lower serum B12. Re-enabled only at this direct-drug scope.",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_03_content_audit"
+      "reviewer": "medication_depletion_section_03_content_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Phenytoin-specific meta-analysis supports the cautious monitoring claim."
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINK",
@@ -1524,10 +1604,14 @@
       "alert_body": "During long-term antiseizure treatment in pregnancy, vitamin K decisions need individualized obstetric and neurology guidance. Routine supplementation is not established.",
       "acknowledgement_note": "Pregnancy planning with an antiseizure medication is best coordinated with the prescribing and obstetric teams.",
       "monitoring_tip_short": "If pregnant or planning pregnancy, ask your care team about vitamin K guidance.",
-      "citation_review_status": "verified",
-      "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_03_content_audit",
-      "citation_review_note": "Section 3 content audit: replaced ghost PMID 14506311. PMID 8456897 reports neonatal biochemical markers in a small older study; PMID 16812962 concludes routine antenatal prophylaxis is not supported. Copy preserves that uncertainty."
+      "citation_review_status": "rejected",
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "citation_review_note": "The later review does not support routine antenatal vitamin K, the signal is pregnancy-specific, and the runtime has no pregnancy context. A significant class-wide consumer warning would be a false positive outside pregnancy.",
+      "b1_clinical_review_disposition": "remove_from_release",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "The later review does not support routine antenatal vitamin K, the signal is pregnancy-specific, and the runtime has no pregnancy context. A significant class-wide consumer warning would be a false positive outside pregnancy."
     },
     {
       "id": "DEP_ANTICONVULSANTS_BIOTIN",
@@ -1583,10 +1667,10 @@
         "canonical_id": "l_carnitine"
       },
       "depletion_type": "depletion",
-      "severity": "significant",
-      "mechanism": "Long-term valproic acid treatment can reduce carnitine availability and impair fatty-acid oxidation. A pediatric study observed an altered fuel-use pattern that improved after carnitine supplementation.",
-      "clinical_impact": "Carnitine depletion is a recognized concern in long-term valproate care, particularly in children and people with clinical risk factors. Acute valproate toxicity is a separate urgent clinical situation and is not represented by this routine monitoring record.",
-      "recommendation": "Discuss symptoms, risk factors, and whether carnitine testing or supplementation is appropriate with the clinician managing valproate. Do not self-dose based on this record.",
+      "severity": "moderate",
+      "mechanism": "Long-term valproate can reduce carnitine availability and alter fatty-acid oxidation. The cited supplementation study was small and conducted in children, so it does not establish routine deficiency or treatment for every valproate user.",
+      "clinical_impact": "Carnitine depletion is most relevant in children and people with risk factors such as poor nutrition, metabolic disease, multiple antiseizure medicines, or suspected valproate toxicity. Acute toxicity is a separate urgent-care situation.",
+      "recommendation": "Do not start carnitine routinely from this alert. Discuss risk factors, symptoms, and whether testing or supplementation is appropriate with the clinician managing valproate.",
       "onset_timeline": "months",
       "evidence_level": "probable",
       "monitoring_note": "Testing and treatment decisions should be individualized, with particular attention to children and people with clinical symptoms or liver concerns.",
@@ -1595,18 +1679,27 @@
           "source_type": "pubmed",
           "label": "Carnitine-dependent changes of metabolic fuel consumption during long-term treatment with valproic acid. J Pediatr. 1994.",
           "url": "https://pubmed.ncbi.nlm.nih.gov/8040784/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Raskind JY, El-Chaar GM. The role of carnitine supplementation during valproic acid therapy. Ann Pharmacother. 2000.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10852092/"
         }
       ],
-      "alert_headline": "Valproate may lower carnitine over time",
-      "alert_body": "Long-term valproate use can be associated with lower carnitine availability, especially in children. A clinician can decide whether testing or treatment is appropriate.",
+      "alert_headline": "Valproate can affect carnitine in higher-risk use",
+      "alert_body": "With long-term valproate, the clearest concern is in children and people with additional clinical factors; supplementation is not universal.",
       "acknowledgement_note": "Carnitine questions can be discussed as part of long-term valproate care.",
       "monitoring_tip_short": "Ask whether carnitine assessment fits your treatment plan.",
       "adequacy_threshold_mg": 1000,
       "food_sources_short": "Food sources of carnitine include red meat, poultry, fish, and dairy products.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_03_content_audit",
-      "citation_review_note": "Section 3 content audit: PMID 8040784 is a long-term pediatric valproic-acid study. Copy removes routine dosing and separates chronic monitoring from acute toxicity care."
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "citation_review_note": "Downgraded severity and made the small pediatric evidence/routine-supplement uncertainty explicit.",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Downgraded severity and made the small pediatric evidence/routine-supplement uncertainty explicit."
     },
     {
       "id": "DEP_ACEINHIBITORS_ZINC",
@@ -1915,9 +2008,9 @@
       },
       "depletion_type": "supplement_interaction",
       "severity": "moderate",
-      "mechanism": "Calcium supplements and calcium-rich foods bind levothyroxine in the gastrointestinal tract through a direct physicochemical interaction, reducing drug absorption rather than depleting body calcium stores. Levothyroxine adsorbs to calcium carbonate in an acidic environment, lowering its bioavailability.",
+      "mechanism": "Calcium supplements and calcium-containing medicines can bind levothyroxine in the gastrointestinal tract and reduce its absorption. This affects thyroid-drug bioavailability rather than depleting body calcium stores.",
       "clinical_impact": "Taking calcium together with levothyroxine reduces thyroid hormone absorption and can raise TSH into the underactive range — in a pharmacokinetic study, levothyroxine uptake fell from about 84% to 58% when taken with a large (2 g) calcium dose. The result can be inadequate thyroid control and hypothyroid symptoms.",
-      "recommendation": "Take levothyroxine at least 4 hours apart from calcium supplements or calcium-rich meals. If you start, stop, or change calcium timing, ask your clinician about checking your thyroid levels.",
+      "recommendation": "Take calcium supplements or calcium-containing medicines at least four hours before or after levothyroxine. If you start, stop, or change their timing, ask your clinician whether thyroid testing is needed.",
       "onset_timeline": "weeks",
       "evidence_level": "established",
       "monitoring_note": "Check TSH 6–8 weeks after any change to calcium supplement timing or dose. Annual bone density assessment if on long-term thyroid replacement, especially postmenopausal women.",
@@ -1931,18 +2024,27 @@
           "source_type": "reference",
           "label": "Singh N et al. The acute effect of calcium carbonate on the intestinal absorption of levothyroxine. Thyroid. 2001;11(10):967-71",
           "url": "https://pubmed.ncbi.nlm.nih.gov/11716045/"
+        },
+        {
+          "source_type": "reference",
+          "label": "DailyMed — Levothyroxine Sodium prescribing information (calcium and iron separation)",
+          "url": "https://www.dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=a0dbd009-0a3e-4314-812f-dd372c255bb1&type=display"
         }
       ],
       "alert_headline": "Calcium can reduce thyroid-med absorption",
-      "alert_body": "Calcium taken near your thyroid medication can gradually reduce how much of the dose is absorbed over weeks. Separating them by time usually solves it.",
+      "alert_body": "Over time, calcium supplements taken close to levothyroxine can reduce thyroid-medicine absorption.",
       "acknowledgement_note": "Good — calcium intake supports bone health; timing separately keeps your thyroid dose steady.",
       "monitoring_tip_short": "Consider taking levothyroxine at least 4 hours apart from calcium-rich meals or supplements.",
       "adequacy_threshold_mg": 500,
       "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_fix_sprint_01",
-      "citation_review_note": "Ca–levothyroxine absorption interaction is well-documented (Singh 2000 JAMA, 2001 Thyroid); overstated 40% figure corrected to the study values and out-of-scope bone-calcium claims removed."
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "citation_review_note": "Limited four-hour separation advice to calcium supplements/products rather than ordinary calcium-rich meals.",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Limited four-hour separation advice to calcium supplements/products rather than ordinary calcium-rich meals."
     },
     {
       "id": "DEP_LEVOTHYROXINE_IRON",
@@ -1968,6 +2070,11 @@
           "source_type": "pubmed",
           "label": "Campbell NR et al. Ferrous sulfate reduces thyroxine efficacy in patients with hypothyroidism. Ann Intern Med. 1992;117(12):1010-3",
           "url": "https://pubmed.ncbi.nlm.nih.gov/1443969/"
+        },
+        {
+          "source_type": "reference",
+          "label": "DailyMed — Levothyroxine Sodium prescribing information (calcium and iron separation)",
+          "url": "https://www.dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=a0dbd009-0a3e-4314-812f-dd372c255bb1&type=display"
         }
       ],
       "alert_headline": "Iron can reduce thyroid-med absorption",
@@ -1979,7 +2086,11 @@
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-23",
       "reviewer": "lead_clinician_fix_sprint_01",
-      "citation_review_note": "Placeholder NIH-ODS Iron sheet replaced with the primary controlled trial (Campbell 1992); unsupported 30–45% figure and out-of-scope claims (gastric acid, thyroperoxidase) removed."
+      "citation_review_note": "Placeholder NIH-ODS Iron sheet replaced with the primary controlled trial (Campbell 1992); unsupported 30–45% figure and out-of-scope claims (gastric acid, thyroperoxidase) removed.",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Direct interaction evidence and four-hour separation advice align."
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_VITAMIND",
@@ -2202,8 +2313,8 @@
     {
       "id": "DEP_ANTICOAGULANTS_VITAMINK",
       "drug_ref": {
-        "type": "class",
-        "id": "class:anticoagulants",
+        "type": "drug",
+        "id": "11289",
         "display_name": "Warfarin (anticoagulant / blood thinner)"
       },
       "depleted_nutrient": {
@@ -2212,26 +2323,36 @@
       },
       "depletion_type": "functional_antagonism",
       "severity": "significant",
-      "mechanism": "Warfarin inhibits vitamin K epoxide reductase (VKORC1), blocking the recycling of vitamin K from its epoxide form back to the active hydroquinone form. This functional depletion of active vitamin K prevents carboxylation of clotting factors II, VII, IX, and X, as well as proteins C and S. This is the intended pharmacological mechanism.",
-      "clinical_impact": "While the depletion of active vitamin K is the therapeutic goal of warfarin, it also depletes vitamin K-dependent proteins involved in bone metabolism (osteocalcin, matrix Gla protein), potentially contributing to vascular calcification and osteoporosis with long-term use.",
-      "recommendation": "Do NOT supplement with additional vitamin K without medical guidance — it will reduce warfarin's anticoagulant effect. Instead, maintain a consistent daily vitamin K intake from diet (green leafy vegetables). Sudden changes in vitamin K intake (including starting/stopping supplements) destabilize INR control.",
+      "mechanism": "Warfarin inhibits vitamin K epoxide reductase (VKORC1), reducing the recycling of vitamin K needed to activate clotting factors II, VII, IX, and X and proteins C and S. This is warfarin's intended drug action, not dietary vitamin K deficiency.",
+      "clinical_impact": "Large or sudden changes in vitamin K intake can change the INR and make warfarin less or more anticoagulant, increasing clotting or bleeding risk. Consistency matters more than avoiding vitamin K-rich foods.",
+      "recommendation": "Keep vitamin K intake reasonably consistent. Contact the warfarin prescriber or anticoagulation service before starting or stopping vitamin K supplements or making a major dietary change; do not change warfarin on your own.",
       "onset_timeline": "weeks",
       "evidence_level": "established",
-      "monitoring_note": "INR must be monitored regularly (typically every 4 weeks when stable). Any change in vitamin K-rich food consumption, antibiotic use, or new medications requires prompt INR re-check within 3–5 days.",
+      "monitoring_note": "INR monitoring frequency and follow-up after diet, supplement, or medication changes should be set by the anticoagulation team.",
       "sources": [
         {
           "source_type": "reference",
           "label": "Hirsh J et al. Oral anticoagulants: mechanism of action, clinical effectiveness, and optimal therapeutic range. Chest. 2001",
           "url": "https://pubmed.ncbi.nlm.nih.gov/11157640/"
+        },
+        {
+          "source_type": "reference",
+          "label": "DailyMed — Warfarin Sodium prescribing information (consistent vitamin K intake)",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=801e4da1-5459-47d2-b67b-009f0a3247cc&type=display"
         }
       ],
-      "alert_headline": "Warfarin changes how vitamin K works",
-      "alert_body": "Warfarin works by blocking vitamin K's role in clotting — this is long-term by design. Changes in vitamin K intake can shift your INR over weeks.",
-      "acknowledgement_note": "Good — steady vitamin K intake supports consistent INR during warfarin therapy.",
+      "alert_headline": "Warfarin is sensitive to vitamin K changes",
+      "alert_body": "Over time, warfarin intentionally blocks vitamin K recycling; sudden diet or supplement changes can shift the INR.",
+      "acknowledgement_note": "A reasonably consistent vitamin K intake supports steadier warfarin control.",
       "monitoring_tip_short": "Consider keeping your vitamin K intake steady day to day; discuss changes with your prescriber.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Narrowed the overbroad anticoagulant class to warfarin and removed speculative bone/vascular outcomes.",
+      "citation_review_note": "Narrowed the overbroad anticoagulant class to warfarin and removed speculative bone/vascular outcomes."
     },
     {
       "id": "DEP_MAOIS_VITAMINB6",
@@ -2691,7 +2812,11 @@
       "adequacy_threshold_mg": 25,
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewer": "lead_clinician_audit_2026_07",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current label and systematic review support the clinician-directed B6 recommendation."
     },
     {
       "id": "DEP_METHOTREXATE_FOLATE",
@@ -2706,9 +2831,9 @@
       },
       "depletion_type": "functional_antagonism",
       "severity": "significant",
-      "mechanism": "Methotrexate is an antifolate drug that inhibits folate-dependent metabolic pathways, including dihydrofolate reductase-related recycling. In low-dose inflammatory disease treatment, folic acid is often used to reduce folate-mediated side effects.",
-      "clinical_impact": "Insufficient folate support during methotrexate therapy can contribute to mouth sores, nausea, liver-enzyme elevations, cytopenias, and treatment intolerance. The right schedule depends on the methotrexate regimen.",
-      "recommendation": "Folic acid or folinic acid support should be clinician-directed with methotrexate. Do not change the folate schedule without the prescriber, because timing and dose can matter.",
+      "mechanism": "Methotrexate is an antifolate medicine. With low-dose regimens for inflammatory disease, clinician-prescribed folic or folinic acid can reduce folate-mediated adverse effects. Oncology and rescue regimens use different folate protocols.",
+      "clinical_impact": "In low-dose inflammatory-disease treatment, appropriate folate support can reduce mouth sores, nausea, liver-enzyme elevations, cytopenias, and treatment discontinuation. The schedule cannot be generalized to cancer treatment.",
+      "recommendation": "Use only the folic-acid or folinic-acid schedule prescribed for your exact methotrexate regimen. Do not start, stop, or retime folate without the rheumatology, dermatology, gastroenterology, or oncology prescriber.",
       "onset_timeline": "weeks",
       "evidence_level": "established",
       "monitoring_note": "Review folate schedule, CBC, and liver-enzyme monitoring with the methotrexate prescriber.",
@@ -2725,12 +2850,17 @@
         }
       ],
       "alert_headline": "Methotrexate changes folate pathways",
-      "alert_body": "Methotrexate works on folate-dependent pathways over time, so folic acid is often managed as part of the treatment plan rather than added casually.",
+      "alert_body": "With regular use, folate support is common for low-dose methotrexate in inflammatory disease, but oncology regimens differ.",
       "acknowledgement_note": "Good — folate intake is worth tracking while your clinician manages methotrexate therapy.",
       "monitoring_tip_short": "Consider confirming your exact folic-acid schedule with the clinician who prescribes methotrexate.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Explicitly separated low-dose inflammatory-disease folate support from oncology/rescue protocols.",
+      "citation_review_note": "Explicitly separated low-dose inflammatory-disease folate support from oncology/rescue protocols."
     },
     {
       "id": "DEP_ORLISTAT_VITAMINA",
@@ -2764,7 +2894,11 @@
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation."
     },
     {
       "id": "DEP_ORLISTAT_VITAMIND",
@@ -2798,7 +2932,11 @@
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation."
     },
     {
       "id": "DEP_ORLISTAT_VITAMINE",
@@ -2832,7 +2970,11 @@
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation."
     },
     {
       "id": "DEP_ORLISTAT_VITAMINK",
@@ -2866,7 +3008,11 @@
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation."
     },
     {
       "id": "DEP_SULFASALAZINE_FOLATE",
@@ -2901,7 +3047,11 @@
       "adequacy_threshold_mcg": 400,
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewer": "lead_clinician_audit_2026_07",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current label supports impaired folate absorption/metabolism and clinician direction."
     },
     {
       "id": "DEP_COLCHICINE_VITAMINB12",
@@ -2917,8 +3067,8 @@
       "depletion_type": "depletion",
       "severity": "moderate",
       "mechanism": "Colchicine can affect intestinal mucosal function and has been listed among medicines associated with vitamin B12 malabsorption. Long-term use may reduce B12 uptake in susceptible people.",
-      "clinical_impact": "Lower B12 status over time can contribute to anemia, neuropathy symptoms, fatigue, and cognitive changes. Risk is higher when other B12 absorption risks are present.",
-      "recommendation": "Consider periodic B12 monitoring during long-term colchicine therapy, especially if neuropathy symptoms, anemia, or additional B12 risk factors are present.",
+      "clinical_impact": "Long-term colchicine can contribute to low B12 in susceptible people, but modern evidence does not establish deficiency or routine screening in every user. Symptoms and other B12 risks should guide evaluation.",
+      "recommendation": "If long-term colchicine use coincides with anemia, neuropathy symptoms, or other B12 risk factors, ask whether B12 testing is appropriate. Routine supplementation is not established solely because colchicine is prescribed.",
       "onset_timeline": "months",
       "evidence_level": "probable",
       "monitoring_note": "Ask about B12 testing if colchicine is used chronically or if neuropathy symptoms develop.",
@@ -2935,13 +3085,18 @@
         }
       ],
       "alert_headline": "May affect B12 absorption over time",
-      "alert_body": "With long-term colchicine use, vitamin B12 absorption can gradually become less reliable over months, especially when other B12 risks are present.",
+      "alert_body": "Long-term colchicine may reduce B12 absorption in susceptible people; this does not mean every user becomes deficient.",
       "acknowledgement_note": "Good — vitamin B12 intake supports balance during long-term colchicine therapy.",
       "monitoring_tip_short": "Consider asking about B12 testing if colchicine is part of your long-term plan.",
       "adequacy_threshold_mcg": 250,
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_disposition": "approved_with_wording_change",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Kept the recognized malabsorption signal but removed any implication of universal periodic screening.",
+      "citation_review_note": "Kept the recognized malabsorption signal but removed any implication of universal periodic screening."
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINA",
@@ -2975,7 +3130,11 @@
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption."
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMIND",
@@ -3009,7 +3168,11 @@
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption."
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINE",
@@ -3043,7 +3206,11 @@
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption."
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINK",
@@ -3077,7 +3244,11 @@
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "b1_clinical_review_disposition": "approved",
+      "b1_clinical_reviewed_at": "2026-07-27",
+      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
+      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption."
     }
   ]
 }
