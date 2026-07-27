@@ -95,9 +95,11 @@ const _scenarios = <_Scenario>[
       'DEP_ANTICONVULSANTS_CALCIUM',
       'DEP_ANTICONVULSANTS_FOLATE',
       'DEP_ANTICONVULSANTS_VITAMINB12',
+    },
+    expectedSuppressed: {
+      'DEP_ANTICONVULSANTS_BIOTIN',
       'DEP_ANTICONVULSANTS_VITAMINK',
     },
-    expectedSuppressed: {'DEP_ANTICONVULSANTS_BIOTIN'},
   ),
   (
     label: 'carbamazepine case',
@@ -110,9 +112,11 @@ const _scenarios = <_Scenario>[
     expectedVisible: {
       'DEP_ANTICONVULSANTS_VITAMIND',
       'DEP_ANTICONVULSANTS_CALCIUM',
+    },
+    expectedSuppressed: {
+      'DEP_ANTICONVULSANTS_BIOTIN',
       'DEP_ANTICONVULSANTS_VITAMINK',
     },
-    expectedSuppressed: {'DEP_ANTICONVULSANTS_BIOTIN'},
   ),
   (
     label: 'valproate case',
@@ -121,6 +125,33 @@ const _scenarios = <_Scenario>[
     expectedClasses: {'class:valproate'},
     expectedVisible: {'DEP_ANTICONVULSANTS_LCARNITINE'},
     expectedSuppressed: {'DEP_ANTICONVULSANTS_BIOTIN'},
+  ),
+  (
+    label: 'DOAC does not receive warfarin vitamin K warning',
+    medication: 'apixaban',
+    rxcui: '1364430',
+    expectedClasses: {'class:anticoagulants'},
+    expectedVisible: {},
+    expectedSuppressed: {'DEP_ANTICOAGULANTS_VITAMINK'},
+  ),
+  (
+    label: 'non-oral contraceptive does not receive oral-pill B6 warning',
+    medication: 'medroxyprogesterone',
+    rxcui: '6691',
+    expectedClasses: {'class:oral_contraceptives'},
+    expectedVisible: {},
+    expectedSuppressed: {'DEP_OCP_VITAMINB6'},
+  ),
+  (
+    label: 'route-ambiguous steroid does not receive prednisone warning',
+    medication: 'rimexolone',
+    rxcui: '55681',
+    expectedClasses: {'class:corticosteroids'},
+    expectedVisible: {},
+    expectedSuppressed: {
+      'DEP_CORTICOSTEROIDS_CALCIUM',
+      'DEP_CORTICOSTEROIDS_VITAMIND',
+    },
   ),
   (
     label: 'no-match case',

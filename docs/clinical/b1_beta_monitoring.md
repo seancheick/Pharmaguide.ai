@@ -53,3 +53,8 @@ For every confirmed issue, record one outcome:
 
 No issue is closed on a synthetic test alone. Re-run the representative
 scenario release gate and the affected full Flutter suite before shipping.
+
+All resulting clinical changes must follow
+[B1 medication–nutrient change control](b1_change_control.md). In particular,
+the sign-off ledger and class-membership fingerprints must be updated through
+evidence review rather than bypassed to satisfy CI.
