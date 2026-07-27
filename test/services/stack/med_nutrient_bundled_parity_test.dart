@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 // Repinned 2026-07-26: Section 3 content-audited antiseizure citations,
 // direct-drug scopes, and suppression of known real-but-unrelated PMIDs.
 const _pinnedContentHash =
-    'sha256:c86fd6515016292285c0ec738f6c132d215bcec627b297411c41228199f627de';
+    'sha256:4f690545bd319269fad732e81025420b9b235d94b88859a3fa97f8ba710996f8';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

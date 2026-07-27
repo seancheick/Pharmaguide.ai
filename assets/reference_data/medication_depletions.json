@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.27",
-    "content_hash": "sha256:c86fd6515016292285c0ec738f6c132d215bcec627b297411c41228199f627de",
+    "content_hash": "sha256:4f690545bd319269fad732e81025420b9b235d94b88859a3fa97f8ba710996f8",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -1618,11 +1618,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "ACE inhibitors chelate zinc ions (zinc is a cofactor at the ACE active site, and the drugs bind it). This binding increases urinary zinc excretion. Captopril in particular has strong zinc-chelating properties due to its sulfhydryl group.",
-      "clinical_impact": "Zinc deficiency may contribute to ACE inhibitor-induced side effects including loss of taste (dysgeusia) and cough. Long-term zinc depletion impairs immune function, wound healing, and testosterone levels.",
-      "recommendation": "Consider zinc supplementation (10–15 mg/day as zinc glycinate) for patients on long-term ACE inhibitor therapy, especially if experiencing loss of taste or recurrent infections.",
+      "mechanism": "Captopril-specific studies report altered zinc measures, particularly with long-term high-dose treatment; that does not justify a class-wide ACE-inhibitor supplement recommendation.",
+      "clinical_impact": "No ACE-inhibitor zinc-depletion warning is emitted pending a drug-specific, clinically actionable review.",
+      "recommendation": "Do not start zinc solely because of ACE-inhibitor use.",
       "onset_timeline": "months",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": "Consider zinc supplementation trial if patient on ACE inhibitor develops dysgeusia (taste disturbance).",
       "sources": [
         {
@@ -1637,9 +1637,10 @@
       "monitoring_tip_short": "Consider a modest zinc supplement if taste feels duller than usual.",
       "adequacy_threshold_mg": 10,
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "citation_review_note": "Suppressed (needs_revision): live studies support a captopril-specific signal, not the displayed broad ACE-inhibitor claim or routine zinc supplementation.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_05_cardiovascular_audit"
     },
     {
       "id": "DEP_BETABLOCKERS_COQ10",
@@ -1654,11 +1655,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Beta blockers may inhibit mitochondrial enzymes involved in CoQ10 synthesis and utilization, including NADH-CoQ reductase and succinate-CoQ reductase. Propranolol and metoprolol have been specifically studied. The depletion appears less pronounced than with statins.",
-      "clinical_impact": "Reduced CoQ10 may contribute to fatigue, exercise intolerance, and worsened cardiac energy metabolism — effects that compound the intrinsic negative chronotropic/inotropic effects of beta blockers.",
-      "recommendation": "Consider 100–200 mg CoQ10 daily if experiencing fatigue or exercise intolerance while on beta blockers. This is particularly relevant for patients with heart failure.",
+      "mechanism": "No consumer mechanism is asserted: the inherited PMID is not evidence that beta blockers deplete coenzyme Q10.",
+      "clinical_impact": "No beta-blocker CoQ10 depletion warning is emitted pending exact supporting evidence.",
+      "recommendation": "Do not start CoQ10 solely because of beta-blocker use.",
       "onset_timeline": "months",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -1678,9 +1679,10 @@
       "monitoring_tip_short": "Consider discussing CoQ10 with your cardiologist if fatigue feels persistent.",
       "adequacy_threshold_mg": 100,
       "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "citation_review_note": "Suppressed (needs_revision): PMID 12392188 is a content mismatch for the displayed beta-blocker CoQ10 claim; it must not support consumer supplementation.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_05_cardiovascular_audit"
     },
     {
       "id": "DEP_BETABLOCKERS_MELATONIN",
@@ -1695,11 +1697,11 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Melatonin synthesis in the pineal gland requires beta-adrenergic stimulation to activate arylalkylamine N-acetyltransferase (AANAT). Beta blockers block beta-1 and beta-2 adrenergic receptors on pinealocytes, suppressing the nocturnal melatonin surge by up to 50% or more.",
-      "clinical_impact": "Melatonin suppression from beta blockers is a common cause of drug-induced insomnia and sleep disturbance. Patients frequently report difficulty falling or staying asleep, which may be misattributed to anxiety or the underlying condition.",
-      "recommendation": "If experiencing sleep problems on a beta blocker, discuss with your doctor. Low-dose melatonin (0.5–1 mg) taken 30–60 minutes before bed may help restore sleep quality. Avoid high doses (>5 mg) unless directed.",
+      "mechanism": "Some beta blockers reduce nocturnal melatonin, but effects vary by agent and study; this is not a class-wide nutrient-depletion indication.",
+      "clinical_impact": "No beta-blocker melatonin depletion warning is emitted pending agent-specific scope and consumer-safety review.",
+      "recommendation": "Discuss persistent sleep symptoms with the prescriber rather than self-treating them as a universal beta-blocker depletion.",
       "onset_timeline": "weeks",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -1712,9 +1714,10 @@
       "alert_body": "Beta blockers can gradually reduce the body's nighttime melatonin release with regular use over weeks. Some people notice changes in sleep onset.",
       "acknowledgement_note": "Nice — low-dose melatonin aligns with guidance for people using beta blockers long-term.",
       "monitoring_tip_short": "Consider discussing low-dose melatonin with your prescriber for sleep support.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "citation_review_note": "Suppressed (needs_revision): PMIDs 10335905 and 23024438 support selected beta-blocker melatonin effects, not the displayed broad class claim or a universal supplementation recommendation.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_05_cardiovascular_audit"
     },
     {
       "id": "DEP_NSAIDS_FOLATE",
@@ -2402,9 +2405,9 @@
       },
       "depletion_type": "depletion",
       "severity": "mild",
-      "mechanism": "Calcium channel blockers may increase urinary potassium excretion through renal tubular effects on potassium secretion channels. The effect is generally mild compared to diuretics and is not consistently demonstrated across all agents in this class.",
-      "clinical_impact": "The potassium-wasting effect is generally clinically minor unless combined with other potassium-depleting medications (loop/thiazide diuretics, corticosteroids). Monitoring is most important in patients on combination antihypertensive regimens.",
-      "recommendation": "Ensure adequate dietary potassium intake. Check electrolytes if on combination antihypertensive therapy including both CCBs and diuretics.",
+      "mechanism": "No reliable evidence establishes calcium-channel blockers as potassium-wasting medicines.",
+      "clinical_impact": "No calcium-channel-blocker potassium depletion warning is emitted.",
+      "recommendation": "Follow ordinary dietary potassium guidance; do not supplement solely because of calcium-channel-blocker use.",
       "onset_timeline": "months",
       "evidence_level": "possible",
       "monitoring_note": "Monitor serum electrolytes in patients on multiple antihypertensive agents.",
@@ -2420,9 +2423,10 @@
       "acknowledgement_note": "Good — potassium awareness is helpful, and your care plan tracks levels.",
       "monitoring_tip_short": "Consider asking for electrolyte checks if you're on combination blood-pressure therapy.",
       "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, and tomatoes.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: inherited textbook assertion lacks claim-matched evidence for potassium depletion or supplementation.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_05_cardiovascular_audit"
     },
     {
       "id": "DEP_ANTIHYPERTENSIVES_ZINC",
@@ -2437,9 +2441,9 @@
       },
       "depletion_type": "depletion",
       "severity": "mild",
-      "mechanism": "Several antihypertensive drug classes increase urinary zinc excretion. This is most documented with ACE inhibitors (via zinc chelation) and thiazide diuretics (via increased urinary volume). The combined effect of multi-drug antihypertensive regimens may produce clinically significant zinc depletion.",
-      "clinical_impact": "Zinc deficiency impairs taste acuity (contributing to poor dietary compliance), immune function, wound healing, and sexual function — all concerns in the hypertensive patient population, which tends to be older.",
-      "recommendation": "Patients on multiple antihypertensive medications should ensure adequate dietary zinc or consider a modest zinc supplement (10 mg/day as zinc glycinate).",
+      "mechanism": "Antihypertensive classes have heterogeneous zinc effects; a broad class cannot support a single depletion mechanism.",
+      "clinical_impact": "No broad-antihypertensive zinc depletion warning is emitted.",
+      "recommendation": "Do not start zinc solely because of antihypertensive use.",
       "onset_timeline": "months",
       "evidence_level": "possible",
       "monitoring_note": null,
@@ -2456,9 +2460,10 @@
       "monitoring_tip_short": "Consider a modest zinc supplement; discuss with your prescriber if taste feels duller.",
       "adequacy_threshold_mg": 10,
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: broad class conflates ACE inhibitors, diuretics, beta blockers, and other agents with different evidence and mechanisms.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_05_cardiovascular_audit"
     },
     {
       "id": "DEP_ANTIHYPERTENSIVES_COQ10",
@@ -2473,11 +2478,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Hydralazine (a vasodilating antihypertensive) has been shown to deplete CoQ10 through uncertain mechanisms, possibly involving oxidative stress generation or inhibition of CoQ10 biosynthetic enzymes. This depletion may blunt its antihypertensive efficacy.",
-      "clinical_impact": "CoQ10 supplementation has demonstrated blood pressure-lowering properties in clinical trials, and depletion may partially undermine treatment. Fatigue and reduced exercise tolerance are additional concerns.",
-      "recommendation": "Consider 100–200 mg CoQ10 daily if on hydralazine-class antihypertensives, particularly if experiencing fatigue or suboptimal blood pressure control.",
+      "mechanism": "No reliable evidence establishes a hydralazine/clonidine coenzyme Q10 depletion claim.",
+      "clinical_impact": "No hydralazine/clonidine CoQ10 depletion warning is emitted.",
+      "recommendation": "Do not start CoQ10 solely because of hydralazine or clonidine use.",
       "onset_timeline": "months",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -2492,9 +2497,10 @@
       "monitoring_tip_short": "Consider discussing CoQ10 with your prescriber if fatigue feels persistent.",
       "adequacy_threshold_mg": 100,
       "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: inherited textbook assertion lacks claim-matched clinical evidence for depletion or supplementation.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_05_cardiovascular_audit"
     },
     {
       "id": "DEP_INSULINS_MAGNESIUM",
