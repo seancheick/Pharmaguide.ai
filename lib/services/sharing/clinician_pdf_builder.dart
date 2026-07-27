@@ -6,6 +6,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
@@ -22,6 +24,10 @@ class ClinicianPdfBuilder {
     required StackSafetyReport safetyReport,
     required List<DepletionMatch> depletions,
     MedNutrientLoadStatus depletionStatus = MedNutrientLoadStatus.loaded,
+    String? clinicalDataVersion,
+    String? clinicalDataHash,
+    String? productCatalogVersion,
+    String? interactionRulesVersion,
     required DateTime generatedAt,
     Uint8List? logoBytes,
     Uint8List? regularFontBytes,
@@ -49,14 +55,23 @@ class ClinicianPdfBuilder {
         build: (context) => [
           _header(theme, logo, generatedAt),
           _about(theme),
+          _clinicalDataSection(
+            theme,
+            version: clinicalDataVersion,
+            contentHash: clinicalDataHash,
+            productCatalogVersion: productCatalogVersion,
+            interactionRulesVersion: interactionRulesVersion,
+            status: depletionStatus,
+          ),
           _profileSection(theme, profile),
           _stackSection(theme, 'Medications', stack, 'medication'),
           _stackSection(theme, 'Supplements', stack, 'supplement'),
           _summarySection(theme, intelligence),
-          _warningsSection(theme, intelligence),
+          _warningsSection(theme, intelligence, safetyReport),
           _nutrientSection(theme, safetyReport.nutrientStatuses),
           _timingSection(theme, safetyReport.timingOptimizations),
           _depletionSection(theme, depletions, depletionStatus),
+          _questionsSection(theme),
           _limitations(theme),
         ],
       ),
@@ -159,6 +174,32 @@ class ClinicianPdfBuilder {
     return _section(theme, 'Patient profile', rows.map((r) => _line(theme, r)));
   }
 
+  pw.Widget _clinicalDataSection(
+    _Theme theme, {
+    required String? version,
+    required String? contentHash,
+    required String? productCatalogVersion,
+    required String? interactionRulesVersion,
+    required MedNutrientLoadStatus status,
+  }) {
+    final versionValue = version?.trim() ?? '';
+    final hashValue = contentHash?.trim() ?? '';
+    final catalogVersionValue = productCatalogVersion?.trim() ?? '';
+    final interactionVersionValue = interactionRulesVersion?.trim() ?? '';
+    final rows = <String>[
+      'Medication-nutrient analysis status: ${_loadStatusLabel(status)}',
+      if (versionValue.isNotEmpty) 'Clinical data version: $versionValue',
+      if (hashValue.isNotEmpty) 'Clinical data hash: $hashValue',
+      if (catalogVersionValue.isNotEmpty)
+        'Product catalog version: $catalogVersionValue',
+      if (interactionVersionValue.isNotEmpty)
+        'Interaction rules version: $interactionVersionValue',
+    ];
+    return _section(theme, 'Clinical data provenance', [
+      for (final row in rows) _line(theme, row),
+    ]);
+  }
+
   pw.Widget _stackSection(
     _Theme theme,
     String title,
@@ -181,8 +222,6 @@ class ClinicianPdfBuilder {
       'Stack size: ${intelligence.stackSize}',
       'Interactions flagged: ${intelligence.interactionCount}',
       'Nutrient warnings: ${intelligence.nutrientWarningCount}',
-      if (intelligence.qualityScore != null)
-        'Stack quality score: ${intelligence.qualityScore}/100',
       if (intelligence.hasContraindicatedInteraction)
         'Contraindicated interaction detected',
       if (intelligence.hasBannedIngredient) 'Banned ingredient detected',
@@ -191,19 +230,112 @@ class ClinicianPdfBuilder {
     return _section(theme, 'Stack summary', rows.map((r) => _line(theme, r)));
   }
 
-  pw.Widget _warningsSection(_Theme theme, StackIntelligence intelligence) {
-    final issues = _sortedIssues(intelligence.issues);
-    if (issues.isEmpty) {
+  pw.Widget _warningsSection(
+    _Theme theme,
+    StackIntelligence intelligence,
+    StackSafetyReport safetyReport,
+  ) {
+    final signals = orderedSignalsFrom(safetyReport);
+    final representedHeadlines = _representedIssueHeadlines(signals);
+    final remainingIssues = _sortedIssues(
+      intelligence.issues
+          .where(
+            (issue) => !representedHeadlines.contains(issue.headline.trim()),
+          )
+          .toList(growable: false),
+    );
+    if (signals.isEmpty && remainingIssues.isEmpty) {
       return _section(theme, 'Warnings', [
         _line(theme, 'No stack warnings in the current snapshot.'),
       ]);
     }
 
-    return _section(
-      theme,
-      'Warnings',
-      issues.map(
+    // Recall/banned and other hard issues originate outside
+    // StackSafetyReport. Keep them ahead of the rich typed blocks; otherwise a
+    // single interaction signal could hide a release-blocking recall.
+    final hardIssues = remainingIssues
+        .where((issue) => issue.severity.isHard)
+        .toList(growable: false);
+    final otherIssues = remainingIssues
+        .where((issue) => !issue.severity.isHard)
+        .toList(growable: false);
+    return _section(theme, 'Warnings', [
+      ...hardIssues.map(
         (issue) => _severityLine(theme, issue.severity.label, issue.headline),
+      ),
+      ...signals.map((signal) => _clinicalSignalBlock(theme, signal)),
+      ...otherIssues.map(
+        (issue) => _severityLine(theme, issue.severity.label, issue.headline),
+      ),
+    ]);
+  }
+
+  Set<String> _representedIssueHeadlines(List<ClinicalSignal> signals) {
+    final headlines = <String>{};
+    for (final signal in signals) {
+      switch (signal.payload) {
+        case InteractionPayload(:final result):
+          headlines.add(result.mechanism.trim());
+        case MedicationProfilePayload(:final warning):
+          headlines.add(
+            '${warning.medicationName}: ${warning.headline}'.trim(),
+          );
+        case CumulativeExposurePayload(:final status):
+          final warning = status.warning;
+          if (warning == null && status.tier != NutrientTier.exceedsUl) {
+            continue;
+          }
+          final hasUpperLimitDetail =
+              status.ul != null && status.pctOfUl != null;
+          headlines.add(
+            status.tier == NutrientTier.exceedsUl && hasUpperLimitDetail
+                ? StackSafetyReport.nutrientUpperLimitSummary(status)
+                : warning!.trim(),
+          );
+        case MedicationNutrientPayload():
+          break;
+      }
+    }
+    headlines.remove('');
+    return headlines;
+  }
+
+  pw.Widget _clinicalSignalBlock(_Theme theme, ClinicalSignal signal) {
+    final detail = <pw.Widget>[
+      _severityLine(theme, signal.clinicalSeverity.label, signal.title),
+    ];
+
+    switch (signal.payload) {
+      case InteractionPayload(:final result):
+        detail.add(_line(theme, 'Evidence: ${result.evidenceLevel.label}'));
+        if (result.mechanism.trim().isNotEmpty) {
+          detail.add(_line(theme, 'Mechanism: ${result.mechanism.trim()}'));
+        }
+        if (result.management.trim().isNotEmpty) {
+          detail.add(_line(theme, 'Management: ${result.management.trim()}'));
+        }
+      case MedicationProfilePayload(:final warning):
+        if (warning.body.trim().isNotEmpty) {
+          detail.add(_line(theme, 'Clinical context: ${warning.body.trim()}'));
+        }
+      case CumulativeExposurePayload():
+        if (signal.body.trim().isNotEmpty) {
+          detail.add(_line(theme, 'Clinical context: ${signal.body.trim()}'));
+        }
+      case MedicationNutrientPayload():
+        // Medication-nutrient matches are rendered in their dedicated section.
+        break;
+    }
+
+    for (final url in signal.sourceUrls.where((url) => url.trim().isNotEmpty)) {
+      detail.add(_line(theme, 'Source: ${url.trim()}'));
+    }
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 10),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: detail,
       ),
     );
   }
@@ -266,10 +398,10 @@ class ClinicianPdfBuilder {
     // An unavailable analysis must be stated, never silently omitted: a clinician
     // cannot otherwise tell "none found" from "the check did not run".
     if (status == MedNutrientLoadStatus.unavailable) {
-      return _section(theme, 'Medication nutrient notes', [
+      return _section(theme, 'Medication-nutrient relationships', [
         _line(
           theme,
-          'Medication-nutrient depletion analysis was unavailable when this '
+          'Medication-nutrient analysis was unavailable when this '
           'report was generated. This is not evidence that no interactions '
           'exist - the check could not run.',
         ),
@@ -285,20 +417,52 @@ class ClinicianPdfBuilder {
           ]
         : const <pw.Widget>[];
     if (depletions.isEmpty && statusLines.isNotEmpty) {
-      return _section(theme, 'Medication nutrient notes', statusLines);
+      return _section(theme, 'Medication-nutrient relationships', statusLines);
     }
     if (depletions.isEmpty) return pw.SizedBox.shrink();
 
-    return _section(theme, 'Medication nutrient notes', [
+    return _section(theme, 'Medication-nutrient relationships', [
       ...statusLines,
       ...depletions.take(8).map((match) {
         final headline = match.alertHeadline?.trim().isNotEmpty == true
             ? match.alertHeadline!.trim()
             : '${match.drugDisplayName} may affect ${match.nutrientName}';
-        final tip = match.monitoringTipShort?.trim().isNotEmpty == true
-            ? ' - ${match.monitoringTipShort!.trim()}'
-            : '';
-        return _line(theme, '$headline$tip');
+        final rows = <pw.Widget>[
+          _line(theme, headline),
+          _line(
+            theme,
+            'Relationship: ${medNutrientRelationshipLabel(match.depletionType)}',
+          ),
+          _line(theme, 'Evidence: ${_evidenceLabel(match.evidenceLevel)}'),
+        ];
+        if (match.mechanism.trim().isNotEmpty) {
+          rows.add(_line(theme, 'Mechanism: ${match.mechanism.trim()}'));
+        }
+        final impact = match.clinicalImpact?.trim() ?? '';
+        if (impact.isNotEmpty) {
+          rows.add(_line(theme, 'Clinical impact: $impact'));
+        }
+        if (match.recommendation.trim().isNotEmpty) {
+          rows.add(
+            _line(theme, 'Recommendation: ${match.recommendation.trim()}'),
+          );
+        }
+        final tip = match.monitoringTipShort?.trim() ?? '';
+        if (tip.isNotEmpty) {
+          rows.add(_line(theme, 'Monitoring: $tip'));
+        }
+        for (final url in match.sourceUrls.where(
+          (url) => url.trim().isNotEmpty,
+        )) {
+          rows.add(_line(theme, 'Source: ${url.trim()}'));
+        }
+        return pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 10),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: rows,
+          ),
+        );
       }),
     ]);
   }
@@ -316,6 +480,23 @@ class ClinicianPdfBuilder {
       _line(
         theme,
         'Do not use this report alone to start, stop, or change therapy.',
+      ),
+    ]);
+  }
+
+  pw.Widget _questionsSection(_Theme theme) {
+    return _section(theme, 'Questions to discuss', [
+      _line(
+        theme,
+        'Do any listed combinations require a dose, timing, or therapy change?',
+      ),
+      _line(
+        theme,
+        'Are any monitoring tests appropriate based on medication duration, dose, symptoms, or individual risk factors?',
+      ),
+      _line(
+        theme,
+        'Are all medications, over-the-counter products, and supplements represented accurately?',
       ),
     ]);
   }
@@ -446,6 +627,19 @@ class ClinicianPdfBuilder {
     NutrientTier.aboveTypical => 'Above typical',
     NutrientTier.approachingUl => 'Approaching upper limit',
     NutrientTier.exceedsUl => 'Exceeds upper limit',
+  };
+
+  String _evidenceLabel(String level) => switch (level.trim().toLowerCase()) {
+    'established' => 'Established',
+    'probable' => 'Probable',
+    'possible' => 'Possible',
+    _ => 'Not graded',
+  };
+
+  String _loadStatusLabel(MedNutrientLoadStatus status) => switch (status) {
+    MedNutrientLoadStatus.loaded => 'Complete',
+    MedNutrientLoadStatus.fallbackLoaded => 'Partial - fallback artifact',
+    MedNutrientLoadStatus.unavailable => 'Unavailable',
   };
 
   String _formatDate(DateTime d) {

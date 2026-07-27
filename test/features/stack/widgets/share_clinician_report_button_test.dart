@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart'
+    as reference_data;
+import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -33,6 +36,7 @@ void main() {
     Widget child, {
     required CoreDatabase coreDb,
     required UserDatabase userDb,
+    ReferenceDataRepository? referenceDataRepository,
   }) {
     return ProviderScope(
       overrides: [
@@ -54,6 +58,9 @@ void main() {
             status: MedNutrientLoadStatus.loaded,
             matches: const <DepletionMatch>[],
           ),
+        ),
+        reference_data.referenceDataRepositoryProvider.overrideWithValue(
+          referenceDataRepository ?? _AvailableReferenceDataRepository(),
         ),
       ],
       child: MaterialApp(
@@ -118,6 +125,39 @@ void main() {
     await userDb.close();
   });
 
+  testWidgets('missing provenance metadata does not block PDF sharing', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    List<int>? capturedPdf;
+    final fakeShareService = ShareService(
+      pdfShareOverride: (bytes, {required filename}) async {
+        capturedPdf = bytes;
+      },
+    );
+
+    await tester.pumpWidget(
+      wrap(
+        ShareClinicianReportButton(shareService: fakeShareService),
+        coreDb: coreDb,
+        userDb: userDb,
+        referenceDataRepository: _UnavailableReferenceDataRepository(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Share with clinician'));
+    await tester.pumpAndSettle();
+
+    expect(capturedPdf, isNotNull);
+    expect(capturedPdf!.take(5), orderedEquals('%PDF-'.codeUnits));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await coreDb.close();
+    await userDb.close();
+  });
+
   testWidgets('tap records report build failures before showing snackbar', (
     tester,
   ) async {
@@ -156,4 +196,29 @@ void main() {
     await coreDb.close();
     await userDb.close();
   });
+}
+
+class _UnavailableReferenceDataRepository extends ReferenceDataRepository {
+  @override
+  Future<({MedNutrientLoadStatus status, Map<String, dynamic> data})>
+  loadMedicationDepletions() async {
+    throw const FormatException('clinical metadata unavailable');
+  }
+}
+
+class _AvailableReferenceDataRepository extends ReferenceDataRepository {
+  @override
+  Future<({MedNutrientLoadStatus status, Map<String, dynamic> data})>
+  loadMedicationDepletions() async {
+    return (
+      status: MedNutrientLoadStatus.loaded,
+      data: const <String, dynamic>{
+        '_metadata': <String, dynamic>{
+          'content_version': 'test-clinical-version',
+          'content_hash': 'sha256:test-clinical-hash',
+        },
+        'depletions': <dynamic>[],
+      },
+    );
+  }
 }
