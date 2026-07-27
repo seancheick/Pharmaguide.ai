@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.27",
-    "content_hash": "sha256:1064b230434e3fc1674871d5c6b499bdedc11bff8ec9c866659856cec92c69d7",
+    "content_hash": "sha256:9038bd877f9602cbd73129d9bd7db4f6461d866a9b4d58907e9f1d45a383cbfd",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -2139,12 +2139,12 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "HIV protease inhibitors, particularly ritonavir-boosted regimens, inhibit CYP3A4-mediated vitamin D activation and may also directly impair 25-hydroxylation of vitamin D in the liver. HIV infection itself and immune activation independently reduce vitamin D levels.",
-      "clinical_impact": "Vitamin D deficiency is nearly universal in HIV patients on protease inhibitors and contributes to bone disease (osteopenia, osteoporosis), immune dysfunction, increased infection risk, and metabolic complications including insulin resistance.",
-      "recommendation": "Vitamin D supplementation (1,000–4,000 IU daily) is widely recommended for HIV patients on ART. Levels should be monitored and dosing adjusted to achieve 25-OH-D >30 ng/mL.",
-      "onset_timeline": "months",
-      "evidence_level": "established",
-      "monitoring_note": "Check 25-OH vitamin D every 6–12 months in all HIV-positive patients on protease inhibitor-based regimens.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -2152,16 +2152,15 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/21694637/"
         }
       ],
-      "alert_headline": "May lower vitamin D with long-term use",
-      "alert_body": "HIV protease inhibitors can gradually affect how the body activates vitamin D over months. Levels often need active management during therapy.",
-      "acknowledgement_note": "Good — vitamin D intake aligns with standard care during long-term ART.",
-      "monitoring_tip_short": "Consider regular 25-OH-D checks; your HIV clinician can guide targets.",
-      "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 21694637 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "citation_review_note": "Suppressed: current PMID is content-mismatched and the record conflates HIV disease with protease-inhibitor effects."
     },
     {
       "id": "DEP_HIVPI_ZINC",
@@ -2176,12 +2175,12 @@
       },
       "depletion_type": "condition_related",
       "severity": "moderate",
-      "mechanism": "HIV infection causes systemic zinc depletion through increased urinary losses, impaired intestinal absorption, and redistribution of zinc as part of the acute phase response. Protease inhibitors may compound this through GI side effects that reduce dietary zinc absorption.",
-      "clinical_impact": "Zinc deficiency is associated with impaired immune function, increased HIV disease progression, poor wound healing, and diarrhea — a vicious cycle given that diarrhea (common with some antiretrovirals) further depletes zinc.",
-      "recommendation": "Zinc supplementation (10–15 mg/day as zinc glycinate) is frequently recommended in HIV patients. However, excessive zinc can be immunosuppressive — do not exceed 40 mg/day without medical supervision.",
-      "onset_timeline": "months",
-      "evidence_level": "probable",
-      "monitoring_note": "Check serum zinc levels annually in HIV-positive patients, especially those with recurrent infections or diarrhea.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -2189,16 +2188,15 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/12591569/"
         }
       ],
-      "alert_headline": "May lower zinc over time",
-      "alert_body": "With long-term HIV protease inhibitor use, zinc can gradually run lower over months. This often pairs with broader nutrition support in HIV care.",
-      "acknowledgement_note": "Good — zinc intake supports immune balance during long-term ART.",
-      "monitoring_tip_short": "Consider discussing a modest zinc supplement with your HIV clinician.",
-      "adequacy_threshold_mg": 10,
-      "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 12591569 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "citation_review_note": "Suppressed: current PMID is content-mismatched and the record conflates HIV disease with protease-inhibitor effects."
     },
     {
       "id": "DEP_ANTICOAGULANTS_VITAMINK",
@@ -2330,12 +2328,12 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Calcineurin inhibitors (tacrolimus, cyclosporine) directly inhibit renal tubular magnesium reabsorption by downregulating TRPM6/TRPM7 channels, leading to profound renal magnesium wasting. This is a recognized adverse effect of these immunosuppressants.",
-      "clinical_impact": "Severe hypomagnesemia from calcineurin inhibitors causes muscle cramps, tremors, cardiac arrhythmias, and neurotoxicity (which can mimic or worsen the neurotoxicity of tacrolimus itself). Post-transplant hypomagnesemia is highly prevalent.",
-      "recommendation": "Magnesium supplementation is routinely required in transplant patients on calcineurin inhibitors. Oral magnesium oxide, glycinate, or citrate (400–800 mg/day in divided doses) is typically prescribed. IV magnesium may be needed for severe deficiency.",
-      "onset_timeline": "weeks",
-      "evidence_level": "established",
-      "monitoring_note": "Check serum magnesium weekly in early post-transplant period, then monthly when stable. Target serum magnesium >0.7 mmol/L (1.7 mg/dL).",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -2348,16 +2346,15 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/16641596/"
         }
       ],
-      "alert_headline": "Can lower magnesium with regular use",
-      "alert_body": "Calcineurin inhibitors like tacrolimus and cyclosporine can gradually increase magnesium loss through urine over weeks. Magnesium is typically monitored closely in transplant care.",
-      "acknowledgement_note": "Good — magnesium intake is part of standard care during calcineurin-inhibitor therapy.",
-      "monitoring_tip_short": "Ask your transplant team about your magnesium schedule — this is a routine part of care.",
-      "adequacy_threshold_mg": 400,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 16641596 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "citation_review_note": "Suppressed: current PMID is content-mismatched; calcineurin-specific magnesium evidence needs a verified replacement and narrow scope."
     },
     {
       "id": "DEP_IMMUNOSUPPRESSANTS_VITAMIND",
@@ -2372,12 +2369,12 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Combined immunosuppressive regimens (often including steroids + calcineurin inhibitors) impair vitamin D via multiple pathways: accelerated hepatic catabolism by corticosteroids, reduced sun exposure from photosensitivity, impaired renal 1-alpha hydroxylation, and reduced dietary intake from medication-induced GI side effects.",
-      "clinical_impact": "Vitamin D deficiency after organ transplant contributes to osteoporosis, increased fracture risk, immune dysregulation, and cardiovascular complications. Post-transplant bone disease is a major cause of morbidity.",
-      "recommendation": "Vitamin D3 supplementation (1,000–4,000 IU/day) is standard of care in transplant patients. Optimal 25-OH-D targets and dosing should be managed by your transplant team.",
-      "onset_timeline": "months",
-      "evidence_level": "established",
-      "monitoring_note": "Check 25-OH vitamin D every 3–6 months in the first year post-transplant, then every 6–12 months thereafter.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -2385,16 +2382,15 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/19528952/"
         }
       ],
-      "alert_headline": "Can lower vitamin D long-term",
-      "alert_body": "Combined immunosuppressive therapy can gradually reduce vitamin D over months. Vitamin D is part of routine labs after transplant and is actively managed.",
-      "acknowledgement_note": "Good — vitamin D intake is standard of care during transplant follow-up.",
-      "monitoring_tip_short": "Ask your transplant team about your vitamin D target and dosing plan.",
-      "adequacy_threshold_mcg": 25,
-      "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 19528952 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
+      "citation_review_note": "Suppressed: transplant-associated vitamin-D status does not establish a class-wide immunosuppressant depletion claim."
     },
     {
       "id": "DEP_CALCIUMCHANNELBLOCKERS_POTASSIUM",
@@ -2765,9 +2761,9 @@
       "alert_body": "Orlistat can gradually reduce absorption of Vitamin A over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
       "acknowledgement_note": "Good — vitamin A intake helps cover the fat-soluble vitamin gap during orlistat use.",
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
     },
     {
       "id": "DEP_ORLISTAT_VITAMIND",
@@ -2800,8 +2796,8 @@
       "acknowledgement_note": "Good — vitamin D intake helps cover the fat-soluble vitamin gap during orlistat use.",
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
     },
     {
       "id": "DEP_ORLISTAT_VITAMINE",
@@ -2833,9 +2829,9 @@
       "alert_body": "Orlistat can gradually reduce absorption of Vitamin E over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
       "acknowledgement_note": "Good — vitamin E intake helps cover the fat-soluble vitamin gap during orlistat use.",
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
     },
     {
       "id": "DEP_ORLISTAT_VITAMINK",
@@ -2867,9 +2863,9 @@
       "alert_body": "Orlistat can gradually reduce absorption of Vitamin K over months because this vitamin depends on dietary fat for uptake. Timing a multivitamin away from the dose helps.",
       "acknowledgement_note": "Good — steady vitamin K intake helps keep orlistat-related monitoring clearer.",
       "monitoring_tip_short": "Consider taking your multivitamin at least 2 hours apart from orlistat.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
     },
     {
       "id": "DEP_SULFASALAZINE_FOLATE",
@@ -2976,9 +2972,9 @@
       "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin A over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
       "acknowledgement_note": "Good — vitamin A intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMIND",
@@ -3010,9 +3006,9 @@
       "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin D over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
       "acknowledgement_note": "Good — vitamin D intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINE",
@@ -3044,9 +3040,9 @@
       "alert_body": "Cholestyramine can gradually reduce absorption of Vitamin E over months because this vitamin depends on fat and bile for uptake. Timing vitamins apart can help.",
       "acknowledgement_note": "Good — vitamin E intake helps cover the fat-soluble vitamin gap during cholestyramine use.",
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINK",
@@ -3079,8 +3075,8 @@
       "acknowledgement_note": "Good — steady vitamin K intake helps keep cholestyramine-related monitoring clearer.",
       "monitoring_tip_short": "Consider taking vitamins several hours apart from cholestyramine; confirm timing with your clinician.",
       "citation_review_status": "verified",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_09_specialized_therapies_audit"
     }
   ]
 }
