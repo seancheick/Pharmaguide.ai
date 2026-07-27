@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.07.26",
-    "content_hash": "sha256:9189d879db99c2713df799a59f60527647f6901120610def783adf767a846820",
+    "content_version": "2026.07.27",
+    "content_hash": "sha256:c86fd6515016292285c0ec738f6c132d215bcec627b297411c41228199f627de",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -501,11 +501,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Oral contraceptives appear to reduce serum B12 by lowering plasma binding proteins (transcobalamin I and II), redistributing B12 into tissues and reducing measured serum levels. Intestinal absorption is not significantly impaired.",
-      "clinical_impact": "Low serum B12, even if partially artifactual from protein binding changes, may contribute to fatigue, mood disturbances, and elevated homocysteine. Women planning pregnancy after stopping OCPs should ensure B12 repletion.",
-      "recommendation": "Include B12-rich foods (meat, fish, dairy, eggs) in your diet, or take a B-complex supplement. Particularly important when transitioning off OCPs and planning pregnancy.",
+      "mechanism": "Some combined oral-contraceptive studies report lower measured serum vitamin B12, likely involving carrier-protein changes. Those biomarker findings do not establish reduced absorption or functional vitamin B12 deficiency.",
+      "clinical_impact": "No oral-contraceptive vitamin B12 depletion warning is emitted. A low serum result should be interpreted clinically with appropriate confirmatory testing rather than attributed to contraception alone.",
+      "recommendation": "Follow ordinary dietary vitamin B12 guidance. Do not start a B12 supplement solely because of hormonal contraceptive use.",
       "onset_timeline": "months",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -520,9 +520,10 @@
       "monitoring_tip_short": "Consider discussing B12 at a routine visit, especially if planning pregnancy ahead.",
       "adequacy_threshold_mcg": 250,
       "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: PMID 21967158 reviews serum B12 changes with oral contraceptives, but a biomarker change is not evidence of functional deficiency or a consumer supplementation indication. The current runtime class also includes non-oral hormonal methods, so combined-pill evidence cannot be promoted safely.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_04_scope_audit"
     },
     {
       "id": "DEP_OCP_FOLATE",
@@ -574,11 +575,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Estrogen and progesterone in OCPs promote cellular uptake and urinary excretion of magnesium, resulting in lower plasma magnesium levels. Hormonal effects on renal magnesium handling are also implicated.",
-      "clinical_impact": "Magnesium deficiency contributes to muscle cramps, headaches/migraines, anxiety, poor sleep, and insulin resistance. Low magnesium is also associated with worsening PMS symptoms.",
-      "recommendation": "Consider a daily magnesium glycinate or citrate supplement (200–400 mg). Magnesium may also help with OCP-related headaches and mood changes.",
+      "mechanism": "No consumer mechanism is asserted: the inherited PMID is unrelated to oral contraceptives and magnesium.",
+      "clinical_impact": "No oral-contraceptive magnesium depletion warning is emitted pending exact supporting evidence.",
+      "recommendation": "Do not use hormonal contraceptive use alone as a reason to start magnesium supplementation.",
       "onset_timeline": "months",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -595,8 +596,8 @@
       "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 23636014 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_04_scope_audit",
+      "citation_review_note": "Suppressed (needs_revision): PMID 23636014 is a ghost citation and content mismatch unrelated to oral contraceptives and magnesium. Replacement requires exact contraceptive scope, nutrient evidence, mechanism, and consumer recommendation."
     },
     {
       "id": "DEP_OCP_ZINC",
@@ -611,11 +612,11 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Estrogens increase plasma zinc-binding proteins, redistributing zinc from plasma to tissues and reducing measurable serum zinc. Urinary zinc excretion may also increase with estrogen use.",
-      "clinical_impact": "Reduced zinc availability affects immune function, skin health, wound healing, and hormonal balance. Zinc is also important for reproductive health when planning pregnancy after stopping OCPs.",
-      "recommendation": "Ensure adequate dietary zinc (meat, shellfish, legumes, seeds) or take a modest zinc supplement (10–15 mg/day as zinc glycinate). Do not exceed 40 mg/day from all sources.",
+      "mechanism": "No consumer mechanism is asserted: the inherited PMID is unrelated to oral contraceptives and zinc.",
+      "clinical_impact": "No oral-contraceptive zinc depletion warning is emitted pending exact supporting evidence.",
+      "recommendation": "Do not use hormonal contraceptive use alone as a reason to start zinc supplementation.",
       "onset_timeline": "months",
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -632,8 +633,8 @@
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-26",
-      "reviewer": "medication_depletion_content_audit_2026_07_26",
-      "citation_review_note": "Citation content audit (2026-07-26): PMID 23636014 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
+      "reviewer": "medication_depletion_section_04_scope_audit",
+      "citation_review_note": "Suppressed (needs_revision): PMID 23636014 is a ghost citation and content mismatch unrelated to oral contraceptives and zinc. Replacement requires exact contraceptive scope, nutrient evidence, mechanism, and consumer recommendation."
     },
     {
       "id": "DEP_OCP_VITAMINC",
@@ -648,11 +649,11 @@
       },
       "depletion_type": "depletion",
       "severity": "mild",
-      "mechanism": "Estrogens increase the rate of vitamin C catabolism and may compete with vitamin C for cellular transport via SVCT transporters. Plasma ascorbic acid levels are consistently lower in OCP users.",
-      "clinical_impact": "Mild reduction in vitamin C status may subtly impair antioxidant defenses and collagen synthesis. The clinical significance is typically modest in women with adequate dietary intake.",
-      "recommendation": "Ensure daily vitamin C intake of at least 75 mg (the RDA for women) through fruits and vegetables, or supplement with 250–500 mg daily.",
+      "mechanism": "Historical oral-pill studies reported concentration differences, but they do not establish clinically meaningful vitamin C deficiency with modern formulations or across all hormonal contraceptive methods.",
+      "clinical_impact": "No oral-contraceptive vitamin C depletion warning is emitted.",
+      "recommendation": "Follow ordinary dietary vitamin C guidance. Do not supplement solely because of hormonal contraceptive use.",
       "onset_timeline": "months",
-      "evidence_level": "probable",
+      "evidence_level": "possible",
       "monitoring_note": null,
       "sources": [
         {
@@ -667,9 +668,10 @@
       "monitoring_tip_short": "Consider daily fruit and vegetable variety; a supplement is optional.",
       "adequacy_threshold_mg": 75,
       "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: the inherited textbook claim is not claim-matched primary evidence. PMID 7001015 is an older review, not evidence of clinically meaningful deficiency in modern combined oral contraceptive users; broad hormonal-method scope is also unsupported.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_04_scope_audit"
     },
     {
       "id": "DEP_OCP_VITAMINE",
@@ -684,9 +686,9 @@
       },
       "depletion_type": "depletion",
       "severity": "mild",
-      "mechanism": "OCP use is associated with lower plasma alpha-tocopherol levels, possibly due to increased oxidative stress from estrogen-driven lipid peroxidation consuming vitamin E as a fat-soluble antioxidant.",
-      "clinical_impact": "Mild vitamin E reduction has limited overt clinical symptoms but may contribute to increased oxidative stress and slightly impaired immune response over time.",
-      "recommendation": "A balanced diet rich in nuts, seeds, and vegetable oils generally provides sufficient vitamin E. A low-dose daily supplement (15 mg/day) may be considered for women on long-term OCPs.",
+      "mechanism": "Older literature does not establish that oral contraceptives cause clinically meaningful vitamin E deficiency; an older review found little or no alpha-tocopherol change.",
+      "clinical_impact": "No oral-contraceptive vitamin E depletion warning is emitted.",
+      "recommendation": "Follow ordinary dietary vitamin E guidance. Do not supplement solely because of hormonal contraceptive use.",
       "onset_timeline": "months",
       "evidence_level": "possible",
       "monitoring_note": null,
@@ -703,9 +705,10 @@
       "monitoring_tip_short": "Consider variety in nuts, seeds, and vegetable oils in daily meals.",
       "adequacy_threshold_mg": 15,
       "food_sources_short": "Food sources of vitamin E include almonds, sunflower seeds, vegetable oils, avocado, and leafy greens.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: the inherited textbook claim is not claim-matched primary evidence. PMID 7001015 reports little or no alpha-tocopherol effect and does not support a deficiency warning or supplementation recommendation.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_04_scope_audit"
     },
     {
       "id": "DEP_DIURETICS_POTASSIUM",
