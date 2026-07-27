@@ -798,21 +798,23 @@ void main() {
     });
 
     test('food_sources_short field flows through when authored', () {
-      // Simulates the absorption-blocked hint Dr. Pham authors for
-      // metformin/B12 — supplement is more reliable than food.
+      // Simulates the absorption-blocked hint authored for metformin/B12:
+      // name the food sources, state that absorption is reduced, then route
+      // to testing. It must NOT imply universal supplementation — treatment
+      // follows a clinician-confirmed result.
       final out = checker.check(
         medications: [(name: 'Metformin', drugClassId: null)],
         depletionsData: _metforminB12Fixture(
           authoredCopy: {
             'food_sources_short':
-                'Because metformin reduces B12 absorption, food sources may '
-                'not be enough on their own — a supplement is often more '
-                'reliable.',
+                'B12 comes from animal foods and fortified products. '
+                'Metformin can reduce absorption, so testing—not diet '
+                'alone—helps determine whether treatment is needed.',
           },
         ),
       );
       expect(out.first.foodSourcesShort, isNotNull);
-      expect(out.first.foodSourcesShort, contains('food sources may not'));
+      expect(out.first.foodSourcesShort, contains('testing—not diet alone'));
     });
 
     test('food_sources_short is null when pipeline omits it', () {

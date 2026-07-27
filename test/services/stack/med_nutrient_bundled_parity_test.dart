@@ -20,8 +20,12 @@ import 'package:flutter_test/flutter_test.dart';
 // Repinned 2026-07-27: final B1 clinical-content sign-off; warfarin/prednisone
 // scope narrowing, OCP-B6 suppression, pregnancy-only vitamin-K rejection,
 // evidence-aligned copy, and machine-recorded review dispositions.
+// Repinned again 2026-07-27 (B1 release correction): the metformin/B12 record's
+// consumer "From food" copy no longer implies universal supplementation — it
+// names food sources and routes to testing, matching that record's own
+// risk-based recommendation.
 const _pinnedContentHash =
-    'sha256:ba86c3941708c059497e661a15cd496a88c59703c231d0cb5ff131d1940ee731';
+    'sha256:180a7380a03f20066103030d496124ee9a5e1c8e65167da095b627ace36f7f98';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

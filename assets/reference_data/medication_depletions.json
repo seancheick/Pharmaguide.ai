@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026-07-27",
-    "content_hash": "sha256:ba86c3941708c059497e661a15cd496a88c59703c231d0cb5ff131d1940ee731",
+    "content_hash": "sha256:180a7380a03f20066103030d496124ee9a5e1c8e65167da095b627ace36f7f98",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -391,7 +391,7 @@
       "recommendation": "Periodic vitamin B12 assessment should be considered during long-term metformin therapy, especially after about 4–5 years, at higher doses, with other B12 risk factors, or with anemia or neuropathy. Treat a confirmed deficiency using a clinician-directed regimen; do not stop metformin on your own.",
       "onset_timeline": "years",
       "evidence_level": "established",
-      "monitoring_note": "ADA Standards of Care recommend checking B12 levels every 2–3 years in all metformin-treated patients. Methylmalonic acid is a sensitive functional marker for early deficiency.",
+      "monitoring_note": "Consider periodic vitamin B12 assessment in people taking metformin, particularly with anemia, neuropathy symptoms, higher doses, longer treatment duration, or other deficiency risk factors. Methylmalonic acid is a sensitive functional marker for early deficiency.",
       "sources": [
         {
           "source_type": "reference",
@@ -424,7 +424,7 @@
       "acknowledgement_note": "You're addressing B12 thoughtfully; treatment can be tailored to your test results and clinician's plan.",
       "monitoring_tip_short": "Consider B12 testing with long-term use, anemia, neuropathy, or other B12 risk factors.",
       "adequacy_threshold_mcg": 500,
-      "food_sources_short": "Because metformin reduces B12 absorption, food sources may not be enough on their own — a supplement is often more reliable.",
+      "food_sources_short": "B12 comes from animal foods and fortified products. Metformin can reduce absorption, so testing—not diet alone—helps determine whether treatment is needed.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-27",
       "reviewer": "openai_codex_ai_clinical_audit",
