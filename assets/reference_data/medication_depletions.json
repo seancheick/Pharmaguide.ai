@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.27",
-    "content_hash": "sha256:9622620bc15df13df46102feef7262dfab484014463c70599a766524de10f5d7",
+    "content_hash": "sha256:0dc7e81514f7d32a6b5575bc69d069716b118193961789368fff0ee455395c59",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -418,12 +418,12 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Metformin may reduce plasma folate levels through inhibition of intestinal folate transport. Some studies also suggest AMPK activation by metformin alters folate-dependent one-carbon metabolism.",
-      "clinical_impact": "Reduced folate elevates homocysteine, increasing cardiovascular risk, and may impair DNA methylation and cell division. Particularly important in women of childbearing age (neural tube defect risk).",
-      "recommendation": "Ensure adequate folate intake through diet and/or a daily multivitamin with 400–800 mcg folate (or methylfolate for those with MTHFR variants).",
-      "onset_timeline": "months",
-      "evidence_level": "probable",
-      "monitoring_note": "Consider checking plasma homocysteine as a functional marker of folate/B12 adequacy in long-term metformin users.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -436,15 +436,15 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/20488910/"
         }
       ],
-      "alert_headline": "May modestly affect folate over time",
-      "alert_body": "With long-term metformin use, folate levels can drift lower over months. The effect is usually modest, but folate matters more when planning for pregnancy.",
-      "acknowledgement_note": "Nice — folate intake is a thoughtful complement to long-term metformin use.",
-      "monitoring_tip_short": "Consider discussing folate at your routine visits, especially when planning ahead.",
-      "adequacy_threshold_mcg": 400,
-      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
+      "citation_review_status": "needs_revision",
+      "citation_review_note": "Suppressed: PMID 20488910 reports no significant adjusted folate effect; the evidence does not establish folate deficiency or this consumer supplementation claim.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_07_diabetes_metabolic_audit"
     },
     {
       "id": "DEP_OCP_VITAMINB6",
@@ -2289,12 +2289,12 @@
       },
       "depletion_type": "condition_related",
       "severity": "moderate",
-      "mechanism": "Type 2 diabetes itself is associated with hypomagnesemia through insulin resistance, glycosuria-induced osmotic diuresis, and altered renal handling of magnesium. Some diabetes medications (particularly insulin secretagogues) may compound this through improved glycemic control and resulting osmotic changes.",
-      "clinical_impact": "Low magnesium in diabetic patients worsens insulin resistance, increases cardiovascular risk, and impairs glucose metabolism — potentially creating a worsening cycle. It also contributes to hypertension and neuropathy.",
-      "recommendation": "Magnesium supplementation (200–400 mg/day as glycinate or citrate) has shown benefits in improving insulin sensitivity and glycemic control in type 2 diabetes. Discuss with your diabetes care team.",
-      "onset_timeline": "months",
-      "evidence_level": "established",
-      "monitoring_note": "Check serum magnesium periodically in all type 2 diabetic patients, particularly those with poor glycemic control or cardiovascular risk factors.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -2307,15 +2307,15 @@
           "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
         }
       ],
-      "alert_headline": "May lower magnesium over time",
-      "alert_body": "Type 2 diabetes itself and some of its medications can gradually lower magnesium over months. Keeping magnesium steady often supports blood-sugar balance.",
-      "acknowledgement_note": "Good — magnesium intake supports blood-sugar and overall balance during diabetes therapy.",
-      "monitoring_tip_short": "Consider discussing magnesium with your diabetes care team at routine visits.",
-      "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: this is diabetes-associated hypomagnesemia, not evidence that sulfonylureas or thiazolidinediones deplete magnesium.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_07_diabetes_metabolic_audit"
     },
     {
       "id": "DEP_IMMUNOSUPPRESSANTS_MAGNESIUM",
@@ -2519,12 +2519,12 @@
       },
       "depletion_type": "condition_related",
       "severity": "moderate",
-      "mechanism": "Insulin promotes intracellular uptake of magnesium in muscle and adipose tissue, transiently lowering serum magnesium. In type 1 and insulin-treated type 2 diabetes, urinary magnesium losses are also elevated due to osmotic effects of glycosuria when control is suboptimal.",
-      "clinical_impact": "Hypomagnesemia worsens insulin resistance, impairs insulin secretion, and increases cardiovascular risk — all concerns in patients dependent on insulin for glycemic control.",
-      "recommendation": "Ensure adequate magnesium intake (400 mg/day from food and/or supplements). Patients with type 1 diabetes should have magnesium levels monitored as part of routine care.",
-      "onset_timeline": "months",
-      "evidence_level": "probable",
-      "monitoring_note": "Check serum magnesium at least annually in insulin-treated diabetic patients.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -2537,15 +2537,15 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/26696633/"
         }
       ],
-      "alert_headline": "May lower magnesium over time",
-      "alert_body": "Insulin moves magnesium into cells, which can gradually shift measured levels lower over months. Keeping magnesium steady often supports blood-sugar balance.",
-      "acknowledgement_note": "Good — magnesium intake supports blood-sugar and overall balance during insulin therapy.",
-      "monitoring_tip_short": "Consider asking about magnesium as part of your routine diabetes labs.",
-      "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: PMID 26696633 reviews diabetes-associated hypomagnesemia and does not establish insulin-caused chronic magnesium depletion.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_07_diabetes_metabolic_audit"
     },
     {
       "id": "DEP_SEDATIVES_VITAMIND",
