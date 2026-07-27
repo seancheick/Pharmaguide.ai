@@ -49,6 +49,10 @@ class DepletionMatch {
 
   final String severity;
 
+  /// Evidence grade authored by the pipeline for this relationship.
+  /// Defaults conservatively for legacy assets.
+  final String evidenceLevel;
+
   /// Clinical mechanism — surfaced only in an expandable "Why does this
   /// happen?" section, not in the default view.
   final String mechanism;
@@ -134,6 +138,7 @@ class DepletionMatch {
     required this.nutrientCanonicalId,
     this.depletionType = 'depletion',
     required this.severity,
+    this.evidenceLevel = 'ungraded',
     required this.mechanism,
     required this.recommendation,
     this.sourceUrls = const [],
@@ -687,6 +692,7 @@ class DepletionChecker {
           nutrientCanonicalId: canonicalId,
           depletionType: depletionType,
           severity: dep['severity']?.toString() ?? 'moderate',
+          evidenceLevel: dep['evidence_level']?.toString() ?? 'ungraded',
           mechanism: dep['mechanism']?.toString() ?? '',
           recommendation: dep['recommendation']?.toString() ?? '',
           sourceUrls: sourceUrls,

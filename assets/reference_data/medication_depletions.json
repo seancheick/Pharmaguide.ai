@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026-07-27",
-    "content_hash": "sha256:180a7380a03f20066103030d496124ee9a5e1c8e65167da095b627ace36f7f98",
+    "content_version": "2026.07.27-b1.1-candidate.1",
+    "content_hash": "sha256:a10fc061c2fd89473cb23a9cdd9c9c6b50557552d7b69be285baacabdb86f39c",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -111,34 +111,44 @@
         "canonical_id": "vitamin_b12"
       },
       "depletion_type": "depletion",
-      "severity": "significant",
-      "mechanism": "Gastric acid and pepsin are required to cleave vitamin B12 from food proteins. PPIs and H2 blockers suppress acid secretion, impairing this liberation step and reducing B12 absorption from dietary sources (though crystalline B12 supplements are unaffected).",
-      "clinical_impact": "B12 deficiency causes megaloblastic anemia, peripheral neuropathy, cognitive decline, and elevated homocysteine. Risk increases significantly with long-term (>2 years) PPI use.",
-      "recommendation": "If taking acid reducers long-term, consider a sublingual or methylcobalamin B12 supplement (1,000 mcg/day) which bypasses the acid-dependent absorption step. Ask your doctor about periodic B12 testing.",
+      "severity": "moderate",
+      "mechanism": "PPIs reduce gastric acid. With prolonged use, this can impair absorption of food-bound vitamin B12; the degree of effect varies, and observational studies do not show that every user becomes deficient.",
+      "clinical_impact": "Long-term PPI use is associated with a modestly higher likelihood of vitamin B12 deficiency, but the literature is heterogeneous and association does not prove causation. Confirmed deficiency can contribute to anemia or neurologic symptoms.",
+      "recommendation": "Do not start high-dose B12 solely because you take a PPI. If use is prolonged or you have anemia, neurologic symptoms, a restricted diet, or other B12 risk factors, ask your clinician whether B12 testing is appropriate; treat confirmed deficiency with an individualized plan.",
       "onset_timeline": "years",
-      "evidence_level": "established",
-      "monitoring_note": "Check serum B12 levels every 1–2 years with long-term PPI use. Methylmalonic acid is a more sensitive functional marker.",
+      "evidence_level": "probable",
+      "monitoring_note": "Routine testing for every PPI user is not established. Consider symptom- and risk-based B12 assessment during prolonged therapy.",
       "sources": [
         {
-          "source_type": "reference",
+          "source_type": "nih_ods",
           "label": "NIH ODS — Vitamin B12 Fact Sheet for Health Professionals",
           "url": "https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/"
         },
         {
           "source_type": "pubmed",
-          "label": "Lam JR et al. Proton pump inhibitor and histamine 2 receptor antagonist use and vitamin B12 deficiency. JAMA. 2013",
+          "label": "Lam JR et al. Proton pump inhibitor and histamine 2 receptor antagonist use and vitamin B12 deficiency. JAMA. 2013;310(22):2435-42",
           "url": "https://pubmed.ncbi.nlm.nih.gov/24327038/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Choudhury A et al. Vitamin B12 deficiency and use of proton pump inhibitors: a systematic review and meta-analysis. Expert Rev Gastroenterol Hepatol. 2023;17(5):479-487",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/37060552/"
+        },
+        {
+          "source_type": "fda",
+          "label": "DailyMed — PRILOSEC (omeprazole) prescribing information, sections 5.8 and 5.9",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=b6761f84-53ac-4745-a8c8-1e5427d7e179"
         }
       ],
-      "alert_headline": "Can affect vitamin B12 absorption long-term",
-      "alert_body": "By lowering stomach acid, these medications can gradually reduce how well vitamin B12 is absorbed from food. Over years of use, some people develop lower levels.",
-      "acknowledgement_note": "You're taking B12 — a helpful way to support levels while using acid-reducing medication.",
-      "monitoring_tip_short": "Consider asking about a B12 check if you've been using these medications long-term.",
-      "adequacy_threshold_mcg": 250,
-      "food_sources_short": "Because these medications can limit B12 absorption, food sources may not be enough on their own — a supplement is often more reliable.",
+      "alert_headline": "Long-term PPI use may affect vitamin B12",
+      "alert_body": "With long-term PPI use, reduced stomach acid may lower absorption of vitamin B12 from food. Not everyone develops low levels.",
+      "acknowledgement_note": "You're already considering B12 intake; testing and individual factors still guide whether treatment is needed.",
+      "monitoring_tip_short": "Ask whether B12 testing fits if use is prolonged or anemia, nerve symptoms, or other factors appear.",
+      "food_sources_short": "Vitamin B12 is found in animal foods and fortified foods; laboratory assessment helps evaluate absorption and intake.",
       "citation_review_status": "needs_revision",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "b1_1_evidence_audit",
+      "citation_review_note": "B1.1 evidence revision completed. PPI-only scope retained; FDA labeling, a large observational study, and a heterogeneous 2023 meta-analysis support cautious long-term B12 wording. Blanket 1,000 mcg/day advice and the retired food-versus-supplement claim were removed. The record remains suppressed pending licensed pharmacist delta review."
     },
     {
       "id": "DEP_ANTACIDS_MAGNESIUM",
@@ -153,33 +163,33 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Long-term PPI use impairs active magnesium transport in the intestine, likely by interfering with TRPM6/TRPM7 channels responsible for intestinal magnesium absorption. The exact mechanism is not fully elucidated.",
-      "clinical_impact": "Hypomagnesemia from PPIs can cause muscle cramps, tremors, cardiac arrhythmias, and — by impairing PTH secretion — secondary hypocalcemia and hypokalemia that are refractory to replacement until magnesium is corrected.",
-      "recommendation": "If you have been on a PPI for more than one year, ask your doctor to check your magnesium level. A magnesium glycinate or citrate supplement (200–400 mg/day) may be appropriate.",
+      "mechanism": "Rare PPI-associated hypomagnesemia appears to involve reduced intestinal magnesium absorption, but the precise molecular mechanism is not established. Dechallenge and rechallenge reports support a PPI class effect.",
+      "clinical_impact": "Low magnesium may be asymptomatic or can contribute to tetany, seizures, or arrhythmias and may accompany low calcium or potassium. FDA labeling notes that some cases required magnesium replacement and stopping the PPI.",
+      "recommendation": "Do not start a routine magnesium dose solely because you take a PPI. For prolonged therapy—especially with digoxin, a diuretic, or other risk factors—ask whether baseline and periodic magnesium testing is appropriate. Management of a low result should be clinician-directed.",
       "onset_timeline": "months",
       "evidence_level": "established",
-      "monitoring_note": "FDA issued a Drug Safety Communication in 2011 requiring magnesium monitoring for patients on long-term PPIs. Check serum magnesium at baseline and periodically.",
+      "monitoring_note": "FDA labeling advises considering magnesium before and periodically during prolonged PPI therapy, especially with digoxin or medicines that can lower magnesium.",
       "sources": [
         {
           "source_type": "pubmed",
-          "label": "Hess MW et al. Systematic review: hypomagnesaemia induced by proton pump inhibition. Aliment Pharmacol Ther. 2012",
+          "label": "Hess MW et al. Systematic review: hypomagnesaemia induced by proton pump inhibition. Aliment Pharmacol Ther. 2012;36(5):405-13",
           "url": "https://pubmed.ncbi.nlm.nih.gov/22762246/"
         },
         {
-          "source_type": "reference",
-          "label": "FDA Drug Safety Communication: Low magnesium levels can be associated with long-term use of PPIs. 2011",
-          "url": "https://www.fda.gov/drugs/drug-safety-and-availability/fda-drug-safety-communication-low-magnesium-levels-can-be-associated-long-term-use-proton-pump"
+          "source_type": "fda",
+          "label": "DailyMed — PRILOSEC (omeprazole) prescribing information, section 5.9",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=b6761f84-53ac-4745-a8c8-1e5427d7e179"
         }
       ],
-      "alert_headline": "May lower magnesium with long-term use",
-      "alert_body": "Over time, long-term PPI use can gradually reduce magnesium levels. This develops slowly over months to years and may be subtle at first.",
-      "acknowledgement_note": "Good — your magnesium intake supports maintaining levels while using this medication.",
-      "monitoring_tip_short": "Consider checking magnesium if you've been on this medication long-term.",
-      "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "alert_headline": "Rarely, long-term PPIs may lower magnesium",
+      "alert_body": "With prolonged use, PPIs can rarely lower magnesium; reports occurred after at least three months and most after a year.",
+      "acknowledgement_note": "You're already tracking magnesium intake; laboratory results and your treatment plan guide any needed changes.",
+      "monitoring_tip_short": "Ask whether magnesium monitoring fits prolonged PPI use, especially with digoxin or a diuretic.",
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, and beans.",
       "citation_review_status": "needs_revision",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "b1_1_evidence_audit",
+      "citation_review_note": "B1.1 evidence revision completed. The live FDA label and PMID 22762246 support a rare, prolonged PPI class effect and risk-based monitoring. The dead FDA URL and blanket 200–400 mg/day supplement advice were removed. The record remains suppressed pending licensed pharmacist delta review."
     },
     {
       "id": "DEP_ANTACIDS_CALCIUM",
@@ -748,7 +758,7 @@
       "drug_ref": {
         "type": "class",
         "id": "class:loop_and_thiazide_diuretics",
-        "display_name": "Diuretics (water pills)"
+        "display_name": "Loop and thiazide diuretics (water pills)"
       },
       "depleted_nutrient": {
         "standard_name": "Potassium",
@@ -756,68 +766,79 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Loop diuretics (furosemide, bumetanide) and thiazide diuretics (hydrochlorothiazide, chlorthalidone) increase urine volume and renal potassium wasting. They inhibit sodium reabsorption, which increases tubular flow and potassium secretion in the collecting duct.",
-      "clinical_impact": "Hypokalemia causes muscle weakness, leg cramps, fatigue, constipation, and dangerously abnormal heart rhythms (arrhythmias). Particularly serious in patients also taking digoxin, where hypokalemia increases toxicity risk.",
-      "recommendation": "Potassium-rich foods (bananas, potatoes, spinach) are often recommended, but many patients require potassium supplementation (typically 20–40 mEq/day as prescribed). Regular monitoring is essential.",
-      "onset_timeline": "weeks",
+      "mechanism": "Loop and thiazide diuretics increase renal sodium delivery and urinary electrolyte losses. This can lower potassium; the likelihood depends on the agent, dose, intake, kidney function, and concurrent medications.",
+      "clinical_impact": "Low potassium can cause muscle weakness or cramps and increase arrhythmia risk; it can also increase digoxin toxicity. Some patients do not develop low potassium, and kidney disease or other medicines can instead raise it.",
+      "recommendation": "Do not start potassium or deliberately increase dietary potassium without checking with your prescriber. Serum potassium should be monitored; any food, supplement, or prescription replacement plan must account for kidney function and other medications.",
+      "onset_timeline": "variable",
       "evidence_level": "established",
-      "monitoring_note": "Check serum potassium at baseline and within 1–2 weeks of starting or dose-changing a diuretic. Ongoing monitoring frequency depends on dose and clinical stability.",
+      "monitoring_note": "Monitor serum potassium at intervals chosen for the specific diuretic, dose, kidney function, intercurrent illness, and interacting medicines.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Brater DC. Diuretic therapy. N Engl J Med. 1998;339:387-395",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/9691107/"
+          "source_type": "fda",
+          "label": "DailyMed — Furosemide tablets prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=f3173c0d-2b62-7c7b-e053-2995a90ada05"
+        },
+        {
+          "source_type": "fda",
+          "label": "DailyMed — Hydrochlorothiazide tablets prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=8a1de4e2-3aca-a4d3-e053-2995a90a1a41"
         }
       ],
-      "alert_headline": "Can lower potassium with regular use",
-      "alert_body": "Certain diuretics increase potassium loss through urine. With ongoing use over weeks to months, levels may gradually decline.",
-      "acknowledgement_note": "Good — potassium is typically monitored closely with these medications, and your care plan helps keep levels on track.",
-      "monitoring_tip_short": "Ask about periodic potassium checks; this is a standard part of follow-up.",
-      "food_sources_short": "Food sources of potassium include bananas, oranges, potatoes, beans, yogurt, and tomatoes.",
+      "alert_headline": "Loop and thiazide diuretics may lower potassium",
+      "alert_body": "With regular use or after dose changes, loop and thiazide diuretics can lower potassium. The effect varies and laboratory monitoring guides management.",
+      "acknowledgement_note": "Your potassium plan is already part of medication monitoring; keep it aligned with prescribed doses and lab results.",
+      "monitoring_tip_short": "Ask how often potassium should be checked based on the diuretic, dose, kidneys, and other medicines.",
+      "food_sources_short": "Potassium is found in potatoes, beans, fruit, dairy, and vegetables; whether to change intake depends on labs and kidney function.",
       "citation_review_status": "needs_revision",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "b1_1_evidence_audit",
+      "citation_review_note": "B1.1 evidence revision completed. Current furosemide and hydrochlorothiazide labels support hypokalemia and electrolyte monitoring across the existing loop/thiazide-only class. Blanket 20–40 mEq/day advice was removed and potassium-sparing agents remain excluded. The record remains suppressed pending licensed pharmacist delta review."
     },
     {
       "id": "DEP_DIURETICS_MAGNESIUM",
       "drug_ref": {
         "type": "class",
         "id": "class:loop_and_thiazide_diuretics",
-        "display_name": "Diuretics (water pills)"
+        "display_name": "Loop and thiazide diuretics (water pills)"
       },
       "depleted_nutrient": {
         "standard_name": "Magnesium",
         "canonical_id": "magnesium"
       },
       "depletion_type": "depletion",
-      "severity": "significant",
-      "mechanism": "Loop and thiazide diuretics increase renal magnesium excretion by inhibiting magnesium reabsorption in the thick ascending limb of Henle and distal tubule. The increased tubular flow rate also washes out magnesium.",
-      "clinical_impact": "Magnesium depletion makes potassium replacement difficult (refractory hypokalemia) and increases arrhythmia risk. Muscle cramps, weakness, and tremors are common symptoms.",
-      "recommendation": "Supplement with magnesium glycinate or citrate (200–400 mg/day). Correcting magnesium is often required to successfully replete potassium in diuretic-treated patients.",
-      "onset_timeline": "weeks",
+      "severity": "moderate",
+      "mechanism": "Loop and thiazide diuretics can increase urinary magnesium losses through their effects on renal electrolyte handling. The magnitude and mechanism differ by diuretic subclass and by individual clinical factors.",
+      "clinical_impact": "Low magnesium can contribute to weakness, cramps, tremor, or arrhythmias and can coexist with low potassium. The finding requires clinical interpretation because symptoms and risk also depend on kidney function and other medicines.",
+      "recommendation": "Do not start a routine magnesium dose solely because you take a diuretic. Ask whether magnesium should be included with electrolyte monitoring, especially if potassium is low, symptoms appear, the dose is high, or intake is limited; correction should be clinician-directed.",
+      "onset_timeline": "variable",
       "evidence_level": "established",
-      "monitoring_note": "Serum magnesium should be checked alongside potassium in patients on diuretics. Note that serum magnesium can be normal despite intracellular depletion.",
+      "monitoring_note": "Use periodic or more frequent electrolyte monitoring according to the specific agent, dose, kidney function, symptoms, and other medicines; include magnesium when clinically relevant.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Ellison DH. Divalent cation transport by the distal nephron. Am J Physiol Renal Physiol. 2000;279(4):F616-25",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/10997911/"
+          "source_type": "fda",
+          "label": "DailyMed — Furosemide tablets prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=f3173c0d-2b62-7c7b-e053-2995a90ada05"
         },
         {
-          "source_type": "reference",
-          "label": "Dai LJ et al. Cellular mechanisms of chlorothiazide and cellular potassium depletion on Mg2+ uptake in distal convoluted tubule cells. Kidney Int. 1997;51(4):1008-17",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/9083264/"
+          "source_type": "fda",
+          "label": "DailyMed — Hydrochlorothiazide tablets prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=8a1de4e2-3aca-a4d3-e053-2995a90a1a41"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Ellison DH. Divalent cation transport by the distal nephron: insights from Bartter's and Gitelman's syndromes. Am J Physiol Renal Physiol. 2000;279(4):F616-25",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10997911/"
         }
       ],
-      "alert_headline": "Can lower magnesium with regular use",
-      "alert_body": "Loop and thiazide diuretics can gradually increase magnesium loss through urine over weeks to months. Keeping magnesium steady often helps keep potassium steady too.",
-      "acknowledgement_note": "Good — your magnesium intake supports steady levels while on diuretic therapy.",
-      "monitoring_tip_short": "Ask about periodic magnesium checks alongside your potassium tests.",
-      "adequacy_threshold_mg": 200,
-      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
+      "alert_headline": "Loop and thiazide diuretics may lower magnesium",
+      "alert_body": "With regular use, loop and thiazide diuretics can increase urinary magnesium loss. The likelihood varies by medicine, dose, and individual factors.",
+      "acknowledgement_note": "You're already considering magnesium intake; lab results and your treatment plan determine whether changes are needed.",
+      "monitoring_tip_short": "Ask whether magnesium should be checked with other electrolytes, especially if potassium is low.",
+      "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, and beans.",
       "citation_review_status": "needs_revision",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "reviewed_at": "2026-07-27",
+      "reviewer": "b1_1_evidence_audit",
+      "citation_review_note": "B1.1 evidence revision completed. Current furosemide and hydrochlorothiazide labels support hypomagnesemia/urinary magnesium loss across the existing loop/thiazide-only class; PMID 10997911 supports the subclass-aware mechanism. The mouse cell PMID 9083264 and blanket 200–400 mg/day advice were removed. The record remains suppressed pending licensed pharmacist delta review."
     },
     {
       "id": "DEP_DIURETICS_ZINC",

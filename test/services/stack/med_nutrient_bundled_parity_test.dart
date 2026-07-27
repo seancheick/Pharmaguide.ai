@@ -24,8 +24,11 @@ import 'package:flutter_test/flutter_test.dart';
 // consumer "From food" copy no longer implies universal supplementation — it
 // names food sources and routes to testing, matching that record's own
 // risk-based recommendation.
+// Repinned for the fail-closed B1.1 candidate delta: four suppressed records
+// received evidence-aligned proposed copy and current sources, but remain
+// hidden pending a separate licensed-pharmacist review.
 const _pinnedContentHash =
-    'sha256:180a7380a03f20066103030d496124ee9a5e1c8e65167da095b627ace36f7f98';
+    'sha256:a10fc061c2fd89473cb23a9cdd9c9c6b50557552d7b69be285baacabdb86f39c';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

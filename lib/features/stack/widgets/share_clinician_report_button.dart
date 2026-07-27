@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart'
+    as reference_data;
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/sharing/clinician_pdf_builder.dart';
@@ -58,6 +60,51 @@ class ShareClinicianReportButton extends ConsumerWidget {
       // contract) — the PDF states the analysis was unavailable instead.
       final depletionReport = await ref.read(depletionReportProvider.future);
       final depletions = depletionReport.matches;
+      Map<String, dynamic> depletionMetadata = const <String, dynamic>{};
+      try {
+        final depletionArtifact = await ref
+            .read(reference_data.referenceDataRepositoryProvider)
+            .loadMedicationDepletions();
+        final rawMetadata = depletionArtifact.data['_metadata'];
+        if (rawMetadata is Map) {
+          depletionMetadata = Map<String, dynamic>.from(rawMetadata);
+        }
+      } on Object catch (error, stackTrace) {
+        // Provenance is useful clinical context, but it is not allowed to
+        // suppress an otherwise valid report. Preserve the explicit
+        // loaded/partial/unavailable analysis state and record the missing
+        // metadata for diagnostics.
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          hint: 'clinician_share_pdf:clinical_metadata_unavailable',
+        );
+      }
+      String? productCatalogVersion;
+      try {
+        productCatalogVersion = await ref
+            .read(coreDatabaseProvider)
+            .validateCatalogSnapshot();
+      } on Object catch (error, stackTrace) {
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          hint: 'clinician_share_pdf:catalog_metadata_unavailable',
+        );
+      }
+      String? interactionRulesVersion;
+      try {
+        final interactionMetadata = await ref
+            .read(interactionDatabaseProvider)
+            .getMetadata();
+        interactionRulesVersion = interactionMetadata.interactionDbVersion;
+      } on Object catch (error, stackTrace) {
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          hint: 'clinician_share_pdf:interaction_metadata_unavailable',
+        );
+      }
       final doseAlerts = await ref.read(
         stackDoseThresholdAlertsProvider.future,
       );
@@ -99,6 +146,10 @@ class ShareClinicianReportButton extends ConsumerWidget {
         safetyReport: safetyReport,
         depletions: depletions,
         depletionStatus: depletionReport.status,
+        clinicalDataVersion: depletionMetadata['content_version']?.toString(),
+        clinicalDataHash: depletionMetadata['content_hash']?.toString(),
+        productCatalogVersion: productCatalogVersion,
+        interactionRulesVersion: interactionRulesVersion,
         generatedAt: DateTime.now(),
         logoBytes: logoBytes,
         regularFontBytes: regularFontBytes,

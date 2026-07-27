@@ -59,6 +59,17 @@ const _scenarios = <_Scenario>[
     },
   ),
   (
+    label: 'loop diuretic + potassium/magnesium',
+    medication: 'furosemide',
+    rxcui: '4603',
+    expectedClasses: {
+      'class:loop_diuretics',
+      'class:loop_and_thiazide_diuretics',
+    },
+    expectedVisible: {'DEP_DIURETICS_CALCIUM', 'DEP_DIURETICS_THIAMINE'},
+    expectedSuppressed: {'DEP_DIURETICS_POTASSIUM', 'DEP_DIURETICS_MAGNESIUM'},
+  ),
+  (
     label: 'statin + CoQ10',
     medication: 'atorvastatin',
     rxcui: '83367',

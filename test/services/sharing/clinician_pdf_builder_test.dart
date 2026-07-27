@@ -127,6 +127,10 @@ const _depletions = [
     severity: 'moderate',
     mechanism: 'May reduce absorption over long-term use.',
     recommendation: 'Discuss B12 monitoring with a clinician.',
+    evidenceLevel: 'established',
+    sourceUrls: [
+      'https://www.gov.uk/drug-safety-update/metformin-and-vitamin-b12',
+    ],
     alertHeadline: 'Metformin may lower B12 over time',
     monitoringTipShort:
         'Ask whether B12 monitoring makes sense for your care plan.',
@@ -239,6 +243,116 @@ void main() {
     },
   );
 
+  test('renders clinician context for curated interaction warnings', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: const StackIntelligence(
+        tier: StackTier.concerning,
+        stackSize: 2,
+        issues: [
+          StackIssue(
+            severity: Severity.avoid,
+            headline: 'Levothyroxine and iron need separation',
+          ),
+        ],
+        interactionCount: 1,
+        nutrientWarningCount: 0,
+        hasRecalledIngredient: false,
+        hasContraindicatedInteraction: false,
+        hasBannedIngredient: false,
+      ),
+      safetyReport: const StackSafetyReport(
+        medicationInteractions: [
+          InteractionResult(
+            id: 'levothyroxine_iron',
+            type: InteractionType.drugSupplement,
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            agent1Name: 'Levothyroxine',
+            agent2Name: 'Iron',
+            mechanism: 'Iron can reduce levothyroxine absorption.',
+            management: 'Separate administration by at least four hours.',
+            doseDependant: false,
+            doseThreshold: null,
+            sourceUrls: ['https://dailymed.nlm.nih.gov/dailymed/example'],
+            source: InteractionSource.pipeline,
+          ),
+        ],
+      ),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 5, 28),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('Evidence:'));
+    expect(body, contains('Strong'));
+    expect(body, contains('Mechanism:'));
+    expect(body, contains('reduce'));
+    expect(body, contains('Management:'));
+    expect(body, contains('Separate'));
+    expect(body, contains('dailymed.nlm.nih.gov'));
+  });
+
+  test(
+    'preserves recall warnings when rich safety signals are also present',
+    () async {
+      const recallHeadline =
+          'WARNING — Example Product is subject to a recall involving lead.';
+      const interactionMechanism = 'Iron can reduce levothyroxine absorption.';
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: const [],
+        intelligence: const StackIntelligence(
+          tier: StackTier.unsafe,
+          stackSize: 2,
+          issues: [
+            StackIssue(
+              severity: Severity.contraindicated,
+              headline: recallHeadline,
+            ),
+            StackIssue(
+              severity: Severity.avoid,
+              headline: interactionMechanism,
+            ),
+          ],
+          interactionCount: 1,
+          nutrientWarningCount: 0,
+          hasRecalledIngredient: true,
+          hasContraindicatedInteraction: false,
+          hasBannedIngredient: false,
+        ),
+        safetyReport: const StackSafetyReport(
+          medicationInteractions: [
+            InteractionResult(
+              id: 'levothyroxine_iron',
+              type: InteractionType.drugSupplement,
+              severity: Severity.avoid,
+              evidenceLevel: EvidenceLevel.established,
+              agent1Name: 'Levothyroxine',
+              agent2Name: 'Iron',
+              mechanism: interactionMechanism,
+              management: 'Separate administration by at least four hours.',
+              doseDependant: false,
+              doseThreshold: null,
+              sourceUrls: [],
+              source: InteractionSource.pipeline,
+            ),
+          ],
+        ),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 5, 28),
+      );
+
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('Example'));
+      expect(body, contains('Product'));
+      expect(body, contains('recall'));
+      expect(body, contains('Evidence:'));
+      expect(body, contains('Mechanism:'));
+    },
+  );
+
   test('renders nutrient percentages as target, not RDA', () async {
     final bytes = await const ClinicianPdfBuilder(compress: false).build(
       profile: null,
@@ -268,6 +382,21 @@ void main() {
     expect(body, contains('325%'));
     expect(body, contains('target'));
     expect(body, isNot(contains('325% RDA')));
+  });
+
+  test('does not expose the internal stack quality score', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 5, 28),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, isNot(contains('Stack quality score')));
+    expect(body, isNot(contains('72/100')));
   });
 
   test(
@@ -433,6 +562,8 @@ void main() {
       );
       final body = latin1.decode(bytes, allowInvalid: true);
       expect(body, contains('unavailable'));
+      expect(body, contains('Medication-nutrient'));
+      expect(body.toLowerCase(), isNot(contains('depletion')));
     },
   );
 
@@ -460,5 +591,90 @@ void main() {
     expect(body, contains('Partial'));
     expect(body, contains('fallback'));
     expect(body, contains('Metformin'));
+  });
+
+  test(
+    'renders reviewed medication-nutrient clinical detail and source',
+    () async {
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: const [],
+        intelligence: const StackIntelligence(
+          tier: StackTier.decent,
+          stackSize: 1,
+          issues: [],
+          interactionCount: 0,
+          nutrientWarningCount: 1,
+          hasRecalledIngredient: false,
+          hasContraindicatedInteraction: false,
+          hasBannedIngredient: false,
+        ),
+        safetyReport: const StackSafetyReport(),
+        depletions: _depletions,
+        generatedAt: DateTime.utc(2026, 5, 28),
+      );
+
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('Associated'));
+      expect(body, contains('Evidence:'));
+      expect(body, contains('Established'));
+      expect(body, contains('Mechanism:'));
+      expect(body, contains('Recommendation:'));
+      expect(body, contains('gov.uk'));
+    },
+  );
+
+  test('prints clinical artifact, catalog, and rules provenance', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: const StackIntelligence(
+        tier: StackTier.incomplete,
+        stackSize: 0,
+        issues: [],
+        interactionCount: 0,
+        nutrientWarningCount: 0,
+        hasRecalledIngredient: false,
+        hasContraindicatedInteraction: false,
+        hasBannedIngredient: false,
+      ),
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      clinicalDataVersion: '2026.07.27',
+      clinicalDataHash: 'sha256:abc123',
+      productCatalogVersion: '2026.07.26.101500',
+      interactionRulesVersion: '2026.07.24.001',
+      generatedAt: DateTime.utc(2026, 5, 28),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('PROVENANCE'));
+    expect(body, contains('version:'));
+    expect(body, contains('2026.07.27'));
+    expect(body, contains('hash:'));
+    expect(body, contains('sha256:abc123'));
+    expect(body, contains('Product'));
+    expect(body, contains('catalog'));
+    expect(body, contains('2026.07.26.101500'));
+    expect(body, contains('Interaction'));
+    expect(body, contains('rules'));
+    expect(body, contains('2026.07.24.001'));
+  });
+
+  test('includes focused questions for clinician discussion', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: _safetyReport(),
+      depletions: _depletions,
+      generatedAt: DateTime.utc(2026, 5, 28),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('QUESTIONS'));
+    expect(body, contains('timing'));
+    expect(body, contains('monitoring'));
+    expect(body, contains('represented'));
   });
 }
