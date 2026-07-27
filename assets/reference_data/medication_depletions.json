@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.07.27",
-    "content_hash": "sha256:0dc7e81514f7d32a6b5575bc69d069716b118193961789368fff0ee455395c59",
+    "content_hash": "sha256:1064b230434e3fc1674871d5c6b499bdedc11bff8ec9c866659856cec92c69d7",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -1734,12 +1734,12 @@
       },
       "depletion_type": "depletion",
       "severity": "mild",
-      "mechanism": "Some NSAIDs, particularly high-dose aspirin and sulindac, inhibit dihydrofolate reductase at high concentrations and may displace folate from plasma binding proteins, increasing urinary excretion. Regular NSAID use may impair intestinal folate transport.",
-      "clinical_impact": "Mild folate reduction may elevate homocysteine over time, increasing cardiovascular risk. The effect is most clinically significant with chronic high-dose NSAID use.",
-      "recommendation": "Ensure adequate folate intake through diet or a daily multivitamin with 400 mcg folate/folic acid if taking NSAIDs regularly. This is particularly important for individuals also on methotrexate.",
-      "onset_timeline": "months",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
       "evidence_level": "possible",
-      "monitoring_note": null,
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -1747,15 +1747,15 @@
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
       ],
-      "alert_headline": "May slightly lower folate over time",
-      "alert_body": "With regular use, some NSAIDs can gradually affect folate metabolism over months. The effect is usually modest unless doses are high.",
-      "acknowledgement_note": "Nice — folate intake supports levels during regular NSAID use.",
-      "monitoring_tip_short": "Consider a multivitamin with folate if NSAID use is frequent; discuss with your clinician.",
-      "adequacy_threshold_mcg": 400,
-      "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: broad NSAID folate depletion and routine supplementation lack claim-matched clinical evidence.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_08_antibiotics_nsaids_audit"
     },
     {
       "id": "DEP_NSAIDS_IRON",
@@ -1770,12 +1770,12 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "NSAIDs inhibit prostaglandin synthesis, which reduces the protective mucous layer of the GI tract, leading to mucosal erosion, ulceration, and occult or overt GI bleeding. Chronic blood loss depletes iron stores. Even small amounts of daily bleeding accumulate over time.",
-      "clinical_impact": "Chronic NSAID-induced GI bleeding is a leading cause of iron deficiency anemia in older adults. The bleeding may be occult (no visible blood in stool) and go undetected for months while iron stores are depleted.",
-      "recommendation": "If taking NSAIDs regularly, watch for signs of iron deficiency (fatigue, pallor, shortness of breath) and ask your doctor to check a CBC and ferritin periodically. Using a proton pump inhibitor with NSAIDs reduces GI risk.",
-      "onset_timeline": "months",
-      "evidence_level": "established",
-      "monitoring_note": "Check CBC and serum ferritin annually in patients on regular NSAID therapy. Fecal occult blood testing may be appropriate.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -1783,15 +1783,15 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/28242110/"
         }
       ],
-      "alert_headline": "May lower iron over time",
-      "alert_body": "With long-term NSAID use, small amounts of gut bleeding can gradually reduce iron stores over months. This may not be visible and is often caught on routine labs.",
-      "acknowledgement_note": "Good — iron awareness is helpful during long-term NSAID use.",
-      "monitoring_tip_short": "Consider asking for periodic ferritin and CBC labs if NSAID use is long-term.",
-      "adequacy_threshold_mg": 18,
-      "food_sources_short": "Food sources of iron include red meat, poultry, seafood, beans, lentils, tofu, spinach, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
+      "citation_review_status": "needs_revision",
+      "citation_review_note": "Suppressed: NSAID-associated GI bleeding can cause iron-deficiency anaemia, but this all-NSAID record lacks a dose, duration, and bleeding-risk scope for a consumer nutrient alert.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_08_antibiotics_nsaids_audit"
     },
     {
       "id": "DEP_NSAIDS_VITAMINC",
@@ -1806,12 +1806,12 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Aspirin and other salicylates compete with vitamin C for renal tubular reabsorption, increasing urinary vitamin C excretion. Aspirin also increases leukocyte turnover (cells rich in vitamin C) and promotes oxidative conditions that consume ascorbate.",
-      "clinical_impact": "Chronic aspirin use can cause vitamin C depletion that may impair antioxidant defenses, collagen synthesis, and immune function. This is particularly relevant for elderly patients on daily low-dose aspirin who also have marginal dietary vitamin C intake.",
-      "recommendation": "Ensure daily vitamin C intake of 250–500 mg through diet or supplementation when taking aspirin regularly. Take vitamin C separately from aspirin to minimize competition.",
-      "onset_timeline": "months",
-      "evidence_level": "probable",
-      "monitoring_note": null,
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -1819,15 +1819,15 @@
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
       ],
-      "alert_headline": "Aspirin may lower vitamin C over time",
-      "alert_body": "With regular aspirin use, the body loses more vitamin C through urine over months. The effect is most noticeable with daily low-dose aspirin.",
-      "acknowledgement_note": "Nice — vitamin C intake supports levels during regular aspirin use.",
-      "monitoring_tip_short": "Consider taking vitamin C at a different time of day from aspirin.",
-      "adequacy_threshold_mg": 250,
-      "food_sources_short": "Food sources of vitamin C include citrus fruits, strawberries, bell peppers, broccoli, kiwi, and tomatoes.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: no claim-matched clinical citation supports routine NSAID or aspirin vitamin-C depletion supplementation.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_08_antibiotics_nsaids_audit"
     },
     {
       "id": "DEP_ANTIBIOTICS_BVITAMINS",
@@ -1842,12 +1842,12 @@
       },
       "depletion_type": "depletion",
       "severity": "mild",
-      "mechanism": "Gut bacteria synthesize modest amounts of B vitamins including B12, biotin, folate, riboflavin, and pantothenic acid. Broad-spectrum antibiotics disrupt the intestinal microbiome, transiently reducing bacterial B vitamin synthesis. The primary B vitamin source is dietary, so the impact is most significant in individuals with marginal dietary intake.",
-      "clinical_impact": "Short-course antibiotics rarely cause clinically significant B12 depletion in well-nourished individuals. The effect is more concerning with repeated or prolonged antibiotic courses, in elderly patients, and those with inadequate dietary B vitamin intake.",
-      "recommendation": "After antibiotic use, restore gut flora with probiotic-rich foods (yogurt, kefir, fermented vegetables) or a high-quality probiotic supplement for 4–8 weeks. A B-complex supplement during and after antibiotic courses provides a reasonable safety net.",
-      "onset_timeline": "weeks",
-      "evidence_level": "probable",
-      "monitoring_note": null,
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -1855,16 +1855,15 @@
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
       ],
-      "alert_headline": "May briefly affect B vitamins with regular use",
-      "alert_body": "Broad-spectrum antibiotics can gradually affect gut-bacteria production of some B vitamins during a course. The effect is usually short-lived and reverses after treatment.",
-      "acknowledgement_note": "Nice — a B-complex is a reasonable companion during and after antibiotic treatment.",
-      "monitoring_tip_short": "Consider a B-complex and fermented foods during and after a course of antibiotics.",
-      "adequacy_threshold_mcg": 250,
-      "food_sources_short": "Food sources of B vitamins include meat, poultry, fish, eggs, dairy, leafy greens, legumes, and fortified grains.",
-      "citation_review_status": "needs_revision",
-      "citation_review_note": "drug_ref.id 'antibiotics_broadspectrum' is a synthetic non-RxCUI identifier; the app matches medications by numeric RxCUI, so this rule can never fire. Suppressed (needs_revision) pending Section 8 conversion to class:broad_spectrum_antibiotics with real member rxcuis. The mechanism/citation are sound — the defect is the drug identifier, not the evidence.",
-      "reviewer": "identifier-audit-2026-07-24",
-      "reviewed_at": "2026-07-24"
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs.",
+      "citation_review_status": "rejected",
+      "citation_review_note": "Rejected: microbiome disruption does not establish broad-antibiotic vitamin B12 depletion; the synthetic non-RxCUI subject is not runtime-mappable.",
+      "reviewer": "medication_depletion_section_08_antibiotics_nsaids_audit",
+      "reviewed_at": "2026-07-26"
     },
     {
       "id": "DEP_ANTIBIOTICS_VITAMINK",
@@ -1879,12 +1878,12 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Intestinal bacteria (particularly gram-positive anaerobes like Bacteroides and Prevotella) synthesize menaquinone (vitamin K2), which contributes to vitamin K status. Antibiotics that disrupt these populations reduce endogenous vitamin K2 synthesis. This effect is most significant for individuals on warfarin or with marginal dietary vitamin K1 intake.",
-      "clinical_impact": "Antibiotic-induced vitamin K reduction can potentiate anticoagulation in warfarin users, leading to dangerously elevated INR and bleeding risk. In non-anticoagulated patients the effect is generally modest.",
-      "recommendation": "Patients on warfarin must have their INR monitored closely during and after any antibiotic course. Non-anticoagulated patients should ensure adequate dietary vitamin K from green leafy vegetables and consider a low-dose K2 supplement (100 mcg MK-7) after antibiotic courses.",
-      "onset_timeline": "weeks",
-      "evidence_level": "established",
-      "monitoring_note": "Check INR within 3–5 days of starting antibiotics in all warfarin-treated patients. Antibiotics frequently destabilize anticoagulation control.",
+      "mechanism": "No consumer depletion mechanism is asserted pending exact supporting evidence.",
+      "clinical_impact": "No consumer depletion warning is emitted.",
+      "recommendation": "Do not supplement solely because of this medication or condition.",
+      "onset_timeline": "not established",
+      "evidence_level": "possible",
+      "monitoring_note": "No medication-specific nutrient monitoring recommendation is emitted.",
       "sources": [
         {
           "source_type": "reference",
@@ -1892,14 +1891,15 @@
           "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
         }
       ],
-      "alert_headline": "Can affect vitamin K during a course",
-      "alert_body": "Broad-spectrum antibiotics can gradually reduce gut-bacteria vitamin K production during a course. This matters most for people on warfarin and is managed medically.",
-      "acknowledgement_note": "Good — vitamin K awareness is helpful during and after antibiotic courses.",
-      "monitoring_tip_short": "If you take warfarin, ask about INR checks during and after an antibiotic course.",
+      "alert_headline": "No medication-specific depletion alert",
+      "alert_body": "This record does not establish a medication-caused nutrient depletion warning.",
+      "acknowledgement_note": "No medication-specific nutrient coverage acknowledgement is emitted.",
+      "monitoring_tip_short": "Follow the monitoring plan set by your treating clinician.",
       "citation_review_status": "needs_revision",
-      "citation_review_note": "drug_ref.id 'antibiotics_broadspectrum' is a synthetic non-RxCUI identifier; the app matches medications by numeric RxCUI, so this rule can never fire. Suppressed (needs_revision) pending Section 8 conversion to class:broad_spectrum_antibiotics with real member rxcuis. The mechanism/citation are sound — the defect is the drug identifier, not the evidence.",
-      "reviewer": "identifier-audit-2026-07-24",
-      "reviewed_at": "2026-07-24"
+      "citation_review_note": "Suppressed: vitamin-K coagulopathy evidence is limited to narrow high-risk scenarios and the synthetic non-RxCUI subject is not runtime-mappable.",
+      "reviewer": "medication_depletion_section_08_antibiotics_nsaids_audit",
+      "reviewed_at": "2026-07-26",
+      "food_sources_short": "Maintain dietary intake appropriate to your individual needs."
     },
     {
       "id": "DEP_LEVOTHYROXINE_CALCIUM",
