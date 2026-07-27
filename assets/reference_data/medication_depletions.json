@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.07.24",
-    "content_hash": "sha256:76a4368377d41cc5a8f3074c0c3ad6f161b13136ad09d7258ef56f191b0f53e4",
+    "content_version": "2026.07.26",
+    "content_hash": "sha256:9189d879db99c2713df799a59f60527647f6901120610def783adf767a846820",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -593,9 +593,10 @@
       "monitoring_tip_short": "Consider discussing magnesium at a routine visit if you notice frequent headaches.",
       "adequacy_threshold_mg": 200,
       "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 23636014 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_OCP_ZINC",
@@ -629,9 +630,10 @@
       "monitoring_tip_short": "Consider a balanced multivitamin that includes zinc; discuss with your clinician.",
       "adequacy_threshold_mg": 10,
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 23636014 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_OCP_VITAMINC",
@@ -1336,9 +1338,9 @@
     {
       "id": "DEP_ANTICONVULSANTS_VITAMIND",
       "drug_ref": {
-        "type": "class",
-        "id": "class:enzyme_inducing_antiseizure_medications",
-        "display_name": "Enzyme-inducing antiseizure medications"
+        "type": "drug",
+        "id": "2002",
+        "display_name": "Carbamazepine"
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin D",
@@ -1346,35 +1348,36 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Enzyme-inducing antiepileptic drugs (phenytoin, carbamazepine, phenobarbital, primidone) induce hepatic CYP enzymes that accelerate catabolism of 25-hydroxyvitamin D and 1,25-dihydroxyvitamin D, reducing circulating levels. Non-enzyme-inducers (valproate, lamotrigine) also reduce vitamin D through less-defined mechanisms.",
-      "clinical_impact": "Vitamin D deficiency from AEDs causes bone disease (osteomalacia, osteoporosis), increased fracture risk, muscle weakness, and secondary hyperparathyroidism. This is a well-recognized AED complication.",
-      "recommendation": "All patients on AEDs should take vitamin D3 supplementation, typically 1,000–2,000 IU daily. Higher doses (up to 4,000 IU) may be needed with enzyme-inducing drugs. Regular 25-OH-D level monitoring is essential.",
+      "mechanism": "Long-term carbamazepine treatment is associated with lower circulating 25-hydroxyvitamin D. Carbamazepine is an enzyme-inducing antiseizure medication; this record does not generalize that result to every antiseizure medicine.",
+      "clinical_impact": "Lower vitamin D can contribute to poorer bone health over time. Individual fracture risk and treatment decisions need clinical assessment.",
+      "recommendation": "Discuss vitamin D intake and whether testing is appropriate with the clinician managing carbamazepine. Do not start high-dose vitamin D without individualized advice.",
       "onset_timeline": "months",
       "evidence_level": "established",
-      "monitoring_note": "Check serum 25-OH vitamin D every 6–12 months in all patients on long-term AED therapy. Target 25-OH-D >30 ng/mL.",
+      "monitoring_note": "A clinician can decide whether 25-hydroxyvitamin D testing is appropriate based on duration of treatment and bone-health risk factors.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Vitamin D Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Impact of carbamazepine on vitamin D levels: A meta-analysis. Epilepsy Res. 2021.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34847425/"
         }
       ],
-      "alert_headline": "Can lower vitamin D with long-term use",
-      "alert_body": "Certain seizure medications can gradually speed up how the body breaks down vitamin D over months, leading to lower levels with ongoing use.",
-      "acknowledgement_note": "Good — vitamin D intake aligns with guidance for long-term seizure-medication use.",
-      "monitoring_tip_short": "Consider asking for a 25-OH-D check; your neurologist can guide dosing.",
+      "alert_headline": "Carbamazepine may lower vitamin D over time",
+      "alert_body": "Long-term carbamazepine use has been associated with lower vitamin D levels. Your clinician can help decide whether testing or treatment is needed.",
+      "acknowledgement_note": "Vitamin D intake is one part of bone-health planning during long-term carbamazepine therapy.",
+      "monitoring_tip_short": "Ask whether vitamin D testing fits your treatment plan.",
       "adequacy_threshold_mcg": 25,
       "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
-      "citation_review_status": "needs_revision",
-      "reviewed_at": "2026-07-23",
-      "reviewer": "lead_clinician_audit_2026_07"
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_03_content_audit",
+      "citation_review_note": "Section 3 content audit: PMID 34847425 is a carbamazepine-specific meta-analysis of lower 25-hydroxyvitamin D. The record is direct-drug scoped; no class-wide inference is shipped."
     },
     {
       "id": "DEP_ANTICONVULSANTS_CALCIUM",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants / antiepileptic drugs"
+        "id": "class:enzyme_inducing_antiseizure_medications",
+        "display_name": "Enzyme-inducing antiseizure medications"
       },
       "depleted_nutrient": {
         "standard_name": "Calcium",
@@ -1382,35 +1385,36 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Secondary to vitamin D depletion: reduced vitamin D impairs intestinal calcium absorption and increases PTH-driven bone resorption. Phenytoin also directly inhibits intestinal calcium transport independent of vitamin D.",
-      "clinical_impact": "Hypocalcemia and metabolic bone disease (anticonvulsant osteomalacia) are well-documented. Risk of fragility fractures is significantly elevated, especially in institutionalized or immobile patients on multiple AEDs.",
-      "recommendation": "Supplement with 1,000–1,500 mg calcium daily alongside vitamin D in all patients on long-term AED therapy. Calcium citrate preferred for reliability of absorption.",
+      "mechanism": "Anticonvulsant-associated bone disease can involve increased bone remodeling. Reduced vitamin D and lower calcium intake are relevant clinical considerations; this record is limited to the reviewed enzyme-inducing subset.",
+      "clinical_impact": "Long-term treatment can be associated with bone-health concerns. The appropriate evaluation depends on individual fracture and osteoporosis risk.",
+      "recommendation": "Discuss dietary calcium, vitamin D, and bone-health risk with the clinician managing long-term enzyme-inducing antiseizure treatment rather than self-prescribing a dose.",
       "onset_timeline": "months",
       "evidence_level": "established",
-      "monitoring_note": "Check serum calcium and alkaline phosphatase (marker of bone turnover) annually in patients on enzyme-inducing AEDs.",
+      "monitoring_note": "A clinician can decide whether calcium, vitamin D, or bone evaluation is appropriate for the individual.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Calcium Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Treatment of anticonvulsant drug-induced bone disease. Epilepsy Behav. 2004.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15123011/"
         }
       ],
       "alert_headline": "May lower calcium with long-term use",
-      "alert_body": "With long-term use of certain seizure medications, calcium absorption can gradually decline over months — this often moves alongside vitamin D.",
-      "acknowledgement_note": "Good — calcium intake supports bone balance during long-term seizure-medication use.",
-      "monitoring_tip_short": "Consider discussing calcium and vitamin D together at your neurology visits.",
+      "alert_body": "Long-term enzyme-inducing antiseizure treatment can be relevant to bone health. Calcium and vitamin D plans should be individualized with a clinician.",
+      "acknowledgement_note": "Calcium intake is one part of bone-health planning during long-term treatment.",
+      "monitoring_tip_short": "Discuss calcium and vitamin D in the context of your bone-health risk.",
       "adequacy_threshold_mg": 500,
       "food_sources_short": "Food sources of calcium include dairy, fortified plant milks, leafy greens, almonds, and canned sardines or salmon with bones.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_03_content_audit",
+      "citation_review_note": "Section 3 content audit: PMID 15123011 reviews anticonvulsant-associated bone disease and calcium intake. Copy is limited to bone-health discussion, not a universal supplement dose."
     },
     {
       "id": "DEP_ANTICONVULSANTS_FOLATE",
       "drug_ref": {
-        "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants / antiepileptic drugs"
+        "type": "drug",
+        "id": "8183",
+        "display_name": "Phenytoin"
       },
       "depleted_nutrient": {
         "standard_name": "Folate",
@@ -1418,35 +1422,36 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Phenytoin, carbamazepine, and valproate impair folate absorption and metabolism through multiple mechanisms: inhibiting intestinal folate conjugase, competing with folate transport, inhibiting dihydrofolate reductase, and accelerating hepatic folate catabolism via CYP induction.",
-      "clinical_impact": "Folate deficiency causes megaloblastic anemia, elevated homocysteine, increased cardiovascular risk, and neural tube defects in offspring. Paradoxically, high-dose folate supplementation can reduce phenytoin efficacy, requiring careful management.",
-      "recommendation": "Low-dose folic acid (0.4–1 mg/day) is generally recommended for patients on these AEDs. Women of childbearing age should take 4–5 mg/day under medical supervision. Discuss folate supplementation with your neurologist before starting.",
+      "mechanism": "Long-term phenytoin therapy can lower folate status. Several mechanisms have been proposed, but this record is limited to phenytoin rather than generalized to all antiseizure medicines.",
+      "clinical_impact": "Low folate can contribute to megaloblastic anemia. In people who could become pregnant, folate planning should be discussed with the prescribing clinician.",
+      "recommendation": "Discuss folate intake and any supplement dose with the clinician managing phenytoin. Folate supplementation can affect phenytoin concentrations in some people, so self-directed high doses are not appropriate.",
       "onset_timeline": "months",
       "evidence_level": "established",
-      "monitoring_note": "Check serum folate and CBC annually. In women of childbearing age, discuss with neurologist regarding folate dose that balances maternal deficiency risk against potential seizure threshold effects.",
+      "monitoring_note": "A clinician can decide whether folate and CBC testing is appropriate and coordinate any supplement plan with seizure control.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Folate Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Phenytoin-folic acid: a review. Drug Intell Clin Pharm. 1984.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/6370643/"
         }
       ],
-      "alert_headline": "May lower folate with long-term use",
-      "alert_body": "Several seizure medications can gradually reduce folate over months. Folate matters especially for people planning pregnancy, so medical guidance is important.",
-      "acknowledgement_note": "Nice — folate intake reflects thoughtful planning during long-term therapy.",
-      "monitoring_tip_short": "Consider discussing folate dose with your neurologist, especially when planning pregnancy.",
+      "alert_headline": "Phenytoin may lower folate over time",
+      "alert_body": "Long-term phenytoin use can lower folate status. Discussing folate with your prescribing clinician is especially important when planning pregnancy.",
+      "acknowledgement_note": "Folate planning should be coordinated with phenytoin treatment.",
+      "monitoring_tip_short": "Ask whether folate testing or supplementation fits your plan.",
       "adequacy_threshold_mcg": 400,
       "food_sources_short": "Food sources of folate include leafy greens, lentils, chickpeas, asparagus, avocado, and fortified grains and cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_03_content_audit",
+      "citation_review_note": "Section 3 content audit: PMID 6370643 is a phenytoin-folate review. The record is direct-drug scoped and avoids unsupported claims for other antiseizure medicines."
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINB12",
       "drug_ref": {
-        "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants / antiepileptic drugs"
+        "type": "drug",
+        "id": "8183",
+        "display_name": "Phenytoin"
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin B12",
@@ -1454,35 +1459,36 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Some AEDs, particularly valproate and phenytoin, may reduce vitamin B12 absorption or impair its utilization. Enzyme-inducing AEDs may also increase B12 catabolism. Additionally, concurrent folate deficiency can mask B12 deficiency in lab values.",
-      "clinical_impact": "B12 deficiency contributes to peripheral neuropathy, cognitive changes, and megaloblastic anemia. Particularly concerning when combined with folate depletion by the same drug class.",
-      "recommendation": "Include B12 in routine monitoring for patients on AEDs. A B-complex supplement or sublingual B12 (1,000 mcg/day) can help maintain adequate levels.",
+      "mechanism": "A systematic review and meta-analysis found lower serum vitamin B12 in people receiving phenytoin monotherapy. The mechanism is not established, so this record does not attribute the effect to other antiseizure medicines.",
+      "clinical_impact": "Low vitamin B12 can contribute to anemia or neurologic symptoms, but deficiency should be confirmed and evaluated clinically.",
+      "recommendation": "Discuss whether vitamin B12 testing is appropriate with the clinician managing long-term phenytoin. Treatment should follow an identified deficiency or individualized clinical advice.",
       "onset_timeline": "years",
       "evidence_level": "probable",
-      "monitoring_note": "Check serum B12 annually in patients on long-term AED therapy, especially valproate and phenytoin.",
+      "monitoring_note": "A clinician can decide whether vitamin B12 and related testing is appropriate for long-term phenytoin therapy.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
-          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+          "source_type": "pubmed",
+          "label": "Effects of phenytoin on serum levels of homocysteine, vitamin B12, folate in patients with epilepsy: a systematic review and meta-analysis. Medicine (Baltimore). 2019.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/30896627/"
         }
       ],
-      "alert_headline": "May lower vitamin B12 over years",
-      "alert_body": "Some seizure medications can gradually affect vitamin B12 levels over years. Since they also affect folate, B12 is often checked alongside.",
-      "acknowledgement_note": "Nice — B12 intake supports levels during long-term seizure-medication use.",
-      "monitoring_tip_short": "Consider including B12 in your routine labs during long-term therapy.",
+      "alert_headline": "Phenytoin may lower vitamin B12 over time",
+      "alert_body": "Over years of phenytoin treatment, studies have associated monotherapy with lower vitamin B12. Your clinician can help decide whether testing is useful.",
+      "acknowledgement_note": "Vitamin B12 planning can be discussed as part of long-term phenytoin care.",
+      "monitoring_tip_short": "Ask whether vitamin B12 testing fits your treatment plan.",
       "adequacy_threshold_mcg": 250,
       "food_sources_short": "Food sources of vitamin B12 include fish, meat, poultry, eggs, dairy, and fortified plant milks and cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "citation_review_note": "Section 3 content audit: PMID 30896627 is a phenytoin-monotherapy meta-analysis reporting lower serum B12. Re-enabled only at this direct-drug scope.",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_03_content_audit"
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINK",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants / antiepileptic drugs — enzyme-inducing AEDs"
+        "id": "class:enzyme_inducing_antiseizure_medications",
+        "display_name": "Enzyme-inducing antiseizure medications"
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin K",
@@ -1490,33 +1496,39 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Enzyme-inducing AEDs (phenytoin, carbamazepine, phenobarbital) accelerate hepatic metabolism of vitamin K via CYP2C9 induction, reducing vitamin K-dependent clotting factor synthesis. This is critical in pregnant women on these drugs.",
-      "clinical_impact": "Neonatal hemorrhagic disease of the newborn is a well-documented risk when mothers take enzyme-inducing AEDs during pregnancy. Maternal bone health is also affected as vitamin K is required for osteocalcin carboxylation.",
-      "recommendation": "Pregnant women on enzyme-inducing AEDs require vitamin K supplementation under medical supervision. All patients should ensure adequate dietary vitamin K from green leafy vegetables. Do not self-supplement with high-dose K without medical guidance.",
+      "mechanism": "The pregnancy literature on enzyme-inducing antiseizure medications and vitamin K is mixed. A small older study found lower neonatal vitamin-K markers without antenatal supplementation, while a later review did not find evidence of increased neonatal hemorrhagic disease overall.",
+      "clinical_impact": "Pregnancy-specific vitamin K decisions should be individualized with obstetric and neurology care; this is not evidence of a routine vitamin K deficiency in every person taking an antiseizure medication.",
+      "recommendation": "If pregnant or planning pregnancy while taking an enzyme-inducing antiseizure medication, discuss vitamin K and newborn-bleeding considerations with the neurologist and obstetric clinician. Do not self-start high-dose vitamin K.",
       "onset_timeline": "months",
-      "evidence_level": "established",
-      "monitoring_note": "Pregnant women on enzyme-inducing AEDs should receive vitamin K1 (phytomenadione) 10–20 mg/day in the last 4 weeks of pregnancy (per clinical guidelines). Discuss with your neurologist and obstetrician.",
+      "evidence_level": "possible",
+      "monitoring_note": "Antenatal vitamin K is an individualized obstetric decision, not a routine self-care recommendation.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Yerby MS. Management issues for women with epilepsy: neural tube defects and folic acid supplementation. Neurology. 2003",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/14506311/"
+          "source_type": "pubmed",
+          "label": "Does vitamin K prophylaxis prevent bleeding in neonates exposed to enzyme-inducing antiepileptic drugs in utero? Can Fam Physician. 2006.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/16812962/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Supplementation of vitamin K in pregnant women receiving anticonvulsant therapy prevents neonatal vitamin K deficiency. Am J Obstet Gynecol. 1993.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/8456897/"
         }
       ],
-      "alert_headline": "May affect vitamin K with long-term use",
-      "alert_body": "Certain seizure medications can gradually increase vitamin K turnover over months. This matters especially during pregnancy and is managed medically.",
-      "acknowledgement_note": "Good — vitamin K awareness is part of thoughtful care during long-term therapy.",
-      "monitoring_tip_short": "Consider discussing vitamin K with your neurologist — self-supplementing isn't recommended.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "alert_headline": "Discuss vitamin K only in pregnancy-specific care",
+      "alert_body": "During long-term antiseizure treatment in pregnancy, vitamin K decisions need individualized obstetric and neurology guidance. Routine supplementation is not established.",
+      "acknowledgement_note": "Pregnancy planning with an antiseizure medication is best coordinated with the prescribing and obstetric teams.",
+      "monitoring_tip_short": "If pregnant or planning pregnancy, ask your care team about vitamin K guidance.",
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_03_content_audit",
+      "citation_review_note": "Section 3 content audit: replaced ghost PMID 14506311. PMID 8456897 reports neonatal biochemical markers in a small older study; PMID 16812962 concludes routine antenatal prophylaxis is not supported. Copy preserves that uncertainty."
     },
     {
       "id": "DEP_ANTICONVULSANTS_BIOTIN",
       "drug_ref": {
         "type": "class",
         "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants — valproic acid and carbamazepine"
+        "display_name": "Anticonvulsants / antiseizure medications (scope under review)"
       },
       "depleted_nutrient": {
         "standard_name": "Biotin",
@@ -1524,35 +1536,41 @@
       },
       "depletion_type": "depletion",
       "severity": "moderate",
-      "mechanism": "Valproic acid and carbamazepine impair biotin absorption from the gut, accelerate biotin catabolism via beta-oxidation of the valproyl side chain, and may compete with biotin for intestinal transport. They also impair biotinidase activity needed for biotin recycling.",
-      "clinical_impact": "Biotin deficiency causes hair loss, skin rash, neurological symptoms (depression, hallucinations, numbness), and impaired glucose metabolism. Symptoms can mimic other conditions and may be overlooked.",
-      "recommendation": "Consider biotin supplementation (5–10 mg/day) for patients on valproate or carbamazepine, especially if experiencing hair thinning or skin changes.",
+      "mechanism": "Long-term treatment with some anticonvulsants has been associated with increased biotin catabolism. Available studies include carbamazepine, phenytoin, and phenobarbital; they do not establish a valproate-specific effect.",
+      "clinical_impact": "The available studies show mixed biotin-status indicators. This record is withheld while its drug-specific scope and consumer implications are reviewed.",
+      "recommendation": "Do not use this inactive record to guide supplementation. Discuss symptoms or nutrition concerns with a clinician.",
       "onset_timeline": "months",
-      "evidence_level": "established",
-      "monitoring_note": null,
+      "evidence_level": "possible",
+      "monitoring_note": "Suppressed pending a reviewed, drug-specific clinical claim.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "Pelton R et al. Drug-Induced Nutrient Depletion Handbook. 2nd ed. Lexi-Comp, 2001",
-          "url": "https://www.ncbi.nlm.nih.gov/nlmcatalog/101163369"
+          "source_type": "pubmed",
+          "label": "Biotin catabolism is accelerated in adults receiving long-term therapy with anticonvulsants. J Nutr. 1997.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/9371938/"
+        },
+        {
+          "source_type": "pubmed",
+          "label": "Disturbances in biotin metabolism in children undergoing long-term anticonvulsant therapy. J Nutr. 1998.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/9523856/"
         }
       ],
       "alert_headline": "May lower biotin over time",
-      "alert_body": "Valproate and carbamazepine can gradually reduce biotin levels with long-term use over months. Some people notice hair thinning or skin changes.",
-      "acknowledgement_note": "Nice — biotin intake supports hair and skin balance during long-term therapy.",
-      "monitoring_tip_short": "Consider discussing biotin with your neurologist if hair thinning is noticeable.",
+      "alert_body": "This long-term relationship is under review and is not shown to users.",
+      "acknowledgement_note": "This relationship is under review and is not shown to users.",
+      "monitoring_tip_short": "This relationship is under review and is not shown to users.",
       "adequacy_threshold_mcg": 30,
       "food_sources_short": "Food sources of biotin include eggs, salmon, pork, sunflower seeds, almonds, sweet potatoes, and spinach.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_03_content_audit",
+      "citation_review_note": "Section 3 content audit: PMID 9371938 and PMID 9523856 support an anticonvulsant-class signal, but the measured child cohorts were carbamazepine/phenytoin/phenobarbital and neither study establishes valproate exposure. The valproate claim is therefore suppressed pending direct evidence and a new scope decision."
     },
     {
       "id": "DEP_ANTICONVULSANTS_LCARNITINE",
       "drug_ref": {
         "type": "class",
-        "id": "class:anticonvulsants",
-        "display_name": "Anticonvulsants — valproic acid"
+        "id": "class:valproate",
+        "display_name": "Valproate (valproic acid, divalproex / Depakote)"
       },
       "depleted_nutrient": {
         "standard_name": "L-Carnitine",
@@ -1560,28 +1578,29 @@
       },
       "depletion_type": "depletion",
       "severity": "significant",
-      "mechanism": "Valproic acid (valproate) forms acylcarnitine conjugates that are excreted renally, directly depleting carnitine stores. It also inhibits carnitine biosynthesis and transport. Plasma and tissue carnitine levels can fall significantly with long-term valproate therapy.",
-      "clinical_impact": "Carnitine depletion from valproate impairs mitochondrial fatty acid oxidation, contributing to hepatotoxicity (Reye-like syndrome), hyperammonemia, and metabolic encephalopathy. Life-threatening in rare cases, especially in children.",
-      "recommendation": "L-carnitine supplementation (50–100 mg/kg/day in children; 1–3 g/day in adults) is recommended for patients on valproate with carnitine deficiency, metabolic symptoms, or liver disease. Discuss with your neurologist.",
+      "mechanism": "Long-term valproic acid treatment can reduce carnitine availability and impair fatty-acid oxidation. A pediatric study observed an altered fuel-use pattern that improved after carnitine supplementation.",
+      "clinical_impact": "Carnitine depletion is a recognized concern in long-term valproate care, particularly in children and people with clinical risk factors. Acute valproate toxicity is a separate urgent clinical situation and is not represented by this routine monitoring record.",
+      "recommendation": "Discuss symptoms, risk factors, and whether carnitine testing or supplementation is appropriate with the clinician managing valproate. Do not self-dose based on this record.",
       "onset_timeline": "months",
-      "evidence_level": "established",
-      "monitoring_note": "Check plasma carnitine levels in all patients on long-term valproate, especially children, those on multiple AEDs, or those with liver disease.",
+      "evidence_level": "probable",
+      "monitoring_note": "Testing and treatment decisions should be individualized, with particular attention to children and people with clinical symptoms or liver concerns.",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Carnitine Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Carnitine-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Carnitine-dependent changes of metabolic fuel consumption during long-term treatment with valproic acid. J Pediatr. 1994.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/8040784/"
         }
       ],
       "alert_headline": "Valproate may lower carnitine over time",
-      "alert_body": "Valproate can gradually reduce carnitine stores over months of use. This effect is medically managed and most relevant for children or people with liver issues.",
-      "acknowledgement_note": "Nice — carnitine intake aligns with clinical guidance for long-term valproate use.",
-      "monitoring_tip_short": "Consider discussing L-carnitine with your neurologist, especially for children on valproate.",
+      "alert_body": "Long-term valproate use can be associated with lower carnitine availability, especially in children. A clinician can decide whether testing or treatment is appropriate.",
+      "acknowledgement_note": "Carnitine questions can be discussed as part of long-term valproate care.",
+      "monitoring_tip_short": "Ask whether carnitine assessment fits your treatment plan.",
       "adequacy_threshold_mg": 1000,
       "food_sources_short": "Food sources of carnitine include red meat, poultry, fish, and dairy products.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "verified",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_section_03_content_audit",
+      "citation_review_note": "Section 3 content audit: PMID 8040784 is a long-term pediatric valproic-acid study. Copy removes routine dosing and separates chronic monitoring from acute toxicity care."
     },
     {
       "id": "DEP_ACEINHIBITORS_ZINC",
@@ -1985,9 +2004,10 @@
       "monitoring_tip_short": "Consider an annual 25-OH-D check during long-term antipsychotic therapy.",
       "adequacy_threshold_mcg": 25,
       "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 25638514 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_COQ10",
@@ -2021,9 +2041,10 @@
       "monitoring_tip_short": "Consider discussing CoQ10 with your prescriber if fatigue feels persistent.",
       "adequacy_threshold_mg": 100,
       "food_sources_short": "Dietary CoQ10 is minimal — organ meats and fatty fish contain small amounts, but a supplement is usually the practical route.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 18316143 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_STIMULANTS_MAGNESIUM",
@@ -2091,9 +2112,10 @@
       "alert_body": "High-dose vitamin C taken near an amphetamine-based stimulant can gradually affect how well the dose works over weeks. Separating them by time usually resolves it.",
       "acknowledgement_note": "Good — vitamin C supports overall balance; timing separately keeps your medication steady.",
       "monitoring_tip_short": "Consider taking high-dose vitamin C at least 1-2 hours apart from stimulant doses.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 10870150 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_HIVPI_VITAMIND",
@@ -2127,9 +2149,10 @@
       "monitoring_tip_short": "Consider regular 25-OH-D checks; your HIV clinician can guide targets.",
       "adequacy_threshold_mcg": 25,
       "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 21694637 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_HIVPI_ZINC",
@@ -2163,9 +2186,10 @@
       "monitoring_tip_short": "Consider discussing a modest zinc supplement with your HIV clinician.",
       "adequacy_threshold_mg": 10,
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 12591569 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_ANTICOAGULANTS_VITAMINK",
@@ -2320,9 +2344,10 @@
       "monitoring_tip_short": "Ask your transplant team about your magnesium schedule — this is a routine part of care.",
       "adequacy_threshold_mg": 400,
       "food_sources_short": "Food sources of magnesium include leafy greens, nuts, seeds, whole grains, beans, and dark chocolate.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 16641596 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_IMMUNOSUPPRESSANTS_VITAMIND",
@@ -2356,9 +2381,10 @@
       "monitoring_tip_short": "Ask your transplant team about your vitamin D target and dosing plan.",
       "adequacy_threshold_mcg": 25,
       "food_sources_short": "Food sources of vitamin D include fatty fish, egg yolks, fortified milk and plant milks, and fortified cereals.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 19528952 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_CALCIUMCHANNELBLOCKERS_POTASSIUM",
@@ -2574,9 +2600,10 @@
       "alert_body": "Benzodiazepines can gradually disrupt the body's nighttime melatonin rhythm with regular use over weeks. Some people notice less restorative sleep.",
       "acknowledgement_note": "Nice — low-dose melatonin aligns with guidance for people using benzodiazepines.",
       "monitoring_tip_short": "Consider discussing low-dose melatonin and sleep strategy with your prescriber.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 2733455 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_BVITAMINS_INTERACTIONS",
@@ -2610,9 +2637,10 @@
       "monitoring_tip_short": "Consider a balanced multivitamin rather than high single-nutrient doses; check with your clinician.",
       "adequacy_threshold_mg": 10,
       "food_sources_short": "Food sources of zinc include meat, poultry, shellfish, beans, lentils, nuts, seeds, and whole grains.",
-      "citation_review_status": "unverified",
-      "reviewed_at": null,
-      "reviewer": null
+      "citation_review_status": "needs_revision",
+      "reviewed_at": "2026-07-26",
+      "reviewer": "medication_depletion_content_audit_2026_07_26",
+      "citation_review_note": "Citation content audit (2026-07-26): PMID 2132402 resolves in PubMed but is a content mismatch — its live title/abstract does not support this medication-nutrient claim. Suppressed pending a family-specific, reviewed replacement; no clinical conclusion is made from this citation."
     },
     {
       "id": "DEP_ISONIAZID_VITAMINB6",

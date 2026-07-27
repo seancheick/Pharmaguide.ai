@@ -63,6 +63,28 @@ con.commit(); con.close()
 PY
 expect 1 "potassium-sparing leak into loop+thiazide rejected" -- bash "$SCRIPT" --validate "$TMP/hazard.sqlite"
 
+# 6. A plausible SQLite that omits the new valproate runtime scope is rejected.
+cp "$REAL_DB" "$TMP/missing-valproate.sqlite"
+python3 - "$TMP/missing-valproate.sqlite" <<'PY'
+import sqlite3, sys
+con = sqlite3.connect(sys.argv[1])
+con.execute("DELETE FROM drug_class_map WHERE class_id = 'class:valproate'")
+con.commit(); con.close()
+PY
+expect 1 "missing valproate class rejected" -- bash "$SCRIPT" --validate "$TMP/missing-valproate.sqlite"
+
+# 7. A valproate form leaking into the enzyme-inducing class is rejected.
+cp "$REAL_DB" "$TMP/valproate-leak.sqlite"
+python3 - "$TMP/valproate-leak.sqlite" <<'PY'
+import sqlite3, sys, json
+con = sqlite3.connect(sys.argv[1]); con.row_factory = sqlite3.Row
+row = con.execute("SELECT drug_rxcuis_json FROM drug_class_map WHERE class_id='class:enzyme_inducing_antiseizure_medications'").fetchone()
+members = json.loads(row["drug_rxcuis_json"]); members.append("40254")
+con.execute("UPDATE drug_class_map SET drug_rxcuis_json=? WHERE class_id='class:enzyme_inducing_antiseizure_medications'", (json.dumps(members),))
+con.commit(); con.close()
+PY
+expect 1 "valproate leak into enzyme-inducing class rejected" -- bash "$SCRIPT" --validate "$TMP/valproate-leak.sqlite"
+
 echo
 echo "fetch_interaction_db validation: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
