@@ -51,6 +51,7 @@ approved secure clinical-feedback workflow is introduced.
 
 ## Release authority
 
-The recorded B1 sign-off is an AI clinical-content audit approving the bounded
-corpus for controlled beta. It does not represent a licensed pharmacist's
-credential or independently authorize a regulated clinical release.
+Dr. Pham of the PharmaGuide Clinical Team provided licensed-pharmacist approval
+of the bounded B1 corpus for controlled beta on 2026-07-27. The preceding AI
+clinical-content audit remains supporting provenance; it is not the release
+authority.
