@@ -42,6 +42,7 @@ void main() {
       reason: 'category alone is not enough',
     );
 
+    await tester.ensureVisible(find.text('Frustrating'));
     await tester.tap(find.text('Frustrating'));
     await tester.pump();
     expect(

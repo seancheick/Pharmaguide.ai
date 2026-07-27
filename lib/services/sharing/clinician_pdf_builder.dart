@@ -275,12 +275,23 @@ class ClinicianPdfBuilder {
         ),
       ]);
     }
+    final statusLines = status == MedNutrientLoadStatus.fallbackLoaded
+        ? <pw.Widget>[
+            _line(
+              theme,
+              'Partial medication-nutrient analysis: a fallback reference '
+              'artifact was used. Review these notes in that context.',
+            ),
+          ]
+        : const <pw.Widget>[];
+    if (depletions.isEmpty && statusLines.isNotEmpty) {
+      return _section(theme, 'Medication nutrient notes', statusLines);
+    }
     if (depletions.isEmpty) return pw.SizedBox.shrink();
 
-    return _section(
-      theme,
-      'Medication nutrient notes',
-      depletions.take(8).map((match) {
+    return _section(theme, 'Medication nutrient notes', [
+      ...statusLines,
+      ...depletions.take(8).map((match) {
         final headline = match.alertHeadline?.trim().isNotEmpty == true
             ? match.alertHeadline!.trim()
             : '${match.drugDisplayName} may affect ${match.nutrientName}';
@@ -289,7 +300,7 @@ class ClinicianPdfBuilder {
             : '';
         return _line(theme, '$headline$tip');
       }),
-    );
+    ]);
   }
 
   pw.Widget _limitations(_Theme theme) {

@@ -68,6 +68,21 @@ void main() {
       expect(msg, 'Beta feedback: Wrong product data / Blocks me');
     });
 
+    test('controlled clinical beta categories are exact and complete', () {
+      expect(
+        {for (final category in PgFeedbackCategory.values) category.tag},
+        containsAll({
+          'clinical_false_positive',
+          'clinical_false_negative',
+          'clinical_identity_normalization_failure',
+          'clinical_wording_confusion',
+          'clinician_report_interpretation',
+          'search_no_result',
+          'clinical_class_mapping_missing',
+        }),
+      );
+    });
+
     test(
       'captureBetaFeedback reports disabled when Sentry is not enabled',
       () async {

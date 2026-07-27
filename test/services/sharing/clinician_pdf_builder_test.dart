@@ -435,4 +435,30 @@ void main() {
       expect(body, contains('unavailable'));
     },
   );
+
+  test('states fallback depletion analysis is partial', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: const StackIntelligence(
+        tier: StackTier.incomplete,
+        stackSize: 0,
+        issues: [],
+        interactionCount: 0,
+        nutrientWarningCount: 0,
+        hasRecalledIngredient: false,
+        hasContraindicatedInteraction: false,
+        hasBannedIngredient: false,
+      ),
+      safetyReport: const StackSafetyReport(),
+      depletions: _depletions,
+      depletionStatus: MedNutrientLoadStatus.fallbackLoaded,
+      generatedAt: DateTime.utc(2026, 5, 28),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+
+    expect(body, contains('Partial'));
+    expect(body, contains('fallback'));
+    expect(body, contains('Metformin'));
+  });
 }
