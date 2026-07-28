@@ -1,16 +1,19 @@
 // NutrientProgressBar — single-row visualization for one nutrient's
 // stack-wide total against intake-target and UL benchmarks.
 //
-// Now expandable: tap to see which supplements contribute and how much.
+// Tap to review contributing supplements in a scrollable bottom sheet.
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
-import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
-class NutrientProgressBar extends StatefulWidget {
+class NutrientProgressBar extends StatelessWidget {
   const NutrientProgressBar({super.key, required this.status});
 
   final NutrientStatus status;
@@ -40,106 +43,100 @@ class NutrientProgressBar extends StatefulWidget {
   }
 
   @override
-  State<NutrientProgressBar> createState() => _NutrientProgressBarState();
-}
-
-class _NutrientProgressBarState extends State<NutrientProgressBar> {
-  bool _expanded = false;
-
-  @override
   Widget build(BuildContext context) {
-    final total = widget.status.total;
-    final tierColor = NutrientProgressBar.tierColorFor(widget.status.tier);
-    final fillPct = _fillPercent(widget.status);
+    final total = status.total;
+    final tierColor = NutrientProgressBar.tierColorFor(status.tier);
+    final fillPct = _fillPercent(status);
     // Every row with at least one contribution is tappable so the user
     // can always trace a nutrient back to the product(s) providing it,
     // even when only a single supplement in the stack contributes.
     final hasContributions = total.contributions.isNotEmpty;
 
-    return GestureDetector(
-      onTap: hasContributions
-          ? () => setState(() => _expanded = !_expanded)
-          : null,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: V2Spacing.space16,
-          vertical: V2Spacing.space8,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          total.displayName,
-                          style: _labelStyle(V2Colors.fg),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (hasContributions) ...[
-                        const SizedBox(width: V2Spacing.space4),
-                        AnimatedRotation(
-                          turns: _expanded ? 0.5 : 0.0,
-                          duration: V2Motion.fast,
-                          child: const Icon(
-                            Icons.expand_more_rounded,
-                            size: 14,
-                            color: V2Colors.fgMuted,
+    return Semantics(
+      button: hasContributions,
+      label: hasContributions
+          ? '${total.displayName}, view contributors from your stack'
+          : total.displayName,
+      child: InkWell(
+        onTap: hasContributions
+            ? () => _showContributions(context, status)
+            : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: V2Spacing.space16,
+            vertical: V2Spacing.space8,
+          ),
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            total.displayName,
+                            style: _labelStyle(V2Colors.fg),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (hasContributions) ...[
+                          const SizedBox(width: V2Spacing.space4),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
+                            color: V2Colors.fgMuted,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                Text(
-                  _formatAmount(total.totalAmount, total.unit),
-                  style: _monoDataStyle(tierColor),
-                ),
-                const SizedBox(width: V2Spacing.space8),
-                // Inline compact subtitle (% target / UL) — moved from
-                // its own row so each nutrient is a tight single line.
-                _buildSubtitleText(),
-              ],
-            ),
-            const SizedBox(height: V2Spacing.space4),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-              child: LinearProgressIndicator(
-                value: fillPct.clamp(0.0, 1.0),
-                minHeight: 4,
-                backgroundColor: V2Colors.outline,
-                valueColor: AlwaysStoppedAnimation<Color>(tierColor),
+                  Text(
+                    _formatAmount(total.totalAmount, total.unit),
+                    style: _monoDataStyle(tierColor),
+                  ),
+                  const SizedBox(width: V2Spacing.space8),
+                  // Inline compact subtitle (% target / UL) — moved from
+                  // its own row so each nutrient is a tight single line.
+                  _buildSubtitleText(),
+                ],
               ),
-            ),
-            if (widget.status.warning != null) ...[
-              const SizedBox(height: V2Spacing.space8),
-              _WarningChip(text: widget.status.warning!, color: tierColor),
-            ],
-            if (total.hasUnitConflict) ...[
               const SizedBox(height: V2Spacing.space4),
-              Text(
-                'Note: excludes products reported in a different unit.',
-                style: _captionStyle(V2Colors.fgMuted),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                child: LinearProgressIndicator(
+                  value: fillPct.clamp(0.0, 1.0),
+                  minHeight: 4,
+                  backgroundColor: V2Colors.outline,
+                  valueColor: AlwaysStoppedAnimation<Color>(tierColor),
+                ),
               ),
+              if (status.warning != null) ...[
+                const SizedBox(height: V2Spacing.space8),
+                _WarningChip(text: status.warning!, color: tierColor),
+              ],
+              if (total.hasUnitConflict) ...[
+                const SizedBox(height: V2Spacing.space4),
+                Text(
+                  'Note: excludes products reported in a different unit.',
+                  style: _captionStyle(V2Colors.fgMuted),
+                ),
+              ],
             ],
-
-            // Expandable per-supplement breakdown
-            AnimatedCrossFade(
-              duration: V2Motion.fast,
-              crossFadeState: _expanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox.shrink(),
-              secondChild: _buildContributions(),
-            ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  void _showContributions(BuildContext context, NutrientStatus status) {
+    unawaited(
+      PGModal.bottomSheet<void>(
+        context: context,
+        builder: (_) => _NutrientContributorsSheet(status: status),
       ),
     );
   }
@@ -149,8 +146,8 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
   /// Appends an asterisk when RDA came from the anonymous baseline
   /// (Female 19-30) so the user knows the value isn't profile-specific.
   Widget _buildSubtitleText() {
-    final rda = widget.status.pctOfRda;
-    final ul = widget.status.pctOfUl;
+    final rda = status.pctOfRda;
+    final ul = status.pctOfUl;
     // Prefer UL when the nutrient has a hard ceiling to flag; otherwise
     // show % target. Showing both would wrap and defeat the compact layout.
     final String text;
@@ -158,7 +155,7 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
       text = '${ul.round()}% UL';
     } else if (rda != null) {
       final formatted = _formatTargetPercent(rda);
-      text = widget.status.rdaIsBaseline ? '$formatted*' : formatted;
+      text = status.rdaIsBaseline ? '$formatted*' : formatted;
     } else {
       text = '—';
     }
@@ -177,72 +174,6 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
       return '${multiplier}x target';
     }
     return '${pct.round()}% target';
-  }
-
-  Widget _buildContributions() {
-    final contributions = widget.status.total.contributions;
-    if (contributions.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Container(
-        padding: const EdgeInsets.all(V2Spacing.space8),
-        decoration: BoxDecoration(
-          color: V2Colors.bg,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('From your stack', style: _overlineStyle(V2Colors.fgMuted)),
-            const SizedBox(height: V2Spacing.space4),
-            ...contributions.map((c) {
-              final pctOfTotal = widget.status.total.totalAmount > 0
-                  ? (c.amount / widget.status.total.totalAmount * 100).round()
-                  : 0;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: V2Colors.accent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: V2Spacing.space8),
-                    Expanded(
-                      child: Text(
-                        _contributionLabel(c),
-                        style: _captionStyle(V2Colors.fg),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      _formatAmount(c.amount, c.unit),
-                      style: _captionStyle(V2Colors.fg),
-                    ),
-                    const SizedBox(width: V2Spacing.space8),
-                    SizedBox(
-                      width: 36,
-                      child: Text(
-                        '$pctOfTotal%',
-                        textAlign: TextAlign.end,
-                        style: _captionStyle(V2Colors.fgMuted),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
   }
 
   double _fillPercent(NutrientStatus status) {
@@ -266,6 +197,105 @@ class _NutrientProgressBarState extends State<NutrientProgressBar> {
     if (ingredient.isEmpty || ingredient == product) return product;
     if (product.isEmpty) return ingredient;
     return '$product - $ingredient';
+  }
+}
+
+class _NutrientContributorsSheet extends StatelessWidget {
+  const _NutrientContributorsSheet({required this.status});
+
+  final NutrientStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = status.total;
+    final contributions = total.contributions;
+
+    return Semantics(
+      label: '${total.displayName} contributors from your stack',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space8,
+          V2Spacing.space24,
+          V2Spacing.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const PGEyebrow('From your stack', color: V2Colors.fgMuted),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              '${total.displayName} contributors',
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              '${NutrientProgressBar._formatAmount(total.totalAmount, total.unit)} total from the supplement labels in your stack.',
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space16),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: contributions.length,
+                separatorBuilder: (_, _) => const Divider(
+                  height: V2Spacing.space24,
+                  color: V2Colors.outline,
+                ),
+                itemBuilder: (_, index) {
+                  final contribution = contributions[index];
+                  final pctOfTotal = total.totalAmount > 0
+                      ? (contribution.amount / total.totalAmount * 100).round()
+                      : 0;
+                  return Semantics(
+                    label:
+                        '${NutrientProgressBar._contributionLabel(contribution)}, '
+                        '${NutrientProgressBar._formatAmount(contribution.amount, contribution.unit)}, '
+                        '$pctOfTotal percent of the stack total',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.inventory_2_outlined,
+                          size: 20,
+                          color: V2Colors.accent,
+                        ),
+                        const SizedBox(width: V2Spacing.space12),
+                        Expanded(
+                          child: Text(
+                            NutrientProgressBar._contributionLabel(
+                              contribution,
+                            ),
+                            style: _captionStyle(V2Colors.fg),
+                          ),
+                        ),
+                        const SizedBox(width: V2Spacing.space8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              NutrientProgressBar._formatAmount(
+                                contribution.amount,
+                                contribution.unit,
+                              ),
+                              style: _captionStyle(V2Colors.fg),
+                            ),
+                            Text(
+                              '$pctOfTotal%',
+                              style: _captionStyle(V2Colors.fgMuted),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -306,14 +336,6 @@ TextStyle _captionStyle(Color color) => TextStyle(
   fontSize: V2Typography.size12,
   fontWeight: FontWeight.w400,
   height: V2Typography.lhSnug,
-  color: color,
-);
-
-TextStyle _overlineStyle(Color color) => TextStyle(
-  fontSize: V2Typography.size10,
-  fontWeight: FontWeight.w500,
-  height: V2Typography.lhSnug,
-  letterSpacing: V2Typography.tsEyebrow,
   color: color,
 );
 
