@@ -115,6 +115,22 @@ void main() {
     expect(find.textContaining('MAY AFFECT NUTRIENT FUNCTION'), findsOneWidget);
   });
 
+  testWidgets('opens long relationship detail in a scrollable bottom sheet', (
+    tester,
+  ) async {
+    await _pump(tester, [
+      _dep(type: 'depletion', nutrient: 'Vitamin B12', drug: 'Metformin'),
+    ]);
+
+    await tester.tap(find.text('Why this happens'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.text('Medication & nutrient details'), findsOneWidget);
+    expect(find.byType(Scrollable), findsWidgets);
+    expect(find.text('CLINICAL GUIDANCE', skipOffstage: false), findsOneWidget);
+  });
+
   testWidgets('unavailable card is an explicit not-all-clear state', (
     tester,
   ) async {
