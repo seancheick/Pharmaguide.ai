@@ -336,6 +336,21 @@ Set<String> _consumerWarningIdentities(InteractionWarning warning) {
       ].join('\u001f'),
     );
   }
+  // A live medication×product hit and the product blob's generic
+  // medication-class rule are two producers for the same clinical signal.
+  // Give them a stable class+nutrient identity so the authored consumer copy
+  // wins once, while different medication classes remain distinct.
+  if (subject.isNotEmpty &&
+      warning.drugClassIds.isNotEmpty &&
+      _normalizeConsumerText(warning.direction) != 'beneficial') {
+    for (final drugClass in warning.drugClassIds) {
+      final normalizedClass = _normalizeConsumerText(drugClass);
+      if (normalizedClass.isEmpty) continue;
+      identities.add(
+        ['medication-hazard', subject, normalizedClass].join('\u001f'),
+      );
+    }
+  }
   return identities;
 }
 
@@ -356,6 +371,8 @@ String _visibleWarningIdentity(InteractionWarning warning) {
 }
 
 String _canonicalWarningSubject(InteractionWarning warning) {
+  final canonicalId = _normalizeConsumerText(warning.ingredientCanonicalId);
+  if (canonicalId.isNotEmpty) return 'canonical_id:$canonicalId';
   final identifiers = warning.identifiers;
   if (identifiers != null) {
     for (final key in const ['canonical_id', 'cui', 'unii', 'cas']) {

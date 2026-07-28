@@ -85,6 +85,44 @@ con.commit(); con.close()
 PY
 expect 1 "valproate leak into enzyme-inducing class rejected" -- bash "$SCRIPT" --validate "$TMP/valproate-leak.sqlite"
 
+# Local launches and release builds must hydrate the pinned immutable DB before
+# Flutter packages assets. Keep this assertion in the hydration test that CI
+# already runs so a Makefile edit cannot silently reintroduce stale clinical
+# data during development.
+required_targets=(
+  run
+  run-ios
+  run-android
+  run-v2
+  run-v2-ios
+  run-v2-android
+  run-v2pd
+  run-v2pd-ios
+  build-ipa-v2pd
+  run-v2pf
+  run-v2med
+  run-v2search
+  run-v2qc
+  run-v2all
+  build-ipa-v2all
+  build-ios
+  build-android
+)
+for target in "${required_targets[@]}"; do
+  declaration="$(grep -E "^${target}:" "$REPO_ROOT/Makefile" || true)"
+  if [[ "$declaration" == *"hydrate-interaction-db"* ]]; then
+    ok "$target hydrates the interaction DB"
+  else
+    bad "$target does not hydrate the interaction DB"
+  fi
+done
+
+if grep -Eq '^hydrate-interaction-db:' "$REPO_ROOT/Makefile"; then
+  ok "hydrate-interaction-db target exists"
+else
+  bad "hydrate-interaction-db target is missing"
+fi
+
 echo
 echo "fetch_interaction_db validation: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

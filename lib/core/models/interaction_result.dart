@@ -86,6 +86,17 @@ class InteractionResult {
   final List<String> sourceUrls;
   final InteractionSource source;
 
+  /// Runtime match context for product-detail warning composition.
+  ///
+  /// Curated rows preserve their authored agent order, while product-detail
+  /// checks normalize display names around the product being viewed. Keeping
+  /// the matched supplement id and the actual medication's resolved classes
+  /// explicit prevents downstream UI code from guessing which positional
+  /// agent is the medication and lets a direct pairwise hit replace the
+  /// equivalent generic class warning without collapsing unrelated drugs.
+  final String? matchedSupplementCanonicalId;
+  final List<String> matchedMedicationClassIds;
+
   const InteractionResult({
     required this.id,
     required this.type,
@@ -107,6 +118,8 @@ class InteractionResult {
     required this.source,
     this.effectType,
     this.curatedSeverity,
+    this.matchedSupplementCanonicalId,
+    this.matchedMedicationClassIds = const <String>[],
   });
 
   /// The severity consumers should WEIGHT by (overall severity, detail
@@ -146,6 +159,8 @@ class InteractionResult {
     InteractionSource source = InteractionSource.pipeline,
     String? agent1NameOverride,
     String? agent2NameOverride,
+    String? matchedSupplementCanonicalId,
+    List<String> matchedMedicationClassIds = const <String>[],
   }) {
     final type1IsDrugSide =
         row.agent1Type == 'drug' || row.agent1Type == 'drug_class';
@@ -200,6 +215,10 @@ class InteractionResult {
       doseThresholdJson: row.doseThresholdJson,
       sourceUrls: _decodeSourceUrls(row.sourceUrlsJson),
       source: source,
+      matchedSupplementCanonicalId: matchedSupplementCanonicalId,
+      matchedMedicationClassIds: List<String>.unmodifiable(
+        matchedMedicationClassIds,
+      ),
     );
   }
 

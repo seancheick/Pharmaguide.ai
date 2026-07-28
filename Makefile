@@ -27,16 +27,20 @@ DART_DEFINES := \
 
 # ─── Development ──────────────────────────────────────────────────────────────
 
+.PHONY: hydrate-interaction-db
+hydrate-interaction-db: ## Fetch and verify the pinned clinical interaction DB
+	@bash tool/fetch_interaction_db.sh
+
 .PHONY: run
-run: ## Run app on connected device (debug)
+run: hydrate-interaction-db ## Run app on connected device (debug)
 	$(FLUTTER) run $(DART_DEFINES)
 
 .PHONY: run-ios
-run-ios: ## Run on iOS simulator
+run-ios: hydrate-interaction-db ## Run on iOS simulator
 	$(FLUTTER) run $(DART_DEFINES) -d iPhone
 
 .PHONY: run-android
-run-android: ## Run on Android emulator
+run-android: hydrate-interaction-db ## Run on Android emulator
 	$(FLUTTER) run $(DART_DEFINES) -d android
 
 # ─── v2 design system previews ────────────────────────────────────────────────
@@ -45,15 +49,15 @@ run-android: ## Run on Android emulator
 # design/v2-mobile-polish branch.
 
 .PHONY: run-v2
-run-v2: ## Boot straight into the v2 component gallery
+run-v2: hydrate-interaction-db ## Boot straight into the v2 component gallery
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2
 
 .PHONY: run-v2-ios
-run-v2-ios: ## v2 gallery on iOS simulator
+run-v2-ios: hydrate-interaction-db ## v2 gallery on iOS simulator
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d iPhone
 
 .PHONY: run-v2-android
-run-v2-android: ## v2 gallery on Android emulator
+run-v2-android: hydrate-interaction-db ## v2 gallery on Android emulator
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d android
 
 .PHONY: v2-audit
@@ -66,15 +70,15 @@ v2-audit: ## Run the v2 design-system governance audit (hex / serif / TextStyle)
 # USE_V2_PRODUCT_DETAIL=false (or omit the flag) to fall back instantly.
 
 .PHONY: run-v2pd
-run-v2pd: ## Run with /product route swapped to v2 (TestFlight preview mode)
+run-v2pd: hydrate-interaction-db ## Run with /product route swapped to v2 (TestFlight preview mode)
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true
 
 .PHONY: run-v2pd-ios
-run-v2pd-ios: ## v2 product detail on iOS simulator
+run-v2pd-ios: hydrate-interaction-db ## v2 product detail on iOS simulator
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true -d iPhone
 
 .PHONY: build-ipa-v2pd
-build-ipa-v2pd: ## Build TestFlight IPA with v2 product detail enabled
+build-ipa-v2pd: hydrate-interaction-db ## Build TestFlight IPA with v2 product detail enabled
 	$(FLUTTER) build ipa $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true --release
 
 # ─── Phase 11.7L.B staged route swap — ProfileSetup v2 ────────────────────────
@@ -84,23 +88,23 @@ build-ipa-v2pd: ## Build TestFlight IPA with v2 product detail enabled
 # the two, so flipping the flag is a pure visual change.
 
 .PHONY: run-v2pf
-run-v2pf: ## Run with /profile/setup route swapped to v2
+run-v2pf: hydrate-interaction-db ## Run with /profile/setup route swapped to v2
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PROFILE_SETUP=true
 
 .PHONY: run-v2med
-run-v2med: ## Run with /medication-entry route swapped to v2
+run-v2med: hydrate-interaction-db ## Run with /medication-entry route swapped to v2
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_MEDICATION_ENTRY=true
 
 .PHONY: run-v2search
-run-v2search: ## Run with /search route swapped to v2 (on-market first)
+run-v2search: hydrate-interaction-db ## Run with /search route swapped to v2 (on-market first)
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_SEARCH=true
 
 .PHONY: run-v2qc
-run-v2qc: ## Run with /quick-check route swapped to v2
+run-v2qc: hydrate-interaction-db ## Run with /quick-check route swapped to v2
 	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_QUICK_CHECK=true
 
 .PHONY: run-v2all
-run-v2all: ## Run with ALL v2 toggles enabled (PD + ProfileSetup + MedicationEntry + Search + QuickCheck)
+run-v2all: hydrate-interaction-db ## Run with ALL v2 toggles enabled (PD + ProfileSetup + MedicationEntry + Search + QuickCheck)
 	$(FLUTTER) run $(DART_DEFINES) \
 		--dart-define=USE_V2_PRODUCT_DETAIL=true \
 		--dart-define=USE_V2_PROFILE_SETUP=true \
@@ -109,7 +113,7 @@ run-v2all: ## Run with ALL v2 toggles enabled (PD + ProfileSetup + MedicationEnt
 		--dart-define=USE_V2_QUICK_CHECK=true
 
 .PHONY: build-ipa-v2all
-build-ipa-v2all: ## Build TestFlight IPA with ALL v2 toggles on
+build-ipa-v2all: hydrate-interaction-db ## Build TestFlight IPA with ALL v2 toggles on
 	$(FLUTTER) build ipa $(DART_DEFINES) \
 		--dart-define=USE_V2_PRODUCT_DETAIL=true \
 		--dart-define=USE_V2_PROFILE_SETUP=true \
@@ -121,12 +125,12 @@ build-ipa-v2all: ## Build TestFlight IPA with ALL v2 toggles on
 # ─── Build ────────────────────────────────────────────────────────────────────
 
 .PHONY: build-ios
-build-ios: ## Build iOS release IPA (auto-increments build number for next upload)
+build-ios: hydrate-interaction-db ## Build iOS release IPA (auto-increments build number for next upload)
 	$(FLUTTER) build ipa $(DART_DEFINES) --release
 	@bash scripts/bump_build_number.sh
 
 .PHONY: build-android
-build-android: ## Build Android release AAB
+build-android: hydrate-interaction-db ## Build Android release AAB
 	$(FLUTTER) build appbundle $(DART_DEFINES) --release
 
 # ─── Testing & Quality ────────────────────────────────────────────────────────
