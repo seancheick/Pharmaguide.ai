@@ -16,7 +16,7 @@ class _FakeRxNormHttp {
       {
         "approximateGroup": {
           "candidate": [
-            {"rxcui": "202488", "name": "Motrin", "score": "100"}
+            {"rxcui": "202488", "name": "Motrin Pill", "score": "100"}
           ]
         }
       }
@@ -163,6 +163,11 @@ void main() {
         find.byKey(const Key('med-entry-search')),
         'motrin',
       );
+      final searchField = tester.widget<TextField>(
+        find.byKey(const Key('med-entry-search')),
+      );
+      expect(searchField.autocorrect, isFalse);
+      expect(searchField.enableSuggestions, isFalse);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
@@ -191,6 +196,8 @@ void main() {
         find.textContaining('generally avoided from 20 weeks'),
         findsOneWidget,
       );
+      expect(find.text('Motrin Pill', skipOffstage: false), findsNothing);
+      expect(find.text('Motrin', skipOffstage: false), findsWidgets);
       expect(
         find.text(
           'Used to check: NSAIDs (Ibuprofen, Aspirin regularly)',

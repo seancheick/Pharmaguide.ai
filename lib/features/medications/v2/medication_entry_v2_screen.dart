@@ -81,6 +81,7 @@ import 'package:pharmaguide/data/providers/reference_data_provider.dart'
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
+import 'package:pharmaguide/services/medications/medication_display_name.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
@@ -212,8 +213,9 @@ class _MedicationEntryV2ScreenState
   // ───────── selection plumbing ─────────
 
   Future<void> _selectSuggestion(RxNormSuggestion suggestion) async {
+    final displayName = medicationDisplayName(suggestion.name);
     setState(() {
-      _selectedName = suggestion.name;
+      _selectedName = displayName;
       _selectedRxcui = suggestion.rxcui;
       _selectedGenericRxcui = null;
       _ingredientRxcuis = const <String>[];
@@ -222,9 +224,9 @@ class _MedicationEntryV2ScreenState
       _profileReviewWarnings = const <MedicationProfileWarning>[];
       _resolvingProfileReview = false;
       _resolvingClasses = true;
-      _searchController.text = suggestion.name;
+      _searchController.text = displayName;
       _searchController.selection = TextSelection.fromPosition(
-        TextPosition(offset: suggestion.name.length),
+        TextPosition(offset: displayName.length),
       );
       _suggestions = const <RxNormSuggestion>[];
       _offlineFallbackVisible = false;
@@ -264,7 +266,7 @@ class _MedicationEntryV2ScreenState
     });
     unawaited(
       _refreshProfileReview(
-        name: suggestion.name,
+        name: displayName,
         rxcui: suggestion.rxcui,
         genericRxcui: genericsResult.isNotEmpty ? genericsResult.first : null,
         ingredientRxcuis: genericsResult.length > 1
@@ -763,6 +765,10 @@ class _SearchSection extends StatelessWidget {
                   focusNode: focusNode,
                   autofocus: true,
                   maxLines: 1,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  smartDashesType: SmartDashesType.disabled,
+                  smartQuotesType: SmartQuotesType.disabled,
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: 'Search your medication',
@@ -856,7 +862,7 @@ class _SuggestionArea extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: V2Spacing.space8),
               child: _SuggestionRow(
                 key: Key('med-entry-suggestion-${s.rxcui}'),
-                name: s.name,
+                name: medicationDisplayName(s.name),
                 onTap: () => onSelectSuggestion(s),
               ),
             ),
