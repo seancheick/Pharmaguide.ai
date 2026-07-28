@@ -131,6 +131,31 @@ void main() {
     expect(find.text('CLINICAL GUIDANCE', skipOffstage: false), findsOneWidget);
   });
 
+  testWidgets('detail sheet survives small screens with large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 667);
+    tester.view.devicePixelRatio = 1;
+    // The production app intentionally caps Dynamic Type at 1.4x.
+    tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+    });
+
+    await _pump(tester, [
+      _dep(type: 'depletion', nutrient: 'Vitamin B12', drug: 'Metformin'),
+    ]);
+    await tester.ensureVisible(find.text('Why this happens'));
+    await tester.tap(find.text('Why this happens'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(Scrollable), findsWidgets);
+  });
+
   testWidgets('unavailable card is an explicit not-all-clear state', (
     tester,
   ) async {
