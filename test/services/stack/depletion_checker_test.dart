@@ -613,6 +613,32 @@ void main() {
       expect(out.first.coverageLevel, CoverageLevel.adequate);
     });
 
+    test(
+      'pipeline vitamin B12 canonical alias satisfies depletion coverage',
+      () {
+        // Live catalog rows use `vitamin_b12_cobalamin`, while the reviewed
+        // depletion artifact uses the nutrient-group id `vitamin_b12`.
+        // These are the same nutrient and must join without rewriting either
+        // independently versioned artifact.
+        final out = checker.check(
+          medications: [(name: 'Metformin', drugClassId: null)],
+          depletionsData: _metforminB12Fixture(adequacyMcg: 500),
+          stackCanonicalIds: {'vitamin_b12_cobalamin'},
+          stackDoses: [
+            const StackSupplementDose(
+              canonicalId: 'vitamin_b12_cobalamin',
+              doseAmount: 500,
+              doseUnit: 'mcg',
+            ),
+          ],
+        );
+
+        expect(out.first.coverageLevel, CoverageLevel.adequate);
+        expect(out.first.detectedAmount, 500);
+        expect(out.first.detectedUnit, 'mcg');
+      },
+    );
+
     test('dose below threshold → CoverageLevel.partial', () {
       final out = checker.check(
         medications: [(name: 'Metformin', drugClassId: null)],

@@ -234,4 +234,35 @@ void main() {
       expect(folateRule.management.toLowerCase(), isNot(contains('valpro')));
     });
   });
+
+  group('interaction DB release guard: live beta canary cleanup', () {
+    test('unsupported or mis-scoped rules are absent', () async {
+      final rows = await db
+          .customSelect(
+            "SELECT id FROM interactions WHERE id IN ("
+            "'DSI_DM_VITD',"
+            "'DSI_DM_MAGNESIUM',"
+            "'SSI_MAGNESIUM_CALCIUM',"
+            "'SSI_VITE_VITK'"
+            ")",
+          )
+          .get();
+
+      expect(rows, isEmpty);
+    });
+
+    test('warfarin and vitamin E keeps bounded, actionable guidance', () async {
+      final rows = await db.lookupByCanonicalId('vitamin_e');
+      final rule = rows.singleWhere((row) => row.id == 'DSI_WAR_VITE');
+      final mechanism = rule.mechanism.toLowerCase();
+      final management = rule.management.toLowerCase();
+
+      expect(rule.agent1Id, '11289');
+      expect(rule.sourcePmidsJson, contains('24166490'));
+      expect(management, isNot(contains('generally safe')));
+      expect(mechanism, isNot(contains('elevate inr')));
+      expect(management, contains('anticoagulation'));
+      expect(management, contains('do not change warfarin'));
+    });
+  });
 }

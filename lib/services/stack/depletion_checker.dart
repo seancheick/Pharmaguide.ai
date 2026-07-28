@@ -354,6 +354,31 @@ class DepletionMedicationIdentity {
 /// <= this value (B1.2). Bump when the app learns to render a newer shape.
 const int kMedNutrientRuntimeContract = 1;
 
+/// Join-key aliases between the catalog ingredient namespace and the reviewed
+/// medication-depletion nutrient namespace.
+///
+/// The pipeline intentionally keeps form-family IDs such as
+/// `vitamin_b12_cobalamin`, while the clinical artifact uses the nutrient
+/// group `vitamin_b12`. Normalizing only at this boundary preserves both
+/// source artifacts and prevents a supplement that contains the nutrient from
+/// being reported as "no source detected".
+const Map<String, String> _depletionCoverageCanonicalAliases = {
+  'vitamin_b1_thiamine': 'thiamin',
+  'vitamin_b6_pyridoxine': 'vitamin_b6',
+  'vitamin_b7_biotin': 'biotin',
+  'vitamin_b9_folate': 'folate',
+  'vitamin_b12_cobalamin': 'vitamin_b12',
+  'vitamin_d2': 'vitamin_d',
+  'vitamin_d3': 'vitamin_d',
+  'vitamin_k1': 'vitamin_k',
+  'vitamin_k2': 'vitamin_k',
+};
+
+String _depletionCoverageCanonicalId(String raw) {
+  final canonical = raw.trim().toLowerCase();
+  return _depletionCoverageCanonicalAliases[canonical] ?? canonical;
+}
+
 /// Activation-compatibility verdict for a loaded medication-depletions artifact
 /// (B1.2 App-1). A legacy asset with no _metadata is allowed (migration — never
 /// blank the monitor); a versioned asset is rejected only when it declares a
@@ -546,10 +571,10 @@ class DepletionChecker {
     // Index stack doses by canonical id (lowercased).
     final dosesByCid = <String, StackSupplementDose>{};
     for (final d in stackDoses) {
-      dosesByCid[d.canonicalId.toLowerCase()] = d;
+      dosesByCid[_depletionCoverageCanonicalId(d.canonicalId)] = d;
     }
     final coveredIdsLower = stackCanonicalIds
-        .map((e) => e.toLowerCase())
+        .map(_depletionCoverageCanonicalId)
         .toSet();
 
     // Identity integrity (B1.1): every entry's stable `id` must be present and
@@ -641,6 +666,7 @@ class DepletionChecker {
       final canonicalId = (nutrient['canonical_id']?.toString() ?? '')
           .trim()
           .toLowerCase();
+      final coverageCanonicalId = _depletionCoverageCanonicalId(canonicalId);
 
       // Canonical-subject validation (B1.1, app-defensive): the signal subjects
       // are the drug/condition + the nutrient canonical id. Missing either makes
@@ -669,10 +695,10 @@ class DepletionChecker {
       final adequacyMg = _asNum(dep['adequacy_threshold_mg']);
       final depletionType = _normalizeDepletionType(dep['depletion_type']);
 
-      final matchedDose = dosesByCid[canonicalId];
+      final matchedDose = dosesByCid[coverageCanonicalId];
       final coverage = _isSupplementCoverageRelevant(depletionType)
           ? _resolveCoverage(
-              canonicalId: canonicalId,
+              canonicalId: coverageCanonicalId,
               coveredIds: coveredIdsLower,
               dose: matchedDose,
               thresholdMcg: adequacyMcg,
