@@ -117,6 +117,7 @@ class _MedicationEntryV2ScreenState
   String? _selectedName;
   String? _selectedRxcui;
   List<String> _selectedClasses = const <String>[];
+  List<String> _selectedDisplayClasses = const <String>[];
   String? _selectedGenericRxcui;
   List<String> _ingredientRxcuis = const <String>[];
   List<MedicationProfileWarning> _profileReviewWarnings =
@@ -164,6 +165,7 @@ class _MedicationEntryV2ScreenState
       _selectedName = null;
       _selectedRxcui = null;
       _selectedClasses = const <String>[];
+      _selectedDisplayClasses = const <String>[];
       _profileReviewWarnings = const <MedicationProfileWarning>[];
       _resolvingProfileReview = false;
       _offlineFallbackVisible = false;
@@ -216,6 +218,7 @@ class _MedicationEntryV2ScreenState
       _selectedGenericRxcui = null;
       _ingredientRxcuis = const <String>[];
       _selectedClasses = const <String>[];
+      _selectedDisplayClasses = const <String>[];
       _profileReviewWarnings = const <MedicationProfileWarning>[];
       _resolvingProfileReview = false;
       _resolvingClasses = true;
@@ -235,8 +238,22 @@ class _MedicationEntryV2ScreenState
     final genericsResult = await genericsFuture;
     if (!mounted) return;
 
+    final classResolution =
+        await MedicationClassBridge(
+          db: ref.read(interactionDatabaseProvider),
+        ).resolve(
+          selectedRxcui: suggestion.rxcui,
+          genericRxcui: genericsResult.isNotEmpty ? genericsResult.first : null,
+          ingredientRxcuis: genericsResult.length > 1
+              ? genericsResult
+              : const <String>[],
+          runtimeClassIds: classesResult,
+        );
+    if (!mounted) return;
+
     setState(() {
-      _selectedClasses = classesResult;
+      _selectedClasses = classResolution.mergedInteractionClassIds;
+      _selectedDisplayClasses = classResolution.curatedInteractionClassIds;
       _selectedGenericRxcui = genericsResult.isNotEmpty
           ? genericsResult.first
           : null;
@@ -253,7 +270,7 @@ class _MedicationEntryV2ScreenState
         ingredientRxcuis: genericsResult.length > 1
             ? genericsResult
             : const <String>[],
-        drugClasses: classesResult,
+        drugClasses: classResolution.mergedInteractionClassIds,
       ),
     );
   }
@@ -263,6 +280,7 @@ class _MedicationEntryV2ScreenState
       _selectedName = _friendlyClassLabel(classId);
       _selectedRxcui = null;
       _selectedClasses = <String>[classId];
+      _selectedDisplayClasses = <String>[classId];
       _selectedGenericRxcui = null;
       _ingredientRxcuis = const <String>[];
       _profileReviewWarnings = const <MedicationProfileWarning>[];
@@ -311,6 +329,7 @@ class _MedicationEntryV2ScreenState
       _selectedGenericRxcui = null;
       _ingredientRxcuis = const <String>[];
       _selectedClasses = const <String>[];
+      _selectedDisplayClasses = const <String>[];
       _profileReviewWarnings = const <MedicationProfileWarning>[];
       _resolvingProfileReview = false;
       _searchController.clear();
@@ -550,7 +569,7 @@ class _MedicationEntryV2ScreenState
                       _SelectionSummary(
                         name: _selectedName!,
                         resolvingClasses: _resolvingClasses,
-                        classes: _selectedClasses,
+                        classes: _selectedDisplayClasses,
                         identityCoverageLimited:
                             !_resolvingClasses &&
                             (_selectedRxcui ?? '').trim().isNotEmpty &&
