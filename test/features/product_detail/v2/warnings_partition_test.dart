@@ -10,6 +10,7 @@ InteractionWarning _w({
   String? mechanism,
   String? management,
   String? ingredientName,
+  String? ingredientCanonicalId,
   List<String> sourceUrls = const [],
   List<String> conditionIds = const [],
   List<String> drugClassIds = const [],
@@ -27,6 +28,7 @@ InteractionWarning _w({
     mechanism: mechanism ?? 'mechanism for $headline',
     management: management ?? 'action for $headline',
     ingredientName: ingredientName,
+    ingredientCanonicalId: ingredientCanonicalId,
     sourceUrls: sourceUrls,
     conditionIds: conditionIds,
     drugClassIds: drugClassIds,
@@ -475,6 +477,45 @@ void main() {
 
       expect(_all(result), hasLength(1));
       expect(_all(result).single.severity, Severity.caution);
+    });
+
+    test('actual medication hit replaces matching generic class warning', () {
+      final personalized = _w(
+        headline: "Because you're taking Warfarin",
+        severity: Severity.caution,
+        ingredientName: 'Vitamin K',
+        ingredientCanonicalId: 'vitamin_k',
+        drugClassIds: const ['class:vitamin_k_antagonists'],
+        sourceUrls: const ['https://example.test/pairwise'],
+      );
+      final genericClassRule = _w(
+        headline: 'Keep vitamin K consistent with warfarin',
+        alertHeadline: 'Keep vitamin K consistent with warfarin',
+        alertBody:
+            'Keep intake steady and talk to your prescriber before a change.',
+        severity: Severity.caution,
+        ingredientName: 'Vitamin K',
+        ingredientCanonicalId: 'vitamin_k',
+        drugClassIds: const ['class:vitamin_k_antagonists'],
+        sourceUrls: const ['https://example.test/class-rule'],
+      );
+
+      final result = partitionProfileWarnings(
+        warnings: [personalized, genericClassRule],
+        userConditions: const {},
+        userDrugClasses: const {'class:vitamin_k_antagonists'},
+        userProfileFlags: const {},
+      );
+
+      expect(result.profile, hasLength(1));
+      expect(
+        result.profile.single.displayHeadline,
+        'Keep vitamin K consistent with warfarin',
+      );
+      expect(result.profile.single.sourceUrls, {
+        'https://example.test/pairwise',
+        'https://example.test/class-rule',
+      });
     });
 
     test('dose-evaluated duplicate outranks generic higher severity', () {

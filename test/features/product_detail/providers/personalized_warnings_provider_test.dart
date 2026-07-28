@@ -38,6 +38,27 @@ UserStacksLocalData _stubMedication() {
   );
 }
 
+UserStacksLocalData _stubWarfarin() {
+  final ts = DateTime.utc(2026, 7, 28, 12);
+  return UserStacksLocalData(
+    id: 'med-warfarin',
+    type: 'medication',
+    name: 'Warfarin',
+    dsldId: null,
+    rxcui: '11289',
+    ingredientKeys: null,
+    drugClassesCol: '["class:vitamin_k_antagonists"]',
+    genericRxcui: '11289',
+    ingredientRxcuisCol: null,
+    dosage: null,
+    frequency: null,
+    addedAt: ts,
+    clientUpdatedAt: ts,
+    deletedAt: null,
+    syncedAt: null,
+  );
+}
+
 Future<void> _seedProduct(
   CoreDatabase coreDb, {
   String? keyIngredientTags,
@@ -108,6 +129,41 @@ Future<void> _seedFishOilVitaminEPair(InteractionDatabase db) async {
           versionAdded: 'test',
           versionLastModified: 'test',
           lastUpdated: '2026-07-08',
+        ),
+      );
+}
+
+Future<void> _seedWarfarinVitaminKPair(InteractionDatabase db) async {
+  await db
+      .into(db.interactions)
+      .insert(
+        InteractionsCompanion.insert(
+          id: 'DSI_WAR_VITK',
+          agent1Type: 'drug',
+          agent1Name: 'Warfarin',
+          agent1Id: '11289',
+          agent1CanonicalId: const Value(null),
+          agent2Type: 'supplement',
+          agent2Name: 'Vitamin K',
+          agent2Id: 'C0042878',
+          agent2CanonicalId: const Value('vitamin_k'),
+          severity: 'caution',
+          effectType: const Value('inhibitor'),
+          mechanism: 'Sudden vitamin K changes can alter warfarin effect.',
+          management: 'Keep vitamin K intake consistent.',
+          evidenceLevel: const Value('established'),
+          sourceUrlsJson:
+              '["https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"]',
+          sourcePmidsJson: '[]',
+          doseDependent: const Value(0),
+          direction: const Value('harmful'),
+          materiality: const Value('presence'),
+          typeAuthored: 'Med-Sup',
+          source: 'curated',
+          provenance: 'nih_ods',
+          versionAdded: 'test',
+          versionLastModified: 'test',
+          lastUpdated: '2026-07-28',
         ),
       );
 }
@@ -233,6 +289,44 @@ void main() {
         );
 
         expect(result, isEmpty);
+
+        await coreDb.close();
+        await interactionDb.close();
+      },
+    );
+
+    test(
+      'medication interaction names the medication and keeps merge context',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        await _seedProduct(
+          coreDb,
+          keyIngredientTags: '["vitamin_k"]',
+          productName: 'Calcium K/D',
+        );
+        await _seedWarfarinVitaminKPair(interactionDb);
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            activeStackProvider.overrideWith((ref) async => [_stubWarfarin()]),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final result = await container.read(
+          personalizedInteractionWarningsProvider(_dsldId).future,
+        );
+
+        expect(result, hasLength(1));
+        expect(result.single.title, "Because you're taking Warfarin");
+        expect(result.single.ingredientCanonicalId, 'vitamin_k');
+        expect(
+          result.single.drugClassIds,
+          contains('class:vitamin_k_antagonists'),
+        );
 
         await coreDb.close();
         await interactionDb.close();

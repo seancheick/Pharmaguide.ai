@@ -259,12 +259,27 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
 /// [InteractionWarning] that the existing list widget can render.
 /// Adds "Because you're taking [X]" context.
 InteractionWarning _interactionResultToWarning(InteractionResult result) {
+  // Product-detail checkers normalize supplement pairs as
+  //   product → existing stack supplement
+  // and medication pairs as
+  //   existing stack medication → product.
+  // Select by the typed interaction contract instead of assuming one
+  // positional agent is always the stack item.
+  final counterpartyName = switch (result.type) {
+    InteractionType.drugSupplement => result.agent1Name,
+    InteractionType.supplementSupplement => result.agent2Name,
+    _ => result.agent2Name,
+  };
   return InteractionWarning(
     severity: result.severity,
     evidenceLevel: result.evidenceLevel,
-    title: "Because you're taking ${result.agent2Name}",
+    title: "Because you're taking $counterpartyName",
     mechanism: result.mechanism,
     management: result.management,
     sourceUrls: result.sourceUrls,
+    ingredientCanonicalId: result.matchedSupplementCanonicalId,
+    drugClassIds: result.matchedMedicationClassIds,
+    direction: result.direction,
+    materiality: result.materiality,
   );
 }

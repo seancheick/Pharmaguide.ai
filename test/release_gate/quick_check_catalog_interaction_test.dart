@@ -127,7 +127,10 @@ void main() {
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
               expectedInteractionId: 'DSI_WAR_VITK',
-              expectedSeverity: Severity.avoid,
+              // Vitamin K is a consistency/monitoring interaction, not a
+              // categorical prohibition. The live clinical row must render
+              // as review-level caution.
+              expectedSeverity: Severity.caution,
             ),
             (
               canonicalId: 'ashwagandha',

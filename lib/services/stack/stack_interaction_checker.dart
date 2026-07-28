@@ -344,10 +344,16 @@ class StackInteractionChecker {
     // exact medication rule over a broader class rule for the same
     // medication × nutrient pair without conflating two medications that
     // happen to share a display name.
-    final rxcuiToMedication = <String, ({String id, String name})>{};
-    final classToMedication = <String, ({String id, String name})>{};
+    final rxcuiToMedication =
+        <String, ({String id, String name, List<String> classIds})>{};
+    final classToMedication =
+        <String, ({String id, String name, List<String> classIds})>{};
     for (final med in stackMedications) {
-      final medication = (id: med.id, name: med.name);
+      final medication = (
+        id: med.id,
+        name: med.name,
+        classIds: _drugClassesFor(med),
+      );
       final rxcui = med.rxcui?.trim();
       if (rxcui != null && rxcui.isNotEmpty) {
         rxcuiToMedication.putIfAbsent(rxcui, () => medication);
@@ -364,7 +370,7 @@ class StackInteractionChecker {
       for (final ingRxcui in _ingredientRxcuisFor(med)) {
         rxcuiToMedication.putIfAbsent(ingRxcui, () => medication);
       }
-      for (final cls in _drugClassesFor(med)) {
+      for (final cls in medication.classIds) {
         classToMedication.putIfAbsent(cls, () => medication);
       }
     }
@@ -379,6 +385,7 @@ class StackInteractionChecker {
             String nutrientId,
             String medicationId,
             String medicationName,
+            List<String> medicationClassIds,
             bool medicationSpecific,
           })
         >[];
@@ -404,7 +411,7 @@ class StackInteractionChecker {
           continue;
         }
 
-        ({String id, String name})? medication;
+        ({String id, String name, List<String> classIds})? medication;
         var medicationSpecific = false;
         if (otherType == 'drug') {
           medication = rxcuiToMedication[otherId];
@@ -419,6 +426,7 @@ class StackInteractionChecker {
           nutrientId: newId,
           medicationId: medication.id,
           medicationName: medication.name,
+          medicationClassIds: medication.classIds,
           medicationSpecific: medicationSpecific,
         ));
       }
@@ -455,6 +463,8 @@ class StackInteractionChecker {
           source: InteractionSource.pipeline,
           agent1NameOverride: candidate.medicationName,
           agent2NameOverride: newProductName,
+          matchedSupplementCanonicalId: candidate.nutrientId,
+          matchedMedicationClassIds: candidate.medicationClassIds,
         ),
       );
     }
