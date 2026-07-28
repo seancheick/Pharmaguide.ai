@@ -325,7 +325,13 @@ class TimingEvaluationService {
     // priority / strongest-evidence variant is the one kept.
     final deduped = <TimingOptimization>[];
     final seenSemanticKeys = <String>{};
+    final seenMealContextProducts = <String>{};
     for (final opt in sorted) {
+      final mealContextProduct = _mealContextProduct(opt);
+      if (mealContextProduct != null &&
+          !seenMealContextProducts.add(mealContextProduct)) {
+        continue;
+      }
       if (seenSemanticKeys.add(_semanticKey(opt))) deduped.add(opt);
     }
 
@@ -344,6 +350,20 @@ class TimingEvaluationService {
     if (p2 == null) return '$type|$p1';
     final pair = [p1, p2]..sort();
     return '$type|${pair.join('|')}';
+  }
+
+  /// With-food and empty-stomach instructions are mutually exclusive for one
+  /// physical product. A multinutrient pill cannot be split into its component
+  /// ingredients, so keep only the highest-priority instruction after sorting.
+  /// Pair rules are not part of this channel because they describe two
+  /// independently actionable stack entries.
+  static String? _mealContextProduct(TimingOptimization opt) {
+    if (opt.product2Name != null) return null;
+    if (opt.ruleType != TimingRuleType.takeWithFood &&
+        opt.ruleType != TimingRuleType.takeOnEmptyStomach) {
+      return null;
+    }
+    return opt.product1Name ?? opt.ingredient1;
   }
 
   static (String, String)? _firstDifferentProductPair(

@@ -331,6 +331,7 @@ class StackInteractionChecker {
     required List<UserStacksLocalData> stackMedications,
     required InteractionDatabase db,
     String newProductName = 'New product',
+    Map<String, StackDoseTotal>? stackDoseTotals,
   }) async {
     if (newProductCanonicalIds.isEmpty || stackMedications.isEmpty) {
       return const <InteractionResult>[];
@@ -439,6 +440,12 @@ class StackInteractionChecker {
     for (final candidate in candidates) {
       final pairKey = '${candidate.medicationId}\u0000${candidate.nutrientId}';
       if (!candidate.medicationSpecific && directPairKeys.contains(pairKey)) {
+        continue;
+      }
+      if (_shouldSuppressBelowPairwiseThreshold(
+        candidate.row,
+        stackDoseTotals,
+      )) {
         continue;
       }
       if (!seenRowIds.add(candidate.row.id)) continue;

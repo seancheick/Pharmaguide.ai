@@ -305,6 +305,28 @@ class _TimingRow extends StatelessWidget {
   }
 
   static String _instructionFor(TimingOptimization opt) {
+    // Context rules are triggered by an ingredient, but the action applies to
+    // the physical product the user can actually take. A nutrient inside a
+    // multivitamin cannot be scheduled separately from the rest of that pill.
+    final product = opt.product1Name?.trim();
+    if (product != null && product.isNotEmpty && opt.product2Name == null) {
+      switch (opt.ruleType) {
+        case TimingRuleType.takeWithFood:
+          final needsDietaryFat =
+              opt.ingredient2.toLowerCase().contains('fat') ||
+              opt.advice.toLowerCase().contains('containing fat');
+          return needsDietaryFat
+              ? 'Take $product with a meal containing fat.'
+              : 'Take $product with a meal.';
+        case TimingRuleType.takeOnEmptyStomach:
+          return 'Take $product on an empty stomach.';
+        case TimingRuleType.separate:
+        case TimingRuleType.takeTogether:
+        case TimingRuleType.timeOfDay:
+          break;
+      }
+    }
+
     final advice = opt.advice.trim();
     if (advice.isNotEmpty) return advice;
 

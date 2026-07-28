@@ -172,6 +172,7 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
         stackMedications: medications,
         db: interactionDb,
         newProductName: product.productName,
+        stackDoseTotals: pairwiseDoseTotals,
       );
       for (final hit in hits) {
         if (seenIds.add(hit.id)) {

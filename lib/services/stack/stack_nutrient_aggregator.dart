@@ -30,7 +30,8 @@
 // * Rows marked `is_parent_total: true` (nested-form summaries that
 //   would double-count children)
 // * Rows with missing / "NP" / unsupported units
-// * Rows where the pipeline explicitly skipped UL checking
+// * Rows whose disclosed quantity is explicitly marked as compound mass
+//   rather than an elemental nutrient amount
 //
 // UNIT CONFLICTS
 //
@@ -143,14 +144,9 @@ class StackNutrientAggregator {
               reason: exclusionReason,
             ),
           );
-          // Compound-form duplicates are a dedup decision, not a unit
-          // problem — don't raise the unit-conflict flag for them.
-          if (exclusionReason !=
-                  NutrientExclusionReason.compoundFormDuplicate &&
-              exclusionReason !=
-                  NutrientExclusionReason.declaredTotalDuplicate) {
-            total.hasUnitConflict = true;
-          }
+          // Missing or unsupported label metadata is traceable, but it is not
+          // evidence that two disclosed quantities use incompatible units.
+          // The conflict flag is reserved for an actual failed conversion.
           continue;
         }
 
@@ -290,21 +286,18 @@ class StackNutrientAggregator {
     Map<String, dynamic> row,
     String unit,
   ) {
-    if (!isUlEvaluationEligible(row)) {
-      return row['skip_ul_check'] == true
-          ? NutrientExclusionReason.skippedByPipeline
-          : NutrientExclusionReason.compoundFormDuplicate;
+    // UL eligibility and intake visibility are different questions.
+    // `skip_ul_check` means the pipeline could not make a safe-limit verdict;
+    // it does not erase a known label amount from the user's intake display.
+    //
+    // The one authored exception is compound mass: a value such as 2,000 mg
+    // magnesium L-threonate is not 2,000 mg elemental magnesium and must not
+    // be added to an elemental total. Keep that row traceable as an excluded
+    // contribution without presenting it as a unit conflict.
+    if (row['ul_gate_eligible'] == false &&
+        row['ul_gate_ineligible_reason'] == 'compound_mass_not_elemental') {
+      return NutrientExclusionReason.compoundFormDuplicate;
     }
-    // The pipeline declined to UL-gate this row because its disclosed
-    // quantity is a COMPOUND mass, not elemental-comparable to the
-    // reference UL (`ul_gate_ineligible_reason == "compound_mass_not_elemental"`).
-    // Honor that decision and keep the compound mass out of the recompute:
-    // a single-form compound product (e.g. Magnesium L-Threonate 2000 mg
-    // with no bare-elemental sibling) must not be measured against the
-    // elemental UL. Reuse `compoundFormDuplicate` — same "compound weight is
-    // not elemental, don't sum it" semantics — so this does NOT raise the
-    // unit-conflict flag. Opt-out only (`== false`): absent/true are summed,
-    // so catalogs built before the field existed are unaffected.
     if (unit.isEmpty) return NutrientExclusionReason.missingUnit;
     final normalized = unit.toLowerCase().trim();
     if (normalized == 'np' ||

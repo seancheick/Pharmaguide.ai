@@ -123,6 +123,7 @@ void main() {
               'quantity': 2000,
               'unit': 'mg',
               'ul_gate_eligible': false,
+              'ul_gate_ineligible_reason': 'compound_mass_not_elemental',
             },
           ],
         ),
@@ -131,6 +132,34 @@ void main() {
       expect(total.totalAmount, 60);
       expect(total.contributions, hasLength(1));
       expect(total.excludedContributions, hasLength(1));
+    });
+
+    test('a non-compound row that lacks a UL verdict still contributes to '
+        'the intake display', () {
+      final stack = [
+        const StackItemNutrients(
+          stackEntryId: 's1',
+          productName: 'Form-aware Vitamin A',
+          ingredients: [
+            {
+              'canonical_id': 'vitamin_a',
+              'name': 'Vitamin A',
+              'quantity': 25000,
+              'unit': 'IU',
+              'ul_gate_eligible': false,
+              'ul_gate_ineligible_reason':
+                  'form_specific_conversion_unavailable',
+            },
+          ],
+        ),
+      ];
+
+      final total = aggregator.aggregate(stack)['vitamin_a']!;
+      expect(total.totalAmount, 25000);
+      expect(total.unit, 'iu');
+      expect(total.contributions, hasLength(1));
+      expect(total.excludedContributions, isEmpty);
+      expect(total.hasUnitConflict, isFalse);
     });
   });
 }

@@ -529,6 +529,50 @@ void main() {
         expect(withFood, hasLength(1));
         expect(withFood.first.product1Name, 'Calcium K/D');
       });
+
+      test('keeps one actionable meal context when a single product contains '
+          'ingredients with conflicting instructions', () {
+        final conflicting = TimingEvaluationService.fromJson({
+          'timing_rules': [
+            {
+              'id': 'ala_empty',
+              'ingredient1': 'alpha-lipoic acid',
+              'ingredient2': 'food',
+              'rule_type': 'take_on_empty_stomach',
+              'advice': 'Take alpha-lipoic acid on an empty stomach.',
+              'score_impact': -1,
+              'evidence_level': 'probable',
+            },
+            {
+              'id': 'vitamin_a_with_fat',
+              'ingredient1': 'vitamin a',
+              'ingredient2': 'dietary fat',
+              'rule_type': 'take_with_food',
+              'advice': 'Take vitamin A with a meal containing fat.',
+              'score_impact': -1,
+              'evidence_level': 'established',
+            },
+          ],
+        });
+
+        final results = conflicting.evaluateStack(
+          supplementTags: {
+            'O.N.E. Multivitamin': {'alpha_lipoic_acid', 'vitamin_a'},
+          },
+          medicationNames: [],
+        );
+
+        final mealContext = results
+            .where(
+              (result) =>
+                  result.ruleType == TimingRuleType.takeWithFood ||
+                  result.ruleType == TimingRuleType.takeOnEmptyStomach,
+            )
+            .toList();
+        expect(mealContext, hasLength(1));
+        expect(mealContext.single.ruleType, TimingRuleType.takeWithFood);
+        expect(mealContext.single.product1Name, 'O.N.E. Multivitamin');
+      });
     });
 
     group('dose gating', () {
