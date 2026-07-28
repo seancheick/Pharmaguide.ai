@@ -27,8 +27,11 @@ import 'package:flutter_test/flutter_test.dart';
 // Repinned for the fail-closed B1.1 candidate delta: four suppressed records
 // received evidence-aligned proposed copy and current sources, but remain
 // hidden pending a separate licensed-pharmacist review.
+// Repinned for the fail-closed B1 clinical-copy correction: ten active records
+// carry primary-source-aligned wording in a pending delta ledger, while the
+// four B1.1 candidates remain suppressed.
 const _pinnedContentHash =
-    'sha256:a10fc061c2fd89473cb23a9cdd9c9c6b50557552d7b69be285baacabdb86f39c';
+    'sha256:dfea094d0a13a390447810d4fa6a7967ddbee4b0f24083ef46cac842ad404f2d';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {
