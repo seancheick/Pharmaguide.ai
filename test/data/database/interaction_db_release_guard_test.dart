@@ -218,4 +218,20 @@ void main() {
       });
     },
   );
+
+  group('interaction DB release guard: medication-specific clinical scope', () {
+    test('folate interaction resolves to phenytoin only', () async {
+      final rows = await db.lookupByCanonicalId('vitamin_b9_folate');
+      final folateRule = rows.singleWhere(
+        (row) => row.id == 'DSI_ANTICONV_FOLATE',
+      );
+
+      expect(folateRule.agent1Type, 'drug');
+      expect(folateRule.agent1Id, '8183');
+      expect(folateRule.agent1Name, 'Phenytoin');
+      expect(folateRule.sourcePmidsJson, contains('6370643'));
+      expect(folateRule.mechanism.toLowerCase(), isNot(contains('valpro')));
+      expect(folateRule.management.toLowerCase(), isNot(contains('valpro')));
+    });
+  });
 }
