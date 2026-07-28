@@ -46,10 +46,6 @@ post_install do |installer|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       end
 
-      # Exclude arm64 for the simulator on Apple Silicon so GoogleMLKit
-      # (which ships no arm64 simulator slice) doesn't fail link. Real-device
-      # builds are unaffected.
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
   end
 end

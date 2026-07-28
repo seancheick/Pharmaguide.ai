@@ -178,6 +178,68 @@ void main() {
   });
 
   group('RxNormApiService.getClasses', () {
+    test(
+      'keeps MED-RT interaction categories but excludes diseases and PK',
+      () async {
+        Future<String> httpGet(Uri url) async {
+          if (url.queryParameters['relaSource'] == 'ATC') {
+            return '{}';
+          }
+          return '''
+          {
+            "rxclassDrugInfoList": {
+              "rxclassDrugInfo": [
+                {
+                  "rela": "ci_with",
+                  "rxclassMinConceptItem": {
+                    "className": "Renal Insufficiency",
+                    "classType": "DISEASE"
+                  }
+                },
+                {
+                  "rela": "may_treat",
+                  "rxclassMinConceptItem": {
+                    "className": "Diabetes Mellitus, Type 2",
+                    "classType": "DISEASE"
+                  }
+                },
+                {
+                  "rela": "has_pk",
+                  "rxclassMinConceptItem": {
+                    "className": "Renal Excretion",
+                    "classType": "PK"
+                  }
+                },
+                {
+                  "rela": "has_moa",
+                  "rxclassMinConceptItem": {
+                    "className": "Insulin Receptor Agonists",
+                    "classType": "MOA"
+                  }
+                },
+                {
+                  "rela": "has_pe",
+                  "rxclassMinConceptItem": {
+                    "className": "Decreased Gluconeogenesis",
+                    "classType": "PE"
+                  }
+                }
+              ]
+            }
+          }
+          ''';
+        }
+
+        final svc = RxNormApiService(httpGet: httpGet);
+        final classes = await svc.getClasses('6809');
+
+        expect(classes, [
+          'class:decreased_gluconeogenesis',
+          'class:insulin_receptor_agonists',
+        ]);
+      },
+    );
+
     test('parses className list and slugifies to class:* form', () async {
       final fake = _FakeHttp(const {
         '/REST/rxclass/class/byRxcui.json': '''

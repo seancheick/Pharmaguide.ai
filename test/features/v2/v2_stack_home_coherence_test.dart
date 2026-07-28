@@ -25,6 +25,9 @@ void main() {
     required String name,
     required String type,
     String? dsldId,
+    String? rxcui,
+    String? dosage,
+    String? frequency,
   }) {
     final ts = DateTime.utc(2026, 5, 16, 12);
     return UserStacksLocalData(
@@ -32,13 +35,13 @@ void main() {
       type: type,
       name: name,
       dsldId: dsldId,
-      rxcui: null,
+      rxcui: rxcui,
       ingredientKeys: null,
       drugClassesCol: null,
       genericRxcui: null,
       ingredientRxcuisCol: null,
-      dosage: null,
-      frequency: null,
+      dosage: dosage,
+      frequency: frequency,
       addedAt: ts,
       clientUpdatedAt: ts,
       deletedAt: null,
@@ -244,6 +247,57 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'Stack v2 separates medications and opens local medication details',
+      (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          stack: [
+            stackEntry(
+              id: 'med-1',
+              name: 'metformin Pill',
+              type: 'medication',
+              rxcui: '1161611',
+              dosage: '500 mg',
+              frequency: 'Twice daily',
+            ),
+            stackEntry(
+              id: 'supp-1',
+              name: 'Magnesium Glycinate',
+              type: 'supplement',
+              dsldId: '12345',
+            ),
+          ],
+        );
+
+        expect(
+          find.text('Your medications', skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Your supplements', skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(find.text('metformin Pill', skipOffstage: false), findsNothing);
+        expect(find.text('Metformin', skipOffstage: false), findsOneWidget);
+
+        await tester.tap(find.text('Metformin'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('MEDICATION DETAILS'), findsOneWidget);
+        expect(find.text('500 mg · Twice daily'), findsWidgets);
+        expect(
+          find.textContaining('reviewed medication–nutrient relationships'),
+          findsOneWidget,
+        );
+        expect(
+          find.text("Medications don't have a detail page yet."),
+          findsNothing,
+        );
+      },
+    );
 
     testWidgets('Stack v2 real rows hydrate product brand and score', (
       tester,

@@ -42,6 +42,7 @@ import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/medications/medication_display_name.dart';
 
 /// Resolves stack rows back to catalog products so v2 rows render the
 /// canonical product name, brand, thumbnail, and score.
@@ -487,6 +488,81 @@ class _StackTabState extends ConsumerState<_StackTab> {
     final isShowingFixture = !hasLoadedOnce && showPreviewFixtures;
     final isLoading = !hasLoadedOnce && !showPreviewFixtures;
     final bool isEmpty = hasLoadedOnce && items.isEmpty;
+    final medications = items.where((item) => item.isMedication).toList();
+    final supplements = items.where((item) => !item.isMedication).toList();
+
+    Future<void> removeEntry(_StackEntry entry) async {
+      // Hide the row in the same frame the Dismissible completes. The DB
+      // update is async, so leaving it visible causes Flutter to rebuild a
+      // dismissed widget with the same key.
+      setState(() => _dismissedIds.add(entry.id));
+      final actions = ref.read(stackActionsProvider);
+      try {
+        await actions.remove(entry.id);
+      } on Exception {
+        if (!context.mounted) return;
+        setState(() => _dismissedIds.remove(entry.id));
+        PGToast.show(
+          context,
+          'Could not remove.',
+          variant: PGToastVariant.error,
+        );
+        return;
+      }
+      if (!context.mounted) return;
+      final removedName = entry.isMedication
+          ? medicationDisplayName(entry.name)
+          : entry.name;
+      PGToast.show(
+        context,
+        'Removed $removedName',
+        variant: PGToastVariant.info,
+        duration: const Duration(seconds: 4),
+        actionLabel: 'Undo',
+        onAction: () async {
+          try {
+            await actions.restore(entry.id);
+          } on Exception {
+            // silent
+          }
+        },
+      );
+    }
+
+    Widget stackRow(_StackEntry entry) => Padding(
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        0,
+        V2Spacing.space24,
+        V2Spacing.space12,
+      ),
+      child: _StackItemRow(
+        entry: entry,
+        onRemoved: isShowingFixture ? null : () => removeEntry(entry),
+      ),
+    );
+
+    List<Widget> stackSection(String title, List<_StackEntry> entries) {
+      if (entries.isEmpty) return const <Widget>[];
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+              const SizedBox(height: 2),
+              Text(
+                'Swipe left to remove',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: V2Spacing.space12),
+        ...entries.map(stackRow),
+      ];
+    }
 
     // RefreshIndicator wraps the list so pull-to-refresh re-fires
     // activeStackProvider.
@@ -539,86 +615,13 @@ class _StackTabState extends ConsumerState<_StackTab> {
                   'totals, UL warnings, and interactions in one place.',
               actionLabel: 'Scan a supplement',
               onAction: () => GoRouter.of(context).go(Routes.scan),
-            )
-          else ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: V2Spacing.space24,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Your supplements',
-                    style: V2Typography.titleSm(color: V2Colors.fg),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Swipe left to remove',
-                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                  ),
-                ],
-              ),
             ),
-            const SizedBox(height: V2Spacing.space12),
+          if (!isLoading && !isEmpty) ...[
+            ...stackSection('Your medications', medications),
+            if (medications.isNotEmpty && supplements.isNotEmpty)
+              const SizedBox(height: V2Spacing.space12),
+            ...stackSection('Your supplements', supplements),
           ],
-          // The items.map below produces zero rows when `items` is
-          // empty, so we don't need to guard it explicitly — the
-          // empty-state branch above replaces the header + the
-          // `_TimingAdviceSlot` / `_DepletionSlot` are content-aware
-          // and collapse to SizedBox.shrink when the stack is empty.
-          ...items.map(
-            (e) => Padding(
-              padding: const EdgeInsets.fromLTRB(
-                V2Spacing.space24,
-                0,
-                V2Spacing.space24,
-                V2Spacing.space12,
-              ),
-              child: _StackItemRow(
-                entry: e,
-                // Fixture items can't be removed (no provider row to
-                // delete). Real rows wire to stackActionsProvider.
-                onRemoved: isShowingFixture
-                    ? null
-                    : () async {
-                        // Hide the row in the same frame the Dismissible
-                        // completes — async removal lags the rebuild and
-                        // tripped "dismissed Dismissible still in tree"
-                        // (Sentry PHARMAGUIDE-10).
-                        setState(() => _dismissedIds.add(e.id));
-                        final actions = ref.read(stackActionsProvider);
-                        try {
-                          await actions.remove(e.id);
-                        } on Exception {
-                          if (!context.mounted) return;
-                          setState(() => _dismissedIds.remove(e.id));
-                          PGToast.show(
-                            context,
-                            'Could not remove.',
-                            variant: PGToastVariant.error,
-                          );
-                          return;
-                        }
-                        if (!context.mounted) return;
-                        PGToast.show(
-                          context,
-                          'Removed ${e.name}',
-                          variant: PGToastVariant.info,
-                          duration: const Duration(seconds: 4),
-                          actionLabel: 'Undo',
-                          onAction: () async {
-                            try {
-                              await actions.restore(e.id);
-                            } on Exception {
-                              // silent
-                            }
-                          },
-                        );
-                      },
-              ),
-            ),
-          ),
           // Timing + depletion advice, then the broader coverage review
           // at the bottom. Each slot collapses when nothing applies.
           const _TimingAdviceSlot(),
@@ -938,8 +941,11 @@ class _StackItemRow extends ConsumerWidget {
         : ref.watch(_stackProductProvider(entry.dsldId!)).asData?.value;
     final productName = product?.productName.trim();
     final brandName = product?.brandName?.trim();
+    final fallbackName = entry.isMedication
+        ? medicationDisplayName(entry.name)
+        : entry.name;
     final displayName = productName == null || productName.isEmpty
-        ? entry.name
+        ? fallbackName
         : productName;
     final displayBrand = brandName == null || brandName.isEmpty
         ? entry.brand
@@ -974,16 +980,24 @@ class _StackItemRow extends ConsumerWidget {
         color: V2Colors.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
-          // Phase 11.7j.5 — Sean 2026-05-16: stack row tap navigates
-          // to the product detail page when we have a dsldId.
-          //
-          // Phase 11.7L bug 7b (2026-05-16): when dsldId is missing
-          // (medications, or supplements added via non-scan paths
-          // before dsldId was threaded into the add flow), show a
-          // calm snackbar instead of letting the tap drop silently.
-          // Silent dead taps were Sean's "tapping doesn't open
-          // product detail" report.
+          // Supplement rows open catalog details when possible. Medication
+          // rows use a local information sheet; health data never leaves the
+          // device just to explain what the entry is used for.
           onTap: () {
+            if (entry.isMedication) {
+              showModalBottomSheet<void>(
+                context: context,
+                useSafeArea: true,
+                showDragHandle: true,
+                backgroundColor: V2Colors.surface,
+                builder: (_) => _MedicationDetailsSheet(
+                  name: displayName,
+                  dosage: entry.dosage,
+                  frequency: entry.frequency,
+                ),
+              );
+              return;
+            }
             final id = entry.dsldId;
             if (id != null && id.isNotEmpty) {
               context.push(Routes.productDetail(id));
@@ -991,10 +1005,8 @@ class _StackItemRow extends ConsumerWidget {
             }
             PGToast.show(
               context,
-              entry.isMedication
-                  ? "Medications don't have a detail page yet."
-                  : 'No product details available for this entry. '
-                        'Re-add via scan to enable the detail page.',
+              'No product details available for this entry. '
+              'Re-add via scan to enable the detail page.',
               variant: PGToastVariant.info,
               duration: const Duration(seconds: 3),
             );
@@ -1081,6 +1093,54 @@ class _StackItemRow extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MedicationDetailsSheet extends StatelessWidget {
+  final String name;
+  final String? dosage;
+  final String? frequency;
+
+  const _MedicationDetailsSheet({
+    required this.name,
+    required this.dosage,
+    required this.frequency,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final schedule = [
+      dosage,
+      frequency,
+    ].whereType<String>().where((value) => value.trim().isNotEmpty).join(' · ');
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        MediaQuery.viewPaddingOf(context).bottom + V2Spacing.space24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PGEyebrow('Medication details', color: V2Colors.fgMuted),
+          const SizedBox(height: V2Spacing.space8),
+          Text(name, style: V2Typography.title(color: V2Colors.fg)),
+          if (schedule.isNotEmpty) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Text(schedule, style: V2Typography.bodyMedium(color: V2Colors.fg)),
+          ],
+          const SizedBox(height: V2Spacing.space16),
+          Text(
+            'PharmaGuide uses this entry to check supplement interactions '
+            'and reviewed medication–nutrient relationships. It does not '
+            'assess whether this medication or dose is right for you.',
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          ),
+        ],
       ),
     );
   }

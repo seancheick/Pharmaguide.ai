@@ -37,11 +37,10 @@ Future<void> _pump(WidgetTester tester, List<DepletionMatch> deps) =>
     tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          // topCenter Align gives loose (bounded) constraints — the card's
-          // stretch Row needs a bounded height, as in its real placement.
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: PGDepletionCard(depletions: deps),
+          body: CustomScrollView(
+            slivers: [
+              SliverList.list(children: [PGDepletionCard(depletions: deps)]),
+            ],
           ),
         ),
       ),
@@ -120,15 +119,17 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: PGDepletionUnavailableCard(),
+          body: CustomScrollView(
+            slivers: [
+              SliverList.list(children: const [PGDepletionUnavailableCard()]),
+            ],
           ),
         ),
       ),
     );
+    expect(tester.takeException(), isNull);
     expect(find.textContaining('Check unavailable'), findsOneWidget);
     expect(find.textContaining('not an all-clear'), findsOneWidget);
     // Must not read as a clean state.

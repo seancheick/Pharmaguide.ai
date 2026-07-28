@@ -339,44 +339,52 @@ class StackInteractionChecker {
     final newIds = _normalizeCanonicalIds(newProductCanonicalIds);
     if (newIds.isEmpty) return const <InteractionResult>[];
 
-    // Build (rxcui → med name) and (class → med name) maps so we can
-    // identify match candidates and attach the right user-facing name
-    // in one pass through the stack.
-    final rxcuiToName = <String, String>{};
-    final classToName = <String, String>{};
+    // Keep the stack-row identity with each lookup key. It lets us prefer an
+    // exact medication rule over a broader class rule for the same
+    // medication × nutrient pair without conflating two medications that
+    // happen to share a display name.
+    final rxcuiToMedication = <String, ({String id, String name})>{};
+    final classToMedication = <String, ({String id, String name})>{};
     for (final med in stackMedications) {
+      final medication = (id: med.id, name: med.name);
       final rxcui = med.rxcui?.trim();
       if (rxcui != null && rxcui.isNotEmpty) {
-        rxcuiToName.putIfAbsent(rxcui, () => med.name);
+        rxcuiToMedication.putIfAbsent(rxcui, () => medication);
       }
       // Also index the generic IN-level RXCUI so brand picks (Synthroid
       // → 224920) match curated entries keyed on the generic (levothyroxine
       // → 10582). Added 2026-04-14 to fix Bug B3.
       final genericRxcui = med.genericRxcui?.trim();
       if (genericRxcui != null && genericRxcui.isNotEmpty) {
-        rxcuiToName.putIfAbsent(genericRxcui, () => med.name);
+        rxcuiToMedication.putIfAbsent(genericRxcui, () => medication);
       }
       // Also index individual ingredient RXCUIs for combination drugs
       // (e.g., Lisinopril/HCTZ → check each ingredient independently).
       for (final ingRxcui in _ingredientRxcuisFor(med)) {
-        rxcuiToName.putIfAbsent(ingRxcui, () => med.name);
+        rxcuiToMedication.putIfAbsent(ingRxcui, () => medication);
       }
       for (final cls in _drugClassesFor(med)) {
-        classToName.putIfAbsent(cls, () => med.name);
+        classToMedication.putIfAbsent(cls, () => medication);
       }
     }
-    if (rxcuiToName.isEmpty && classToName.isEmpty) {
+    if (rxcuiToMedication.isEmpty && classToMedication.isEmpty) {
       return const <InteractionResult>[];
     }
 
-    final results = <InteractionResult>[];
-    final seenRowIds = <String>{};
+    final candidates =
+        <
+          ({
+            InteractionRow row,
+            String nutrientId,
+            String medicationId,
+            String medicationName,
+            bool medicationSpecific,
+          })
+        >[];
 
     for (final newId in newIds) {
       final rows = await db.lookupByCanonicalId(newId);
       for (final row in rows) {
-        if (seenRowIds.contains(row.id)) continue;
-
         // Identify the OTHER side relative to the supplement we just
         // matched on. If newId appears as agent1's canonical, the
         // other side is agent2; otherwise it's agent1.
@@ -395,24 +403,53 @@ class StackInteractionChecker {
           continue;
         }
 
-        String? medName;
+        ({String id, String name})? medication;
+        var medicationSpecific = false;
         if (otherType == 'drug') {
-          medName = rxcuiToName[otherId];
+          medication = rxcuiToMedication[otherId];
+          medicationSpecific = true;
         } else if (otherType == 'drug_class') {
-          medName = classToName[otherId];
+          medication = classToMedication[otherId];
         }
-        if (medName == null) continue;
+        if (medication == null) continue;
 
-        seenRowIds.add(row.id);
-        results.add(
-          InteractionResult.fromRow(
-            row,
-            source: InteractionSource.pipeline,
-            agent1NameOverride: medName,
-            agent2NameOverride: newProductName,
-          ),
-        );
+        candidates.add((
+          row: row,
+          nutrientId: newId,
+          medicationId: medication.id,
+          medicationName: medication.name,
+          medicationSpecific: medicationSpecific,
+        ));
       }
+    }
+
+    // A direct drug rule is more specific than a class rule. When both match
+    // the same medication and nutrient, surfacing both creates duplicate (and
+    // sometimes contradictory) advice. Keep all distinct direct rules, but
+    // omit the broader class candidate for that exact pair.
+    final directPairKeys = candidates
+        .where((candidate) => candidate.medicationSpecific)
+        .map(
+          (candidate) =>
+              '${candidate.medicationId}\u0000${candidate.nutrientId}',
+        )
+        .toSet();
+    final results = <InteractionResult>[];
+    final seenRowIds = <String>{};
+    for (final candidate in candidates) {
+      final pairKey = '${candidate.medicationId}\u0000${candidate.nutrientId}';
+      if (!candidate.medicationSpecific && directPairKeys.contains(pairKey)) {
+        continue;
+      }
+      if (!seenRowIds.add(candidate.row.id)) continue;
+      results.add(
+        InteractionResult.fromRow(
+          candidate.row,
+          source: InteractionSource.pipeline,
+          agent1NameOverride: candidate.medicationName,
+          agent2NameOverride: newProductName,
+        ),
+      );
     }
 
     return results;

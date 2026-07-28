@@ -145,10 +145,38 @@ void main() {
         expect(out, contains('## Profile'));
         expect(out, contains('- Age: 35-44'));
         expect(out, contains('- Sex: female'));
-        expect(out, contains('- Conditions: diabetes, hypertension'));
-        expect(out, contains('- Drug classes: metformin, lisinopril'));
+        expect(out, contains('- Conditions: Diabetes, High Blood Pressure'));
+        expect(out, contains('- Drug classes: Metformin, Lisinopril'));
       },
     );
+
+    test('profile identifiers render as clinician-friendly labels', () {
+      final out = _builder.build(
+        profile: _profile(
+          conditions: '["ttc","high_cholesterol"]',
+          drugClasses: '["anticoagulants"]',
+          goals: '["GOAL_SLEEP_QUALITY","GOAL_CARDIOVASCULAR_HEART_HEALTH"]',
+          allergens: '["ALLERGEN_SOY"]',
+        ),
+        stack: const [],
+        intelligence: _emptyIntelligence,
+        generatedAt: _generatedAt,
+      );
+
+      expect(
+        out,
+        contains('- Conditions: TTC (Trying to Conceive), High Cholesterol'),
+      );
+      expect(out, contains('- Drug classes: Blood thinners'));
+      expect(
+        out,
+        contains('- Goals: Sleep Quality, Cardiovascular/Heart Health'),
+      );
+      expect(out, contains('- Allergens: Soy'));
+      expect(out, isNot(contains('high_cholesterol')));
+      expect(out, isNot(contains('GOAL_SLEEP_QUALITY')));
+      expect(out, isNot(contains('ALLERGEN_SOY')));
+    });
 
     test('medications + supplements split into separate sections', () {
       final stack = [
@@ -327,9 +355,9 @@ void main() {
 ## Profile
 - Age: 35-44
 - Sex: female
-- Conditions: diabetes
-- Drug classes: metformin
-- Goals: energy, sleep
+- Conditions: Diabetes
+- Drug classes: Metformin
+- Goals: Energy, Sleep Quality
 
 ## Medications (1)
 - Metformin — 500 mg, twice daily

@@ -34,6 +34,53 @@ class PGDepletionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (depletions.isEmpty) return const SizedBox.shrink();
 
+    return _MedicationNutrientFrame(
+      margin: margin,
+      child: Padding(
+        padding: const EdgeInsets.all(V2Spacing.space16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: V2Colors.monitor,
+                ),
+                SizedBox(width: V2Spacing.space8),
+                PGEyebrow('Medication & nutrients', color: V2Colors.monitor),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'Nutrients to monitor',
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              'Some medications are associated with changes in nutrient '
+              'status or function. Your supplement stack shows intake—'
+              'not your blood level or nutrient status.',
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space12),
+            for (final dep in depletions) _DepletionRow(dep: dep),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MedicationNutrientFrame extends StatelessWidget {
+  final EdgeInsetsGeometry margin;
+  final Widget child;
+
+  const _MedicationNutrientFrame({required this.margin, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: margin,
       child: Container(
@@ -44,47 +91,15 @@ class PGDepletionCard extends StatelessWidget {
           boxShadow: V2Shadows.sm,
         ),
         clipBehavior: Clip.antiAlias,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
           children: [
-            Container(width: 4, color: V2Colors.monitor),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(V2Spacing.space16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          size: 16,
-                          color: V2Colors.monitor,
-                        ),
-                        SizedBox(width: V2Spacing.space8),
-                        PGEyebrow(
-                          'Medication & nutrients',
-                          color: V2Colors.monitor,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: V2Spacing.space8),
-                    Text(
-                      'Nutrients to monitor',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
-                    ),
-                    const SizedBox(height: V2Spacing.space4),
-                    Text(
-                      'Some medications are associated with changes in nutrient '
-                      'status or function. Your supplement stack shows intake—'
-                      'not your blood level or nutrient status.',
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                    for (final dep in depletions) _DepletionRow(dep: dep),
-                  ],
-                ),
-              ),
+            Padding(padding: const EdgeInsets.only(left: 4), child: child),
+            const Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              child: ColoredBox(color: V2Colors.monitor),
             ),
           ],
         ),
@@ -102,54 +117,34 @@ class PGDepletionUnavailableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: margin,
-      child: Container(
-        decoration: BoxDecoration(
-          color: V2Colors.surface,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
-          boxShadow: V2Shadows.sm,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return _MedicationNutrientFrame(
+      margin: margin,
+      child: Padding(
+        padding: const EdgeInsets.all(V2Spacing.space16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(width: 4, color: V2Colors.monitor),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(V2Spacing.space16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.error_outline_rounded,
-                          size: 16,
-                          color: V2Colors.monitor,
-                        ),
-                        SizedBox(width: V2Spacing.space8),
-                        PGEyebrow(
-                          'Medication & nutrients',
-                          color: V2Colors.monitor,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: V2Spacing.space8),
-                    Text(
-                      'Check unavailable',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
-                    ),
-                    const SizedBox(height: V2Spacing.space4),
-                    Text(
-                      "We couldn't load the medication & nutrient checks right "
-                      "now. This is not an all-clear — please try again later.",
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                    ),
-                  ],
+            const Row(
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 16,
+                  color: V2Colors.monitor,
                 ),
-              ),
+                SizedBox(width: V2Spacing.space8),
+                PGEyebrow('Medication & nutrients', color: V2Colors.monitor),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'Check unavailable',
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              "We couldn't load the medication & nutrient checks right "
+              "now. This is not an all-clear — please try again later.",
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
           ],
         ),

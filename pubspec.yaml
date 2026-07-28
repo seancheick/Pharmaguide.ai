@@ -112,6 +112,11 @@ flutter_launcher_icons:
   adaptive_icon_foreground: assets/images/app_icon_foreground.png
 
 flutter:
+  # sign_in_with_apple 6.x has no iOS Swift Package Manager target. Keep the
+  # app on CocoaPods until every iOS plugin in the bundle supports SPM; a hybrid
+  # SPM/Pods build leaves GeneratedPluginRegistrant unable to import it.
+  config:
+    enable-swift-package-manager: false
   uses-material-design: true
   assets:
     - assets/reference_data/

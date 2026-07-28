@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/sharing/clinical_profile_labels.dart';
 
 @immutable
 class ClinicianReportBuilder {
@@ -50,10 +51,22 @@ class ClinicianReportBuilder {
 
     // ---- Profile ----
     if (profile != null) {
-      final goals = _decodeJsonStringList(profile.goals);
-      final conditions = _decodeJsonStringList(profile.conditions);
-      final drugClasses = _decodeJsonStringList(profile.drugClasses);
-      final allergens = _decodeJsonStringList(profile.allergens);
+      final goals = clinicalProfileLabels(
+        _decodeJsonStringList(profile.goals),
+        ClinicalProfileField.goal,
+      );
+      final conditions = clinicalProfileLabels(
+        _decodeJsonStringList(profile.conditions),
+        ClinicalProfileField.condition,
+      );
+      final drugClasses = clinicalProfileLabels(
+        _decodeJsonStringList(profile.drugClasses),
+        ClinicalProfileField.drugClass,
+      );
+      final allergens = clinicalProfileLabels(
+        _decodeJsonStringList(profile.allergens),
+        ClinicalProfileField.allergen,
+      );
 
       final hasAnyProfileField =
           profile.ageBracket != null ||

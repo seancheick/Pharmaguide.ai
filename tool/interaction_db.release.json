@@ -1,14 +1,14 @@
 {
   "_comment": "Immutable pin for the build-time hydration of assets/db/interaction_db.sqlite. The sha256 is the integrity authority (a release asset can be replaced under the same tag). Consumed by tool/fetch_interaction_db.sh, the CI hydrate step, and the packaging-guard test \u2014 the ONE source of these values. clinical_content_hash is a provenance cross-ref to the med-nutrient artifact (a SEPARATE identity from the SQLite sha256); the med-nutrient parity pin lives in test/services/stack/med_nutrient_bundled_parity_test.dart.",
   "repo": "seancheick/PharmaGuide_Pipeline",
-  "tag": "clinical-db-2026.07.27.1",
+  "tag": "clinical-db-2026.07.28.1",
   "filename": "interaction_db.sqlite",
-  "url": "https://github.com/seancheick/PharmaGuide_Pipeline/releases/download/clinical-db-2026.07.27.1/interaction_db.sqlite",
-  "sha256": "24be99ecd254138b4187b8ae884858e2c3586865d8cffaab83d202088eec8e23",
+  "url": "https://github.com/seancheick/PharmaGuide_Pipeline/releases/download/clinical-db-2026.07.28.1/interaction_db.sqlite",
+  "sha256": "77589a5cdfaf5ef42a31b91d41eba5f6aadfe24bfe0472bb1bc54e0336075942",
   "size_bytes": 23269376,
   "min_size_bytes": 1048576,
-  "pipeline_commit": "405304729bb593fffdf7a51ef4eab24abd1385c8",
-  "interaction_db_version": "1.0.4",
+  "pipeline_commit": "a76087e39aee8099e8b832b45998c27a2ed81c59",
+  "interaction_db_version": "1.0.5",
   "clinical_content_hash": "sha256:c3f95f1d5ea4cbf05a6d26e81f3623e3834dd577d3b70c9f1bbc551a8dd89dee",
   "runtime_contract": 1
 }

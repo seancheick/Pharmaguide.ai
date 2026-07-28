@@ -16,7 +16,7 @@ class _FakeRxNormHttp {
       {
         "approximateGroup": {
           "candidate": [
-            {"rxcui": "202488", "name": "Motrin", "score": "100"}
+            {"rxcui": "202488", "name": "Motrin Pill", "score": "100"}
           ]
         }
       }
@@ -24,6 +24,31 @@ class _FakeRxNormHttp {
   };
 
   Future<String> call(Uri url) async {
+    if (url.path == '/REST/rxclass/class/byRxcui.json') {
+      if (url.queryParameters['relaSource'] == 'ATC') return '{}';
+      return '''
+        {
+          "rxclassDrugInfoList": {
+            "rxclassDrugInfo": [
+              {
+                "rela": "has_moa",
+                "rxclassMinConceptItem": {
+                  "className": "Cyclooxygenase Inhibitors",
+                  "classType": "MOA"
+                }
+              },
+              {
+                "rela": "has_pe",
+                "rxclassMinConceptItem": {
+                  "className": "Decreased Prostaglandin Production",
+                  "classType": "PE"
+                }
+              }
+            ]
+          }
+        }
+      ''';
+    }
     return responses['${url.path}?${url.query}'] ??
         responses[url.path] ??
         (throw StateError('No fake RxNorm response for $url'));
@@ -138,6 +163,11 @@ void main() {
         find.byKey(const Key('med-entry-search')),
         'motrin',
       );
+      final searchField = tester.widget<TextField>(
+        find.byKey(const Key('med-entry-search')),
+      );
+      expect(searchField.autocorrect, isFalse);
+      expect(searchField.enableSuggestions, isFalse);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
@@ -165,6 +195,23 @@ void main() {
       expect(
         find.textContaining('generally avoided from 20 weeks'),
         findsOneWidget,
+      );
+      expect(find.text('Motrin Pill', skipOffstage: false), findsNothing);
+      expect(find.text('Motrin', skipOffstage: false), findsWidgets);
+      expect(
+        find.text(
+          'Used to check: NSAIDs (Ibuprofen, Aspirin regularly)',
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Cyclooxygenase', skipOffstage: false),
+        findsNothing,
+      );
+      expect(
+        find.textContaining('Prostaglandin', skipOffstage: false),
+        findsNothing,
       );
     },
   );
