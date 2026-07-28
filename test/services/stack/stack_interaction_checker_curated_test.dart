@@ -1232,6 +1232,59 @@ void main() {
   // checkMedicationInteractions
   // -------------------------------------------------------------------------
   group('checkMedicationInteractions', () {
+    test(
+      'prefers a medication-specific rule over a broader class rule for the same nutrient',
+      () async {
+        await db.batch((batch) {
+          batch.insert(
+            db.interactions,
+            _row(
+              id: 'DSI_WAR_VITE_DIRECT',
+              a1Type: 'drug',
+              a1Id: '11289',
+              a1Name: 'Warfarin',
+              a2Type: 'supplement',
+              a2Id: 'C0042874',
+              a2Name: 'Vitamin E',
+              a2Canonical: 'vitamin_e',
+              severity: 'caution',
+            ),
+          );
+          batch.insert(
+            db.interactions,
+            _row(
+              id: 'DSI_VITE_ANTICOAG_CLASS',
+              a1Type: 'drug_class',
+              a1Id: 'class:anticoagulants',
+              a1Name: 'Anticoagulants',
+              a2Type: 'supplement',
+              a2Id: 'C0042874',
+              a2Name: 'Vitamin E',
+              a2Canonical: 'vitamin_e',
+              severity: 'avoid',
+            ),
+          );
+        });
+
+        final results = await checker.checkMedicationInteractions(
+          newProductCanonicalIds: const ['vitamin_e'],
+          stackMedications: [
+            _medication(
+              id: 'warfarin',
+              name: 'Warfarin',
+              rxcui: '11289',
+              drugClassesJson: '["class:anticoagulants"]',
+            ),
+          ],
+          db: db,
+          newProductName: 'Vitamin E',
+        );
+
+        expect(results, hasLength(1));
+        expect(results.single.id, 'DSI_WAR_VITE_DIRECT');
+      },
+    );
+
     test('returns empty for empty new product canonical ids', () async {
       final results = await checker.checkMedicationInteractions(
         newProductCanonicalIds: const <String>[],
