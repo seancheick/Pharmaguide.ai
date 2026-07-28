@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/sharing/clinical_profile_labels.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
@@ -165,10 +166,25 @@ class ClinicianPdfBuilder {
 
     add('Age', profile.ageBracket);
     add('Sex', profile.sex);
-    _addJsonList(rows, 'Conditions', profile.conditions);
-    _addJsonList(rows, 'Drug classes', profile.drugClasses);
-    _addJsonList(rows, 'Goals', profile.goals);
-    _addJsonList(rows, 'Allergens', profile.allergens);
+    _addJsonList(
+      rows,
+      'Conditions',
+      profile.conditions,
+      ClinicalProfileField.condition,
+    );
+    _addJsonList(
+      rows,
+      'Drug classes',
+      profile.drugClasses,
+      ClinicalProfileField.drugClass,
+    );
+    _addJsonList(rows, 'Goals', profile.goals, ClinicalProfileField.goal);
+    _addJsonList(
+      rows,
+      'Allergens',
+      profile.allergens,
+      ClinicalProfileField.allergen,
+    );
 
     if (rows.isEmpty) return pw.SizedBox.shrink();
     return _section(theme, 'Patient profile', rows.map((r) => _line(theme, r)));
@@ -563,8 +579,13 @@ class ClinicianPdfBuilder {
     );
   }
 
-  void _addJsonList(List<String> rows, String label, String? raw) {
-    final list = _decodeJsonStringList(raw);
+  void _addJsonList(
+    List<String> rows,
+    String label,
+    String? raw,
+    ClinicalProfileField field,
+  ) {
+    final list = clinicalProfileLabels(_decodeJsonStringList(raw), field);
     if (list.isNotEmpty) rows.add('$label: ${list.join(", ")}');
   }
 

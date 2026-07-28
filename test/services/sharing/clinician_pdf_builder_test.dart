@@ -203,6 +203,55 @@ void main() {
     },
   );
 
+  test('renders patient profile IDs as clinician-friendly labels', () async {
+    final ts = DateTime.utc(2026, 7, 28);
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: UserProfile(
+        id: 1,
+        ageBracket: '31-50',
+        sex: 'Female',
+        goals: '["GOAL_SLEEP_QUALITY","GOAL_CARDIOVASCULAR_HEART_HEALTH"]',
+        conditions: '["ttc","high_cholesterol"]',
+        drugClasses: '["anticoagulants"]',
+        allergens: '["ALLERGEN_SOY"]',
+        profileFlags: '[]',
+        createdAt: ts,
+        lastUpdated: ts,
+      ),
+      stack: const [],
+      intelligence: const StackIntelligence(
+        tier: StackTier.incomplete,
+        stackSize: 0,
+        issues: [],
+        interactionCount: 0,
+        nutrientWarningCount: 0,
+        hasRecalledIngredient: false,
+        hasContraindicatedInteraction: false,
+        hasBannedIngredient: false,
+      ),
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: ts,
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('TTC'));
+    expect(body, contains('Trying'));
+    expect(body, contains('Conceive'));
+    expect(body, contains('High'));
+    expect(body, contains('Cholesterol'));
+    expect(body, contains('Blood'));
+    expect(body, contains('thinners'));
+    expect(body, contains('Sleep'));
+    expect(body, contains('Quality'));
+    expect(body, contains('Cardiovascular/Heart'));
+    expect(body, contains('Health'));
+    expect(body, contains('Soy'));
+    expect(body, isNot(contains('high_cholesterol')));
+    expect(body, isNot(contains('GOAL_SLEEP_QUALITY')));
+    expect(body, isNot(contains('ALLERGEN_SOY')));
+  });
+
   test(
     'renders warnings in severity order even if input issues are unsorted',
     () async {
