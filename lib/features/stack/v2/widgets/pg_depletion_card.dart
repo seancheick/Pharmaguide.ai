@@ -17,6 +17,7 @@ import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -154,22 +155,16 @@ class PGDepletionUnavailableCard extends StatelessWidget {
 }
 
 // =============================================================================
-// Per-depletion row — stateful for the "Why this happens" disclosure.
+// Per-depletion row — long clinical context opens in a scrollable sheet so
+// reviewing one relationship never makes the parent Stack page grow in place.
 // =============================================================================
 
-class _DepletionRow extends StatefulWidget {
+class _DepletionRow extends StatelessWidget {
   final DepletionMatch dep;
   const _DepletionRow({required this.dep});
 
-  @override
-  State<_DepletionRow> createState() => _DepletionRowState();
-}
-
-class _DepletionRowState extends State<_DepletionRow> {
-  bool _expanded = false;
-
   String _bodyCopy() {
-    final d = widget.dep;
+    final d = dep;
     num? compAmt;
     String? compUnit;
     if (d.adequacyThresholdMcg != null) {
@@ -195,7 +190,7 @@ class _DepletionRowState extends State<_DepletionRow> {
   }
 
   String? _onsetCue() {
-    final onset = widget.dep.onsetTimeline?.toLowerCase();
+    final onset = dep.onsetTimeline?.toLowerCase();
     return switch (onset) {
       'years' => 'long-term',
       'months' => 'with regular use',
@@ -205,16 +200,25 @@ class _DepletionRowState extends State<_DepletionRow> {
   }
 
   bool _hasExpandableDetail() {
-    final d = widget.dep;
+    final d = dep;
     return d.mechanism.isNotEmpty ||
         (d.clinicalImpact != null && d.clinicalImpact!.isNotEmpty) ||
         d.recommendation.isNotEmpty ||
         d.sourceUrls.isNotEmpty;
   }
 
+  void _showDetails(BuildContext context) {
+    unawaited(
+      PGModal.bottomSheet<void>(
+        context: context,
+        builder: (_) => _MedicationNutrientDetailsSheet(dep: dep),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final d = widget.dep;
+    final d = dep;
     final nutrientTitle = d.nutrientName.isEmpty
         ? 'This nutrient'
         : d.nutrientName;
@@ -298,29 +302,32 @@ class _DepletionRowState extends State<_DepletionRow> {
             ),
             if (_hasExpandableDetail()) ...[
               const SizedBox(height: V2Spacing.space8),
-              InkWell(
-                onTap: () => setState(() => _expanded = !_expanded),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _expanded ? 'Show less' : 'Why this happens',
-                        style: V2Typography.label(color: V2Colors.accent),
-                      ),
-                      Icon(
-                        _expanded
-                            ? Icons.expand_less_rounded
-                            : Icons.expand_more_rounded,
-                        size: 16,
-                        color: V2Colors.accent,
-                      ),
-                    ],
+              Semantics(
+                button: true,
+                label: 'Why $nutrientTitle may be affected by $subject',
+                child: InkWell(
+                  onTap: () => _showDetails(context),
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                  child: SizedBox(
+                    height: 44,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Why this happens',
+                          style: V2Typography.label(color: V2Colors.accent),
+                        ),
+                        const SizedBox(width: V2Spacing.space4),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: V2Colors.accent,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              if (_expanded) _DetailSection(dep: d),
             ],
           ],
         ),
@@ -330,8 +337,62 @@ class _DepletionRowState extends State<_DepletionRow> {
 }
 
 // =============================================================================
-// Expandable detail — labeled paragraphs + source chips.
+// Scrollable detail sheet — labeled paragraphs + source chips.
 // =============================================================================
+
+class _MedicationNutrientDetailsSheet extends StatelessWidget {
+  final DepletionMatch dep;
+  const _MedicationNutrientDetailsSheet({required this.dep});
+
+  @override
+  Widget build(BuildContext context) {
+    final drug = dep.drugDisplayName.trim().isEmpty
+        ? 'Your medication'
+        : dep.drugDisplayName;
+    final nutrient = dep.nutrientName.trim().isEmpty
+        ? 'This nutrient'
+        : dep.nutrientName;
+
+    return Semantics(
+      label: 'Medication and nutrient details for $drug and $nutrient',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space8,
+          V2Spacing.space24,
+          V2Spacing.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PGEyebrow(
+              medNutrientRelationshipLabel(dep.depletionType),
+              color: V2Colors.monitor,
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'Medication & nutrient details',
+              style: V2Typography.titleSm(color: V2Colors.fg),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              '$drug · $nutrient',
+              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space16),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [_DetailSection(dep: dep)],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _DetailSection extends StatelessWidget {
   final DepletionMatch dep;

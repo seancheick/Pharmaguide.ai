@@ -43,6 +43,7 @@ import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_display_name.dart';
+import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 
 /// Resolves stack rows back to catalog products so v2 rows render the
 /// canonical product name, brand, thumbnail, and score.
@@ -456,6 +457,9 @@ class _StackTabState extends ConsumerState<_StackTab> {
             dosage: row.dosage,
             frequency: row.frequency,
             isMedication: row.type == 'medication',
+            medicationIdentity: row.type == 'medication'
+                ? MedicationIdentitySnapshot.fromStackRow(row)
+                : null,
             // Phase 11.7j.5 — Sean 2026-05-16: thread dsldId so the
             // row tap can navigate to /product/<dsldId>. Null for
             // medications.
@@ -904,6 +908,7 @@ class _StackEntry {
   final String? dosage;
   final String? frequency;
   final bool isMedication;
+  final MedicationIdentitySnapshot? medicationIdentity;
 
   /// Phase 11.7j.5 — DSLD id when the row is a catalog product.
   /// Null for medications (RxNorm-based) and fixture rows.
@@ -919,6 +924,7 @@ class _StackEntry {
     this.dosage,
     this.frequency,
     this.isMedication = false,
+    this.medicationIdentity,
     this.dsldId,
   });
 }
@@ -985,15 +991,15 @@ class _StackItemRow extends ConsumerWidget {
           // device just to explain what the entry is used for.
           onTap: () {
             if (entry.isMedication) {
-              showModalBottomSheet<void>(
-                context: context,
-                useSafeArea: true,
-                showDragHandle: true,
-                backgroundColor: V2Colors.surface,
-                builder: (_) => _MedicationDetailsSheet(
-                  name: displayName,
-                  dosage: entry.dosage,
-                  frequency: entry.frequency,
+              unawaited(
+                PGModal.bottomSheet<void>(
+                  context: context,
+                  builder: (_) => _MedicationDetailsSheet(
+                    name: displayName,
+                    dosage: entry.dosage,
+                    frequency: entry.frequency,
+                    identity: entry.medicationIdentity,
+                  ),
                 ),
               );
               return;
@@ -1102,11 +1108,13 @@ class _MedicationDetailsSheet extends StatelessWidget {
   final String name;
   final String? dosage;
   final String? frequency;
+  final MedicationIdentitySnapshot? identity;
 
   const _MedicationDetailsSheet({
     required this.name,
     required this.dosage,
     required this.frequency,
+    required this.identity,
   });
 
   @override
@@ -1115,30 +1123,197 @@ class _MedicationDetailsSheet extends StatelessWidget {
       dosage,
       frequency,
     ].whereType<String>().where((value) => value.trim().isNotEmpty).join(' · ');
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        V2Spacing.space24,
-        V2Spacing.space8,
-        V2Spacing.space24,
-        MediaQuery.viewPaddingOf(context).bottom + V2Spacing.space24,
+    return Semantics(
+      label: 'Medication details for $name',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space8,
+          V2Spacing.space24,
+          V2Spacing.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const PGEyebrow('Medication details', color: V2Colors.fgMuted),
+            const SizedBox(height: V2Spacing.space8),
+            Text(name, style: V2Typography.title(color: V2Colors.fg)),
+            const SizedBox(height: V2Spacing.space16),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  _MedicationMatchStatus(identity: identity),
+                  const Divider(
+                    height: V2Spacing.space32,
+                    color: V2Colors.outline,
+                  ),
+                  const PGEyebrow('Saved schedule', color: V2Colors.fgMuted),
+                  const SizedBox(height: V2Spacing.space8),
+                  Text(
+                    schedule.isEmpty
+                        ? 'No dose or schedule saved for this entry.'
+                        : schedule,
+                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  ),
+                  if (_identityLines(identity).isNotEmpty) ...[
+                    const Divider(
+                      height: V2Spacing.space32,
+                      color: V2Colors.outline,
+                    ),
+                    const PGEyebrow(
+                      'Recorded identity',
+                      color: V2Colors.fgMuted,
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    for (final line in _identityLines(identity))
+                      _MedicationDetailLine(text: line),
+                  ],
+                  const Divider(
+                    height: V2Spacing.space32,
+                    color: V2Colors.outline,
+                  ),
+                  const PGEyebrow('About this entry', color: V2Colors.fgMuted),
+                  const SizedBox(height: V2Spacing.space8),
+                  Text(
+                    'PharmaGuide uses this saved identity to check supplement '
+                    'interactions and reviewed medication–nutrient '
+                    'relationships. This is not a medication monograph and '
+                    'does not provide prescribing, side-effect, or dosing '
+                    'advice.',
+                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  ),
+                  const SizedBox(height: V2Spacing.space12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 16,
+                        color: V2Colors.fgMuted,
+                      ),
+                      const SizedBox(width: V2Spacing.space8),
+                      Expanded(
+                        child: Text(
+                          'Medication entries stay on this device.',
+                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    );
+  }
+
+  static List<String> _identityLines(MedicationIdentitySnapshot? identity) {
+    if (identity == null) return const [];
+    return [
+      if (identity.rxcui != null) 'RxNorm concept ${identity.rxcui}',
+      if (identity.genericRxcui != null)
+        'Generic ingredient concept ${identity.genericRxcui}',
+      if (identity.ingredientRxcuis.isNotEmpty)
+        '${identity.ingredientRxcuis.length} ingredient '
+            '${identity.ingredientRxcuis.length == 1 ? 'concept' : 'concepts'}',
+      if (identity.drugClassIds.isNotEmpty)
+        '${identity.drugClassIds.length} reviewed medication '
+            '${identity.drugClassIds.length == 1 ? 'group' : 'groups'}',
+    ];
+  }
+}
+
+class _MedicationMatchStatus extends StatelessWidget {
+  const _MedicationMatchStatus({required this.identity});
+
+  final MedicationIdentitySnapshot? identity;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = identity?.status ?? MedicationIdentityStatus.unresolved;
+    final (label, body, icon, color) = switch (status) {
+      MedicationIdentityStatus.complete => (
+        'Matched for interaction checks',
+        'RxNorm ingredient identity and reviewed medication groups are '
+            'available for matching.',
+        Icons.verified_outlined,
+        V2Colors.safe,
+      ),
+      MedicationIdentityStatus.partial => (
+        'Partially matched',
+        'Some ingredient or medication-group checks may be unavailable.',
+        Icons.info_outline_rounded,
+        V2Colors.caution,
+      ),
+      MedicationIdentityStatus.classOnly => (
+        'Medication-group matching available',
+        'Group-based checks are available; product-specific checks may be '
+            'limited.',
+        Icons.info_outline_rounded,
+        V2Colors.caution,
+      ),
+      MedicationIdentityStatus.exactOnly => (
+        'Basic identity matched',
+        'The selected RxNorm concept is saved; ingredient and medication-group '
+            'checks may be limited.',
+        Icons.info_outline_rounded,
+        V2Colors.caution,
+      ),
+      MedicationIdentityStatus.unresolved => (
+        'Matching incomplete',
+        'This medication could not be fully resolved, so interaction checks '
+            'may be incomplete.',
+        Icons.error_outline_rounded,
+        V2Colors.caution,
+      ),
+    };
+
+    return Semantics(
+      label: '$label. $body',
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PGEyebrow('Medication details', color: V2Colors.fgMuted),
-          const SizedBox(height: V2Spacing.space8),
-          Text(name, style: V2Typography.title(color: V2Colors.fg)),
-          if (schedule.isNotEmpty) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Text(schedule, style: V2Typography.bodyMedium(color: V2Colors.fg)),
-          ],
-          const SizedBox(height: V2Spacing.space16),
-          Text(
-            'PharmaGuide uses this entry to check supplement interactions '
-            'and reviewed medication–nutrient relationships. It does not '
-            'assess whether this medication or dose is right for you.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: V2Spacing.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PGEyebrow(label, color: color),
+                const SizedBox(height: V2Spacing.space4),
+                Text(body, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MedicationDetailLine extends StatelessWidget {
+  const _MedicationDetailLine({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: V2Spacing.space8),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.check_circle_outline_rounded,
+            size: 16,
+            color: V2Colors.fgMuted,
+          ),
+          const SizedBox(width: V2Spacing.space8),
+          Expanded(
+            child: Text(text, style: V2Typography.bodySm(color: V2Colors.fg)),
           ),
         ],
       ),

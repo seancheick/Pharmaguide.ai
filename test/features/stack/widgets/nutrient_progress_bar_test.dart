@@ -90,7 +90,7 @@ void main() {
       expect(find.textContaining('copper depletion'), findsOneWidget);
     });
 
-    testWidgets('expanded contributions include ingredient form context', (
+    testWidgets('contributions open in a bottom sheet with form context', (
       tester,
     ) async {
       const status = NutrientStatus(
@@ -130,6 +130,9 @@ void main() {
       await tester.tap(find.text('Vitamin K'));
       await tester.pumpAndSettle();
 
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.text('Vitamin K contributors'), findsOneWidget);
+      expect(find.byType(Scrollable), findsWidgets);
       expect(find.text('Calcium K/D - Vitamin K1'), findsOneWidget);
       expect(find.text('Calcium K/D - Vitamin K2 (MK-7)'), findsOneWidget);
     });

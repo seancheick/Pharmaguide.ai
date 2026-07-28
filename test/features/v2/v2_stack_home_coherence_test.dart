@@ -26,6 +26,9 @@ void main() {
     required String type,
     String? dsldId,
     String? rxcui,
+    String? genericRxcui,
+    String? drugClassesCol,
+    String? ingredientRxcuisCol,
     String? dosage,
     String? frequency,
   }) {
@@ -37,9 +40,9 @@ void main() {
       dsldId: dsldId,
       rxcui: rxcui,
       ingredientKeys: null,
-      drugClassesCol: null,
-      genericRxcui: null,
-      ingredientRxcuisCol: null,
+      drugClassesCol: drugClassesCol,
+      genericRxcui: genericRxcui,
+      ingredientRxcuisCol: ingredientRxcuisCol,
       dosage: dosage,
       frequency: frequency,
       addedAt: ts,
@@ -260,6 +263,8 @@ void main() {
               name: 'metformin Pill',
               type: 'medication',
               rxcui: '1161611',
+              genericRxcui: '6809',
+              drugClassesCol: '["class:diabetes_meds"]',
               dosage: '500 mg',
               frequency: 'Twice daily',
             ),
@@ -287,9 +292,14 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('MEDICATION DETAILS'), findsOneWidget);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('MATCHED FOR INTERACTION CHECKS'), findsOneWidget);
+        expect(find.text('SAVED SCHEDULE'), findsOneWidget);
         expect(find.text('500 mg · Twice daily'), findsWidgets);
+        expect(find.textContaining('RxNorm concept 1161611'), findsOneWidget);
+        expect(find.byType(Scrollable), findsWidgets);
         expect(
-          find.textContaining('reviewed medication–nutrient relationships'),
+          find.textContaining('not a medication monograph'),
           findsOneWidget,
         );
         expect(
