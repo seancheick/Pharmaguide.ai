@@ -237,7 +237,8 @@ class RxNormApiService {
     if (cached != null) return cached;
 
     final url = Uri.parse(
-      '$_baseUrl/REST/approximateTerm.json?term=${Uri.encodeQueryComponent(q)}&maxEntries=10',
+      '$_baseUrl/REST/approximateTerm.json?'
+      'term=${Uri.encodeQueryComponent(q)}&maxEntries=10&option=1',
     );
 
     final raw = await _safeGet(url);
@@ -506,9 +507,12 @@ class RxNormApiService {
         if (c is! Map) continue;
         final rxcui = c['rxcui']?.toString();
         if (rxcui == null || rxcui.isEmpty) continue;
-        if (!seenRxcui.add(rxcui)) continue;
         final name = c['name']?.toString() ?? '';
         if (name.isEmpty) continue;
+        // Some unrestricted source atoms omit `name` while a later RxNorm
+        // atom for the same RxCUI carries it. Do not let the unnamed atom
+        // consume the dedupe key and hide the usable current concept.
+        if (!seenRxcui.add(rxcui)) continue;
         final scoreStr = c['score']?.toString() ?? '0';
         final score = int.tryParse(scoreStr) ?? 0;
         out.add(RxNormSuggestion(name: name, rxcui: rxcui, score: score));

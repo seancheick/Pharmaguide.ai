@@ -93,7 +93,38 @@ void main() {
       expect(out[0].score, 100);
       expect(out[1].score, 85);
       expect(out[2].score, 60);
+      expect(fake.hits.single.queryParameters['option'], '1');
     });
+
+    test(
+      'keeps the named atom when an unnamed atom shares its rxcui',
+      () async {
+        final fake = _FakeHttp(const {
+          '/REST/approximateTerm.json': '''
+        {
+          "approximateGroup": {
+            "candidate": [
+              {"rxcui": "6809", "score": "100", "source": "GS"},
+              {
+                "rxcui": "6809",
+                "name": "metformin",
+                "score": "100",
+                "source": "RXNORM"
+              }
+            ]
+          }
+        }
+        ''',
+        });
+        final svc = RxNormApiService(httpGet: fake.call);
+
+        final out = await svc.search('metformin');
+
+        expect(out, hasLength(1));
+        expect(out.single.rxcui, '6809');
+        expect(out.single.name, 'metformin');
+      },
+    );
 
     test('dedupes candidates by rxcui', () async {
       final fake = _FakeHttp(const {
