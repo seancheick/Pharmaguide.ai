@@ -27,11 +27,12 @@ import 'package:flutter_test/flutter_test.dart';
 // Repinned for the fail-closed B1.1 candidate delta: four suppressed records
 // received evidence-aligned proposed copy and current sources, but remain
 // hidden pending a separate licensed-pharmacist review.
-// Repinned for the fail-closed B1 clinical-copy correction: ten active records
-// carry primary-source-aligned wording in a pending delta ledger, while the
-// four B1.1 candidates remain suppressed.
+// Repinned for the B1 closure correction: eleven active records now require
+// exact-copy delta review (including the furosemide/thiamine monitoring tip),
+// and record provenance distinguishes the AI evidence audit from the
+// PharmaGuide Clinical Team's exact-fingerprint approval.
 const _pinnedContentHash =
-    'sha256:dfea094d0a13a390447810d4fa6a7967ddbee4b0f24083ef46cac842ad404f2d';
+    'sha256:c3f95f1d5ea4cbf05a6d26e81f3623e3834dd577d3b70c9f1bbc551a8dd89dee';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

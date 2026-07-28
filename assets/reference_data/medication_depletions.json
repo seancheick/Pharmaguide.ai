@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.07.27-b1-clinical-delta.1",
-    "content_hash": "sha256:dfea094d0a13a390447810d4fa6a7967ddbee4b0f24083ef46cac842ad404f2d",
+    "content_version": "2026.07.27-b1-closure.1",
+    "content_hash": "sha256:c3f95f1d5ea4cbf05a6d26e81f3623e3834dd577d3b70c9f1bbc551a8dd89dee",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -60,8 +60,11 @@
       "citation_review_note": "Circulating-CoQ10 reduction kept (Banach 2015 meta-analysis, Ghirlanda 1993). Removed causal myopathy claim, unsupported cardiac tissue language, routine 100-200 mg recommendation, non-standard plasma CoQ10 testing, and the 100 mg comparison amount. Supplementation evidence conflicts (Qu 2018 vs Kennedy 2020) — both cited; severity lowered to mild.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Blood-level reduction is established and the copy preserves uncertain clinical significance."
+      "b1_clinical_review_note": "Blood-level reduction is established and the copy preserves uncertain clinical significance.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_STATINS_VITAMIND",
@@ -247,9 +250,12 @@
       "reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_note": "Reclassified as monitoring rather than body-calcium depletion; retained the bounded carbonate/fracture evidence.",
-      "citation_review_note": "Reclassified as monitoring rather than body-calcium depletion; retained the bounded carbonate/fracture evidence."
+      "citation_review_note": "Reclassified as monitoring rather than body-calcium depletion; retained the bounded carbonate/fracture evidence.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ANTACIDS_IRON",
@@ -292,9 +298,12 @@
       "reviewer": "b1_clinical_copy_delta_evidence_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_note": "Aligned onset and monitoring advice with the >=2-year clinical evidence; removed unsupported dose-separation advice.",
-      "citation_review_note": "Lam 2017 was rechecked against the PubMed abstract: observed risk decreased after medication discontinuation, not necessarily fully reversed. Unsupported annual testing copy was replaced with symptom- and risk-based assessment. Licensed-pharmacist delta review is pending."
+      "citation_review_note": "Lam 2017 was rechecked against the PubMed abstract: observed risk decreased after medication discontinuation, not necessarily fully reversed. Unsupported annual testing copy was replaced with symptom- and risk-based assessment. Licensed-pharmacist delta review is pending.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_ANTACIDS_VITAMINC",
@@ -440,9 +449,12 @@
       "reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_note": "Aligned mechanism, monitoring, and treatment wording with NIH, MHRA, and ADA 2026 guidance.",
-      "citation_review_note": "Aligned mechanism, monitoring, and treatment wording with NIH, MHRA, and ADA 2026 guidance."
+      "citation_review_note": "Aligned mechanism, monitoring, and treatment wording with NIH, MHRA, and ADA 2026 guidance.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_METFORMIN_FOLATE",
@@ -528,8 +540,11 @@
       "citation_review_note": "The source concerns estrogen-containing oral contraceptives, but the runtime class includes implants, injectable progestins, emergency contraception, and non-contraceptive megestrol. Keep suppressed until a reliably normalized combined-oral scope and independent clinical-importance evidence exist.",
       "b1_clinical_review_disposition": "requires_evidence_revision",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "The source concerns estrogen-containing oral contraceptives, but the runtime class includes implants, injectable progestins, emergency contraception, and non-contraceptive megestrol. Keep suppressed until a reliably normalized combined-oral scope and independent clinical-importance evidence exist."
+      "b1_clinical_review_note": "The source concerns estrogen-containing oral contraceptives, but the runtime class includes implants, injectable progestins, emergency contraception, and non-contraceptive megestrol. Keep suppressed until a reliably normalized combined-oral scope and independent clinical-importance evidence exist.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_not_consumer_visible",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_OCP_VITAMINB12",
@@ -891,9 +906,12 @@
       "reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_note": "Removed an unsupported 10-15 mg/day supplement suggestion; retained the mild thiazide urinary-loss signal.",
-      "citation_review_note": "Removed an unsupported 10-15 mg/day supplement suggestion; retained the mild thiazide urinary-loss signal."
+      "citation_review_note": "Removed an unsupported 10-15 mg/day supplement suggestion; retained the mild thiazide urinary-loss signal.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_DIURETICS_CALCIUM",
@@ -941,8 +959,11 @@
       "reviewer": "lead_clinician_diuretics_remaining",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Loop-diuretic calciuria and cautious bone-health wording align."
+      "b1_clinical_review_note": "Loop-diuretic calciuria and cautious bone-health wording align.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_DIURETICS_THIAMINE",
@@ -988,16 +1009,19 @@
       "alert_headline": "Furosemide may lower thiamine over time",
       "alert_body": "Furosemide increases urinary thiamine loss. Clinical relevance is greatest with long-term higher doses and other deficiency risks.",
       "acknowledgement_note": "Nice — thiamine intake supports levels while on long-term furosemide.",
-      "monitoring_tip_short": "Consider asking your cardiologist about a thiamine supplement with long-term furosemide.",
+      "monitoring_tip_short": "With long-term higher-dose furosemide, ask your treating clinician whether thiamine assessment fits your care.",
       "food_sources_short": "Food sources of thiamine include pork, fish, whole grains, fortified cereals, beans, lentils, and seeds.",
       "citation_review_status": "verified",
       "reviewed_at": "2026-07-27",
       "reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Separated direct urinary loss from heart-failure confounding and removed any routine-supplement implication.",
-      "citation_review_note": "Separated direct urinary loss from heart-failure confounding and removed any routine-supplement implication."
+      "b1_clinical_review_note": "Separated direct urinary loss from heart-failure confounding and removed any routine-supplement implication. The monitoring tip now requests treating-clinician assessment without presuming cardiology care.",
+      "citation_review_note": "Separated direct urinary loss from heart-failure confounding and removed any routine-supplement implication. The monitoring tip now requests treating-clinician assessment without presuming cardiology care. Licensed-pharmacist delta review is pending.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_DIURETICS_FOLATE",
@@ -1045,8 +1069,11 @@
       "reviewer": "lead_clinician_diuretics_remaining",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Triamterene-specific antifolate evidence and risk-qualified wording align."
+      "b1_clinical_review_note": "Triamterene-specific antifolate evidence and risk-qualified wording align.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_CORTICOSTEROIDS_CALCIUM",
@@ -1090,8 +1117,11 @@
       "citation_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained guideline-directed bone care.",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained guideline-directed bone care."
+      "b1_clinical_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained guideline-directed bone care.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_CORTICOSTEROIDS_VITAMIND",
@@ -1130,8 +1160,11 @@
       "citation_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained monitoring-only wording.",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained monitoring-only wording."
+      "b1_clinical_review_note": "Narrowed the route-ambiguous class to long-term oral prednisone and retained monitoring-only wording.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_CORTICOSTEROIDS_POTASSIUM",
@@ -1348,9 +1381,12 @@
       "reviewer": "b1_clinical_copy_delta_evidence_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_note": "Made the SIADH mechanism and monitoring timing appropriately non-categorical.",
-      "citation_review_note": "Reconciled the dormant acknowledgement and alert timing with the recommendation that SSRI-related hyponatremia is not prevented by sodium self-supplementation. Monitoring remains individualized. Licensed-pharmacist delta review is pending."
+      "citation_review_note": "Reconciled the dormant acknowledgement and alert timing with the recommendation that SSRI-related hyponatremia is not prevented by sodium self-supplementation. Monitoring remains individualized. Licensed-pharmacist delta review is pending.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_SSRIS_CALCIUM",
@@ -1464,8 +1500,11 @@
       "citation_review_note": "Section 3 content audit: PMID 34847425 is a carbamazepine-specific meta-analysis of lower 25-hydroxyvitamin D. The record is direct-drug scoped; no class-wide inference is shipped.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Carbamazepine-specific meta-analysis supports the bounded claim."
+      "b1_clinical_review_note": "Carbamazepine-specific meta-analysis supports the bounded claim.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ANTICONVULSANTS_CALCIUM",
@@ -1505,8 +1544,11 @@
       "citation_review_note": "Section 3 content audit: PMID 15123011 reviews anticonvulsant-associated bone disease and calcium intake. Copy is limited to bone-health discussion, not a universal supplement dose.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Evidence, inducer scope, and bone-health wording align."
+      "b1_clinical_review_note": "Evidence, inducer scope, and bone-health wording align.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ANTICONVULSANTS_FOLATE",
@@ -1546,8 +1588,11 @@
       "citation_review_note": "Section 3 content audit: PMID 6370643 is a phenytoin-folate review. The record is direct-drug scoped and avoids unsupported claims for other antiseizure medicines.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Phenytoin-specific evidence and supplement caution align."
+      "b1_clinical_review_note": "Phenytoin-specific evidence and supplement caution align.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINB12",
@@ -1587,8 +1632,11 @@
       "reviewer": "medication_depletion_section_03_content_audit",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Phenytoin-specific meta-analysis supports the cautious monitoring claim."
+      "b1_clinical_review_note": "Phenytoin-specific meta-analysis supports the cautious monitoring claim.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ANTICONVULSANTS_VITAMINK",
@@ -1631,8 +1679,11 @@
       "citation_review_note": "The later review does not support routine antenatal vitamin K, the signal is pregnancy-specific, and the runtime has no pregnancy context. A significant class-wide consumer warning would be a false positive outside pregnancy.",
       "b1_clinical_review_disposition": "remove_from_release",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "The later review does not support routine antenatal vitamin K, the signal is pregnancy-specific, and the runtime has no pregnancy context. A significant class-wide consumer warning would be a false positive outside pregnancy."
+      "b1_clinical_review_note": "The later review does not support routine antenatal vitamin K, the signal is pregnancy-specific, and the runtime has no pregnancy context. A significant class-wide consumer warning would be a false positive outside pregnancy.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_not_consumer_visible",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ANTICONVULSANTS_BIOTIN",
@@ -1719,8 +1770,11 @@
       "citation_review_note": "Downgraded severity and made the small pediatric evidence/routine-supplement uncertainty explicit.",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Downgraded severity and made the small pediatric evidence/routine-supplement uncertainty explicit."
+      "b1_clinical_review_note": "Downgraded severity and made the small pediatric evidence/routine-supplement uncertainty explicit.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ACEINHIBITORS_ZINC",
@@ -2064,8 +2118,11 @@
       "citation_review_note": "Reframed the effect using the 20-patient hypothyroidism cohort, removed the seven-volunteer 84%-to-58% headline magnitude, and limited four-hour separation to calcium supplements or calcium-containing medicines. Licensed-pharmacist delta review is pending.",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Limited four-hour separation advice to calcium supplements/products rather than ordinary calcium-rich meals."
+      "b1_clinical_review_note": "Limited four-hour separation advice to calcium supplements/products rather than ordinary calcium-rich meals.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_LEVOTHYROXINE_IRON",
@@ -2110,8 +2167,11 @@
       "citation_review_note": "Campbell 1992 was rechecked against the PubMed abstract and is accurately described as a small uncontrolled 12-week study of 14 patients. Unsupported magnitude and out-of-scope claims remain removed.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Direct interaction evidence and four-hour separation advice align; the Campbell study-design descriptor now correctly states that the trial was uncontrolled."
+      "b1_clinical_review_note": "Direct interaction evidence and four-hour separation advice align; the Campbell study-design descriptor now correctly states that the trial was uncontrolled.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_ANTIPSYCHOTICS_VITAMIND",
@@ -2371,9 +2431,12 @@
       "reviewer": "b1_clinical_copy_delta_evidence_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_note": "Narrowed the overbroad anticoagulant class to warfarin and removed speculative bone/vascular outcomes.",
-      "citation_review_note": "Narrowed the overbroad anticoagulant class to warfarin, removed speculative bone/vascular outcomes, and aligned onset with the DailyMed label's within-24-hours effect and 72-to-96-hour peak. Licensed-pharmacist delta review is pending."
+      "citation_review_note": "Narrowed the overbroad anticoagulant class to warfarin, removed speculative bone/vascular outcomes, and aligned onset with the DailyMed label's within-24-hours effect and 72-to-96-hour peak. Licensed-pharmacist delta review is pending.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_MAOIS_VITAMINB6",
@@ -2836,8 +2899,11 @@
       "reviewer": "lead_clinician_audit_2026_07",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current label and systematic review support the clinician-directed B6 recommendation."
+      "b1_clinical_review_note": "Current label and systematic review support the clinician-directed B6 recommendation.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_METHOTREXATE_FOLATE",
@@ -2879,9 +2945,12 @@
       "reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_note": "Explicitly separated low-dose inflammatory-disease folate support from oncology/rescue protocols.",
-      "citation_review_note": "Explicitly separated low-dose inflammatory-disease folate support from oncology/rescue protocols."
+      "citation_review_note": "Explicitly separated low-dose inflammatory-disease folate support from oncology/rescue protocols.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ORLISTAT_VITAMINA",
@@ -2924,8 +2993,11 @@
       "citation_review_note": "Retained the XENICAL label-directed daily ADEK multivitamin and two-hour separation, and added NIH ODS preformed-vitamin-A pregnancy safety framing. Licensed-pharmacist delta review is pending.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation."
+      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_ORLISTAT_VITAMIND",
@@ -2962,8 +3034,11 @@
       "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation."
+      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ORLISTAT_VITAMINE",
@@ -3000,8 +3075,11 @@
       "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation."
+      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_ORLISTAT_VITAMINK",
@@ -3038,8 +3116,11 @@
       "reviewer": "medication_depletion_section_09_specialized_therapies_audit",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation."
+      "b1_clinical_review_note": "Current XENICAL label supports daily ADEK multivitamin separation.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_SULFASALAZINE_FOLATE",
@@ -3077,8 +3158,11 @@
       "reviewer": "lead_clinician_audit_2026_07",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current label supports impaired folate absorption/metabolism and clinician direction."
+      "b1_clinical_review_note": "Current label supports impaired folate absorption/metabolism and clinician direction.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_COLCHICINE_VITAMINB12",
@@ -3121,9 +3205,12 @@
       "reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_disposition": "approved_with_wording_change",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
       "b1_clinical_review_note": "Kept the recognized malabsorption signal but removed any implication of universal periodic screening.",
-      "citation_review_note": "Kept the recognized malabsorption signal but removed any implication of universal periodic screening."
+      "citation_review_note": "Kept the recognized malabsorption signal but removed any implication of universal periodic screening.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "approved_for_controlled_beta",
+      "b1_clinical_approver": "PharmaGuide Clinical Team",
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINA",
@@ -3166,8 +3253,11 @@
       "citation_review_note": "Added the cholestyramine label's long-term water-miscible-form and asymmetric administration guidance plus NIH ODS preformed-vitamin-A pregnancy safety framing. Licensed-pharmacist delta review is pending.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption."
+      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMIND",
@@ -3205,8 +3295,11 @@
       "citation_review_note": "Added the cholestyramine label's long-term water-miscible-form and asymmetric administration guidance. Licensed-pharmacist delta review is pending.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption."
+      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINE",
@@ -3244,8 +3337,11 @@
       "citation_review_note": "Added the cholestyramine label's long-term water-miscible-form and asymmetric administration guidance. Licensed-pharmacist delta review is pending.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption."
+      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     },
     {
       "id": "DEP_CHOLESTYRAMINE_VITAMINK",
@@ -3283,8 +3379,11 @@
       "citation_review_note": "Added the cholestyramine label's long-term water-miscible-form, asymmetric administration, and hypoprothrombinemia/bleeding guidance. Licensed-pharmacist delta review is pending.",
       "b1_clinical_review_disposition": "approved",
       "b1_clinical_reviewed_at": "2026-07-27",
-      "b1_clinical_reviewer": "openai_codex_ai_clinical_audit",
-      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption."
+      "b1_clinical_review_note": "Current prescribing information supports reduced fat-soluble vitamin absorption.",
+      "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
+      "b1_clinical_approval_status": "pending_delta_review",
+      "b1_clinical_approver": null,
+      "b1_clinical_approved_at": null
     }
   ]
 }

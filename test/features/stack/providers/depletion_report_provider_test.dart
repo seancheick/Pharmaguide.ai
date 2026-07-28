@@ -43,6 +43,7 @@ Map<String, dynamic> _depletionsPayload() {
         'recommendation': 'Consider checking B12 status.',
         'onset_timeline': 'years',
         'evidence_level': 'established',
+        'citation_review_status': 'verified',
         'adequacy_threshold_mcg': 250,
         'sources': [
           {'source_type': 'reference', 'url': 'https://example.test/b12'},
@@ -64,6 +65,7 @@ Map<String, dynamic> _orlistatDepletionsPayload() {
         },
         'depletion_type': 'depletion',
         'severity': 'moderate',
+        'citation_review_status': 'verified',
       },
     ],
   };

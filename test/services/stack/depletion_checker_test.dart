@@ -27,6 +27,7 @@ Map<String, dynamic> _metforminB12Fixture({
         },
         'depletion_type': 'depletion',
         'severity': 'significant',
+        'citation_review_status': 'verified',
         'mechanism': 'Metformin impairs B12 absorption.',
         'clinical_impact': 'Up to 30% of long-term users develop low B12.',
         'recommendation': 'Consider B12 supplementation.',
@@ -66,6 +67,7 @@ void main() {
       },
       'depletion_type': 'depletion',
       'severity': 'significant',
+      'citation_review_status': 'verified',
       'mechanism': 'x',
       'recommendation': 'y',
     };
@@ -201,6 +203,7 @@ void main() {
       },
       'depletion_type': 'depletion',
       'severity': 'significant',
+      'citation_review_status': 'verified',
     };
 
     test('entry missing the nutrient canonical_id is dropped', () {
@@ -302,9 +305,8 @@ void main() {
   });
 
   group('DepletionChecker — citation-review publication rule (B1.2)', () {
-    // needs_revision / rejected are SUPPRESSED; verified emits normally;
-    // unverified (and absent, back-compat) still emits so the migration doesn't
-    // blank the monitor — but the status is carried so A2 can gate persistence.
+    // Only verified records may surface. Every other status, including absent
+    // and future/unknown values, fails closed.
     const metformin = (name: 'Metformin', drugClassId: null);
 
     Map<String, dynamic> entry({Object? status}) => {
@@ -353,27 +355,22 @@ void main() {
       expect(out.single.citationReviewStatus, 'verified');
     });
 
-    test(
-      'unverified and absent still emit (migration) and default sensibly',
-      () {
-        final present = checker.check(
-          medications: const [metformin],
-          depletionsData: {
-            'depletions': [entry(status: 'unverified')],
-          },
-        );
-        final absent = checker.check(
-          medications: const [metformin],
-          depletionsData: {
-            'depletions': [entry()],
-          },
-        );
-        expect(present, hasLength(1));
-        expect(present.single.citationReviewStatus, 'unverified');
-        expect(absent, hasLength(1));
-        expect(absent.single.citationReviewStatus, 'unverified');
-      },
-    );
+    test('unverified and absent statuses are suppressed', () {
+      final present = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry(status: 'unverified')],
+        },
+      );
+      final absent = checker.check(
+        medications: const [metformin],
+        depletionsData: {
+          'depletions': [entry()],
+        },
+      );
+      expect(present, isEmpty);
+      expect(absent, isEmpty);
+    });
   });
 
   group('medNutrientPublicationPolicy (B1.2)', () {
@@ -384,9 +381,9 @@ void main() {
       expect(p.notificationAllowed, isTrue);
     });
 
-    test('unverified allows display only (migration), no persist/notify', () {
+    test('unverified is fully suppressed', () {
       final p = medNutrientPublicationPolicy('unverified');
-      expect(p.displayAllowed, isTrue);
+      expect(p.displayAllowed, isFalse);
       expect(p.persistenceAllowed, isFalse);
       expect(p.notificationAllowed, isFalse);
     });
@@ -400,9 +397,9 @@ void main() {
       }
     });
 
-    test('unknown status is treated as unverified (conservative)', () {
+    test('unknown status is fully suppressed', () {
       final p = medNutrientPublicationPolicy('mystery');
-      expect(p.displayAllowed, isTrue);
+      expect(p.displayAllowed, isFalse);
       expect(p.persistenceAllowed, isFalse);
       expect(p.notificationAllowed, isFalse);
     });
@@ -450,6 +447,7 @@ void main() {
                 'canonical_id': 'vitamin_d',
               },
               'severity': 'moderate',
+              'citation_review_status': 'verified',
             },
           ],
         },
@@ -482,6 +480,7 @@ void main() {
                 'canonical_id': 'folate',
               },
               'severity': 'moderate',
+              'citation_review_status': 'verified',
             },
           ],
         },
@@ -536,6 +535,7 @@ void main() {
                     'canonical_id': c.canonicalId,
                   },
                   'severity': 'moderate',
+                  'citation_review_status': 'verified',
                 },
               ],
             },
@@ -689,6 +689,7 @@ void main() {
                 },
                 'depletion_type': 'functional_antagonism',
                 'severity': 'significant',
+                'citation_review_status': 'verified',
               },
             ],
           },
@@ -725,6 +726,7 @@ void main() {
                 },
                 'depletion_type': depletionType,
                 'severity': 'moderate',
+                'citation_review_status': 'verified',
                 'adequacy_threshold_mg': 500,
               },
             ],
@@ -769,6 +771,7 @@ void main() {
                 'canonical_id': 'vitamin_b12',
               },
               'severity': 'significant',
+              'citation_review_status': 'verified',
             },
           ],
         },
@@ -851,12 +854,14 @@ void main() {
             'drug_ref': {'display_name': 'Metformin'},
             'depleted_nutrient': {'standard_name': 'N1', 'canonical_id': 'n1'},
             'severity': 'significant',
+            'citation_review_status': 'verified',
           },
           {
             'id': 'B_PARTIAL',
             'drug_ref': {'display_name': 'Metformin'},
             'depleted_nutrient': {'standard_name': 'N2', 'canonical_id': 'n2'},
             'severity': 'significant',
+            'citation_review_status': 'verified',
             'adequacy_threshold_mcg': 500,
           },
           {
@@ -864,6 +869,7 @@ void main() {
             'drug_ref': {'display_name': 'Metformin'},
             'depleted_nutrient': {'standard_name': 'N3', 'canonical_id': 'n3'},
             'severity': 'mild',
+            'citation_review_status': 'verified',
           },
         ],
       };
@@ -908,6 +914,7 @@ void main() {
             'canonical_id': 'vitamin_c',
           },
           'severity': 'moderate',
+          'citation_review_status': 'verified',
         },
       ],
     };
@@ -956,6 +963,7 @@ void main() {
                 'canonical_id': 'vitamin_b12',
               },
               'severity': 'significant',
+              'citation_review_status': 'verified',
             },
           ],
         },

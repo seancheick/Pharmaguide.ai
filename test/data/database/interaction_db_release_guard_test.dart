@@ -35,6 +35,7 @@ const _acidsupp = 'class:acid_suppressants'; // Section 2 — iron (PPI + H2)
 // Positive: these MUST resolve to the given class.
 const _positives = <String, ({String rxcui, String name})>{
   '$_loopThiazide/furosemide': (rxcui: '4603', name: 'furosemide'),
+  '$_loopThiazide/ethacrynic acid': (rxcui: '4109', name: 'ethacrynic acid'),
   '$_loopThiazide/hydrochlorothiazide': (
     rxcui: '5487',
     name: 'hydrochlorothiazide',
