@@ -72,6 +72,7 @@ REQUIRED = ["class:loop_and_thiazide_diuretics", "class:proton_pump_inhibitors",
             "class:enzyme_inducing_antiseizure_medications", "class:loop_diuretics",
             "class:acid_suppressants", "class:valproate"]
 POS = [("class:loop_and_thiazide_diuretics", "4603", "furosemide"),
+       ("class:loop_and_thiazide_diuretics", "4109", "ethacrynic acid"),
        ("class:loop_and_thiazide_diuretics", "5487", "hydrochlorothiazide"),
        ("class:proton_pump_inhibitors", "7646", "omeprazole"),
        ("class:proton_pump_inhibitors", "40790", "pantoprazole"),

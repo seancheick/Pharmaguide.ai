@@ -115,9 +115,9 @@ class DepletionMatch {
   final String? detectedUnit;
 
   /// Citation-review status from the versioned artifact (B1.2): unverified /
-  /// verified / needs_revision / rejected. needs_revision + rejected are
-  /// suppressed by the checker; unverified still displays (migration) but must
-  /// not enter persisted history. Defaults to 'unverified' for a pre-B1.2 asset.
+  /// verified / needs_revision / rejected. Only verified records may surface;
+  /// every other value fails closed. Defaults to 'unverified' for a pre-B1.2
+  /// asset, which therefore remains suppressed.
   final String citationReviewStatus;
 
   /// Three-state coverage outcome for this user's stack. See
@@ -445,8 +445,8 @@ typedef MedNutrientPublication = ({
 });
 
 /// Map a `citation_review_status` to its publication eligibility (B1.2).
-/// verified → display+persist+notify; unverified → display only (migration);
-/// needs_revision / rejected → suppressed; unknown → conservative unverified.
+/// Only verified records may display, persist, or notify. Every other value,
+/// including unknown future statuses, fails closed.
 MedNutrientPublication medNutrientPublicationPolicy(
   String citationReviewStatus,
 ) {
@@ -466,10 +466,8 @@ MedNutrientPublication medNutrientPublicationPolicy(
       );
     case 'unverified':
     default:
-      // Migration: may display, but never persist or notify. Unknown statuses
-      // are treated as unverified (conservative).
       return (
-        displayAllowed: true,
+        displayAllowed: false,
         persistenceAllowed: false,
         notificationAllowed: false,
       );
@@ -621,10 +619,9 @@ class DepletionChecker {
 
       if (!matches) continue;
 
-      // Citation-review publication rule (B1.2): needs_revision/rejected never
-      // surface; unverified still displays during the migration but is carried
-      // so A2 can keep it out of persisted history. Unknown → conservative
-      // 'unverified'.
+      // Citation-review publication rule (B1.2): only verified records surface.
+      // Missing, unverified, rejected, needs_revision, and unknown future
+      // statuses all fail closed.
       var reviewStatus =
           (dep['citation_review_status']?.toString() ?? 'unverified')
               .trim()
