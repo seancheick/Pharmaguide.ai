@@ -318,9 +318,14 @@ class RxNormApiService {
     final atcUrl = Uri.parse(
       '$_baseUrl/REST/rxclass/class/byRxcui.json?rxcui=$r&relaSource=ATC',
     );
-    final medrtUrl = Uri.parse(
-      '$_baseUrl/REST/rxclass/class/byRxcui.json?rxcui=$r&relaSource=MEDRT',
-    );
+    final medrtUrl = Uri.parse('$_baseUrl/REST/rxclass/class/byRxcui.json')
+        .replace(
+          queryParameters: {
+            'rxcui': r,
+            'relaSource': 'MEDRT',
+            'relas': 'has_moa has_pe',
+          },
+        );
 
     final atcFuture = _safeGet(atcUrl);
     final medrtFuture = _safeGet(medrtUrl);
@@ -330,7 +335,11 @@ class RxNormApiService {
 
     final classes = <String>{};
     if (atcRaw != null) classes.addAll(_parseClasses(atcRaw));
-    if (medrtRaw != null) classes.addAll(_parseClasses(medrtRaw));
+    if (medrtRaw != null) {
+      classes.addAll(
+        _parseClasses(medrtRaw, allowedRelations: const {'has_moa', 'has_pe'}),
+      );
+    }
 
     final db = _offlineDb;
     if (db != null) {
@@ -518,7 +527,10 @@ class RxNormApiService {
   /// stores them as `class:ace_inhibitors`. We do the slug here so the
   /// id round-trips with the bundle without the caller having to know
   /// the convention.
-  static List<String> _parseClasses(String raw) {
+  static List<String> _parseClasses(
+    String raw, {
+    Set<String>? allowedRelations,
+  }) {
     try {
       final body = jsonDecode(raw);
       if (body is! Map) return const <String>[];
@@ -531,6 +543,10 @@ class RxNormApiService {
       final seen = <String>{};
       for (final info in infos) {
         if (info is! Map) continue;
+        final relation = info['rela']?.toString().toLowerCase();
+        if (allowedRelations != null && !allowedRelations.contains(relation)) {
+          continue;
+        }
         final concept = info['rxclassMinConceptItem'];
         if (concept is! Map) continue;
         final name = concept['className']?.toString();
