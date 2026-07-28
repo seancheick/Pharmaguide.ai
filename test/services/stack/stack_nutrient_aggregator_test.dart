@@ -444,7 +444,7 @@ void main() {
       ];
       final total = aggregator.aggregate(stack)['iron']!;
       expect(total.totalAmount, 10);
-      expect(total.hasUnitConflict, isTrue);
+      expect(total.hasUnitConflict, isFalse);
       expect(total.contributions, hasLength(1));
       expect(total.excludedContributions, hasLength(1));
       expect(
@@ -494,7 +494,7 @@ void main() {
       expect(total.unit, 'mcg');
     });
 
-    test('pipeline skipped UL rows are surfaced as excluded', () {
+    test('pipeline-skipped UL rows still contribute to intake totals', () {
       final stack = [
         _productOf('s1', 'Vitamin A', [
           {
@@ -511,13 +511,11 @@ void main() {
         ]),
       ];
       final total = aggregator.aggregate(stack)['vitamin a']!;
-      expect(total.totalAmount, 0);
-      expect(total.contributions, isEmpty);
-      expect(total.excludedContributions, hasLength(1));
-      expect(
-        total.excludedContributions.single.reason,
-        NutrientExclusionReason.skippedByPipeline,
-      );
+      expect(total.totalAmount, 25000);
+      expect(total.unit, 'iu');
+      expect(total.contributions, hasLength(1));
+      expect(total.excludedContributions, isEmpty);
+      expect(total.hasUnitConflict, isFalse);
     });
   });
 

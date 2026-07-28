@@ -1232,6 +1232,64 @@ void main() {
   // checkMedicationInteractions
   // -------------------------------------------------------------------------
   group('checkMedicationInteractions', () {
+    test('honors an authored medication-pair dose threshold', () async {
+      await db
+          .into(db.interactions)
+          .insert(
+            _row(
+              id: 'DDI_METFORMIN_CHROMIUM_THRESHOLD',
+              a1Type: 'drug',
+              a1Id: '6809',
+              a1Name: 'Metformin',
+              a2Type: 'supplement',
+              a2Id: 'C0000001',
+              a2Name: 'Chromium',
+              a2Canonical: 'chromium',
+              doseDependent: 1,
+              direction: 'harmful',
+              materiality: 'dose_dependent',
+              doseThresholdJson:
+                  '{"agent_canonical_id":"chromium","value":200,"unit":"mcg","basis":"per_day"}',
+            ),
+          );
+
+      Map<String, StackDoseTotal> totals(double chromiumMcg) =>
+          const StackDoseSummer().sum([
+            StackItemNutrients(
+              stackEntryId: 'multi',
+              productName: 'Multivitamin',
+              ingredients: [
+                {
+                  'canonical_id': 'chromium',
+                  'name': 'Chromium',
+                  'quantity': chromiumMcg,
+                  'unit': 'mcg',
+                },
+              ],
+            ),
+          ]);
+
+      Future<List<InteractionResult>> check(
+        Map<String, StackDoseTotal>? doseTotals,
+      ) => checker.checkMedicationInteractions(
+        newProductCanonicalIds: const ['chromium'],
+        stackMedications: [
+          _medication(id: 'metformin', name: 'Metformin', rxcui: '6809'),
+        ],
+        db: db,
+        newProductName: 'Multivitamin',
+        stackDoseTotals: doseTotals,
+      );
+
+      expect(await check(totals(199)), isEmpty);
+      expect(await check(totals(200)), hasLength(1));
+      expect(
+        await check(null),
+        hasLength(1),
+        reason: 'unknown dose remains fail-open',
+      );
+    });
+
     test(
       'prefers a medication-specific rule over a broader class rule for the same nutrient',
       () async {

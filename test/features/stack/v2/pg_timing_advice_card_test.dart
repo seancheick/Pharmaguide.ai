@@ -201,6 +201,71 @@ void main() {
     expect(find.text('Take magnesium with a meal'), findsOneWidget);
   });
 
+  testWidgets('single-product food guidance names the physical supplement', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: PGTimingAdviceCard(
+            optimizations: [
+              TimingOptimization(
+                ruleId: 'timing_vitamin_a_with_fat',
+                ingredient1: 'vitamin a',
+                ingredient2: 'dietary fat',
+                advice: 'Take vitamin A with a meal containing fat.',
+                ruleType: TimingRuleType.takeWithFood,
+                scoreImpact: -1,
+                evidenceLevel: EvidenceLevel.established,
+                product1Name: 'O.N.E. Multivitamin',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Take O.N.E. Multivitamin with a meal containing fat.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Take vitamin A with a meal containing fat.'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('single-product empty-stomach guidance names the physical item', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: PGTimingAdviceCard(
+            optimizations: [
+              TimingOptimization(
+                ruleId: 'timing_alpha_lipoic_acid_empty',
+                ingredient1: 'alpha-lipoic acid',
+                ingredient2: 'food',
+                advice: 'Take alpha-lipoic acid on an empty stomach.',
+                ruleType: TimingRuleType.takeOnEmptyStomach,
+                scoreImpact: -1,
+                evidenceLevel: EvidenceLevel.probable,
+                product1Name: 'O.N.E. Multivitamin',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Take O.N.E. Multivitamin on an empty stomach.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Take alpha-lipoic acid'), findsNothing);
+  });
+
   testWidgets('visible rows preserve engine priority order', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(

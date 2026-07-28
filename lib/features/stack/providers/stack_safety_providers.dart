@@ -206,6 +206,7 @@ final safetyCheckForAddProvider = FutureProvider.family
               stackMedications: normalized.rows,
               db: interactionDb,
               newProductName: candidate.productName,
+              stackDoseTotals: pairwiseDoseTotals,
             ),
           );
         } on Object catch (e, st) {
@@ -451,6 +452,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           stackMedications: safetyMedications,
           db: interactionDb,
           newProductName: self.entry.name,
+          stackDoseTotals: pairwiseDoseTotals,
         );
       } on Object catch (e, st) {
         checksIncomplete = true;
