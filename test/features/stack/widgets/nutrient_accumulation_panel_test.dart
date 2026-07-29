@@ -146,6 +146,53 @@ void main() {
     expect(find.byKey(const Key('warn-iron')), findsOneWidget);
   });
 
+  testWidgets('safety warnings stay ahead of non-warning UL rows', (
+    tester,
+  ) async {
+    final statuses = [
+      const NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'vitamin_d',
+          displayName: 'Vitamin D',
+          totalAmount: 25,
+          unit: 'mcg',
+          contributions: [],
+        ),
+        tier: NutrientTier.adequate,
+        rda: 15,
+        ul: 100,
+        pctOfRda: 166.7,
+        pctOfUl: 25,
+      ),
+      const NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'zinc',
+          displayName: 'Zinc',
+          totalAmount: 35,
+          unit: 'mg',
+          contributions: [],
+        ),
+        tier: NutrientTier.approachingUl,
+        rda: 11,
+        ul: 40,
+        pctOfRda: 318.2,
+        warning: 'Approaching the upper limit',
+      ),
+    ];
+
+    await pumpPanel(
+      tester,
+      override: AsyncValue<List<NutrientStatus>>.data(statuses),
+    );
+    await tester.pumpAndSettle();
+
+    final warningTop = tester.getTopLeft(find.byKey(const Key('warn-zinc'))).dy;
+    final regularTop = tester
+        .getTopLeft(find.byKey(const Key('row-vitamin_d')))
+        .dy;
+    expect(warningTop, lessThan(regularTop));
+  });
+
   testWidgets('non-warning rows render under "X tracked" header', (
     tester,
   ) async {
@@ -192,6 +239,75 @@ void main() {
     // No alert badge for non-warning rows.
     expect(find.textContaining('alert'), findsNothing);
   });
+
+  testWidgets(
+    'separates upper limits, intake targets without ULs, and label amounts',
+    (tester) async {
+      final statuses = [
+        const NutrientStatus(
+          total: NutrientTotal(
+            canonicalId: 'vitamin_d',
+            displayName: 'Vitamin D',
+            totalAmount: 25,
+            unit: 'mcg',
+            contributions: [],
+          ),
+          tier: NutrientTier.adequate,
+          rda: 15,
+          ul: 100,
+          pctOfRda: 166.7,
+          pctOfUl: 25,
+        ),
+        const NutrientStatus(
+          total: NutrientTotal(
+            canonicalId: 'vitamin_b12',
+            displayName: 'Vitamin B12',
+            totalAmount: 5,
+            unit: 'mcg',
+            contributions: [],
+          ),
+          tier: NutrientTier.aboveAdequateNoUl,
+          rda: 2.4,
+          pctOfRda: 208.3,
+        ),
+        const NutrientStatus(
+          total: NutrientTotal(
+            canonicalId: 'lycopene',
+            displayName: 'Lycopene',
+            totalAmount: 10,
+            unit: 'mg',
+            contributions: [],
+          ),
+          tier: NutrientTier.noRda,
+        ),
+      ];
+
+      await pumpPanel(
+        tester,
+        override: AsyncValue<List<NutrientStatus>>.data(statuses),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Safety limits'), findsOneWidget);
+      expect(find.text('Intake targets — no UL'), findsOneWidget);
+      expect(find.text('Label amounts'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Above 100% of a target is not automatically unsafe',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Vitamin D'), findsOneWidget);
+      expect(find.text('Vitamin B12'), findsOneWidget);
+
+      // Raw label amounts stay compact until the user asks to see them.
+      expect(find.text('Lycopene'), findsNothing);
+      await tester.tap(find.text('Show 1 label amount'));
+      await tester.pumpAndSettle();
+      expect(find.text('Lycopene'), findsOneWidget);
+      expect(find.text('Hide label amounts'), findsOneWidget);
+    },
+  );
 }
 
 /// Returns a future that never completes, used to keep the panel in
