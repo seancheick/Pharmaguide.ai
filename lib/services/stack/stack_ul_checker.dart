@@ -123,12 +123,26 @@ class StackUlChecker {
     }
     final entry = resolved.entry;
 
-    final amountInReferenceUnit = _amountInReferenceUnit(
+    final expectedUnit = (entry['unit'] ?? '').toString();
+    final adequacyAmountInReferenceUnit = _adequacyAmountInReferenceUnit(
+      total.adequacyAmount,
+      nutrientId: resolved.id,
+      actualUnit: total.unit,
+      expectedUnit: expectedUnit,
+    );
+    final maximumAdequacyAmountInReferenceUnit = _adequacyAmountInReferenceUnit(
+      total.totalAmount,
+      nutrientId: resolved.id,
+      actualUnit: total.unit,
+      expectedUnit: expectedUnit,
+    );
+    final safetyAmountInReferenceUnit = _amountInReferenceUnit(
       total.totalAmount,
       actualUnit: total.unit,
-      expectedUnit: (entry['unit'] ?? '').toString(),
+      expectedUnit: expectedUnit,
     );
-    if (amountInReferenceUnit == null) {
+    if (adequacyAmountInReferenceUnit == null &&
+        safetyAmountInReferenceUnit == null) {
       return NutrientStatus(total: total, tier: NutrientTier.noRda);
     }
 
@@ -145,11 +159,17 @@ class StackUlChecker {
     );
     final ul = ulLookup.value;
 
-    final pctOfRda = (rda != null && rda > 0)
-        ? (amountInReferenceUnit / rda) * 100.0
+    final pctOfRda =
+        (rda != null && rda > 0 && adequacyAmountInReferenceUnit != null)
+        ? (adequacyAmountInReferenceUnit / rda) * 100.0
         : null;
-    final recomputedPctOfUl = (ul != null && ul > 0)
-        ? (amountInReferenceUnit / ul) * 100.0
+    final maximumPctOfRda =
+        (rda != null && rda > 0 && maximumAdequacyAmountInReferenceUnit != null)
+        ? (maximumAdequacyAmountInReferenceUnit / rda) * 100.0
+        : null;
+    final recomputedPctOfUl =
+        (ul != null && ul > 0 && safetyAmountInReferenceUnit != null)
+        ? (safetyAmountInReferenceUnit / ul) * 100.0
         : null;
     // Surface the pipeline's percent-of-UL when it supplied one so the shown
     // number agrees with the verdict-driven tier; else the client recompute.
@@ -160,6 +180,7 @@ class StackUlChecker {
     final tier = _classify(
       pctOfRda: pctOfRda,
       pctOfUl: recomputedPctOfUl,
+      hasEstablishedUl: ul != null,
       verdict: verdict,
     );
     final warning =
@@ -173,10 +194,15 @@ class StackUlChecker {
       rda: rda,
       ul: ul,
       pctOfRda: pctOfRda,
+      maximumPctOfRda: maximumPctOfRda,
       pctOfUl: pctOfUl,
       warning: warning,
       rdaIsBaseline: rdaLookup.isBaseline,
       ulIsFallback: ulLookup.isFallback,
+      ulAssessmentIndeterminate:
+          ul != null &&
+          safetyAmountInReferenceUnit == null &&
+          (verdict == null || !verdict.isDefinitive),
     );
   }
 
@@ -354,6 +380,7 @@ class StackUlChecker {
   NutrientTier _classify({
     required double? pctOfRda,
     required double? pctOfUl,
+    required bool hasEstablishedUl,
     PipelineUlVerdict? verdict,
   }) {
     // The pipeline's UL verdict takes precedence over the client recompute:
@@ -382,7 +409,7 @@ class StackUlChecker {
     // approach — so it must NEVER escalate to the amber abundant/aboveTypical
     // tiers (those imply a UL to monitor toward). Anything at or above the
     // intake target is a calm "above adequate".
-    if (pctOfUl == null) {
+    if (!hasEstablishedUl) {
       if (pctOfRda >= 100.0) return NutrientTier.aboveAdequateNoUl;
       if (pctOfRda >= 50.0) return NutrientTier.adequate;
       return NutrientTier.underFifty;
@@ -461,6 +488,33 @@ class StackUlChecker {
     final expectedGrams = massGramsFactor(expected);
     if (actualGrams == null || expectedGrams == null) return null;
     return amount * actualGrams / expectedGrams;
+  }
+
+  static double? _adequacyAmountInReferenceUnit(
+    double amount, {
+    required String nutrientId,
+    required String actualUnit,
+    required String expectedUnit,
+  }) {
+    final direct = _amountInReferenceUnit(
+      amount,
+      actualUnit: actualUnit,
+      expectedUnit: expectedUnit,
+    );
+    if (direct != null) return direct;
+
+    // FDA Supplement Facts Vitamin A amounts are declared in mcg RAE. DSLD
+    // sometimes serializes that label unit as bare "mcg". It remains valid
+    // for total-vitamin-A RDA/AI coverage, but this bridge is intentionally
+    // confined to adequacy: the UL applies only to preformed Vitamin A, so
+    // safety comparison still requires form lineage or a pipeline verdict.
+    final id = _normalizeKey(nutrientId);
+    final actual = normalizeDoseUnit(actualUnit);
+    final expected = normalizeDoseUnit(expectedUnit);
+    if (id == 'vitamin_a' && actual == 'mcg' && expected == 'mcg rae') {
+      return amount;
+    }
+    return null;
   }
 
   static bool _unitMatchesReference(String actual, String expected) {

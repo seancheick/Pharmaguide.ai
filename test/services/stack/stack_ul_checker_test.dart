@@ -7,6 +7,7 @@
 // root-bundle asset loader which needs a widget test context.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 
@@ -91,6 +92,26 @@ void main() {
         ],
       },
       {
+        'id': 'vitamin_a',
+        'standard_name': 'Vitamin A',
+        'unit': 'mcg RAE',
+        'highest_ul': 3000,
+        'data': [
+          {'group': 'Male', 'age_range': '19-30', 'rda_ai': 900, 'ul': 3000},
+          {'group': 'Female', 'age_range': '19-30', 'rda_ai': 700, 'ul': 3000},
+        ],
+      },
+      {
+        'id': 'vitamin_k',
+        'standard_name': 'Vitamin K',
+        'unit': 'mcg',
+        'nutrient_class': 'floor',
+        'data': [
+          {'group': 'Male', 'age_range': '19-30', 'rda_ai': 120},
+          {'group': 'Female', 'age_range': '19-30', 'rda_ai': 90},
+        ],
+      },
+      {
         'id': 'folate',
         'standard_name': 'Folate',
         'unit': 'mcg DFE',
@@ -139,6 +160,69 @@ void main() {
   };
 
   final checker = StackUlChecker(rdaData: rdaFixture);
+
+  test('replays the O.N.E. Multivitamin plus Calcium K/D benchmark rows', () {
+    const aggregator = StackNutrientAggregator();
+    final totals = aggregator.aggregate([
+      const StackItemNutrients(
+        stackEntryId: 'one',
+        productName: 'O.N.E. Multivitamin',
+        ingredients: [
+          {
+            'canonical_id': 'vitamin_a',
+            'standard_name': 'Vitamin A',
+            'per_day_min': 1125,
+            'per_day_max': 1125,
+            'converted_unit': 'mcg',
+            'skip_ul_check': true,
+            'skip_ul_reason': 'unknown_vitamin_form',
+          },
+        ],
+      ),
+      const StackItemNutrients(
+        stackEntryId: 'cal-kd',
+        productName: 'Calcium K/D',
+        ingredients: [
+          {
+            'canonical_id': 'vitamin_k1',
+            'nutrient_group_id': 'vitamin_k',
+            'nutrient_group_name': 'Vitamin K',
+            'ingredient': 'Vitamin K1',
+            'per_day_min': 100,
+            'per_day_max': 300,
+            'converted_unit': 'mcg',
+          },
+          {
+            'canonical_id': 'vitamin_k2',
+            'nutrient_group_id': 'vitamin_k',
+            'nutrient_group_name': 'Vitamin K',
+            'ingredient': 'Vitamin K2',
+            'per_day_min': 30,
+            'per_day_max': 90,
+            'converted_unit': 'mcg',
+          },
+        ],
+      ),
+    ]);
+
+    final statuses = {
+      for (final status in checker.check(
+        totals,
+        ageBracket: '19-30',
+        sex: 'Male',
+      ))
+        status.total.canonicalId: status,
+    };
+
+    expect(statuses['vitamin_a']!.pctOfRda, closeTo(125, 0.1));
+    expect(statuses['vitamin_a']!.pctOfUl, isNull);
+    expect(statuses['vitamin_a']!.ulAssessmentIndeterminate, isTrue);
+    expect(statuses['vitamin_k']!.total.displayName, 'Vitamin K');
+    expect(statuses['vitamin_k']!.total.minimumTotalAmount, 130);
+    expect(statuses['vitamin_k']!.total.totalAmount, 390);
+    expect(statuses['vitamin_k']!.pctOfRda, closeTo(108.3, 0.1));
+    expect(statuses['vitamin_k']!.maximumPctOfRda, closeTo(325, 0.1));
+  });
 
   group('StackUlChecker — tier classification', () {
     test('noRda tier when nutrient is not in reference data', () {
@@ -213,6 +297,50 @@ void main() {
   });
 
   group('StackUlChecker — demographic lookup', () {
+    test(
+      'uses minimum exposure for target and maximum exposure for safety',
+      () {
+        const total = NutrientTotal(
+          canonicalId: 'vitamin_k',
+          displayName: 'Vitamin K',
+          minimumTotalAmount: 130,
+          totalAmount: 390,
+          unit: 'mcg',
+          contributions: [],
+        );
+
+        final result = checker
+            .check({'vitamin_k': total}, ageBracket: '19-30', sex: 'Male')
+            .single;
+
+        expect(result.pctOfRda, closeTo(108.3, 0.1));
+        expect(result.maximumPctOfRda, closeTo(325.0, 0.1));
+        expect(result.ul, isNull);
+        expect(result.pctOfUl, isNull);
+        expect(result.tier, NutrientTier.aboveAdequateNoUl);
+      },
+    );
+
+    test('Vitamin A mcg supports target but not a mixed-form UL guess', () {
+      const total = NutrientTotal(
+        canonicalId: 'vitamin_a',
+        displayName: 'Vitamin A',
+        totalAmount: 1125,
+        unit: 'mcg',
+        contributions: [],
+      );
+
+      final result = checker
+          .check({'vitamin_a': total}, ageBracket: '19-30', sex: 'Male')
+          .single;
+
+      expect(result.pctOfRda, closeTo(125.0, 0.1));
+      expect(result.ul, 3000);
+      expect(result.pctOfUl, isNull);
+      expect(result.ulAssessmentIndeterminate, isTrue);
+      expect(result.tier, NutrientTier.abundant);
+    });
+
     test('male RDA differs from female RDA for iron', () {
       final male = checker.check(
         _totals([_total('iron', 'Iron', 18, 'mg')]),
