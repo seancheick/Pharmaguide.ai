@@ -9,12 +9,13 @@
 //   * error         → silent shrink (the rest of the stack screen still
 //                     works; no need to fail loud over a panel)
 //   * empty stack   → hidden entirely (handled by SizedBox.shrink)
-//   * one warning   → expanded inline list
-//   * many warnings → expanded inline list, scroll-friendly
+//   * UL benchmarks → expanded inline list, with warnings first
+//   * intake targets without a UL → compact list
+//   * no benchmark  → collapsed label-amount list
 //
-// We deliberately do NOT make this collapsible at first launch. The
-// whole point is that the most dangerous nutrient is visible the
-// moment the user opens the screen.
+// Safety-limit rows are deliberately not collapsible. The whole point
+// is that the most dangerous nutrient is visible the moment the user
+// opens the screen. Lower-risk benchmark groups stay compact.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,11 +79,12 @@ class _PanelBody extends StatefulWidget {
 }
 
 class _PanelBodyState extends State<_PanelBody> {
-  /// How many non-warning nutrients to show before the user taps "Show
-  /// all". Keeps the stack screen scannable on first load.
-  static const _collapsedLimit = 8;
+  /// Keeps intake-target rows useful without letting the stack screen
+  /// become needlessly long.
+  static const _targetCollapsedLimit = 6;
 
-  bool _expanded = false;
+  bool _targetsExpanded = false;
+  bool _labelAmountsExpanded = false;
 
   /// Rank a nutrient by how close it is to its risk ceiling, so the
   /// panel surfaces the most clinically relevant totals first.
@@ -98,15 +100,36 @@ class _PanelBodyState extends State<_PanelBody> {
     return -1; // unranked
   }
 
+  static bool _hasUpperLimit(NutrientStatus status) =>
+      status.ul != null || status.pctOfUl != null || status.shouldWarn;
+
+  static int _compareSafetyLimits(NutrientStatus a, NutrientStatus b) {
+    if (a.shouldWarn != b.shouldWarn) {
+      return a.shouldWarn ? -1 : 1;
+    }
+    return _riskScore(b).compareTo(_riskScore(a));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final warnings = widget.statuses.where((s) => s.shouldWarn).toList()
-      ..sort((a, b) => _riskScore(b).compareTo(_riskScore(a)));
-    final notable = widget.statuses.where((s) => !s.shouldWarn).toList()
-      ..sort((a, b) => _riskScore(b).compareTo(_riskScore(a)));
+    final safetyLimits = widget.statuses.where(_hasUpperLimit).toList()
+      ..sort(_compareSafetyLimits);
+    final intakeTargets =
+        widget.statuses
+            .where((s) => !_hasUpperLimit(s) && s.pctOfRda != null)
+            .toList()
+          ..sort((a, b) => (b.pctOfRda ?? -1).compareTo(a.pctOfRda ?? -1));
+    final labelAmounts =
+        widget.statuses
+            .where((s) => !_hasUpperLimit(s) && s.pctOfRda == null)
+            .toList()
+          ..sort((a, b) => a.total.displayName.compareTo(b.total.displayName));
 
-    final hasMore = notable.length > _collapsedLimit;
-    final shown = _expanded ? notable : notable.take(_collapsedLimit).toList();
+    final hasMoreTargets = intakeTargets.length > _targetCollapsedLimit;
+    final shownTargets = _targetsExpanded
+        ? intakeTargets
+        : intakeTargets.take(_targetCollapsedLimit).toList();
+    final warningCount = widget.statuses.where((s) => s.shouldWarn).length;
 
     return Padding(
       padding: const EdgeInsets.all(V2Spacing.space8),
@@ -115,84 +138,203 @@ class _PanelBodyState extends State<_PanelBody> {
         children: [
           _Header(
             totalNutrients: widget.statuses.length,
-            warningCount: warnings.length,
+            warningCount: warningCount,
           ),
           const Divider(height: 1, color: V2Colors.outline),
-          // Warnings always render at the top, sorted by risk score —
-          // safety outranks user preference.
-          for (final s in warnings)
-            NutrientProgressBar(
-              key: Key('warn-${s.total.canonicalId}'),
-              status: s,
+          if (safetyLimits.isNotEmpty) ...[
+            _SectionHeading(
+              title: 'Safety limits',
+              description:
+                  'These nutrients have an established upper limit (UL). '
+                  'Warnings stay visible.',
+              count: safetyLimits.length,
             ),
-          if (warnings.isNotEmpty && notable.isNotEmpty)
-            const Divider(height: 16, color: V2Colors.outline),
-          // Notable nutrients (no warning) sorted by %UL/%RDA desc.
-          for (final s in shown)
-            NutrientProgressBar(
-              key: Key('row-${s.total.canonicalId}'),
-              status: s,
+            for (final status in safetyLimits)
+              NutrientProgressBar(
+                key: Key(
+                  '${status.shouldWarn ? "warn" : "row"}-'
+                  '${status.total.canonicalId}',
+                ),
+                status: status,
+              ),
+          ],
+          if (safetyLimits.isNotEmpty && intakeTargets.isNotEmpty)
+            const _SectionDivider(),
+          if (intakeTargets.isNotEmpty) ...[
+            _SectionHeading(
+              title: 'Intake targets — no UL',
+              description:
+                  'These nutrients have an intake target but no established '
+                  'UL. Above 100% of a target is not automatically unsafe.',
+              count: intakeTargets.length,
             ),
-          if (hasMore)
-            _ShowMoreRow(
-              expanded: _expanded,
-              totalRemaining: notable.length - _collapsedLimit,
-              totalAll: notable.length,
-              onTap: () => setState(() => _expanded = !_expanded),
+            for (final status in shownTargets)
+              NutrientProgressBar(
+                key: Key('row-${status.total.canonicalId}'),
+                status: status,
+              ),
+            if (hasMoreTargets)
+              _SectionToggle(
+                label: _targetsExpanded
+                    ? 'Show fewer intake targets'
+                    : 'Show all ${intakeTargets.length} intake targets',
+                expanded: _targetsExpanded,
+                onTap: () =>
+                    setState(() => _targetsExpanded = !_targetsExpanded),
+              ),
+          ],
+          if ((safetyLimits.isNotEmpty || intakeTargets.isNotEmpty) &&
+              labelAmounts.isNotEmpty)
+            const _SectionDivider(),
+          if (labelAmounts.isNotEmpty) ...[
+            _SectionHeading(
+              title: 'Label amounts',
+              description:
+                  'No reliable intake target or UL is available, so only the '
+                  'label amount is shown.',
+              count: labelAmounts.length,
             ),
+            if (_labelAmountsExpanded)
+              for (final status in labelAmounts)
+                NutrientProgressBar(
+                  key: Key('row-${status.total.canonicalId}'),
+                  status: status,
+                ),
+            _SectionToggle(
+              label: _labelAmountsExpanded
+                  ? 'Hide label amounts'
+                  : 'Show ${labelAmounts.length} label '
+                        '${labelAmounts.length == 1 ? "amount" : "amounts"}',
+              expanded: _labelAmountsExpanded,
+              onTap: () => setState(
+                () => _labelAmountsExpanded = !_labelAmountsExpanded,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// Tappable footer row that toggles between showing the top 8 and the
-/// full list of tracked nutrients. Placed inside the nutrient card so
-/// the user keeps context instead of navigating away.
-class _ShowMoreRow extends StatelessWidget {
-  const _ShowMoreRow({
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({
+    required this.title,
+    required this.description,
+    required this.count,
+  });
+
+  final String title;
+  final String description;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space12,
+          V2Spacing.space16,
+          V2Spacing.space12,
+          V2Spacing.space8,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  ),
+                ),
+                Text(
+                  '$count ${count == 1 ? "nutrient" : "nutrients"}',
+                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                ),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              description,
+              style: V2Typography.caption(color: V2Colors.fgMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: V2Spacing.space4),
+      child: Divider(height: 1, color: V2Colors.outline),
+    );
+  }
+}
+
+/// Accessible, full-width control for revealing a compact nutrient group.
+class _SectionToggle extends StatelessWidget {
+  const _SectionToggle({
+    required this.label,
     required this.expanded,
-    required this.totalRemaining,
-    required this.totalAll,
     required this.onTap,
   });
 
+  final String label;
   final bool expanded;
-  final int totalRemaining;
-  final int totalAll;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final label = expanded
-        ? 'Show fewer'
-        : 'Show all $totalAll tracked nutrients';
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          V2Spacing.space12,
-          V2Spacing.space12,
-          V2Spacing.space12,
-          V2Spacing.space8,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(label, style: V2Typography.label(color: V2Colors.accent)),
-            const SizedBox(width: V2Spacing.space4),
-            AnimatedRotation(
-              turns: expanded ? 0.5 : 0,
-              duration: V2Motion.fast,
-              child: const Icon(
-                Icons.expand_more_rounded,
-                size: 18,
-                color: V2Colors.accent,
+    return Semantics(
+      button: true,
+      expanded: expanded,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: SizedBox(
+          width: double.infinity,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: V2Spacing.space48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: V2Spacing.space12,
+                vertical: V2Spacing.space8,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: V2Typography.label(color: V2Colors.accent),
+                    ),
+                  ),
+                  const SizedBox(width: V2Spacing.space4),
+                  AnimatedRotation(
+                    turns: expanded ? 0.5 : 0,
+                    duration: V2Motion.fast,
+                    child: const Icon(
+                      Icons.expand_more_rounded,
+                      size: 18,
+                      color: V2Colors.accent,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
