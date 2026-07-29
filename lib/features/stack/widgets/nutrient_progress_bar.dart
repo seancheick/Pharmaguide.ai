@@ -95,7 +95,11 @@ class NutrientProgressBar extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    _formatAmount(total.totalAmount, total.unit),
+                    _formatAmountRange(
+                      total.minimumTotalAmount,
+                      total.totalAmount,
+                      total.unit,
+                    ),
                     style: _monoDataStyle(tierColor),
                   ),
                   const SizedBox(width: V2Spacing.space8),
@@ -117,6 +121,14 @@ class NutrientProgressBar extends StatelessWidget {
               if (status.warning != null) ...[
                 const SizedBox(height: V2Spacing.space8),
                 _WarningChip(text: status.warning!, color: tierColor),
+              ],
+              if (status.ulAssessmentIndeterminate) ...[
+                const SizedBox(height: V2Spacing.space4),
+                Text(
+                  'UL not calculated: the label does not provide enough '
+                  'form detail.',
+                  style: _captionStyle(V2Colors.fgMuted),
+                ),
               ],
               if (total.hasUnitConflict) ...[
                 const SizedBox(height: V2Spacing.space4),
@@ -154,7 +166,10 @@ class NutrientProgressBar extends StatelessWidget {
     if (ul != null) {
       text = '${ul.round()}% UL';
     } else if (rda != null) {
-      final formatted = _formatTargetPercent(rda);
+      final maximumRda = status.maximumPctOfRda;
+      final formatted = maximumRda != null && (maximumRda - rda).abs() > 0.05
+          ? _formatTargetRange(rda, maximumRda)
+          : _formatTargetPercent(rda);
       text = status.rdaIsBaseline ? '$formatted*' : formatted;
     } else {
       text = '—';
@@ -169,11 +184,23 @@ class NutrientProgressBar extends StatelessWidget {
   /// AI. Calling those "% RDA" is clinically inaccurate. Extreme values
   /// collapse to "Nx target" instead of "2500% target".
   static String _formatTargetPercent(double pct) {
+    return '${_formatTargetValue(pct)} target';
+  }
+
+  static String _formatTargetValue(double pct) {
     if (pct > 1000) {
       final multiplier = (pct / 100).round();
-      return '${multiplier}x target';
+      return '${multiplier}x';
     }
-    return '${pct.round()}% target';
+    return '${pct.round()}%';
+  }
+
+  static String _formatTargetRange(double minimum, double maximum) {
+    if (minimum <= 1000 && maximum <= 1000) {
+      return '${minimum.round()}–${maximum.round()}% target';
+    }
+    return '${_formatTargetValue(minimum)}–'
+        '${_formatTargetValue(maximum)} target';
   }
 
   double _fillPercent(NutrientStatus status) {
@@ -189,6 +216,19 @@ class NutrientProgressBar extends StatelessWidget {
         ? amount.round().toString()
         : amount.toStringAsFixed(amount == amount.roundToDouble() ? 0 : 1);
     return unit.isEmpty ? rounded : '$rounded ${unit.toUpperCase()}';
+  }
+
+  static String _formatAmountRange(
+    double? minimum,
+    double maximum,
+    String unit,
+  ) {
+    if (minimum == null || (minimum - maximum).abs() <= 0.000001) {
+      return _formatAmount(maximum, unit);
+    }
+    final minimumText = _formatAmount(minimum, '');
+    final maximumText = _formatAmount(maximum, unit);
+    return '$minimumText–$maximumText';
   }
 
   static String _contributionLabel(NutrientContribution contribution) {
@@ -209,6 +249,7 @@ class _NutrientContributorsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = status.total;
     final contributions = total.contributions;
+    final totalBasis = total.hasDoseRange ? 'daily range' : 'daily total';
 
     return Semantics(
       label: '${total.displayName} contributors from your stack',
@@ -231,7 +272,7 @@ class _NutrientContributorsSheet extends StatelessWidget {
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
-              '${NutrientProgressBar._formatAmount(total.totalAmount, total.unit)} total from the supplement labels in your stack.',
+              '${NutrientProgressBar._formatAmountRange(total.minimumTotalAmount, total.totalAmount, total.unit)} $totalBasis from the supplement labels in your stack.',
               style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space16),
@@ -251,7 +292,7 @@ class _NutrientContributorsSheet extends StatelessWidget {
                   return Semantics(
                     label:
                         '${NutrientProgressBar._contributionLabel(contribution)}, '
-                        '${NutrientProgressBar._formatAmount(contribution.amount, contribution.unit)}, '
+                        '${NutrientProgressBar._formatAmountRange(contribution.minimumAmount, contribution.amount, contribution.unit)}, '
                         '$pctOfTotal percent of the stack total',
                     child: Row(
                       children: [
@@ -274,7 +315,8 @@ class _NutrientContributorsSheet extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              NutrientProgressBar._formatAmount(
+                              NutrientProgressBar._formatAmountRange(
+                                contribution.minimumAmount,
                                 contribution.amount,
                                 contribution.unit,
                               ),

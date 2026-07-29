@@ -77,14 +77,21 @@ class StackNutrientAggregator {
 
         final amount = readDoseAmount(row);
         if (amount == null || amount <= 0) continue;
+        final adequacyAmount = readAdequacyDoseAmount(row) ?? amount;
+        if (adequacyAmount <= 0) continue;
 
         parsedRows.add(
           _ParsedRow(
             row: row,
             canonicalId: canonical,
             amount: amount,
+            adequacyAmount: adequacyAmount,
             unit: readDoseUnit(row),
-            displayName: readDisplayName(row) ?? canonical,
+            displayName: readNutrientDisplayName(row) ?? canonical,
+            ingredientName: readDisplayName(row) ?? canonical,
+            hasAuthoredGroupName:
+                row['nutrient_group_name']?.toString().trim().isNotEmpty ==
+                true,
           ),
         );
       }
@@ -114,6 +121,7 @@ class StackNutrientAggregator {
         final amount = parsed.amount;
         final unit = parsed.unit;
         final displayName = parsed.displayName;
+        final ingredientName = parsed.ingredientName;
         final exclusionReason = compoundDuplicates.contains(parsed)
             ? NutrientExclusionReason.compoundFormDuplicate
             : legacyDeclaredTotalDuplicates.contains(parsed)
@@ -126,14 +134,16 @@ class StackNutrientAggregator {
             canonicalId: canonical,
             displayName: displayName,
             unit: exclusionReason == null ? unit : '',
+            hasAuthoredDisplayName: parsed.hasAuthoredGroupName,
           ),
         );
 
         final rawContribution = NutrientContribution(
           stackEntryId: item.stackEntryId,
           productName: item.productName,
-          ingredientName: displayName,
+          ingredientName: ingredientName,
           amount: amount,
+          minimumAmount: parsed.adequacyAmount,
           unit: unit,
         );
 
@@ -160,17 +170,24 @@ class StackNutrientAggregator {
           from: unit,
           to: total.unit,
         );
-        if (convertedAmount != null) {
+        final convertedAdequacyAmount = amountInMass(
+          parsed.adequacyAmount,
+          from: unit,
+          to: total.unit,
+        );
+        if (convertedAmount != null && convertedAdequacyAmount != null) {
           total.contributions.add(
             NutrientContribution(
               stackEntryId: item.stackEntryId,
               productName: item.productName,
-              ingredientName: displayName,
+              ingredientName: ingredientName,
               amount: convertedAmount,
+              minimumAmount: convertedAdequacyAmount,
               unit: total.unit,
             ),
           );
           total.totalAmount += convertedAmount;
+          total.minimumTotalAmount += convertedAdequacyAmount;
         } else {
           total.hasUnitConflict = true;
           total.excludedContributions.add(
@@ -184,7 +201,11 @@ class StackNutrientAggregator {
         // Prefer the longest display name we see — pipeline rows
         // sometimes have terse shorthand in one product and the full
         // name in another.
-        if (displayName.length > total.displayName.length) {
+        if (parsed.hasAuthoredGroupName) {
+          total.displayName = displayName;
+          total.hasAuthoredDisplayName = true;
+        } else if (!total.hasAuthoredDisplayName &&
+            displayName.length > total.displayName.length) {
           total.displayName = displayName;
         }
       }
@@ -197,6 +218,7 @@ class StackNutrientAggregator {
           canonicalId: value.canonicalId,
           displayName: value.displayName,
           totalAmount: value.totalAmount,
+          minimumTotalAmount: value.minimumTotalAmount,
           unit: value.unit,
           contributions: List.unmodifiable(value.contributions),
           hasUnitConflict: value.hasUnitConflict,
@@ -334,11 +356,11 @@ class StackNutrientAggregator {
     for (final group in byCanonical.values) {
       if (group.length < 2) continue;
       final hasElemental = group.any(
-        (r) => isElementalIngredientName(r.displayName, r.canonicalId),
+        (r) => isElementalIngredientName(r.ingredientName, r.canonicalId),
       );
       if (!hasElemental) continue;
       for (final row in group) {
-        if (!isElementalIngredientName(row.displayName, row.canonicalId)) {
+        if (!isElementalIngredientName(row.ingredientName, row.canonicalId)) {
           duplicates.add(row);
         }
       }
@@ -383,7 +405,7 @@ class StackNutrientAggregator {
   }
 
   static bool _isLegacyDeclaredFolateTotal(_ParsedRow row) {
-    final ingredient = (row.row['ingredient'] ?? row.displayName)
+    final ingredient = (row.row['ingredient'] ?? row.ingredientName)
         .toString()
         .trim()
         .toLowerCase();
@@ -395,7 +417,7 @@ class StackNutrientAggregator {
     required _ParsedRow declaredTotal,
     required _ParsedRow candidate,
   }) {
-    final ingredient = (candidate.row['ingredient'] ?? candidate.displayName)
+    final ingredient = (candidate.row['ingredient'] ?? candidate.ingredientName)
         .toString()
         .toLowerCase();
     if (!ingredient.contains('mthf') && !ingredient.contains('methylfolate')) {
@@ -469,15 +491,21 @@ class _ParsedRow {
     required this.row,
     required this.canonicalId,
     required this.amount,
+    required this.adequacyAmount,
     required this.unit,
     required this.displayName,
+    required this.ingredientName,
+    required this.hasAuthoredGroupName,
   });
 
   final Map<String, dynamic> row;
   final String canonicalId;
   final double amount;
+  final double adequacyAmount;
   final String unit;
   final String displayName;
+  final String ingredientName;
+  final bool hasAuthoredGroupName;
 }
 
 /// Internal mutable carrier used during accumulation. We convert to
@@ -487,12 +515,15 @@ class _MutableTotal {
     required this.canonicalId,
     required this.displayName,
     required this.unit,
+    required this.hasAuthoredDisplayName,
   });
 
   final String canonicalId;
   String displayName;
   String unit;
+  bool hasAuthoredDisplayName;
   double totalAmount = 0.0;
+  double minimumTotalAmount = 0.0;
   bool hasUnitConflict = false;
   final List<NutrientContribution> contributions = [];
   final List<ExcludedNutrientContribution> excludedContributions = [];

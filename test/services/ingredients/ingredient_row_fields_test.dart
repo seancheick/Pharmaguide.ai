@@ -30,6 +30,24 @@ void main() {
     });
   });
 
+  group('readAdequacyDoseAmount — minimum/recommended exposure', () {
+    test('prefers per_day_min while safety reader keeps per_day_max', () {
+      final row = {
+        'quantity': 100,
+        'converted_quantity': 100,
+        'per_day_min': 100,
+        'per_day_max': 300,
+      };
+
+      expect(readAdequacyDoseAmount(row), 100);
+      expect(readDoseAmount(row), 300);
+    });
+
+    test('falls back to the regular dose when no minimum is emitted', () {
+      expect(readAdequacyDoseAmount({'converted_quantity': 50}), 50);
+    });
+  });
+
   group('readDoseUnit — canonical normalization', () {
     test('folds spelling and lowercases (parallels amount priority)', () {
       expect(readDoseUnit({'unit': 'IU'}), 'iu');

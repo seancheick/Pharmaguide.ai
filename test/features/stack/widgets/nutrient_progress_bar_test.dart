@@ -187,6 +187,65 @@ void main() {
       expect(find.text('—'), findsOneWidget);
     });
 
+    testWidgets('shows label-directed amount and target ranges', (
+      tester,
+    ) async {
+      const status = NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'vitamin_k',
+          displayName: 'Vitamin K',
+          minimumTotalAmount: 130,
+          totalAmount: 390,
+          unit: 'mcg',
+          contributions: [],
+        ),
+        tier: NutrientTier.aboveAdequateNoUl,
+        rda: 120,
+        pctOfRda: 108.3,
+        maximumPctOfRda: 325,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: NutrientProgressBar(status: status)),
+        ),
+      );
+
+      expect(find.text('130–390 MCG'), findsOneWidget);
+      expect(find.text('108–325% target'), findsOneWidget);
+    });
+
+    testWidgets('explains when a real UL cannot be calculated', (tester) async {
+      const status = NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'vitamin_a',
+          displayName: 'Vitamin A',
+          totalAmount: 1125,
+          unit: 'mcg',
+          contributions: [],
+        ),
+        tier: NutrientTier.abundant,
+        rda: 900,
+        ul: 3000,
+        pctOfRda: 125,
+        ulAssessmentIndeterminate: true,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: NutrientProgressBar(status: status)),
+        ),
+      );
+
+      expect(find.text('125% target'), findsOneWidget);
+      expect(
+        find.text(
+          'UL not calculated: the label does not provide enough form detail.',
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('renders unit conflict note when total has hasUnitConflict', (
       tester,
     ) async {

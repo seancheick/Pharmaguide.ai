@@ -113,6 +113,7 @@ final stackNutrientStatusesProvider = FutureProvider<List<NutrientStatus>>((
     totals,
     ageBracket: demographics.ageBracket,
     sex: demographics.sex,
+    pipelineVerdicts: aggregator.extractPipelineUlVerdicts(items),
   );
 
   // Sort most-severe-first. Within a tier, RDA% descending so the

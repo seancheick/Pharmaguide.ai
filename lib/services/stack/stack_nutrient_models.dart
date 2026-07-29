@@ -36,13 +36,20 @@ class NutrientContribution {
     required this.productName,
     this.ingredientName = '',
     required this.amount,
+    this.minimumAmount,
     required this.unit,
   });
 
   final String stackEntryId;
   final String productName;
   final String ingredientName;
+
+  /// Maximum daily contribution used for safety/UL comparisons.
   final double amount;
+
+  /// Minimum/recommended daily contribution used for RDA/AI adequacy.
+  /// Null on legacy fixed-dose rows, where [amount] serves both purposes.
+  final double? minimumAmount;
   final String unit;
 
   @override
@@ -54,11 +61,18 @@ class NutrientContribution {
           productName == other.productName &&
           ingredientName == other.ingredientName &&
           amount == other.amount &&
+          minimumAmount == other.minimumAmount &&
           unit == other.unit;
 
   @override
-  int get hashCode =>
-      Object.hash(stackEntryId, productName, ingredientName, amount, unit);
+  int get hashCode => Object.hash(
+    stackEntryId,
+    productName,
+    ingredientName,
+    amount,
+    minimumAmount,
+    unit,
+  );
 }
 
 /// Why a disclosed stack contribution was excluded from RDA/UL math.
@@ -112,6 +126,7 @@ class NutrientTotal {
     required this.canonicalId,
     required this.displayName,
     required this.totalAmount,
+    this.minimumTotalAmount,
     required this.unit,
     required this.contributions,
     this.hasUnitConflict = false,
@@ -120,13 +135,25 @@ class NutrientTotal {
 
   final String canonicalId;
   final String displayName;
+
+  /// Maximum daily stack exposure used for safety/UL comparisons.
   final double totalAmount;
+
+  /// Minimum/recommended daily stack exposure used for RDA/AI adequacy.
+  /// Null on legacy fixed-dose totals, where [totalAmount] serves both.
+  final double? minimumTotalAmount;
   final String unit;
   final List<NutrientContribution> contributions;
   final bool hasUnitConflict;
   final List<ExcludedNutrientContribution> excludedContributions;
 
   bool get hasExcludedContributions => excludedContributions.isNotEmpty;
+
+  double get adequacyAmount => minimumTotalAmount ?? totalAmount;
+
+  bool get hasDoseRange =>
+      minimumTotalAmount != null &&
+      (minimumTotalAmount! - totalAmount).abs() > 0.000001;
 }
 
 /// Classification of a nutrient's stack-level exposure against intake-target
@@ -174,10 +201,12 @@ class NutrientStatus {
     this.rda,
     this.ul,
     this.pctOfRda,
+    this.maximumPctOfRda,
     this.pctOfUl,
     this.warning,
     this.rdaIsBaseline = false,
     this.ulIsFallback = false,
+    this.ulAssessmentIndeterminate = false,
   });
 
   final NutrientTotal total;
@@ -185,6 +214,10 @@ class NutrientStatus {
   final double? rda;
   final double? ul;
   final double? pctOfRda;
+
+  /// Target coverage at the maximum label-directed daily exposure. The
+  /// primary [pctOfRda] remains based on the minimum/recommended exposure.
+  final double? maximumPctOfRda;
   final double? pctOfUl;
   final String? warning;
 
@@ -199,6 +232,11 @@ class NutrientStatus {
   /// least restrictive, not conservative; UI copy should ask users to add a
   /// profile for personalized upper-limit checks.
   final bool ulIsFallback;
+
+  /// A UL exists, but this label's form/source detail is insufficient for an
+  /// honest comparison (for example, mixed-form Vitamin A without a known
+  /// preformed fraction).
+  final bool ulAssessmentIndeterminate;
 
   /// True when this nutrient should surface a visible warning to the
   /// user. The caller decides whether to render it as a chip, a
