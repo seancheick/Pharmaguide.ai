@@ -53,6 +53,46 @@ List<int> _manifestBytes({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('interaction database compatibility gate', () {
+    test('rejects a database requiring a newer app', () {
+      expect(
+        () => enforceInteractionDatabaseVersionGate(
+          minAppVersion: '2.0.0',
+          schemaVersion: '1.0.0',
+          appVersion: '1.0.0',
+        ),
+        throwsA(isA<InteractionDatabaseVersionGateException>()),
+      );
+    });
+
+    test('rejects unparseable requirements and unsupported schema majors', () {
+      expect(
+        () => enforceInteractionDatabaseVersionGate(
+          minAppVersion: 'future',
+          schemaVersion: '1.0.0',
+          appVersion: '1.0.0',
+        ),
+        throwsA(isA<InteractionDatabaseVersionGateException>()),
+      );
+      expect(
+        () => enforceInteractionDatabaseVersionGate(
+          minAppVersion: '1.0.0',
+          schemaVersion: '2.0.0',
+          appVersion: '1.0.0',
+        ),
+        throwsA(isA<InteractionDatabaseVersionGateException>()),
+      );
+    });
+
+    test('accepts a compatible requirement', () {
+      enforceInteractionDatabaseVersionGate(
+        minAppVersion: '1.0.0',
+        schemaVersion: '1.2.0',
+        appVersion: '1.0.0',
+      );
+    });
+  });
+
   group('ensureCoreDatabaseAvailable', () {
     test(
       'copies the bundled database when the local file is missing',

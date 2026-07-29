@@ -11,6 +11,7 @@ import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
@@ -59,6 +60,8 @@ void main() {
     Future<void> Function(CoreDatabase coreDb)? seedCore,
     Future<void> Function(UserDatabase userDb)? seedUser,
     bool signedIn = false,
+    bool stackSafetyFails = false,
+    bool coverageFails = false,
   }) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
@@ -81,9 +84,16 @@ void main() {
             return service;
           }),
           activeStackProvider.overrideWith((ref) async => stack),
-          stackSafetyReportProvider.overrideWith(
-            (ref) async => const StackSafetyReport(),
-          ),
+          stackSafetyReportProvider.overrideWith((ref) async {
+            if (stackSafetyFails) {
+              throw StateError('stack safety unavailable');
+            }
+            return const StackSafetyReport();
+          }),
+          if (coverageFails)
+            coverageReportProvider.overrideWith(
+              (ref) async => throw StateError('coverage unavailable'),
+            ),
           synergyReportProvider.overrideWith(
             (ref) async => SynergyReport.empty(),
           ),
@@ -252,6 +262,65 @@ void main() {
     });
 
     testWidgets(
+      'Stack v2 surfaces stack-safety errors instead of hiding timing checks',
+      (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          stackSafetyFails: true,
+          stack: [
+            stackEntry(
+              id: 'stack-1',
+              name: 'Magnesium',
+              type: 'supplement',
+              dsldId: '12345',
+            ),
+          ],
+        );
+
+        expect(
+          find.text("Couldn't check your stack", skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining(
+            'interactions or timing guidance',
+            skipOffstage: false,
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'Stack v2 surfaces coverage errors instead of an empty gap card',
+      (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          coverageFails: true,
+          stack: [
+            stackEntry(
+              id: 'stack-1',
+              name: 'Magnesium',
+              type: 'supplement',
+              dsldId: '12345',
+            ),
+          ],
+        );
+
+        expect(
+          find.text("Couldn't check stack coverage", skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('not an all-clear', skipOffstage: false),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
       'Stack v2 separates medications and opens local medication details',
       (tester) async {
         await pumpWithStack(
@@ -293,7 +362,11 @@ void main() {
 
         expect(find.text('MEDICATION DETAILS'), findsOneWidget);
         expect(find.byType(BottomSheet), findsOneWidget);
-        expect(find.text('MATCHED FOR INTERACTION CHECKS'), findsOneWidget);
+        expect(find.text('MATCHING INCOMPLETE'), findsOneWidget);
+        expect(
+          find.textContaining('medication checks may be incomplete'),
+          findsOneWidget,
+        );
         expect(find.text('SAVED SCHEDULE'), findsOneWidget);
         expect(find.text('500 mg · Twice daily'), findsWidgets);
         expect(find.textContaining('RxNorm concept 1161611'), findsOneWidget);

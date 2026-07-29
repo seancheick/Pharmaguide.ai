@@ -88,9 +88,9 @@ void main() {
       expect(score, -5.0);
     });
 
-    test('pipeline over_ul:false suppresses a recompute that would exceed', () {
-      // Eligible row the pipeline computed as within-UL, but whose raw
-      // compound-ish quantity would recompute over. Prefer the verdict.
+    test('pipeline over_ul:false cannot erase an aggregate exceedance', () {
+      // A negative row verdict describes that source evaluation; it is not an
+      // all-clear capable of vetoing a defensible aggregate UL exceedance.
       final score = calculator.calculate(
         nutrients: const [
           {
@@ -107,7 +107,7 @@ void main() {
         sex: 'Male',
       );
 
-      expect(score, isNot(-5.0));
+      expect(score, -5.0);
     });
   });
 }

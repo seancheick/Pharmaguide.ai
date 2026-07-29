@@ -33,6 +33,7 @@ void main() {
         'unit': 'mg',
         'highest_ul': 40,
         'data': [
+          {'group': 'Female', 'age_range': '14-18', 'rda_ai': 9, 'ul': 34},
           {'group': 'Male', 'age_range': '19-30', 'rda_ai': 11, 'ul': 40},
           {'group': 'Female', 'age_range': '19-30', 'rda_ai': 8, 'ul': 40},
         ],
@@ -369,7 +370,7 @@ void main() {
     });
 
     test(
-      'anonymous user with null age/sex still gets UL check via highest_ul',
+      'anonymous user uses the lowest established ceiling, not highest_ul',
       () {
         final totals = _totals([_total('zinc', 'Zinc', 45, 'mg')]);
         final results = checker.check(totals);
@@ -378,7 +379,7 @@ void main() {
         // 45mg > 40mg UL takes precedence over any RDA-based tiering.
         expect(results.first.rda, 8.0);
         expect(results.first.rdaIsBaseline, isTrue);
-        expect(results.first.ul, 40);
+        expect(results.first.ul, 34);
         expect(results.first.tier, NutrientTier.exceedsUl);
         expect(results.first.warning, contains('copper depletion'));
       },
@@ -419,7 +420,7 @@ void main() {
       final results = checker.check(
         _totals([_total('zinc', 'Zinc', 10, 'mg')]),
       );
-      expect(results.first.ul, 40);
+      expect(results.first.ul, 34);
       expect(results.first.ulIsFallback, isTrue);
     });
 

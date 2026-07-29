@@ -53,43 +53,54 @@ final detailBlobServiceProvider = Provider<DetailBlobService>((ref) {
 /// Autodisposes so consumers do not keep large detail blobs alive after
 /// leaving the relevant product/stack surface.
 final detailBlobProvider = FutureProvider.family
-    .autoDispose<Map<String, dynamic>?, String>((ref, dsldId) async {
-      final coreDb = ref.watch(coreDatabaseProvider);
-      final userDb = ref.watch(userDatabaseProvider);
-      final service = ref.watch(detailBlobServiceProvider);
+    .autoDispose<Map<String, dynamic>?, String>(
+      (ref, dsldId) async {
+        final coreDb = ref.watch(coreDatabaseProvider);
+        final userDb = ref.watch(userDatabaseProvider);
+        final service = ref.watch(detailBlobServiceProvider);
 
-      // The product row is read FIRST so the cache check can compare the
-      // cached sha against the product's CURRENT detail_blob_sha256 — a
-      // cached blob from a previous catalog snapshot must be a miss, not
-      // a stale 24h hit feeding outdated ingredient/warning JSON.
-      final product = await coreDb.findById(dsldId);
-      final expectedSha = product?.detailBlobSha256;
+        // The product row is read FIRST so the cache check can compare the
+        // cached sha against the product's CURRENT detail_blob_sha256 — a
+        // cached blob from a previous catalog snapshot must be a miss, not
+        // a stale 24h hit feeding outdated ingredient/warning JSON.
+        final product = await coreDb.findById(dsldId);
+        final expectedSha = product?.detailBlobSha256;
 
-      final cached = await userDb.getCachedDetail(dsldId);
-      if (cached != null &&
-          cachedDetailIsServable(
-            cachedAt: cached.cachedAt,
-            cachedSha256: cached.sha256,
-            productSha256: expectedSha,
-            now: DateTime.now(),
-          )) {
-        try {
-          final decoded = jsonDecode(cached.blobJson);
-          if (decoded is Map<String, dynamic>) return decoded;
-          if (decoded is Map) return Map<String, dynamic>.from(decoded);
-        } on FormatException {
-          // Fall through to network fetch below.
+        final cached = await userDb.getCachedDetail(dsldId);
+        if (cached != null &&
+            cachedDetailIsServable(
+              cachedAt: cached.cachedAt,
+              cachedSha256: cached.sha256,
+              productSha256: expectedSha,
+              now: DateTime.now(),
+            )) {
+          try {
+            final decoded = jsonDecode(cached.blobJson);
+            if (decoded is Map<String, dynamic>) return decoded;
+            if (decoded is Map) return Map<String, dynamic>.from(decoded);
+          } on FormatException {
+            // Fall through to network fetch below.
+          }
         }
-      }
 
-      if (expectedSha == null || expectedSha.isEmpty) return null;
+        if (expectedSha == null || expectedSha.isEmpty) return null;
 
-      final blob = await service.fetchDetailBlobByHash(expectedSha);
-      if (blob != null) {
+        final blob = await service.fetchDetailBlobByHash(expectedSha);
+        if (blob == null) {
+          throw const DetailBlobUnavailableException(
+            'detail service returned no payload for a declared blob',
+          );
+        }
         // Persist the sha alongside the blob: the fetch path verified
         // sha256(bytes) == expectedSha, so the cached row stays
         // re-checkable against products_core on every later read.
         await userDb.cacheDetail(dsldId, jsonEncode(blob), expectedSha);
-      }
-      return blob;
-    });
+        return blob;
+      },
+      // An unavailable clinical blob must settle as an error immediately so
+      // the surface can render its explicit unavailable state. Riverpod's
+      // default automatic retry otherwise keeps the provider in loading for
+      // multiple backoff cycles and can look like an empty/all-clear result.
+      // User-initiated refresh/invalidation remains the retry mechanism.
+      retry: (_, _) => null,
+    );

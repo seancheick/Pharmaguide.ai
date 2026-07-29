@@ -4,10 +4,10 @@
     "purpose": "interaction_alert_taxonomy",
     "schema_version": "5.2.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
-    "last_updated": "2026-07-03",
-    "total_entries": 77,
+    "last_updated": "2026-07-04",
+    "total_entries": 79,
     "flutter_top_level_key": "clinical_risk_taxonomy",
-    "drug_classes_count": 29,
+    "drug_classes_count": 30,
     "migration": {
       "completed_migrations": [
         {
@@ -92,6 +92,12 @@
       "label": "Autoimmune Condition",
       "category": "immunologic",
       "display_priority": 12
+    },
+    {
+      "id": "immunocompromised",
+      "label": "Immunocompromised",
+      "category": "immunologic",
+      "display_priority": 13
     },
     {
       "id": "seizure_disorder",
@@ -258,6 +264,12 @@
       "label": "CYP2D6-Metabolized Drugs",
       "category": "drug_metabolism",
       "display_priority": 21
+    },
+    {
+      "id": "vitamin_k_antagonists",
+      "label": "Vitamin-K Antagonists",
+      "category": "hematology",
+      "display_priority": 17
     },
     {
       "id": "doacs",

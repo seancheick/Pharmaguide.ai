@@ -7,6 +7,7 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/sharing/clinician_pdf_builder.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
@@ -235,7 +236,6 @@ void main() {
     );
 
     final body = latin1.decode(bytes, allowInvalid: true);
-    expect(body, contains('TTC'));
     expect(body, contains('Trying'));
     expect(body, contains('Conceive'));
     expect(body, contains('High'));
@@ -335,7 +335,8 @@ void main() {
 
     final body = latin1.decode(bytes, allowInvalid: true);
     expect(body, contains('Evidence:'));
-    expect(body, contains('Strong'));
+    expect(body, contains('Established'));
+    expect(body, isNot(contains('Strong Evidence')));
     expect(body, contains('Mechanism:'));
     expect(body, contains('reduce'));
     expect(body, contains('Management:'));
@@ -844,5 +845,125 @@ void main() {
     expect(body, contains('timing'));
     expect(body, contains('monitoring'));
     expect(body, contains('represented'));
+  });
+
+  test(
+    'preserves consumer placement for good-to-know food advisories',
+    () async {
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: const [],
+        intelligence: const StackIntelligence(
+          tier: StackTier.solid,
+          stackSize: 1,
+          issues: [],
+          interactionCount: 1,
+          nutrientWarningCount: 0,
+          hasRecalledIngredient: false,
+          hasContraindicatedInteraction: false,
+          hasBannedIngredient: false,
+        ),
+        safetyReport: const StackSafetyReport(
+          stackInteractions: [
+            InteractionResult(
+              id: 'food-advisory',
+              type: InteractionType.drugSupplement,
+              severity: Severity.informational,
+              curatedSeverity: Severity.avoid,
+              evidenceLevel: EvidenceLevel.established,
+              agent1Name: 'Grapefruit',
+              agent2Name: 'Atorvastatin',
+              mechanism: 'Food exposure may change atorvastatin levels.',
+              management: 'Discuss unusually high grapefruit intake.',
+              alertStyle: 'food_advisory_note',
+              doseDependant: false,
+              doseThreshold: null,
+              sourceUrls: [],
+              source: InteractionSource.pipeline,
+            ),
+          ],
+        ),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 7, 29),
+      );
+
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('GOOD'));
+      expect(body, contains('KNOW'));
+      expect(body, contains('Good'));
+      expect(body, contains('know'));
+      expect(body, isNot(contains('Not recommended: Grapefruit')));
+      expect(body, contains('Evidence:'));
+      expect(body, contains('Established'));
+      expect(body, isNot(contains('Strong Evidence')));
+    },
+  );
+
+  test('does not silently truncate timing guidance', () async {
+    final timings = List.generate(
+      9,
+      (index) => TimingOptimization(
+        ruleId: 'timing-$index',
+        ingredient1: 'Ingredient $index',
+        ingredient2: 'Medication $index',
+        advice: 'TimingMarker$index',
+        ruleType: TimingRuleType.separate,
+        separationHours: 2,
+        scoreImpact: -1,
+        evidenceLevel: EvidenceLevel.probable,
+      ),
+    );
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: StackSafetyReport(timingOptimizations: timings),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 29),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('TimingMarker8'));
+  });
+
+  test('labels missing provenance instead of omitting it', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 29),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('PROVENANCE'));
+    expect(body, contains('Unavailable'));
+    expect(body, contains('clinical'));
+    expect(body, contains('assessment'));
+  });
+
+  test('prints medication identity limitations for clinician review', () async {
+    final medication = _stack(
+      id: 'med-unresolved',
+      name: 'Example medication',
+      type: 'medication',
+    );
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: [medication],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      medicationIdentityStatuses: const {
+        'med-unresolved': MedicationIdentityStatus.unresolved,
+      },
+      generatedAt: DateTime.utc(2026, 7, 29),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('Identity'));
+    expect(body, contains('unresolved'));
+    expect(body, contains('incomplete'));
   });
 }

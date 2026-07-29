@@ -17,7 +17,7 @@
 //     ]
 //   }
 //
-// 14 entries, locked. The canonical set matches `conditions` in
+// 15 entries, locked. The canonical set matches `conditions` in
 // lib/core/constants/schema_ids.dart. Migrating gives clinician
 // control of the user-facing condition copy.
 //

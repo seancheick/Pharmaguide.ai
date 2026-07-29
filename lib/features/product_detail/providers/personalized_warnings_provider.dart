@@ -40,20 +40,16 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
       final List<UserStacksLocalData> stack;
       try {
         stack = await ref.watch(activeStackProvider.future);
-      } on UnimplementedError {
-        // Test stub for the stack provider — fall back to empty.
-        return const [];
-      } on Exception catch (e, st) {
-        // DB unavailable or transient — degrade to empty rather than
-        // surfacing an error in the UI for a non-critical signal, but
-        // record it so silent degradation is observable in Sentry.
+      } on Object catch (e, st) {
+        // Failure is not an empty stack. Surface AsyncError so the product
+        // page can say that personalized checks are unavailable.
         CrashReportingService().recordError(
           e,
           st,
           fatal: false,
           hint: 'personalized_warnings:stack_fetch_failed',
         );
-        return const [];
+        rethrow;
       }
       if (stack.isEmpty) return const [];
 
@@ -61,24 +57,28 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
       final ProductsCoreData? product;
       try {
         product = await coreDb.findById(dsldId);
-      } on UnimplementedError {
-        return const [];
-      } on Exception catch (e, st) {
+      } on Object catch (e, st) {
         CrashReportingService().recordError(
           e,
           st,
           fatal: false,
           hint: 'personalized_warnings:product_fetch_failed',
         );
-        return const [];
+        rethrow;
       }
       if (product == null) return const [];
 
       Map<String, dynamic>? detailBlob;
       try {
         detailBlob = await ref.watch(detailBlobProvider(dsldId).future);
-      } on Exception {
-        detailBlob = null;
+      } on Object catch (e, st) {
+        CrashReportingService().recordError(
+          e,
+          st,
+          fatal: false,
+          hint: 'personalized_warnings:product_detail_fetch_failed',
+        );
+        rethrow;
       }
       final canonicalIds = canonicalIdsForProduct(
         product,
@@ -131,8 +131,10 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
       );
     });
 
-/// Pure-ish lookup against the bundled InteractionDatabase. Catches
-/// non-fatal errors (db missing, test stubs) and degrades to empty.
+/// Pure-ish lookup against the bundled InteractionDatabase.
+///
+/// Lookup failures must surface. Returning an empty list is reserved for a
+/// successful check with no matching interactions.
 Future<List<InteractionWarning>> _computePersonalizedWarnings({
   required ProductsCoreData product,
   required List<String> canonicalIds,
@@ -182,9 +184,7 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
     }
 
     return warnings;
-  } on UnimplementedError {
-    return const [];
-  } on Exception catch (e, st) {
+  } on Object catch (e, st) {
     // Safety-critical: swallowing this would render "no interactions"
     // when the check actually failed. Record + rethrow so the provider
     // exposes an AsyncError the UI can hedge on.
@@ -233,8 +233,14 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
     Map<String, dynamic>? blob;
     try {
       blob = await ref.watch(detailBlobProvider(dsldId).future);
-    } on Object {
-      continue;
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        fatal: false,
+        hint: 'personalized_warnings:stack_detail_fetch_failed',
+      );
+      rethrow;
     }
     if (blob == null) continue;
 

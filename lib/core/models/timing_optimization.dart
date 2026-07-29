@@ -30,7 +30,7 @@ enum TimingRuleType {
       case 'time_of_day':
         return TimingRuleType.timeOfDay;
       default:
-        return TimingRuleType.separate;
+        throw FormatException('Unknown timing rule type: $value');
     }
   }
 }
@@ -77,6 +77,9 @@ class TimingOptimization {
   /// Name of the product in the user's stack that triggered ingredient2.
   final String? product2Name;
 
+  /// Whether a reviewed RxCUI on the timing rule matched a saved medication.
+  final bool involvesMedication;
+
   const TimingOptimization({
     required this.ruleId,
     required this.ingredient1,
@@ -90,26 +93,11 @@ class TimingOptimization {
     this.sourceUrls = const [],
     this.product1Name,
     this.product2Name,
+    this.involvesMedication = false,
   });
 
   /// Whether this is a separation rule (the most actionable type).
   bool get isSeparation => ruleType == TimingRuleType.separate;
-
-  /// Medication names that appear in timing rules. Mirrors
-  /// `TimingEvaluationService._medicationKeywords` — the rule can carry
-  /// the medication on either side, so both ingredients are checked.
-  static const _medicationNames = ['levothyroxine', 'warfarin'];
-
-  /// Whether this involves a medication (higher urgency).
-  ///
-  /// Checks both ingredient display names, case-insensitively —
-  /// [TimingRuleType] does not encode medication involvement, so the
-  /// ingredient names are the only signal available on the model.
-  bool get involvesMedication {
-    final i1 = ingredient1.toLowerCase();
-    final i2 = ingredient2.toLowerCase();
-    return _medicationNames.any((m) => i1.contains(m) || i2.contains(m));
-  }
 
   /// Clinical importance tier (higher = more important), mirroring the
   /// research prioritization in `knowledge/timing-rules-research.md`:

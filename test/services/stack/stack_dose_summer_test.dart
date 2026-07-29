@@ -226,31 +226,6 @@ void main() {
       },
     );
 
-    test('extracts stack threshold rules from detail blob warning lists', () {
-      final rules = stackDoseThresholdRulesFromDetailBlob({
-        'warnings_profile_gated': [
-          {
-            'severity': 'monitor',
-            'evidence_level': 'established',
-            'title': 'Caffeine / pregnancy',
-            'detail': 'High caffeine may matter during pregnancy.',
-            'action': 'Keep under threshold.',
-            'condition_ids': ['pregnancy'],
-            'ingredient_name': 'Caffeine',
-            'dose_threshold_evaluation': {
-              'thresholds_checked': [
-                {'threshold_value': 200, 'threshold_unit': 'mg'},
-              ],
-            },
-          },
-        ],
-      });
-
-      expect(rules, hasLength(1));
-      expect(rules.single.conditionId, 'pregnancy');
-      expect(rules.single.canonicalId, 'caffeine');
-    });
-
     test('sums the same ingredient across products', () {
       final totals = const StackDoseSummer().sum([
         const StackItemNutrients(

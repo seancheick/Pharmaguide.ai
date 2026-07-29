@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/core/utils/app_version.dart';
 import 'package:pharmaguide/services/catalog_version.dart';
 
 /// Provides the singleton CoreDatabase instance (read-only product data).
@@ -45,6 +46,48 @@ final interactionDatabaseProvider = Provider<InteractionDatabase>((ref) {
     'interactionDatabaseProvider must be overridden at app startup',
   );
 });
+
+class InteractionDatabaseVersionGateException implements Exception {
+  const InteractionDatabaseVersionGateException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'InteractionDatabaseVersionGateException: $message';
+}
+
+/// Refuses an interaction bundle this app cannot interpret. Missing or
+/// malformed compatibility metadata is already rejected by
+/// [InteractionDatabase.getMetadata]; present values fail closed here.
+@visibleForTesting
+void enforceInteractionDatabaseVersionGate({
+  required String minAppVersion,
+  required String schemaVersion,
+  required String appVersion,
+  int maxSupportedSchemaMajor = 1,
+}) {
+  final appComparison = compareSemver(minAppVersion, appVersion);
+  if (appComparison == null) {
+    throw InteractionDatabaseVersionGateException(
+      'Interaction database min_app_version "$minAppVersion" is '
+      'unparseable.',
+    );
+  }
+  if (appComparison > 0) {
+    throw InteractionDatabaseVersionGateException(
+      'Interaction database requires app >= $minAppVersion; this build is '
+      '$appVersion.',
+    );
+  }
+
+  final schemaMajor = int.tryParse(schemaVersion.trim().split('.').first);
+  if (schemaMajor == null || schemaMajor > maxSupportedSchemaMajor) {
+    throw InteractionDatabaseVersionGateException(
+      'Interaction database schema "$schemaVersion" is unsupported; '
+      'this build supports up to $maxSupportedSchemaMajor.x.',
+    );
+  }
+}
 
 /// Catalog metadata from the embedded export_manifest — product count +
 /// build date. Used by the home screen citation strip so the values stay
@@ -251,7 +294,19 @@ Future<InteractionDatabase> openInteractionDatabase({
   final dir = documentsDirectory ?? await getApplicationDocumentsDirectory();
   final dbPath = p.join(dir.path, 'interaction_db.sqlite');
   await ensureInteractionDatabaseAvailable(dbPath: dbPath, bundle: bundle);
-  return InteractionDatabase.open(dbPath);
+  final db = InteractionDatabase.open(dbPath);
+  try {
+    final metadata = await db.getMetadata();
+    enforceInteractionDatabaseVersionGate(
+      minAppVersion: metadata.minAppVersion,
+      schemaVersion: metadata.schemaVersion,
+      appVersion: kAppVersion,
+    );
+    return db;
+  } on Object {
+    await db.close();
+    rethrow;
+  }
 }
 
 Future<void> _ensureBundledDatabaseAvailable({

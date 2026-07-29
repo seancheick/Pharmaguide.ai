@@ -140,6 +140,7 @@ Future<void> _pumpConnectedScreen(
   WidgetTester tester, {
   required Map<String, dynamic> detailBlob,
   String? initialSection = 'ingredients',
+  bool fitFails = false,
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
@@ -162,7 +163,12 @@ Future<void> _pumpConnectedScreen(
         personalizedInteractionWarningsProvider.overrideWith(
           (ref, dsldId) async => const [],
         ),
-        fitScoreForProductProvider.overrideWith((ref, dsldId) async => null),
+        fitScoreForProductProvider.overrideWith((ref, dsldId) async {
+          if (fitFails) {
+            throw StateError('fit inputs unavailable');
+          }
+          return null;
+        }),
         currentStackMedicationClassIdsProvider.overrideWith(
           (ref) async => const <String>{},
         ),
@@ -283,6 +289,30 @@ List<Map<String, dynamic>> _analysisLedger() => [
 ];
 
 void main() {
+  group('connected unavailable states', () {
+    testWidgets('fit failure is visible and cannot look like an all-clear', (
+      tester,
+    ) async {
+      await _pumpConnectedScreen(
+        tester,
+        fitFails: true,
+        initialSection: null,
+        detailBlob: {
+          'ingredients': const <Map<String, dynamic>>[],
+          'display_ingredients': [_activeLedgerRow('Active row', 0)],
+          'quality_pillars_v4': _connectedV4Pillars(),
+        },
+      );
+
+      expect(
+        find.byKey(const Key('personalized-checks-error-banner')),
+        findsOneWidget,
+      );
+      expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+      expect(find.textContaining('not an all-clear'), findsOneWidget);
+    });
+  });
+
   group('productDetailIngredientSourcesFromBlob', () {
     test('ledger key presence is authoritative and mixed rows fail closed', () {
       final absent = productDetailIngredientSourcesFromBlob(const {

@@ -8,6 +8,7 @@ import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as reference_data;
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
@@ -15,14 +16,13 @@ import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
+import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 
 // Spec: INITIATIVE_STACK_INTELLIGENCE.md, Track C, C3.
 //
-// Heavy-lift integration (DB + every safety provider + ShareService) is
-// covered transitively by:
-//   - C1 unit tests on `ClinicianReportBuilder` (golden-string contract)
-//   - C2 unit tests on `ShareService.shareClinicianReport`
-//   - Real-device smoke (Sean's TestFlight pass)
+// Heavy-lift integration (DB + every safety provider + PDF share service) is
+// covered by ClinicianPdfBuilder tests, ShareService PDF tests, and the
+// real-device smoke pass.
 //
 // This widget test focuses on what only a widget test can prove:
 //   1. The button mounts inside a Material app + ProviderScope without
@@ -37,12 +37,17 @@ void main() {
     required CoreDatabase coreDb,
     required UserDatabase userDb,
     ReferenceDataRepository? referenceDataRepository,
+    List<UserStacksLocalData> stack = const [],
+    Map<String, MedicationIdentityAssessment> identityAssessments = const {},
   }) {
     return ProviderScope(
       overrides: [
         coreDatabaseProvider.overrideWithValue(coreDb),
         userDatabaseProvider.overrideWithValue(userDb),
-        activeStackProvider.overrideWith((ref) async => const []),
+        activeStackProvider.overrideWith((ref) async => stack),
+        medicationIdentityAssessmentsProvider.overrideWith(
+          (ref) async => identityAssessments,
+        ),
         stackSafetyReportProvider.overrideWith(
           (ref) async => const StackSafetyReport(),
         ),
@@ -101,6 +106,7 @@ void main() {
       },
       pdfShareOverride: (bytes, {required filename}) async {
         capturedPdf = bytes;
+        return true;
       },
     );
 
@@ -134,6 +140,7 @@ void main() {
     final fakeShareService = ShareService(
       pdfShareOverride: (bytes, {required filename}) async {
         capturedPdf = bytes;
+        return true;
       },
     );
 
@@ -143,6 +150,55 @@ void main() {
         coreDb: coreDb,
         userDb: userDb,
         referenceDataRepository: _UnavailableReferenceDataRepository(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Share with clinician'));
+    await tester.pumpAndSettle();
+
+    expect(capturedPdf, isNotNull);
+    expect(capturedPdf!.take(5), orderedEquals('%PDF-'.codeUnits));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await coreDb.close();
+    await userDb.close();
+  });
+
+  testWidgets('PDF records unresolved medication identity coverage', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    final now = DateTime.utc(2026, 7, 29);
+    final medication = UserStacksLocalData(
+      id: 'med-unresolved',
+      type: 'medication',
+      name: 'Example medication',
+      addedAt: now,
+      clientUpdatedAt: now,
+    );
+    List<int>? capturedPdf;
+    final fakeShareService = ShareService(
+      pdfShareOverride: (bytes, {required filename}) async {
+        capturedPdf = bytes;
+        return true;
+      },
+    );
+
+    await tester.pumpWidget(
+      wrap(
+        ShareClinicianReportButton(shareService: fakeShareService),
+        coreDb: coreDb,
+        userDb: userDb,
+        stack: [medication],
+        identityAssessments: {
+          medication.id: const MedicationIdentityAssessment(
+            snapshot: MedicationIdentitySnapshot(name: 'Example medication'),
+            curatedClassIds: [],
+            hasDirectRuleCoverage: false,
+          ),
+        },
       ),
     );
     await tester.pump();

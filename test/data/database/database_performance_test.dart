@@ -103,6 +103,37 @@ void main() {
       final results = await db.searchProducts('Magnesium');
       expect(results, hasLength(1));
     });
+
+    test(
+      'rejects an in-place schema upgrade for a pre-built catalog',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'pharmaguide-core-schema-mismatch-',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+        final dbPath = '${tempDir.path}/pharmaguide_core.db';
+        final legacy = raw.sqlite3.open(dbPath);
+        try {
+          legacy.execute('PRAGMA user_version = 2;');
+        } finally {
+          legacy.dispose();
+        }
+
+        final mismatched = CoreDatabase.open(dbPath);
+        addTearDown(mismatched.close);
+
+        await expectLater(
+          mismatched.customSelect('SELECT 1').get(),
+          throwsA(
+            predicate(
+              (Object error) =>
+                  error.toString().contains('pre-built artifact') &&
+                  error.toString().contains('must be replaced'),
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('InteractionDatabase app-side indexes', () {

@@ -215,15 +215,31 @@ void main() {
       },
     );
 
-    test('fetch failure caches nothing and returns null', () async {
-      await seedProduct('p4', blobSha: 'want');
-      final service = _FakeBlobService(null); // fetch/verification failed
-      final container = buildContainer(service);
+    test(
+      'fetch failure caches nothing and remains an unavailable error',
+      () async {
+        await seedProduct('p4', blobSha: 'want');
+        final service = _FakeBlobService(null); // fetch/verification failed
+        final container = buildContainer(service);
+        final subscription = container.listen(
+          detailBlobProvider('p4'),
+          (_, _) {},
+          fireImmediately: true,
+        );
+        addTearDown(subscription.close);
 
-      final blob = await container.read(detailBlobProvider('p4').future);
+        await expectLater(
+          container.read(detailBlobProvider('p4').future),
+          throwsA(isA<DetailBlobUnavailableException>()),
+        );
 
-      expect(blob, isNull);
-      expect(await userDb.getCachedDetail('p4'), isNull);
-    });
+        expect(
+          service.requestedHashes,
+          ['want'],
+          reason: 'unavailable clinical data must not retry invisibly',
+        );
+        expect(await userDb.getCachedDetail('p4'), isNull);
+      },
+    );
   });
 }

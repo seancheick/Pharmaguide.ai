@@ -645,7 +645,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
 
   // ---------------------------------------------------------------------------
   // 6. Timing optimization evaluation.
-  //    Cross-reference the stack's ingredient tags and medication names
+  //    Cross-reference stack ingredient tags and reviewed medication RxCUIs
   //    against timing_rules.json to produce actionable timing advice.
   // ---------------------------------------------------------------------------
   List<TimingOptimization> timingOptimizations = const <TimingOptimization>[];
@@ -662,14 +662,35 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       }
     }
 
-    // Collect medication display names.
+    // Preserve display names for attribution, but match only through the saved
+    // RxNorm identity chain. Brand text is never a clinical identifier.
     final medicationNames = safetyMedications
         .map((m) => m.name)
         .toList(growable: false);
+    final medicationRxCuisByName = <String, Set<String>>{};
+    for (final medication in safetyMedications) {
+      final snapshot = MedicationIdentitySnapshot.fromStackRow(medication);
+      final rxcuis = medicationRxCuisByName.putIfAbsent(
+        medication.name,
+        () => <String>{},
+      );
+      for (final value in [
+        snapshot.rxcui,
+        snapshot.genericRxcui,
+        ...snapshot.ingredientRxcuis,
+      ]) {
+        final normalized = value?.trim();
+        if (normalized != null && normalized.isNotEmpty) {
+          rxcuis.add(normalized);
+        }
+      }
+    }
 
-    // Per-nutrient total doses (mg only) for dose-gated timing rules — reuse
+    // Per-nutrient total doses (mg only) for the currently authored timing
+    // gates — reuse
     // the already-computed nutrient totals so there's no extra blob fetch.
-    // Non-mg units (mcg/IU) are skipped; their rules fail open.
+    // A gated rule with an unavailable or incompatible unit is suppressed;
+    // dose-conditional copy never claims that an unevaluated floor was crossed.
     final ingredientDosesMg = <String, double>{};
     for (final status in nutrientStatuses) {
       final total = status.total;
@@ -681,6 +702,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     timingOptimizations = timingService.evaluateStack(
       supplementTags: supplementTags,
       medicationNames: medicationNames,
+      medicationRxCuisByName: medicationRxCuisByName,
       ingredientDosesMg: ingredientDosesMg,
     );
   } on Object catch (e, st) {

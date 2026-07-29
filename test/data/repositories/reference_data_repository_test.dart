@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 
 void main() {
@@ -11,22 +12,37 @@ void main() {
       repo = ReferenceDataRepository();
     });
 
-    test('loads clinical_risk_taxonomy with 14 conditions', () async {
-      final taxonomy = await repo.loadClinicalRiskTaxonomy();
-      expect(taxonomy, isNotNull);
-      final conditions = taxonomy['conditions'] as List;
-      expect(conditions.length, 14);
-      expect((conditions.first as Map)['id'], 'pregnancy');
-    });
+    test(
+      'loads every selectable clinical condition without schema drift',
+      () async {
+        final taxonomy = await repo.loadClinicalRiskTaxonomy();
+        expect(taxonomy, isNotNull);
+        final conditions = taxonomy['conditions'] as List;
+        final conditionIds = conditions
+            .map((entry) => (entry as Map)['id'] as String)
+            .toSet();
 
-    test('loads clinical_risk_taxonomy with 29 drug classes', () async {
+        expect(conditions.length, 15);
+        expect((conditions.first as Map)['id'], 'pregnancy');
+        expect(conditionIds, contains('immunocompromised'));
+        expect(conditionIds, SchemaIds.conditions.toSet());
+        expect(
+          SchemaIds.conditionLabels.keys.toSet(),
+          SchemaIds.conditions.toSet(),
+        );
+      },
+    );
+
+    test('loads the complete clinical drug-class taxonomy', () async {
       final taxonomy = await repo.loadClinicalRiskTaxonomy();
       final drugClasses = taxonomy['drug_classes'] as List;
-      expect(drugClasses.length, 29);
+      final metadata = taxonomy['_metadata'] as Map;
+      expect(drugClasses.length, metadata['drug_classes_count']);
+      expect(drugClasses.length, 30);
       expect((drugClasses.first as Map)['id'], 'anticoagulants');
       expect(
         drugClasses.map((entry) => (entry as Map)['id']),
-        contains('serotonergic_medications'),
+        containsAll(['serotonergic_medications', 'vitamin_k_antagonists']),
       );
     });
 

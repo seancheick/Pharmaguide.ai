@@ -11,7 +11,6 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/settings/v2/beta_feedback_sheet.dart';
-import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -133,12 +132,6 @@ class SettingsV2Screen extends StatelessWidget {
                   title: 'Privacy dashboard',
                   caption: 'See where your data lives',
                   onTap: () => _showPrivacyDashboard(context),
-                ),
-                const PGSettingsTile(
-                  icon: Icons.analytics_outlined,
-                  title: 'Anonymized analytics',
-                  caption: 'Never includes health data',
-                  trailing: _AnalyticsSettingsSwitch(),
                 ),
               ],
             ),
@@ -442,38 +435,6 @@ class _SettingsInfoSheet extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _AnalyticsSettingsSwitch extends StatefulWidget {
-  const _AnalyticsSettingsSwitch();
-
-  @override
-  State<_AnalyticsSettingsSwitch> createState() =>
-      _AnalyticsSettingsSwitchState();
-}
-
-class _AnalyticsSettingsSwitchState extends State<_AnalyticsSettingsSwitch> {
-  bool _enabled = AnalyticsService().collectionEnabled;
-  bool _saving = false;
-
-  Future<void> _setEnabled(bool value) async {
-    setState(() {
-      _enabled = value;
-      _saving = true;
-    });
-    await AnalyticsService().setCollectionEnabled(value);
-    if (!mounted) return;
-    setState(() => _saving = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Switch.adaptive(
-      key: const Key('settings-analytics-toggle'),
-      value: _enabled,
-      onChanged: _saving ? null : _setEnabled,
     );
   }
 }

@@ -1232,6 +1232,59 @@ void main() {
   // checkMedicationInteractions
   // -------------------------------------------------------------------------
   group('checkMedicationInteractions', () {
+    test(
+      'does not apply ciprofloxacin-only calcium advice to moxifloxacin',
+      () async {
+        await db
+            .into(db.interactions)
+            .insert(
+              _row(
+                id: 'DSI_CALCIUM_CIPROFLOXACIN',
+                a1Type: 'drug',
+                a1Id: '2551',
+                a1Name: 'Ciprofloxacin',
+                a1Class: 'class:fluoroquinolones',
+                a2Type: 'supplement',
+                a2Id: 'C0006675',
+                a2Name: 'Calcium',
+                a2Canonical: 'calcium',
+                severity: 'avoid',
+              ),
+            );
+
+        Future<List<InteractionResult>> check(UserStacksLocalData medication) =>
+            checker.checkMedicationInteractions(
+              newProductCanonicalIds: const ['calcium'],
+              stackMedications: [medication],
+              db: db,
+              newProductName: 'Calcium supplement',
+            );
+
+        expect(
+          await check(
+            _medication(
+              id: 'cipro',
+              name: 'Ciprofloxacin',
+              rxcui: '2551',
+              drugClassesJson: '["class:fluoroquinolones"]',
+            ),
+          ),
+          hasLength(1),
+        );
+        expect(
+          await check(
+            _medication(
+              id: 'moxi',
+              name: 'Moxifloxacin',
+              rxcui: '139462',
+              drugClassesJson: '["class:fluoroquinolones"]',
+            ),
+          ),
+          isEmpty,
+        );
+      },
+    );
+
     test('honors an authored medication-pair dose threshold', () async {
       await db
           .into(db.interactions)

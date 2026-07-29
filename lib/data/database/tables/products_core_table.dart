@@ -150,6 +150,12 @@ class ProductsCore extends Table {
   // JSON arrays (stored as TEXT, parsed in Dart)
   TextColumn get certPrograms => text().named('cert_programs').nullable()();
   TextColumn get badges => text().named('badges').nullable()();
+
+  /// Compact product-level release summary.
+  ///
+  /// This is not a second consumer-warning feed: non-blocked products use the
+  /// profile-gated detail-blob warning contract. The app reads this field only
+  /// as a blocked-product fallback for regulatory source links.
   TextColumn get topWarnings => text().named('top_warnings').nullable()();
   TextColumn get flags => text().named('flags').nullable()();
 

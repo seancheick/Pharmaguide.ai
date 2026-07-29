@@ -453,6 +453,8 @@ class _ProductDetailV2ConnectedState
     );
     final fitAsync = ref.watch(fitScoreForProductProvider(widget.dsldId));
     final fitResult = fitAsync.asData?.value;
+    final personalizedChecksFailed =
+        personalizedWarningsFailed || fitAsync.hasError;
 
     // -------------------------------------------------------------
     // Blob-derived flags used by downstream sections.
@@ -653,14 +655,15 @@ class _ProductDetailV2ConnectedState
                   const SizedBox(height: V2Spacing.space12),
 
                   // ---- 2. ProfileRelevance (personalized) ----------
-                  if (personalizedWarningsFailed) ...[
+                  if (personalizedChecksFailed) ...[
                     const PGSeverityBanner(
-                      key: Key('personalized-warnings-error-banner'),
+                      key: Key('personalized-checks-error-banner'),
                       tone: PGBannerTone.caution,
-                      title: 'Interactions couldn\'t be checked',
+                      title: 'Personalized checks are incomplete',
                       body:
-                          'We couldn\'t check this product against your '
-                          'stack right now — results may be incomplete.',
+                          'We couldn\'t complete every interaction and profile '
+                          'check for this product. This is not an all-clear; '
+                          'try again before relying on these results.',
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

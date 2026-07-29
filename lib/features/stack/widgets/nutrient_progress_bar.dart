@@ -47,6 +47,8 @@ class NutrientProgressBar extends StatelessWidget {
     final total = status.total;
     final tierColor = NutrientProgressBar.tierColorFor(status.tier);
     final fillPct = _fillPercent(status);
+    final hasOnlyExcludedContributions =
+        total.contributions.isEmpty && total.excludedContributions.isNotEmpty;
     // Every row with at least one contribution is tappable so the user
     // can always trace a nutrient back to the product(s) providing it,
     // even when only a single supplement in the stack contributes.
@@ -95,11 +97,13 @@ class NutrientProgressBar extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    _formatAmountRange(
-                      total.minimumTotalAmount,
-                      total.totalAmount,
-                      total.unit,
-                    ),
+                    hasOnlyExcludedContributions
+                        ? 'Not totaled'
+                        : _formatAmountRange(
+                            total.minimumTotalAmount,
+                            total.totalAmount,
+                            total.unit,
+                          ),
                     style: _monoDataStyle(tierColor),
                   ),
                   const SizedBox(width: V2Spacing.space8),
@@ -108,16 +112,26 @@ class NutrientProgressBar extends StatelessWidget {
                   _buildSubtitleText(),
                 ],
               ),
-              const SizedBox(height: V2Spacing.space4),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                child: LinearProgressIndicator(
-                  value: fillPct.clamp(0.0, 1.0),
-                  minHeight: 4,
-                  backgroundColor: V2Colors.outline,
-                  valueColor: AlwaysStoppedAnimation<Color>(tierColor),
+              if (!hasOnlyExcludedContributions) ...[
+                const SizedBox(height: V2Spacing.space4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+                  child: LinearProgressIndicator(
+                    value: fillPct.clamp(0.0, 1.0),
+                    minHeight: 4,
+                    backgroundColor: V2Colors.outline,
+                    valueColor: AlwaysStoppedAnimation<Color>(tierColor),
+                  ),
                 ),
-              ),
+              ],
+              if (hasOnlyExcludedContributions) ...[
+                const SizedBox(height: V2Spacing.space4),
+                Text(
+                  'This label amount could not be safely included in a '
+                  'nutrient total.',
+                  style: _captionStyle(V2Colors.fgMuted),
+                ),
+              ],
               if (status.warning != null) ...[
                 const SizedBox(height: V2Spacing.space8),
                 _WarningChip(text: status.warning!, color: tierColor),

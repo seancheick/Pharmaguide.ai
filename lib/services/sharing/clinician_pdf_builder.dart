@@ -9,6 +9,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/services/sharing/clinical_profile_labels.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
+import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
@@ -29,6 +30,8 @@ class ClinicianPdfBuilder {
     String? clinicalDataHash,
     String? productCatalogVersion,
     String? interactionRulesVersion,
+    Map<String, MedicationIdentityStatus> medicationIdentityStatuses =
+        const <String, MedicationIdentityStatus>{},
     required DateTime generatedAt,
     Uint8List? logoBytes,
     Uint8List? regularFontBytes,
@@ -65,7 +68,13 @@ class ClinicianPdfBuilder {
             status: depletionStatus,
           ),
           _profileSection(theme, profile),
-          _stackSection(theme, 'Medications', stack, 'medication'),
+          _stackSection(
+            theme,
+            'Medications',
+            stack,
+            'medication',
+            medicationIdentityStatuses: medicationIdentityStatuses,
+          ),
           _stackSection(theme, 'Supplements', stack, 'supplement'),
           _summarySection(theme, intelligence, safetyReport),
           _warningsSection(theme, intelligence, safetyReport),
@@ -204,12 +213,13 @@ class ClinicianPdfBuilder {
     final interactionVersionValue = interactionRulesVersion?.trim() ?? '';
     final rows = <String>[
       'Medication-nutrient analysis status: ${_loadStatusLabel(status)}',
-      if (versionValue.isNotEmpty) 'Clinical data version: $versionValue',
-      if (hashValue.isNotEmpty) 'Clinical data hash: $hashValue',
-      if (catalogVersionValue.isNotEmpty)
-        'Product catalog version: $catalogVersionValue',
-      if (interactionVersionValue.isNotEmpty)
-        'Interaction rules version: $interactionVersionValue',
+      'Clinical data version: '
+          '${versionValue.isEmpty ? 'Unavailable' : versionValue}',
+      'Clinical data hash: ${hashValue.isEmpty ? 'Unavailable' : hashValue}',
+      'Product catalog version: '
+          '${catalogVersionValue.isEmpty ? 'Unavailable' : catalogVersionValue}',
+      'Interaction rules version: '
+          '${interactionVersionValue.isEmpty ? 'Unavailable' : interactionVersionValue}',
     ];
     return _section(theme, 'Clinical data provenance', [
       for (final row in rows) _line(theme, row),
@@ -220,15 +230,25 @@ class ClinicianPdfBuilder {
     _Theme theme,
     String title,
     List<UserStacksLocalData> stack,
-    String type,
-  ) {
+    String type, {
+    Map<String, MedicationIdentityStatus> medicationIdentityStatuses =
+        const <String, MedicationIdentityStatus>{},
+  }) {
     final items = stack.where((e) => e.type == type).toList(growable: false);
     if (items.isEmpty) return pw.SizedBox.shrink();
 
     return _section(
       theme,
       '$title (${items.length})',
-      items.map((item) => _line(theme, _formatStackLine(item))),
+      items.map(
+        (item) => _line(
+          theme,
+          _formatStackLine(
+            item,
+            medicationIdentityStatus: medicationIdentityStatuses[item.id],
+          ),
+        ),
+      ),
     );
   }
 
@@ -246,7 +266,8 @@ class ClinicianPdfBuilder {
         safetyReport.coverageIncomplete;
     final countSuffix = countsIncomplete ? ' - incomplete' : '';
     final rows = <String>[
-      'Tier: ${_tierLabel(intelligence.tier)}',
+      'Stack tier (informational, not a clinical assessment): '
+          '${_tierLabel(intelligence.tier)}',
       'Stack size: ${intelligence.stackSize}',
       'Interactions flagged: ${intelligence.interactionCount}$countSuffix',
       'Nutrient warnings: ${intelligence.nutrientWarningCount}$countSuffix',
@@ -286,7 +307,7 @@ class ClinicianPdfBuilder {
       safetyReport,
     );
     if (signals.isEmpty && remainingIssues.isEmpty) {
-      return _section(theme, 'Warnings', [
+      return _section(theme, 'Needs attention', [
         if (incompleteNotices.isEmpty)
           _line(theme, 'No stack warnings in the current snapshot.')
         else
@@ -297,24 +318,53 @@ class ClinicianPdfBuilder {
     // Recall/banned and other hard issues originate outside
     // StackSafetyReport. Keep them ahead of the rich typed blocks; otherwise a
     // single interaction signal could hide a release-blocking recall.
-    final hardIssues = remainingIssues
-        .where((issue) => issue.severity.isHard)
+    final attentionSignals = signals
+        .where(
+          (signal) =>
+              signal.consumerDisposition == ConsumerDisposition.block ||
+              signal.consumerDisposition == ConsumerDisposition.review,
+        )
         .toList(growable: false);
-    final otherIssues = remainingIssues
-        .where((issue) => !issue.severity.isHard)
+    final goodToKnowSignals = signals
+        .where(
+          (signal) =>
+              signal.consumerDisposition == ConsumerDisposition.goodToKnow,
+        )
         .toList(growable: false);
-    return _section(theme, 'Warnings', [
-      // Ahead of the findings: a partial list must be labeled partial before
-      // it is read, not after.
-      ...incompleteNotices,
-      ...hardIssues.map(
-        (issue) => _severityLine(theme, issue.severity.label, issue.headline),
-      ),
-      ...signals.map((signal) => _clinicalSignalBlock(theme, signal)),
-      ...otherIssues.map(
-        (issue) => _severityLine(theme, issue.severity.label, issue.headline),
-      ),
-    ]);
+    final attentionIssues = remainingIssues
+        .where((issue) => issue.severity.isHard || issue.severity.isActionable)
+        .toList(growable: false);
+    final informationalIssues = remainingIssues
+        .where(
+          (issue) => !issue.severity.isHard && !issue.severity.isActionable,
+        )
+        .toList(growable: false);
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _section(theme, 'Needs attention', [
+          // Ahead of the findings: a partial list must be labeled partial
+          // before it is read, not after.
+          ...incompleteNotices,
+          ...attentionIssues.map(
+            (issue) =>
+                _severityLine(theme, issue.severity.label, issue.headline),
+          ),
+          ...attentionSignals.map(
+            (signal) => _clinicalSignalBlock(theme, signal),
+          ),
+        ]),
+        _section(theme, 'Good to know', [
+          ...goodToKnowSignals.map(
+            (signal) => _clinicalSignalBlock(theme, signal),
+          ),
+          ...informationalIssues.map(
+            (issue) => _informationLine(theme, issue.headline),
+          ),
+        ]),
+      ],
+    );
   }
 
   /// Hedge lines for a report whose checks did not all run. Empty when the
@@ -382,12 +432,20 @@ class ClinicianPdfBuilder {
 
   pw.Widget _clinicalSignalBlock(_Theme theme, ClinicalSignal signal) {
     final detail = <pw.Widget>[
-      _severityLine(theme, signal.clinicalSeverity.label, signal.title),
+      if (signal.consumerDisposition == ConsumerDisposition.goodToKnow)
+        _informationLine(theme, signal.title)
+      else
+        _severityLine(theme, signal.clinicalSeverity.label, signal.title),
     ];
 
     switch (signal.payload) {
       case InteractionPayload(:final result):
-        detail.add(_line(theme, 'Evidence: ${result.evidenceLevel.label}'));
+        detail.add(
+          _line(
+            theme,
+            'Evidence: ${_evidenceLabel(result.evidenceLevel.wireId)}',
+          ),
+        );
         if (result.mechanism.trim().isNotEmpty) {
           detail.add(_line(theme, 'Mechanism: ${result.mechanism.trim()}'));
         }
@@ -435,7 +493,7 @@ class ClinicianPdfBuilder {
     return _section(
       theme,
       'Nutrient totals',
-      sorted.take(10).map((status) {
+      sorted.map((status) {
         final total = status.total;
         final parts = <String>[
           '${total.displayName}: ${_formatNumber(total.totalAmount)} ${total.unit}',
@@ -461,7 +519,7 @@ class ClinicianPdfBuilder {
     return _section(
       theme,
       'Timing recommendations',
-      sorted.take(8).map((item) {
+      sorted.map((item) {
         final hours = item.separationHours == null
             ? ''
             : ' (${item.separationHours}h separation)';
@@ -503,7 +561,7 @@ class ClinicianPdfBuilder {
 
     return _section(theme, 'Medication-nutrient relationships', [
       ...statusLines,
-      ...depletions.take(8).map((match) {
+      ...depletions.map((match) {
         final headline = match.alertHeadline?.trim().isNotEmpty == true
             ? match.alertHeadline!.trim()
             : '${match.drugDisplayName} may affect ${match.nutrientName}';
@@ -643,6 +701,26 @@ class ClinicianPdfBuilder {
     );
   }
 
+  pw.Widget _informationLine(_Theme theme, String text) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 6),
+      padding: const pw.EdgeInsets.all(9),
+      decoration: pw.BoxDecoration(
+        color: theme.informationBg,
+        borderRadius: pw.BorderRadius.circular(6),
+        border: pw.Border.all(color: theme.border),
+      ),
+      child: pw.RichText(
+        text: pw.TextSpan(
+          children: [
+            pw.TextSpan(text: 'Good to know: ', style: theme.bodyBold),
+            pw.TextSpan(text: _clean(text), style: theme.body),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _addJsonList(
     List<String> rows,
     String label,
@@ -683,15 +761,31 @@ class ClinicianPdfBuilder {
     return sorted.map((entry) => entry.issue).toList(growable: false);
   }
 
-  String _formatStackLine(UserStacksLocalData item) {
+  String _formatStackLine(
+    UserStacksLocalData item, {
+    MedicationIdentityStatus? medicationIdentityStatus,
+  }) {
     final dosage = (item.dosage ?? '').trim();
     final frequency = (item.frequency ?? '').trim();
-    if (dosage.isEmpty && frequency.isEmpty) return item.name;
-    if (dosage.isNotEmpty && frequency.isEmpty) return '${item.name} - $dosage';
-    if (dosage.isEmpty && frequency.isNotEmpty) {
-      return '${item.name} - $frequency';
-    }
-    return '${item.name} - $dosage, $frequency';
+    final schedule = dosage.isEmpty && frequency.isEmpty
+        ? item.name
+        : dosage.isNotEmpty && frequency.isEmpty
+        ? '${item.name} - $dosage'
+        : dosage.isEmpty && frequency.isNotEmpty
+        ? '${item.name} - $frequency'
+        : '${item.name} - $dosage, $frequency';
+    if (item.type != 'medication') return schedule;
+    final coverage = switch (medicationIdentityStatus) {
+      MedicationIdentityStatus.complete => 'reviewed matching available',
+      MedicationIdentityStatus.partial => 'reviewed matching is partial',
+      MedicationIdentityStatus.classOnly =>
+        'reviewed medication-group matching only',
+      MedicationIdentityStatus.exactOnly =>
+        'RxNorm identity saved; no reviewed direct or group coverage found',
+      MedicationIdentityStatus.unresolved ||
+      null => 'matching unresolved; medication checks may be incomplete',
+    };
+    return '$schedule - Identity coverage: $coverage';
   }
 
   String _tierLabel(StackTier tier) => switch (tier) {
@@ -717,6 +811,11 @@ class ClinicianPdfBuilder {
   String _evidenceLabel(String level) => switch (level.trim().toLowerCase()) {
     'established' => 'Established',
     'probable' => 'Probable',
+    'moderate' => 'Moderate',
+    'limited' => 'Limited',
+    'theoretical' => 'Theoretical',
+    'no_data' => 'No evidence data',
+    'ungraded' => 'Not graded',
     'possible' => 'Possible',
     _ => 'Not graded',
   };
@@ -770,6 +869,7 @@ class _Theme {
   final muted = PdfColor.fromHex('#5C5F61');
   final subtle = PdfColor.fromHex('#8A8D90');
   final border = PdfColor.fromHex('#E5E2DB');
+  final informationBg = PdfColor.fromHex('#F3F6F5');
   final warningBg = PdfColor.fromHex('#F6F0E2');
   final warningBorder = PdfColor.fromHex('#AD7A24');
 

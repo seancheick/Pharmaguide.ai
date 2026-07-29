@@ -97,5 +97,14 @@ void main() {
         'vitamin_k',
       );
     });
+
+    test('legacy form ids roll up when nutrient_group_id is absent', () {
+      expect(readCanonicalId({'canonical_id': 'vitamin_k1'}), 'vitamin_k');
+      expect(readCanonicalId({'canonical_id': 'vitamin_k2'}), 'vitamin_k');
+      expect(readCanonicalId({'canonical_id': 'vitamin_d2'}), 'vitamin_d');
+      expect(readCanonicalId({'canonical_id': 'vitamin_d3'}), 'vitamin_d');
+      expect(readCanonicalId({'canonical_id': 'vitamin_b9_folate'}), 'folate');
+      expect(readCanonicalId({'canonical_id': 'folic_acid'}), 'folate');
+    });
   });
 }

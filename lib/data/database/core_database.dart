@@ -40,7 +40,11 @@ class CoreDatabase extends _$CoreDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (migrator, from, to) async {
-      // Not used — pre-built DB, no versioned migrations.
+      throw StateError(
+        'Core database schema changed from $from to $to. '
+        'This database is a pre-built artifact and must be replaced, '
+        'not migrated in place.',
+      );
     },
     beforeOpen: (details) async {
       // The pre-built DB from the pipeline may lack additive columns the

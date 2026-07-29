@@ -13,7 +13,9 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as reference_data;
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/sharing/clinician_pdf_builder.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
@@ -50,6 +52,12 @@ class ShareClinicianReportButton extends ConsumerWidget {
       final userDb = ref.read(userDatabaseProvider);
       final profile = await userDb.getProfile();
       final stack = await ref.read(activeStackProvider.future);
+      final medicationIdentityStatuses =
+          stack.any((entry) => entry.type == 'medication')
+          ? (await ref.read(
+              medicationIdentityAssessmentsProvider.future,
+            )).map((id, assessment) => MapEntry(id, assessment.status))
+          : const <String, MedicationIdentityStatus>{};
       final safetyReport = await ref.read(stackSafetyReportProvider.future);
       final synergyReport = await ref.read(synergyReportProvider.future);
       final recalledReport = await ref.read(
@@ -150,13 +158,19 @@ class ShareClinicianReportButton extends ConsumerWidget {
         clinicalDataHash: depletionMetadata['content_hash']?.toString(),
         productCatalogVersion: productCatalogVersion,
         interactionRulesVersion: interactionRulesVersion,
+        medicationIdentityStatuses: medicationIdentityStatuses,
         generatedAt: DateTime.now(),
         logoBytes: logoBytes,
         regularFontBytes: regularFontBytes,
         mediumFontBytes: mediumFontBytes,
       );
 
-      await service.shareClinicianReportPdf(pdfBytes);
+      final shared = await service.shareClinicianReportPdf(pdfBytes);
+      if (!shared) {
+        // Dismissing the native share sheet is an expected user action.
+        // Do not report it as a failure or as a completed share.
+        return;
+      }
     } on Object catch (error, stackTrace) {
       CrashReportingService().recordError(
         error,

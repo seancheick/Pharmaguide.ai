@@ -23,7 +23,6 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
-import 'package:pharmaguide/services/analytics_service.dart';
 import 'package:pharmaguide/services/catalog_swap.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -101,9 +100,6 @@ Future<void> _runApp() async {
     );
   });
   Isolate.current.addErrorListener(isolateErrorPort.sendPort);
-
-  // Initialize analytics (stub — safe to call, never throws)
-  await AnalyticsService().initialize();
 
   // Initialize Supabase (will use placeholders if no env vars set)
   bool supabaseReady = false;

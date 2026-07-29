@@ -49,6 +49,7 @@ abstract final class SchemaIds {
     'liver_disease',
     'thyroid_disorder',
     'autoimmune',
+    'immunocompromised',
     'seizure_disorder',
     'high_cholesterol',
   ];
@@ -56,7 +57,7 @@ abstract final class SchemaIds {
   static const conditionLabels = {
     'pregnancy': 'Pregnancy',
     'lactation': 'Breastfeeding',
-    'ttc': 'TTC (Trying to Conceive)',
+    'ttc': 'Trying to Conceive',
     'surgery_scheduled': 'Upcoming Surgery',
     'hypertension': 'High Blood Pressure',
     'heart_disease': 'Heart Disease',
@@ -66,6 +67,7 @@ abstract final class SchemaIds {
     'liver_disease': 'Liver Disease',
     'thyroid_disorder': 'Thyroid Condition',
     'autoimmune': 'Autoimmune Condition',
+    'immunocompromised': 'Immunocompromised',
     'seizure_disorder': 'Epilepsy/Seizures',
     'high_cholesterol': 'High Cholesterol',
   };

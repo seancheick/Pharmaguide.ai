@@ -141,6 +141,12 @@ double? _asDouble(dynamic value) {
 class InteractionWarning {
   final Severity severity;
 
+  /// Pipeline warning category (for example `drug_interaction`,
+  /// `harmful_additive`, or `banned_recalled`). Preserving this prevents
+  /// distinct safety sources with coincidentally identical copy from being
+  /// collapsed during deduplication.
+  final String? warningType;
+
   /// The severity to render when no user profile match was found.
   /// Downgraded by the pipeline to a calmer tier for avoid/caution
   /// rules. Null on older blobs predating schema 5.2.
@@ -198,17 +204,6 @@ class InteractionWarning {
   /// voiced for `substance`, etc. Null for non-banned warning types.
   final String? banContext;
 
-  /// Pipeline `clinical_risk` for banned_recalled / high_risk_ingredient
-  /// warnings — one of `critical`, `high`, `moderate`, `low`. Paired
-  /// with [severity] but distinct: severity drives display tier, clinical
-  /// risk drives medical-evidence weight (Dr Pham safety taxonomy).
-  final String? clinicalRisk;
-
-  /// Pipeline `mechanism_of_harm` for harmful_additive warnings —
-  /// technical explanation (e.g. "Nanoparticle concerns in gut
-  /// epithelium"). Surfaces in the expanded warning detail sheet.
-  final String? mechanismOfHarm;
-
   /// Pipeline `population_warnings` for harmful_additive warnings —
   /// list of at-risk groups with context (e.g. "Children — immature gut
   /// barrier", "People with IBD — may aggravate inflammation"). Rendered
@@ -225,25 +220,9 @@ class InteractionWarning {
   /// consumer visibility; legacy floor fields are ignored for this warning.
   final DoseDecision? doseDecision;
 
-  /// Pipeline `regulatory_date` + `regulatory_date_label` for
-  /// banned_recalled / high_risk_ingredient warnings — "First FDA
-  /// enforcement action: 2019-04" style context.
-  final String? regulatoryDate;
-  final String? regulatoryDateLabel;
-
   /// Pipeline `category` on harmful_additive — "colorant", "sweetener",
   /// "preservative" etc. Lets the UI group additives by class.
   final String? additiveCategory;
-
-  /// Pipeline `prevalence` on allergen warnings — one of `high`,
-  /// `moderate`, `low`. Paired with severity — e.g. a high-prevalence
-  /// allergen (peanut) renders differently than a low one (sesame).
-  final String? allergenPrevalence;
-
-  /// Pipeline `supplement_context` on allergen warnings — free-form
-  /// copy (e.g. "Common emulsifier in soft-gels"). Shown under the
-  /// title on the allergen card.
-  final String? supplementContext;
 
   /// Pipeline `identifiers` object — {cui, unii, cas, pubchem_cid}
   /// for the subject ingredient/substance. Preserved raw so the
@@ -306,6 +285,7 @@ class InteractionWarning {
     required this.title,
     required this.mechanism,
     required this.management,
+    this.warningType,
     this.sourceUrls = const [],
     this.severityContextual,
     this.displayModeDefault,
@@ -315,16 +295,10 @@ class InteractionWarning {
     this.conditionIds = const [],
     this.drugClassIds = const [],
     this.banContext,
-    this.clinicalRisk,
-    this.mechanismOfHarm,
     this.populationWarnings = const [],
     this.doseThresholdEvaluation,
     this.doseDecision,
-    this.regulatoryDate,
-    this.regulatoryDateLabel,
     this.additiveCategory,
-    this.allergenPrevalence,
-    this.supplementContext,
     this.identifiers,
     this.ingredientName,
     this.ingredientCanonicalId,
@@ -339,6 +313,7 @@ class InteractionWarning {
   /// duplicate producers. Safety semantics stay unchanged.
   InteractionWarning withSourceUrls(List<String> value) => InteractionWarning(
     severity: severity,
+    warningType: warningType,
     evidenceLevel: evidenceLevel,
     title: title,
     mechanism: mechanism,
@@ -352,16 +327,10 @@ class InteractionWarning {
     conditionIds: conditionIds,
     drugClassIds: drugClassIds,
     banContext: banContext,
-    clinicalRisk: clinicalRisk,
-    mechanismOfHarm: mechanismOfHarm,
     populationWarnings: populationWarnings,
     doseThresholdEvaluation: doseThresholdEvaluation,
     doseDecision: doseDecision,
-    regulatoryDate: regulatoryDate,
-    regulatoryDateLabel: regulatoryDateLabel,
     additiveCategory: additiveCategory,
-    allergenPrevalence: allergenPrevalence,
-    supplementContext: supplementContext,
     identifiers: identifiers,
     ingredientName: ingredientName,
     ingredientCanonicalId: ingredientCanonicalId,
@@ -415,11 +384,9 @@ class InteractionWarning {
         (json['alert_body'] ?? json['safety_warning'] ?? json['safety_summary'])
             ?.toString();
 
-    // Dr Pham's user-facing safety fields — propagated by the enricher
-    // from banned_recalled / harmful_additives / ingredient_interaction_rules /
-    // allergens data files. These are the medical-evidence breadcrumbs the
-    // detail-sheet rendering depends on (population_warnings bullet list,
-    // clinical_risk-driven banner tint, regulatory_date context line, etc.).
+    // Structured fields that have active consumers in the app. Do not parse
+    // pipeline metadata speculatively: doing so creates a second, unrendered
+    // warning contract that can drift without any user-visible behavior.
     final rawPopWarnings = json['population_warnings'];
     final popWarnings = rawPopWarnings is List
         ? rawPopWarnings.map((e) => e.toString()).toList()
@@ -451,6 +418,7 @@ class InteractionWarning {
       // interaction_result.dart) so a missing field can never silently
       // drop a real warning to `safe` and out of the actionable bucket.
       severity: Severity.fromString(json['severity']?.toString() ?? 'caution'),
+      warningType: json['type']?.toString(),
       severityRaw: json['severity']?.toString(),
       severityContextual: sevContextual,
       displayModeDefault: json['display_mode_default']?.toString(),
@@ -473,17 +441,10 @@ class InteractionWarning {
         json['drug_class_id'],
       ),
       banContext: json['ban_context']?.toString(),
-      clinicalRisk: json['clinical_risk']?.toString(),
-      mechanismOfHarm: json['mechanism_of_harm']?.toString(),
       populationWarnings: popWarnings,
       doseThresholdEvaluation: doseEval,
       doseDecision: doseDecision,
-      regulatoryDate:
-          json['regulatory_date']?.toString() ?? json['date']?.toString(),
-      regulatoryDateLabel: json['regulatory_date_label']?.toString(),
       additiveCategory: json['category']?.toString(),
-      allergenPrevalence: json['prevalence']?.toString(),
-      supplementContext: json['supplement_context']?.toString(),
       identifiers: identifiers,
       ingredientName: json['ingredient_name']?.toString(),
       ingredientCanonicalId: json['ingredient_canonical_id']?.toString(),
@@ -586,9 +547,9 @@ class InteractionWarning {
   ///
   /// Severity is DELIBERATELY excluded — "monitor" and "caution"
   /// versions of the same message must collapse together; [dedupe]
-  /// picks the highest severity from the group. Type is excluded
-  /// because InteractionWarning doesn't persist it and the headline
-  /// already discriminates between categories in practice.
+  /// picks the highest severity from the group. Warning type is included
+  /// because two categories can carry similar consumer copy while
+  /// representing distinct safety signals.
   String get _dedupeKey {
     final conditions = [...conditionIds]..sort();
     final drugClasses = [...drugClassIds]..sort();
@@ -615,7 +576,7 @@ class InteractionWarning {
     // suppressible, one firing) must not collapse into one. Identical real
     // duplicates (same warning in both blob lists) still share these values and
     // collapse as before.
-    return '${conditions.join(',')}|${drugClasses.join(',')}|$headline|$body|$gateKey'
+    return '$warningType|${conditions.join(',')}|${drugClasses.join(',')}|$headline|$body|$gateKey'
         '|$direction|$materiality|$doseFloorStatus'
         '|${doseDecision?.evaluationStatus}|${doseDecision?.consumerDisposition}';
   }

@@ -1,9 +1,9 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 14 user-profile health conditions referenced by interaction_rules.condition_rules and clinical_risk_taxonomy.conditions. The user-facing label was previously hardcoded in lib/core/constants/schema_ids.dart conditionLabels — migrating gives clinician control of the user-facing condition copy. Lean schema (no display contract): id + name + notes + (optional) icd10 references + synonyms.",
+    "description": "Controlled vocabulary for the 15 user-profile health conditions referenced by interaction_rules.condition_rules and clinical_risk_taxonomy.conditions. The user-facing label was previously hardcoded in lib/core/constants/schema_ids.dart conditionLabels — migrating gives clinician control of the user-facing condition copy. Lean schema (no display contract): id + name + notes + (optional) icd10 references + synonyms.",
     "schema_version": "1.0.0",
-    "last_updated": "2026-04-30",
-    "total_entries": 14,
+    "last_updated": "2026-07-04",
+    "total_entries": 15,
     "status": "LOCKED — labels migrated from schema_ids.dart 2026-04-30",
     "purpose": "Single source of truth for user-profile condition labels and descriptions. Drives condition-triggered interaction warnings (e.g. pregnancy + retinol → contraindicated). The `name` is shown in onboarding and the profile screen; `notes` shown in tap-to-learn.",
     "alignment": "Pipeline source: scripts/data/clinical_risk_taxonomy.json `conditions` list, scripts/data/ingredient_interaction_rules.json `condition_rules[].condition_id`. Flutter consumer: lib/core/constants/schema_ids.dart `conditions` + `conditionLabels` (replaces hardcoded map).",
@@ -100,6 +100,13 @@
       "notes": "Lupus, rheumatoid arthritis, MS, IBD, or similar. Immune-stimulating supplements (echinacea, astragalus, high-dose vitamin C) may worsen disease activity.",
       "synonyms": ["autoimmune disease", "immune dysregulation"],
       "icd10": [{"code": "M30-M36", "description": "Systemic connective tissue disorders"}]
+    },
+    {
+      "id": "immunocompromised",
+      "name": "Immunocompromised",
+      "notes": "Severely weakened immune defenses, such as chemotherapy, organ transplant, central line, or high-dose immunosuppression.",
+      "synonyms": ["immune compromised", "severe immunosuppression", "immunosuppressed"],
+      "icd10": [{"code": "D80-D89", "description": "Certain disorders involving the immune mechanism"}]
     },
     {
       "id": "seizure_disorder",

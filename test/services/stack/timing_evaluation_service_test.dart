@@ -5,7 +5,7 @@ import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
 
 /// Minimal timing_rules.json for testing — 6 rules covering each rule type.
 final _testTimingRulesJson = {
-  '_metadata': {'schema_version': '5.0.0', 'total_entries': 6},
+  '_metadata': {'schema_version': '5.1.0', 'total_entries': 7},
   'timing_rules': [
     {
       'id': 'timing_iron_calcium_separate',
@@ -63,6 +63,7 @@ final _testTimingRulesJson = {
     {
       'id': 'timing_thyroid_med_iron_separate',
       'ingredient1': 'levothyroxine',
+      'ingredient1_rxcuis': ['10582'],
       'ingredient2': 'iron',
       'rule_type': 'separate',
       'advice': 'Take levothyroxine at least 4 hours apart from iron.',
@@ -193,23 +194,46 @@ void main() {
         expect(mag.first.ruleType, TimingRuleType.timeOfDay);
       });
 
-      test('fires psyllium water and medication-spacing context rule', () {
-        final results = service.evaluateStack(
-          supplementTags: {
-            'Psyllium Husk': {'psyllium'},
-          },
-          medicationNames: [],
-        );
+      test(
+        'does not fire psyllium medication spacing without a medication',
+        () {
+          final results = service.evaluateStack(
+            supplementTags: {
+              'Psyllium Husk': {'psyllium'},
+            },
+            medicationNames: [],
+          );
 
-        final psyllium = results
-            .where((r) => r.ruleId == 'timing_psyllium_water_med_spacing')
-            .toList();
-        expect(psyllium, hasLength(1));
-        expect(psyllium.first.ruleType, TimingRuleType.separate);
-        expect(psyllium.first.separationHours, 3);
-        expect(psyllium.first.product1Name, 'Psyllium Husk');
-        expect(psyllium.first.product2Name, isNull);
-      });
+          final psyllium = results
+              .where((r) => r.ruleId == 'timing_psyllium_water_med_spacing')
+              .toList();
+          expect(psyllium, isEmpty);
+        },
+      );
+
+      test(
+        'fires psyllium medication spacing when a medication is present',
+        () {
+          final results = service.evaluateStack(
+            supplementTags: {
+              'Psyllium Husk': {'psyllium'},
+            },
+            medicationNames: ['Metformin'],
+            medicationRxCuisByName: {
+              'Metformin': {'6809'},
+            },
+          );
+
+          final psyllium = results
+              .where((r) => r.ruleId == 'timing_psyllium_water_med_spacing')
+              .toList();
+          expect(psyllium, hasLength(1));
+          expect(psyllium.first.ruleType, TimingRuleType.separate);
+          expect(psyllium.first.separationHours, 3);
+          expect(psyllium.first.product1Name, 'Psyllium Husk');
+          expect(psyllium.first.product2Name, isNull);
+        },
+      );
     });
 
     group('medication × supplement matching', () {
@@ -219,6 +243,9 @@ void main() {
             'Iron Supplement': {'iron'},
           },
           medicationNames: ['Levothyroxine 50mcg'],
+          medicationRxCuisByName: {
+            'Levothyroxine 50mcg': {'10582'},
+          },
         );
 
         final thyroidIron = results
@@ -230,7 +257,24 @@ void main() {
         expect(thyroidIron.first.product2Name, 'Iron Supplement');
       });
 
-      test('matches medication by brand name (Synthroid)', () {
+      test('matches a brand through its normalized generic RxCUI', () {
+        final results = service.evaluateStack(
+          supplementTags: {
+            'Iron Supplement': {'iron'},
+          },
+          medicationNames: ['Unithroid 100mcg'],
+          medicationRxCuisByName: {
+            'Unithroid 100mcg': {'890003', '10582'},
+          },
+        );
+
+        final thyroidIron = results
+            .where((r) => r.ruleId == 'timing_thyroid_med_iron_separate')
+            .toList();
+        expect(thyroidIron, hasLength(1));
+      });
+
+      test('does not infer medication identity from a display name', () {
         final results = service.evaluateStack(
           supplementTags: {
             'Iron Supplement': {'iron'},
@@ -238,10 +282,10 @@ void main() {
           medicationNames: ['Synthroid 100mcg'],
         );
 
-        final thyroidIron = results
-            .where((r) => r.ruleId == 'timing_thyroid_med_iron_separate')
-            .toList();
-        expect(thyroidIron, hasLength(1));
+        expect(
+          results.where((r) => r.ruleId == 'timing_thyroid_med_iron_separate'),
+          isEmpty,
+        );
       });
 
       test('does NOT fire medication rule when medication not in stack', () {
@@ -293,6 +337,9 @@ void main() {
             'Calcium Citrate': {'calcium'},
           },
           medicationNames: ['Levothyroxine 50mcg'],
+          medicationRxCuisByName: {
+            'Levothyroxine 50mcg': {'10582'},
+          },
         );
 
         // Should have at least: thyroid+iron (med), iron+calcium (supp)
@@ -629,7 +676,7 @@ void main() {
         );
       });
 
-      test('fires (fail-open) when the gated dose is unknown', () {
+      test('suppresses a dose-gated tip when the dose is unknown', () {
         final results = svc.evaluateStack(
           supplementTags: both,
           medicationNames: [],
@@ -639,10 +686,62 @@ void main() {
           results.where(
             (r) => r.ruleId == 'timing_vitamin_e_vitamin_k_separate',
           ),
-          hasLength(1),
-          reason: "can't prove it's below threshold → still surface it",
+          isEmpty,
+          reason: 'dose-conditional copy must not display without a known dose',
         );
       });
+    });
+
+    test('calcium carbonate advice does not match generic calcium', () {
+      final carbonate = TimingEvaluationService.fromJson({
+        'timing_rules': [
+          {
+            'id': 'timing_calcium_carbonate_with_food',
+            'ingredient1': 'calcium carbonate',
+            'ingredient2': 'food',
+            'rule_type': 'take_with_food',
+            'advice': 'Take calcium carbonate with food.',
+            'score_impact': 0,
+            'evidence_level': 'established',
+          },
+        ],
+      });
+
+      final citrateResults = carbonate.evaluateStack(
+        supplementTags: {
+          'Calcium Citrate': {'calcium'},
+        },
+        medicationNames: [],
+      );
+      final carbonateResults = carbonate.evaluateStack(
+        supplementTags: {
+          'Calcium Carbonate': {'calcium', 'calcium_carbonate'},
+        },
+        medicationNames: [],
+      );
+
+      expect(citrateResults, isEmpty);
+      expect(carbonateResults, hasLength(1));
+    });
+
+    test('rejects malformed timing rule payloads instead of defaulting', () {
+      expect(
+        () => TimingEvaluationService.fromJson({
+          '_metadata': {'total_entries': 2},
+          'timing_rules': [
+            {
+              'id': 'bad_rule',
+              'ingredient1': 'iron',
+              'ingredient2': 'calcium',
+              'rule_type': 'renamed_type',
+              'advice': 'This payload must fail closed.',
+              'score_impact': -1,
+              'evidence_level': 'established',
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
     });
   });
 
@@ -667,8 +766,8 @@ void main() {
       );
     });
 
-    test('defaults to separate for unknown type', () {
-      expect(TimingRuleType.fromString('unknown'), TimingRuleType.separate);
+    test('rejects unknown type', () {
+      expect(() => TimingRuleType.fromString('unknown'), throwsFormatException);
     });
   });
 
@@ -683,6 +782,7 @@ void main() {
         scoreImpact: -2,
         evidenceLevel: EvidenceLevel.established,
         product1Name: 'Synthroid',
+        involvesMedication: true,
       );
 
       const suppSep = TimingOptimization(
@@ -733,7 +833,7 @@ void main() {
       expect(food.isSeparation, isFalse);
     });
 
-    test('involvesMedication checks both ingredients, case-insensitively', () {
+    test('involvesMedication comes from reviewed rule identity', () {
       const medFirst = TimingOptimization(
         ruleId: 'test_med_first',
         ingredient1: 'Levothyroxine',
@@ -742,6 +842,7 @@ void main() {
         ruleType: TimingRuleType.separate,
         scoreImpact: -2,
         evidenceLevel: EvidenceLevel.established,
+        involvesMedication: true,
       );
       const medSecond = TimingOptimization(
         ruleId: 'test_med_second',
@@ -751,6 +852,7 @@ void main() {
         ruleType: TimingRuleType.separate,
         scoreImpact: -2,
         evidenceLevel: EvidenceLevel.established,
+        involvesMedication: true,
       );
       const suppOnly = TimingOptimization(
         ruleId: 'test_supp_only',
@@ -766,12 +868,12 @@ void main() {
       expect(
         medSecond.involvesMedication,
         isTrue,
-        reason: 'medication on ingredient2 must also count',
+        reason: 'either RxCUI-authored side must count',
       );
       expect(suppOnly.involvesMedication, isFalse);
     });
 
-    test('involvesMedication does not require product names', () {
+    test('involvesMedication does not infer identity from display text', () {
       const med = TimingOptimization(
         ruleId: 'test_no_products',
         ingredient1: 'warfarin',
@@ -781,7 +883,7 @@ void main() {
         scoreImpact: -2,
         evidenceLevel: EvidenceLevel.established,
       );
-      expect(med.involvesMedication, isTrue);
+      expect(med.involvesMedication, isFalse);
     });
   });
 }

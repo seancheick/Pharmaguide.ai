@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
@@ -27,10 +29,13 @@ UserStacksLocalData _med({
 
 void main() {
   test(
-    'medicationIdentityAuditProvider counts saved identity quality',
+    'medicationIdentityAuditProvider counts reviewed matching coverage',
     () async {
+      final interactionDb = InteractionDatabase.memory();
+      addTearDown(interactionDb.close);
       final container = ProviderContainer(
         overrides: [
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
           activeStackProvider.overrideWith(
             (ref) async => [
               _med(
@@ -53,10 +58,44 @@ void main() {
       );
 
       expect(audit.total, 3);
-      expect(audit.count(MedicationIdentityStatus.complete), 1);
-      expect(audit.count(MedicationIdentityStatus.exactOnly), 1);
-      expect(audit.count(MedicationIdentityStatus.classOnly), 1);
+      expect(audit.count(MedicationIdentityStatus.exactOnly), 2);
+      expect(audit.count(MedicationIdentityStatus.unresolved), 1);
       expect(audit.hasIncomplete, isTrue);
+    },
+  );
+
+  test(
+    'runtime-only RxClass ids never claim reviewed interaction coverage',
+    () async {
+      final interactionDb = InteractionDatabase.memory();
+      addTearDown(interactionDb.close);
+      final container = ProviderContainer(
+        overrides: [
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          activeStackProvider.overrideWith(
+            (ref) async => [
+              _med(
+                id: 'runtime-only',
+                name: 'Uncovered medication',
+                rxcui: '99999999',
+                genericRxcui: '99999998',
+                drugClasses:
+                    '["class:rxclass_runtime_only_not_in_curated_map"]',
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final assessments = await container.read(
+        medicationIdentityAssessmentsProvider.future,
+      );
+      final assessment = assessments['runtime-only'];
+
+      expect(assessment, isNotNull);
+      expect(assessment!.hasReviewedCoverage, isFalse);
+      expect(assessment.status, MedicationIdentityStatus.exactOnly);
     },
   );
 }

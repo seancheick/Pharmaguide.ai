@@ -98,14 +98,6 @@ void main() {
               expectedSeverity: Severity.contraindicated,
             ),
             (
-              canonicalId: 'magnesium',
-              medicationName: 'Omeprazole',
-              rxcui: '7646',
-              drugClasses: ['class:antacids'],
-              expectedInteractionId: 'DSI_PPI_MAGNESIUM',
-              expectedSeverity: Severity.caution,
-            ),
-            (
               canonicalId: 'calcium',
               medicationName: 'Levothyroxine',
               rxcui: '10582',
@@ -220,6 +212,25 @@ void main() {
               '${fixture.canonicalId} should render the expected severity tier',
         );
       }
+
+      final suppressedPpiMagnesium = await runQuickCheckPair(
+        QuickCheckItem.supplement(
+          await _productForCanonicalId(coreDb, 'magnesium'),
+        ),
+        QuickCheckItem.medication(
+          name: 'Omeprazole',
+          rxcui: '7646',
+          drugClasses: const ['class:proton_pump_inhibitors'],
+        ),
+        interactionDb,
+      );
+      expect(
+        suppressedPpiMagnesium,
+        isEmpty,
+        reason:
+            'PPI → magnesium is a suppressed medication-depletion record, '
+            'not an active pairwise Quick Check interaction',
+      );
     },
   );
 

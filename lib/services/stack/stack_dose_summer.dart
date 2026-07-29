@@ -119,27 +119,6 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
   return rules;
 }
 
-List<StackDoseThresholdRule> stackDoseThresholdRulesFromDetailBlob(
-  Map<String, dynamic>? detailBlob,
-) {
-  if (detailBlob == null) return const [];
-
-  final warnings = <InteractionWarning>[];
-  for (final key in const ['warnings', 'warnings_profile_gated']) {
-    final raw = detailBlob[key];
-    if (raw is! List) continue;
-    for (final entry in raw.whereType<Map<String, dynamic>>()) {
-      try {
-        warnings.add(InteractionWarning.fromJson(entry));
-      } on Object {
-        continue;
-      }
-    }
-  }
-
-  return stackDoseThresholdRulesFromWarnings(warnings);
-}
-
 /// Conservative stack-level ingredient dose summer.
 ///
 /// This is intentionally separate from [StackNutrientAggregator]. The nutrient

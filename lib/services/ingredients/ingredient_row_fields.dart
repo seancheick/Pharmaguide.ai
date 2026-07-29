@@ -100,8 +100,12 @@ String readDoseUnit(Map<String, dynamic> row) {
 /// pipeline's `nutrient_group_id` roll-up (so Vitamin K1 + K2 group as one
 /// "Vitamin K") then the raw canonical / mapped fields.
 String? readCanonicalId(Map<String, dynamic> row) {
+  final groupId = row['nutrient_group_id'];
+  if (groupId is String && groupId.trim().isNotEmpty) {
+    return groupId.trim().toLowerCase();
+  }
+
   const fields = <String>[
-    'nutrient_group_id',
     'canonical_id',
     'mapped_name',
     'standard_name',
@@ -111,11 +115,25 @@ String? readCanonicalId(Map<String, dynamic> row) {
   for (final field in fields) {
     final raw = row[field];
     if (raw is String && raw.trim().isNotEmpty) {
-      return raw.trim().toLowerCase();
+      final canonical = raw.trim().toLowerCase();
+      return _legacyNutrientGroupAliases[canonical] ?? canonical;
     }
   }
   return null;
 }
+
+/// Backward-compatible roll-ups for detail blobs produced before
+/// `nutrient_group_id` was emitted. These aliases only establish a shared
+/// total; unit conversion remains strict, so folic-acid mass is never silently
+/// treated as dietary folate equivalents.
+const _legacyNutrientGroupAliases = <String, String>{
+  'vitamin_k1': 'vitamin_k',
+  'vitamin_k2': 'vitamin_k',
+  'vitamin_d2': 'vitamin_d',
+  'vitamin_d3': 'vitamin_d',
+  'vitamin_b9_folate': 'folate',
+  'folic_acid': 'folate',
+};
 
 /// Every canonical name-key [row] can match a threshold table under. A row
 /// may carry several name fields (`standard_name`, `mapped_name`, …); each is

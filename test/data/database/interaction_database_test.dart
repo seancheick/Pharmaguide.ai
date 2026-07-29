@@ -50,30 +50,36 @@ const _calciumIronInteractionId = 'SSI_IRON_CALCIUM';
 /// the class id, agent1_drug_class is null.
 const _aceInhibitorsPotassiumId = 'DSI_ACEI_POTASSIUM';
 
-/// Pipeline-built drug classes that the current bundle ships.
-/// v1.0.1 has 22 classes with curated interaction rows.
+/// Pipeline-built drug-class agents that the current bundle ships.
+/// Keep this as a release golden: an intentional curation change must update
+/// the list after the new bundle is inspected.
 const _classesWithLiveInteractions = <String>{
   'class:ace_inhibitors',
-  'class:antacids',
   'class:anticoagulants',
   'class:anticonvulsants',
   'class:antihypertensives',
+  'class:antiplatelet_agents',
   'class:antipsychotics',
   'class:benzodiazepines',
   'class:beta_blockers',
+  'class:bisphosphonates',
   'class:calcium_channel_blockers',
   'class:corticosteroids',
   'class:diabetes_meds',
   'class:diuretics',
+  'class:doacs',
+  'class:fluoroquinolones',
   'class:hiv_protease_inhibitors',
   'class:immunosuppressants',
   'class:maois',
   'class:nsaids',
   'class:oral_contraceptives',
+  'class:potassium_sparing_diuretics',
   'class:sedatives',
   'class:ssris',
   'class:statins',
   'class:stimulants',
+  'class:tetracycline_antibiotics',
   'class:triptans',
 };
 
@@ -193,13 +199,16 @@ void main() {
     test(
       'returns an empty list when no drug rows reference the rxcui',
       () async {
-        // The current bundle has no individual drug-id rows; everything is
-        // either supplement-supplement or drug_class-supplement. So a real
-        // RXCUI lookup must return zero, NOT throw.
         final rows = await db.lookupByRxcui('999999');
         expect(rows, isEmpty);
       },
     );
+
+    test('ciprofloxacin has a direct calcium interaction', () async {
+      final rows = await db.lookupByRxcui('2551');
+
+      expect(rows.map((row) => row.id), contains('DSI_CALCIUM_CIPROFLOXACIN'));
+    });
 
     test('only matches when agent_type=drug, not drug_class', () async {
       // 'class:ace_inhibitors' is stored with agent_type='drug_class'.
@@ -253,6 +262,21 @@ void main() {
       final rows = await db.lookupByDrugClass('class:thyroid_medications');
       expect(rows, isEmpty);
     });
+
+    test(
+      'fluoroquinolone class lookup exposes class and tagged direct rows',
+      () async {
+        final rows = await db.lookupByDrugClass('class:fluoroquinolones');
+        final ids = rows.map((row) => row.id).toSet();
+
+        expect(ids, contains('DSI_ZINC_FLUOROQUINOLONE'));
+        expect(ids, contains('DSI_CALCIUM_CIPROFLOXACIN'));
+        expect(
+          (await db.lookupByRxcui('139462')).map((row) => row.id),
+          isNot(contains('DSI_CALCIUM_CIPROFLOXACIN')),
+        );
+      },
+    );
   });
 
   group('lookupPair (symmetric)', () {

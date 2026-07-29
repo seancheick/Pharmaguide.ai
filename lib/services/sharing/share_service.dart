@@ -8,7 +8,7 @@ import 'package:share_plus/share_plus.dart';
 /// payload without standing up a platform channel.
 typedef ShareInvocation = Future<void> Function(String text, {String? subject});
 typedef PdfShareInvocation =
-    Future<void> Function(List<int> bytes, {required String filename});
+    Future<bool> Function(List<int> bytes, {required String filename});
 
 /// Handles sharing products and stack summaries.
 class ShareService {
@@ -28,25 +28,15 @@ class ShareService {
     return SharePlus.instance.share(ShareParams(text: text, subject: subject));
   }
 
-  /// Share the markdown summary built by `ClinicianReportBuilder`.
-  ///
-  /// Spec: INITIATIVE_STACK_INTELLIGENCE.md, Track C, C2.
-  ///
-  /// The method is intentionally a thin pass-through — no analytics
-  /// ping, no payload reshaping, no fallbacks. The builder owns the
-  /// content; this method only routes it into the system share sheet
-  /// with a stable subject line.
-  Future<void> shareClinicianReport(String markdown) async {
-    await _share(markdown, subject: 'My Supplement Stack — Clinician Summary');
-  }
-
-  Future<void> shareClinicianReportPdf(List<int> bytes) async {
+  /// Returns `true` only when the platform confirms that the PDF was shared.
+  /// A dismissed system share sheet is a normal cancellation, not an error.
+  Future<bool> shareClinicianReportPdf(List<int> bytes) async {
     const filename = 'pharmaguide-clinician-report.pdf';
     final override = _pdfShareOverride;
     if (override != null) {
       return override(bytes, filename: filename);
     }
-    await Printing.sharePdf(
+    return Printing.sharePdf(
       bytes: Uint8List.fromList(bytes),
       filename: filename,
     );

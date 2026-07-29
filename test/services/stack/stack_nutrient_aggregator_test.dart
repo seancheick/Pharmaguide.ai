@@ -37,7 +37,7 @@ void main() {
       ];
       final result = aggregator.aggregate(stack);
       expect(result, hasLength(1));
-      final vd3 = result['vitamin_d3']!;
+      final vd3 = result['vitamin_d']!;
       expect(vd3.totalAmount, 2000);
       expect(vd3.unit, 'iu');
       expect(vd3.displayName, 'Vitamin D3 (Cholecalciferol)');
@@ -70,10 +70,10 @@ void main() {
         ]),
       ];
       final result = aggregator.aggregate(stack);
-      expect(result['vitamin_d3']!.totalAmount, 3000);
-      expect(result['vitamin_d3']!.contributions, hasLength(2));
+      expect(result['vitamin_d']!.totalAmount, 3000);
+      expect(result['vitamin_d']!.contributions, hasLength(2));
       expect(
-        result['vitamin_d3']!.contributions.map((c) => c.productName),
+        result['vitamin_d']!.contributions.map((c) => c.productName),
         containsAll(['Thorne D3', 'Pure D3']),
       );
     });
@@ -193,7 +193,7 @@ void main() {
       expect(total.contributions.first.amount, 300);
     });
 
-    test('nutrient_group_id absent → groups by canonical_id (old catalog)', () {
+    test('nutrient_group_id absent → legacy vitamin forms still roll up', () {
       final stack = [
         _productOf('s1', 'Old K1', [
           {
@@ -204,9 +204,11 @@ void main() {
           },
         ]),
       ];
-      // Dual-read safety: a catalog built before nutrient_group_id existed
-      // still groups by canonical_id.
-      expect(aggregator.aggregate(stack).keys, contains('vitamin_k1'));
+      // Dual-read safety: an old catalog must not split K1 and K2 into
+      // separately benchmarked totals that could hide a cumulative exposure.
+      final result = aggregator.aggregate(stack);
+      expect(result.keys, contains('vitamin_k'));
+      expect(result.keys, isNot(contains('vitamin_k1')));
     });
 
     test(
@@ -252,7 +254,7 @@ void main() {
           },
         ]),
       ];
-      expect(aggregator.aggregate(stack)['vitamin_d3']!.totalAmount, 2000);
+      expect(aggregator.aggregate(stack)['vitamin_d']!.totalAmount, 2000);
     });
 
     test('parses amount from int, double, and numeric string uniformly', () {
@@ -762,7 +764,7 @@ void main() {
         ]),
         _productOf('s3', 'C', [_ing('vitamin_d3', 'Vitamin D', 1000, 'IU')]),
       ];
-      final total = aggregator.aggregate(stack)['vitamin_d3']!;
+      final total = aggregator.aggregate(stack)['vitamin_d']!;
       expect(total.displayName, 'Vitamin D3 (Cholecalciferol)');
     });
   });

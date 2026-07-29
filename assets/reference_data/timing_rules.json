@@ -2,9 +2,9 @@
   "_metadata": {
     "description": "Supplement timing and absorption interaction rules for optimal nutrient uptake",
     "purpose": "timing_optimization",
-    "schema_version": "5.0.0",
-    "last_updated": "2026-07-03",
-    "total_entries": 37
+    "schema_version": "5.1.0",
+    "last_updated": "2026-07-29",
+    "total_entries": 32
   },
   "timing_rules": [
     {
@@ -50,24 +50,6 @@
       ]
     },
     {
-      "id": "timing_iron_calcium_zinc_separate",
-      "ingredient1": "iron",
-      "ingredient2": "calcium",
-      "rule_type": "separate",
-      "advice": "Avoid taking iron, calcium, and zinc together — all three compete for the same absorption pathway and significantly reduce each other's uptake.",
-      "mechanism": "Divalent cation competition at DMT1 and related transporters; aggregate inhibition at the intestinal brush border is additive when all three minerals are present simultaneously.",
-      "separation_hours": 2,
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "Linus Pauling Institute — Mineral Interactions",
-          "url": "https://lpi.oregonstate.edu/mic/minerals"
-        }
-      ]
-    },
-    {
       "id": "timing_iron_vitamin_c_together",
       "ingredient1": "iron",
       "ingredient2": "vitamin c",
@@ -108,16 +90,16 @@
       "ingredient1": "vitamin a",
       "ingredient2": "dietary fat",
       "rule_type": "take_with_food",
-      "advice": "Take vitamins A, D, E, and K with a meal containing fat — these fat-soluble vitamins require dietary lipids for absorption.",
-      "mechanism": "Fat-soluble vitamins are incorporated into mixed micelles formed from bile salts and dietary fatty acids; without fat in the GI lumen, micelle formation is insufficient and lymphatic absorption is markedly impaired.",
+      "advice": "Take vitamin A with a meal containing some fat to support absorption.",
+      "mechanism": "Vitamin A is incorporated into mixed micelles formed from bile salts and dietary fatty acids before intestinal absorption.",
       "separation_hours": null,
       "score_impact": -1,
       "evidence_level": "established",
       "sources": [
         {
           "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Vitamin D Fact Sheet",
-          "url": "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
+          "label": "NIH Office of Dietary Supplements — Vitamin A and Carotenoids Fact Sheet",
+          "url": "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/"
         }
       ]
     },
@@ -307,24 +289,6 @@
       ]
     },
     {
-      "id": "timing_fiber_minerals_separate",
-      "ingredient1": "fiber",
-      "ingredient2": "minerals",
-      "rule_type": "separate",
-      "advice": "Take fiber supplements at least 2 hours away from minerals like iron, calcium, and zinc — fiber binds minerals and reduces their absorption.",
-      "mechanism": "Soluble fiber (psyllium, guar gum, inulin) forms a viscous gel in the GI lumen that chelates divalent and trivalent cations, physically trapping minerals and preventing contact with absorptive epithelium.",
-      "separation_hours": 2,
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Iron Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
-        }
-      ]
-    },
-    {
       "id": "timing_psyllium_water_med_spacing",
       "ingredient1": "psyllium",
       "ingredient2": "medications",
@@ -379,26 +343,11 @@
       ]
     },
     {
-      "id": "timing_thyroid_med_minerals_separate",
-      "ingredient1": "levothyroxine",
-      "ingredient2": "calcium",
-      "rule_type": "separate",
-      "advice": "If taking thyroid medication, keep calcium, iron, and magnesium supplements at least 4 hours away — they significantly impair thyroid hormone absorption.",
-      "mechanism": "Calcium, iron, and magnesium form insoluble complexes with levothyroxine (T4) in the GI tract, reducing systemic bioavailability by 20–40%; FDA labeling explicitly warns of this interaction.",
-      "separation_hours": 4,
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "FDA Drugs@FDA — Levothyroxine sodium product labels",
-          "url": "https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&ApplNo=021402"
-        }
-      ]
-    },
-    {
       "id": "timing_thyroid_med_iron_separate",
       "ingredient1": "levothyroxine",
+      "ingredient1_rxcuis": [
+        "10582"
+      ],
       "ingredient2": "iron",
       "rule_type": "separate",
       "advice": "Keep iron supplements at least 4 hours away from thyroid medication — iron markedly reduces thyroid hormone absorption.",
@@ -415,20 +364,23 @@
       ]
     },
     {
-      "id": "timing_berberine_b_vitamins_separate",
-      "ingredient1": "berberine",
-      "ingredient2": "vitamin b12",
+      "id": "timing_thyroid_med_magnesium_separate",
+      "ingredient1": "levothyroxine",
+      "ingredient1_rxcuis": [
+        "10582"
+      ],
+      "ingredient2": "magnesium",
       "rule_type": "separate",
-      "advice": "If you use berberine long-term, space it from B12 and consider monitoring your levels. Berberine acts like metformin, which can lower B12 over time — berberine's own effect is plausible but not proven.",
-      "mechanism": "Berberine may impair B12 absorption through metformin-like effects on ileal intrinsic factor-mediated transport and gut microbiome changes. The precise mechanism is not established — no controlled human trials have directly demonstrated this interaction. The analogy is drawn from metformin's well-documented B12 depletion effect (PMID 10977010, Bauman 2000). Berberine's effects on folate transport (via PCFT) are a separate pathway and do not explain B12 impairment.",
-      "separation_hours": 2,
-      "score_impact": -1,
-      "evidence_level": "possible",
+      "advice": "Keep magnesium supplements at least 4 hours away from levothyroxine unless the prescriber gives different instructions.",
+      "mechanism": "Magnesium-containing products can reduce levothyroxine absorption. Levothyroxine labeling directs patients to separate medicines known to interfere with absorption by at least 4 hours.",
+      "separation_hours": 4,
+      "score_impact": -2,
+      "evidence_level": "established",
       "sources": [
         {
-          "source_type": "pubmed",
-          "label": "Bauman WA et al. — Increased intake of calcium reverses vitamin B12 malabsorption induced by metformin (the metformin analogy this berberine precaution is based on; no direct berberine trial exists)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/10977010/"
+          "source_type": "fda",
+          "label": "DailyMed — Levothyroxine sodium tablets prescribing information",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=3e77de84-6f59-40ac-a1a4-7bfe30387823"
         }
       ]
     },
@@ -447,28 +399,6 @@
           "source_type": "reference",
           "label": "Linus Pauling Institute — Lipoic Acid",
           "url": "https://lpi.oregonstate.edu/mic/dietary-factors/lipoic-acid"
-        }
-      ]
-    },
-    {
-      "id": "timing_vitamin_e_vitamin_k_separate",
-      "ingredient1": "vitamin e",
-      "ingredient2": "vitamin k",
-      "rule_type": "separate",
-      "advice": "High-dose vitamin E supplements (above 400 IU/day) may antagonize vitamin K — take them at different times and inform your healthcare provider if you are on anticoagulants.",
-      "mechanism": "High-dose alpha-tocopherol inhibits vitamin K-dependent carboxylase activity and may deplete vitamin K by competing for gamma-glutamyl carboxylase, potentially impairing synthesis of clotting factors II, VII, IX, and X.",
-      "separation_hours": 2,
-      "score_impact": -2,
-      "evidence_level": "probable",
-      "min_dose": {
-        "ingredient": "vitamin e",
-        "mg": 180
-      },
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Vitamin E Fact Sheet",
-          "url": "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/"
         }
       ]
     },
@@ -545,24 +475,6 @@
       ]
     },
     {
-      "id": "timing_vitamin_k_anticoagulants_consistency",
-      "ingredient1": "vitamin k",
-      "ingredient2": "warfarin",
-      "rule_type": "take_with_food",
-      "advice": "Maintain a consistent daily intake of vitamin K if you take warfarin — sudden changes in vitamin K intake can destabilize your INR and change your clotting status.",
-      "mechanism": "Warfarin inhibits vitamin K epoxide reductase (VKORC1); fluctuating vitamin K intake directly competes with this mechanism. Consistency, not avoidance, is the clinical recommendation.",
-      "separation_hours": null,
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Vitamin K Fact Sheet",
-          "url": "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"
-        }
-      ]
-    },
-    {
       "id": "timing_vitamin_e_with_food",
       "ingredient1": "vitamin e",
       "ingredient2": "dietary fat",
@@ -602,6 +514,9 @@
       "id": "timing_calcium_iron_thyroid_separate",
       "ingredient1": "calcium",
       "ingredient2": "levothyroxine",
+      "ingredient2_rxcuis": [
+        "10582"
+      ],
       "rule_type": "separate",
       "advice": "Take calcium supplements at least 4 hours away from thyroid medication — calcium chelates thyroid hormone and reduces its absorption.",
       "mechanism": "Calcium carbonate and calcium citrate both form insoluble complexes with levothyroxine in the stomach at physiologic pH; this interaction is well-documented in pharmacokinetic studies and is included in official FDA prescribing information.",
@@ -637,6 +552,9 @@
     {
       "id": "timing_thyroid_med_coffee_separate",
       "ingredient1": "levothyroxine",
+      "ingredient1_rxcuis": [
+        "10582"
+      ],
       "ingredient2": "caffeine",
       "rule_type": "separate",
       "advice": "Take levothyroxine at least 60 minutes before coffee — espresso reduces absorption by up to 36%.",
@@ -678,6 +596,9 @@
     {
       "id": "timing_thyroid_med_soy_separate",
       "ingredient1": "levothyroxine",
+      "ingredient1_rxcuis": [
+        "10582"
+      ],
       "ingredient2": "soy protein",
       "rule_type": "separate",
       "advice": "Take levothyroxine at least 4 hours apart from soy protein or soy isoflavone supplements.",

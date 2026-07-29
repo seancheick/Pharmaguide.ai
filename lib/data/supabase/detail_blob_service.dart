@@ -27,6 +27,18 @@ class PublicFetchDeniedException implements Exception {
       '(HTTP $statusCode)';
 }
 
+/// A product declares a detail blob, but the app could not obtain and verify
+/// it. This is deliberately distinct from a product that declares no blob.
+class DetailBlobUnavailableException implements Exception {
+  const DetailBlobUnavailableException(this.reason, [this.cause]);
+
+  final String reason;
+  final Object? cause;
+
+  @override
+  String toString() => 'DetailBlobUnavailableException: $reason';
+}
+
 /// Fetches detail blobs from Supabase Storage on demand.
 ///
 /// The pipeline uploads blobs to a content-addressed path:
@@ -51,10 +63,13 @@ class DetailBlobService {
   /// Path: `shared/details/sha256/{sha256[0:2]}/{sha256}.json`
   /// Bucket: `pharmaguide`
   ///
-  /// Returns parsed JSON map or null if not found / network error /
-  /// checksum mismatch.
+  /// Returns a verified JSON object. Any fetch, integrity, or decoding failure
+  /// throws [DetailBlobUnavailableException]; callers must not interpret a
+  /// failed clinical-data fetch as "this product has no detail data".
   Future<Map<String, dynamic>?> fetchDetailBlobByHash(String sha256) async {
-    if (sha256.length < 3) return null;
+    if (sha256.length < 3) {
+      throw const DetailBlobUnavailableException('invalid content hash');
+    }
     try {
       final prefix = sha256.substring(0, 2);
       final path = '${SupabaseContract.blobPrefix}/$prefix/$sha256.json';
@@ -66,22 +81,36 @@ class DetailBlobService {
       // fetch failure: nothing is parsed, nothing reaches FitScore or the
       // warnings engine, nothing is cached.
       if (!detailBlobBytesMatchSha256(bytes, sha256)) {
-        CrashReportingService().recordError(
-          StateError(
-            'detail blob sha256 mismatch — discarding unverified CDN bytes',
-          ),
-          StackTrace.current,
-          fatal: false,
-          hint: 'detail_blob:sha256_mismatch',
+        throw const DetailBlobUnavailableException(
+          'content hash verification failed',
         );
-        return null;
       }
       final decoded = jsonDecode(utf8.decode(bytes));
       if (decoded is Map<String, dynamic>) return decoded;
       if (decoded is Map) return Map<String, dynamic>.from(decoded);
-      return null;
-    } on Object {
-      return null;
+      throw const DetailBlobUnavailableException(
+        'detail payload is not a JSON object',
+      );
+    } on DetailBlobUnavailableException catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        fatal: false,
+        hint: 'detail_blob:unavailable',
+      );
+      rethrow;
+    } on Object catch (error, stackTrace) {
+      final unavailable = DetailBlobUnavailableException(
+        'fetch or decoding failed',
+        error,
+      );
+      CrashReportingService().recordError(
+        unavailable,
+        stackTrace,
+        fatal: false,
+        hint: 'detail_blob:unavailable',
+      );
+      throw unavailable;
     }
   }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 
 /// Drift contract test for the bundled condition_vocab.json asset.
 ///
@@ -17,71 +18,34 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 14 entries', () {
+    test('schema lock + runtime entry count', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
       expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 14);
+      expect(md['total_entries'], SchemaIds.conditions.length);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
-    test('canonical 14 IDs match schema_ids.dart `conditions` list', () {
+    test('canonical IDs match schema_ids.dart `conditions` list', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['conditions'] as List)
           .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
-      expect(
-        ids,
-        equals({
-          'pregnancy',
-          'lactation',
-          'ttc',
-          'surgery_scheduled',
-          'hypertension',
-          'heart_disease',
-          'diabetes',
-          'bleeding_disorders',
-          'kidney_disease',
-          'liver_disease',
-          'thyroid_disorder',
-          'autoimmune',
-          'seizure_disorder',
-          'high_cholesterol',
-        }),
-      );
+      expect(ids, equals(SchemaIds.conditions.toSet()));
     });
 
     test('vocab `name` matches schema_ids.dart `conditionLabels`', () {
-      // Locked from lib/core/constants/schema_ids.dart conditionLabels map.
-      // If this map drifts from the Dart source, the migration broke.
-      const expected = {
-        'pregnancy': 'Pregnancy',
-        'lactation': 'Breastfeeding',
-        'ttc': 'Trying to Conceive',
-        'surgery_scheduled': 'Upcoming Surgery',
-        'hypertension': 'High Blood Pressure',
-        'heart_disease': 'Heart Disease',
-        'diabetes': 'Diabetes',
-        'bleeding_disorders': 'Bleeding Disorders',
-        'kidney_disease': 'Kidney Disease',
-        'liver_disease': 'Liver Disease',
-        'thyroid_disorder': 'Thyroid Condition',
-        'autoimmune': 'Autoimmune Condition',
-        'seizure_disorder': 'Epilepsy/Seizures',
-        'high_cholesterol': 'High Cholesterol',
-      };
-
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['conditions'] as List)
           .cast<Map<String, dynamic>>();
       final byId = {for (final e in entries) e['id'] as String: e};
 
-      for (final entry in expected.entries) {
+      for (final entry in SchemaIds.conditionLabels.entries) {
         final c = byId[entry.key];
         expect(c, isNotNull, reason: 'condition ${entry.key} missing');
         expect(

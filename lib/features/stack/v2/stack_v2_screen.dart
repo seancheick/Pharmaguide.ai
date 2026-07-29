@@ -448,6 +448,10 @@ class _StackTabState extends ConsumerState<_StackTab> {
     final showPreviewFixtures = widget.showPreviewFixtures;
     ref.watch(medicationIdentityHydrationProvider);
     final stackAsync = ref.watch(activeStackProvider);
+    final identityAssessments = ref
+        .watch(medicationIdentityAssessmentsProvider)
+        .asData
+        ?.value;
     final realItems = stackAsync.asData?.value
         .map(
           (row) => _StackEntry(
@@ -460,6 +464,11 @@ class _StackTabState extends ConsumerState<_StackTab> {
             isMedication: row.type == 'medication',
             medicationIdentity: row.type == 'medication'
                 ? MedicationIdentitySnapshot.fromStackRow(row)
+                : null,
+            medicationIdentityAssessment: row.type == 'medication'
+                ? (identityAssessments == null
+                      ? null
+                      : identityAssessments[row.id])
                 : null,
             // Phase 11.7j.5 — Sean 2026-05-16: thread dsldId so the
             // row tap can navigate to /product/<dsldId>. Null for
@@ -892,6 +901,7 @@ class _StackEntry {
   final String? frequency;
   final bool isMedication;
   final MedicationIdentitySnapshot? medicationIdentity;
+  final MedicationIdentityAssessment? medicationIdentityAssessment;
 
   /// Phase 11.7j.5 — DSLD id when the row is a catalog product.
   /// Null for medications (RxNorm-based) and fixture rows.
@@ -908,6 +918,7 @@ class _StackEntry {
     this.frequency,
     this.isMedication = false,
     this.medicationIdentity,
+    this.medicationIdentityAssessment,
     this.dsldId,
   });
 }
@@ -982,6 +993,7 @@ class _StackItemRow extends ConsumerWidget {
                     dosage: entry.dosage,
                     frequency: entry.frequency,
                     identity: entry.medicationIdentity,
+                    assessment: entry.medicationIdentityAssessment,
                   ),
                 ),
               );
@@ -1092,12 +1104,14 @@ class _MedicationDetailsSheet extends StatelessWidget {
   final String? dosage;
   final String? frequency;
   final MedicationIdentitySnapshot? identity;
+  final MedicationIdentityAssessment? assessment;
 
   const _MedicationDetailsSheet({
     required this.name,
     required this.dosage,
     required this.frequency,
     required this.identity,
+    required this.assessment,
   });
 
   @override
@@ -1127,7 +1141,7 @@ class _MedicationDetailsSheet extends StatelessWidget {
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  _MedicationMatchStatus(identity: identity),
+                  _MedicationMatchStatus(assessment: assessment),
                   const Divider(
                     height: V2Spacing.space32,
                     color: V2Colors.outline,
@@ -1140,7 +1154,7 @@ class _MedicationDetailsSheet extends StatelessWidget {
                         : schedule,
                     style: V2Typography.bodyMedium(color: V2Colors.fg),
                   ),
-                  if (_identityLines(identity).isNotEmpty) ...[
+                  if (_identityLines(identity, assessment).isNotEmpty) ...[
                     const Divider(
                       height: V2Spacing.space32,
                       color: V2Colors.outline,
@@ -1150,7 +1164,7 @@ class _MedicationDetailsSheet extends StatelessWidget {
                       color: V2Colors.fgMuted,
                     ),
                     const SizedBox(height: V2Spacing.space8),
-                    for (final line in _identityLines(identity))
+                    for (final line in _identityLines(identity, assessment))
                       _MedicationDetailLine(text: line),
                   ],
                   const Divider(
@@ -1194,7 +1208,10 @@ class _MedicationDetailsSheet extends StatelessWidget {
     );
   }
 
-  static List<String> _identityLines(MedicationIdentitySnapshot? identity) {
+  static List<String> _identityLines(
+    MedicationIdentitySnapshot? identity,
+    MedicationIdentityAssessment? assessment,
+  ) {
     if (identity == null) return const [];
     return [
       if (identity.rxcui != null) 'RxNorm concept ${identity.rxcui}',
@@ -1204,52 +1221,56 @@ class _MedicationDetailsSheet extends StatelessWidget {
         '${identity.ingredientRxcuis.length} ingredient '
             '${identity.ingredientRxcuis.length == 1 ? 'concept' : 'concepts'}',
       if (identity.drugClassIds.isNotEmpty)
-        '${identity.drugClassIds.length} reviewed medication '
-            '${identity.drugClassIds.length == 1 ? 'group' : 'groups'}',
+        '${identity.drugClassIds.length} saved medication-group '
+            '${identity.drugClassIds.length == 1 ? 'identifier' : 'identifiers'}',
+      if (assessment != null && assessment.curatedClassIds.isNotEmpty)
+        '${assessment.curatedClassIds.length} reviewed interaction '
+            '${assessment.curatedClassIds.length == 1 ? 'group' : 'groups'}',
     ];
   }
 }
 
 class _MedicationMatchStatus extends StatelessWidget {
-  const _MedicationMatchStatus({required this.identity});
+  const _MedicationMatchStatus({required this.assessment});
 
-  final MedicationIdentitySnapshot? identity;
+  final MedicationIdentityAssessment? assessment;
 
   @override
   Widget build(BuildContext context) {
-    final status = identity?.status ?? MedicationIdentityStatus.unresolved;
+    final status = assessment?.status ?? MedicationIdentityStatus.unresolved;
     final (label, body, icon, color) = switch (status) {
       MedicationIdentityStatus.complete => (
         'Matched for interaction checks',
-        'RxNorm ingredient identity and reviewed medication groups are '
+        'RxNorm ingredient identity and reviewed interaction coverage are '
             'available for matching.',
         Icons.verified_outlined,
         V2Colors.safe,
       ),
       MedicationIdentityStatus.partial => (
         'Partially matched',
-        'Some ingredient or medication-group checks may be unavailable.',
+        'Some reviewed checks are available, but other medication-specific '
+            'checks may be unavailable.',
         Icons.info_outline_rounded,
         V2Colors.caution,
       ),
       MedicationIdentityStatus.classOnly => (
         'Medication-group matching available',
-        'Group-based checks are available; product-specific checks may be '
-            'limited.',
+        'A reviewed medication-group match is available; product-specific '
+            'checks may be limited.',
         Icons.info_outline_rounded,
         V2Colors.caution,
       ),
       MedicationIdentityStatus.exactOnly => (
-        'Basic identity matched',
-        'The selected RxNorm concept is saved; ingredient and medication-group '
-            'checks may be limited.',
+        'Identity saved; coverage limited',
+        'The RxNorm identity is saved, but no reviewed direct or medication-'
+            'group coverage was found. Interaction checks may be incomplete.',
         Icons.info_outline_rounded,
         V2Colors.caution,
       ),
       MedicationIdentityStatus.unresolved => (
         'Matching incomplete',
-        'This medication could not be fully resolved, so interaction checks '
-            'may be incomplete.',
+        'Reviewed interaction coverage could not be confirmed for this entry, '
+            'so medication checks may be incomplete.',
         Icons.error_outline_rounded,
         V2Colors.caution,
       ),
@@ -2129,7 +2150,8 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
         title: "Couldn't check your stack",
         body:
             'Safety data is unavailable right now, so we could not check '
-            'your stack for interactions. Check back in a moment.',
+            'your stack for interactions or timing guidance. Check back '
+            'in a moment.',
       ),
     );
   }
@@ -2187,6 +2209,8 @@ class _TimingAdviceSlot extends ConsumerWidget {
         );
       },
       loading: () => const SizedBox.shrink(),
+      // The stack-safety slot watches this same provider and renders the
+      // single unavailable banner. Avoid duplicating it here.
       error: (_, __) => const SizedBox.shrink(),
     );
   }
@@ -2194,8 +2218,8 @@ class _TimingAdviceSlot extends ConsumerWidget {
 
 /// Coverage ("is my stack working?") slot — broader goal/nutrient gap
 /// analysis shown after the user's concrete stack items and timing advice.
-/// Hidden while loading, on error, or when the stack is empty; the no-goals
-/// invitation links to profile setup.
+/// Hidden while loading or when the stack is empty; errors render an explicit
+/// unavailable state. The no-goals invitation links to profile setup.
 class _CoverageSlot extends ConsumerWidget {
   const _CoverageSlot();
 
@@ -2217,7 +2241,12 @@ class _CoverageSlot extends ConsumerWidget {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, __) => const _SafetyUnavailableBanner(
+        title: "Couldn't check stack coverage",
+        body:
+            'Coverage data is unavailable right now. This is not an '
+            'all-clear; check back in a moment.',
+      ),
     );
   }
 }

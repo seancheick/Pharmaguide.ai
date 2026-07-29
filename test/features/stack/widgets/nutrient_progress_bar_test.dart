@@ -187,6 +187,47 @@ void main() {
       expect(find.text('—'), findsOneWidget);
     });
 
+    testWidgets('excluded-only nutrients never render a misleading zero', (
+      tester,
+    ) async {
+      const status = NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'magnesium',
+          displayName: 'Magnesium L-Threonate',
+          totalAmount: 0,
+          unit: '',
+          contributions: [],
+          excludedContributions: [
+            ExcludedNutrientContribution(
+              contribution: NutrientContribution(
+                stackEntryId: 'magtein',
+                productName: 'Magtein',
+                ingredientName: 'Magnesium L-Threonate',
+                amount: 2000,
+                unit: 'mg',
+              ),
+              reason: NutrientExclusionReason.compoundFormDuplicate,
+            ),
+          ],
+        ),
+        tier: NutrientTier.noRda,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: NutrientProgressBar(status: status)),
+        ),
+      );
+
+      expect(find.text('Not totaled'), findsOneWidget);
+      expect(find.text('0'), findsNothing);
+      expect(
+        find.textContaining('could not be safely included'),
+        findsOneWidget,
+      );
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+    });
+
     testWidgets('shows label-directed amount and target ranges', (
       tester,
     ) async {

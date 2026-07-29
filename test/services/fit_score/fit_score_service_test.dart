@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
@@ -93,6 +94,39 @@ void main() {
         userGoals: const ['GOAL_SLEEP_QUALITY'],
       );
       expect(full.maxPossible, 100.0);
+    });
+
+    test('explicit no-goals choice is not scored or treated as missing', () {
+      final service = FitScoreService(
+        e1: E1DosageCalculator(const <String, dynamic>{
+          'nutrient_recommendations': <dynamic>[],
+        }),
+        e2a: E2aGoalCalculator(const <String, dynamic>{
+          'user_goal_mappings': <dynamic>[],
+        }),
+        e2b: E2bAgeCalculator(const <String, dynamic>{
+          'nutrient_recommendations': <dynamic>[],
+        }),
+        e2c: E2cMedicalCalculator(),
+      );
+
+      final result = service.calculate(
+        nutrients: const <Map<String, dynamic>>[],
+        productClusters: const <String>[],
+        productGoalMatches: const <String>['GOAL_SLEEP_QUALITY'],
+        interactionSummary: const <String, dynamic>{},
+        ageBracket: '19-30',
+        sex: 'Female',
+        userGoals: const <String>[SchemaIds.goalNone],
+      );
+
+      expect(result.e2a, 0);
+      expect(result.maxPossible, 98);
+      expect(result.missingFields, isNot(contains('goals')));
+      expect(
+        result.reasons,
+        isNot(contains('Does not strongly support your selected goals.')),
+      );
     });
 
     test(

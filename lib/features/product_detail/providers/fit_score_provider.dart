@@ -31,6 +31,7 @@ import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_summary_filter.dart';
 
 /// FutureProvider exposing a fully-constructed [FitScoreService].
@@ -83,8 +84,14 @@ final fitScoreForProductProvider = FutureProvider.family
       ProductsCoreData? product;
       try {
         product = await coreDb.findById(dsldId);
-      } on Exception {
-        return null;
+      } on Object catch (error, stackTrace) {
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          fatal: false,
+          hint: 'fit_score:product_fetch_failed',
+        );
+        rethrow;
       }
       if (product == null) return null;
 
@@ -92,8 +99,14 @@ final fitScoreForProductProvider = FutureProvider.family
       Map<String, dynamic>? blob;
       try {
         blob = await ref.watch(detailBlobProvider(dsldId).future);
-      } on Exception {
-        return null;
+      } on Object catch (error, stackTrace) {
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          fatal: false,
+          hint: 'fit_score:detail_fetch_failed',
+        );
+        rethrow;
       }
       if (blob == null) return null;
 

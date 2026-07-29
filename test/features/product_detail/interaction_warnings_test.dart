@@ -7,6 +7,7 @@ void main() {
     test('parses valid JSON', () {
       final json = {
         'severity': 'caution',
+        'type': 'drug_interaction',
         'evidence_level': 'established',
         'title': 'Ginkgo + Anticoagulants',
         'mechanism': 'Increased bleeding risk',
@@ -15,9 +16,33 @@ void main() {
       };
       final warning = InteractionWarning.fromJson(json);
       expect(warning.severity, Severity.caution);
+      expect(warning.warningType, 'drug_interaction');
       expect(warning.evidenceLevel, EvidenceLevel.established);
       expect(warning.title, 'Ginkgo + Anticoagulants');
       expect(warning.sourceUrls, hasLength(1));
+    });
+
+    test('warning type remains part of semantic deduplication', () {
+      final warnings = InteractionWarning.dedupe([
+        InteractionWarning.fromJson({
+          'type': 'drug_interaction',
+          'severity': 'caution',
+          'title': 'Same copy',
+          'detail': 'Same body',
+        }),
+        InteractionWarning.fromJson({
+          'type': 'harmful_additive',
+          'severity': 'caution',
+          'title': 'Same copy',
+          'detail': 'Same body',
+        }),
+      ]);
+
+      expect(warnings, hasLength(2));
+      expect(
+        warnings.map((warning) => warning.warningType),
+        containsAll(['drug_interaction', 'harmful_additive']),
+      );
     });
 
     test('handles missing fields gracefully', () {
@@ -480,14 +505,7 @@ void main() {
   });
 
   // -----------------------------------------------------------------------
-  // Sprint D5.4 — Dr Pham's medically-authored user-facing copy fields.
-  //
-  // The pipeline's enricher propagates 10 additional fields from the
-  // banned_recalled / harmful_additives / interaction rules / allergens
-  // data files into each warning entry. These power the detail-sheet
-  // rendering (banner tint by clinical_risk, population warning bullet
-  // list, regulatory_date context, etc.). Prior to D5.4 Flutter dropped
-  // them on the floor — users saw only technical jargon.
+  // Structured warning fields with active app consumers.
   // -----------------------------------------------------------------------
   group('InteractionWarning.fromJson — Dr Pham fields', () {
     test('parses high_risk_ingredient fields (banned_recalled source)', () {
@@ -511,10 +529,7 @@ void main() {
         'identifiers': {'cui': 'C0040476', 'unii': '15FIX9V2JP'},
       };
       final w = InteractionWarning.fromJson(json);
-      expect(w.clinicalRisk, 'high');
       expect(w.banContext, 'watchlist');
-      expect(w.regulatoryDate, '2022-08-07');
-      expect(w.regulatoryDateLabel, 'EU ban effective date');
       // Dr Pham's copy flows into the unified alertHeadline/alertBody.
       expect(w.alertHeadline, 'EU-banned white pigment. Avoid when possible.');
       expect(w.alertBody, contains('EFSA ruled in 2021'));
@@ -522,33 +537,29 @@ void main() {
       expect(w.identifiers!['cui'], 'C0040476');
     });
 
-    test(
-      'parses harmful_additive fields (mechanism + population_warnings)',
-      () {
-        final json = <String, dynamic>{
-          'type': 'harmful_additive',
-          'severity': 'moderate',
-          'title': 'Contains Titanium Dioxide',
-          'safety_summary':
-              'Nanoparticle concerns in gut epithelium at prolonged exposure.',
-          'safety_summary_one_liner': 'Possibly genotoxic pigment.',
-          'mechanism_of_harm':
-              'Nanoparticle form (<100nm) shows increased intestinal '
-              'absorption and genotoxic concern.',
-          'population_warnings': <String>[
-            'Children — immature gut barrier',
-            'People with IBD — may aggravate inflammation',
-          ],
-          'category': 'colorant',
-        };
-        final w = InteractionWarning.fromJson(json);
-        expect(w.mechanismOfHarm, contains('Nanoparticle form'));
-        expect(w.populationWarnings, hasLength(2));
-        expect(w.populationWarnings.first, startsWith('Children'));
-        expect(w.additiveCategory, 'colorant');
-        expect(w.alertHeadline, 'Possibly genotoxic pigment.');
-      },
-    );
+    test('parses harmful_additive population and category fields', () {
+      final json = <String, dynamic>{
+        'type': 'harmful_additive',
+        'severity': 'moderate',
+        'title': 'Contains Titanium Dioxide',
+        'safety_summary':
+            'Nanoparticle concerns in gut epithelium at prolonged exposure.',
+        'safety_summary_one_liner': 'Possibly genotoxic pigment.',
+        'mechanism_of_harm':
+            'Nanoparticle form (<100nm) shows increased intestinal '
+            'absorption and genotoxic concern.',
+        'population_warnings': <String>[
+          'Children — immature gut barrier',
+          'People with IBD — may aggravate inflammation',
+        ],
+        'category': 'colorant',
+      };
+      final w = InteractionWarning.fromJson(json);
+      expect(w.populationWarnings, hasLength(2));
+      expect(w.populationWarnings.first, startsWith('Children'));
+      expect(w.additiveCategory, 'colorant');
+      expect(w.alertHeadline, 'Possibly genotoxic pigment.');
+    });
 
     test('parses interaction fields (dose_threshold_evaluation)', () {
       final json = <String, dynamic>{
@@ -575,35 +586,15 @@ void main() {
       expect(w.doseThresholdEvaluation!['triggered'], true);
     });
 
-    test('parses allergen fields (prevalence + supplement_context)', () {
-      final json = <String, dynamic>{
-        'type': 'allergen',
-        'severity': 'moderate',
-        'title': 'Allergen: Soy',
-        'prevalence': 'high',
-        'supplement_context':
-            'Common emulsifier in soft-gels and in protein products.',
-      };
-      final w = InteractionWarning.fromJson(json);
-      expect(w.allergenPrevalence, 'high');
-      expect(w.supplementContext, contains('soft-gels'));
-    });
-
     test('defaults are safe when fields are absent', () {
       // Legacy blobs pre-D5.4 don't carry Dr Pham fields — model must
       // default sensibly, not crash.
       final w = InteractionWarning.fromJson(<String, dynamic>{
         'title': 'Legacy warning',
       });
-      expect(w.clinicalRisk, isNull);
-      expect(w.mechanismOfHarm, isNull);
       expect(w.populationWarnings, isEmpty);
       expect(w.doseThresholdEvaluation, isNull);
-      expect(w.regulatoryDate, isNull);
-      expect(w.regulatoryDateLabel, isNull);
       expect(w.additiveCategory, isNull);
-      expect(w.allergenPrevalence, isNull);
-      expect(w.supplementContext, isNull);
       expect(w.identifiers, isNull);
     });
   });

@@ -114,7 +114,11 @@ class InteractionDatabase extends _$InteractionDatabase {
       await m.createAll();
     },
     onUpgrade: (migrator, from, to) async {
-      // Pre-built DB — no versioned migrations.
+      throw StateError(
+        'Interaction database schema changed from $from to $to. '
+        'This database is a pre-built artifact and must be replaced, '
+        'not migrated in place.',
+      );
     },
     beforeOpen: (details) async {
       await _ensureAppIndexes();

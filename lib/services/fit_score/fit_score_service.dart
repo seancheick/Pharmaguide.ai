@@ -57,6 +57,11 @@ class FitScoreService {
     num? dosePerDay,
     ProductContextForWarning? productContextForWarning,
   }) {
+    final goalsOptedOut = userGoals.contains(SchemaIds.goalNone);
+    final evaluatorGoals = userGoals
+        .where((goal) => goal != SchemaIds.goalNone)
+        .toList(growable: false);
+
     // Apply v6.0 profile_gate filtering once, at the entry point. Both
     // _RelevantMatch (assessment) and E2c (penalty) consume the gated
     // summary so they never disagree about which conditions fire.
@@ -80,11 +85,11 @@ class FitScoreService {
       sex: sex,
     );
     final selectedGoalMatches = _selectedGoalMatches(
-      userGoals: userGoals,
+      userGoals: evaluatorGoals,
       productGoalMatches: productGoalMatches,
     );
     final e2aScore = _goalAlignmentScore(
-      userGoals: userGoals,
+      userGoals: evaluatorGoals,
       selectedGoalMatches: selectedGoalMatches,
       productGoalMatchConfidence: productGoalMatchConfidence,
       productClusters: productClusters,
@@ -105,17 +110,12 @@ class FitScoreService {
     final missingFields = <String>[];
     if (ageBracket == null) missingFields.add('age');
     if (sex == null) missingFields.add('sex');
-    if (userGoals.isEmpty) missingFields.add('goals');
+    if (evaluatorGoals.isEmpty && !goalsOptedOut) {
+      missingFields.add('goals');
+    }
 
-    final maxPossible = _maxPossible(
-      ageBracket,
-      sex,
-      userGoals,
-      userConditions,
-    );
+    final maxPossible = _maxPossible(ageBracket, sex, evaluatorGoals);
     final assessment = _buildAssessment(
-      scoreFit20: scoreFit20,
-      maxPossible: maxPossible,
       e1Score: e1Score,
       e2aScore: e2aScore,
       e2bScore: e2bScore,
@@ -124,7 +124,7 @@ class FitScoreService {
       userDrugClasses: userDrugClasses,
       missingFields: missingFields,
       mappedCoverage: mappedCoverage,
-      userGoals: userGoals,
+      userGoals: evaluatorGoals,
       selectedGoalMatches: selectedGoalMatches,
     );
 
@@ -201,12 +201,7 @@ class FitScoreService {
     };
   }
 
-  double _maxPossible(
-    String? ageBracket,
-    String? sex,
-    List<String> goals,
-    List<String> conditions,
-  ) {
+  double _maxPossible(String? ageBracket, String? sex, List<String> goals) {
     double max = 80.0; // Base quality
     max += _maxPossibleE1(ageBracket, sex);
     if (goals.isNotEmpty) max += 2.0; // E2a
@@ -251,8 +246,6 @@ class FitScoreService {
   }
 
   _Assessment _buildAssessment({
-    required double scoreFit20,
-    required double maxPossible,
     required double e1Score,
     required double e2aScore,
     required double e2bScore,

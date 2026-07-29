@@ -51,7 +51,7 @@
 // priority order:
 // 1. Exact age_range AND group (sex) match.
 // 2. Any row with the requested age_range (regardless of sex).
-// 3. `entry.highest_ul` as a last-resort UL for anonymous users.
+// 3. Lowest established demographic UL as a conservative anonymous fallback.
 //
 // RDA and UL are read separately — a nutrient can have a UL
 // without an RDA (and vice versa), so we never assume both exist.
@@ -76,9 +76,9 @@ class StackUlChecker {
   /// values in the reference data. [sex] is "Male" / "Female" /
   /// "Pregnancy" / "Lactation" matching the group field.
   ///
-  /// Both are optional — when null, the checker still runs with the
-  /// `highest_ul` fallback, which gives anonymous users a usable
-  /// safety check even without a profile.
+  /// Both are optional — when null, the checker still runs against the lowest
+  /// established demographic UL. The result is marked as a fallback so the UI
+  /// can explain that completing the profile improves personalization.
   /// [pipelineVerdicts] carries the pipeline's own per-nutrient UL decisions
   /// (keyed by canonical id, from
   /// [StackNutrientAggregator.extractPipelineUlVerdicts]). When a definitive
@@ -171,15 +171,20 @@ class StackUlChecker {
         (ul != null && ul > 0 && safetyAmountInReferenceUnit != null)
         ? (safetyAmountInReferenceUnit / ul) * 100.0
         : null;
-    // Surface the pipeline's percent-of-UL when it supplied one so the shown
-    // number agrees with the verdict-driven tier; else the client recompute.
-    final pctOfUl = (verdict != null && verdict.isDefinitive)
-        ? (verdict.pctUl ?? recomputedPctOfUl)
-        : recomputedPctOfUl;
+    // A positive pipeline decision may carry form-aware information the raw
+    // client row cannot reconstruct, so it wins. A negative per-product
+    // decision cannot clear an aggregated stack total: two individually safe
+    // products can exceed the UL together. In that case the stack recompute
+    // wins and the displayed percentage stays aligned with the tier.
+    final pctOfUl =
+        (verdict?.overUl == true ||
+            (verdict?.overUl == null && verdict?.pctUl != null))
+        ? (verdict?.pctUl ?? recomputedPctOfUl)
+        : (recomputedPctOfUl ?? verdict?.pctUl);
 
     final tier = _classify(
       pctOfRda: pctOfRda,
-      pctOfUl: recomputedPctOfUl,
+      pctOfUl: pctOfUl,
       hasEstablishedUl: ul != null,
       verdict: verdict,
     );
@@ -320,10 +325,10 @@ class StackUlChecker {
     return const _RdaLookup(null, false);
   }
 
-  /// Look up UL for the requested demographic. Falls back to `highest_ul`
-  /// for anonymous users. This is the least restrictive demographic UL, not
-  /// the most conservative one; callers receive provenance so UI can ask for
-  /// a profile when values are not personalized.
+  /// Look up UL for the requested demographic. Anonymous users receive the
+  /// lowest established ceiling in the bundled demographic table. That is the
+  /// safe direction when age/sex are unknown; callers receive provenance so
+  /// UI can ask for a profile rather than pretending the value is personal.
   _UlLookup _getUlWithProvenance(
     Map<String, dynamic> entry, {
     required String? ageBracket,
@@ -366,10 +371,16 @@ class StackUlChecker {
       if (lowest != null) return _UlLookup(lowest, true);
     }
 
-    // Anonymous fallback: least restrictive UL lets us still catch large
-    // overages without alarming users from an unknown demographic.
-    final highest = asFiniteDouble(entry['highest_ul']);
-    if (highest != null) return _UlLookup(highest, true);
+    // Anonymous fallback: choose the lowest established ceiling. `highest_ul`
+    // previously selected the least restrictive group and silently
+    // under-warned adolescents and other unmatched profiles.
+    double? lowest;
+    for (final g in data) {
+      if (g is! Map<String, dynamic>) continue;
+      final v = asFiniteDouble(g['ul']);
+      if (v != null && (lowest == null || v < lowest)) lowest = v;
+    }
+    if (lowest != null) return _UlLookup(lowest, true);
 
     return const _UlLookup(null, false);
   }
@@ -387,18 +398,7 @@ class StackUlChecker {
     // it accounts for elemental-vs-compound mass and form-aware conversions
     // that raw quantity ÷ reference cannot. Only recompute when no definitive
     // verdict exists.
-    if (verdict != null && verdict.isDefinitive) {
-      if (verdict.exceedsUl) return NutrientTier.exceedsUl;
-      // Pipeline says within its UL — never escalate to a UL-warning tier
-      // (exceedsUl / approachingUl) from a possibly compound-inflated
-      // recompute. Fall back to intake-target tiers as a UL-bounded-but-safe
-      // nutrient.
-      if (pctOfRda == null) return NutrientTier.noRda;
-      if (pctOfRda >= 200.0) return NutrientTier.aboveTypical;
-      if (pctOfRda >= 100.0) return NutrientTier.abundant;
-      if (pctOfRda >= 50.0) return NutrientTier.adequate;
-      return NutrientTier.underFifty;
-    }
+    if (verdict?.overUl == true) return NutrientTier.exceedsUl;
     if (pctOfUl != null) {
       if (pctOfUl >= 100.0) return NutrientTier.exceedsUl;
       if (pctOfUl >= 80.0) return NutrientTier.approachingUl;

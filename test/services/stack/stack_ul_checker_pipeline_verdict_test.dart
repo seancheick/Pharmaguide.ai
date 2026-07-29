@@ -40,17 +40,39 @@ void main() {
       expect(statuses.single.tier, NutrientTier.exceedsUl);
     });
 
-    test('over_ul:false suppresses a recompute that would exceed', () {
-      final statuses = checker.check(
-        {'magnesium': _total('magnesium', 2000, 'mg')},
-        ageBracket: '19-30',
-        sex: 'Male',
-        pipelineVerdicts: const {'magnesium': PipelineUlVerdict(overUl: false)},
-      );
-      expect(statuses.single.tier, isNot(NutrientTier.exceedsUl));
-      expect(statuses.single.tier, isNot(NutrientTier.approachingUl));
-      expect(statuses.single.warning, isNull);
-    });
+    test(
+      'over_ul:false from one product cannot clear an aggregated breach',
+      () {
+        final statuses = checker.check(
+          {'magnesium': _total('magnesium', 2000, 'mg')},
+          ageBracket: '19-30',
+          sex: 'Male',
+          pipelineVerdicts: const {
+            'magnesium': PipelineUlVerdict(overUl: false),
+          },
+        );
+        expect(statuses.single.tier, NutrientTier.exceedsUl);
+        expect(statuses.single.pctOfUl, closeTo(571.4, 0.1));
+        expect(statuses.single.warning, isNotNull);
+      },
+    );
+
+    test(
+      'contradictory false + 250% verdict never renders a green 250% row',
+      () {
+        final statuses = checker.check(
+          {'magnesium': _total('magnesium', 875, 'mg')},
+          ageBracket: '19-30',
+          sex: 'Male',
+          pipelineVerdicts: const {
+            'magnesium': PipelineUlVerdict(overUl: false, pctUl: 250),
+          },
+        );
+        expect(statuses.single.pctOfUl, 250);
+        expect(statuses.single.tier, NutrientTier.exceedsUl);
+        expect(statuses.single.shouldWarn, isTrue);
+      },
+    );
 
     test('no verdict falls back to recompute (2000 mg → exceedsUl)', () {
       final statuses = checker.check(

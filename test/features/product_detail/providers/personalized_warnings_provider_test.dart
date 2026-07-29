@@ -312,6 +312,7 @@ void main() {
             coreDatabaseProvider.overrideWithValue(coreDb),
             interactionDatabaseProvider.overrideWithValue(interactionDb),
             activeStackProvider.overrideWith((ref) async => [_stubWarfarin()]),
+            detailBlobProvider.overrideWith((ref, dsldId) async => null),
           ],
         );
         addTearDown(container.dispose);
@@ -334,7 +335,7 @@ void main() {
     );
 
     test(
-      'UnimplementedError on stack provider → empty warnings (defensive)',
+      'stack provider failure surfaces instead of returning an all-clear',
       () async {
         final coreDb = CoreDatabase.memory();
         final interactionDb = InteractionDatabase.memory();
@@ -351,10 +352,98 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        final result = await container.read(
-          personalizedInteractionWarningsProvider(_dsldId).future,
+        await expectLater(
+          container.read(
+            personalizedInteractionWarningsProvider(_dsldId).future,
+          ),
+          throwsA(isA<UnimplementedError>()),
         );
-        expect(result, isEmpty);
+
+        await coreDb.close();
+        await interactionDb.close();
+      },
+    );
+
+    test(
+      'current product detail failure surfaces instead of dropping dose context',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        await _seedProduct(coreDb, keyIngredientTags: '["vitamin_k"]');
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            activeStackProvider.overrideWith((ref) async => [_stubWarfarin()]),
+            detailBlobProvider.overrideWith((ref, dsldId) async {
+              throw Exception('declared detail blob unavailable');
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await expectLater(
+          container.read(
+            personalizedInteractionWarningsProvider(_dsldId).future,
+          ),
+          throwsA(anything),
+        );
+
+        await coreDb.close();
+        await interactionDb.close();
+      },
+    );
+
+    test(
+      'stack product detail failure surfaces instead of skipping dose totals',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        await _seedProduct(
+          coreDb,
+          keyIngredientTags: '["fish_oil"]',
+          productName: 'Fish Oil',
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            activeStackProvider.overrideWith((ref) async {
+              return [
+                _stubSupplement(
+                  id: 'one',
+                  name: 'O.N.E. Multivitamin',
+                  dsldId: 'one-multi',
+                  ingredientKeys: '["vitamin_e"]',
+                ),
+              ];
+            }),
+            detailBlobProvider.overrideWith((ref, dsldId) async {
+              if (dsldId == _dsldId) {
+                return {
+                  'ingredients': [
+                    {
+                      'standard_name': 'Fish Oil',
+                      'quantity': 1000,
+                      'unit': 'mg',
+                    },
+                  ],
+                };
+              }
+              throw StateError('stack detail blob unavailable');
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await expectLater(
+          container.read(
+            personalizedInteractionWarningsProvider(_dsldId).future,
+          ),
+          throwsA(isA<StateError>()),
+        );
 
         await coreDb.close();
         await interactionDb.close();
@@ -380,6 +469,7 @@ void main() {
           activeStackProvider.overrideWith((ref) async {
             return stackResponses[callIndex];
           }),
+          detailBlobProvider.overrideWith((ref, dsldId) async => null),
         ],
       );
       addTearDown(container.dispose);

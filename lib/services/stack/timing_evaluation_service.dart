@@ -18,10 +18,8 @@ import 'package:pharmaguide/core/models/timing_optimization.dart';
 /// (e.g., "iron", "calcium", "vitamin_d") — the same identifiers the
 /// pipeline writes into `products_core`.
 ///
-/// Medications are matched via normalized name comparison against a
-/// curated medication alias map. When the user adds "Levothyroxine 50mcg",
-/// the service normalizes to "levothyroxine" and matches timing rules
-/// that reference "levothyroxine" as ingredient1 or ingredient2.
+/// Medications are matched only through reviewed RxCUIs authored on each
+/// timing rule. Display names are never used as clinical identity.
 ///
 /// **Performance:**
 ///
@@ -44,22 +42,8 @@ class TimingEvaluationService {
   /// ingredient_key → list of rules that reference this ingredient.
   final Map<String, List<_IndexedRule>> _ingredientIndex;
 
-  /// normalized_medication_name → list of rules that reference this medication.
+  /// RxCUI → list of rules that reference this medication.
   final Map<String, List<_IndexedRule>> _medicationIndex;
-
-  /// Known medication names that appear in timing rules.
-  /// These are matched against the user's medication `name` field.
-  static const _medicationKeywords = <String, List<String>>{
-    'levothyroxine': [
-      'levothyroxine',
-      'synthroid',
-      'levoxyl',
-      'tirosint',
-      'euthyrox',
-      'l-thyroxine',
-    ],
-    'warfarin': ['warfarin', 'coumadin', 'jantoven'],
-  };
 
   /// Supplement ingredient keys that map to timing rule ingredient names.
   /// Most are 1:1 but some need aliases (e.g., timing says "omega-3",
@@ -67,7 +51,7 @@ class TimingEvaluationService {
   static const _ingredientAliases = <String, List<String>>{
     'iron': ['iron'],
     'calcium': ['calcium'],
-    'calcium carbonate': ['calcium_carbonate', 'calcium'],
+    'calcium carbonate': ['calcium_carbonate'],
     'zinc': ['zinc'],
     'copper': ['copper'],
     'magnesium': ['magnesium'],
@@ -113,11 +97,28 @@ class TimingEvaluationService {
   /// Call once at app startup or when the reference data cache refreshes.
   /// The returned instance is immutable and safe to share across isolates.
   factory TimingEvaluationService.fromJson(Map<String, dynamic> json) {
-    final rawRules = json.safeMapList('timing_rules');
+    final rawList = json['timing_rules'];
+    if (rawList is! List) {
+      throw const FormatException('timing_rules must be a JSON array');
+    }
+    final metadata = json['_metadata'];
+    if (metadata is Map && metadata['total_entries'] is int) {
+      final declared = metadata['total_entries'] as int;
+      if (declared != rawList.length) {
+        throw FormatException(
+          'timing_rules metadata declares $declared entries, '
+          'but ${rawList.length} were provided',
+        );
+      }
+    }
+
     final parsed = <_ParsedTimingRule>[];
 
-    for (final raw in rawRules) {
-      parsed.add(_ParsedTimingRule.fromJson(raw));
+    for (final raw in rawList) {
+      if (raw is! Map) {
+        throw const FormatException('each timing rule must be a JSON object');
+      }
+      parsed.add(_ParsedTimingRule.fromJson(Map<String, dynamic>.from(raw)));
     }
 
     // Build inverted indexes.
@@ -128,14 +129,11 @@ class TimingEvaluationService {
       final i1Norm = rule.ingredient1Normalized;
       final i2Norm = rule.ingredient2Normalized;
 
-      // Determine which index(es) to populate.
-      // If ingredient1 is a medication keyword, index it in medicationIndex.
-      final i1IsMed = _isMedicationIngredient(i1Norm);
-      final i2IsMed = _isMedicationIngredient(i2Norm);
-
       // Index ingredient1 side.
-      if (i1IsMed) {
-        _addToMedIndex(medicationIndex, i1Norm, rule, isIngredient1: true);
+      if (rule.ingredient1Rxcuis.isNotEmpty) {
+        for (final rxcui in rule.ingredient1Rxcuis) {
+          _addToMedIndex(medicationIndex, rxcui, rule, isIngredient1: true);
+        }
       } else {
         _addToIngredientIndex(
           ingredientIndex,
@@ -148,8 +146,10 @@ class TimingEvaluationService {
       // Index ingredient2 side (skip non-matchable context like "food",
       // "sleep", "dietary fat", "medications", "melatonin production").
       if (!_isContextOnly(i2Norm)) {
-        if (i2IsMed) {
-          _addToMedIndex(medicationIndex, i2Norm, rule, isIngredient1: false);
+        if (rule.ingredient2Rxcuis.isNotEmpty) {
+          for (final rxcui in rule.ingredient2Rxcuis) {
+            _addToMedIndex(medicationIndex, rxcui, rule, isIngredient1: false);
+          }
         } else {
           _addToIngredientIndex(
             ingredientIndex,
@@ -177,11 +177,15 @@ class TimingEvaluationService {
   /// [supplementTags] — map of product_name to a Set of canonical ingredient
   ///   tags for each supplement in the stack.
   /// [medicationNames] — list of medication display names in the stack.
+  /// [medicationRxCuisByName] — exact saved and normalized ingredient RxCUIs,
+  ///   keyed by the same display name. Missing identity never falls back to
+  ///   text matching.
   ///
   /// Returns a deduplicated, priority-sorted list of timing advice.
   List<TimingOptimization> evaluateStack({
     required Map<String, Set<String>> supplementTags,
     required List<String> medicationNames,
+    Map<String, Set<String>> medicationRxCuisByName = const {},
     Map<String, double> ingredientDosesMg = const {},
   }) {
     final results = <String, TimingOptimization>{};
@@ -193,12 +197,6 @@ class TimingEvaluationService {
       for (final tag in entry.value) {
         tagToProducts.putIfAbsent(tag, () => []).add(entry.key);
       }
-    }
-
-    // Normalize medication names for matching.
-    final normalizedMeds = <String, String>{};
-    for (final name in medicationNames) {
-      normalizedMeds[_normalize(name)] = name;
     }
 
     // --- Pass 1: Supplement × Supplement timing rules ---
@@ -219,6 +217,9 @@ class TimingEvaluationService {
         // Is the other side a context-only value (food, sleep, etc.)?
         // If so, this is a single-ingredient timing rule — always fire.
         if (_isContextOnly(otherIngredient)) {
+          if (otherIngredient == 'medications' && medicationNames.isEmpty) {
+            continue;
+          }
           final productNames = tagToProducts[tag]!;
           results[indexed.rule.id] = _buildResult(
             indexed.rule,
@@ -259,19 +260,10 @@ class TimingEvaluationService {
     }
 
     // --- Pass 2: Medication × Supplement timing rules ---
-    for (final entry in normalizedMeds.entries) {
-      final normMedName = entry.key;
-      final displayMedName = entry.value;
-
-      // Check each medication keyword family.
-      for (final kwEntry in _medicationKeywords.entries) {
-        final medKey = kwEntry.key;
-        final aliases = kwEntry.value;
-
-        if (!aliases.any((a) => normMedName.contains(a))) continue;
-
-        // This medication matches — check if any rule references it.
-        final matchingRules = _medicationIndex[medKey];
+    for (final displayMedName in medicationNames) {
+      final rxcuis = medicationRxCuisByName[displayMedName] ?? const <String>{};
+      for (final rxcui in rxcuis) {
+        final matchingRules = _medicationIndex[rxcui];
         if (matchingRules == null) continue;
 
         for (final indexed in matchingRules) {
@@ -400,6 +392,7 @@ class TimingEvaluationService {
       sourceUrls: rule.sourceUrls,
       product1Name: product1Name,
       product2Name: product2Name,
+      involvesMedication: rule.involvesMedication,
     );
   }
 
@@ -414,22 +407,19 @@ class TimingEvaluationService {
 
   /// True if [rule]'s optional dose gate is satisfied (or absent).
   ///
-  /// Fail-open: when no doses are supplied, or the gated ingredient's dose is
-  /// unknown, the rule still fires — we can't prove it's below threshold, and
-  /// dropping a real interaction is worse than showing a possibly-moot tip.
+  /// Dose-conditional copy is suppressed when the relevant total is unknown.
+  /// The caller separately reports incomplete nutrient coverage; this method
+  /// must never imply that a threshold was crossed without a measured total.
   bool _passesDoseGate(_ParsedTimingRule rule, Map<String, double> doses) {
     final ingredient = rule.minDoseIngredient;
     final threshold = rule.minDoseMg;
-    if (ingredient == null || threshold == null || doses.isEmpty) return true;
+    if (ingredient == null || threshold == null) return true;
+    if (doses.isEmpty) return false;
     for (final alias in _resolveAliases(ingredient)) {
       final dose = doses[alias];
       if (dose != null) return dose >= threshold;
     }
-    return true; // dose unknown → fail-open
-  }
-
-  static bool _isMedicationIngredient(String normalized) {
-    return _medicationKeywords.containsKey(normalized);
+    return false;
   }
 
   /// Context-only ingredients that don't correspond to a real stack item.
@@ -440,16 +430,10 @@ class TimingEvaluationService {
       'food',
       'dietary fat',
       'sleep',
-      'melatonin',
       'melatonin production',
       'medications',
-      'minerals',
     };
     return contextTerms.contains(normalized);
-  }
-
-  static String _normalize(String text) {
-    return text.toLowerCase().trim();
   }
 
   static void _addToIngredientIndex(
@@ -470,12 +454,12 @@ class TimingEvaluationService {
 
   static void _addToMedIndex(
     Map<String, List<_IndexedRule>> index,
-    String medicationName,
+    String rxcui,
     _ParsedTimingRule rule, {
     required bool isIngredient1,
   }) {
     index
-        .putIfAbsent(medicationName, () => [])
+        .putIfAbsent(rxcui, () => [])
         .add(_IndexedRule(rule: rule, isIngredient1: isIngredient1));
   }
 }
@@ -497,6 +481,8 @@ class _ParsedTimingRule {
   final int scoreImpact;
   final EvidenceLevel evidenceLevel;
   final List<String> sourceUrls;
+  final Set<String> ingredient1Rxcuis;
+  final Set<String> ingredient2Rxcuis;
 
   /// Optional dose gate: the rule only fires when [minDoseIngredient]'s total
   /// stack dose is at or above [minDoseMg]. Both null = no gate (always fire).
@@ -517,6 +503,8 @@ class _ParsedTimingRule {
     required this.scoreImpact,
     required this.evidenceLevel,
     this.sourceUrls = const [],
+    this.ingredient1Rxcuis = const {},
+    this.ingredient2Rxcuis = const {},
     this.minDoseIngredient,
     this.minDoseMg,
   });
@@ -534,9 +522,44 @@ class _ParsedTimingRule {
         ? 'theoretical'
         : evidenceStr;
 
-    final ingredient1 = json.safeString('ingredient1');
-    final ingredient2 = json.safeString('ingredient2');
+    String requiredString(String key) {
+      final value = json[key];
+      if (value is! String || value.trim().isEmpty) {
+        throw FormatException('timing rule requires non-empty $key');
+      }
+      return value.trim();
+    }
+
+    Set<String> rxcuis(String key) {
+      final raw = json[key];
+      if (raw == null) return const {};
+      if (raw is! List ||
+          raw.any(
+            (value) =>
+                value is! String ||
+                value.trim().isEmpty ||
+                !RegExp(r'^\d+$').hasMatch(value.trim()),
+          )) {
+        throw FormatException('$key must contain RxCUI strings');
+      }
+      return raw.cast<String>().map((value) => value.trim()).toSet();
+    }
+
+    final id = requiredString('id');
+    final ingredient1 = requiredString('ingredient1');
+    final ingredient2 = requiredString('ingredient2');
+    final advice = requiredString('advice');
+    final ruleType = TimingRuleType.fromString(requiredString('rule_type'));
     final separationRaw = json['separation_hours'];
+    if (ruleType == TimingRuleType.separate &&
+        (separationRaw is! num || separationRaw <= 0)) {
+      throw FormatException(
+        '$id: separate timing rule requires positive separation_hours',
+      );
+    }
+    if (json['score_impact'] is! int) {
+      throw FormatException('$id: score_impact must be an integer');
+    }
 
     final minDose = json['min_dose'];
     String? minDoseIngredient;
@@ -551,15 +574,13 @@ class _ParsedTimingRule {
     }
 
     return _ParsedTimingRule(
-      id: json.safeString('id'),
+      id: id,
       ingredient1Display: ingredient1,
       ingredient2Display: ingredient2,
       ingredient1Normalized: ingredient1.toLowerCase().trim(),
       ingredient2Normalized: ingredient2.toLowerCase().trim(),
-      ruleType: TimingRuleType.fromString(
-        json.safeString('rule_type', 'separate'),
-      ),
-      advice: json.safeString('advice'),
+      ruleType: ruleType,
+      advice: advice,
       mechanism: json['mechanism'] is String
           ? json['mechanism'] as String
           : null,
@@ -567,10 +588,15 @@ class _ParsedTimingRule {
       scoreImpact: json.safeInt('score_impact'),
       evidenceLevel: EvidenceLevel.fromString(mappedEvidence),
       sourceUrls: sources,
+      ingredient1Rxcuis: rxcuis('ingredient1_rxcuis'),
+      ingredient2Rxcuis: rxcuis('ingredient2_rxcuis'),
       minDoseIngredient: minDoseIngredient,
       minDoseMg: minDoseMg,
     );
   }
+
+  bool get involvesMedication =>
+      ingredient1Rxcuis.isNotEmpty || ingredient2Rxcuis.isNotEmpty;
 }
 
 class _IndexedRule {

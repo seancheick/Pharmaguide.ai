@@ -33,9 +33,10 @@ class E1DosageCalculator {
     ];
     const aggregator = StackNutrientAggregator();
     final aggregated = aggregator.aggregate(items);
-    // Prefer the pipeline's own UL verdicts (over_ul / pct_ul) over a raw
-    // quantity-vs-reference recompute, so a compound-mass row the pipeline
-    // declined to gate cannot fabricate a UL exceedance.
+    // Carry pipeline UL verdicts into the shared checker, but never let an
+    // `over_ul: false` row erase a defensible aggregate exceedance. Positive
+    // form-aware verdicts remain authoritative; negative verdicts are not
+    // proof that another stack source cannot push the total over the UL.
     final verdicts = aggregator.extractPipelineUlVerdicts(items);
     final statuses = StackUlChecker(rdaData: rdaData).check(
       aggregated,
