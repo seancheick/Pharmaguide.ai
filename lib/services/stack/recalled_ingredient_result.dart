@@ -82,8 +82,12 @@ class RecalledIngredientViolation {
     if (severities.contains(Severity.contraindicated)) {
       return Severity.contraindicated;
     }
-    if (severities.contains(Severity.avoid)) return Severity.avoid;
-    return Severity.caution;
+    // Floored at `avoid`, never lower. A violation exists only because the
+    // pipeline flagged the product, so an authored record with a softer
+    // severity may sharpen this verdict but must never soften it below the
+    // hard tier — otherwise one `minor` record could rank a blocked product
+    // alongside an ordinary caution.
+    return Severity.avoid;
   }
 
   /// Human-readable alert for the banner.

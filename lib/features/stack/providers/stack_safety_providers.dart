@@ -870,7 +870,12 @@ final recalledIngredientsCheckProvider =
             recall['safety_warning_one_liner'] as String? ?? '';
         final banContext = recall['ban_context'] as String? ?? '';
 
-        if (recallStatus != 'banned') continue;
+        // `banned` and `recalled` both mean "not permitted / pulled". The
+        // advisory tiers are excluded: `high_risk` alone accounts for all 203
+        // of the unflagged matches measured against the shipped catalog
+        // (garcinia, yohimbe, CBD, red yeast rice), and `watchlist` carries
+        // softer severity semantics than a block deserves.
+        if (recallStatus != 'banned' && recallStatus != 'recalled') continue;
 
         final alert = RecalledIngredientAlert(
           canonicalId: canonicalId,
