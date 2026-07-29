@@ -7,6 +7,52 @@ memory. Where a prior memory said otherwise, the memory is marked stale.
 
 ---
 
+## Adversarial follow-up — Codex, 2026-07-29
+
+Claude's core finding was correct: the previous recall join used record IDs as
+ingredient IDs and could not match the shipped asset. Independent checks
+against the bundled SQLite and JSON confirmed:
+
+- 13,271 bundled products;
+- 107 products with the pipeline-authored banned-substance flag;
+- 0 products with the recall flag in the current catalog;
+- 82 of the 107 flagged products can be named through a hard-banned authored
+  common name;
+- 0 unflagged products match that restricted hard-banned name set.
+
+The follow-up also found and fixed gaps in Claude's implementation:
+
+1. Claude introduced a worker provider that returned `(report, incomplete)` and
+   a second compatibility provider that discarded `incomplete`. The Stack
+   recall banner hedged, while Home and the clinician path could still diagnose
+   the same empty report as clean. The report now owns its `incomplete` state
+   and every surface consumes that single object.
+2. Missing product rows, malformed/empty recall data, and per-product hydration
+   failures now mark the scan incomplete. They no longer disappear as clean
+   misses.
+3. Pipeline `has_banned_substance` and `has_recalled_ingredient` are no longer
+   collapsed into the same `BANNED` sentence. Banned substances match authored
+   ingredient names; recalled products match authored product names. Unnamed
+   flags retain accurate generic copy.
+4. A banned product whose substance cannot be named now remains classified as
+   banned in Stack Intelligence and clinician output; it no longer degrades to
+   a generic recall.
+5. Home and Stack now share one unavailable/error fallback. Home can no longer
+   show green “No data yet” while Stack says the safety analysis failed.
+6. Missing dose blobs now mark dose-dependent pair checks incomplete instead
+   of evaluating a partial subtotal as a confident clear.
+7. The accidental catalog commit `5c5364c` was reverted. It reused interaction
+   DB version `1.0.9` for different bytes and broke the storage-alignment gate.
+   The clinical/runtime assets are again byte-identical to `main`.
+8. Interaction and recall banners now label partial results even when they also
+   contain a known finding. Previously the banner showed the finding but hid
+   that other products or checks had not been analyzed.
+
+Verification after the follow-up: `flutter analyze lib test` clean and the full
+Flutter suite **2,705 passing**.
+
+---
+
 ## A. Executive summary
 
 | | Count |
@@ -22,7 +68,7 @@ memory. Where a prior memory said otherwise, the memory is marked stale.
 | Blocked (needs pipeline repo or device) | 4 |
 
 **Fixed and merged-ready this pass:** 3 of the 3 safety-critical findings, in
-[PR #66](https://github.com/seancheick/Pharmaguide.ai/pull/66). Full suite 2,694
+[PR #66](https://github.com/seancheick/Pharmaguide.ai/pull/66). Full suite 2,705
 passing, `flutter analyze lib test` clean.
 
 The unifying defect: **three separate surfaces converted "we could not check"
@@ -266,12 +312,28 @@ builder tests are 100% synthetic with no `checksIncomplete` case (**added**);
 — complete totals carry no hedge
 — every-item-skipped says so rather than hiding
 
+`test/features/stack/providers/recalled_ingredients_incomplete_test.dart`
+and `recalled_ingredient_integration_test.dart`
+— one report carries findings and completeness to every consumer
+— missing hydration and malformed data hedge rather than clear
+— banned and recalled flags retain distinct copy and classification
+
+`test/features/stack/providers/safety_check_for_add_medication_test.dart`
+— missing dose context prevents a confident clear
+
+`test/features/stack/v2/stack_health_fallback_display_test.dart`
+— Home and Stack share the same non-green error fallback
+
+`test/features/stack/widgets/stack_safety_banner_test.dart`
+— known findings retain an explicit partial-results hedge when another check
+or product label could not be analyzed
+
 ---
 
 ## F. Verification run
 
 - `flutter analyze lib test` → **No issues found**
-- `flutter test` → **2,694 passing**
+- `flutter test` → **2,705 passing**
 - Asset checksums recomputed independently: interaction DB
   `b3595104…605b0` and catalog `ef5fa6a8…3de3bf` both match their manifests;
   `integrity_check ok`; row counts match manifest counts; **no LFS pointer shipped**.
@@ -295,9 +357,8 @@ builder tests are 100% synthetic with no `checksIncomplete` case (**added**);
 
 ## H. Working-tree note
 
-`assets/reference_data/medication_depletions.json` changed **during** this
-session, from another process: `content_version` `2026.07.27-b1-closure.1` →
-`2026.07.29` with an **unchanged `content_hash`**. A version bump with no content
-change is either a deliberate re-stamp or an accident — worth confirming before
-it ships. It is deliberately **excluded** from PR #66, as is the unrelated
-`CLAUDE.md` edit.
+The catalog/interaction bundle commit that appeared during this audit was
+reverted because it changed immutable bytes without a new interaction release
+version and failed bundle-to-storage alignment. No catalog, interaction DB, or
+medication-depletion artifact differs from `main`. The unrelated local
+`CLAUDE.md` edit remains deliberately excluded from PR #66.

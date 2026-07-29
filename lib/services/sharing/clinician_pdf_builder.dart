@@ -241,7 +241,9 @@ class ClinicianPdfBuilder {
     // flags as failed. A bare "Interactions flagged: 0" reads as a finding,
     // so qualify it rather than let it stand as one.
     final countsIncomplete =
-        safetyReport.checksIncomplete || safetyReport.coverageIncomplete;
+        intelligence.analysisIncomplete ||
+        safetyReport.checksIncomplete ||
+        safetyReport.coverageIncomplete;
     final countSuffix = countsIncomplete ? ' - incomplete' : '';
     final rows = <String>[
       'Tier: ${_tierLabel(intelligence.tier)}',
@@ -251,7 +253,9 @@ class ClinicianPdfBuilder {
       if (intelligence.hasContraindicatedInteraction)
         'Contraindicated interaction detected',
       if (intelligence.hasBannedIngredient) 'Banned ingredient detected',
-      if (intelligence.hasRecalledIngredient) 'Recalled ingredient detected',
+      if (intelligence.hasRecalledIngredient &&
+          !intelligence.hasBannedIngredient)
+        'Recalled ingredient detected',
     ];
     return _section(theme, 'Stack summary', rows.map((r) => _line(theme, r)));
   }
@@ -276,7 +280,11 @@ class ClinicianPdfBuilder {
     // absent warning may be an unrun check. The app hedges on exactly these
     // two flags; the clinician report must not assert what the app declines
     // to assert. Same contract as the depletion section below.
-    final incompleteNotices = _incompleteCheckNotices(theme, safetyReport);
+    final incompleteNotices = _incompleteCheckNotices(
+      theme,
+      intelligence,
+      safetyReport,
+    );
     if (signals.isEmpty && remainingIssues.isEmpty) {
       return _section(theme, 'Warnings', [
         if (incompleteNotices.isEmpty)
@@ -313,9 +321,18 @@ class ClinicianPdfBuilder {
   /// analysis was complete, so a healthy report gains no noise.
   List<pw.Widget> _incompleteCheckNotices(
     _Theme theme,
+    StackIntelligence intelligence,
     StackSafetyReport safetyReport,
   ) {
     return <pw.Widget>[
+      if (intelligence.analysisIncomplete &&
+          !safetyReport.checksIncomplete &&
+          !safetyReport.coverageIncomplete)
+        _line(
+          theme,
+          'At least one safety check could not be completed when this report '
+          'was generated. This is not an all-clear.',
+        ),
       if (safetyReport.checksIncomplete)
         _line(
           theme,

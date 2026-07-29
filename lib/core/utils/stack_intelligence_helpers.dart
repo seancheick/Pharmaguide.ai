@@ -10,6 +10,9 @@ String describeStackSummary(StackIntelligence? intelligence) {
   if (intelligence == null) {
     return 'Reviewing interactions, recall alerts, and nutrient overlap.';
   }
+  final incompleteSuffix = intelligence.analysisIncomplete
+      ? ' Some checks are unavailable.'
+      : '';
   switch (intelligence.tier) {
     case StackTier.unsafe:
       if (intelligence.hasBannedIngredient) {
@@ -28,25 +31,34 @@ String describeStackSummary(StackIntelligence? intelligence) {
         return '${intelligence.interactionCount} interaction'
             '${intelligence.interactionCount == 1 ? '' : 's'} and '
             '${intelligence.nutrientWarningCount} nutrient warning'
-            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.';
+            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.'
+            '$incompleteSuffix';
       }
       if (intelligence.interactionCount > 0) {
         return '${intelligence.interactionCount} interaction'
-            '${intelligence.interactionCount == 1 ? '' : 's'} need review.';
+            '${intelligence.interactionCount == 1 ? '' : 's'} need review.'
+            '$incompleteSuffix';
       }
       if (intelligence.nutrientWarningCount > 0) {
         return '${intelligence.nutrientWarningCount} nutrient warning'
-            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.';
+            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} need review.'
+            '$incompleteSuffix';
       }
-      return 'Important issues found — review this stack.';
+      return 'Important issues found — review this stack.$incompleteSuffix';
     case StackTier.decent:
       if (intelligence.interactionCount > 0) {
         return '${intelligence.interactionCount} interaction'
-            '${intelligence.interactionCount == 1 ? '' : 's'} worth reviewing.';
+            '${intelligence.interactionCount == 1 ? '' : 's'} worth reviewing.'
+            '$incompleteSuffix';
       }
       if (intelligence.nutrientWarningCount > 0) {
         return '${intelligence.nutrientWarningCount} nutrient warning'
-            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} worth reviewing.';
+            '${intelligence.nutrientWarningCount == 1 ? '' : 's'} worth reviewing.'
+            '$incompleteSuffix';
+      }
+      if (intelligence.analysisIncomplete) {
+        return 'Some safety checks could not be completed. This is not an '
+            'all-clear.';
       }
       return 'Some concerns are worth reviewing.';
     case StackTier.solid:

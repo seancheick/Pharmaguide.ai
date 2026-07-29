@@ -144,7 +144,7 @@ final safetyCheckForAddProvider = FutureProvider.family
 
       final candidateIds = canonicalIdsForProduct(candidate);
       final checker = StackInteractionChecker();
-      final pairwiseDoseTotals = await _pairwiseDoseTotalsFor(
+      final pairwiseDoseResult = await _pairwiseDoseTotalsFor(
         ref,
         supplements: [
           (
@@ -161,6 +161,8 @@ final safetyCheckForAddProvider = FutureProvider.family
               ),
         ],
       );
+      if (pairwiseDoseResult.incomplete) checksIncomplete = true;
+      final pairwiseDoseTotals = pairwiseDoseResult.totals;
       final combined = <InteractionResult>[];
       final seenIds = <String>{};
       void addAll(Iterable<InteractionResult> hits) {
@@ -385,7 +387,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   }
 
   final checker = StackInteractionChecker();
-  final pairwiseDoseTotals = await _pairwiseDoseTotalsFor(
+  final pairwiseDoseResult = await _pairwiseDoseTotalsFor(
     ref,
     supplements: [
       for (final h in hydrated)
@@ -397,6 +399,8 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           ),
     ],
   );
+  if (pairwiseDoseResult.incomplete) checksIncomplete = true;
+  final pairwiseDoseTotals = pairwiseDoseResult.totals;
 
   // ---------------------------------------------------------------------------
   // 1. Supplement × supplement curated pair lookups.
@@ -703,24 +707,38 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   );
 });
 
-Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsFor(
+Future<({Map<String, StackDoseTotal> totals, bool incomplete})>
+_pairwiseDoseTotalsFor(
   Ref ref, {
   required List<({String stackEntryId, String productName, String dsldId})>
   supplements,
 }) async {
-  if (supplements.isEmpty) return const <String, StackDoseTotal>{};
+  if (supplements.isEmpty) {
+    return (totals: const <String, StackDoseTotal>{}, incomplete: false);
+  }
 
   final items = <StackItemNutrients>[];
+  var incomplete = false;
   for (final supplement in supplements) {
     Map<String, dynamic>? blob;
     try {
       blob = await ref.watch(detailBlobProvider(supplement.dsldId).future);
     } on Object {
+      incomplete = true;
       continue;
     }
-    if (blob == null) continue;
+    if (blob == null) {
+      incomplete = true;
+      continue;
+    }
 
-    final facts = ProductHealthFacts.fromDetailBlob(blob);
+    ProductHealthFacts facts;
+    try {
+      facts = ProductHealthFacts.fromDetailBlob(blob);
+    } on Object {
+      incomplete = true;
+      continue;
+    }
     final ingredients = facts.doseRowsForThresholds;
     if (ingredients.isEmpty) continue;
 
@@ -733,8 +751,10 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsFor(
     );
   }
 
-  if (items.isEmpty) return const <String, StackDoseTotal>{};
-  return const StackDoseSummer().sum(items);
+  if (items.isEmpty) {
+    return (totals: const <String, StackDoseTotal>{}, incomplete: incomplete);
+  }
+  return (totals: const StackDoseSummer().sum(items), incomplete: incomplete);
 }
 
 Future<({List<UserStacksLocalData> rows, bool identityIncomplete})>
@@ -775,20 +795,17 @@ _normalizeMedicationRowsForSafety(
   return (rows: out, identityIncomplete: identityIncomplete);
 }
 
-/// Recall detection result: the [report] plus an [incomplete] flag set when
-/// the banned/recalled asset could not be loaded.
+/// Recall detection report for the active stack.
 ///
-/// A load failure used to be swallowed silently — recall detection would
-/// disable itself and the stack read "all clear", so an FDA-recalled product
-/// went un-flagged. Now the failure is recorded (CrashReportingService) and
-/// [incomplete] lets the banner hedge instead of implying "no recalls".
+/// [RecalledIngredientsReport.incomplete] is set whenever the authored asset
+/// or any stack product could not be inspected. Every consumer reads this same
+/// report object, so Home, Stack, and clinician output cannot disagree about
+/// whether the scan completed.
 ///
-/// This is the real worker; [recalledIngredientsReportProvider] is a thin
-/// view kept unchanged for consumers that only need the report.
-final recalledIngredientsCheckProvider =
-    FutureProvider<({RecalledIngredientsReport report, bool incomplete})>((
-      ref,
-    ) async {
+/// A failure used to be swallowed silently and returned as an empty report.
+/// That made an unavailable check indistinguishable from a clean result.
+final recalledIngredientsReportProvider =
+    FutureProvider<RecalledIngredientsReport>((ref) async {
       final coreDb = ref.watch(coreDatabaseProvider);
       // Read the repo via the provider so tests can override the asset source.
       // Sprint 27.6 added this indirection to enable integration tests of
@@ -800,14 +817,14 @@ final recalledIngredientsCheckProvider =
       // Take a dependency on the active stack so any mutation invalidates us.
       final stack = await ref.watch(activeStackProvider.future);
       if (stack.isEmpty) {
-        return (report: RecalledIngredientsReport.empty(), incomplete: false);
+        return RecalledIngredientsReport.empty();
       }
 
       final supplements = stack
           .where((e) => e.type == 'supplement')
           .toList(growable: false);
       if (supplements.isEmpty) {
-        return (report: RecalledIngredientsReport.empty(), incomplete: false);
+        return RecalledIngredientsReport.empty();
       }
 
       // Load banned/recalled ingredients data. A failure here disables recall
@@ -822,13 +839,13 @@ final recalledIngredientsCheckProvider =
           st,
           hint: 'stack_safety:recalled_ingredients_load_failed',
         );
-        return (report: RecalledIngredientsReport.empty(), incomplete: true);
+        return RecalledIngredientsReport.empty(incomplete: true);
       }
 
       final recalledRaw = recallData['recalled_ingredients'];
       final recalledList = recalledRaw is List ? recalledRaw : null;
       if (recalledList == null || recalledList.isEmpty) {
-        return (report: RecalledIngredientsReport.empty(), incomplete: false);
+        return RecalledIngredientsReport.empty(incomplete: true);
       }
 
       // Index the authored records by INGREDIENT NAME, not by `canonical_id`.
@@ -841,34 +858,45 @@ final recalledIngredientsCheckProvider =
       // it is the real join key — folded through the catalog's single
       // canonicalizer so both sides of the comparison speak one dialect.
       //
-      // Restricted to `recall_status == 'banned'`. The asset also carries
+      // Restricted to hard `banned` / `recalled` statuses. The asset also carries
       // `high_risk` / `watchlist` / `recalled` advisory tiers whose substances
       // (garcinia, yohimbe, CBD, red yeast rice) appear in hundreds of
       // products the pipeline deliberately does NOT block. Indexing those here
       // would let this surface invent a "banned" verdict the pipeline never
-      // made. Against the shipped catalog the restricted index matches 82 of
-      // the 107 pipeline-flagged products and ZERO unflagged ones.
-      final recalledByIngredient = <String, RecalledIngredientAlert>{};
+      // made.
+      final bannedByIngredient = <String, RecalledIngredientAlert>{};
+      final recalledByProductName = <String, RecalledIngredientAlert>{};
+      var incomplete = false;
       for (final recallJson in recalledList) {
-        if (recallJson is! Map) continue;
+        if (recallJson is! Map) {
+          incomplete = true;
+          continue;
+        }
         final recall = Map<String, dynamic>.from(recallJson);
-        final canonicalId = recall['canonical_id'] as String?;
-        if (canonicalId == null) continue;
+        final canonicalId = recall['canonical_id']?.toString().trim();
+        if (canonicalId == null || canonicalId.isEmpty) {
+          incomplete = true;
+          continue;
+        }
 
-        final commonNames =
-            (recall['common_names'] as List<dynamic>?)
-                ?.map((c) => c.toString())
-                .toList() ??
-            const <String>[];
-        final recallStatus = recall['recall_status'] as String? ?? 'warning';
-        final regulatoryBasis = recall['regulatory_basis'] as String? ?? '';
-        final reason = recall['reason'] as String? ?? '';
-        final effectiveDate = recall['effective_date'] as String? ?? '';
-        final severity = recall['severity'] as String? ?? 'major';
-        final safetyWarning = recall['safety_warning'] as String? ?? '';
+        final rawCommonNames = recall['common_names'];
+        final commonNames = rawCommonNames is List
+            ? rawCommonNames
+                  .map((value) => value.toString().trim())
+                  .where((value) => value.isNotEmpty)
+                  .toList(growable: false)
+            : const <String>[];
+        final recallStatus =
+            recall['recall_status']?.toString().trim() ?? 'warning';
+        final regulatoryBasis =
+            recall['regulatory_basis']?.toString().trim() ?? '';
+        final reason = recall['reason']?.toString().trim() ?? '';
+        final effectiveDate = recall['effective_date']?.toString().trim() ?? '';
+        final severity = recall['severity']?.toString().trim() ?? 'major';
+        final safetyWarning = recall['safety_warning']?.toString().trim() ?? '';
         final safetyWarningOneLiner =
-            recall['safety_warning_one_liner'] as String? ?? '';
-        final banContext = recall['ban_context'] as String? ?? '';
+            recall['safety_warning_one_liner']?.toString().trim() ?? '';
+        final banContext = recall['ban_context']?.toString().trim() ?? '';
 
         // `banned` and `recalled` both mean "not permitted / pulled". The
         // advisory tiers are excluded: `high_risk` alone accounts for all 203
@@ -889,10 +917,18 @@ final recalledIngredientsCheckProvider =
           safetyWarningOneLiner: safetyWarningOneLiner,
           banContext: banContext,
         );
+        if (commonNames.isEmpty) {
+          incomplete = true;
+          continue;
+        }
         for (final name in commonNames) {
           final key = normalizeCanonicalId(name);
           if (key == null) continue;
-          recalledByIngredient.putIfAbsent(key, () => alert);
+          if (recallStatus == 'banned') {
+            bannedByIngredient.putIfAbsent(key, () => alert);
+          } else {
+            recalledByProductName.putIfAbsent(key, () => alert);
+          }
         }
       }
 
@@ -900,15 +936,27 @@ final recalledIngredientsCheckProvider =
       final violations = <RecalledIngredientViolation>[];
       for (final entry in supplements) {
         final productId = entry.dsldId;
-        if (productId == null || productId.isEmpty) continue;
+        if (productId == null || productId.isEmpty) {
+          incomplete = true;
+          continue;
+        }
 
         ProductsCoreData? product;
         try {
           product = await coreDb.findById(productId);
-        } on Exception {
+        } on Object catch (e, st) {
+          incomplete = true;
+          CrashReportingService().recordError(
+            e,
+            st,
+            hint: 'stack_safety:recalled_product_hydration_failed',
+          );
           continue;
         }
-        if (product == null) continue;
+        if (product == null) {
+          incomplete = true;
+          continue;
+        }
 
         // ONE BRAIN: the pipeline decides WHETHER a product carries a banned
         // substance; this surface only decides how to say it. The app never
@@ -921,21 +969,36 @@ final recalledIngredientsCheckProvider =
         // lot-specific recall still fires the moment the pipeline populates it
         // — it is 0 across the shipped catalog today, which is why it must not
         // be the only trigger.
-        final pipelineFlagged =
-            (product.hasBannedSubstance ?? 0) == 1 ||
-            (product.hasRecalledIngredient ?? 0) == 1;
-        if (!pipelineFlagged) continue;
+        final hasBannedSubstance = (product.hasBannedSubstance ?? 0) == 1;
+        final hasRecalledProduct = (product.hasRecalledIngredient ?? 0) == 1;
+        if (!hasBannedSubstance && !hasRecalledProduct) continue;
 
         // Name the substance from the authored record when we can. A flagged
         // product with no matching record still warns — with the substance
         // name omitted rather than the whole violation dropped.
         final recalledIngredients = <RecalledIngredientAlert>[];
         final seenRecords = <String>{};
-        for (final cid in canonicalIdsForProduct(product)) {
-          final alert = recalledByIngredient[cid];
-          if (alert == null) continue;
-          if (seenRecords.add(alert.canonicalId)) {
-            recalledIngredients.add(alert);
+        if (hasBannedSubstance) {
+          for (final cid in canonicalIdsForProduct(product)) {
+            final alert = bannedByIngredient[cid];
+            if (alert == null) continue;
+            if (seenRecords.add(alert.canonicalId)) {
+              recalledIngredients.add(alert);
+            }
+          }
+        }
+        if (hasRecalledProduct) {
+          final productNames = <String?>[
+            normalizeCanonicalId(entry.name),
+            normalizeCanonicalId(product.productName),
+          ];
+          for (final name in productNames) {
+            if (name == null) continue;
+            final alert = recalledByProductName[name];
+            if (alert == null) continue;
+            if (seenRecords.add(alert.canonicalId)) {
+              recalledIngredients.add(alert);
+            }
           }
         }
 
@@ -945,25 +1008,16 @@ final recalledIngredientsCheckProvider =
             productName: entry.name,
             brandName: product.brandName ?? '',
             recalledIngredients: recalledIngredients,
+            pipelineBannedSubstance: hasBannedSubstance,
+            pipelineRecalledProduct: hasRecalledProduct,
           ),
         );
       }
 
-      return (
-        report: RecalledIngredientsReport(violations: violations),
-        incomplete: false,
+      return RecalledIngredientsReport(
+        violations: violations,
+        incomplete: incomplete,
       );
-    });
-
-/// Recall detection report for the active stack. Thin view over
-/// [recalledIngredientsCheckProvider] — kept as its own provider (same name
-/// + type) so existing consumers (home, share-report, stack intelligence)
-/// are unchanged. The stack's recall banner watches the check provider
-/// directly to read the `incomplete` hedge.
-final recalledIngredientsReportProvider =
-    FutureProvider<RecalledIngredientsReport>((ref) async {
-      final check = await ref.watch(recalledIngredientsCheckProvider.future);
-      return check.report;
     });
 
 /// Depletion checker — matches medications against known nutrient

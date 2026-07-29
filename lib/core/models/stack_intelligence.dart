@@ -49,6 +49,7 @@ class StackIntelligence {
   final bool hasRecalledIngredient;
   final bool hasContraindicatedInteraction;
   final bool hasBannedIngredient;
+  final bool analysisIncomplete;
 
   /// 0..100 internal stack quality score. Secondary signal only — never
   /// surfaced as a headline. `null` when the stack is too thin to score.
@@ -63,6 +64,7 @@ class StackIntelligence {
     required this.hasRecalledIngredient,
     required this.hasContraindicatedInteraction,
     required this.hasBannedIngredient,
+    this.analysisIncomplete = false,
     this.qualityScore,
   });
 

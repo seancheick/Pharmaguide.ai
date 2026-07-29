@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/stack/widgets/stack_health_fallback_display.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/utils/relative_time.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
@@ -515,12 +516,24 @@ class _StackHealthCard extends ConsumerWidget {
         synergyAsync.isLoading ||
         recallAsync.isLoading ||
         doseAlertsAsync.isLoading;
-    final Color tone = status?.color ?? V2Colors.safe;
-    final statusLabel = isAnalyzing
-        ? 'Analyzing'
-        : status?.label ?? 'No data yet';
+    final hasError =
+        reportAsync.hasError ||
+        synergyAsync.hasError ||
+        recallAsync.hasError ||
+        doseAlertsAsync.hasError;
+    final fallback = stackHealthFallbackDisplay(
+      isAnalyzing: isAnalyzing,
+      hasError: hasError,
+    );
+    final Color tone = status?.color ?? fallback.tone;
+    final statusLabel = status?.label ?? fallback.label;
     final insightLine = hasRealData
-        ? describeStackSummary(intelligence)
+        ? intelligence == null
+              ? stackHealthFallbackSummary(
+                  isAnalyzing: isAnalyzing,
+                  hasError: hasError,
+                )
+              : describeStackSummary(intelligence)
         : contextLine;
 
     return Material(

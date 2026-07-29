@@ -83,7 +83,7 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
     ProductsCoreData? product;
     try {
       product = await coreDb.findById(dsldId);
-    } on Exception {
+    } on Object {
       incomplete = true;
       continue;
     }
@@ -95,7 +95,7 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
     Map<String, dynamic>? blob;
     try {
       blob = await ref.watch(detailBlobProvider(dsldId).future);
-    } on Exception {
+    } on Object {
       incomplete = true;
       continue;
     }
@@ -104,7 +104,13 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
       continue;
     }
 
-    final ingredients = ProductHealthFacts.fromDetailBlob(blob).nutrients;
+    List<Map<String, dynamic>> ingredients;
+    try {
+      ingredients = ProductHealthFacts.fromDetailBlob(blob).nutrients;
+    } on Object {
+      incomplete = true;
+      continue;
+    }
     // A product with no nutrient rows contributes nothing to a nutrient
     // total legitimately (botanicals, probiotics) — not a load failure.
     if (ingredients.isEmpty) continue;

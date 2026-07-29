@@ -679,6 +679,32 @@ void main() {
     },
   );
 
+  test('carries a recall-scan unavailable state into the PDF', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: const StackIntelligence(
+        tier: StackTier.decent,
+        stackSize: 1,
+        issues: [],
+        interactionCount: 0,
+        nutrientWarningCount: 0,
+        hasRecalledIngredient: false,
+        hasContraindicatedInteraction: false,
+        hasBannedIngredient: false,
+        analysisIncomplete: true,
+      ),
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 29),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('all-clear'));
+    expect(body, contains('incomplete'));
+    expect(body, isNot(contains('snapshot.')));
+  });
+
   test(
     'states depletion analysis was unavailable rather than omitting it',
     () async {

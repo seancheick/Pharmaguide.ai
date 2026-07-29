@@ -75,9 +75,14 @@ class StackIntelligenceEngine {
     List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
   }) {
     final hasBannedIngredient = recalledReport.violations.any(
-      (v) => v.recalledIngredients.any((r) => r.recallStatus == 'banned'),
+      (violation) => violation.isBannedSubstance,
     );
     final hasRecalledIngredient = !recalledReport.isEmpty;
+    final analysisIncomplete =
+        safetyReport.checksIncomplete ||
+        safetyReport.coverageIncomplete ||
+        recalledReport.incomplete ||
+        doseThresholdAlerts.any((alert) => alert.isIncomplete);
 
     final allInteractions = <InteractionResult>[
       ...safetyReport.medicationPairInteractions,
@@ -114,6 +119,7 @@ class StackIntelligenceEngine {
       monitorInteractionCount: monitorCount,
       nutrientWarningCount: nutrientWarningCount,
       qualityScore: qualityScore,
+      missingData: analysisIncomplete,
     );
 
     final issues = _composeIssues(
@@ -131,6 +137,7 @@ class StackIntelligenceEngine {
       hasRecalledIngredient: hasRecalledIngredient,
       hasContraindicatedInteraction: hasContraindicatedInteraction,
       hasBannedIngredient: hasBannedIngredient,
+      analysisIncomplete: analysisIncomplete,
       qualityScore: qualityScore,
     );
   }

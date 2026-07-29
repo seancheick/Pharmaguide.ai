@@ -31,6 +31,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 
 /// Fake repository that serves a single canned recall payload. Extends
 /// the real class so the provider's type contract is satisfied without
@@ -273,7 +274,68 @@ void main() {
       final v = report.violations.single;
       expect(v.recalledIngredients, isEmpty);
       expect(v.bannerMessage, isNotEmpty);
+      expect(v.bannerMessage, startsWith('BANNED'));
+      expect(v.isBannedSubstance, isTrue);
       expect(v.worstSeverity, isNot(Severity.safe));
+    });
+
+    test(
+      'a finding plus an incomplete scan labels the alert list as partial',
+      () {
+        final report = RecalledIngredientsReport(
+          violations: [
+            RecalledIngredientViolation(
+              productDsldId: 'TEST_FLAGGED',
+              productName: 'Flagged Product',
+              brandName: 'Test Brand',
+              recalledIngredients: const [],
+              pipelineBannedSubstance: true,
+            ),
+          ],
+          incomplete: true,
+        );
+
+        expect(report.bannerMessage, contains('BANNED'));
+        expect(report.bannerMessage, contains('additional safety alerts'));
+        expect(report.bannerMessage, contains('could not be checked'));
+      },
+    );
+
+    test('a recall-only flag never renders as a banned substance', () async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+
+      await _seedProduct(
+        coreDb,
+        dsldId: 'TEST_RECALL_ONLY',
+        keyIngredientTags: ['unrelated_ingredient'],
+        hasRecalledFlag: 1,
+      );
+      await _seedStack(
+        userDb,
+        dsldId: 'TEST_RECALL_ONLY',
+        name: 'Recalled Lot',
+      );
+
+      final container = _container(
+        coreDb: coreDb,
+        userDb: userDb,
+        recallPayload: _recallPayload(['sibutramine']),
+      );
+      addTearDown(container.dispose);
+      addTearDown(() async {
+        await coreDb.close();
+        await userDb.close();
+      });
+
+      final report = await container.read(
+        recalledIngredientsReportProvider.future,
+      );
+      final violation = report.violations.single;
+      expect(violation.isBannedSubstance, isFalse);
+      expect(violation.isRecalledProduct, isTrue);
+      expect(violation.bannerMessage, startsWith('RECALLED'));
+      expect(violation.bannerMessage, isNot(contains('BANNED')));
     });
 
     test(
@@ -360,8 +422,8 @@ void main() {
       );
     });
 
-    test('malformed recalled_ingredients (non-list) yields empty report, '
-        'no throw', () async {
+    test('malformed recalled_ingredients yields an incomplete report, '
+        'not a false all-clear', () async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
 
@@ -393,6 +455,7 @@ void main() {
         recalledIngredientsReportProvider.future,
       );
       expect(report.isEmpty, isTrue);
+      expect(report.incomplete, isTrue);
     });
 
     test('non-map entries in the recall list are skipped without losing '
