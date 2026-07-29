@@ -244,3 +244,31 @@ class NutrientStatus {
   bool get shouldWarn =>
       tier == NutrientTier.approachingUl || tier == NutrientTier.exceedsUl;
 }
+
+/// The stack nutrient panel's full result: the classified totals plus
+/// whether every stack item actually reached the aggregator.
+///
+/// [incomplete] exists because a partial sum is not a smaller true sum — it
+/// is an unknown one. A stack item whose product row or detail blob could
+/// not be loaded contributes nothing, so the totals under-report and any
+/// UL comparison drawn from them can read "within limit" when the real
+/// total is not. Surfaces must hedge instead of presenting the number as
+/// the user's complete intake. This mirrors `StackSafetyReport`'s
+/// `coverageIncomplete`, which already reports the same condition for the
+/// interaction half of the stack screen.
+@immutable
+class StackNutrientStatuses {
+  const StackNutrientStatuses({
+    required this.statuses,
+    this.incomplete = false,
+  });
+
+  const StackNutrientStatuses.empty() : statuses = const [], incomplete = false;
+
+  final List<NutrientStatus> statuses;
+
+  /// True when at least one stack item was skipped while building [statuses].
+  final bool incomplete;
+
+  bool get isEmpty => statuses.isEmpty;
+}

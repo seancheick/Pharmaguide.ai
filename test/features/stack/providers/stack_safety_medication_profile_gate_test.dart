@@ -11,6 +11,7 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 
 /// Forces the medication-profile-gate rule asset to fail loading so the
@@ -79,7 +80,9 @@ Future<ProviderContainer> _container({
       interactionDatabaseProvider.overrideWithValue(interactionDb),
       activeStackProvider.overrideWith((ref) async => [medication]),
       loadedProfileProvider.overrideWith((ref) async => profile),
-      stackNutrientStatusesProvider.overrideWith((ref) async => const []),
+      stackNutrientStatusesProvider.overrideWith(
+        (ref) async => const StackNutrientStatuses.empty(),
+      ),
       if (referenceDataRepo != null)
         referenceDataRepositoryProvider.overrideWith(
           (ref) => referenceDataRepo,
@@ -156,7 +159,9 @@ Future<ProviderContainer> _containerWithSupplementAndMedication({
       interactionDatabaseProvider.overrideWithValue(interactionDb),
       activeStackProvider.overrideWith((ref) async => [medication, supplement]),
       loadedProfileProvider.overrideWith((ref) async => profile),
-      stackNutrientStatusesProvider.overrideWith((ref) async => const []),
+      stackNutrientStatusesProvider.overrideWith(
+        (ref) async => const StackNutrientStatuses.empty(),
+      ),
     ],
   );
   addTearDown(container.dispose);

@@ -67,7 +67,7 @@ class ClinicianPdfBuilder {
           _profileSection(theme, profile),
           _stackSection(theme, 'Medications', stack, 'medication'),
           _stackSection(theme, 'Supplements', stack, 'supplement'),
-          _summarySection(theme, intelligence),
+          _summarySection(theme, intelligence, safetyReport),
           _warningsSection(theme, intelligence, safetyReport),
           _nutrientSection(theme, safetyReport.nutrientStatuses),
           _timingSection(theme, safetyReport.timingOptimizations),
@@ -232,12 +232,22 @@ class ClinicianPdfBuilder {
     );
   }
 
-  pw.Widget _summarySection(_Theme theme, StackIntelligence intelligence) {
+  pw.Widget _summarySection(
+    _Theme theme,
+    StackIntelligence intelligence,
+    StackSafetyReport safetyReport,
+  ) {
+    // The counters below are produced by the same subsystems the report
+    // flags as failed. A bare "Interactions flagged: 0" reads as a finding,
+    // so qualify it rather than let it stand as one.
+    final countsIncomplete =
+        safetyReport.checksIncomplete || safetyReport.coverageIncomplete;
+    final countSuffix = countsIncomplete ? ' - incomplete' : '';
     final rows = <String>[
       'Tier: ${_tierLabel(intelligence.tier)}',
       'Stack size: ${intelligence.stackSize}',
-      'Interactions flagged: ${intelligence.interactionCount}',
-      'Nutrient warnings: ${intelligence.nutrientWarningCount}',
+      'Interactions flagged: ${intelligence.interactionCount}$countSuffix',
+      'Nutrient warnings: ${intelligence.nutrientWarningCount}$countSuffix',
       if (intelligence.hasContraindicatedInteraction)
         'Contraindicated interaction detected',
       if (intelligence.hasBannedIngredient) 'Banned ingredient detected',
@@ -260,9 +270,19 @@ class ClinicianPdfBuilder {
           )
           .toList(growable: false),
     );
+    // An empty warning list means "nothing found" ONLY when every check ran.
+    // `checksIncomplete` (a safety subsystem failed) and `coverageIncomplete`
+    // (a label fell below the mapped-coverage trust floor) both mean an
+    // absent warning may be an unrun check. The app hedges on exactly these
+    // two flags; the clinician report must not assert what the app declines
+    // to assert. Same contract as the depletion section below.
+    final incompleteNotices = _incompleteCheckNotices(theme, safetyReport);
     if (signals.isEmpty && remainingIssues.isEmpty) {
       return _section(theme, 'Warnings', [
-        _line(theme, 'No stack warnings in the current snapshot.'),
+        if (incompleteNotices.isEmpty)
+          _line(theme, 'No stack warnings in the current snapshot.')
+        else
+          ...incompleteNotices,
       ]);
     }
 
@@ -276,6 +296,9 @@ class ClinicianPdfBuilder {
         .where((issue) => !issue.severity.isHard)
         .toList(growable: false);
     return _section(theme, 'Warnings', [
+      // Ahead of the findings: a partial list must be labeled partial before
+      // it is read, not after.
+      ...incompleteNotices,
       ...hardIssues.map(
         (issue) => _severityLine(theme, issue.severity.label, issue.headline),
       ),
@@ -284,6 +307,30 @@ class ClinicianPdfBuilder {
         (issue) => _severityLine(theme, issue.severity.label, issue.headline),
       ),
     ]);
+  }
+
+  /// Hedge lines for a report whose checks did not all run. Empty when the
+  /// analysis was complete, so a healthy report gains no noise.
+  List<pw.Widget> _incompleteCheckNotices(
+    _Theme theme,
+    StackSafetyReport safetyReport,
+  ) {
+    return <pw.Widget>[
+      if (safetyReport.checksIncomplete)
+        _line(
+          theme,
+          'Some safety checks could not be completed when this report was '
+          'generated. This is not an all-clear - an absent warning may mean '
+          'the check did not run.',
+        ),
+      if (safetyReport.coverageIncomplete)
+        _line(
+          theme,
+          'At least one product label could not be fully analyzed, so its '
+          'ingredients may not have reached every check. This is not an '
+          'all-clear.',
+        ),
+    ];
   }
 
   Set<String> _representedIssueHeadlines(List<ClinicalSignal> signals) {

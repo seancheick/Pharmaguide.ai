@@ -305,9 +305,14 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // If the nutrient provider errors, we still want the interaction half
   // of the report to render, so we fall back to an empty list.
   var checksIncomplete = false;
+  // Set when the nutrient pass skipped a stack item; ORed into the report's
+  // coverage flag below so the banner and the clinician report both hedge.
+  var nutrientCoverageIncomplete = false;
   List<NutrientStatus> nutrientStatuses;
   try {
-    nutrientStatuses = await ref.watch(stackNutrientStatusesProvider.future);
+    final result = await ref.watch(stackNutrientStatusesProvider.future);
+    nutrientStatuses = result.statuses;
+    nutrientCoverageIncomplete = result.incomplete;
   } on Object catch (e, st) {
     checksIncomplete = true;
     CrashReportingService().recordError(
@@ -355,7 +360,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // Track low label-mapping coverage: below the 0.3 trust floor a
   // product's ingredients may never fire the interaction checks, so the
   // report must hedge rather than claim a clean result.
-  var coverageIncomplete = false;
+  var coverageIncomplete = nutrientCoverageIncomplete;
   final hydrated = <HydratedSupplement>[];
   for (final entry in supplements) {
     final id = entry.dsldId;

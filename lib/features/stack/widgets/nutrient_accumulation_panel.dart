@@ -6,8 +6,13 @@
 //
 // States:
 //   * loading       → small CircularProgressIndicator
-//   * error         → silent shrink (the rest of the stack screen still
-//                     works; no need to fail loud over a panel)
+//   * error         → an explicit "couldn't total" notice. NOT a silent
+//                     shrink: this is the upper-limit surface, so an empty
+//                     space reads as "no UL concerns" — the one thing a
+//                     failed check cannot promise.
+//   * partial       → totals render with a hedge; a skipped stack item makes
+//                     the sum an under-report, so a UL comparison drawn from
+//                     it can read "within limit" when the truth is unknown.
 //   * empty stack   → hidden entirely (handled by SizedBox.shrink)
 //   * UL benchmarks → expanded inline list, with warnings first
 //   * intake targets without a UL → compact list
@@ -41,11 +46,73 @@ class NutrientAccumulationPanel extends ConsumerWidget {
           child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
         ),
       ),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (statuses) {
-        if (statuses.isEmpty) return const SizedBox.shrink();
-        return _PanelShell(child: _PanelBody(statuses: statuses));
+      error: (_, __) => const _PanelShell(child: _NutrientTotalsUnavailable()),
+      data: (result) {
+        // Nothing to total AND nothing was skipped — stay out of the way.
+        if (result.isEmpty && !result.incomplete) return const SizedBox.shrink();
+        if (result.isEmpty) {
+          return const _PanelShell(child: _NutrientTotalsUnavailable());
+        }
+        return _PanelShell(
+          child: _PanelBody(
+            statuses: result.statuses,
+            incomplete: result.incomplete,
+          ),
+        );
       },
+    );
+  }
+}
+
+/// Shown when the totals could not be built, or when every stack item was
+/// skipped. Absence would read as "no upper-limit concerns"; this says what
+/// actually happened instead.
+class _NutrientTotalsUnavailable extends StatelessWidget {
+  const _NutrientTotalsUnavailable();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const Key('nutrient-totals-unavailable'),
+      padding: const EdgeInsets.all(V2Spacing.space16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Nutrient totals unavailable',
+            style: V2Typography.titleSm(color: V2Colors.fg),
+          ),
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            "We couldn't add up the nutrients in your stack right now. This "
+            'is not an all-clear — upper-limit checks did not run.',
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown above the totals when at least one stack item was skipped.
+class _PartialTotalsNotice extends StatelessWidget {
+  const _PartialTotalsNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const Key('nutrient-totals-partial-notice'),
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space16,
+        0,
+        V2Spacing.space16,
+        V2Spacing.space8,
+      ),
+      child: Text(
+        'Some items in your stack could not be included, so these totals are '
+        'lower than your full intake.',
+        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+      ),
     );
   }
 }
@@ -70,9 +137,12 @@ class _PanelShell extends StatelessWidget {
 }
 
 class _PanelBody extends StatefulWidget {
-  const _PanelBody({required this.statuses});
+  const _PanelBody({required this.statuses, this.incomplete = false});
 
   final List<NutrientStatus> statuses;
+
+  /// True when a stack item was skipped, making [statuses] a partial sum.
+  final bool incomplete;
 
   @override
   State<_PanelBody> createState() => _PanelBodyState();
@@ -141,6 +211,12 @@ class _PanelBodyState extends State<_PanelBody> {
             warningCount: warningCount,
           ),
           const Divider(height: 1, color: V2Colors.outline),
+          // Ahead of every number: a partial sum must be labeled partial
+          // before it is read, not after.
+          if (widget.incomplete) ...[
+            const SizedBox(height: V2Spacing.space8),
+            const _PartialTotalsNotice(),
+          ],
           if (safetyLimits.isNotEmpty) ...[
             _SectionHeading(
               title: 'Safety limits',
