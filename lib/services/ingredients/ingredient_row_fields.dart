@@ -55,6 +55,25 @@ double? readDoseAmount(Map<String, dynamic> row) {
   return null;
 }
 
+/// Minimum/recommended daily exposure for adequacy comparisons.
+///
+/// RDA/AI coverage uses the dose a label recommends at the low end, while
+/// safety/UL checks use [readDoseAmount]'s maximum daily exposure. When an
+/// older blob has no `per_day_min`, fall back to the regular dose reader so
+/// fixed-dose products retain their historical behavior.
+double? readAdequacyDoseAmount(Map<String, dynamic> row) {
+  final minimum = asFiniteDouble(row['per_day_min']);
+  if (minimum != null) return minimum;
+
+  final exposure = row['adequacy_exposure'];
+  if (exposure is Map) {
+    final amount = asFiniteDouble(exposure['per_day']);
+    if (amount != null) return amount;
+  }
+
+  return readDoseAmount(row);
+}
+
 /// Dose unit for [row], normalized via [normalizeDoseUnit] (folds `µg`/`ug` →
 /// `mcg`, `i.u.` → `iu`, …), or `''` when absent. Unit-field priority parallels
 /// [readDoseAmount] — per-day-normalized unit fields win.
@@ -137,6 +156,17 @@ String? readDisplayName(Map<String, dynamic> row) {
     if (raw != null && raw.isNotEmpty) return raw;
   }
   return null;
+}
+
+/// Consumer display name for an aggregated nutrient total.
+///
+/// A producer-authored group name (for example, Vitamin K for K1 + K2) wins
+/// only on the roll-up surface. [readDisplayName] remains the exact ingredient
+/// label used by contributor and dose-threshold detail.
+String? readNutrientDisplayName(Map<String, dynamic> row) {
+  final groupName = row['nutrient_group_name']?.toString().trim();
+  if (groupName != null && groupName.isNotEmpty) return groupName;
+  return readDisplayName(row);
 }
 
 /// False for rows that must NEVER contribute to a dose sum:
