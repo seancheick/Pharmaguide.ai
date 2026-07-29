@@ -9,6 +9,14 @@ const Set<String> _structuredFingerprintKeys = <String>{
   'pharmacological_flags',
 };
 
+/// Fold any raw ingredient string into the catalog's canonical-id form.
+///
+/// This is the ONE canonicalizer for the catalog ingredient namespace. Any
+/// code that needs to compare a free-text ingredient name against catalog
+/// ids must fold it through here rather than writing its own — two
+/// canonicalizers is how a join silently stops matching.
+String? normalizeCanonicalId(Object? value) => _normalizeCanonicalId(value);
+
 String? _normalizeCanonicalId(Object? value) {
   if (value == null) return null;
   final raw = value.toString().trim().toLowerCase();

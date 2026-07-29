@@ -33,7 +33,7 @@ class _WorkingRecallRepo extends ReferenceDataRepository {
       'schema_version': '1.1',
       'recalled_ingredients': [
         {
-          'canonical_id': 'sibutramine',
+          'canonical_id': 'BANNED_SIBUTRAMINE',
           'common_names': ['sibutramine'],
           'recall_status': 'banned',
           'regulatory_basis': 'FDA — test fixture',
@@ -68,6 +68,7 @@ Future<void> _seedProduct(
   CoreDatabase coreDb, {
   required String dsldId,
   required List<String> tags,
+  int hasBannedFlag = 0,
 }) async {
   final tagsJson = '[${tags.map((t) => '"$t"').join(',')}]';
   await coreDb
@@ -78,6 +79,7 @@ Future<void> _seedProduct(
           productName: 'Test $dsldId',
           productStatus: const Value('active'),
           keyIngredientTags: Value(tagsJson),
+          hasBannedSubstance: Value(hasBannedFlag),
           exportVersion: 'test',
           exportedAt: '2026-07-05T00:00:00Z',
         ),
@@ -162,7 +164,12 @@ void main() {
     () async {
       final coreDb = CoreDatabase.memory();
       addTearDown(coreDb.close);
-      await _seedProduct(coreDb, dsldId: 'SUPP_SPIKED', tags: ['sibutramine']);
+      await _seedProduct(
+        coreDb,
+        dsldId: 'SUPP_SPIKED',
+        tags: ['sibutramine'],
+        hasBannedFlag: 1,
+      );
 
       final container = ProviderContainer(
         overrides: [
@@ -188,7 +195,7 @@ void main() {
       expect(check.report.violations, hasLength(1));
       expect(
         check.report.violations.single.recalledIngredients.single.canonicalId,
-        'sibutramine',
+        'BANNED_SIBUTRAMINE',
       );
     },
   );

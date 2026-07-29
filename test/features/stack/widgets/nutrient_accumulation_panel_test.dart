@@ -132,7 +132,10 @@ void main() {
       override: const AsyncValue<List<NutrientStatus>>.data([status]),
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('nutrient-totals-partial-notice')), findsNothing);
+    expect(
+      find.byKey(const Key('nutrient-totals-partial-notice')),
+      findsNothing,
+    );
   });
 
   testWidgets('every stack item skipped still says so rather than hiding', (

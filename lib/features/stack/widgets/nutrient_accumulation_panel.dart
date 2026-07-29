@@ -49,7 +49,9 @@ class NutrientAccumulationPanel extends ConsumerWidget {
       error: (_, __) => const _PanelShell(child: _NutrientTotalsUnavailable()),
       data: (result) {
         // Nothing to total AND nothing was skipped — stay out of the way.
-        if (result.isEmpty && !result.incomplete) return const SizedBox.shrink();
+        if (result.isEmpty && !result.incomplete) {
+          return const SizedBox.shrink();
+        }
         if (result.isEmpty) {
           return const _PanelShell(child: _NutrientTotalsUnavailable());
         }

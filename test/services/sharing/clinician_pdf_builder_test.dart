@@ -586,36 +586,39 @@ void main() {
     expect(body, contains('warnings'));
   });
 
-  test('states that safety checks did not complete instead of an all-clear', () async {
-    // Regression: `checksIncomplete` means a safety subsystem failed, so an
-    // empty warning list means "not checked", not "nothing found". The app
-    // hedges on this flag (stack_safety_details_sheet); the clinician PDF
-    // must not print a clean snapshot the app itself refuses to assert.
-    final bytes = await const ClinicianPdfBuilder(compress: false).build(
-      profile: null,
-      stack: const [],
-      intelligence: const StackIntelligence(
-        tier: StackTier.incomplete,
-        stackSize: 0,
-        issues: [],
-        interactionCount: 0,
-        nutrientWarningCount: 0,
-        hasRecalledIngredient: false,
-        hasContraindicatedInteraction: false,
-        hasBannedIngredient: false,
-      ),
-      safetyReport: const StackSafetyReport(checksIncomplete: true),
-      depletions: const [],
-      generatedAt: DateTime.utc(2026, 5, 28),
-    );
+  test(
+    'states that safety checks did not complete instead of an all-clear',
+    () async {
+      // Regression: `checksIncomplete` means a safety subsystem failed, so an
+      // empty warning list means "not checked", not "nothing found". The app
+      // hedges on this flag (stack_safety_details_sheet); the clinician PDF
+      // must not print a clean snapshot the app itself refuses to assert.
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: const [],
+        intelligence: const StackIntelligence(
+          tier: StackTier.incomplete,
+          stackSize: 0,
+          issues: [],
+          interactionCount: 0,
+          nutrientWarningCount: 0,
+          hasRecalledIngredient: false,
+          hasContraindicatedInteraction: false,
+          hasBannedIngredient: false,
+        ),
+        safetyReport: const StackSafetyReport(checksIncomplete: true),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 5, 28),
+      );
 
-    // Words are emitted as separate PDF text operators, so assert on single
-    // tokens rather than phrases.
-    final body = latin1.decode(bytes, allowInvalid: true);
-    expect(body, isNot(contains('snapshot.')));
-    expect(body, contains('all-clear'));
-    expect(body, contains('completed'));
-  });
+      // Words are emitted as separate PDF text operators, so assert on single
+      // tokens rather than phrases.
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, isNot(contains('snapshot.')));
+      expect(body, contains('all-clear'));
+      expect(body, contains('completed'));
+    },
+  );
 
   test('states that coverage was incomplete instead of an all-clear', () async {
     // Regression: `coverageIncomplete` means at least one product fell below
@@ -645,33 +648,36 @@ void main() {
     expect(body, contains('analyzed,'));
   });
 
-  test('does not print a bare zero interaction count when checks failed', () async {
-    // The stack-summary counters are derived from the same subsystems that
-    // failed. "Interactions flagged: 0" reads as a finding; it must be
-    // qualified when the checks behind it did not run.
-    final bytes = await const ClinicianPdfBuilder(compress: false).build(
-      profile: null,
-      stack: const [],
-      intelligence: const StackIntelligence(
-        tier: StackTier.incomplete,
-        stackSize: 0,
-        issues: [],
-        interactionCount: 0,
-        nutrientWarningCount: 0,
-        hasRecalledIngredient: false,
-        hasContraindicatedInteraction: false,
-        hasBannedIngredient: false,
-      ),
-      safetyReport: const StackSafetyReport(checksIncomplete: true),
-      depletions: const [],
-      generatedAt: DateTime.utc(2026, 5, 28),
-    );
+  test(
+    'does not print a bare zero interaction count when checks failed',
+    () async {
+      // The stack-summary counters are derived from the same subsystems that
+      // failed. "Interactions flagged: 0" reads as a finding; it must be
+      // qualified when the checks behind it did not run.
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: const [],
+        intelligence: const StackIntelligence(
+          tier: StackTier.incomplete,
+          stackSize: 0,
+          issues: [],
+          interactionCount: 0,
+          nutrientWarningCount: 0,
+          hasRecalledIngredient: false,
+          hasContraindicatedInteraction: false,
+          hasBannedIngredient: false,
+        ),
+        safetyReport: const StackSafetyReport(checksIncomplete: true),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 5, 28),
+      );
 
-    // "Interactions flagged:" and "0" are separate text operators, so the
-    // qualifier token is what proves the count is not left bare.
-    final body = latin1.decode(bytes, allowInvalid: true);
-    expect(body, contains('incomplete'));
-  });
+      // "Interactions flagged:" and "0" are separate text operators, so the
+      // qualifier token is what proves the count is not left bare.
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('incomplete'));
+    },
+  );
 
   test(
     'states depletion analysis was unavailable rather than omitting it',

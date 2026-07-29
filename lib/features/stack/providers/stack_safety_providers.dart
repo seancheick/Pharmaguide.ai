@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
+    show normalizeCanonicalId;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -829,8 +831,24 @@ final recalledIngredientsCheckProvider =
         return (report: RecalledIngredientsReport.empty(), incomplete: false);
       }
 
-      // Build a map of canonical_id → RecalledIngredientAlert for fast lookup.
-      final recalledMap = <String, RecalledIngredientAlert>{};
+      // Index the authored records by INGREDIENT NAME, not by `canonical_id`.
+      //
+      // `canonical_id` is a record id (`BANNED_SIBUTRAMINE`, `ADULTERANT_
+      // METFORMIN` — 17 distinct prefixes, 0 lowercase); a product's ids are
+      // catalog ingredient ids (`sibutramine`). Keying on `canonical_id` and
+      // testing it against product ids could never match, for any product.
+      // `common_names` is the field that actually holds ingredient names, so
+      // it is the real join key — folded through the catalog's single
+      // canonicalizer so both sides of the comparison speak one dialect.
+      //
+      // Restricted to `recall_status == 'banned'`. The asset also carries
+      // `high_risk` / `watchlist` / `recalled` advisory tiers whose substances
+      // (garcinia, yohimbe, CBD, red yeast rice) appear in hundreds of
+      // products the pipeline deliberately does NOT block. Indexing those here
+      // would let this surface invent a "banned" verdict the pipeline never
+      // made. Against the shipped catalog the restricted index matches 82 of
+      // the 107 pipeline-flagged products and ZERO unflagged ones.
+      final recalledByIngredient = <String, RecalledIngredientAlert>{};
       for (final recallJson in recalledList) {
         if (recallJson is! Map) continue;
         final recall = Map<String, dynamic>.from(recallJson);
@@ -852,7 +870,9 @@ final recalledIngredientsCheckProvider =
             recall['safety_warning_one_liner'] as String? ?? '';
         final banContext = recall['ban_context'] as String? ?? '';
 
-        recalledMap[canonicalId] = RecalledIngredientAlert(
+        if (recallStatus != 'banned') continue;
+
+        final alert = RecalledIngredientAlert(
           canonicalId: canonicalId,
           commonNames: commonNames,
           recallStatus: recallStatus,
@@ -864,6 +884,11 @@ final recalledIngredientsCheckProvider =
           safetyWarningOneLiner: safetyWarningOneLiner,
           banContext: banContext,
         );
+        for (final name in commonNames) {
+          final key = normalizeCanonicalId(name);
+          if (key == null) continue;
+          recalledByIngredient.putIfAbsent(key, () => alert);
+        }
       }
 
       // Check each supplement for recalled ingredients.
@@ -880,28 +905,43 @@ final recalledIngredientsCheckProvider =
         }
         if (product == null) continue;
 
-        // Check if product has the recalled flag or contains recalled ingredients.
-        final hasRecallFlag = (product.hasRecalledIngredient ?? 0) == 1;
-        final canonicalIds = canonicalIdsForProduct(product);
-        final recalledIngredients = <RecalledIngredientAlert>[];
+        // ONE BRAIN: the pipeline decides WHETHER a product carries a banned
+        // substance; this surface only decides how to say it. The app never
+        // derives its own banned verdict — a name match on an unflagged
+        // product is not a finding here, because the pipeline saw the same
+        // ingredients and did not block it.
+        //
+        // `has_banned_substance` is the authoritative flag (currently 1 on
+        // exactly the BLOCKED set). `has_recalled_ingredient` is read too so a
+        // lot-specific recall still fires the moment the pipeline populates it
+        // — it is 0 across the shipped catalog today, which is why it must not
+        // be the only trigger.
+        final pipelineFlagged =
+            (product.hasBannedSubstance ?? 0) == 1 ||
+            (product.hasRecalledIngredient ?? 0) == 1;
+        if (!pipelineFlagged) continue;
 
-        for (final cid in canonicalIds) {
-          if (recalledMap.containsKey(cid)) {
-            recalledIngredients.add(recalledMap[cid]!);
+        // Name the substance from the authored record when we can. A flagged
+        // product with no matching record still warns — with the substance
+        // name omitted rather than the whole violation dropped.
+        final recalledIngredients = <RecalledIngredientAlert>[];
+        final seenRecords = <String>{};
+        for (final cid in canonicalIdsForProduct(product)) {
+          final alert = recalledByIngredient[cid];
+          if (alert == null) continue;
+          if (seenRecords.add(alert.canonicalId)) {
+            recalledIngredients.add(alert);
           }
         }
 
-        // If the product is flagged or contains recalled ingredients, add violation.
-        if (hasRecallFlag || recalledIngredients.isNotEmpty) {
-          violations.add(
-            RecalledIngredientViolation(
-              productDsldId: productId,
-              productName: entry.name,
-              brandName: product.brandName ?? '',
-              recalledIngredients: recalledIngredients,
-            ),
-          );
-        }
+        violations.add(
+          RecalledIngredientViolation(
+            productDsldId: productId,
+            productName: entry.name,
+            brandName: product.brandName ?? '',
+            recalledIngredients: recalledIngredients,
+          ),
+        );
       }
 
       return (

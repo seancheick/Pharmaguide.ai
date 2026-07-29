@@ -67,9 +67,14 @@ class RecalledIngredientViolation {
     required this.recalledIngredients,
   });
 
-  /// Highest severity from all recalled ingredients in this product
+  /// Highest severity from all recalled ingredients in this product.
+  ///
+  /// A violation only exists because the pipeline flagged this product, so an
+  /// empty ingredient list means "we could not name the substance", never
+  /// "nothing is wrong". Returning `safe` there would let the one product we
+  /// are certain about rank below every ordinary caution.
   Severity get worstSeverity {
-    if (recalledIngredients.isEmpty) return Severity.safe;
+    if (recalledIngredients.isEmpty) return Severity.avoid;
     final severities = recalledIngredients
         .map((r) => r.displaySeverity)
         .toList();
@@ -81,9 +86,17 @@ class RecalledIngredientViolation {
     return Severity.caution;
   }
 
-  /// Human-readable alert for the banner
+  /// Human-readable alert for the banner.
+  ///
+  /// The unnamed case is real: the pipeline flags the product, but no authored
+  /// record matches its ingredient ids, so we can state the finding without
+  /// naming the substance. Returning an empty string here would silently blank
+  /// the banner on a product we know is flagged.
   String get bannerMessage {
-    if (recalledIngredients.isEmpty) return '';
+    if (recalledIngredients.isEmpty) {
+      return 'BANNED — $productName contains a substance not permitted in '
+          'supplements.';
+    }
     final verb = _verbFor(recalledIngredients.first.banContext);
     if (recalledIngredients.length == 1) {
       final ing = recalledIngredients.first;
