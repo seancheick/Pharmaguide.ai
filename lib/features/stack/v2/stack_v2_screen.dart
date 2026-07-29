@@ -40,6 +40,7 @@ import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.d
 import 'package:pharmaguide/features/stack/widgets/stack_coverage_card.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+import 'package:pharmaguide/features/stack/widgets/stack_health_fallback_display.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_display_name.dart';
@@ -641,29 +642,6 @@ class _StackTabState extends ConsumerState<_StackTab> {
 // Stack Summary card.
 // =============================================================================
 
-/// Tone + label for the Stack Health chip when the intelligence engine has
-/// NOT produced a verdict (providers loading, errored, or the stack is
-/// empty). Pure so the hedge-on-error rule is unit-testable without pumping
-/// the provider-heavy card.
-///
-/// The safety-critical rule: an errored safety subsystem must NEVER fall
-/// through to the reassuring green "No data yet" — an unknown result is not
-/// a clear one. On error we hedge with a neutral (muted, non-green) tone.
-/// A still-loading state stays green/"Analyzing" (transient), and a settled
-/// empty stack keeps the original green "No data yet".
-({Color tone, String label}) stackHealthFallbackDisplay({
-  required bool isAnalyzing,
-  required bool hasError,
-}) {
-  if (isAnalyzing) {
-    return (tone: V2Colors.safe, label: 'Analyzing');
-  }
-  if (hasError) {
-    return (tone: V2Colors.fgMuted, label: "Couldn't check");
-  }
-  return (tone: V2Colors.safe, label: 'No data yet');
-}
-
 class _StackSummaryCard extends ConsumerWidget {
   final bool showPreviewFixtures;
 
@@ -733,7 +711,12 @@ class _StackSummaryCard extends ConsumerWidget {
     );
     final Color tone = status?.color ?? fallback.tone;
     final statusLabel = status?.label ?? fallback.label;
-    final insightLine = describeStackSummary(intelligence);
+    final insightLine = intelligence == null
+        ? stackHealthFallbackSummary(
+            isAnalyzing: isAnalyzing,
+            hasError: hasError,
+          )
+        : describeStackSummary(intelligence);
     final reviewReport = reportAsync.asData?.value;
     final canReviewSignals =
         reviewReport != null && orderedSignalsFrom(reviewReport).isNotEmpty;
@@ -2060,23 +2043,22 @@ class _SafetyUnavailableBanner extends StatelessWidget {
 }
 
 class _RecallAlertSlot extends ConsumerWidget {
-  // Watches `recalledIngredientsCheckProvider` so it can read the
-  // `incomplete` hedge alongside the report. The provider already filters
-  // against the active stack — no need to pass the stack rows in.
+  // The report carries both findings and the incomplete hedge. Every surface
+  // consumes this same object so an unavailable scan cannot appear clean on
+  // Home while showing a warning here.
   const _RecallAlertSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final checkAsync = ref.watch(recalledIngredientsCheckProvider);
-    return checkAsync.when(
-      data: (check) {
-        final report = check.report;
+    final reportAsync = ref.watch(recalledIngredientsReportProvider);
+    return reportAsync.when(
+      data: (report) {
         if (report.isEmpty) {
           // Empty report + incomplete check means the recall data could not
           // be loaded — hedge rather than imply the stack is recall-free, or
           // an FDA-recalled product goes silently un-flagged. A genuinely
           // clean stack (loaded, no hits) still shows nothing.
-          if (check.incomplete) {
+          if (report.incomplete) {
             return const _SafetyUnavailableBanner(
               title: "Couldn't check for recalls",
               body:
@@ -2088,13 +2070,11 @@ class _RecallAlertSlot extends ConsumerWidget {
           return const SizedBox.shrink();
         }
         final ordered = report.orderedViolations;
-        final primary = ordered.first;
-        final names = ordered.map((v) => v.productName).toList(growable: false);
-        final body = ordered.length == 1
-            ? primary.bannerMessage
-            : '${ordered.length} products need review. '
-                  '${primary.bannerMessage} Plus ${ordered.length - 1} '
-                  'more: ${names.skip(1).join(", ")}.';
+        final title = ordered.every((violation) => violation.isBannedSubstance)
+            ? 'Banned Substance Alert'
+            : ordered.every((violation) => violation.isRecalledProduct)
+            ? 'Recall Alert'
+            : 'Product Safety Alert';
         return Padding(
           padding: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
@@ -2104,8 +2084,8 @@ class _RecallAlertSlot extends ConsumerWidget {
           ),
           child: PGSeverityBanner(
             tone: PGBannerTone.danger,
-            title: 'Recall Alert',
-            body: body,
+            title: title,
+            body: report.bannerMessage,
           ),
         );
       },

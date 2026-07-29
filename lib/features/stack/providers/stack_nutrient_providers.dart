@@ -42,11 +42,14 @@ final referenceDataRepositoryProvider =
 /// come first, then [NutrientTier.approachingUl], then by RDA% descending
 /// within the remaining tiers.
 ///
-/// Empty stack returns an empty list (not an error). Products whose
-/// detail blobs cannot be fetched are silently skipped — M1 is a
-/// best-effort safety surface, not a hard gate. If every blob fails to
-/// load the result is still an empty list with no thrown error.
-final stackNutrientStatusesProvider = FutureProvider<List<NutrientStatus>>((
+/// Empty stack returns an empty result (not an error). A stack item whose
+/// product row or detail blob cannot be loaded is skipped so one broken
+/// product can't break the whole panel — but the skip is REPORTED via
+/// [StackNutrientStatuses.incomplete] rather than silently absorbed. A
+/// partial sum under-reports intake, so a UL comparison drawn from it can
+/// read "within limit" when the true total is not; the panel hedges instead
+/// of presenting the number as the user's complete intake.
+final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
   ref,
 ) async {
   final userDb = ref.watch(userDatabaseProvider);
@@ -61,34 +64,55 @@ final stackNutrientStatusesProvider = FutureProvider<List<NutrientStatus>>((
 
   final stackEntries = await userDb.getActiveStack();
   if (stackEntries.isEmpty) {
-    return const <NutrientStatus>[];
+    return const StackNutrientStatuses.empty();
   }
 
-  // Load product + detail blob for every stack entry. Any item
-  // missing either is silently skipped so one broken product can't
-  // break the whole panel.
+  // Load product + detail blob for every stack entry.
   final items = <StackItemNutrients>[];
+  var incomplete = false;
   for (final entry in stackEntries) {
+    // Medications carry no nutrient rows by design — not a data gap.
+    if (entry.type == 'medication') continue;
+
     final dsldId = entry.dsldId;
-    if (dsldId == null || dsldId.isEmpty) continue;
+    if (dsldId == null || dsldId.isEmpty) {
+      incomplete = true;
+      continue;
+    }
 
     ProductsCoreData? product;
     try {
       product = await coreDb.findById(dsldId);
-    } on Exception {
+    } on Object {
+      incomplete = true;
       continue;
     }
-    if (product == null) continue;
+    if (product == null) {
+      incomplete = true;
+      continue;
+    }
 
     Map<String, dynamic>? blob;
     try {
       blob = await ref.watch(detailBlobProvider(dsldId).future);
-    } on Exception {
+    } on Object {
+      incomplete = true;
       continue;
     }
-    if (blob == null) continue;
+    if (blob == null) {
+      incomplete = true;
+      continue;
+    }
 
-    final ingredients = ProductHealthFacts.fromDetailBlob(blob).nutrients;
+    List<Map<String, dynamic>> ingredients;
+    try {
+      ingredients = ProductHealthFacts.fromDetailBlob(blob).nutrients;
+    } on Object {
+      incomplete = true;
+      continue;
+    }
+    // A product with no nutrient rows contributes nothing to a nutrient
+    // total legitimately (botanicals, probiotics) — not a load failure.
     if (ingredients.isEmpty) continue;
 
     items.add(
@@ -101,7 +125,10 @@ final stackNutrientStatusesProvider = FutureProvider<List<NutrientStatus>>((
   }
 
   if (items.isEmpty) {
-    return const <NutrientStatus>[];
+    return StackNutrientStatuses(
+      statuses: const <NutrientStatus>[],
+      incomplete: incomplete,
+    );
   }
 
   const aggregator = StackNutrientAggregator();
@@ -127,7 +154,7 @@ final stackNutrientStatusesProvider = FutureProvider<List<NutrientStatus>>((
     return bPct.compareTo(aPct);
   });
 
-  return sorted;
+  return StackNutrientStatuses(statuses: sorted, incomplete: incomplete);
 });
 
 final stackDoseThresholdAlertsProvider =

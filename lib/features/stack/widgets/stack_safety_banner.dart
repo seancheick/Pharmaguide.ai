@@ -84,11 +84,31 @@ class StackSafetyBanner extends StatelessWidget {
       key: const Key('stack-safety-banner'),
       tone: tone,
       title: _titleFor(headline, worst),
-      body: _bodyFor(signals, headline),
+      body: _bodyWithCompleteness(
+        _bodyFor(signals, headline),
+        checksIncomplete: report.checksIncomplete,
+        coverageIncomplete: report.coverageIncomplete,
+      ),
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,
     );
+  }
+
+  /// Keep a non-empty finding list honest when another subsystem or product
+  /// could not be analyzed. Without this suffix, the banner labels only the
+  /// known findings and incorrectly implies the list is exhaustive.
+  static String? _bodyWithCompleteness(
+    String? body, {
+    required bool checksIncomplete,
+    required bool coverageIncomplete,
+  }) {
+    if (!checksIncomplete && !coverageIncomplete) return body;
+    const hedge =
+        'Some checks or product labels could not be fully analyzed, so '
+        'results may be incomplete.';
+    final value = body?.trim() ?? '';
+    return value.isEmpty ? hedge : '$value $hedge';
   }
 
   /// Caution-toned hedge rendered when at least one stack product has a

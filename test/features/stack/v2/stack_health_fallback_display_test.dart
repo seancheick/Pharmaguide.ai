@@ -5,7 +5,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
-import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
+import 'package:pharmaguide/features/stack/widgets/stack_health_fallback_display.dart';
 
 void main() {
   group('stackHealthFallbackDisplay', () {
@@ -36,6 +36,14 @@ void main() {
       final d = stackHealthFallbackDisplay(isAnalyzing: true, hasError: true);
       expect(d.label, 'Analyzing');
       expect(d.tone, V2Colors.safe);
+    });
+
+    test('errored summary explicitly rejects an all-clear', () {
+      final summary = stackHealthFallbackSummary(
+        isAnalyzing: false,
+        hasError: true,
+      );
+      expect(summary, contains('not an all-clear'));
     });
   });
 }

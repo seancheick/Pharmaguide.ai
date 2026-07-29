@@ -130,6 +130,40 @@ void main() {
   });
 
   testWidgets(
+    'a finding plus an incomplete check labels the result as partial',
+    (tester) async {
+      final report = StackSafetyReport(
+        medicationInteractions: [makeInteraction(severity: Severity.avoid)],
+        checksIncomplete: true,
+      );
+      await pumpBanner(tester, report: report);
+
+      final banner = tester.widget<PGSeverityBanner>(
+        find.byType(PGSeverityBanner),
+      );
+      expect(banner.body, contains('results may be incomplete'));
+      expect(banner.body, contains('Monitor INR'));
+    },
+  );
+
+  testWidgets(
+    'a finding plus incomplete label coverage labels the result as partial',
+    (tester) async {
+      final report = StackSafetyReport(
+        stackInteractions: [makeInteraction(severity: Severity.caution)],
+        coverageIncomplete: true,
+      );
+      await pumpBanner(tester, report: report);
+
+      final banner = tester.widget<PGSeverityBanner>(
+        find.byType(PGSeverityBanner),
+      );
+      expect(banner.body, contains('results may be incomplete'));
+      expect(banner.body, contains('Monitor INR'));
+    },
+  );
+
+  testWidgets(
     'contraindicated severity → danger tone with "Do not use" label',
     (tester) async {
       final report = StackSafetyReport(

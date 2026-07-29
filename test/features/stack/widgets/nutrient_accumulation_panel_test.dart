@@ -18,6 +18,7 @@ void main() {
   Future<void> pumpPanel(
     WidgetTester tester, {
     required AsyncValue<List<NutrientStatus>> override,
+    bool incomplete = false,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -25,9 +26,10 @@ void main() {
           stackNutrientStatusesProvider.overrideWith((ref) async {
             // Translate the AsyncValue test fixture into a Future.
             return override.when(
-              data: (d) => d,
-              loading: () => _neverComplete<List<NutrientStatus>>(),
-              error: (e, _) => Future<List<NutrientStatus>>.error(e),
+              data: (d) =>
+                  StackNutrientStatuses(statuses: d, incomplete: incomplete),
+              loading: () => _neverComplete<StackNutrientStatuses>(),
+              error: (e, _) => Future<StackNutrientStatuses>.error(e),
             );
           }),
         ],
@@ -57,7 +59,13 @@ void main() {
     expect(find.text('Stack Nutrient Totals'), findsNothing);
   });
 
-  testWidgets('error state collapses silently', (tester) async {
+  testWidgets('error state says totals are unavailable, never blank', (
+    tester,
+  ) async {
+    // Regression: this panel IS the upper-limit surface. A silent shrink
+    // reads as "no UL concerns" — exactly what a failed check cannot
+    // promise. The previous test asserted findsNothing and so locked in
+    // the false all-clear.
     await pumpPanel(
       tester,
       override: AsyncValue<List<NutrientStatus>>.error(
@@ -66,7 +74,83 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('nutrient-accumulation-card')), findsNothing);
+    expect(
+      find.byKey(const Key('nutrient-totals-unavailable')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('not an all-clear'), findsOneWidget);
+  });
+
+  testWidgets('partial totals carry a hedge above the numbers', (tester) async {
+    // Regression: a skipped stack item makes the sum an under-report, so a
+    // UL comparison drawn from it can read "within limit" when the true
+    // total is unknown. The number must not stand unqualified.
+    const status = NutrientStatus(
+      total: NutrientTotal(
+        canonicalId: 'zinc',
+        displayName: 'Zinc',
+        totalAmount: 12,
+        unit: 'mg',
+        contributions: [],
+      ),
+      tier: NutrientTier.adequate,
+      rda: 11,
+      ul: 40,
+      pctOfRda: 109.0,
+      pctOfUl: 30.0,
+    );
+    await pumpPanel(
+      tester,
+      override: const AsyncValue<List<NutrientStatus>>.data([status]),
+      incomplete: true,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('nutrient-totals-partial-notice')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('lower than your full intake'), findsOneWidget);
+  });
+
+  testWidgets('complete totals carry no hedge', (tester) async {
+    const status = NutrientStatus(
+      total: NutrientTotal(
+        canonicalId: 'zinc',
+        displayName: 'Zinc',
+        totalAmount: 12,
+        unit: 'mg',
+        contributions: [],
+      ),
+      tier: NutrientTier.adequate,
+      rda: 11,
+      ul: 40,
+      pctOfRda: 109.0,
+      pctOfUl: 30.0,
+    );
+    await pumpPanel(
+      tester,
+      override: const AsyncValue<List<NutrientStatus>>.data([status]),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('nutrient-totals-partial-notice')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('every stack item skipped still says so rather than hiding', (
+    tester,
+  ) async {
+    await pumpPanel(
+      tester,
+      override: const AsyncValue<List<NutrientStatus>>.data([]),
+      incomplete: true,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('nutrient-totals-unavailable')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('single warning renders header + alert badge + bar', (

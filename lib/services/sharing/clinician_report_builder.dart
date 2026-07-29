@@ -129,8 +129,19 @@ class ClinicianReportBuilder {
     buf.writeln('## Stack Diagnosis');
     buf.writeln('- Tier: **${_tierLabel(intelligence.tier)}**');
     buf.writeln('- Stack size: ${intelligence.stackSize}');
-    buf.writeln('- Interactions flagged: ${intelligence.interactionCount}');
-    buf.writeln('- Nutrient warnings: ${intelligence.nutrientWarningCount}');
+    final countSuffix = intelligence.analysisIncomplete ? ' — incomplete' : '';
+    buf.writeln(
+      '- Interactions flagged: ${intelligence.interactionCount}$countSuffix',
+    );
+    buf.writeln(
+      '- Nutrient warnings: ${intelligence.nutrientWarningCount}$countSuffix',
+    );
+    if (intelligence.analysisIncomplete) {
+      buf.writeln(
+        '- ⚠️ Analysis incomplete: one or more safety checks could not be '
+        'completed. This is not an all-clear.',
+      );
+    }
     if (intelligence.hasBannedIngredient) {
       buf.writeln('- ⚠️ Banned ingredient detected');
     }

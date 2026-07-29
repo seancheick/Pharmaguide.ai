@@ -341,6 +341,60 @@ void main() {
         expect(result.isConfidentClear, isTrue);
       },
     );
+
+    test(
+      'missing dose blob marks dose-dependent interaction checks incomplete',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await interactionDb.close();
+          await userDb.close();
+        });
+
+        await _seedSupplement(
+          coreDb,
+          dsldId: 'SUPP_FISH_OIL',
+          name: 'Fish Oil',
+          canonicalTags: ['fish_oil'],
+        );
+        await _seedSupplement(
+          coreDb,
+          dsldId: 'SUPP_ONE_MULTI',
+          name: 'O.N.E. Multivitamin',
+          canonicalTags: ['vitamin_e'],
+        );
+        await _seedFishOilVitaminEPair(interactionDb);
+        await userDb.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'one_multi',
+            type: const Value('supplement'),
+            name: 'O.N.E. Multivitamin',
+            dsldId: const Value('SUPP_ONE_MULTI'),
+          ),
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            detailBlobProvider.overrideWith((ref, dsldId) async => null),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final result = await container.read(
+          safetyCheckForAddProvider('SUPP_FISH_OIL').future,
+        );
+
+        expect(result.results, isEmpty);
+        expect(result.checksIncomplete, isTrue);
+        expect(result.isConfidentClear, isFalse);
+      },
+    );
   });
 
   group('PreAddSafetyResult.isConfidentClear — pure decision', () {

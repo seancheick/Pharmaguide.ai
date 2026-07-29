@@ -33,7 +33,7 @@ class _WorkingRecallRepo extends ReferenceDataRepository {
       'schema_version': '1.1',
       'recalled_ingredients': [
         {
-          'canonical_id': 'sibutramine',
+          'canonical_id': 'BANNED_SIBUTRAMINE',
           'common_names': ['sibutramine'],
           'recall_status': 'banned',
           'regulatory_basis': 'FDA — test fixture',
@@ -68,6 +68,7 @@ Future<void> _seedProduct(
   CoreDatabase coreDb, {
   required String dsldId,
   required List<String> tags,
+  int hasBannedFlag = 0,
 }) async {
   final tagsJson = '[${tags.map((t) => '"$t"').join(',')}]';
   await coreDb
@@ -78,6 +79,7 @@ Future<void> _seedProduct(
           productName: 'Test $dsldId',
           productStatus: const Value('active'),
           keyIngredientTags: Value(tagsJson),
+          hasBannedSubstance: Value(hasBannedFlag),
           exportVersion: 'test',
           exportedAt: '2026-07-05T00:00:00Z',
         ),
@@ -111,8 +113,10 @@ void main() {
         recalledIngredientsReportProvider.future,
       );
 
-      // Still degrades to an empty report (never throws)...
+      // Degrades to an empty report (never throws), but the SAME report
+      // carries the unavailable state to every consumer.
       expect(report.isEmpty, isTrue);
+      expect(report.incomplete, isTrue);
       // ...but the failure is now recorded, not swallowed silently.
       final errors = CrashReportingService().recordedErrors;
       expect(
@@ -126,43 +130,16 @@ void main() {
   );
 
   test(
-    'check provider flags incomplete when the recall asset fails to load',
+    'report provider returns incomplete=false and flags real recalls',
     () async {
       final coreDb = CoreDatabase.memory();
       addTearDown(coreDb.close);
-
-      final container = ProviderContainer(
-        overrides: [
-          coreDatabaseProvider.overrideWithValue(coreDb),
-          referenceDataRepositoryProvider.overrideWith(
-            (ref) => _ThrowingRecallRepo(),
-          ),
-          activeStackProvider.overrideWith(
-            (ref) async => [_supplement(dsldId: 'SUPP_1', name: 'Test Supp')],
-          ),
-        ],
+      await _seedProduct(
+        coreDb,
+        dsldId: 'SUPP_SPIKED',
+        tags: ['sibutramine'],
+        hasBannedFlag: 1,
       );
-      addTearDown(container.dispose);
-
-      final check = await container.read(
-        recalledIngredientsCheckProvider.future,
-      );
-
-      expect(check.report.isEmpty, isTrue);
-      expect(
-        check.incomplete,
-        isTrue,
-        reason: 'the banner must be able to hedge when recall data is missing',
-      );
-    },
-  );
-
-  test(
-    'check provider reports incomplete=false and flags real recalls',
-    () async {
-      final coreDb = CoreDatabase.memory();
-      addTearDown(coreDb.close);
-      await _seedProduct(coreDb, dsldId: 'SUPP_SPIKED', tags: ['sibutramine']);
 
       final container = ProviderContainer(
         overrides: [
@@ -179,17 +156,49 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final check = await container.read(
-        recalledIngredientsCheckProvider.future,
+      final report = await container.read(
+        recalledIngredientsReportProvider.future,
       );
 
-      expect(check.incomplete, isFalse);
-      expect(check.report.isEmpty, isFalse);
-      expect(check.report.violations, hasLength(1));
+      expect(report.incomplete, isFalse);
+      expect(report.isEmpty, isFalse);
+      expect(report.violations, hasLength(1));
       expect(
-        check.report.violations.single.recalledIngredients.single.canonicalId,
-        'sibutramine',
+        report.violations.single.recalledIngredients.single.canonicalId,
+        'BANNED_SIBUTRAMINE',
       );
     },
   );
+
+  test('missing product hydration marks the recall report incomplete', () async {
+    final coreDb = CoreDatabase.memory();
+    addTearDown(coreDb.close);
+
+    final container = ProviderContainer(
+      overrides: [
+        coreDatabaseProvider.overrideWithValue(coreDb),
+        referenceDataRepositoryProvider.overrideWith(
+          (ref) => _WorkingRecallRepo(),
+        ),
+        activeStackProvider.overrideWith(
+          (ref) async => [
+            _supplement(dsldId: 'MISSING_PRODUCT', name: 'Missing Product'),
+          ],
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final report = await container.read(
+      recalledIngredientsReportProvider.future,
+    );
+
+    expect(report.isEmpty, isTrue);
+    expect(
+      report.incomplete,
+      isTrue,
+      reason:
+          'A stack product that could not be inspected is unknown, not recall-free.',
+    );
+  });
 }

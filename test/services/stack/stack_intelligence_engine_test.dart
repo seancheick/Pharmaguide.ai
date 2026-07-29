@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
+import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
@@ -126,6 +127,23 @@ void main() {
   final emptyRecall = RecalledIngredientsReport.empty();
 
   group('StackIntelligenceEngine.diagnose', () {
+    test('an incomplete recall scan prevents an optimized all-clear', () {
+      final intelligence = engine.diagnose(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: const RecalledIngredientsReport(
+          violations: [],
+          incomplete: true,
+        ),
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+      );
+
+      expect(intelligence.analysisIncomplete, isTrue);
+      expect(intelligence.tier, StackTier.decent);
+      expect(describeStackSummary(intelligence), contains('not an all-clear'));
+    });
+
     test('empty stack → tier=incomplete, no issues, all flags false', () {
       const report = StackSafetyReport();
 

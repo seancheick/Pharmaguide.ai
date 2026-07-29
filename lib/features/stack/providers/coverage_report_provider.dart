@@ -128,7 +128,11 @@ final coverageReportProvider = FutureProvider.autoDispose<CoverageReport>((
   // here likewise must not read as "no underdosed nutrients").
   List<NutrientStatus> nutrientStatuses;
   try {
-    nutrientStatuses = await ref.watch(stackNutrientStatusesProvider.future);
+    final result = await ref.watch(stackNutrientStatusesProvider.future);
+    nutrientStatuses = result.statuses;
+    // A skipped stack item makes the nutrient totals a partial sum, which
+    // is the same coverage hedge a low-mapping product earns.
+    if (result.incomplete) coverageIncomplete = true;
   } on Object {
     nutrientStatuses = const <NutrientStatus>[];
     coverageIncomplete = true;

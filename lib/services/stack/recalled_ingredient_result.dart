@@ -12,7 +12,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 class RecalledIngredientAlert {
   final String canonicalId;
   final List<String> commonNames;
-  final String recallStatus; // 'banned' or 'warning'
+  final String recallStatus; // 'banned', 'recalled', or advisory status
   final String regulatoryBasis;
   final String reason;
   final String effectiveDate;
@@ -49,6 +49,7 @@ class RecalledIngredientAlert {
   /// Human-readable status label
   String get statusLabel {
     if (recallStatus == 'banned') return 'BANNED';
+    if (recallStatus == 'recalled') return 'RECALLED';
     return 'WARNING';
   }
 }
@@ -59,17 +60,34 @@ class RecalledIngredientViolation {
   final String productName;
   final String brandName;
   final List<RecalledIngredientAlert> recalledIngredients;
+  final bool pipelineBannedSubstance;
+  final bool pipelineRecalledProduct;
 
   RecalledIngredientViolation({
     required this.productDsldId,
     required this.productName,
     required this.brandName,
     required this.recalledIngredients,
+    this.pipelineBannedSubstance = false,
+    this.pipelineRecalledProduct = false,
   });
 
-  /// Highest severity from all recalled ingredients in this product
+  bool get isBannedSubstance =>
+      pipelineBannedSubstance ||
+      recalledIngredients.any((alert) => alert.recallStatus == 'banned');
+
+  bool get isRecalledProduct =>
+      pipelineRecalledProduct ||
+      recalledIngredients.any((alert) => alert.recallStatus == 'recalled');
+
+  /// Highest severity from all recalled ingredients in this product.
+  ///
+  /// A violation only exists because the pipeline flagged this product, so an
+  /// empty ingredient list means "we could not name the substance", never
+  /// "nothing is wrong". Returning `safe` there would let the one product we
+  /// are certain about rank below every ordinary caution.
   Severity get worstSeverity {
-    if (recalledIngredients.isEmpty) return Severity.safe;
+    if (recalledIngredients.isEmpty) return Severity.avoid;
     final severities = recalledIngredients
         .map((r) => r.displaySeverity)
         .toList();
@@ -77,14 +95,35 @@ class RecalledIngredientViolation {
     if (severities.contains(Severity.contraindicated)) {
       return Severity.contraindicated;
     }
-    if (severities.contains(Severity.avoid)) return Severity.avoid;
-    return Severity.caution;
+    // Floored at `avoid`, never lower. A violation exists only because the
+    // pipeline flagged the product, so an authored record with a softer
+    // severity may sharpen this verdict but must never soften it below the
+    // hard tier — otherwise one `minor` record could rank a blocked product
+    // alongside an ordinary caution.
+    return Severity.avoid;
   }
 
-  /// Human-readable alert for the banner
+  /// Human-readable alert for the banner.
+  ///
+  /// The unnamed case is real: the pipeline flags the product, but no authored
+  /// record matches its ingredient ids, so we can state the finding without
+  /// naming the substance. Returning an empty string here would silently blank
+  /// the banner on a product we know is flagged.
   String get bannerMessage {
-    if (recalledIngredients.isEmpty) return '';
+    if (recalledIngredients.isEmpty) {
+      if (isBannedSubstance) {
+        return 'BANNED — $productName contains a substance not permitted in '
+            'supplements.';
+      }
+      return 'RECALLED — $productName is flagged by the product catalog. '
+          'Check the product lot and recall notice before using it.';
+    }
     final verb = _verbFor(recalledIngredients.first.banContext);
+    final status = isBannedSubstance
+        ? 'BANNED'
+        : isRecalledProduct
+        ? 'RECALLED'
+        : recalledIngredients.first.statusLabel;
     if (recalledIngredients.length == 1) {
       final ing = recalledIngredients.first;
       final name = ing.commonNames.isNotEmpty
@@ -92,9 +131,9 @@ class RecalledIngredientViolation {
           : ing.canonicalId;
       final oneLiner = ing.safetyWarningOneLiner.trim();
       final suffix = oneLiner.isEmpty ? '' : ' $oneLiner';
-      return '${ing.statusLabel} — $productName $verb $name.$suffix';
+      return '$status — $productName $verb $name.$suffix';
     }
-    return '${recalledIngredients.first.statusLabel} — $productName '
+    return '$status — $productName '
         '$verb ${recalledIngredients.length} flagged ingredient(s)';
   }
 
@@ -119,13 +158,43 @@ class RecalledIngredientViolation {
 /// Aggregated recall status for a user's stack.
 class RecalledIngredientsReport {
   final List<RecalledIngredientViolation> violations;
+  final bool incomplete;
 
   bool get isEmpty => violations.isEmpty;
 
-  RecalledIngredientsReport({required this.violations});
+  const RecalledIngredientsReport({
+    required this.violations,
+    this.incomplete = false,
+  });
 
-  factory RecalledIngredientsReport.empty() {
-    return RecalledIngredientsReport(violations: const []);
+  factory RecalledIngredientsReport.empty({bool incomplete = false}) {
+    return RecalledIngredientsReport(
+      violations: const [],
+      incomplete: incomplete,
+    );
+  }
+
+  /// Consumer summary for the stack-level product-safety banner.
+  ///
+  /// A partial scan stays explicitly partial even when it found one or more
+  /// violations. Showing only the known findings would imply that the list is
+  /// exhaustive, which is another form of false all-clear.
+  String get bannerMessage {
+    final ordered = orderedViolations;
+    if (ordered.isEmpty) return '';
+
+    final primary = ordered.first;
+    final names = ordered
+        .map((violation) => violation.productName)
+        .toList(growable: false);
+    final finding = ordered.length == 1
+        ? primary.bannerMessage
+        : '${ordered.length} products need review. '
+              '${primary.bannerMessage} Plus ${ordered.length - 1} '
+              'more: ${names.skip(1).join(", ")}.';
+    if (!incomplete) return finding;
+    return '$finding Some products could not be checked, so additional '
+        'safety alerts may be missing.';
   }
 
   /// All violations sorted by severity (contraindicated first)

@@ -213,6 +213,31 @@ void main() {
   });
 
   group('ClinicianReportBuilder.build — diagnosis + warnings', () {
+    test('marks incomplete analysis instead of reporting bare zeroes', () {
+      const intelligence = StackIntelligence(
+        tier: StackTier.decent,
+        stackSize: 1,
+        issues: [],
+        interactionCount: 0,
+        nutrientWarningCount: 0,
+        hasRecalledIngredient: false,
+        hasContraindicatedInteraction: false,
+        hasBannedIngredient: false,
+        analysisIncomplete: true,
+      );
+
+      final report = _builder.build(
+        profile: null,
+        stack: const [],
+        intelligence: intelligence,
+        generatedAt: DateTime.utc(2026, 7, 29),
+      );
+
+      expect(report, contains('Analysis incomplete'));
+      expect(report, contains('not an all-clear'));
+      expect(report, contains('Interactions flagged: 0 — incomplete'));
+    });
+
     test('diagnosis section reports tier + counts + flag emojis', () {
       const intelligence = StackIntelligence(
         tier: StackTier.unsafe,
