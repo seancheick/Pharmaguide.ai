@@ -135,6 +135,7 @@ void main() {
           {
             'canonical_id': 'vitamin_k1',
             'nutrient_group_id': 'vitamin_k',
+            'nutrient_group_name': 'Vitamin K',
             'name': 'Vitamin K1',
             'amount': 100,
             'unit': 'mcg',
@@ -157,6 +158,39 @@ void main() {
         result['vitamin_k']!.contributions.map((c) => c.ingredientName),
         containsAll(['Vitamin K1', 'Vitamin K2 (MK-7)']),
       );
+    });
+
+    test('keeps minimum adequacy and maximum safety exposure separate', () {
+      final stack = [
+        _productOf('s1', 'Calcium K/D', [
+          {
+            'canonical_id': 'vitamin_k1',
+            'nutrient_group_id': 'vitamin_k',
+            'nutrient_group_name': 'Vitamin K',
+            'name': 'Vitamin K1',
+            'per_day_min': 100,
+            'per_day_max': 300,
+            'converted_unit': 'mcg',
+          },
+          {
+            'canonical_id': 'vitamin_k2',
+            'nutrient_group_id': 'vitamin_k',
+            'nutrient_group_name': 'Vitamin K',
+            'name': 'Vitamin K2 (MK-7)',
+            'per_day_min': 30,
+            'per_day_max': 90,
+            'converted_unit': 'mcg',
+          },
+        ]),
+      ];
+
+      final total = aggregator.aggregate(stack)['vitamin_k']!;
+      expect(total.minimumTotalAmount, 130);
+      expect(total.totalAmount, 390);
+      expect(total.displayName, 'Vitamin K');
+      expect(total.hasDoseRange, isTrue);
+      expect(total.contributions.first.minimumAmount, 100);
+      expect(total.contributions.first.amount, 300);
     });
 
     test('nutrient_group_id absent → groups by canonical_id (old catalog)', () {
