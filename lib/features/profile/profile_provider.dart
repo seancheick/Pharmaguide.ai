@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
@@ -114,6 +115,19 @@ class ProfileState {
       profileFlags: Value(jsonEncode(profileFlags)),
       lastUpdated: Value(DateTime.now()),
     );
+  }
+
+  Map<String, Object?> toHistorySnapshot() {
+    return {
+      'nickname': nickname,
+      'age_bracket': ageBracket,
+      'sex': sex,
+      'goals': List<String>.from(goals),
+      'conditions': List<String>.from(conditions),
+      'drug_classes': List<String>.from(drugClasses),
+      'allergens': List<String>.from(allergens),
+      'profile_flags': List<String>.from(profileFlags),
+    };
   }
 
   /// Create from a Drift row read from the DB.
@@ -276,11 +290,12 @@ class ProfileState {
 
 class ProfileNotifier extends StateNotifier<ProfileState> {
   final UserDatabase? _db;
+  final HealthEventRepository? _history;
   Future<void>? _loadFuture;
   bool _isLoaded = false;
   bool get isLoaded => _isLoaded;
 
-  ProfileNotifier([this._db]) : super(const ProfileState());
+  ProfileNotifier([this._db, this._history]) : super(const ProfileState());
 
   void setNickname(String? value) => state = state.copyWith(nickname: value);
   void setAgeBracket(String? value) =>
@@ -448,7 +463,42 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   /// Persist current state to DB.
   Future<void> saveToDb() async {
     if (_db == null) return;
-    await _db.saveProfile(state.toCompanion());
+    final previousRow = await _db.getProfile();
+    final previous = previousRow == null
+        ? null
+        : ProfileState.fromDbRow(previousRow);
+    if (previous == state) {
+      await _db.saveProfile(state.toCompanion());
+      return;
+    }
+
+    final history = _history;
+    if (history == null) {
+      await _db.saveProfile(state.toCompanion());
+      return;
+    }
+
+    final now = DateTime.now();
+    final changedFields = _changedProfileFields(previous, state);
+    await history.mutateAndAppend(
+      () => _db.saveProfile(state.toCompanion()),
+      HealthEventDraft(
+        eventType: HealthEventTypes.profileChanged,
+        source: HealthEventSource.profile,
+        subjectType: 'profile',
+        subjectId: 'profile',
+        title: previous == null
+            ? 'Created health profile'
+            : 'Updated health profile',
+        summary: changedFields.isEmpty
+            ? null
+            : 'Changed ${changedFields.join(', ')}.',
+        effectiveAt: now,
+        previousValue: previous?.toHistorySnapshot(),
+        currentValue: state.toHistorySnapshot(),
+        metadata: {'changed_fields': changedFields},
+      ),
+    );
   }
 }
 
@@ -472,11 +522,42 @@ final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((
       hint: 'profile:provider_init',
     );
   }
-  final notifier = ProfileNotifier(db);
+  final history = db == null ? null : ref.watch(healthEventRepositoryProvider);
+  final notifier = ProfileNotifier(db, history);
   // Kick off load — consumers can check notifier.isLoaded if needed.
   notifier.ensureLoaded();
   return notifier;
 });
+
+List<String> _changedProfileFields(
+  ProfileState? previous,
+  ProfileState current,
+) {
+  if (previous == null) return const ['profile details'];
+  final fields = <String>[];
+  if (previous.nickname != current.nickname) fields.add('nickname');
+  if (previous.ageBracket != current.ageBracket) fields.add('age range');
+  if (previous.sex != current.sex) fields.add('sex');
+  if (!ProfileState._listEq.equals(previous.goals, current.goals)) {
+    fields.add('goals');
+  }
+  if (!ProfileState._listEq.equals(previous.conditions, current.conditions)) {
+    fields.add('conditions');
+  }
+  if (!ProfileState._listEq.equals(previous.drugClasses, current.drugClasses)) {
+    fields.add('medication groups');
+  }
+  if (!ProfileState._listEq.equals(previous.allergens, current.allergens)) {
+    fields.add('allergies');
+  }
+  if (!ProfileState._listEq.equals(
+    previous.profileFlags,
+    current.profileFlags,
+  )) {
+    fields.add('health flags');
+  }
+  return fields;
+}
 
 /// Resolves when the profile has been loaded from DB.
 /// Use `ref.watch(profileLoadedProvider)` to gate UI on profile readiness.

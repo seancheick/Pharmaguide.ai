@@ -80,6 +80,57 @@ void main() {
     expect(find.text('Signed out'), findsOneWidget);
   });
 
+  testWidgets('Profile exposes the canonical clinician report entry point', (
+    tester,
+  ) async {
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsV2Screen(onOpenClinicianReport: () => opened = true),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Clinician report'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Clinician report')),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clinician report'));
+
+    expect(opened, isTrue);
+    expect(find.text('Preview, print, or share a private PDF'), findsOneWidget);
+  });
+
+  testWidgets('Profile exposes the unified Health History entry point', (
+    tester,
+  ) async {
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsV2Screen(onOpenHealthHistory: () => opened = true),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Health History'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(find.text('Health History'));
+    await tester.tap(find.text('Health History'));
+
+    expect(opened, isTrue);
+    expect(
+      find.text('Timeline, appointments, tests, and reminders'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('connected settings reacts when auth state becomes guest', (
     tester,
   ) async {
@@ -158,6 +209,11 @@ void main() {
   testWidgets('privacy dashboard opens a real v2 sheet', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
 
+    await tester.scrollUntilVisible(
+      find.text('Privacy dashboard'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Privacy dashboard'));
     await tester.pumpAndSettle();
 

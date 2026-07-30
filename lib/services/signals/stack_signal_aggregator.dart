@@ -17,9 +17,25 @@
 
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
+import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
+/// Consumer-facing safety signals. Medication–nutrient relationships keep
+/// their dedicated presentation today, so this compatibility entry point uses
+/// the same canonical aggregator with no relationship rows supplied.
 List<ClinicalSignal> orderedSignalsFrom(StackSafetyReport report) {
+  return allClinicalSignalsFrom(report: report);
+}
+
+/// Complete typed signal set used by lifecycle persistence and reporting.
+///
+/// This is the one aggregation brain for safety and medication–nutrient
+/// signals. Presentation layers may group families differently, but they must
+/// not rebuild signal identity or ranking themselves.
+List<ClinicalSignal> allClinicalSignalsFrom({
+  required StackSafetyReport report,
+  List<DepletionMatch> medicationNutrientMatches = const [],
+}) {
   final entries = <({ClinicalSignal signal, int bucket, int ordinal})>[];
 
   void addInteractions(List<InteractionResult> rs, int bucket) {
@@ -53,6 +69,14 @@ List<ClinicalSignal> orderedSignalsFrom(StackSafetyReport report) {
     entries.add((
       signal: ClinicalSignal.fromNutrientStatus(flagged[i]),
       bucket: 5,
+      ordinal: i,
+    ));
+  }
+
+  for (var i = 0; i < medicationNutrientMatches.length; i++) {
+    entries.add((
+      signal: ClinicalSignal.fromDepletion(medicationNutrientMatches[i]),
+      bucket: 6,
       ordinal: i,
     ));
   }

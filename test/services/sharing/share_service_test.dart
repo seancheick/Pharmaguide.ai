@@ -90,4 +90,47 @@ void main() {
       expect(shared, isFalse);
     });
   });
+
+  group('ShareService.shareSupplementList', () {
+    test('shares only allowlisted supplement fields', () async {
+      String? capturedText;
+      String? capturedSubject;
+      final service = ShareService(
+        shareOverride: (text, {subject}) async {
+          capturedText = text;
+          capturedSubject = subject;
+        },
+      );
+
+      await service.shareSupplementList(const [
+        SupplementShareItem(
+          name: 'Magnesium Glycinate',
+          brand: 'Example Labs',
+          dosage: '2 capsules',
+          frequency: 'Daily',
+        ),
+      ]);
+
+      expect(capturedSubject, 'My supplements');
+      expect(capturedText, contains('Magnesium Glycinate — Example Labs'));
+      expect(capturedText, contains('2 capsules · Daily'));
+      expect(capturedText, isNot(contains('medication')));
+      expect(capturedText, isNot(contains('condition')));
+      expect(capturedText, isNot(contains('safety score')));
+    });
+
+    test('does not invent schedule or brand values', () async {
+      String? capturedText;
+      final service = ShareService(
+        shareOverride: (text, {subject}) async => capturedText = text,
+      );
+
+      await service.shareSupplementList(const [
+        SupplementShareItem(name: 'Vitamin D'),
+      ]);
+
+      expect(capturedText, contains('• Vitamin D'));
+      expect(capturedText, isNot(contains('null')));
+    });
+  });
 }

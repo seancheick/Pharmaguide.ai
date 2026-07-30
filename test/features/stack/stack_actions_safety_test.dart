@@ -7,12 +7,14 @@
 
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 
@@ -158,6 +160,63 @@ void main() {
           'class:anti_inflammatory_agents_non_steroidal',
           'class:nsaids',
         ]);
+        final history = await HealthEventRepository(userDb).getTimeline();
+        expect(history, hasLength(1));
+        expect(history.single.eventType, HealthEventTypes.stackItemAdded);
+        expect(history.single.subjectType, 'medication');
+        expect(history.single.title, 'Started Motrin');
+      },
+    );
+
+    test(
+      'dose and schedule changes use the same local history transaction',
+      () async {
+        final userDb = UserDatabase.memory();
+        addTearDown(userDb.close);
+        await userDb.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'med-1',
+            type: const Value('medication'),
+            name: 'Metformin',
+            dosage: const Value('500 mg'),
+            frequency: const Value('Daily'),
+          ),
+        );
+        final localContainer = ProviderContainer(
+          overrides: [userDatabaseProvider.overrideWithValue(userDb)],
+        );
+        addTearDown(localContainer.dispose);
+        localContainer.read(authStateProvider.notifier).onSignedIn();
+
+        final actions = localContainer.read(stackActionsProvider);
+        expect(
+          await actions.updateSchedule(
+            entryId: 'med-1',
+            dosage: ' 1000 mg ',
+            frequency: 'Twice daily',
+          ),
+          isTrue,
+        );
+
+        final row = (await userDb.getActiveStack()).single;
+        expect(row.dosage, '1000 mg');
+        expect(row.frequency, 'Twice daily');
+        final history = await HealthEventRepository(userDb).getTimeline();
+        expect(history, hasLength(1));
+        expect(history.single.eventType, HealthEventTypes.stackItemChanged);
+        expect(history.single.subjectId, 'med-1');
+        expect(history.single.previousValueJson, contains('500 mg'));
+        expect(history.single.currentValueJson, contains('1000 mg'));
+
+        expect(
+          await actions.updateSchedule(
+            entryId: 'med-1',
+            dosage: '1000 mg',
+            frequency: 'Twice daily',
+          ),
+          isFalse,
+        );
+        expect(await HealthEventRepository(userDb).getTimeline(), hasLength(1));
       },
     );
   });

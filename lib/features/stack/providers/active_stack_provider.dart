@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
@@ -96,14 +97,32 @@ class StackActions {
     }
     _requireSignedIn();
     final userDb = _ref.read(userDatabaseProvider);
+    final history = _ref.read(healthEventRepositoryProvider);
     final id = _newId(product.dsldId);
-    await userDb.addToStack(
-      UserStacksLocalCompanion(
-        id: Value(id),
-        type: const Value('supplement'),
-        name: Value(product.productName),
-        dsldId: Value(product.dsldId),
-        ingredientKeys: Value(jsonEncode(canonicalIdsForProduct(product))),
+    final now = DateTime.now();
+    await history.mutateAndAppend(
+      () => userDb.addToStack(
+        UserStacksLocalCompanion(
+          id: Value(id),
+          type: const Value('supplement'),
+          name: Value(product.productName),
+          dsldId: Value(product.dsldId),
+          ingredientKeys: Value(jsonEncode(canonicalIdsForProduct(product))),
+        ),
+      ),
+      HealthEventDraft(
+        eventType: HealthEventTypes.stackItemAdded,
+        source: HealthEventSource.stack,
+        subjectType: 'supplement',
+        subjectId: id,
+        title: 'Started ${product.productName}',
+        summary: 'Added to your supplement stack.',
+        effectiveAt: now,
+        currentValue: {
+          'name': product.productName,
+          'dsld_id': product.dsldId,
+          if (product.brandName != null) 'brand': product.brandName,
+        },
       ),
     );
     _invalidate();
@@ -149,6 +168,7 @@ class StackActions {
     );
 
     final userDb = _ref.read(userDatabaseProvider);
+    final history = _ref.read(healthEventRepositoryProvider);
     final classResolution =
         await MedicationClassBridge(
           db: _ref.read(interactionDatabaseProvider),
@@ -167,17 +187,34 @@ class StackActions {
         ? null
         : jsonEncode(ingredientRxcuis);
 
-    await userDb.addToStack(
-      UserStacksLocalCompanion(
-        id: Value(id),
-        type: const Value('medication'),
-        name: Value(name),
-        rxcui: Value(rxcui),
-        genericRxcui: Value(genericRxcui),
-        drugClassesCol: Value(classesJson),
-        ingredientRxcuisCol: Value(ingredientsJson),
-        dosage: Value(dosage),
-        frequency: Value(frequency),
+    final now = DateTime.now();
+    await history.mutateAndAppend(
+      () => userDb.addToStack(
+        UserStacksLocalCompanion(
+          id: Value(id),
+          type: const Value('medication'),
+          name: Value(name),
+          rxcui: Value(rxcui),
+          genericRxcui: Value(genericRxcui),
+          drugClassesCol: Value(classesJson),
+          ingredientRxcuisCol: Value(ingredientsJson),
+          dosage: Value(dosage),
+          frequency: Value(frequency),
+        ),
+      ),
+      HealthEventDraft(
+        eventType: HealthEventTypes.stackItemAdded,
+        source: HealthEventSource.stack,
+        subjectType: 'medication',
+        subjectId: id,
+        title: 'Started $name',
+        summary: 'Added to your medication list.',
+        effectiveAt: now,
+        currentValue: {
+          'name': name,
+          if (dosage != null) 'dosage': dosage,
+          if (frequency != null) 'frequency': frequency,
+        },
       ),
     );
     _invalidate();
@@ -190,7 +227,28 @@ class StackActions {
   /// Soft-delete a stack entry (sets `deletedAt`).
   Future<void> remove(String entryId) async {
     final userDb = _ref.read(userDatabaseProvider);
-    await userDb.removeFromStack(entryId);
+    final entry =
+        await (userDb.select(userDb.userStacksLocal)
+              ..where((table) => table.id.equals(entryId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (entry == null || entry.deletedAt != null) return;
+    final now = DateTime.now();
+    await _ref
+        .read(healthEventRepositoryProvider)
+        .mutateAndAppend(
+          () => userDb.removeFromStack(entryId),
+          HealthEventDraft(
+            eventType: HealthEventTypes.stackItemRemoved,
+            source: HealthEventSource.stack,
+            subjectType: entry.type,
+            subjectId: entry.id,
+            title: 'Stopped ${entry.name}',
+            summary: 'Removed from your ${entry.type} list.',
+            effectiveAt: now,
+            previousValue: _stackHistoryValue(entry),
+          ),
+        );
     _invalidate();
     _triggerSync();
   }
@@ -199,16 +257,104 @@ class StackActions {
   /// Used to implement "Undo" on the remove snackbar.
   Future<void> restore(String entryId) async {
     final userDb = _ref.read(userDatabaseProvider);
-    await (userDb.update(
-      userDb.userStacksLocal,
-    )..where((t) => t.id.equals(entryId))).write(
-      UserStacksLocalCompanion(
-        deletedAt: const Value(null),
-        clientUpdatedAt: Value(DateTime.now()),
-      ),
-    );
+    final entry =
+        await (userDb.select(userDb.userStacksLocal)
+              ..where((table) => table.id.equals(entryId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (entry == null || entry.deletedAt == null) return;
+    final now = DateTime.now();
+    await _ref
+        .read(healthEventRepositoryProvider)
+        .mutateAndAppend(
+          () =>
+              (userDb.update(
+                userDb.userStacksLocal,
+              )..where((t) => t.id.equals(entryId))).write(
+                UserStacksLocalCompanion(
+                  deletedAt: const Value(null),
+                  clientUpdatedAt: Value(now),
+                ),
+              ),
+          HealthEventDraft(
+            eventType: HealthEventTypes.stackItemRestored,
+            source: HealthEventSource.stack,
+            subjectType: entry.type,
+            subjectId: entry.id,
+            title: 'Restarted ${entry.name}',
+            summary: 'Restored to your ${entry.type} list.',
+            effectiveAt: now,
+            currentValue: _stackHistoryValue(entry),
+          ),
+        );
     _invalidate();
     _triggerSync();
+  }
+
+  /// Update the user-entered dose/schedule and append the change to the
+  /// canonical Health History transactionally.
+  ///
+  /// These are saved notes about how the user takes the item. They do not
+  /// rewrite catalog label amounts or clinical dose calculations.
+  Future<bool> updateSchedule({
+    required String entryId,
+    String? dosage,
+    String? frequency,
+  }) async {
+    _requireSignedIn();
+    final userDb = _ref.read(userDatabaseProvider);
+    final entry =
+        await (userDb.select(userDb.userStacksLocal)
+              ..where((table) => table.id.equals(entryId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (entry == null || entry.deletedAt != null) return false;
+
+    final nextDosage = _cleanScheduleValue(dosage);
+    final nextFrequency = _cleanScheduleValue(frequency);
+    if (entry.dosage == nextDosage && entry.frequency == nextFrequency) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    final previous = _stackHistoryValue(entry);
+    final current = {
+      ...previous,
+      'dosage': nextDosage,
+      'frequency': nextFrequency,
+    };
+    await _ref
+        .read(healthEventRepositoryProvider)
+        .mutateAndAppend(
+          () =>
+              (userDb.update(
+                userDb.userStacksLocal,
+              )..where((table) => table.id.equals(entryId))).write(
+                UserStacksLocalCompanion(
+                  dosage: Value(nextDosage),
+                  frequency: Value(nextFrequency),
+                  clientUpdatedAt: Value(now),
+                ),
+              ),
+          HealthEventDraft(
+            eventType: HealthEventTypes.stackItemChanged,
+            source: HealthEventSource.stack,
+            subjectType: entry.type,
+            subjectId: entry.id,
+            title: 'Updated ${entry.name}',
+            summary: 'Changed the saved dose or schedule.',
+            effectiveAt: now,
+            previousValue: previous,
+            currentValue: current,
+            metadata: const {
+              'changed_fields': ['dosage', 'frequency'],
+            },
+          ),
+        );
+    _invalidate();
+    CrashReportingService().log('stack_update_schedule');
+    if (entry.type == 'supplement') _triggerSync();
+    return true;
   }
 
   void _invalidate() {
@@ -249,6 +395,20 @@ class StackActions {
       throw const StackRequiresSignInException();
     }
   }
+}
+
+Map<String, Object?> _stackHistoryValue(UserStacksLocalData entry) {
+  return {
+    'name': entry.name,
+    if (entry.dsldId != null) 'dsld_id': entry.dsldId,
+    if (entry.dosage != null) 'dosage': entry.dosage,
+    if (entry.frequency != null) 'frequency': entry.frequency,
+  };
+}
+
+String? _cleanScheduleValue(String? value) {
+  final cleaned = value?.trim();
+  return cleaned == null || cleaned.isEmpty ? null : cleaned;
 }
 
 final stackActionsProvider = Provider<StackActions>((ref) {

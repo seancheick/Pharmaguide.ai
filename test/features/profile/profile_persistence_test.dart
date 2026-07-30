@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 void main() {
@@ -146,6 +147,21 @@ void main() {
       expect(loaded.conditions, ['diabetes']);
       expect(loaded.drugClasses, ['statins']);
       expect(loaded.allergens, ['ALLERGEN_MILK']);
+    });
+
+    test('profile persistence and history event commit together', () async {
+      final history = HealthEventRepository(db);
+      final notifier = ProfileNotifier(db, history);
+      notifier.setConditions(const ['diabetes']);
+      notifier.setAllergens(const ['ALLERGEN_MILK']);
+
+      await notifier.saveToDb();
+
+      final events = await history.getTimeline();
+      expect(events, hasLength(1));
+      expect(events.single.eventType, HealthEventTypes.profileChanged);
+      expect(events.single.title, 'Created health profile');
+      expect(events.single.summary, 'Changed profile details.');
     });
 
     test('loadFromDb with no saved profile keeps default state', () async {

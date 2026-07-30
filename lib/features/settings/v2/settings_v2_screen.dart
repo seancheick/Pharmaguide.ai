@@ -37,6 +37,8 @@ class SettingsV2Screen extends StatelessWidget {
   final String? accountEmail;
   final Future<void> Function()? onSignOut;
   final Future<bool> Function(Uri uri)? onOpenExternal;
+  final VoidCallback? onOpenHealthHistory;
+  final VoidCallback? onOpenClinicianReport;
 
   const SettingsV2Screen({
     super.key,
@@ -48,6 +50,8 @@ class SettingsV2Screen extends StatelessWidget {
     this.accountEmail,
     this.onSignOut,
     this.onOpenExternal,
+    this.onOpenHealthHistory,
+    this.onOpenClinicianReport,
   });
 
   @override
@@ -125,6 +129,24 @@ class SettingsV2Screen extends StatelessWidget {
             ),
             const SizedBox(height: V2Spacing.space24),
             PGSettingsGroup(
+              eyebrow: 'Reports & sharing',
+              children: [
+                PGSettingsTile(
+                  icon: Icons.history_rounded,
+                  title: 'Health History',
+                  caption: 'Timeline, appointments, tests, and reminders',
+                  onTap: onOpenHealthHistory,
+                ),
+                PGSettingsTile(
+                  icon: Icons.medical_information_outlined,
+                  title: 'Clinician report',
+                  caption: 'Preview, print, or share a private PDF',
+                  onTap: onOpenClinicianReport,
+                ),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space24),
+            PGSettingsGroup(
               eyebrow: 'Privacy & data',
               children: [
                 PGSettingsTile(
@@ -155,13 +177,15 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.notifications_outlined,
                   title: 'Notifications',
-                  caption: 'Reminders, weekly summary',
+                  caption: 'Private Health History reminders',
                   onTap: () => _showSettingSheet(
                     context,
                     title: 'Notifications',
                     body:
-                        'Reminder controls will appear here once push '
-                        'notifications are enabled for this build.',
+                        'When you enable a reminder for an appointment, test, '
+                        'or follow-up, PharmaGuide schedules it on this device. '
+                        'Lock-screen copy stays generic and contains no health '
+                        'details.',
                   ),
                 ),
                 PGSettingsTile(

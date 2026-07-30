@@ -23,6 +23,8 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
+import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/services/catalog_swap.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -543,6 +545,13 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       child: Consumer(
         builder: (context, ref, child) {
           ref.watch(stackSyncListenerProvider);
+          // One always-on observer persists added/changed/resolved clinical
+          // signals. It is fail-closed: partial or unavailable analysis never
+          // resolves an existing event as an all-clear.
+          ref.watch(clinicalSignalLifecycleProvider);
+          // Device notifications are a disposable projection of the same
+          // append-only Health History log. No second reminder store exists.
+          ref.watch(healthReminderSyncProvider);
           return child!;
         },
         child: PharmaGuideApp(

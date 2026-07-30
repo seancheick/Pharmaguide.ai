@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/core/utils/app_version.dart';
 import 'package:pharmaguide/services/catalog_version.dart';
 
@@ -30,6 +31,12 @@ final userDatabaseProvider = Provider<UserDatabase>((ref) {
   throw UnimplementedError(
     'userDatabaseProvider must be overridden at app startup',
   );
+});
+
+/// Canonical device-local Health History boundary. No second timeline store
+/// or cloud mirror is registered anywhere else.
+final healthEventRepositoryProvider = Provider<HealthEventRepository>((ref) {
+  return HealthEventRepository(ref.watch(userDatabaseProvider));
 });
 
 /// Provides the singleton [InteractionDatabase] instance (read-only,

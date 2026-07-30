@@ -64,6 +64,12 @@ dependencies:
   google_fonts: ^8.1.0
   pdf: ^3.12.0
   printing: ^5.14.3
+  # Device-local Health History reminders. Notification copy is deliberately
+  # generic so medication/condition details never appear on a lock screen.
+  flutter_local_notifications: ^22.2.0
+  flutter_timezone: ^5.1.0
+  timezone: ^0.11.1
+  uuid: ^4.5.3
   image_picker: ^1.2.3
   flutter_image_compress: ^2.5.0
 

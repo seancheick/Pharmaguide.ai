@@ -544,16 +544,35 @@ void main() {
       },
     );
 
-    test('stack-health surfaces use the shared diagnosis composition', () {
+    test('stack-health surfaces use one shared diagnosis composition', () {
       for (final path in const [
         'lib/features/home/v2/home_v2_screen.dart',
         'lib/features/stack/v2/stack_v2_screen.dart',
-        'lib/features/stack/widgets/share_clinician_report_button.dart',
       ]) {
         final source = File(path).readAsStringSync();
         expect(source, contains('diagnoseFromReports('), reason: path);
         expect(source, isNot(contains('StackSafetyScorer().compute')));
       }
+
+      final shareButton = File(
+        'lib/features/stack/widgets/share_clinician_report_button.dart',
+      ).readAsStringSync();
+      final shareSheet = File(
+        'lib/features/stack/widgets/stack_share_sheet.dart',
+      ).readAsStringSync();
+      final preview = File(
+        'lib/features/stack/widgets/clinician_report_preview_screen.dart',
+      ).readAsStringSync();
+      final documentProvider = File(
+        'lib/services/sharing/clinician_report_document_provider.dart',
+      ).readAsStringSync();
+
+      expect(shareButton, contains('showStackShareSheet'));
+      expect(shareButton, isNot(contains('diagnoseFromReports(')));
+      expect(shareSheet, contains('ClinicianReportPreviewScreen'));
+      expect(preview, contains('clinicianReportDocumentProvider'));
+      expect(documentProvider, contains('diagnoseFromReports('));
+      expect(documentProvider, isNot(contains('StackSafetyScorer().compute')));
     });
 
     test(
@@ -562,7 +581,7 @@ void main() {
         for (final path in const [
           'lib/features/home/v2/home_v2_screen.dart',
           'lib/features/stack/v2/stack_v2_screen.dart',
-          'lib/features/stack/widgets/share_clinician_report_button.dart',
+          'lib/services/sharing/clinician_report_document_provider.dart',
         ]) {
           final source = File(path).readAsStringSync();
           expect(

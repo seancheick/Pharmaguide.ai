@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:pharmaguide/data/database/tables/detail_cache_table.dart';
 import 'package:pharmaguide/data/database/tables/failed_scans_table.dart';
+import 'package:pharmaguide/data/database/tables/health_history_events_table.dart';
 import 'package:pharmaguide/data/database/tables/scan_history_table.dart';
 import 'package:pharmaguide/data/database/tables/user_favorites_table.dart';
 import 'package:pharmaguide/data/database/tables/user_profile_table.dart';
@@ -23,6 +24,7 @@ part 'user_database.g.dart';
     DetailCache,
     ProductImageCache,
     FailedScans,
+    HealthHistoryEvents,
   ],
 )
 class UserDatabase extends _$UserDatabase {
@@ -33,7 +35,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -98,6 +100,12 @@ class UserDatabase extends _$UserDatabase {
           'ON user_favorites (dsld_id)',
         );
       }
+      if (from < 10) {
+        // v10: append-only, device-local Health History event log. This is
+        // deliberately separate from scan history, which remains a Home-tab
+        // product lookup history.
+        await m.createTable(healthHistoryEvents);
+      }
     },
     beforeOpen: (details) async {
       // WAL keeps readers from blocking on writes (e.g. scan-history
@@ -123,6 +131,20 @@ class UserDatabase extends _$UserDatabase {
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_user_fav_added '
         'ON user_favorites (added_at DESC)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_health_events_effective '
+        'ON health_history_events '
+        '(effective_at DESC, recorded_at DESC, sequence DESC)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_health_events_subject '
+        'ON health_history_events '
+        '(subject_type, subject_id, sequence DESC)',
+      );
+      await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_health_events_dedupe '
+        'ON health_history_events (dedupe_key) WHERE dedupe_key IS NOT NULL',
       );
     },
   );
@@ -486,6 +508,7 @@ class UserDatabase extends _$UserDatabase {
       await delete(userProfiles).go();
       await delete(userFavorites).go();
       await delete(scanHistory).go();
+      await delete(healthHistoryEvents).go();
     });
   }
 }

@@ -49,6 +49,7 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
+import 'package:pharmaguide/services/history/health_attachment_store.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
@@ -1256,7 +1257,12 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
         db: ref.read(userDatabaseProvider),
         // Per-user data living outside the user DB. Recent searches are
         // the user's health-interest queries — they must not carry over.
-        clearPerUserPrefs: () => RecentSearchesService().clearAll(),
+        clearPerUserPrefs: () async {
+          await Future.wait([
+            RecentSearchesService().clearAll(),
+            HealthAttachmentStore().clearAll(),
+          ]);
+        },
       );
       final action = await guard.onAuthEvent(event: event, uid: uid);
       if (action == AccountSwitchAction.clearAndAdopt && mounted) {

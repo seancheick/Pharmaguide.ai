@@ -10,6 +10,23 @@ typedef ShareInvocation = Future<void> Function(String text, {String? subject});
 typedef PdfShareInvocation =
     Future<bool> Function(List<int> bytes, {required String filename});
 
+/// Allowlisted supplement fields that are safe for the non-clinical share
+/// flow. Medication, profile, warning, score, and condition data have no place
+/// in this model, which prevents accidental disclosure by construction.
+class SupplementShareItem {
+  const SupplementShareItem({
+    required this.name,
+    this.brand,
+    this.dosage,
+    this.frequency,
+  });
+
+  final String name;
+  final String? brand;
+  final String? dosage;
+  final String? frequency;
+}
+
 /// Handles sharing products and stack summaries.
 class ShareService {
   /// Optional override for the share-sheet invocation. Wired in by
@@ -79,28 +96,32 @@ class ShareService {
     await _share(text, subject: title);
   }
 
-  /// Share a stack summary.
-  Future<void> shareStackSummary({
-    required int safetyScore,
-    required String riskLabel,
-    required int productCount,
-    required int issueCount,
-    required int synergyCount,
-  }) async {
-    final text =
-        '''
-My Supplement Stack — PharmaGuide
+  /// Share supplements only. The narrow [SupplementShareItem] contract keeps
+  /// medications and health-profile inferences out of this general-purpose
+  /// share path.
+  Future<void> shareSupplementList(List<SupplementShareItem> items) async {
+    final lines = items
+        .map((item) {
+          final name = item.name.trim().isEmpty
+              ? 'Supplement'
+              : item.name.trim();
+          final brand = item.brand?.trim() ?? '';
+          final dosage = item.dosage?.trim() ?? '';
+          final frequency = item.frequency?.trim() ?? '';
+          final schedule = [dosage, frequency].where((part) => part.isNotEmpty);
+          return [
+            '• ${brand.isEmpty ? name : '$name — $brand'}',
+            if (schedule.isNotEmpty) '  ${schedule.join(' · ')}',
+          ].join('\n');
+        })
+        .join('\n');
 
-Stack Safety Score: $safetyScore/100 ($riskLabel)
-Products: $productCount
-Issues: $issueCount
-Synergies: $synergyCount
+    final text = [
+      'My supplements',
+      lines.isEmpty ? 'No supplements saved.' : lines,
+      'Shared from PharmaGuide',
+    ].join('\n\n');
 
-Analyzed by PharmaGuide
-''';
-
-    await SharePlus.instance.share(
-      ShareParams(text: text, subject: 'My Supplement Stack'),
-    );
+    await _share(text, subject: 'My supplements');
   }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/history/health_history_screen.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/widgets/clinician_report_preview_screen.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -52,6 +54,18 @@ class SettingsV2Connected extends ConsumerWidget {
       scanCount: scanCount,
       signedIn: signedIn,
       accountEmail: user?.email,
+      onOpenHealthHistory: () =>
+          Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const HealthHistoryScreen(),
+            ),
+          ),
+      onOpenClinicianReport: () =>
+          Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const ClinicianReportPreviewScreen(),
+            ),
+          ),
     );
   }
 

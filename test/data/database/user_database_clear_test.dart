@@ -16,6 +16,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 
 void main() {
   late UserDatabase db;
@@ -61,6 +62,15 @@ void main() {
       await db.cacheDetail('prod-1', '{"blob":1}', 'abc');
       await db.cacheImageUrl('prod-1', 'https://img/x.jpg');
       await db.recordFailedScan('012345678905');
+      await HealthEventRepository(db).append(
+        HealthEventDraft(
+          eventType: HealthEventTypes.noteAdded,
+          source: HealthEventSource.user,
+          subjectType: 'note',
+          title: 'Private health note',
+          effectiveAt: DateTime.now(),
+        ),
+      );
 
       await db.clearAllLocalUserData();
 
@@ -69,6 +79,7 @@ void main() {
       expect(await db.select(db.userStacksLocal).get(), isEmpty);
       expect(await db.getFavorites(), isEmpty);
       expect(await db.getRecentScans(), isEmpty);
+      expect(await db.select(db.healthHistoryEvents).get(), isEmpty);
 
       // Product caches + no-PII telemetry intact.
       expect(await db.getCachedDetail('prod-1'), isNotNull);

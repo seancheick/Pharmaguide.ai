@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
+import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
@@ -70,6 +71,20 @@ MedicationProfileWarning _mpw({
   sourceUrls: const [],
 );
 
+DepletionMatch _depletion() => const DepletionMatch(
+  depletionId: 'DEP_METFORMIN_B12',
+  drugDisplayName: 'Metformin',
+  drugClassId: 'class:biguanides',
+  nutrientName: 'Vitamin B12',
+  nutrientCanonicalId: 'vitamin_b12',
+  depletionType: 'depletion',
+  severity: 'significant',
+  mechanism: 'May reduce vitamin B12 absorption over time.',
+  recommendation: 'Discuss monitoring with your clinician.',
+  sourceUrls: ['https://pubmed.ncbi.nlm.nih.gov/20488910/'],
+  coverageLevel: CoverageLevel.none,
+);
+
 void main() {
   test('every flagged item becomes exactly one signal', () {
     final report = StackSafetyReport(
@@ -122,6 +137,18 @@ void main() {
     final families = orderedSignalsFrom(report).map((s) => s.family).toSet();
     expect(families, contains(SignalFamily.pairwiseInteraction));
     expect(families, contains(SignalFamily.cumulativeExposure));
+  });
+
+  test('complete aggregation includes medication–nutrient signals once', () {
+    final signals = allClinicalSignalsFrom(
+      report: const StackSafetyReport(),
+      medicationNutrientMatches: [_depletion()],
+    );
+
+    expect(signals, hasLength(1));
+    expect(signals.single.family, SignalFamily.medicationNutrient);
+    expect(signals.single.consumerDisposition, ConsumerDisposition.goodToKnow);
+    expect(signals.single.signalId, isNotEmpty);
   });
 
   test('only warn-worthy nutrients are included', () {

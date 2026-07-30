@@ -217,9 +217,18 @@ void main() {
         final version = await db
             .customSelect('PRAGMA user_version')
             .getSingle();
-        expect(version.read<int>('user_version'), 9);
+        expect(version.read<int>('user_version'), 10);
         final names = await _indexNames((sql) => db.customSelect(sql).get());
         expect(names, contains('idx_user_fav_dsld'));
+        expect(
+          await db
+              .customSelect(
+                "SELECT name FROM sqlite_master "
+                "WHERE type = 'table' AND name = 'health_history_events'",
+              )
+              .get(),
+          hasLength(1),
+        );
       },
     );
 
@@ -257,7 +266,7 @@ void main() {
 
       expect(await db.getFavorites(), hasLength(1));
       final version = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 9);
+      expect(version.read<int>('user_version'), 10);
     });
   });
 

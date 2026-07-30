@@ -1085,6 +1085,21 @@ class _StackItemRow extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: V2Spacing.space8),
+                IconButton(
+                  tooltip: 'Edit dose and schedule for $displayName',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    color: V2Colors.fgMuted,
+                    size: 18,
+                  ),
+                  onPressed: () => _showEditStackScheduleSheet(
+                    context,
+                    ref,
+                    entry: entry,
+                    displayName: displayName,
+                  ),
+                ),
                 const Icon(
                   Icons.chevron_right_rounded,
                   color: V2Colors.fgMuted,
@@ -1096,6 +1111,153 @@ class _StackItemRow extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> _showEditStackScheduleSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required _StackEntry entry,
+  required String displayName,
+}) async {
+  final saved = await PGModal.bottomSheet<bool>(
+    context: context,
+    builder: (_) => _EditStackScheduleSheet(
+      displayName: displayName,
+      dosage: entry.dosage,
+      frequency: entry.frequency,
+      onSave: ({dosage, frequency}) => ref
+          .read(stackActionsProvider)
+          .updateSchedule(
+            entryId: entry.id,
+            dosage: dosage,
+            frequency: frequency,
+          ),
+    ),
+  );
+  if (saved == true && context.mounted) {
+    PGToast.show(
+      context,
+      'Saved dose and schedule.',
+      variant: PGToastVariant.success,
+    );
+  }
+}
+
+typedef _SaveStackSchedule =
+    Future<bool> Function({String? dosage, String? frequency});
+
+class _EditStackScheduleSheet extends StatefulWidget {
+  const _EditStackScheduleSheet({
+    required this.displayName,
+    required this.dosage,
+    required this.frequency,
+    required this.onSave,
+  });
+
+  final String displayName;
+  final String? dosage;
+  final String? frequency;
+  final _SaveStackSchedule onSave;
+
+  @override
+  State<_EditStackScheduleSheet> createState() =>
+      _EditStackScheduleSheetState();
+}
+
+class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
+  late final TextEditingController _dosageController;
+  late final TextEditingController _frequencyController;
+  var _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _dosageController = TextEditingController(text: widget.dosage);
+    _frequencyController = TextEditingController(text: widget.frequency);
+  }
+
+  @override
+  void dispose() {
+    _dosageController.dispose();
+    _frequencyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        MediaQuery.viewInsetsOf(context).bottom + V2Spacing.space24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PGEyebrow('Saved dose & schedule', color: V2Colors.fgMuted),
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            widget.displayName,
+            style: V2Typography.titleSm(color: V2Colors.fg),
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'This records how you take the item. It does not change the '
+            'amount printed on the product label or provide dosing advice.',
+            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          ),
+          const SizedBox(height: V2Spacing.space24),
+          TextField(
+            controller: _dosageController,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Dose (optional)',
+              hintText: 'For example, 1 tablet or 20 mg',
+            ),
+          ),
+          const SizedBox(height: V2Spacing.space16),
+          TextField(
+            controller: _frequencyController,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Schedule (optional)',
+              hintText: 'For example, every morning',
+            ),
+          ),
+          const SizedBox(height: V2Spacing.space24),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: const Icon(Icons.check_rounded),
+              label: Text(_saving ? 'Saving…' : 'Save'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final changed = await widget.onSave(
+        dosage: _dosageController.text,
+        frequency: _frequencyController.text,
+      );
+      if (mounted) Navigator.of(context).pop(changed);
+    } on Object {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      PGToast.show(
+        context,
+        'Could not save the dose and schedule. Try again.',
+        variant: PGToastVariant.error,
+      );
+    }
   }
 }
 
