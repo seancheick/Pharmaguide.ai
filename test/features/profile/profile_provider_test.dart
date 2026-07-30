@@ -1,4 +1,7 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 void main() {
@@ -47,9 +50,10 @@ void main() {
     });
 
     test(
-      'setProfileFlags stores flags and evaluatorProfileFlags exposes them',
-      () {
+      'evaluator flags follow the canonical clinical profile schema',
+      () async {
         final notifier = ProfileNotifier();
+        notifier.toggleCondition('future_condition');
         notifier.setProfileFlags([
           'bleeding_history',
           'severely_immunocompromised',
@@ -58,11 +62,30 @@ void main() {
           'bleeding_history',
           'severely_immunocompromised',
         ]);
-        // These now reach the profile-gate evaluator — previously unreachable
-        // because no capture UI wrote the taxonomy-owned profile flags.
+
+        final container = ProviderContainer(
+          overrides: [
+            profileProvider.overrideWith((ref) => notifier),
+            clinicalProfileSchemaProvider.overrideWith(
+              (ref) async => const ClinicalProfileSchema(
+                selectableConditions: [],
+                userSelectableFlags: [],
+                derivedFlagByCondition: {
+                  'future_condition': 'future_derived_flag',
+                },
+              ),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
         expect(
-          notifier.state.evaluatorProfileFlags,
-          containsAll(['bleeding_history', 'severely_immunocompromised']),
+          await container.read(evaluatorProfileFlagsProvider.future),
+          containsAll([
+            'bleeding_history',
+            'severely_immunocompromised',
+            'future_derived_flag',
+          ]),
         );
       },
     );

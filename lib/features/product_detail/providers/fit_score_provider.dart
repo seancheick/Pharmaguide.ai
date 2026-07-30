@@ -73,6 +73,9 @@ final fitScoreForProductProvider = FutureProvider.family
       // generic FitScore until the DB load finishes. FitScore must never be
       // persisted — it's a fresh computation every time.
       final profile = await ref.watch(loadedProfileProvider.future);
+      final userProfileFlags = await ref.watch(
+        evaluatorProfileFlagsProvider.future,
+      );
       // Include the classes of meds the user added to their stack (same
       // resolved source stack safety uses) so the medical (E2c) penalty
       // reflects added medications, not just the profile picker chips.
@@ -136,7 +139,7 @@ final fitScoreForProductProvider = FutureProvider.family
         }.toList(),
         mappedCoverage: product.mappedCoverage ?? 0.0,
         warnings: warnings,
-        userProfileFlags: profile.evaluatorProfileFlags,
+        userProfileFlags: userProfileFlags,
         productForm: product.formFactor,
         productContextForWarning: (warning) => resolveProfileGateProductContext(
           detailBlob: blob,

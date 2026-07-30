@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 class ProfileState {
@@ -23,9 +24,9 @@ class ProfileState {
   /// requires: `post_op_recovery`, `hypoglycemia_history`,
   /// `bleeding_history`. The reproductive/perioperative flags
   /// (`pregnant`, `breastfeeding`, `trying_to_conceive`,
-  /// `surgery_scheduled`) are derived from [conditions] in
-  /// [evaluatorProfileFlags]; these three are NEW state captured
-  /// only here.
+  /// `surgery_scheduled`) are derived from [conditions] through
+  /// [evaluatorProfileFlagsProvider]; these three are NEW state captured only
+  /// here.
   final List<String> profileFlags;
 
   const ProfileState({
@@ -98,32 +99,6 @@ class ProfileState {
   List<String> get allergensForEvaluator => allergens
       .where((a) => a != SchemaIds.allergenNone)
       .toList(growable: false);
-
-  /// Profile-flag set for the v6.0 evaluator. Combines [profileFlags]
-  /// (history flags) with derived flags from [conditions]:
-  ///   conditions: 'pregnancy'         → 'pregnant'
-  ///   conditions: 'lactation'         → 'breastfeeding'
-  ///   conditions: 'ttc'               → 'trying_to_conceive'
-  ///   conditions: 'surgery_scheduled' → 'surgery_scheduled'
-  ///
-  /// Single source of truth for the evaluator's `profile_flags_any`
-  /// requires/excludes axis. Mirrors the migration mapping in
-  /// `dsld_clean/scripts/tools/migrate_to_profile_gate.py`
-  /// (`PROFILE_FLAG_CONDITION_MAP`).
-  Set<String> get evaluatorProfileFlags {
-    const conditionToFlag = <String, String>{
-      'pregnancy': 'pregnant',
-      'lactation': 'breastfeeding',
-      'ttc': 'trying_to_conceive',
-      'surgery_scheduled': 'surgery_scheduled',
-    };
-    final out = <String>{...profileFlags};
-    for (final c in conditionsForEvaluator) {
-      final flag = conditionToFlag[c.toLowerCase()];
-      if (flag != null) out.add(flag);
-    }
-    return out;
-  }
 
   /// Convert to Drift companion for DB persistence.
   UserProfilesCompanion toCompanion() {
@@ -519,4 +494,19 @@ final profileLoadedProvider = FutureProvider<void>((ref) async {
 final loadedProfileProvider = FutureProvider<ProfileState>((ref) async {
   await ref.watch(profileLoadedProvider.future);
   return ref.watch(profileProvider);
+});
+
+/// Profile flags consumed by every clinical `profile_gate` evaluator.
+///
+/// Derived condition → flag mappings come exclusively from the bundled
+/// pipeline-owned clinical taxonomy. Callers must await this provider and
+/// propagate an unavailable/incomplete state if it fails; substituting an
+/// empty set could turn a missing taxonomy into a false all-clear.
+final evaluatorProfileFlagsProvider = FutureProvider<Set<String>>((ref) async {
+  final profile = await ref.watch(loadedProfileProvider.future);
+  final schema = await ref.watch(clinicalProfileSchemaProvider.future);
+  return schema.evaluatorFlags(
+    conditions: profile.conditionsForEvaluator,
+    explicitFlags: profile.profileFlags,
+  );
 });

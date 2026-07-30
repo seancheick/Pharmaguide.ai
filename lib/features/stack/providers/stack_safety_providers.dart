@@ -607,6 +607,9 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   var medicationProfileWarnings = const <MedicationProfileWarning>[];
   if (safetyMedications.isNotEmpty) {
     try {
+      final userProfileFlags = await ref.watch(
+        evaluatorProfileFlagsProvider.future,
+      );
       final rulesData = await refDataRepo.loadMedicationProfileGateRules();
       final rules = MedicationProfileGateRule.listFromJson(rulesData);
       if (rules.isNotEmpty) {
@@ -627,7 +630,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
               medicationProfileGateClassIds: resolution.profileGateClassIds
                   .toSet(),
               userConditions: profile.conditionsForEvaluator.toSet(),
-              userProfileFlags: profile.evaluatorProfileFlags,
+              userProfileFlags: userProfileFlags,
             ),
           );
         }

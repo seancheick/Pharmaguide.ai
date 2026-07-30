@@ -409,6 +409,7 @@ class _ProductDetailV2ConnectedState
     final personalizedWarningsFailed = personalizedWarningsAsync.hasError;
     final profile = ref.watch(profileProvider);
     final userConditionsSet = profile.conditionsForEvaluator.toSet();
+    final userProfileFlagsAsync = ref.watch(evaluatorProfileFlagsProvider);
     // Union the profile picker drug-class chips with the classes of the
     // meds the user actually ADDED to their stack — the same already-
     // resolved source stack safety uses (no re-mapping) — so pipeline
@@ -421,7 +422,8 @@ class _ProductDetailV2ConnectedState
       ...profile.drugClassesForEvaluator,
       ...stackMedicationClassIds,
     };
-    final userProfileFlagsSet = profile.evaluatorProfileFlags;
+    final userProfileFlagsSet =
+        userProfileFlagsAsync.asData?.value ?? const <String>{};
     final guardedWarnings = composeGuardedWarnings(
       detailBlob: detailBlob,
       personalizedWarnings: personalizedWarnings,
@@ -454,7 +456,9 @@ class _ProductDetailV2ConnectedState
     final fitAsync = ref.watch(fitScoreForProductProvider(widget.dsldId));
     final fitResult = fitAsync.asData?.value;
     final personalizedChecksFailed =
-        personalizedWarningsFailed || fitAsync.hasError;
+        personalizedWarningsFailed ||
+        fitAsync.hasError ||
+        userProfileFlagsAsync.asData == null;
 
     // -------------------------------------------------------------
     // Blob-derived flags used by downstream sections.

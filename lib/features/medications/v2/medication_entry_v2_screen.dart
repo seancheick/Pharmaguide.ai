@@ -124,6 +124,7 @@ class _MedicationEntryV2ScreenState
   List<MedicationProfileWarning> _profileReviewWarnings =
       const <MedicationProfileWarning>[];
   bool _resolvingProfileReview = false;
+  bool _profileReviewUnavailable = false;
   bool _resolvingClasses = false;
   bool _saving = false;
 
@@ -169,6 +170,7 @@ class _MedicationEntryV2ScreenState
       _selectedDisplayClasses = const <String>[];
       _profileReviewWarnings = const <MedicationProfileWarning>[];
       _resolvingProfileReview = false;
+      _profileReviewUnavailable = false;
       _offlineFallbackVisible = false;
     });
 
@@ -223,6 +225,7 @@ class _MedicationEntryV2ScreenState
       _selectedDisplayClasses = const <String>[];
       _profileReviewWarnings = const <MedicationProfileWarning>[];
       _resolvingProfileReview = false;
+      _profileReviewUnavailable = false;
       _resolvingClasses = true;
       _searchController.text = displayName;
       _searchController.selection = TextSelection.fromPosition(
@@ -287,6 +290,7 @@ class _MedicationEntryV2ScreenState
       _ingredientRxcuis = const <String>[];
       _profileReviewWarnings = const <MedicationProfileWarning>[];
       _resolvingProfileReview = false;
+      _profileReviewUnavailable = false;
       _searchController.text = _friendlyClassLabel(classId);
       _searchController.selection = TextSelection.fromPosition(
         TextPosition(offset: _searchController.text.length),
@@ -334,6 +338,7 @@ class _MedicationEntryV2ScreenState
       _selectedDisplayClasses = const <String>[];
       _profileReviewWarnings = const <MedicationProfileWarning>[];
       _resolvingProfileReview = false;
+      _profileReviewUnavailable = false;
       _searchController.clear();
       _query = '';
       _suggestions = const <RxNormSuggestion>[];
@@ -362,12 +367,17 @@ class _MedicationEntryV2ScreenState
     setState(() {
       _resolvingProfileReview = true;
       _profileReviewWarnings = const <MedicationProfileWarning>[];
+      _profileReviewUnavailable = false;
     });
 
     List<MedicationProfileWarning> warnings =
         const <MedicationProfileWarning>[];
+    var unavailable = false;
     try {
       final profile = await ref.read(loadedProfileProvider.future);
+      final userProfileFlags = await ref.read(
+        evaluatorProfileFlagsProvider.future,
+      );
       final rulesData = await ref
           .read(reference_data.referenceDataRepositoryProvider)
           .loadMedicationProfileGateRules();
@@ -386,7 +396,7 @@ class _MedicationEntryV2ScreenState
         medicationName: name,
         medicationProfileGateClassIds: resolution.profileGateClassIds.toSet(),
         userConditions: profile.conditionsForEvaluator.toSet(),
-        userProfileFlags: profile.evaluatorProfileFlags,
+        userProfileFlags: userProfileFlags,
       );
     } on Object catch (e, st) {
       CrashReportingService().recordError(
@@ -395,12 +405,14 @@ class _MedicationEntryV2ScreenState
         hint: 'med_entry:profile_review_failed',
       );
       warnings = const <MedicationProfileWarning>[];
+      unavailable = true;
     }
 
     if (!mounted || _selectedName != name) return;
     setState(() {
       _profileReviewWarnings = warnings;
       _resolvingProfileReview = false;
+      _profileReviewUnavailable = unavailable;
     });
   }
 
@@ -582,10 +594,12 @@ class _MedicationEntryV2ScreenState
                       ),
                     ],
                     if (_resolvingProfileReview ||
+                        _profileReviewUnavailable ||
                         _profileReviewWarnings.isNotEmpty) ...[
                       const SizedBox(height: V2Spacing.space12),
                       _MedicationProfileReviewCard(
                         resolving: _resolvingProfileReview,
+                        unavailable: _profileReviewUnavailable,
                         warnings: _profileReviewWarnings,
                       ),
                     ],
@@ -1137,15 +1151,19 @@ class _SelectionSummary extends StatelessWidget {
 class _MedicationProfileReviewCard extends StatelessWidget {
   const _MedicationProfileReviewCard({
     required this.resolving,
+    required this.unavailable,
     required this.warnings,
   });
 
   final bool resolving;
+  final bool unavailable;
   final List<MedicationProfileWarning> warnings;
 
   @override
   Widget build(BuildContext context) {
-    if (!resolving && warnings.isEmpty) return const SizedBox.shrink();
+    if (!resolving && !unavailable && warnings.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final warning = warnings.isNotEmpty ? warnings.first : null;
     return Container(
       key: const Key('med-entry-profile-review-card'),
@@ -1182,6 +1200,8 @@ class _MedicationProfileReviewCard extends StatelessWidget {
                 Text(
                   resolving
                       ? 'Checking your profile'
+                      : unavailable
+                      ? 'Profile review unavailable'
                       : warning?.headline ?? 'Review for your profile',
                   style: V2Typography.titleSm(color: V2Colors.fg),
                 ),
@@ -1189,10 +1209,14 @@ class _MedicationProfileReviewCard extends StatelessWidget {
                 Text(
                   resolving
                       ? 'Looking for medication guidance tied to your profile.'
+                      : unavailable
+                      ? 'We couldn\'t complete this profile check. This is not '
+                            'an all-clear; try again before relying on it.'
                       : warning?.body ?? '',
                   style: V2Typography.bodySm(color: V2Colors.fgMuted),
                 ),
                 if (!resolving &&
+                    !unavailable &&
                     warning != null &&
                     warning.management.trim().isNotEmpty) ...[
                   const SizedBox(height: V2Spacing.space8),

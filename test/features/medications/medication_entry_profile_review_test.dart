@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
@@ -120,6 +121,12 @@ class _FakeReferenceDataRepository extends ReferenceDataRepository {
   }
 }
 
+const _testClinicalProfileSchema = ClinicalProfileSchema(
+  selectableConditions: [],
+  userSelectableFlags: [],
+  derivedFlagByCondition: {'pregnancy': 'pregnant'},
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -150,6 +157,9 @@ void main() {
             ),
             loadedProfileProvider.overrideWith(
               (ref) async => const ProfileState(conditions: ['pregnancy']),
+            ),
+            clinicalProfileSchemaProvider.overrideWith(
+              (ref) async => _testClinicalProfileSchema,
             ),
             rxNormApiServiceProvider.overrideWithValue(
               RxNormApiService(httpGet: fakeRx.call, offlineDb: interactionDb),
@@ -244,6 +254,9 @@ void main() {
             loadedProfileProvider.overrideWith(
               (ref) async => const ProfileState(conditions: ['kidney_disease']),
             ),
+            clinicalProfileSchemaProvider.overrideWith(
+              (ref) async => _testClinicalProfileSchema,
+            ),
             rxNormApiServiceProvider.overrideWithValue(
               RxNormApiService(httpGet: fakeRx.call, offlineDb: interactionDb),
             ),
@@ -268,6 +281,15 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
+      for (var i = 0; i < 30; i++) {
+        if (find
+            .text('NSAIDs are not recommended with kidney disease')
+            .evaluate()
+            .isNotEmpty) {
+          break;
+        }
+        await tester.pump(const Duration(milliseconds: 100));
+      }
 
       expect(
         find.byKey(const Key('med-entry-profile-review-card')),
@@ -278,6 +300,55 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('kidney function'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'clinical taxonomy failure is visible and cannot look like an all-clear',
+    (tester) async {
+      final interactionDb = InteractionDatabase.memory();
+      addTearDown(interactionDb.close);
+
+      final fakeRx = _FakeRxNormHttp();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            referenceDataRepositoryProvider.overrideWith(
+              (ref) => _FakeReferenceDataRepository(),
+            ),
+            loadedProfileProvider.overrideWith(
+              (ref) async => const ProfileState(conditions: ['pregnancy']),
+            ),
+            clinicalProfileSchemaProvider.overrideWith(
+              (ref) async => throw StateError('taxonomy unavailable'),
+            ),
+            rxNormApiServiceProvider.overrideWithValue(
+              RxNormApiService(httpGet: fakeRx.call, offlineDb: interactionDb),
+            ),
+          ],
+          child: const MaterialApp(home: MedicationEntryV2Screen()),
+        ),
+      );
+
+      await tester.enterText(
+        find.byKey(const Key('med-entry-search')),
+        'motrin',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('med-entry-suggestion-202488')));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('med-entry-profile-review-card')),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Profile review unavailable'), findsOneWidget);
+      expect(find.textContaining('not an all-clear'), findsOneWidget);
     },
   );
 }
