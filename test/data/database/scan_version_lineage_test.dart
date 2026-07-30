@@ -97,7 +97,9 @@ void main() {
     expect(existing.formulaFingerprint, isNull);
     expect(existing.catalogSourceVersion, isNull);
     final version = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.read<int>('user_version'), 10);
+    // Compare against the declared version rather than a literal so a
+    // future migration does not require touching this assertion.
+    expect(version.read<int>('user_version'), db.schemaVersion);
     final historyTable = await db
         .customSelect(
           "SELECT name FROM sqlite_master "

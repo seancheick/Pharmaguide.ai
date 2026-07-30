@@ -35,7 +35,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -105,6 +105,13 @@ class UserDatabase extends _$UserDatabase {
         // deliberately separate from scan history, which remains a Home-tab
         // product lookup history.
         await m.createTable(healthHistoryEvents);
+      }
+      if (from < 11) {
+        // v11: user-reported start date and per-item reminder time. Both are
+        // device-only and deliberately excluded from the Supabase sync
+        // payload — see user_stacks_table.dart for why.
+        await m.addColumn(userStacksLocal, userStacksLocal.startedAt);
+        await m.addColumn(userStacksLocal, userStacksLocal.reminderMinutes);
       }
     },
     beforeOpen: (details) async {

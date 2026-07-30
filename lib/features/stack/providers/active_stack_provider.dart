@@ -300,6 +300,10 @@ class StackActions {
     required String entryId,
     String? dosage,
     String? frequency,
+    // Sentinel-wrapped so "leave unchanged" is distinguishable from
+    // "clear this field" — both are legitimate edits.
+    Value<DateTime?> startedAt = const Value.absent(),
+    Value<int?> reminderMinutes = const Value.absent(),
   }) async {
     _requireSignedIn();
     final userDb = _ref.read(userDatabaseProvider);
@@ -312,9 +316,23 @@ class StackActions {
 
     final nextDosage = _cleanScheduleValue(dosage);
     final nextFrequency = _cleanScheduleValue(frequency);
-    if (entry.dosage == nextDosage && entry.frequency == nextFrequency) {
+    final nextStartedAt = startedAt.present ? startedAt.value : entry.startedAt;
+    final nextReminder = reminderMinutes.present
+        ? reminderMinutes.value
+        : entry.reminderMinutes;
+    if (entry.dosage == nextDosage &&
+        entry.frequency == nextFrequency &&
+        entry.startedAt == nextStartedAt &&
+        entry.reminderMinutes == nextReminder) {
       return false;
     }
+
+    final changedFields = <String>[
+      if (entry.dosage != nextDosage) 'dosage',
+      if (entry.frequency != nextFrequency) 'frequency',
+      if (entry.startedAt != nextStartedAt) 'start date',
+      if (entry.reminderMinutes != nextReminder) 'reminder',
+    ];
 
     final now = DateTime.now();
     final previous = _stackHistoryValue(entry);
@@ -322,6 +340,8 @@ class StackActions {
       ...previous,
       'dosage': nextDosage,
       'frequency': nextFrequency,
+      'started_at': nextStartedAt?.toUtc().toIso8601String(),
+      'reminder_minutes': nextReminder,
     };
     await _ref
         .read(healthEventRepositoryProvider)
@@ -333,6 +353,8 @@ class StackActions {
                 UserStacksLocalCompanion(
                   dosage: Value(nextDosage),
                   frequency: Value(nextFrequency),
+                  startedAt: Value(nextStartedAt),
+                  reminderMinutes: Value(nextReminder),
                   clientUpdatedAt: Value(now),
                 ),
               ),
@@ -342,13 +364,11 @@ class StackActions {
             subjectType: entry.type,
             subjectId: entry.id,
             title: 'Updated ${entry.name}',
-            summary: 'Changed the saved dose or schedule.',
+            summary: 'Changed the saved ${changedFields.join(', ')}.',
             effectiveAt: now,
             previousValue: previous,
             currentValue: current,
-            metadata: const {
-              'changed_fields': ['dosage', 'frequency'],
-            },
+            metadata: {'changed_fields': changedFields},
           ),
         );
     _invalidate();

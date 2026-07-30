@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:intl/intl.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -465,6 +468,8 @@ class _StackTabState extends ConsumerState<_StackTab> {
             score: null, // ditto for score
             dosage: row.dosage,
             frequency: row.frequency,
+            startedAt: row.startedAt,
+            reminderMinutes: row.reminderMinutes,
             isMedication: row.type == 'medication',
             medicationIdentity: row.type == 'medication'
                 ? MedicationIdentitySnapshot.fromStackRow(row)
@@ -914,6 +919,11 @@ class _StackEntry {
   /// `_StackItemRow.onTap`.
   final String? dsldId;
 
+  /// User-reported start date and per-item reminder. Both device-only; see
+  /// user_stacks_table.dart.
+  final DateTime? startedAt;
+  final int? reminderMinutes;
+
   const _StackEntry({
     required this.id,
     required this.name,
@@ -925,7 +935,11 @@ class _StackEntry {
     this.medicationIdentity,
     this.medicationIdentityAssessment,
     this.dsldId,
+    this.startedAt,
+    this.reminderMinutes,
   });
+
+  bool get hasReminder => reminderMinutes != null;
 }
 
 class _StackItemRow extends ConsumerWidget {
@@ -1072,14 +1086,34 @@ class _StackItemRow extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                      if (entry.dosage != null || entry.frequency != null) ...[
+                      if (entry.dosage != null ||
+                          entry.frequency != null ||
+                          entry.hasReminder) ...[
                         const SizedBox(height: V2Spacing.space4),
-                        Text(
-                          [entry.dosage, entry.frequency]
-                              .whereType<String>()
-                              .where((s) => s.isNotEmpty)
-                              .join(' · '),
-                          style: V2Typography.caption(color: V2Colors.fgSubtle),
+                        Row(
+                          children: [
+                            if (entry.hasReminder) ...[
+                              const Icon(
+                                Icons.notifications_active_outlined,
+                                size: 12,
+                                color: V2Colors.accent,
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            Flexible(
+                              child: Text(
+                                [entry.dosage, entry.frequency]
+                                    .whereType<String>()
+                                    .where((s) => s.isNotEmpty)
+                                    .join(' · '),
+                                style: V2Typography.caption(
+                                  color: V2Colors.fgSubtle,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                       if (score != null) ...[
@@ -1131,12 +1165,17 @@ Future<void> _showEditStackScheduleSheet(
       displayName: displayName,
       dosage: entry.dosage,
       frequency: entry.frequency,
-      onSave: ({dosage, frequency}) => ref
+      startedAt: entry.startedAt,
+      reminderMinutes: entry.reminderMinutes,
+      suggestedSlotLabel: _suggestedSlotLabel(ref, entry.name),
+      onSave: ({dosage, frequency, startedAt, reminderMinutes}) => ref
           .read(stackActionsProvider)
           .updateSchedule(
             entryId: entry.id,
             dosage: dosage,
             frequency: frequency,
+            startedAt: startedAt ?? const Value.absent(),
+            reminderMinutes: reminderMinutes ?? const Value.absent(),
           ),
     ),
   );
@@ -1150,20 +1189,62 @@ Future<void> _showEditStackScheduleSheet(
 }
 
 typedef _SaveStackSchedule =
-    Future<bool> Function({String? dosage, String? frequency});
+    Future<bool> Function({
+      String? dosage,
+      String? frequency,
+      Value<DateTime?>? startedAt,
+      Value<int?>? reminderMinutes,
+    });
+
+/// The daily-plan slot this item falls into, when the timing engine has
+/// guidance that mentions it.
+///
+/// Read-only: the plan is a suggestion surfaced next to the schedule field, and
+/// is never written into the user's saved schedule on their behalf. The
+/// pipeline decides the constraint; the person decides their day.
+String? _suggestedSlotLabel(WidgetRef ref, String itemName) {
+  final report = ref.read(stackSafetyReportProvider).asData?.value;
+  if (report == null || !report.hasTimingAdvice) return null;
+  final plan = const TimingSequenceResolver().resolve(
+    report.timingOptimizations,
+  );
+  final needle = itemName.trim().toLowerCase();
+  if (needle.isEmpty) return null;
+  for (final slot in DailySlot.values) {
+    final items = plan.itemsBySlot[slot] ?? const <String>[];
+    for (final planned in items) {
+      final candidate = planned.trim().toLowerCase();
+      if (candidate.isEmpty) continue;
+      if (needle.contains(candidate) || candidate.contains(needle)) {
+        return slot.label;
+      }
+    }
+  }
+  return null;
+}
 
 class _EditStackScheduleSheet extends StatefulWidget {
   const _EditStackScheduleSheet({
     required this.displayName,
     required this.dosage,
     required this.frequency,
+    required this.startedAt,
+    required this.reminderMinutes,
     required this.onSave,
+    this.suggestedSlotLabel,
   });
 
   final String displayName;
   final String? dosage;
   final String? frequency;
+  final DateTime? startedAt;
+  final int? reminderMinutes;
   final _SaveStackSchedule onSave;
+
+  /// The slot this item lands in on the resolved daily plan, when the timing
+  /// engine has guidance for it. Offered as a suggestion the user can take or
+  /// ignore — never applied on their behalf.
+  final String? suggestedSlotLabel;
 
   @override
   State<_EditStackScheduleSheet> createState() =>
@@ -1173,6 +1254,8 @@ class _EditStackScheduleSheet extends StatefulWidget {
 class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
   late final TextEditingController _dosageController;
   late final TextEditingController _frequencyController;
+  DateTime? _startedAt;
+  int? _reminderMinutes;
   var _saving = false;
 
   @override
@@ -1180,6 +1263,8 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
     super.initState();
     _dosageController = TextEditingController(text: widget.dosage);
     _frequencyController = TextEditingController(text: widget.frequency);
+    _startedAt = widget.startedAt;
+    _reminderMinutes = widget.reminderMinutes;
   }
 
   @override
@@ -1187,6 +1272,40 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
     _dosageController.dispose();
     _frequencyController.dispose();
     super.dispose();
+  }
+
+  String _formatStart(DateTime value) =>
+      DateFormat.yMMMd().format(value.toLocal());
+
+  String _formatReminder(int minutes) {
+    final time = TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
+    return time.format(context);
+  }
+
+  Future<void> _pickStartDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startedAt ?? now,
+      firstDate: DateTime(now.year - 40),
+      // A start date cannot be in the future; "I will start next month" is a
+      // different fact than "I started".
+      lastDate: now,
+      helpText: 'When did you start taking this?',
+    );
+    if (picked != null) setState(() => _startedAt = picked);
+  }
+
+  Future<void> _pickReminderTime() async {
+    final current = _reminderMinutes ?? 8 * 60;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
+      helpText: 'Daily reminder time',
+    );
+    if (picked != null) {
+      setState(() => _reminderMinutes = picked.hour * 60 + picked.minute);
+    }
   }
 
   @override
@@ -1227,11 +1346,104 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
           TextField(
             controller: _frequencyController,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Schedule (optional)',
-              hintText: 'For example, every morning',
+              hintText: widget.suggestedSlotLabel == null
+                  ? 'For example, every morning'
+                  : 'For example, ${widget.suggestedSlotLabel!.toLowerCase()}',
             ),
           ),
+          if (widget.suggestedSlotLabel != null) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.auto_awesome_outlined,
+                  size: 14,
+                  color: V2Colors.accent,
+                ),
+                const SizedBox(width: V2Spacing.space4),
+                Expanded(
+                  child: Text(
+                    'Your daily plan groups this under '
+                    '"${widget.suggestedSlotLabel}".',
+                    style: V2Typography.caption(color: V2Colors.fgMuted),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: V2Spacing.space24),
+
+          // --- Start date -------------------------------------------------
+          const PGEyebrow('Since when', color: V2Colors.fgMuted),
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            'If you started before adding this to PharmaGuide, saying so makes '
+            'long-term monitoring notes accurate.',
+            style: V2Typography.caption(color: V2Colors.fgMuted),
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _saving ? null : _pickStartDate,
+                  icon: const Icon(Icons.event_outlined, size: 18),
+                  label: Text(
+                    _startedAt == null
+                        ? 'Set start date'
+                        : 'Started ${_formatStart(_startedAt!)}',
+                  ),
+                ),
+              ),
+              if (_startedAt != null)
+                IconButton(
+                  tooltip: 'Clear start date',
+                  onPressed: _saving
+                      ? null
+                      : () => setState(() => _startedAt = null),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+            ],
+          ),
+          const SizedBox(height: V2Spacing.space24),
+
+          // --- Reminder ---------------------------------------------------
+          const PGEyebrow('Reminder', color: V2Colors.fgMuted),
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            'Off by default, and per item — so the one you want to remember '
+            'is not lost among the rest.',
+            style: V2Typography.caption(color: V2Colors.fgMuted),
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: _reminderMinutes != null,
+            onChanged: _saving
+                ? null
+                : (on) async {
+                    if (!on) {
+                      setState(() => _reminderMinutes = null);
+                      return;
+                    }
+                    await _pickReminderTime();
+                  },
+            title: Text(
+              _reminderMinutes == null
+                  ? 'No reminder'
+                  : 'Every day at ${_formatReminder(_reminderMinutes!)}',
+              style: V2Typography.bodySm(color: V2Colors.fg),
+            ),
+          ),
+          if (_reminderMinutes != null)
+            TextButton.icon(
+              onPressed: _saving ? null : _pickReminderTime,
+              icon: const Icon(Icons.schedule_rounded, size: 18),
+              label: const Text('Change time'),
+            ),
           const SizedBox(height: V2Spacing.space24),
           SizedBox(
             width: double.infinity,
@@ -1252,6 +1464,8 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
       final changed = await widget.onSave(
         dosage: _dosageController.text,
         frequency: _frequencyController.text,
+        startedAt: Value(_startedAt),
+        reminderMinutes: Value(_reminderMinutes),
       );
       if (mounted) Navigator.of(context).pop(changed);
     } on Object {
