@@ -1,4 +1,12 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  createClient,
+  type SupabaseClient,
+} from "npm:@supabase/supabase-js@2.110.7";
+
+import {
+  resolveSupabaseAdminKey,
+  resolveSupabasePublicKey,
+} from "../_shared/supabase_server_keys.ts";
 
 const PHOTO_BUCKET = "product-submission-photos";
 const APPROVED_SCHEMA_VERSION = "manual_label_v1";
@@ -160,6 +168,13 @@ async function sha256Hex(value: string): Promise<string> {
     .join("");
 }
 
+async function sha256HexBytes(value: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", value);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 async function parseBody(request: Request): Promise<JsonObject> {
   const text = await request.text();
   if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
@@ -168,6 +183,62 @@ async function parseBody(request: Request): Promise<JsonObject> {
   const parsed: unknown = JSON.parse(text);
   if (!isObject(parsed)) throw new Error("invalid body");
   return parsed;
+}
+
+// Re-download private evidence through the Storage API and hash the bytes at
+// the trusted reviewer boundary. The client-authored manifest and Storage
+// metadata are useful upload guards, but neither proves byte identity because
+// both originate with the uploader. Extraction and approval therefore bind to
+// hashes recomputed here after the submission has become immutable.
+async function verifySubmissionPhotoIntegrity(
+  admin: SupabaseClient,
+  submissionId: string,
+): Promise<JsonObject> {
+  const { data, error } = await admin
+    .from("product_submission_photos")
+    .select("photo_slot,object_path,byte_size,content_sha256")
+    .eq("submission_id", submissionId)
+    .order("photo_slot", { ascending: true });
+  if (error) throw error;
+
+  const verifiedHashes: JsonObject = {};
+  for (const raw of (data ?? []) as unknown as JsonObject[]) {
+    const slot = requiredString(raw.photo_slot, "photo slot", 40);
+    const objectPath = requiredString(raw.object_path, "object path", 300);
+    const expectedHash = requiredString(
+      raw.content_sha256,
+      "photo hash",
+      64,
+    );
+    if (!/^[0-9a-f]{64}$/.test(expectedHash)) {
+      throw new Error("invalid persisted photo hash");
+    }
+    const byteSize = Number(raw.byte_size);
+    if (!Number.isSafeInteger(byteSize) || byteSize <= 0) {
+      throw new Error("invalid persisted photo size");
+    }
+
+    const { data: blob, error: downloadError } = await admin.storage
+      .from(PHOTO_BUCKET)
+      .download(objectPath);
+    if (downloadError || !blob) {
+      throw downloadError ??
+        new Error("photo download failed");
+    }
+    const bytes = await blob.arrayBuffer();
+    if (bytes.byteLength !== byteSize) {
+      throw new Error("photo byte size mismatch");
+    }
+    const actualHash = await sha256HexBytes(bytes);
+    if (actualHash !== expectedHash) {
+      throw new Error("photo content hash mismatch");
+    }
+    if (verifiedHashes[slot] !== undefined) {
+      throw new Error("duplicate persisted photo slot");
+    }
+    verifiedHashes[slot] = actualHash;
+  }
+  return verifiedHashes;
 }
 
 Deno.serve(async (request: Request): Promise<Response> => {
@@ -183,13 +254,18 @@ Deno.serve(async (request: Request): Promise<Response> => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!supabaseUrl || !anonKey) {
+  let publicKey: string | undefined;
+  try {
+    publicKey = resolveSupabasePublicKey();
+  } catch {
+    publicKey = undefined;
+  }
+  if (!supabaseUrl || !publicKey) {
     audit("unverified", "unknown", "server_configuration_error");
     return json({ error: "Reviewer service unavailable" }, 500);
   }
 
-  const userClient = createClient(supabaseUrl, anonKey, {
+  const userClient = createClient(supabaseUrl, publicKey, {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -211,12 +287,17 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return json({ error: "Reviewer access required" }, 403);
   }
 
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceRoleKey) {
+  let adminKey: string | undefined;
+  try {
+    adminKey = resolveSupabaseAdminKey();
+  } catch {
+    adminKey = undefined;
+  }
+  if (!adminKey) {
     audit(reviewerId, "unknown", "server_configuration_error");
     return json({ error: "Reviewer service unavailable" }, 500);
   }
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
+  const admin = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
@@ -358,6 +439,16 @@ Deno.serve(async (request: Request): Promise<Response> => {
       ) {
         throw new Error("invalid extraction payload");
       }
+      const verifiedHashes = await verifySubmissionPhotoIntegrity(
+        admin,
+        submissionId,
+      );
+      if (
+        canonicalJson(verifiedHashes) !==
+          canonicalJson(extraction.input_image_hashes)
+      ) {
+        throw new Error("extraction image hashes do not match verified bytes");
+      }
       const confidence = extraction.confidence;
       if (
         confidence !== null && confidence !== undefined &&
@@ -371,6 +462,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
         "record_product_submission_extraction",
         {
           p_submission_id: submissionId,
+          p_recorded_by: reviewerId,
           p_schema_version: requiredString(
             extraction.schema_version,
             "schema version",
@@ -425,6 +517,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     let approvedPayloadCanonical: string | null = null;
     let payloadHash: string | null = null;
     if (toStatus === "approved") {
+      await verifySubmissionPhotoIntegrity(admin, submissionId);
       schemaVersion = requiredString(
         body.approved_schema_version,
         "approved schema version",

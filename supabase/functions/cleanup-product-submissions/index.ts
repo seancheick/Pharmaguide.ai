@@ -1,4 +1,7 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.110.7";
+
+import { resolveSupabaseAdminKey } from "../_shared/supabase_server_keys.ts";
+import { removeStorageObjectsOrThrow } from "../_shared/verified_storage_removal.ts";
 
 const PHOTO_BUCKET = "product-submission-photos";
 const CLEANUP_LIMIT = 100;
@@ -51,12 +54,17 @@ Deno.serve(async (request: Request): Promise<Response> => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
+  let adminKey: string | undefined;
+  try {
+    adminKey = resolveSupabaseAdminKey();
+  } catch {
+    adminKey = undefined;
+  }
+  if (!supabaseUrl || !adminKey) {
     audit("configuration_error", 0, 0, 0);
     return json({ error: "Cleanup service unavailable" }, 500);
   }
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
+  const admin = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
@@ -82,14 +90,16 @@ Deno.serve(async (request: Request): Promise<Response> => {
     );
     if (typeof submissionId !== "string") continue;
     if (objectPaths.length > 0) {
-      const { error: removeError } = await admin.storage
-        .from(PHOTO_BUCKET)
-        .remove(objectPaths);
-      if (removeError) {
+      try {
+        const removal = await removeStorageObjectsOrThrow(
+          admin.storage.from(PHOTO_BUCKET),
+          objectPaths,
+        );
+        removedObjectCount += removal.deletedObjectCount;
+      } catch {
         failedSubmissionIds.push(submissionId);
         continue;
       }
-      removedObjectCount += objectPaths.length;
     }
     completedSubmissionIds.push(submissionId);
   }

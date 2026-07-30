@@ -64,6 +64,44 @@ void main() {
     expect(find.text('Added to catalog'), findsNothing);
   });
 
+  testWidgets(
+    'unknown upload or kind is unavailable, not an incomplete upload',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ProductSubmissionStatusSheet(
+              service: ProductSubmissionService(
+                backend: _Backend([
+                  {
+                    ..._row(
+                      id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+                      reviewStatus: 'submitted',
+                    ),
+                    'upload_state': 'future_state',
+                  },
+                  {
+                    ..._row(
+                      id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a12',
+                      reviewStatus: 'submitted',
+                    ),
+                    'kind': 'future_kind',
+                  },
+                ]),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Status unavailable'), findsNWidgets(2));
+      expect(find.textContaining('start a new submission'), findsNothing);
+      expect(find.text('Waiting for review'), findsNothing);
+      expect(find.text('Submission details unavailable'), findsOneWidget);
+    },
+  );
+
   testWidgets('does not promise an unavailable upload-resume action', (
     tester,
   ) async {

@@ -87,9 +87,12 @@ class LabelMismatchProductMetadata {
     String? catalogSourceVersion,
     String? formulaFingerprint,
   }) : dsldId = _requiredDsldId(dsldId),
-       upc = _optionalNonblank(upc),
-       sourceRecordId = _optionalNonblank(sourceRecordId),
-       catalogSourceVersion = _optionalNonblank(catalogSourceVersion),
+       upc = upc == null ? null : _normalizeUpc(upc),
+       sourceRecordId = _optionalNonblank(sourceRecordId, maxLength: 200),
+       catalogSourceVersion = _optionalNonblank(
+         catalogSourceVersion,
+         maxLength: 120,
+       ),
        formulaFingerprint = _optionalFingerprint(formulaFingerprint);
 
   factory LabelMismatchProductMetadata.fromUntrusted(
@@ -123,7 +126,7 @@ class LabelMismatchProductMetadata {
 
   static String _requiredDsldId(String value) {
     final normalized = value.trim();
-    if (normalized.isEmpty) {
+    if (!RegExp(r'^[0-9]{1,30}$').hasMatch(normalized)) {
       throw const ProductSubmissionValidationException(
         ProductSubmissionValidationFailure.missingDsldId,
       );
@@ -131,10 +134,10 @@ class LabelMismatchProductMetadata {
     return normalized;
   }
 
-  static String? _optionalNonblank(String? value) {
+  static String? _optionalNonblank(String? value, {int maxLength = 300}) {
     if (value == null) return null;
     final normalized = value.trim();
-    if (normalized.isEmpty) {
+    if (normalized.isEmpty || normalized.length > maxLength) {
       throw const ProductSubmissionValidationException(
         ProductSubmissionValidationFailure.invalidMetadataValue,
       );
@@ -710,7 +713,11 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
         .uploadBinary(
           objectPath,
           bytes,
-          fileOptions: FileOptions(contentType: contentType, upsert: true),
+          fileOptions: FileOptions(
+            contentType: contentType,
+            upsert: true,
+            metadata: {'content_sha256': sha256.convert(bytes).toString()},
+          ),
         );
   }
 
@@ -771,12 +778,26 @@ enum ProductSubmissionReviewStatus {
   };
 }
 
+enum ProductSubmissionUploadState {
+  pending,
+  ready,
+  cleaning,
+  unknown;
+
+  static ProductSubmissionUploadState fromWire(Object? raw) => switch (raw) {
+    'pending' => pending,
+    'ready' => ready,
+    'cleaning' => cleaning,
+    _ => unknown,
+  };
+}
+
 class ProductSubmissionSummary {
   const ProductSubmissionSummary({
     required this.submissionId,
     required this.kind,
     required this.upc,
-    required this.uploadReady,
+    required this.uploadState,
     required this.reviewStatus,
     required this.createdAt,
     required this.promotedCatalogVersion,
@@ -785,12 +806,22 @@ class ProductSubmissionSummary {
   final String submissionId;
   final ProductSubmissionKind? kind;
   final String? upc;
-  final bool uploadReady;
+  final ProductSubmissionUploadState uploadState;
   final ProductSubmissionReviewStatus reviewStatus;
   final DateTime? createdAt;
   final String? promotedCatalogVersion;
 
+  bool get uploadReady => uploadState == ProductSubmissionUploadState.ready;
+
+  bool get hasKnownState =>
+      submissionId.isNotEmpty &&
+      kind != null &&
+      uploadState != ProductSubmissionUploadState.unknown &&
+      reviewStatus != ProductSubmissionReviewStatus.unknown;
+
   bool get isComplete =>
+      hasKnownState &&
+      uploadReady &&
       reviewStatus == ProductSubmissionReviewStatus.approved &&
       promotedCatalogVersion != null;
 
@@ -805,7 +836,7 @@ class ProductSubmissionSummary {
       submissionId: row['id'] is String ? row['id']! as String : '',
       kind: kind,
       upc: row['normalized_upc'] as String?,
-      uploadReady: row['upload_state'] == 'ready',
+      uploadState: ProductSubmissionUploadState.fromWire(row['upload_state']),
       reviewStatus: ProductSubmissionReviewStatus.fromWire(
         row['review_status'],
       ),

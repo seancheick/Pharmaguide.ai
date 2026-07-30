@@ -20,11 +20,11 @@ void main() {
   test('authenticates an allowlisted reviewer before service-role access', () {
     final userCheck = source.indexOf('.auth.getUser()');
     final reviewerGate = source.indexOf('PRODUCT_SUBMISSION_REVIEWER_IDS');
-    final serviceRole = source.indexOf('SUPABASE_SERVICE_ROLE_KEY');
+    final adminKey = source.indexOf('resolveSupabaseAdminKey()', reviewerGate);
 
     expect(userCheck, greaterThanOrEqualTo(0));
     expect(reviewerGate, greaterThan(userCheck));
-    expect(serviceRole, greaterThan(reviewerGate));
+    expect(adminKey, greaterThan(reviewerGate));
     expect(source, contains("json({ error: 'Authentication required' }, 401)"));
     expect(
       source,
@@ -67,7 +67,21 @@ void main() {
     expect(source, contains("'field_provenance'"));
     expect(source, contains("'prompt_version'"));
     expect(source, contains("'confidence'"));
+    expect(source, contains('p_recorded_by: reviewerId'));
     expect(source, isNot(contains('autoApprove')));
+    final extractionBranch = source.indexOf(
+      "if (action === 'record_extraction')",
+    );
+    final byteVerification = source.indexOf(
+      'verifySubmissionPhotoIntegrity(',
+      extractionBranch,
+    );
+    final extractionRpc = source.indexOf(
+      "'record_product_submission_extraction'",
+      extractionBranch,
+    );
+    expect(byteVerification, greaterThan(extractionBranch));
+    expect(extractionRpc, greaterThan(byteVerification));
   });
 
   test('approval is an audited RPC transition with a server hash', () {
@@ -109,5 +123,18 @@ void main() {
     expect(source, contains('APPROVED_PAYLOAD_MAX_BYTES = 512 * 1024'));
     expect(source, contains('ingredientRows.length > 200'));
     expect(source, contains('servingSizes.length > 20'));
+    expect(source, contains('.download(objectPath)'));
+    expect(source, contains('sha256HexBytes(bytes)'));
+    final approvalBranch = source.indexOf("if (toStatus === 'approved')");
+    final byteVerification = source.indexOf(
+      'verifySubmissionPhotoIntegrity(admin, submissionId)',
+      approvalBranch,
+    );
+    final reviewRpc = source.indexOf(
+      "admin.rpc('review_product_submission'",
+      approvalBranch,
+    );
+    expect(byteVerification, greaterThan(approvalBranch));
+    expect(reviewRpc, greaterThan(byteVerification));
   });
 }

@@ -102,9 +102,12 @@ class _SubmissionStatusRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final display = _statusDisplay(status);
-    final identity = status.kind == ProductSubmissionKind.labelMismatch
-        ? 'Catalog correction'
-        : 'UPC ${status.upc ?? 'unavailable'}';
+    final identity = switch (status.kind) {
+      ProductSubmissionKind.labelMismatch => 'Catalog correction',
+      ProductSubmissionKind.missingProduct =>
+        'UPC ${status.upc ?? 'unavailable'}',
+      null => 'Submission details unavailable',
+    };
     return Semantics(
       container: true,
       label: '$identity. ${display.label}.',
@@ -148,6 +151,13 @@ class _StatusDisplay {
 }
 
 _StatusDisplay _statusDisplay(ProductSubmissionSummary status) {
+  if (!status.hasKnownState) {
+    return const _StatusDisplay(
+      'Status unavailable',
+      Icons.help_outline_rounded,
+      V2Colors.fgMuted,
+    );
+  }
   if (status.isComplete) {
     return const _StatusDisplay(
       'Added to catalog',
@@ -155,7 +165,7 @@ _StatusDisplay _statusDisplay(ProductSubmissionSummary status) {
       V2Colors.safe,
     );
   }
-  if (!status.uploadReady) {
+  if (status.uploadState != ProductSubmissionUploadState.ready) {
     return const _StatusDisplay(
       'Upload incomplete — start a new submission to try again',
       Icons.cloud_off_outlined,
@@ -188,10 +198,8 @@ _StatusDisplay _statusDisplay(ProductSubmissionSummary status) {
       Icons.content_copy_outlined,
       V2Colors.fgMuted,
     ),
-    ProductSubmissionReviewStatus.unknown => const _StatusDisplay(
-      'Status unavailable',
-      Icons.help_outline_rounded,
-      V2Colors.fgMuted,
+    ProductSubmissionReviewStatus.unknown => throw StateError(
+      'Unknown review state must be handled before display.',
     ),
   };
 }

@@ -37,8 +37,11 @@ The implementation is in:
 - pipeline `scripts/release_full.sh`
 
 The retired `label_mismatch_*` runtime tables, bucket, service, and reviewer
-function are migrated and removed. `pending_products` is not reused. There is
-no second ingestion database, scorer, or publication path.
+function are migrated and removed. The unused `pending_products` table is
+also removed after a fail-closed emptiness check; deployments with historical
+rows must reconcile them explicitly instead of guessing free text and remote
+image URLs into verified evidence. There is no second ingestion database,
+scorer, or publication path.
 
 ## 2. User intake
 
@@ -94,7 +97,14 @@ Finalization verifies:
 - required photo slots;
 - private Storage object path and owner;
 - declared byte size; and
-- declared MIME type.
+- declared MIME type; and
+- the client-computed SHA-256 copied into immutable Storage custom metadata.
+
+Before either recording an AI extraction or approving a submission, the
+reviewer service downloads each now-immutable private object and recomputes
+its SHA-256. The trusted boundary rejects any byte-size or digest mismatch.
+Client manifest values and Storage metadata alone are never treated as proof
+of byte identity.
 
 Unknown statuses render unavailable rather than complete.
 
@@ -139,8 +149,10 @@ The reviewer must inspect the private label evidence and either:
 
 Approval cannot happen directly from `submitted`, cannot omit reviewer
 identity, cannot supply an unrecognized schema, and cannot be self-marked by
-the user. Review notes are staff-only and never returned to the consumer
-status surface.
+the user. The database serializes approval by catalog target and rejects a
+second approved-but-unpromoted correction for that identity, preventing two
+reviewers from racing different labels into one release. Review notes are
+staff-only and never returned to the consumer status surface.
 
 The reviewer may create a correction for an existing numeric DSLD ID or a new
 missing-product payload. A label mismatch keeps the existing DSLD identity. A
@@ -150,7 +162,10 @@ missing product receives the deterministic identity:
 
 ## 6. The only publication path
 
-The pipeline release preflight calls the service-only approved-export RPC.
+The pipeline release preflight walks the service-only approved-export RPC
+with a stable `(approved_at, submission_id)` cursor. This prevents previously
+materialized but not-yet-promoted approvals from filling the first page and
+starving newer work.
 `scripts/product_submission_import.py` then:
 
 1. verifies UUIDs, GTIN, schema, canonical JSON, SHA-256, reviewer
@@ -181,6 +196,12 @@ already existed before the corrected label shipped. Only then does the
 adapter read the exact `db_version` and record promotion through a
 service-only, idempotent RPC.
 
+A later correction for the same DSLD product may replace the current manual
+label only after the receipt owning those exact bytes has been promoted. Its
+new submission UUID becomes the source record while the stable numeric
+product ID and `dsld:{id}` lineage remain unchanged. Unpromoted or
+unreceipted bytes can never be overwritten.
+
 ## 7. Retention and account deletion
 
 Private evidence is not permanent:
@@ -190,9 +211,12 @@ Private evidence is not permanent:
 - promoted evidence is eligible 90 days after promotion.
 
 The cleanup worker leases at most 100 rows. It removes Storage objects first.
-Only confirmed Storage successes may delete photo manifests. Final review and
-publication provenance are retained; abandoned pending parents are deleted.
-Failed leases become retryable after 15 minutes.
+It verifies every returned object path and proves that omitted paths are
+already absent, so a retry after a prior Storage success is idempotent while a
+partial deletion still fails closed. Only verified Storage absence may delete
+photo manifests. Final review and publication provenance are retained;
+abandoned pending parents are deleted. Failed leases become retryable after
+15 minutes.
 
 Account deletion is remote-first:
 
@@ -214,23 +238,36 @@ Do not expose the UI before its private backend exists.
 
 1. Back up the target Supabase database.
 2. Confirm the legacy label-mismatch bucket and manifest table contain no
-   un-migrated objects. The migration fails closed if they do.
+   un-migrated objects, and export/reconcile any historical `pending_products`
+   rows. The migration fails closed if either legacy surface still carries
+   unresolved data.
 3. Apply `20260730175438_product_submission_pipeline.sql`.
 4. Configure:
    - `PRODUCT_SUBMISSION_REVIEWER_IDS`
    - `PRODUCT_SUBMISSION_CLEANUP_SECRET`
-   - standard Supabase service-role environment variables
+   - `SUPABASE_SECRET_KEY` (preferred), the managed
+     `SUPABASE_SECRET_KEYS.default`, or the legacy
+     `SUPABASE_SERVICE_ROLE_KEY` during migration
+   - `SUPABASE_PUBLISHABLE_KEY` (preferred), the managed
+     `SUPABASE_PUBLISHABLE_KEYS.default`, or the legacy
+     `SUPABASE_ANON_KEY` during migration
 5. Deploy:
    - `review-product-submissions`
    - `cleanup-product-submissions`
    - `delete-account`
-6. Schedule cleanup with a secret-authenticated server job.
+6. Schedule cleanup with a secret-authenticated server job. The checked-in
+   Supabase function configuration disables platform JWT verification only for
+   this worker because it authenticates the scheduler with the constant-time
+   `x-cleanup-secret` boundary. Reviewer and account-deletion functions retain
+   the platform's user-JWT verification.
 7. Merge and release the pipeline adapter.
 8. Merge and release the Flutter client.
 9. Run the canaries below before beta distribution.
 
-The pipeline release host requires `SUPABASE_URL` and
-`SUPABASE_SERVICE_ROLE_KEY`. `--skip-supabase` and Supabase dry-run modes do
+The pipeline release host requires `SUPABASE_URL` and prefers
+`SUPABASE_SECRET_KEY`; the legacy `SUPABASE_SERVICE_ROLE_KEY` remains a
+temporary fallback. Opaque `sb_secret_` keys are sent only as `apikey`, never
+as a fabricated bearer JWT. `--skip-supabase` and Supabase dry-run modes do
 not fetch new approvals, but can still process already-materialized labels.
 
 ## 9. Required canaries

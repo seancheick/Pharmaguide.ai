@@ -154,6 +154,26 @@ void main() {
           ),
         );
         expect(
+          () => LabelMismatchProductMetadata(dsldId: 'not-a-dsld-id'),
+          throwsA(
+            isA<ProductSubmissionValidationException>().having(
+              (error) => error.reason,
+              'reason',
+              ProductSubmissionValidationFailure.missingDsldId,
+            ),
+          ),
+        );
+        expect(
+          () => LabelMismatchProductMetadata(dsldId: '12345', upc: '12345678'),
+          throwsA(
+            isA<ProductSubmissionValidationException>().having(
+              (error) => error.reason,
+              'reason',
+              ProductSubmissionValidationFailure.invalidUpc,
+            ),
+          ),
+        );
+        expect(
           () => _draft(reportId: '../different-owner/report'),
           throwsA(
             isA<ProductSubmissionValidationException>().having(
@@ -303,7 +323,7 @@ void main() {
         _draft(
           metadata: LabelMismatchProductMetadata(
             dsldId: '12345',
-            upc: '031604010206',
+            upc: '050428381397',
             sourceRecordId: 'DSLD-12345',
             catalogSourceVersion: '2026-07-19',
             formulaFingerprint:
@@ -320,7 +340,7 @@ void main() {
       expect(backend.reportRow, {
         'p_submission_id': _reportId,
         'p_kind': 'label_mismatch',
-        'p_upc': '031604010206',
+        'p_upc': '050428381397',
         'p_mismatch_detail': {
           'dsld_id': '12345',
           'source_record_id': 'DSLD-12345',

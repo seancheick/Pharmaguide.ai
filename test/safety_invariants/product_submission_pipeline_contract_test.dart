@@ -123,6 +123,7 @@ void main() {
     );
     expect(sql, contains("object.metadata->>'size'"));
     expect(sql, contains("object.metadata->>'mimetype'"));
+    expect(sql, contains("object.user_metadata->>'content_sha256'"));
     expect(
       sql,
       contains(
@@ -140,6 +141,15 @@ void main() {
         'create or replace function '
         'public.is_valid_product_submission_gtin',
       ),
+    );
+    expect(
+      sql,
+      contains("dsld_id text not null check (dsld_id ~ '^[0-9]{1,30}\$')"),
+    );
+    expect(
+      sql,
+      contains("if nullif(btrim(coalesce(p_upc, '')), '') is not null and ("),
+      reason: 'Optional correction UPCs must be validated when supplied.',
     );
     expect(
       sql,
@@ -173,6 +183,7 @@ void main() {
         contains('create table public.product_submission_extractions'),
       );
       for (final field in const [
+        'recorded_by',
         'schema_version',
         'provider',
         'model',
@@ -212,6 +223,25 @@ void main() {
           'create or replace function '
           'public.export_approved_product_submissions',
         ),
+      );
+      expect(sql, contains('p_after_approved_at timestamptz'));
+      expect(sql, contains('p_after_submission_id uuid'));
+      expect(
+        sql,
+        contains(
+          '(approved.approved_at, submission.id) > '
+          '(p_after_approved_at, p_after_submission_id)',
+        ),
+      );
+      expect(sql, contains('pg_catalog.pg_advisory_xact_lock'));
+      expect(
+        sql,
+        contains(
+          "raise exception 'another approved submission awaits promotion'",
+        ),
+        reason:
+            'Two reviewed corrections for one catalog identity must not race '
+            'through a release.',
       );
       expect(sql, contains('from public, anon, authenticated'));
       expect(sql, contains("if p_duplicate_of = p_submission_id then"));
@@ -279,6 +309,31 @@ void main() {
     );
   });
 
+  test('service-only RPCs use database grants, not deprecated JWT helpers', () {
+    expect(
+      sql,
+      isNot(contains('auth.role()')),
+      reason:
+          'Secret API keys run as the service_role database role but are not '
+          'legacy service-role JWTs. EXECUTE grants are the durable boundary.',
+    );
+    for (final functionName in const [
+      'record_product_submission_extraction',
+      'review_product_submission',
+      'export_approved_product_submissions',
+      'mark_product_submission_promoted',
+      'claim_product_submission_cleanup',
+      'complete_product_submission_cleanup',
+      'list_product_submission_objects_for_user',
+    ]) {
+      expect(
+        sql,
+        contains('grant execute on function public.$functionName'),
+        reason: '$functionName must be explicitly granted to service_role.',
+      );
+    }
+  });
+
   test(
     'legacy mismatch storage is migrated, then retired from the final model',
     () {
@@ -286,6 +341,11 @@ void main() {
       expect(sql, contains('from public.label_mismatch_report_photos'));
       expect(sql, contains('drop table public.label_mismatch_report_photos'));
       expect(sql, contains('drop table public.label_mismatch_reports'));
+      expect(
+        sql,
+        contains('pending_products contains unreconciled legacy submissions'),
+      );
+      expect(sql, contains('drop table public.pending_products'));
       expect(
         sql,
         isNot(contains('alter table label_mismatch_reports add column kind')),

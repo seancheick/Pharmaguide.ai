@@ -1,0 +1,7 @@
+project_id = "pharmaguide"
+
+# Scheduled cleanup requests authenticate with a dedicated, constant-time
+# x-cleanup-secret check inside the function. Reviewer and account-deletion
+# functions intentionally keep Supabase's default user-JWT verification.
+[functions.cleanup-product-submissions]
+verify_jwt = false

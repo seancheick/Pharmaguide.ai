@@ -102,13 +102,22 @@ CREATE TABLE public.product_submission_mismatch_details (
   submission_id uuid PRIMARY KEY
     REFERENCES public.product_submissions(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  dsld_id text NOT NULL CHECK (btrim(dsld_id) <> ''),
+  dsld_id text NOT NULL CHECK (dsld_id ~ '^[0-9]{1,30}$'),
   source_record_id text
-    CHECK (source_record_id IS NULL OR btrim(source_record_id) <> ''),
+    CHECK (
+      source_record_id IS NULL
+      OR (
+        btrim(source_record_id) <> ''
+        AND char_length(source_record_id) <= 200
+      )
+    ),
   catalog_source_version text
     CHECK (
       catalog_source_version IS NULL
-      OR btrim(catalog_source_version) <> ''
+      OR (
+        btrim(catalog_source_version) <> ''
+        AND char_length(catalog_source_version) <= 120
+      )
     ),
   formula_fingerprint text
     CHECK (
@@ -172,6 +181,7 @@ CREATE TABLE public.product_submission_extractions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   submission_id uuid NOT NULL
     REFERENCES public.product_submissions(id) ON DELETE CASCADE,
+  recorded_by uuid NOT NULL,
   version integer NOT NULL CHECK (version > 0),
   schema_version text NOT NULL CHECK (btrim(schema_version) <> ''),
   provider text NOT NULL CHECK (btrim(provider) <> ''),
@@ -430,9 +440,11 @@ BEGIN
     '',
     'g'
   ), '');
-  IF p_kind = 'missing_product'
-     AND normalized_upc_value IS NOT NULL
-     AND NOT public.is_valid_product_submission_gtin(normalized_upc_value) THEN
+  IF NULLIF(btrim(coalesce(p_upc, '')), '') IS NOT NULL
+     AND (
+       normalized_upc_value IS NULL
+       OR NOT public.is_valid_product_submission_gtin(normalized_upc_value)
+     ) THEN
     RAISE EXCEPTION 'invalid UPC/EAN' USING ERRCODE = '22023';
   END IF;
 
@@ -701,6 +713,9 @@ BEGIN
             = photo.byte_size
           AND lower(coalesce(object.metadata->>'mimetype', ''))
             = photo.content_type
+          AND lower(
+            coalesce(object.user_metadata->>'content_sha256', '')
+          ) = photo.content_sha256
       )
   ) THEN
     RETURN false;
@@ -718,6 +733,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.record_product_submission_extraction(
   p_submission_id uuid,
+  p_recorded_by uuid,
   p_schema_version text,
   p_provider text,
   p_model text,
@@ -736,8 +752,8 @@ DECLARE
   next_version integer;
   submission public.product_submissions%ROWTYPE;
 BEGIN
-  IF auth.role() <> 'service_role' THEN
-    RAISE EXCEPTION 'service role required' USING ERRCODE = '42501';
+  IF p_recorded_by IS NULL THEN
+    RAISE EXCEPTION 'reviewer identity required' USING ERRCODE = '22023';
   END IF;
   SELECT candidate.*
     INTO submission
@@ -771,6 +787,7 @@ BEGIN
   WHERE extraction.submission_id = p_submission_id;
   INSERT INTO public.product_submission_extractions (
     submission_id,
+    recorded_by,
     version,
     schema_version,
     provider,
@@ -782,6 +799,7 @@ BEGIN
     confidence
   ) VALUES (
     p_submission_id,
+    p_recorded_by,
     next_version,
     btrim(p_schema_version),
     btrim(p_provider),
@@ -817,9 +835,10 @@ AS $$
 DECLARE
   submission public.product_submissions%ROWTYPE;
   transition_allowed boolean;
+  review_target_key text;
 BEGIN
-  IF auth.role() <> 'service_role' OR p_reviewer_id IS NULL THEN
-    RAISE EXCEPTION 'service role required' USING ERRCODE = '42501';
+  IF p_reviewer_id IS NULL THEN
+    RAISE EXCEPTION 'reviewer identity required' USING ERRCODE = '22023';
   END IF;
   SELECT candidate.*
     INTO submission
@@ -880,6 +899,45 @@ BEGIN
   END IF;
 
   IF p_to_status = 'approved' THEN
+    IF submission.kind = 'label_mismatch' THEN
+      SELECT 'label_mismatch:' || mismatch.dsld_id
+        INTO review_target_key
+      FROM public.product_submission_mismatch_details AS mismatch
+      WHERE mismatch.submission_id = p_submission_id;
+    ELSE
+      review_target_key := 'missing_product:' || submission.normalized_upc;
+    END IF;
+    IF NULLIF(review_target_key, '') IS NULL THEN
+      RAISE EXCEPTION 'review target identity is unavailable'
+        USING ERRCODE = '55000';
+    END IF;
+
+    -- Serialize approvals for one catalog identity. The partial uniqueness
+    -- spans a typed detail table, so an advisory transaction lock provides
+    -- the database-level race boundary that a pre-insert SELECT alone cannot.
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(review_target_key, 0)
+    );
+    IF EXISTS (
+      SELECT 1
+      FROM public.product_submissions AS other
+      LEFT JOIN public.product_submission_mismatch_details AS other_mismatch
+        ON other_mismatch.submission_id = other.id
+      WHERE other.id <> p_submission_id
+        AND other.review_status = 'approved'
+        AND other.promoted_at IS NULL
+        AND (
+          CASE other.kind
+            WHEN 'label_mismatch' THEN
+              'label_mismatch:' || other_mismatch.dsld_id
+            ELSE 'missing_product:' || other.normalized_upc
+          END
+        ) = review_target_key
+    ) THEN
+      RAISE EXCEPTION 'another approved submission awaits promotion'
+        USING ERRCODE = '23505';
+    END IF;
+
     INSERT INTO public.product_submission_approved_labels (
       submission_id,
       schema_version,
@@ -924,7 +982,9 @@ $$;
 -- The pipeline reads only human-approved, unpromoted canonical payloads.
 -- User identity and private object paths never cross this boundary.
 CREATE OR REPLACE FUNCTION public.export_approved_product_submissions(
-  p_limit integer DEFAULT 100
+  p_limit integer DEFAULT 100,
+  p_after_approved_at timestamptz DEFAULT NULL,
+  p_after_submission_id uuid DEFAULT NULL
 )
 RETURNS TABLE (
   submission_id uuid,
@@ -957,10 +1017,21 @@ AS $$
     ON approved.submission_id = submission.id
   LEFT JOIN public.product_submission_mismatch_details AS mismatch
     ON mismatch.submission_id = submission.id
-  WHERE auth.role() = 'service_role'
-    AND submission.upload_state = 'ready'
+  WHERE submission.upload_state = 'ready'
     AND submission.review_status = 'approved'
     AND submission.promoted_at IS NULL
+    AND (
+      (
+        p_after_approved_at IS NULL
+        AND p_after_submission_id IS NULL
+      )
+      OR (
+        p_after_approved_at IS NOT NULL
+        AND p_after_submission_id IS NOT NULL
+        AND (approved.approved_at, submission.id) >
+          (p_after_approved_at, p_after_submission_id)
+      )
+    )
   ORDER BY approved.approved_at, submission.id
   LIMIT greatest(0, least(p_limit, 500));
 $$;
@@ -975,10 +1046,8 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF auth.role() <> 'service_role'
-     OR NULLIF(btrim(p_catalog_version), '') IS NULL THEN
-    RAISE EXCEPTION 'service role and catalog version required'
-      USING ERRCODE = '42501';
+  IF NULLIF(btrim(p_catalog_version), '') IS NULL THEN
+    RAISE EXCEPTION 'catalog version required' USING ERRCODE = '22023';
   END IF;
   IF EXISTS (
     SELECT 1
@@ -1020,9 +1089,6 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF auth.role() <> 'service_role' THEN
-    RAISE EXCEPTION 'service role required' USING ERRCODE = '42501';
-  END IF;
   IF p_limit NOT BETWEEN 1 AND 500 THEN
     RAISE EXCEPTION 'invalid cleanup limit' USING ERRCODE = '22023';
   END IF;
@@ -1090,9 +1156,6 @@ DECLARE
   purged_retained_count integer;
   deleted_pending_count integer;
 BEGIN
-  IF auth.role() <> 'service_role' THEN
-    RAISE EXCEPTION 'service role required' USING ERRCODE = '42501';
-  END IF;
   -- Review/publication provenance is durable. Retention removes only the
   -- private photo manifest after the Storage worker confirms object deletion.
   DELETE FROM public.product_submission_photos AS photo
@@ -1143,8 +1206,7 @@ SET search_path = ''
 AS $$
   SELECT photo.object_path
   FROM public.product_submission_photos AS photo
-  WHERE auth.role() = 'service_role'
-    AND photo.user_id = p_user_id
+  WHERE photo.user_id = p_user_id
   ORDER BY photo.object_path;
 $$;
 
@@ -1215,6 +1277,20 @@ SELECT
   legacy.mismatch_categories
 FROM public.label_mismatch_reports AS legacy;
 
+-- The earlier UPC-only intake accepted names, notes, and remote image URLs but
+-- had no immutable evidence or canonical publication contract. It cannot be
+-- safely guessed into this stricter model. Stop deployment if an operator
+-- still needs to reconcile historical rows, then remove the unused writable
+-- surface so there is only one submission system.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.pending_products) THEN
+    RAISE EXCEPTION
+      'pending_products contains unreconciled legacy submissions';
+  END IF;
+END;
+$$;
+
 -- Retire every legacy database and Storage policy before dropping the tables.
 DROP POLICY IF EXISTS "label_mismatch_objects_select_own" ON storage.objects;
 DROP POLICY IF EXISTS "label_mismatch_objects_insert_own" ON storage.objects;
@@ -1225,6 +1301,7 @@ DROP POLICY IF EXISTS "label_mismatch_objects_reviewer_select"
 
 DROP TABLE public.label_mismatch_report_photos;
 DROP TABLE public.label_mismatch_reports;
+DROP TABLE public.pending_products;
 DROP FUNCTION IF EXISTS public.finalize_label_mismatch_report(uuid);
 DROP FUNCTION IF EXISTS public.enforce_label_mismatch_photo_pending();
 DROP FUNCTION IF EXISTS public.enforce_label_mismatch_owner_immutable();
@@ -1349,7 +1426,7 @@ REVOKE ALL ON FUNCTION public.create_product_submission(
   jsonb,
   boolean,
   jsonb
-) FROM PUBLIC, anon;
+) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.create_product_submission(
   uuid,
   public.product_submission_kind,
@@ -1357,11 +1434,11 @@ GRANT EXECUTE ON FUNCTION public.create_product_submission(
   jsonb,
   boolean,
   jsonb
-) TO authenticated, service_role;
+) TO authenticated;
 REVOKE ALL ON FUNCTION public.finalize_product_submission(uuid)
-  FROM PUBLIC, anon;
+  FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.finalize_product_submission(uuid)
-  TO authenticated, service_role;
+  TO authenticated;
 REVOKE ALL ON FUNCTION public.review_product_submission(
   uuid,
   uuid,
@@ -1372,7 +1449,7 @@ REVOKE ALL ON FUNCTION public.review_product_submission(
   text,
   text,
   uuid
-) FROM PUBLIC, anon, authenticated;
+) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.review_product_submission(
   uuid,
   uuid,
@@ -1386,6 +1463,7 @@ GRANT EXECUTE ON FUNCTION public.review_product_submission(
 ) TO service_role;
 REVOKE ALL ON FUNCTION public.record_product_submission_extraction(
   uuid,
+  uuid,
   text,
   text,
   text,
@@ -1394,8 +1472,9 @@ REVOKE ALL ON FUNCTION public.record_product_submission_extraction(
   jsonb,
   jsonb,
   numeric
-) FROM PUBLIC, anon, authenticated;
+) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.record_product_submission_extraction(
+  uuid,
   uuid,
   text,
   text,
@@ -1406,28 +1485,34 @@ GRANT EXECUTE ON FUNCTION public.record_product_submission_extraction(
   jsonb,
   numeric
 ) TO service_role;
-REVOKE ALL ON FUNCTION public.export_approved_product_submissions(integer)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION
-  public.export_approved_product_submissions(integer)
+REVOKE ALL ON FUNCTION public.export_approved_product_submissions(
+  integer,
+  timestamptz,
+  uuid
+)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.export_approved_product_submissions(
+  integer,
+  timestamptz,
+  uuid
+)
   TO service_role;
 REVOKE ALL ON FUNCTION public.mark_product_submission_promoted(uuid, text)
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.mark_product_submission_promoted(uuid, text)
   TO service_role;
 REVOKE ALL ON FUNCTION public.claim_product_submission_cleanup(integer)
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.claim_product_submission_cleanup(integer)
   TO service_role;
 REVOKE ALL ON FUNCTION public.complete_product_submission_cleanup(uuid[])
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.complete_product_submission_cleanup(uuid[])
   TO service_role;
 REVOKE ALL ON FUNCTION
   public.list_product_submission_objects_for_user(uuid)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION
-  public.list_product_submission_objects_for_user(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.list_product_submission_objects_for_user(uuid)
   TO service_role;
 
 INSERT INTO storage.buckets (

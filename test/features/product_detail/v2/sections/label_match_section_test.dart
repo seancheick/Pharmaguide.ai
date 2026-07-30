@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
 
 const _fingerprint =
     '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -66,12 +67,27 @@ Widget _harness({
 }
 
 void main() {
+  test(
+    'malformed optional catalog UPC is omitted from correction metadata',
+    () {
+      final metadata = labelMismatchMetadataFrom(
+        _record(),
+        dsldId: '999',
+        upc: 'not-a-gtin',
+      );
+
+      expect(metadata, isNotNull);
+      expect(metadata!.dsldId, '999');
+      expect(metadata.upc, isNull);
+    },
+  );
+
   group('Label match catalog record details', () {
     testWidgets('shows source identity and version metadata without a claim', (
       tester,
     ) async {
       await tester.pumpWidget(
-        _harness(labelRecord: _record(), upc: '012345678901'),
+        _harness(labelRecord: _record(), upc: '050428381397'),
       );
 
       expect(find.text('Catalog record details'), findsOneWidget);
@@ -86,7 +102,7 @@ void main() {
       expect(find.text('Source record ID'), findsOneWidget);
       expect(find.text('999'), findsOneWidget);
       expect(find.text('UPC'), findsOneWidget);
-      expect(find.text('012345678901'), findsOneWidget);
+      expect(find.text('050428381397'), findsOneWidget);
       expect(find.text('Product status'), findsOneWidget);
       expect(find.text('Reformulated'), findsOneWidget);
       expect(find.text('Catalog version'), findsOneWidget);
@@ -140,7 +156,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             labelRecord: _record(formulaFingerprint: null),
-            upc: '012345678901',
+            upc: '050428381397',
           ),
         );
 
@@ -178,7 +194,7 @@ void main() {
         await tester.pumpWidget(
           _harness(
             labelRecord: _record(labelSourceUrl: testCase.url),
-            upc: '012345678901',
+            upc: '050428381397',
             onOpenSourceLabel: (uri) async => opened = uri,
           ),
         );
@@ -207,7 +223,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           labelRecord: malformed,
-          upc: '012345678901',
+          upc: '050428381397',
           onOpenSourceLabel: (_) async {
             fail('Malformed source records must not open a URL.');
           },
@@ -235,7 +251,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           labelRecord: _record(formulaFingerprint: 'not-a-sha256'),
-          upc: '012345678901',
+          upc: '050428381397',
         ),
       );
 
@@ -262,7 +278,7 @@ void main() {
               },
             ],
           ),
-          upc: '012345678901',
+          upc: '050428381397',
         ),
       );
 
@@ -280,7 +296,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        _harness(labelRecord: _record(), upc: '012345678901'),
+        _harness(labelRecord: _record(), upc: '050428381397'),
       );
 
       expect(

@@ -1,4 +1,10 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.110.7";
+
+import {
+  resolveSupabaseAdminKey,
+  resolveSupabasePublicKey,
+} from "../_shared/supabase_server_keys.ts";
+import { removeStorageObjectsOrThrow } from "../_shared/verified_storage_removal.ts";
 
 const DELETE_CONFIRMATION = "DELETE";
 const PHOTO_BUCKET = "product-submission-photos";
@@ -61,14 +67,21 @@ Deno.serve(async (request: Request): Promise<Response> => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+  let publicKey: string | undefined;
+  let adminKey: string | undefined;
+  try {
+    publicKey = resolveSupabasePublicKey();
+    adminKey = resolveSupabaseAdminKey();
+  } catch {
+    publicKey = undefined;
+    adminKey = undefined;
+  }
+  if (!supabaseUrl || !publicKey || !adminKey) {
     audit("server_configuration_error");
     return json({ error: "Account deletion is unavailable" }, 500);
   }
 
-  const userClient = createClient(supabaseUrl, anonKey, {
+  const userClient = createClient(supabaseUrl, publicKey, {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -78,7 +91,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return json({ error: "Authentication required" }, 401);
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
+  const admin = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
@@ -103,10 +116,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
       offset += MAX_OBJECTS_PER_DELETE
     ) {
       const chunk = objectPaths.slice(offset, offset + MAX_OBJECTS_PER_DELETE);
-      const { error: removeError } = await admin.storage
-        .from(PHOTO_BUCKET)
-        .remove(chunk);
-      if (removeError) throw removeError;
+      await removeStorageObjectsOrThrow(
+        admin.storage.from(PHOTO_BUCKET),
+        chunk,
+      );
     }
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(

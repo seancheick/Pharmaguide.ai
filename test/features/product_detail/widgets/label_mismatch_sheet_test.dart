@@ -521,7 +521,7 @@ void main() {
             child: buildLabelMatchSection(
               labelRecord: _labelRecord(),
               dsldId: '999',
-              upc: '012345678901',
+              upc: '050428381397',
               onOpenSourceLabel: (_) async {},
               onReportMismatch: (product) async => captured = product,
             ),
@@ -541,7 +541,7 @@ void main() {
     await tester.pump();
 
     expect(captured?.dsldId, '999');
-    expect(captured?.upc, '012345678901');
+    expect(captured?.upc, '050428381397');
     expect(captured?.sourceRecordId, '999');
     expect(captured?.catalogSourceVersion, '7');
     expect(captured?.formulaFingerprint, _fingerprint);
@@ -599,7 +599,7 @@ Future<void> _expectPhotoValidation(
 
 LabelMismatchProductMetadata _metadata() => LabelMismatchProductMetadata(
   dsldId: '999',
-  upc: '012345678901',
+  upc: '050428381397',
   sourceRecordId: '999',
   catalogSourceVersion: '7',
   formulaFingerprint: _fingerprint,

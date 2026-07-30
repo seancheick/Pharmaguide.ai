@@ -13,7 +13,7 @@ void main() {
       final listIndex = source.indexOf(
         'list_product_submission_objects_for_user',
       );
-      final removeIndex = source.indexOf('.remove(');
+      final removeIndex = source.indexOf('removeStorageObjectsOrThrow(');
       final deleteUserIndex = source.indexOf('auth.admin.deleteUser');
 
       expect(source, contains('userClient.auth.getUser'));
@@ -22,6 +22,7 @@ void main() {
       expect(deleteUserIndex, greaterThan(removeIndex));
       expect(source, contains('product-submission-photos'));
       expect(source, contains('event: "account_deletion"'));
+      expect(source, contains('../_shared/verified_storage_removal.ts'));
     },
   );
 
@@ -32,7 +33,9 @@ void main() {
 
     expect(source, contains('request.method !== "POST"'));
     expect(source, contains('authorization?.startsWith("Bearer ")'));
-    expect(source, contains('SUPABASE_SERVICE_ROLE_KEY'));
+    expect(source, contains('resolveSupabasePublicKey'));
+    expect(source, contains('resolveSupabaseAdminKey'));
+    expect(source, contains('../_shared/supabase_server_keys.ts'));
     expect(source, contains('DELETE_CONFIRMATION'));
     expect(source, contains('MAX_BODY_BYTES = 1024'));
     expect(source, contains('new TextEncoder().encode(bodyText).byteLength'));

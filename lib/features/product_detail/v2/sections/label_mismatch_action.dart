@@ -15,21 +15,40 @@ LabelMismatchProductMetadata? labelMismatchMetadataFrom(
 }) {
   final record = labelRecord is Map ? labelRecord : const <dynamic, dynamic>{};
   final sourceRecordId = _blankToNull(record['source_record_id']);
-  final reportId = _blankToNull(dsldId) ?? sourceRecordId;
+  final explicitDsldId = _blankToNull(dsldId);
+  final reportId =
+      explicitDsldId ??
+      (sourceRecordId != null &&
+              RegExp(r'^[0-9]{1,30}$').hasMatch(sourceRecordId)
+          ? sourceRecordId
+          : null);
   if (reportId == null) return null;
-  try {
+  LabelMismatchProductMetadata build(String? candidateUpc) {
     // Blank optional provenance is normalized to null (omitted from the
     // report) rather than passed through — an empty-string catalog_version or
     // fingerprint is a common pipeline data-hygiene quirk and must not
     // suppress the whole action when the dsldId alone is enough to report.
     return LabelMismatchProductMetadata(
       dsldId: reportId,
-      upc: _blankToNull(upc),
+      upc: candidateUpc,
       sourceRecordId: sourceRecordId,
       catalogSourceVersion: _blankToNull(record['catalog_version']),
       formulaFingerprint: _blankToNull(record['formula_fingerprint']),
     );
-  } on ProductSubmissionValidationException {
+  }
+
+  try {
+    return build(_blankToNull(upc));
+  } on ProductSubmissionValidationException catch (error) {
+    if (error.reason == ProductSubmissionValidationFailure.invalidUpc) {
+      // A malformed optional catalog UPC is not a reason to hide correction
+      // reporting when the stable DSLD identity is still valid.
+      try {
+        return build(null);
+      } on ProductSubmissionValidationException {
+        return null;
+      }
+    }
     // Genuinely malformed provenance (e.g. a non-blank, non-sha256
     // fingerprint) must never crash the product page during build — the
     // mismatch action simply does not render.
