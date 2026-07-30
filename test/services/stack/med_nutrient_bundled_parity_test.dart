@@ -31,8 +31,11 @@ import 'package:flutter_test/flutter_test.dart';
 // exact-copy delta review (including the furosemide/thiamine monitoring tip),
 // and record provenance distinguishes the AI evidence audit from the
 // PharmaGuide Clinical Team's exact-fingerprint approval.
+// Repinned 2026-07-30 for the bounded Clinical Team delta response: exact
+// levothyroxine/calcium and orlistat/vitamin-A copy plus the requested
+// acid-suppression/iron and SSRI/sodium evidence revisions.
 const _pinnedContentHash =
-    'sha256:c3f95f1d5ea4cbf05a6d26e81f3623e3834dd577d3b70c9f1bbc551a8dd89dee';
+    'sha256:ec003d3082bedfcf133a266c101960e6b2892fb6cbc9013e1b55b66556e6423f';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

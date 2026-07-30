@@ -9,6 +9,6 @@
   "min_size_bytes": 1048576,
   "pipeline_commit": "a55e9c7138ee1971fb9fadbffda0d55ff9640bc6",
   "interaction_db_version": "1.0.10",
-  "clinical_content_hash": "sha256:c3f95f1d5ea4cbf05a6d26e81f3623e3834dd577d3b70c9f1bbc551a8dd89dee",
+  "clinical_content_hash": "sha256:ec003d3082bedfcf133a266c101960e6b2892fb6cbc9013e1b55b66556e6423f",
   "runtime_contract": 1
 }
