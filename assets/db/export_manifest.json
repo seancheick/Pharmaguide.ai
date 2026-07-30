@@ -96,8 +96,8 @@
   "score_model": "v4",
   "scoring_version": "4.1.0",
   "warnings": [],
-  "interaction_db_checksum": "f466367667bcd2ac45138c2851428e1142bf13310d3ffb0a1d2460942c941646",
-  "interaction_db_version": "1.0.10",
+  "interaction_db_checksum": "ad8547bad04045247c999b75cc3f994d8445efa5f69d3ef2a6c57395b4c0c7e0",
+  "interaction_db_version": "1.0.11",
   "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "source_of_truth_matrix_version": "1.0.0",
   "strict_gate_summary": {

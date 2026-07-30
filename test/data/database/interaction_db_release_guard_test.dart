@@ -264,5 +264,27 @@ void main() {
       expect(management, contains('anticoagulation'));
       expect(management, contains('do not change warfarin'));
     });
+
+    test(
+      'cholestyramine and warfarin resolves through the real pair bridge',
+      () async {
+        final rows = await db.lookupPair('2447', 'drug', '11289', 'drug');
+
+        expect(rows, hasLength(1));
+        final rule = rows.single;
+        final mechanism = rule.mechanism.toLowerCase();
+        final management = rule.management.toLowerCase();
+
+        expect(rule.id, 'DDI_CHOLESTYRAMINE_WARFARIN');
+        expect(rule.severity, 'avoid');
+        expect(rule.evidenceLevel, 'established');
+        expect(mechanism, contains('reduce the absorption of warfarin'));
+        expect(management, contains('at least 1 hour before'));
+        expect(management, contains('4 to 6 hours after'));
+        expect(management, contains('timing consistent'));
+        expect(management, contains('starting, stopping, or changing'));
+        expect(management, contains('do not change warfarin on your own'));
+      },
+    );
   });
 }
