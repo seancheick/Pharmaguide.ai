@@ -173,12 +173,15 @@ class _FlutterHealthReminderNotificationClient
   @override
   Future<bool> requestPermission() async {
     if (defaultTargetPlatform == TargetPlatform.android) {
+      // Default false, matching iOS: an unresolvable plugin or a denied
+      // request must surface as "not granted" so the caller reports
+      // scheduled: 0 instead of claiming reminders that will never fire.
       return await _notifications
               .resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin
               >()
               ?.requestNotificationsPermission() ??
-          true;
+          false;
     }
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return await _notifications
