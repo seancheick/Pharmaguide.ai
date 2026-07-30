@@ -36,6 +36,8 @@ import 'package:pharmaguide/services/stack/depletion_checker.dart'
 import 'package:pharmaguide/services/stack/depletion_watch.dart'
     show DepletionWatchStatus;
 import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
+import 'package:pharmaguide/features/stack/v2/widgets/pg_daily_plan_card.dart';
+import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/stack_safety_details_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
@@ -641,6 +643,7 @@ class _StackTabState extends ConsumerState<_StackTab> {
           // Timing + depletion advice, then the broader coverage review
           // at the bottom. Each slot collapses when nothing applies.
           const _TimingAdviceSlot(),
+          const _DailyPlanSlot(),
           const _DepletionSlot(),
           const _CoverageSlot(),
         ],
@@ -2375,6 +2378,38 @@ class _TimingAdviceSlot extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       // The stack-safety slot watches this same provider and renders the
       // single unavailable banner. Avoid duplicating it here.
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// Roadmap Phase 3 — the same timing constraints, arranged into one day.
+///
+/// Sits directly beneath the per-rule timing card: that card explains each
+/// piece of guidance, this one shows what following all of it looks like.
+class _DailyPlanSlot extends ConsumerWidget {
+  const _DailyPlanSlot();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reportAsync = ref.watch(stackSafetyReportProvider);
+    return reportAsync.when(
+      data: (report) {
+        if (!report.hasTimingAdvice) return const SizedBox.shrink();
+        final plan = const TimingSequenceResolver().resolve(
+          report.timingOptimizations,
+        );
+        return PGDailyPlanCard(
+          plan: plan,
+          margin: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space12,
+            V2Spacing.space24,
+            0,
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
     );
   }
