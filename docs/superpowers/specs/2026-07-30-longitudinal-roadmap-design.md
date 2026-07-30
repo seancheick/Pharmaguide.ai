@@ -1,8 +1,23 @@
 # Longitudinal Health Organization — Three-Phase Roadmap
 
 **Date:** 2026-07-30
-**Status:** Approved direction — phased implementation remains subject to the
-clinical-data gates described below
+**Status:** Implemented (code) — 2026-07-30. Phase 1 and Phase 2 ship end to
+end; Phase 3's resolver is complete and tested but has no UI surface yet.
+Phase 1 is inert until a clinical reviewer authors `watch_threshold_days`,
+which remains a clinician-owned change and is deliberately NOT part of the
+code implementation.
+
+**Divergences from this spec, decided during implementation:**
+- `DepletionChecker.check()` was NOT refactored to thread stack-entry ids.
+  It flattens identities into shared lookup sets, so threading ids would mean
+  operating on the identity matcher. The watch instead replays the same pure
+  `check()` once per medication, keeping the checker the sole matching
+  authority and the identity guard untouched.
+- "Promote `monitoring_tip_short`" means raising emphasis on a line the card
+  already renders unconditionally (`pg_depletion_card.dart`), not adding one.
+- Rows predating the v10 event log fall back to the stack row's own
+  `added_at`; without it every long-tenured user would be invisible to the
+  watch.
 **Scope:** Enhance three existing subsystems (depletion, timing, visit) into a
 longitudinal loop. No new subsystems.
 

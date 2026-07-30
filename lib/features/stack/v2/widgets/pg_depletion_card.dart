@@ -19,16 +19,25 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
+import 'package:pharmaguide/services/stack/depletion_watch.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PGDepletionCard extends StatelessWidget {
   final List<DepletionMatch> depletions;
   final EdgeInsetsGeometry margin;
 
+  /// Curated watch thresholds that have elapsed, keyed by depletion entry id.
+  ///
+  /// Empty by default and empty in practice until a clinical reviewer authors a
+  /// `watch_threshold_days`, so the card renders exactly as before unless the
+  /// pipeline says otherwise.
+  final Map<String, DepletionWatchStatus> watchStatuses;
+
   const PGDepletionCard({
     super.key,
     required this.depletions,
     this.margin = EdgeInsets.zero,
+    this.watchStatuses = const {},
   });
 
   @override
@@ -66,7 +75,11 @@ class PGDepletionCard extends StatelessWidget {
               style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space12),
-            for (final dep in depletions) _DepletionRow(dep: dep),
+            for (final dep in depletions)
+              _DepletionRow(
+                dep: dep,
+                watch: watchStatuses[dep.depletionId],
+              ),
           ],
         ),
       ),
@@ -161,7 +174,25 @@ class PGDepletionUnavailableCard extends StatelessWidget {
 
 class _DepletionRow extends StatelessWidget {
   final DepletionMatch dep;
-  const _DepletionRow({required this.dep});
+
+  /// Non-null only when a reviewer-authored threshold exists for this entry.
+  final DepletionWatchStatus? watch;
+
+  const _DepletionRow({required this.dep, this.watch});
+
+  /// True once the curated threshold has elapsed. The row raises the emphasis
+  /// of the tip it already shows rather than adding a second copy of it.
+  bool get _isDue => watch?.isDue ?? false;
+
+  /// Device fact only: how long this medication has been tracked *here*, never
+  /// a claim about how long the person has taken it. Their prescription may
+  /// predate the app by years.
+  String _trackedForLine() {
+    final months = watch!.trackedMonths;
+    if (months < 24) return 'Tracked here for about $months months';
+    final years = months ~/ 12;
+    return 'Tracked here for about $years years';
+  }
 
   String _bodyCopy() {
     final d = dep;
@@ -272,23 +303,49 @@ class _DepletionRow extends StatelessWidget {
                         _bodyCopy(),
                         style: V2Typography.bodySm(color: V2Colors.fg),
                       ),
+                      if (_isDue) ...[
+                        const SizedBox(height: V2Spacing.space8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.schedule_rounded,
+                              size: 14,
+                              color: V2Colors.monitor,
+                            ),
+                            const SizedBox(width: V2Spacing.space4),
+                            Expanded(
+                              child: Text(
+                                _trackedForLine(),
+                                style: V2Typography.caption(
+                                  color: V2Colors.monitor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       if (d.monitoringTipShort != null &&
                           d.monitoringTipShort!.isNotEmpty) ...[
                         const SizedBox(height: V2Spacing.space8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.lightbulb_outline_rounded,
                               size: 14,
-                              color: V2Colors.fgMuted,
+                              color: _isDue
+                                  ? V2Colors.monitor
+                                  : V2Colors.fgMuted,
                             ),
                             const SizedBox(width: V2Spacing.space4),
                             Expanded(
                               child: Text(
                                 d.monitoringTipShort!,
                                 style: V2Typography.caption(
-                                  color: V2Colors.fgMuted,
+                                  color: _isDue
+                                      ? V2Colors.fg
+                                      : V2Colors.fgMuted,
                                 ),
                               ),
                             ),

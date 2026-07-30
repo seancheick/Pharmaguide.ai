@@ -33,6 +33,8 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart'
     show MedNutrientLoadStatus;
+import 'package:pharmaguide/services/stack/depletion_watch.dart'
+    show DepletionWatchStatus;
 import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/stack_safety_details_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
@@ -2434,7 +2436,17 @@ class _DepletionSlot extends ConsumerWidget {
           return const PGDepletionUnavailableCard(margin: margin);
         }
         if (report.matches.isEmpty) return const SizedBox.shrink();
-        return PGDepletionCard(depletions: report.matches, margin: margin);
+        // The watch only annotates rows the checker already produced, so a
+        // pending/failed watch degrades to today's card rather than delaying
+        // or suppressing it.
+        final watchStatuses =
+            ref.watch(depletionWatchProvider).asData?.value ??
+            const <String, DepletionWatchStatus>{};
+        return PGDepletionCard(
+          depletions: report.matches,
+          margin: margin,
+          watchStatuses: watchStatuses,
+        );
       },
       loading: () => const SizedBox.shrink(),
       // An exception is NOT a clean state — a load/parse failure must never

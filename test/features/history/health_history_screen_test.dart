@@ -106,6 +106,10 @@ void main() {
     expect(find.text('Cancel'), findsOneWidget);
     await tester.tap(find.text('Complete'));
     await tester.pumpAndSettle();
+    // Completing a doctor visit now offers an optional note first (visit loop,
+    // Phase 2). Skipping is the default path and still completes the visit.
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
     expect(
       (await history.getTimeline()).map((event) => event.eventType),
       contains(HealthEventTypes.appointmentCompleted),

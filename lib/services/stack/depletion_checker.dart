@@ -67,6 +67,22 @@ class DepletionMatch {
   /// older data. Used by the UI to set calming expectations.
   final String? onsetTimeline;
 
+  /// Optional curated watch threshold, in days of continuous tracking, after
+  /// which this relationship becomes worth revisiting. Authored per entry by a
+  /// clinical reviewer alongside [watchBasis]; the app never derives or
+  /// defaults it. `onsetTimeline` is a coarse bucket for copy framing and
+  /// cannot answer "is this due yet?", which is why this exists separately.
+  ///
+  /// Null on every entry a reviewer has not authored — those entries are simply
+  /// not watched, so the feature degrades to prior behavior rather than
+  /// inventing a clinical timeline.
+  final int? watchThresholdDays;
+
+  /// The reviewer's cited justification for [watchThresholdDays], drawn from
+  /// the same source set already on the entry. Present whenever a threshold is,
+  /// so a threshold can never appear without its provenance.
+  final String? watchBasis;
+
   /// Pipeline v5.0 `clinical_impact` — symptom-forward layperson-
   /// relevant copy (e.g., "30% of long-term users develop B12
   /// deficiency"). Null until surfaced per-entry.
@@ -143,6 +159,8 @@ class DepletionMatch {
     required this.recommendation,
     this.sourceUrls = const [],
     this.onsetTimeline,
+    this.watchThresholdDays,
+    this.watchBasis,
     this.clinicalImpact,
     this.alertHeadline,
     this.alertBody,
@@ -694,6 +712,7 @@ class DepletionChecker {
       final adequacyMcg = _asNum(dep['adequacy_threshold_mcg']);
       final adequacyMg = _asNum(dep['adequacy_threshold_mg']);
       final depletionType = _normalizeDepletionType(dep['depletion_type']);
+      final (:watchThresholdDays, :watchBasis) = _parseWatchThreshold(dep);
 
       final matchedDose = dosesByCid[coverageCanonicalId];
       final coverage = _isSupplementCoverageRelevant(depletionType)
@@ -720,6 +739,8 @@ class DepletionChecker {
           recommendation: dep['recommendation']?.toString() ?? '',
           sourceUrls: sourceUrls,
           onsetTimeline: dep['onset_timeline']?.toString(),
+          watchThresholdDays: watchThresholdDays,
+          watchBasis: watchBasis,
           clinicalImpact: dep['clinical_impact']?.toString(),
           alertHeadline: dep['alert_headline']?.toString(),
           alertBody: dep['alert_body']?.toString(),
@@ -832,6 +853,33 @@ class DepletionChecker {
     if (v is num) return v;
     if (v is String) return num.tryParse(v);
     return null;
+  }
+
+  /// Parse the optional curated watch threshold, fail-closed.
+  ///
+  /// Three conditions must ALL hold before a threshold is honoured:
+  ///   1. `watch_threshold_days` is a positive whole number of days,
+  ///   2. `watch_basis` cites the evidence for it, and
+  ///   3. `watch_review_status` is exactly `approved`.
+  ///
+  /// Condition 3 is the clinical sign-off gate, mirroring
+  /// `citation_review_status`: a drafted threshold ships as `proposed` and is
+  /// completely inert until a reviewer approves it. Anything else — a missing
+  /// status, `proposed`, `rejected`, or an unknown future value — fails closed.
+  ///
+  /// A non-integer value is dropped rather than rounded. Silently rounding
+  /// would manufacture a clinical timeline no reviewer authored.
+  static ({int? watchThresholdDays, String? watchBasis}) _parseWatchThreshold(
+    Map<String, dynamic> dep,
+  ) {
+    const empty = (watchThresholdDays: null, watchBasis: null);
+    final status = dep['watch_review_status']?.toString().trim().toLowerCase();
+    if (status != 'approved') return empty;
+    final raw = _asNum(dep['watch_threshold_days']);
+    if (raw == null || raw <= 0 || raw != raw.roundToDouble()) return empty;
+    final basis = dep['watch_basis']?.toString().trim();
+    if (basis == null || basis.isEmpty) return empty;
+    return (watchThresholdDays: raw.toInt(), watchBasis: basis);
   }
 
   static String _normalizeDepletionType(Object? raw) {
