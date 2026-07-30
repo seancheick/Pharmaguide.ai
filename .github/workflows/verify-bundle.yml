@@ -56,28 +56,13 @@ jobs:
     if: github.actor != 'dependabot[bot]'
 
     steps:
-      # The bundled catalog DB ships via Git LFS. Without lfs:true we'd
-      # only get the LFS pointer text and the SHA256 verification would
-      # fail on every run — exactly the test that proves the verifier
-      # is doing something useful, but not what we want from CI.
-      #
-      # NOTE: unlike ci.yml, this job keeps lfs:true deliberately. Its
-      # entire purpose is verifying the real bundle, so there is nothing
-      # useful to run without it — a green "verified" here that never
-      # read the DB would be worse than a failure. If this step dies with
-      # "This repository exceeded its LFS budget", that is the account's
-      # LFS budget, not a bundle defect; restore the budget and re-run.
+      # Check out the committed LFS pointer without downloading its object.
+      # The job below proves that pointer, the committed manifest, and the
+      # canonical Supabase catalog all identify the same immutable bytes.
+      # This keeps the release gate meaningful when GitHub LFS is unavailable.
       - uses: actions/checkout@v7
         with:
-          lfs: true
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
+          lfs: false
 
       - name: Fail fast if Supabase secrets are missing
         env:
@@ -90,6 +75,49 @@ jobs:
             exit 1
           fi
 
+      - name: Materialize committed catalog from Supabase storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          manifest="assets/db/export_manifest.json"
+          pointer="assets/db/pharmaguide_core.db"
+          verification_db="$RUNNER_TEMP/pharmaguide_core.db"
+
+          db_version="$(jq -er '.db_version' "$manifest")"
+          expected_sha="$(jq -er '.checksum_sha256' "$manifest")"
+          pointer_sha="$(sed -n 's/^oid sha256://p' "$pointer")"
+
+          if [ -z "$pointer_sha" ] || [ "$pointer_sha" != "$expected_sha" ]; then
+            echo "::error::Committed catalog LFS pointer does not match export_manifest.json"
+            exit 1
+          fi
+
+          storage_url="${SUPABASE_URL%/}/storage/v1/object/authenticated/pharmaguide/v${db_version}/pharmaguide_core.db"
+          curl --fail --silent --show-error --location --retry 3 \
+            --header "apikey: $SUPABASE_ANON_KEY" \
+            --header "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            --output "$verification_db" \
+            "$storage_url"
+
+          actual_sha="$(sha256sum "$verification_db" | awk '{print $1}')"
+          if [ "$actual_sha" != "$expected_sha" ]; then
+            echo "::error::Supabase catalog checksum does not match the committed manifest"
+            exit 1
+          fi
+
+          echo "VERIFICATION_DB=$verification_db" >> "$GITHUB_ENV"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
       - name: Verify bundle against Supabase storage
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -98,7 +126,7 @@ jobs:
         run: |
           dart run scripts/verify_bundle.dart \
             --manifest assets/db/export_manifest.json \
-            --db assets/db/pharmaguide_core.db \
+            --db "$VERIFICATION_DB" \
             --supabase-url "$SUPABASE_URL" \
             --anon-key "$SUPABASE_ANON_KEY" \
             --sample-size "$SAMPLE_SIZE"

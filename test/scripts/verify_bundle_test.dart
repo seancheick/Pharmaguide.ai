@@ -466,4 +466,16 @@ void main() {
       expect(result.sampleSize, 5);
     });
   });
+
+  test('verify-bundle workflow is independent of GitHub LFS availability', () {
+    final workflow = File(
+      '.github/workflows/verify-bundle.yml',
+    ).readAsStringSync();
+
+    expect(workflow, contains('lfs: false'));
+    expect(workflow, contains("pointer_sha=\"\$(sed -n 's/^oid sha256://p'"));
+    expect(workflow, contains('object/authenticated/pharmaguide/v'));
+    expect(workflow, contains('--db "\$VERIFICATION_DB"'));
+    expect(workflow, isNot(contains('lfs: true')));
+  });
 }
