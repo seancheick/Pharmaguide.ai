@@ -495,7 +495,8 @@ class UserDatabase extends _$UserDatabase {
   ///     flags), user_stacks_local (supplements, medications, tombstones —
   ///     hard-deleting rows also destroys all sync dirty/queue state, so
   ///     nothing of the previous user can ever push under the new uid),
-  ///     user_favorites, user_scan_history.
+  ///     user_favorites, user_scan_history, health_history_events (the local
+  ///     stack, appointment, and lifecycle timeline).
   ///   PRESERVED — product_detail_cache and product_image_cache (product-
   ///     keyed catalog mirrors, no user linkage) and user_failed_scans
   ///     (no-PII device telemetry; see failed_scans_table.dart).

@@ -23,9 +23,10 @@ import 'package:pharmaguide/core/models/timing_optimization.dart';
 ///
 /// **Performance:**
 ///
-/// Index build: O(R) where R = number of rules (37 currently).
+/// Index build: O(R) where R = number of rules.
 /// Stack evaluation: O(S × avg_rules_per_ingredient) where S = stack size.
-/// For a 50-item stack with 37 rules, this is <1ms on modern devices.
+/// Runtime scales with indexed matches rather than scanning the full rule set
+/// for every stack item.
 class TimingEvaluationService {
   TimingEvaluationService._({
     required this._rules,

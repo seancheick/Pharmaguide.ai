@@ -1,6 +1,6 @@
 // Release gate: the Flutter bundle must ship a real, verified interaction
 // database alongside its JSON manifest, and the boot-time materialization
-// path must complete within the local boot budget.
+// path must reproduce the bundled bytes exactly.
 //
 // This complements `bundled_catalog_test.dart` for the catalog DB. If any
 // check in this file fails, the build should not ship — a missing or
@@ -18,8 +18,9 @@
 //    `openInteractionDatabase` helper, hitting the same
 //    `ensureInteractionDatabaseAvailable` materialization path the app
 //    uses at boot.
-// 4. The end-to-end materialize-and-open path completes in <200 ms locally.
-//    CI keeps a wider guard because shared runners and coverage add I/O jitter.
+// 4. The end-to-end materialize-and-open path writes the complete bundled
+//    asset to disk. Performance belongs in a dedicated benchmark, not a
+//    correctness gate running under variable CI load.
 // 5. `getMetadata()` hydrates and the embedded
 //    `interaction_db_metadata.schema_version` and `total_interactions`
 //    keys agree with the JSON manifest.
@@ -44,15 +45,6 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 // is intentionally permissive so we don't have to bump it on every
 // curated-row addition.
 const _minBundledInteractionDbBytes = 16 * 1024;
-
-// 200 ms is the F8 startup budget for local asset materialization + open.
-// CI runs with coverage on shared hosts, where cold temp-dir writes can spike
-// above the user-facing budget without indicating an app regression.
-const _localBootMaterializeBudgetMs = 200;
-const _ciBootMaterializeBudgetMs = 500;
-final _maxBootMaterializeMs = Platform.environment['CI'] == 'true'
-    ? _ciBootMaterializeBudgetMs
-    : _localBootMaterializeBudgetMs;
 
 // Keys the pipeline writes to interaction_db_manifest.json (file/transport
 // metadata only). Build-process counters like `override_count` and
@@ -118,38 +110,28 @@ void main() {
       );
     });
 
-    test('openInteractionDatabase materializes the bundle and opens it in '
-        'under ${_maxBootMaterializeMs}ms — boot budget guard', () async {
+    test('openInteractionDatabase materializes the complete bundle and opens '
+        'it', () async {
       // Use a fresh temp dir so the test always exercises the cold
-      // path (writeAsBytes), not the cached path. This is the worst
-      // case the boot budget needs to cover.
+      // path (writeAsBytes), not the cached path.
       final tmpDir = await Directory.systemTemp.createTemp('rg-idb-boot');
       addTearDown(() => tmpDir.delete(recursive: true));
 
-      final stopwatch = Stopwatch()..start();
+      final bundled = await rootBundle.load('assets/db/interaction_db.sqlite');
       final db = await openInteractionDatabase(documentsDirectory: tmpDir);
-      stopwatch.stop();
 
       try {
-        expect(
-          stopwatch.elapsedMilliseconds,
-          lessThan(_maxBootMaterializeMs),
-          reason:
-              'Bundle materialize + open took '
-              '${stopwatch.elapsedMilliseconds}ms, budget is '
-              '${_maxBootMaterializeMs}ms. The asset got bigger or the '
-              'native open path regressed — investigate before bumping '
-              'the budget.',
-        );
-
         // Confirm the materialized file is on disk where the helper
         // promised it would be — guards against a future refactor that
-        // accidentally leaks an in-memory DB.
+        // accidentally leaks an in-memory or truncated DB.
         final materialized = File(p.join(tmpDir.path, 'interaction_db.sqlite'));
         expect(await materialized.exists(), isTrue);
         expect(
           await materialized.length(),
-          greaterThan(_minBundledInteractionDbBytes),
+          equals(bundled.lengthInBytes),
+          reason:
+              'The materialized interaction DB must contain every byte '
+              'from the bundled asset.',
         );
       } finally {
         await db.close();

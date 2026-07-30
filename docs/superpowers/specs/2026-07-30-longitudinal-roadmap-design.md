@@ -157,8 +157,8 @@ objects — individual pairwise findings ("separate iron and calcium"). Correct
 and well-built, but with several supplements the user receives a set of
 overlapping constraints and must solve the schedule themselves.
 
-Note: the doc comment at `timing_evaluation_service.dart:26` claims 37 rules;
-`assets/reference_data/timing_rules.json` has 32. Fix while in the file.
+The service documentation intentionally avoids hard-coding a rule count; the
+bundled rule artifact and its release gates remain the source of truth.
 
 ### Behavior
 
