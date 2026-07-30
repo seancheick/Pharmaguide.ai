@@ -1090,30 +1090,49 @@ class _StackItemRow extends ConsumerWidget {
                           entry.frequency != null ||
                           entry.hasReminder) ...[
                         const SizedBox(height: V2Spacing.space4),
-                        Row(
-                          children: [
-                            if (entry.hasReminder) ...[
-                              const Icon(
-                                Icons.notifications_active_outlined,
-                                size: 12,
-                                color: V2Colors.accent,
+                        Builder(
+                          builder: (context) {
+                            final schedule = [entry.dosage, entry.frequency]
+                                .whereType<String>()
+                                .where((s) => s.isNotEmpty)
+                                .join(' · ');
+                            // The bell is the only visual signal that a
+                            // reminder exists, so its meaning has to be in the
+                            // label too — an icon alone is invisible to a
+                            // screen reader and to anyone who can't
+                            // distinguish the accent colour.
+                            final spoken = [
+                              if (schedule.isNotEmpty)
+                                schedule.replaceAll(' · ', ', '),
+                              if (entry.hasReminder) 'Daily reminder on',
+                            ].join('. ');
+                            return Semantics(
+                              label: spoken.isEmpty ? null : spoken,
+                              excludeSemantics: spoken.isNotEmpty,
+                              child: Row(
+                                children: [
+                                  if (entry.hasReminder) ...[
+                                    const Icon(
+                                      Icons.notifications_active_outlined,
+                                      size: 12,
+                                      color: V2Colors.accent,
+                                    ),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  Flexible(
+                                    child: Text(
+                                      schedule,
+                                      style: V2Typography.caption(
+                                        color: V2Colors.fgSubtle,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 4),
-                            ],
-                            Flexible(
-                              child: Text(
-                                [entry.dosage, entry.frequency]
-                                    .whereType<String>()
-                                    .where((s) => s.isNotEmpty)
-                                    .join(' · '),
-                                style: V2Typography.caption(
-                                  color: V2Colors.fgSubtle,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ],
                       if (score != null) ...[
@@ -1308,8 +1327,55 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
     }
   }
 
+  /// True when the sheet holds edits that would be lost on dismissal.
+  bool get _isDirty =>
+      _dosageController.text.trim() != (widget.dosage ?? '').trim() ||
+      _frequencyController.text.trim() != (widget.frequency ?? '').trim() ||
+      _startedAt != widget.startedAt ||
+      _reminderMinutes != widget.reminderMinutes;
+
+  Future<bool> _confirmDiscard() async {
+    if (!_isDirty) return true;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text(
+          'Your edits to this item have not been saved yet.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    return discard ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      // Swiping the sheet away is the easiest gesture to hit by accident, and
+      // a discarded start date is silently wrong data rather than a visible
+      // failure. Confirm before losing it.
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _confirmDiscard() && mounted) {
+          if (context.mounted) Navigator.of(context).pop();
+        }
+      },
+      child: _buildBody(context),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         V2Spacing.space24,
@@ -1391,10 +1457,15 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
                 child: OutlinedButton.icon(
                   onPressed: _saving ? null : _pickStartDate,
                   icon: const Icon(Icons.event_outlined, size: 18),
+                  // Wraps rather than truncates: at large accessibility text
+                  // sizes an ellipsis would hide the date, which is the only
+                  // thing the control is reporting.
                   label: Text(
                     _startedAt == null
                         ? 'Set start date'
                         : 'Started ${_formatStart(_startedAt!)}',
+                    softWrap: true,
+                    textAlign: TextAlign.start,
                   ),
                 ),
               ),

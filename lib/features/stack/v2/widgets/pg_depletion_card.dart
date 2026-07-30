@@ -305,24 +305,30 @@ class _DepletionRow extends StatelessWidget {
                       ),
                       if (_isDue) ...[
                         const SizedBox(height: V2Spacing.space8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(
-                              Icons.schedule_rounded,
-                              size: 14,
-                              color: V2Colors.monitor,
-                            ),
-                            const SizedBox(width: V2Spacing.space4),
-                            Expanded(
-                              child: Text(
-                                _trackedForLine(),
-                                style: V2Typography.caption(
-                                  color: V2Colors.monitor,
+                        Semantics(
+                          // The clock icon is decorative; the sentence carries
+                          // the meaning, so emphasis is never colour-only.
+                          label: _trackedForLine(),
+                          excludeSemantics: true,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.schedule_rounded,
+                                size: 14,
+                                color: V2Colors.monitor,
+                              ),
+                              const SizedBox(width: V2Spacing.space4),
+                              Expanded(
+                                child: Text(
+                                  _trackedForLine(),
+                                  style: V2Typography.caption(
+                                    color: V2Colors.monitor,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                       if (d.monitoringTipShort != null &&

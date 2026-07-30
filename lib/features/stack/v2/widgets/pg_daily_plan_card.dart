@@ -78,9 +78,12 @@ class PGDailyPlanCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: V2Spacing.space8),
-                    Text(
-                      'One way to space your day',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'One way to space your day',
+                        style: V2Typography.titleSm(color: V2Colors.fg),
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
@@ -130,28 +133,35 @@ class _SlotRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: V2Colors.accent),
-        const SizedBox(width: V2Spacing.space8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                slot.label,
-                style: V2Typography.label(color: V2Colors.fg),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                items.join(' · '),
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
-              ),
-            ],
+    // One label per slot, so a screen reader announces "With breakfast: iron,
+    // vitamin c" instead of walking a decorative icon and a middot-separated
+    // string. The visual separator is punctuation, not content.
+    return Semantics(
+      label: '${slot.label}: ${items.join(', ')}',
+      excludeSemantics: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: V2Colors.accent),
+          const SizedBox(width: V2Spacing.space8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  slot.label,
+                  style: V2Typography.label(color: V2Colors.fg),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  items.join(' · '),
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -174,9 +184,12 @@ class _Conflicts extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Couldn't fit into one day",
-            style: V2Typography.label(color: V2Colors.fg),
+          Semantics(
+            header: true,
+            child: Text(
+              "Couldn't fit into one day",
+              style: V2Typography.label(color: V2Colors.fg),
+            ),
           ),
           const SizedBox(height: V2Spacing.space4),
           Text(
