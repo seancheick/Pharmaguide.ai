@@ -25,66 +25,76 @@ FitScoreService _service() => FitScoreService(
 );
 
 void main() {
-  test('catalog failure surfaces instead of becoming an absent Fit result', () async {
-    final tempDir = await Directory.systemTemp.createTemp(
-      'pharmaguide-fit-corrupt-core-',
-    );
-    addTearDown(() => tempDir.delete(recursive: true));
-    final dbFile = File('${tempDir.path}/pharmaguide_core.db');
-    await dbFile.writeAsString('not a sqlite database');
-    final coreDb = CoreDatabase.open(dbFile.path);
-    addTearDown(coreDb.close);
-    final container = ProviderContainer(
-      overrides: [
-        coreDatabaseProvider.overrideWithValue(coreDb),
-        fitScoreServiceProvider.overrideWith((ref) async => _service()),
-        loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
-        currentStackMedicationClassIdsProvider.overrideWith(
-          (ref) async => const <String>{},
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await expectLater(
-      container.read(fitScoreForProductProvider(_dsldId).future),
-      throwsA(anything),
-    );
-  });
-
-  test('declared detail failure surfaces instead of becoming an absent Fit result', () async {
-    final coreDb = CoreDatabase.memory();
-    addTearDown(coreDb.close);
-    await coreDb
-        .into(coreDb.productsCore)
-        .insert(
-          ProductsCoreCompanion.insert(
-            dsldId: _dsldId,
-            productName: 'Fit Provider Product',
-            exportVersion: 'test',
-            exportedAt: '2026-07-29T00:00:00Z',
-            mappedCoverage: const Value(1),
+  test(
+    'catalog failure surfaces instead of becoming an absent Fit result',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'pharmaguide-fit-corrupt-core-',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+      final dbFile = File('${tempDir.path}/pharmaguide_core.db');
+      await dbFile.writeAsString('not a sqlite database');
+      final coreDb = CoreDatabase.open(dbFile.path);
+      addTearDown(coreDb.close);
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          fitScoreServiceProvider.overrideWith((ref) async => _service()),
+          loadedProfileProvider.overrideWith(
+            (ref) async => const ProfileState(),
           ),
-        );
+          currentStackMedicationClassIdsProvider.overrideWith(
+            (ref) async => const <String>{},
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    final container = ProviderContainer(
-      overrides: [
-        coreDatabaseProvider.overrideWithValue(coreDb),
-        fitScoreServiceProvider.overrideWith((ref) async => _service()),
-        loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
-        currentStackMedicationClassIdsProvider.overrideWith(
-          (ref) async => const <String>{},
-        ),
-        detailBlobProvider.overrideWith(
-          (ref, dsldId) async => throw Exception('detail unavailable'),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
+      await expectLater(
+        container.read(fitScoreForProductProvider(_dsldId).future),
+        throwsA(anything),
+      );
+    },
+  );
 
-    await expectLater(
-      container.read(fitScoreForProductProvider(_dsldId).future),
-      throwsA(anything),
-    );
-  });
+  test(
+    'declared detail failure surfaces instead of becoming an absent Fit result',
+    () async {
+      final coreDb = CoreDatabase.memory();
+      addTearDown(coreDb.close);
+      await coreDb
+          .into(coreDb.productsCore)
+          .insert(
+            ProductsCoreCompanion.insert(
+              dsldId: _dsldId,
+              productName: 'Fit Provider Product',
+              exportVersion: 'test',
+              exportedAt: '2026-07-29T00:00:00Z',
+              mappedCoverage: const Value(1),
+            ),
+          );
+
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          fitScoreServiceProvider.overrideWith((ref) async => _service()),
+          loadedProfileProvider.overrideWith(
+            (ref) async => const ProfileState(),
+          ),
+          currentStackMedicationClassIdsProvider.overrideWith(
+            (ref) async => const <String>{},
+          ),
+          detailBlobProvider.overrideWith(
+            (ref, dsldId) async => throw Exception('detail unavailable'),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(fitScoreForProductProvider(_dsldId).future),
+        throwsA(anything),
+      );
+    },
+  );
 }
