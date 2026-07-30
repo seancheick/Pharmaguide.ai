@@ -1,0 +1,470 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const PHOTO_BUCKET = "product-submission-photos";
+const APPROVED_SCHEMA_VERSION = "manual_label_v1";
+const APPROVED_PAYLOAD_MAX_BYTES = 512 * 1024;
+const SIGNED_URL_TTL_SECONDS = 300;
+const MAX_BODY_BYTES = 1_000_000;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ACTIONS = new Set(["list", "record_extraction", "transition"]);
+const REVIEW_STATUSES = new Set([
+  "submitted",
+  "under_review",
+  "approved",
+  "rejected",
+  "duplicate",
+]);
+const TRANSITION_STATUSES = new Set([
+  "under_review",
+  "approved",
+  "rejected",
+  "duplicate",
+]);
+const KINDS = new Set(["label_mismatch", "missing_product"]);
+const APPROVED_PAYLOAD_FIELDS = new Set([
+  "brandName",
+  "fullName",
+  "ingredientRows",
+  "nutritionalInfo",
+  "offMarket",
+  "otherIngredients",
+  "physicalState",
+  "productType",
+  "servingSizes",
+  "servingsPerContainer",
+  "statements",
+]);
+
+type JsonObject = Record<string, unknown>;
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+function audit(
+  reviewerId: string,
+  action: string,
+  outcome: string,
+  count = 0,
+): void {
+  console.info(JSON.stringify({
+    event: "product_submission_review_access",
+    reviewer_id: reviewerId,
+    action,
+    outcome,
+    count,
+  }));
+}
+
+function isObject(value: unknown): value is JsonObject {
+  return value !== null && typeof value === "object" &&
+    !Array.isArray(value);
+}
+
+function rejectUnknownKeys(
+  value: JsonObject,
+  allowed: ReadonlySet<string>,
+): void {
+  if (!Object.keys(value).every((key) => allowed.has(key))) {
+    throw new Error("unknown field");
+  }
+}
+
+function requiredString(
+  value: unknown,
+  name: string,
+  maxLength = 200,
+): string {
+  if (
+    typeof value !== "string" || value.trim().length === 0 ||
+    value.length > maxLength
+  ) {
+    throw new Error(`invalid ${name}`);
+  }
+  return value.trim();
+}
+
+function requiredUuid(value: unknown, name: string): string {
+  const normalized = requiredString(value, name, 36).toLowerCase();
+  if (!UUID_PATTERN.test(normalized)) throw new Error(`invalid ${name}`);
+  return normalized;
+}
+
+function validateApprovedPayload(value: unknown): JsonObject {
+  if (!isObject(value)) throw new Error("approved payload required");
+  rejectUnknownKeys(value, APPROVED_PAYLOAD_FIELDS);
+  requiredString(value.brandName, "approved brand", 300);
+  requiredString(value.fullName, "approved product name", 300);
+
+  const ingredientRows = value.ingredientRows;
+  if (
+    !Array.isArray(ingredientRows) || ingredientRows.length === 0 ||
+    ingredientRows.length > 200 ||
+    !ingredientRows.every(isObject)
+  ) {
+    throw new Error("invalid approved ingredient rows");
+  }
+  const servingSizes = value.servingSizes;
+  if (
+    !Array.isArray(servingSizes) || servingSizes.length === 0 ||
+    servingSizes.length > 20 ||
+    !servingSizes.every(isObject)
+  ) {
+    throw new Error("invalid approved serving sizes");
+  }
+  if (
+    value.offMarket !== undefined &&
+    value.offMarket !== 0 && value.offMarket !== 1 &&
+    value.offMarket !== false && value.offMarket !== true
+  ) {
+    throw new Error("invalid approved market status");
+  }
+  return value;
+}
+
+function canonicalJson(value: unknown): string {
+  if (
+    value === null || typeof value === "boolean" ||
+    typeof value === "string"
+  ) {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("non-finite number");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  if (isObject(value)) {
+    return `{${
+      Object.keys(value).sort().map((key) =>
+        `${JSON.stringify(key)}:${canonicalJson(value[key])}`
+      ).join(",")
+    }}`;
+  }
+  throw new Error("unsupported JSON value");
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function parseBody(request: Request): Promise<JsonObject> {
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
+    throw new Error("request too large");
+  }
+  const parsed: unknown = JSON.parse(text);
+  if (!isObject(parsed)) throw new Error("invalid body");
+  return parsed;
+}
+
+Deno.serve(async (request: Request): Promise<Response> => {
+  if (request.method !== "POST") {
+    audit("unverified", "unknown", "method_not_allowed");
+    return json({ error: "Method not allowed" }, 405);
+  }
+
+  const authorization = request.headers.get("authorization");
+  if (!authorization?.startsWith("Bearer ")) {
+    audit("unverified", "unknown", "missing_authentication");
+    return json({ error: "Authentication required" }, 401);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) {
+    audit("unverified", "unknown", "server_configuration_error");
+    return json({ error: "Reviewer service unavailable" }, 500);
+  }
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authorization } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: authData, error: authError } = await userClient.auth.getUser();
+  if (authError || !authData.user) {
+    audit("unverified", "unknown", "invalid_authentication");
+    return json({ error: "Authentication required" }, 401);
+  }
+
+  const reviewerId = authData.user.id;
+  const reviewerIds = new Set(
+    (Deno.env.get("PRODUCT_SUBMISSION_REVIEWER_IDS") ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  if (!reviewerIds.has(reviewerId)) {
+    audit(reviewerId, "unknown", "forbidden");
+    return json({ error: "Reviewer access required" }, 403);
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceRoleKey) {
+    audit(reviewerId, "unknown", "server_configuration_error");
+    return json({ error: "Reviewer service unavailable" }, 500);
+  }
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  let body: JsonObject;
+  let action = "unknown";
+  try {
+    body = await parseBody(request);
+    action = requiredString(body.action, "action", 30);
+    if (!ACTIONS.has(action)) throw new Error("invalid action");
+  } catch {
+    audit(reviewerId, action, "invalid_request");
+    return json({ error: "Invalid request" }, 400);
+  }
+
+  try {
+    if (action === "list") {
+      rejectUnknownKeys(
+        body,
+        new Set(["action", "status", "kind", "limit"]),
+      );
+      const limit = body.limit ?? 50;
+      if (
+        !Number.isInteger(limit) ||
+        !(Number(limit) >= 1 && Number(limit) <= 100)
+      ) {
+        throw new Error("invalid limit");
+      }
+      if (
+        body.status !== undefined &&
+        (typeof body.status !== "string" ||
+          !REVIEW_STATUSES.has(body.status))
+      ) {
+        throw new Error("invalid status");
+      }
+      if (
+        body.kind !== undefined &&
+        (typeof body.kind !== "string" || !KINDS.has(body.kind))
+      ) {
+        throw new Error("invalid kind");
+      }
+
+      let query = admin
+        .from("product_submissions")
+        .select(
+          "id,kind,normalized_upc,review_status,created_at,submitted_at," +
+            "reviewed_at,promoted_catalog_version," +
+            "product_submission_mismatch_details(dsld_id,source_record_id," +
+            "catalog_source_version,formula_fingerprint,mismatch_categories)," +
+            "product_submission_missing_details(other_ingredients_not_present)",
+        )
+        .eq("upload_state", "ready")
+        .order("submitted_at", { ascending: true })
+        .order("id", { ascending: true })
+        .limit(Number(limit));
+      if (body.status) query = query.eq("review_status", body.status);
+      if (body.kind) query = query.eq("kind", body.kind);
+
+      const { data: submissions, error: submissionsError } = await query;
+      if (submissionsError) throw submissionsError;
+      const submissionRows = (submissions ?? []) as unknown as JsonObject[];
+      const ids = submissionRows.map((row) => row.id as string);
+      const photosBySubmission = new Map<string, JsonObject[]>();
+      if (ids.length > 0) {
+        const { data: photos, error: photosError } = await admin
+          .from("product_submission_photos")
+          .select(
+            "submission_id,photo_slot,object_path,content_type,byte_size," +
+              "content_sha256,created_at",
+          )
+          .in("submission_id", ids)
+          .order("photo_slot", { ascending: true });
+        if (photosError) throw photosError;
+        const photoRows = (photos ?? []) as unknown as JsonObject[];
+        if (photoRows.length > 0) {
+          const photoPaths = photoRows.map((row) => row.object_path as string);
+          const { data: signed, error: signedError } = await admin.storage
+            .from(PHOTO_BUCKET)
+            .createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
+          if (signedError || !signed) throw signedError;
+          const signedByPath = new Map(
+            signed.map((item) => [item.path, item.signedUrl]),
+          );
+          for (const photo of photoRows) {
+            const signedUrl = signedByPath.get(photo.object_path as string);
+            if (!signedUrl) throw new Error("missing signed URL");
+            const responsePhoto = {
+              photo_slot: photo.photo_slot,
+              content_type: photo.content_type,
+              byte_size: photo.byte_size,
+              content_sha256: photo.content_sha256,
+              created_at: photo.created_at,
+              signed_url: signedUrl,
+              expires_in_seconds: SIGNED_URL_TTL_SECONDS,
+            };
+            photosBySubmission.set(photo.submission_id as string, [
+              ...(photosBySubmission.get(photo.submission_id as string) ?? []),
+              responsePhoto,
+            ]);
+          }
+        }
+      }
+      const responseSubmissions = submissionRows.map((submission) => ({
+        ...submission,
+        photos: photosBySubmission.get(submission.id as string) ?? [],
+      }));
+      audit(reviewerId, action, "success", responseSubmissions.length);
+      return json({ submissions: responseSubmissions });
+    }
+
+    if (action === "record_extraction") {
+      rejectUnknownKeys(
+        body,
+        new Set(["action", "submission_id", "extraction"]),
+      );
+      const submissionId = requiredUuid(body.submission_id, "submission id");
+      if (!isObject(body.extraction)) throw new Error("invalid extraction");
+      const extraction = body.extraction;
+      rejectUnknownKeys(
+        extraction,
+        new Set([
+          "schema_version",
+          "provider",
+          "model",
+          "prompt_version",
+          "input_image_hashes",
+          "draft_payload",
+          "field_provenance",
+          "confidence",
+        ]),
+      );
+      if (
+        !isObject(extraction.input_image_hashes) ||
+        Object.keys(extraction.input_image_hashes).length === 0 ||
+        !Object.values(extraction.input_image_hashes).every((value) =>
+          typeof value === "string" && /^[0-9a-f]{64}$/.test(value)
+        ) ||
+        !isObject(extraction.draft_payload) ||
+        !isObject(extraction.field_provenance)
+      ) {
+        throw new Error("invalid extraction payload");
+      }
+      const confidence = extraction.confidence;
+      if (
+        confidence !== null && confidence !== undefined &&
+        (typeof confidence !== "number" ||
+          !Number.isFinite(confidence) ||
+          confidence < 0 || confidence > 1)
+      ) {
+        throw new Error("invalid confidence");
+      }
+      const { data, error } = await admin.rpc(
+        "record_product_submission_extraction",
+        {
+          p_submission_id: submissionId,
+          p_schema_version: requiredString(
+            extraction.schema_version,
+            "schema version",
+            80,
+          ),
+          p_provider: requiredString(extraction.provider, "provider", 120),
+          p_model: requiredString(extraction.model, "model", 120),
+          p_prompt_version: requiredString(
+            extraction.prompt_version,
+            "prompt version",
+            120,
+          ),
+          p_input_image_hashes: extraction.input_image_hashes,
+          p_draft_payload: extraction.draft_payload,
+          p_field_provenance: extraction.field_provenance,
+          p_confidence: confidence ?? null,
+        },
+      );
+      if (error || typeof data !== "number") throw error;
+      audit(reviewerId, action, "success", 1);
+      return json({ extraction_version: data });
+    }
+
+    rejectUnknownKeys(
+      body,
+      new Set([
+        "action",
+        "submission_id",
+        "to_status",
+        "review_notes",
+        "approved_schema_version",
+        "approved_payload",
+        "duplicate_of",
+      ]),
+    );
+    const submissionId = requiredUuid(body.submission_id, "submission id");
+    const toStatus = requiredString(body.to_status, "status", 30);
+    if (!TRANSITION_STATUSES.has(toStatus)) {
+      throw new Error("invalid transition status");
+    }
+    const reviewNotes = body.review_notes === undefined ||
+        body.review_notes === null
+      ? null
+      : requiredString(body.review_notes, "review notes", 2000);
+    const duplicateOf = body.duplicate_of === undefined ||
+        body.duplicate_of === null
+      ? null
+      : requiredUuid(body.duplicate_of, "duplicate id");
+
+    let schemaVersion: string | null = null;
+    let approvedPayload: JsonObject | null = null;
+    let approvedPayloadCanonical: string | null = null;
+    let payloadHash: string | null = null;
+    if (toStatus === "approved") {
+      schemaVersion = requiredString(
+        body.approved_schema_version,
+        "approved schema version",
+        80,
+      );
+      if (schemaVersion !== APPROVED_SCHEMA_VERSION) {
+        throw new Error("unsupported approved schema version");
+      }
+      approvedPayload = validateApprovedPayload(body.approved_payload);
+      approvedPayloadCanonical = canonicalJson(approvedPayload);
+      if (
+        new TextEncoder().encode(approvedPayloadCanonical).byteLength >
+          APPROVED_PAYLOAD_MAX_BYTES
+      ) {
+        throw new Error("approved payload too large");
+      }
+      payloadHash = await sha256Hex(approvedPayloadCanonical);
+    } else if (
+      body.approved_schema_version !== undefined ||
+      body.approved_payload !== undefined
+    ) {
+      throw new Error("approved payload not allowed");
+    }
+
+    const { data, error } = await admin.rpc("review_product_submission", {
+      p_submission_id: submissionId,
+      p_reviewer_id: reviewerId,
+      p_to_status: toStatus,
+      p_review_notes: reviewNotes,
+      p_approved_schema_version: schemaVersion,
+      p_approved_payload: approvedPayload,
+      p_approved_payload_canonical: approvedPayloadCanonical,
+      p_payload_sha256: payloadHash,
+      p_duplicate_of: duplicateOf,
+    });
+    if (error || data !== true) throw error;
+    audit(reviewerId, action, "success", 1);
+    return json({ updated: true, payload_sha256: payloadHash });
+  } catch {
+    audit(reviewerId, action, "backend_or_validation_error");
+    return json({ error: "Review action could not be completed" }, 400);
+  }
+});

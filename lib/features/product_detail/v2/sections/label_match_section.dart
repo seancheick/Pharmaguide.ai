@@ -6,7 +6,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/formula_history_model.dart';
 import 'package:pharmaguide/features/product_detail/widgets/formula_history_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
-import 'package:pharmaguide/services/label_mismatch_report_service.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 
 typedef OpenSourceLabel = Future<void> Function(Uri uri);
 typedef OpenLabelMismatchReport =

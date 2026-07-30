@@ -39,6 +39,8 @@ class SettingsV2Screen extends StatelessWidget {
   final Future<bool> Function(Uri uri)? onOpenExternal;
   final VoidCallback? onOpenHealthHistory;
   final VoidCallback? onOpenClinicianReport;
+  final VoidCallback? onOpenProductSubmissions;
+  final VoidCallback? onDeleteAccount;
 
   const SettingsV2Screen({
     super.key,
@@ -52,6 +54,8 @@ class SettingsV2Screen extends StatelessWidget {
     this.onOpenExternal,
     this.onOpenHealthHistory,
     this.onOpenClinicianReport,
+    this.onOpenProductSubmissions,
+    this.onDeleteAccount,
   });
 
   @override
@@ -143,6 +147,13 @@ class SettingsV2Screen extends StatelessWidget {
                   caption: 'Preview, print, or share a private PDF',
                   onTap: onOpenClinicianReport,
                 ),
+                if (signedIn)
+                  PGSettingsTile(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'Product submissions',
+                    caption: 'Track label corrections and missing products',
+                    onTap: onOpenProductSubmissions,
+                  ),
               ],
             ),
             const SizedBox(height: V2Spacing.space24),
@@ -300,20 +311,14 @@ class SettingsV2Screen extends StatelessWidget {
                         'after the secure file-save flow is wired.',
                   ),
                 ),
-                PGSettingsTile(
-                  icon: Icons.delete_outline_rounded,
-                  title: 'Delete account',
-                  caption: 'Permanently remove all data',
-                  destructive: true,
-                  onTap: () => _showSettingSheet(
-                    context,
+                if (signedIn)
+                  PGSettingsTile(
+                    icon: Icons.delete_outline_rounded,
                     title: 'Delete account',
-                    body:
-                        'Account deletion requires a signed-in account. '
-                        'Guest health data remains local to this device.',
+                    caption: 'Permanently remove your account and data',
                     destructive: true,
+                    onTap: onDeleteAccount,
                   ),
-                ),
               ],
             ),
             const SizedBox(height: V2Spacing.space32),

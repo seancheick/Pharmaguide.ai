@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/services/label_mismatch_report_service.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 
 const _reportId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11';
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
@@ -26,11 +26,11 @@ void main() {
 
     test('photo slots exactly match the private-storage contract', () {
       expect(
-        LabelMismatchPhotoSlot.values.map((slot) => slot.wireValue),
+        ProductSubmissionPhotoSlot.values.map((slot) => slot.wireValue),
         const ['front', 'supplement_facts', 'other_ingredients'],
       );
-      expect(LabelMismatchPhoto.maxByteSize, 15728640);
-      expect(LabelMismatchPhoto.allowedContentTypes, const {
+      expect(ProductSubmissionPhoto.maxByteSize, 15728640);
+      expect(ProductSubmissionPhoto.allowedContentTypes, const {
         'image/jpeg',
         'image/png',
         'image/heic',
@@ -41,8 +41,8 @@ void main() {
 
     test('photo bytes remain immutable across retries', () {
       final source = Uint8List.fromList([1, 2, 3]);
-      final photo = LabelMismatchPhoto(
-        slot: LabelMismatchPhotoSlot.front,
+      final photo = ProductSubmissionPhoto(
+        slot: ProductSubmissionPhotoSlot.front,
         bytes: source,
         contentType: 'image/jpeg',
       );
@@ -59,17 +59,17 @@ void main() {
       expect(
         () => _draft(
           photos: [
-            _photo(LabelMismatchPhotoSlot.front),
-            _photo(LabelMismatchPhotoSlot.supplementFacts),
-            _photo(LabelMismatchPhotoSlot.otherIngredients),
-            _photo(LabelMismatchPhotoSlot.front),
+            _photo(ProductSubmissionPhotoSlot.front),
+            _photo(ProductSubmissionPhotoSlot.supplementFacts),
+            _photo(ProductSubmissionPhotoSlot.otherIngredients),
+            _photo(ProductSubmissionPhotoSlot.front),
           ],
         ),
         throwsA(
-          isA<LabelMismatchValidationException>().having(
+          isA<ProductSubmissionValidationException>().having(
             (error) => error.reason,
             'reason',
-            LabelMismatchValidationFailure.tooManyPhotos,
+            ProductSubmissionValidationFailure.tooManyPhotos,
           ),
         ),
       );
@@ -79,15 +79,15 @@ void main() {
       expect(
         () => _draft(
           photos: [
-            _photo(LabelMismatchPhotoSlot.front),
-            _photo(LabelMismatchPhotoSlot.front),
+            _photo(ProductSubmissionPhotoSlot.front),
+            _photo(ProductSubmissionPhotoSlot.front),
           ],
         ),
         throwsA(
-          isA<LabelMismatchValidationException>().having(
+          isA<ProductSubmissionValidationException>().having(
             (error) => error.reason,
             'reason',
-            LabelMismatchValidationFailure.duplicatePhotoSlot,
+            ProductSubmissionValidationFailure.duplicatePhotoSlot,
           ),
         ),
       );
@@ -99,77 +99,77 @@ void main() {
         expect(
           () => _draft(categories: const {}),
           throwsA(
-            isA<LabelMismatchValidationException>().having(
+            isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
               'reason',
-              LabelMismatchValidationFailure.noCategories,
+              ProductSubmissionValidationFailure.noCategories,
             ),
           ),
         );
         expect(
-          () => _photo(LabelMismatchPhotoSlot.front, bytes: Uint8List(0)),
+          () => _photo(ProductSubmissionPhotoSlot.front, bytes: Uint8List(0)),
           throwsA(
-            isA<LabelMismatchValidationException>().having(
+            isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
               'reason',
-              LabelMismatchValidationFailure.emptyPhoto,
+              ProductSubmissionValidationFailure.emptyPhoto,
             ),
           ),
         );
         expect(
-          () => LabelMismatchPhoto(
-            slot: LabelMismatchPhotoSlot.front,
+          () => ProductSubmissionPhoto(
+            slot: ProductSubmissionPhotoSlot.front,
             bytes: Uint8List.fromList([1]),
             contentType: 'image/svg+xml',
           ),
           throwsA(
-            isA<LabelMismatchValidationException>().having(
+            isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
               'reason',
-              LabelMismatchValidationFailure.unsupportedPhotoContentType,
+              ProductSubmissionValidationFailure.unsupportedPhotoContentType,
             ),
           ),
         );
         expect(
           () => _photo(
-            LabelMismatchPhotoSlot.front,
-            bytes: Uint8List(LabelMismatchPhoto.maxByteSize + 1),
+            ProductSubmissionPhotoSlot.front,
+            bytes: Uint8List(ProductSubmissionPhoto.maxByteSize + 1),
           ),
           throwsA(
-            isA<LabelMismatchValidationException>().having(
+            isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
               'reason',
-              LabelMismatchValidationFailure.photoTooLarge,
+              ProductSubmissionValidationFailure.photoTooLarge,
             ),
           ),
         );
         expect(
           () => LabelMismatchProductMetadata(dsldId: '  '),
           throwsA(
-            isA<LabelMismatchValidationException>().having(
+            isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
               'reason',
-              LabelMismatchValidationFailure.missingDsldId,
+              ProductSubmissionValidationFailure.missingDsldId,
             ),
           ),
         );
         expect(
           () => _draft(reportId: '../different-owner/report'),
           throwsA(
-            isA<LabelMismatchValidationException>().having(
+            isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
               'reason',
-              LabelMismatchValidationFailure.invalidReportId,
+              ProductSubmissionValidationFailure.invalidReportId,
             ),
           ),
         );
         expect(
           () => _draft(reportId: '018f4c79-7c7e-7c70-9d62-7fc3b9ce6a11'),
           throwsA(
-            isA<LabelMismatchValidationException>().having(
+            isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
               'reason',
-              LabelMismatchValidationFailure.invalidReportId,
+              ProductSubmissionValidationFailure.invalidReportId,
             ),
           ),
         );
@@ -179,10 +179,10 @@ void main() {
             formulaFingerprint: 'sha256:abc123',
           ),
           throwsA(
-            isA<LabelMismatchValidationException>().having(
+            isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
               'reason',
-              LabelMismatchValidationFailure.invalidFormulaFingerprint,
+              ProductSubmissionValidationFailure.invalidFormulaFingerprint,
             ),
           ),
         );
@@ -217,10 +217,10 @@ void main() {
               key: 'must stay local',
             }),
             throwsA(
-              isA<LabelMismatchValidationException>().having(
+              isA<ProductSubmissionValidationException>().having(
                 (error) => error.reason,
                 'reason for $key',
-                LabelMismatchValidationFailure.unexpectedMetadata,
+                ProductSubmissionValidationFailure.unexpectedMetadata,
               ),
             ),
           );
@@ -234,17 +234,17 @@ void main() {
       'requires the live authenticated user before doing any work',
       () async {
         final backend = _FakeBackend();
-        final service = LabelMismatchReportService(backend: backend);
+        final service = ProductSubmissionService(backend: backend);
 
         final result = await service.submit(_draft());
 
         expect(
           result,
-          isA<LabelMismatchSubmissionFailure>()
+          isA<ProductSubmissionFailure>()
               .having(
                 (failure) => failure.kind,
                 'kind',
-                LabelMismatchFailureKind.authenticationRequired,
+                ProductSubmissionFailureKind.authenticationRequired,
               )
               .having((failure) => failure.retryable, 'retryable', isFalse),
         );
@@ -256,14 +256,14 @@ void main() {
       'persists the report and photo manifest before uploading bytes',
       () async {
         final backend = _FakeBackend(authenticatedUserId: _userId);
-        final service = LabelMismatchReportService(backend: backend);
-        final phases = <LabelMismatchSubmissionPhase>[];
+        final service = ProductSubmissionService(backend: backend);
+        final phases = <ProductSubmissionPhase>[];
 
         final result = await service.submit(
           _draft(
             photos: [
-              _photo(LabelMismatchPhotoSlot.front),
-              _photo(LabelMismatchPhotoSlot.supplementFacts),
+              _photo(ProductSubmissionPhotoSlot.front),
+              _photo(ProductSubmissionPhotoSlot.supplementFacts),
             ],
           ),
           onPhaseChanged: phases.add,
@@ -271,10 +271,10 @@ void main() {
 
         expect(
           result,
-          isA<LabelMismatchSubmissionSuccess>(),
+          isA<ProductSubmissionSuccess>(),
           reason:
               'operations: ${backend.operations}; '
-              'cause: ${result is LabelMismatchSubmissionFailure ? result.cause : null}',
+              'cause: ${result is ProductSubmissionFailure ? result.cause : null}',
         );
         expect(backend.operations, [
           'persist',
@@ -284,80 +284,86 @@ void main() {
           'finalize:$_reportId',
         ]);
         expect(phases, [
-          LabelMismatchSubmissionPhase.savingReport,
-          LabelMismatchSubmissionPhase.uploadingPhotos,
-          LabelMismatchSubmissionPhase.savingReport,
-          LabelMismatchSubmissionPhase.succeeded,
+          ProductSubmissionPhase.savingReport,
+          ProductSubmissionPhase.uploadingPhotos,
+          ProductSubmissionPhase.savingReport,
+          ProductSubmissionPhase.succeeded,
         ]);
         expect(backend.uploads.map((upload) => upload.bucket).toSet(), {
-          LabelMismatchReportService.photoBucket,
+          ProductSubmissionService.photoBucket,
         });
       },
     );
 
-    test(
-      'writes only product/source/version/fingerprint report metadata',
-      () async {
-        final backend = _FakeBackend(authenticatedUserId: _userId);
-        final service = LabelMismatchReportService(backend: backend);
+    test('writes only product/source/version/fingerprint report metadata', () async {
+      final backend = _FakeBackend(authenticatedUserId: _userId);
+      final service = ProductSubmissionService(backend: backend);
 
-        await service.submit(
-          _draft(
-            metadata: LabelMismatchProductMetadata(
-              dsldId: '12345',
-              upc: '031604010206',
-              sourceRecordId: 'DSLD-12345',
-              catalogSourceVersion: '2026-07-19',
-              formulaFingerprint:
-                  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-            ),
-            categories: const {
-              LabelMismatchCategory.amountOrUnit,
-              LabelMismatchCategory.formOrParenthetical,
-            },
-            photos: [_photo(LabelMismatchPhotoSlot.otherIngredients)],
+      await service.submit(
+        _draft(
+          metadata: LabelMismatchProductMetadata(
+            dsldId: '12345',
+            upc: '031604010206',
+            sourceRecordId: 'DSLD-12345',
+            catalogSourceVersion: '2026-07-19',
+            formulaFingerprint:
+                'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           ),
-        );
+          categories: const {
+            LabelMismatchCategory.amountOrUnit,
+            LabelMismatchCategory.formOrParenthetical,
+          },
+          photos: [_photo(ProductSubmissionPhotoSlot.otherIngredients)],
+        ),
+      );
 
-        expect(backend.reportsTable, LabelMismatchReportService.reportsTable);
-        expect(backend.photosTable, LabelMismatchReportService.photosTable);
-        expect(backend.reportRow, {
-          'id': _reportId,
-          'user_id': _userId,
+      expect(backend.reportRow, {
+        'p_submission_id': _reportId,
+        'p_kind': 'label_mismatch',
+        'p_upc': '031604010206',
+        'p_mismatch_detail': {
           'dsld_id': '12345',
-          'upc': '031604010206',
           'source_record_id': 'DSLD-12345',
           'catalog_source_version': '2026-07-19',
           'formula_fingerprint':
               'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           'mismatch_categories': ['amount_or_unit', 'form_or_parenthetical'],
-        });
-        expect(backend.photoRows, [
-          {
-            'report_id': _reportId,
-            'user_id': _userId,
-            'photo_slot': 'other_ingredients',
-            'object_path': '$_userId/$_reportId/other_ingredients',
-            'content_type': 'image/jpeg',
-            'byte_size': 3,
-          },
-        ]);
-      },
-    );
+        },
+        'p_other_ingredients_not_present': false,
+        'p_photos': backend.photoRows,
+      });
+      expect(backend.photoRows, [
+        {
+          'photo_slot': 'other_ingredients',
+          'content_type': 'image/jpeg',
+          'byte_size': 3,
+          'content_sha256':
+              '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
+        },
+      ]);
+    });
 
     test(
       'omits absent nullable metadata instead of inventing values',
       () async {
         final backend = _FakeBackend(authenticatedUserId: _userId);
-        final service = LabelMismatchReportService(backend: backend);
+        final service = ProductSubmissionService(backend: backend);
 
         await service.submit(_draft());
 
         expect(backend.reportRow, {
-          'id': _reportId,
-          'user_id': _userId,
-          'dsld_id': '12345',
-          'mismatch_categories': ['product_identity'],
+          'p_submission_id': _reportId,
+          'p_kind': 'label_mismatch',
+          'p_upc': null,
+          'p_mismatch_detail': {
+            'dsld_id': '12345',
+            'source_record_id': null,
+            'catalog_source_version': null,
+            'formula_fingerprint': null,
+            'mismatch_categories': ['product_identity'],
+          },
+          'p_other_ingredients_not_present': false,
+          'p_photos': <Map<String, Object?>>[],
         });
         expect(backend.photoRows, isEmpty);
       },
@@ -386,9 +392,9 @@ void main() {
           authenticatedUserId: _userId,
           persistFailuresRemaining: 1,
         );
-        final service = LabelMismatchReportService(backend: backend);
+        final service = ProductSubmissionService(backend: backend);
         final draft = _draft(
-          photos: [_photo(LabelMismatchPhotoSlot.supplementFacts)],
+          photos: [_photo(ProductSubmissionPhotoSlot.supplementFacts)],
         );
 
         final first = await service.submit(draft);
@@ -396,25 +402,25 @@ void main() {
 
         expect(
           first,
-          isA<LabelMismatchSubmissionFailure>()
+          isA<ProductSubmissionFailure>()
               .having(
                 (failure) => failure.kind,
                 'kind',
-                LabelMismatchFailureKind.reportInsertFailed,
+                ProductSubmissionFailureKind.reportInsertFailed,
               )
               .having((failure) => failure.retryable, 'retryable', isTrue),
         );
         expect(
           second,
-          isA<LabelMismatchSubmissionSuccess>(),
+          isA<ProductSubmissionSuccess>(),
           reason:
               'operations: ${backend.operations}; '
-              'cause: ${second is LabelMismatchSubmissionFailure ? second.cause : null}',
+              'cause: ${second is ProductSubmissionFailure ? second.cause : null}',
         );
         expect(backend.uploads.map((upload) => upload.objectPath), const [
           '$_userId/$_reportId/supplement_facts',
         ]);
-        expect(backend.reportRows.map((row) => row['id']), [
+        expect(backend.reportRows.map((row) => row['p_submission_id']), [
           _reportId,
           _reportId,
         ]);
@@ -426,23 +432,23 @@ void main() {
         authenticatedUserId: _userId,
         persistFailuresRemaining: 1,
       );
-      final service = LabelMismatchReportService(backend: backend);
+      final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
         _draft(
           photos: [
-            _photo(LabelMismatchPhotoSlot.front),
-            _photo(LabelMismatchPhotoSlot.otherIngredients),
+            _photo(ProductSubmissionPhotoSlot.front),
+            _photo(ProductSubmissionPhotoSlot.otherIngredients),
           ],
         ),
       );
 
       expect(
         result,
-        isA<LabelMismatchSubmissionFailure>().having(
+        isA<ProductSubmissionFailure>().having(
           (failure) => failure.kind,
           'kind',
-          LabelMismatchFailureKind.reportInsertFailed,
+          ProductSubmissionFailureKind.reportInsertFailed,
         ),
       );
       expect(backend.operations, ['persist']);
@@ -456,24 +462,24 @@ void main() {
           authenticatedUserId: _userId,
           failUploadNumber: 2,
         );
-        final service = LabelMismatchReportService(backend: backend);
+        final service = ProductSubmissionService(backend: backend);
 
         final result = await service.submit(
           _draft(
             photos: [
-              _photo(LabelMismatchPhotoSlot.front),
-              _photo(LabelMismatchPhotoSlot.supplementFacts),
+              _photo(ProductSubmissionPhotoSlot.front),
+              _photo(ProductSubmissionPhotoSlot.supplementFacts),
             ],
           ),
         );
 
         expect(
           result,
-          isA<LabelMismatchSubmissionFailure>()
+          isA<ProductSubmissionFailure>()
               .having(
                 (failure) => failure.kind,
                 'kind',
-                LabelMismatchFailureKind.photoUploadFailed,
+                ProductSubmissionFailureKind.photoUploadFailed,
               )
               .having((failure) => failure.retryable, 'retryable', isTrue),
         );
@@ -488,18 +494,18 @@ void main() {
         authenticatedUserId: _userId,
         persistFailuresRemaining: 1,
       );
-      final service = LabelMismatchReportService(backend: backend);
+      final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(LabelMismatchPhotoSlot.front)]),
+        _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
       );
 
       expect(
         result,
-        isA<LabelMismatchSubmissionFailure>().having(
+        isA<ProductSubmissionFailure>().having(
           (failure) => failure.kind,
           'primary kind',
-          LabelMismatchFailureKind.reportInsertFailed,
+          ProductSubmissionFailureKind.reportInsertFailed,
         ),
       );
       expect(backend.operations, ['persist']);
@@ -513,18 +519,18 @@ void main() {
           authenticatedUserId: _userId,
           commitThenThrowFailuresRemaining: 1,
         );
-        final service = LabelMismatchReportService(backend: backend);
+        final service = ProductSubmissionService(backend: backend);
 
         final result = await service.submit(
-          _draft(photos: [_photo(LabelMismatchPhotoSlot.front)]),
+          _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
         );
 
         expect(
           result,
-          isA<LabelMismatchSubmissionFailure>().having(
+          isA<ProductSubmissionFailure>().having(
             (failure) => failure.kind,
             'kind',
-            LabelMismatchFailureKind.reportInsertFailed,
+            ProductSubmissionFailureKind.reportInsertFailed,
           ),
         );
         expect(backend.persistedReportIds, contains(_reportId));
@@ -540,18 +546,18 @@ void main() {
           authenticatedUserId: _userId,
           failUploadNumber: 1,
         );
-        final service = LabelMismatchReportService(backend: backend);
+        final service = ProductSubmissionService(backend: backend);
 
         final result = await service.submit(
-          _draft(photos: [_photo(LabelMismatchPhotoSlot.front)]),
+          _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
         );
 
         expect(
           result,
-          isA<LabelMismatchSubmissionFailure>().having(
+          isA<ProductSubmissionFailure>().having(
             (failure) => failure.kind,
             'kind',
-            LabelMismatchFailureKind.photoUploadFailed,
+            ProductSubmissionFailureKind.photoUploadFailed,
           ),
         );
         expect(backend.operations.first, 'persist');
@@ -564,18 +570,18 @@ void main() {
         authenticatedUserId: _userId,
         persistFailuresRemaining: 1,
       );
-      final service = LabelMismatchReportService(backend: backend);
+      final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(LabelMismatchPhotoSlot.front)]),
+        _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
       );
 
       expect(
         result,
-        isA<LabelMismatchSubmissionFailure>().having(
+        isA<ProductSubmissionFailure>().having(
           (failure) => failure.kind,
           'primary error',
-          LabelMismatchFailureKind.reportInsertFailed,
+          ProductSubmissionFailureKind.reportInsertFailed,
         ),
       );
       expect(backend.operations, ['persist']);
@@ -587,23 +593,23 @@ void main() {
         authenticatedUserId: _userId,
         failUploadNumber: 2,
       );
-      final service = LabelMismatchReportService(backend: backend);
+      final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
         _draft(
           photos: [
-            _photo(LabelMismatchPhotoSlot.front),
-            _photo(LabelMismatchPhotoSlot.supplementFacts),
+            _photo(ProductSubmissionPhotoSlot.front),
+            _photo(ProductSubmissionPhotoSlot.supplementFacts),
           ],
         ),
       );
 
       expect(
         result,
-        isA<LabelMismatchSubmissionFailure>().having(
+        isA<ProductSubmissionFailure>().having(
           (failure) => failure.kind,
           'kind',
-          LabelMismatchFailureKind.photoUploadFailed,
+          ProductSubmissionFailureKind.photoUploadFailed,
         ),
       );
       expect(backend.successfulObjectPaths, hasLength(1));
@@ -621,19 +627,19 @@ void main() {
         authenticatedUserId: _userId,
         finalizeFailuresRemaining: 1,
       );
-      final service = LabelMismatchReportService(backend: backend);
+      final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(LabelMismatchPhotoSlot.front)]),
+        _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
       );
 
       expect(
         result,
-        isA<LabelMismatchSubmissionFailure>()
+        isA<ProductSubmissionFailure>()
             .having(
               (failure) => failure.kind,
               'kind',
-              LabelMismatchFailureKind.reportFinalizeFailed,
+              ProductSubmissionFailureKind.reportFinalizeFailed,
             )
             .having((failure) => failure.retryable, 'retryable', isTrue),
       );
@@ -649,21 +655,23 @@ void main() {
           authenticatedUserId: _userId,
           commitThenThrowFinalizeFailuresRemaining: 1,
         );
-        final service = LabelMismatchReportService(backend: backend);
-        final draft = _draft(photos: [_photo(LabelMismatchPhotoSlot.front)]);
+        final service = ProductSubmissionService(backend: backend);
+        final draft = _draft(
+          photos: [_photo(ProductSubmissionPhotoSlot.front)],
+        );
 
         final first = await service.submit(draft);
         final second = await service.submit(draft);
 
         expect(
           first,
-          isA<LabelMismatchSubmissionFailure>().having(
+          isA<ProductSubmissionFailure>().having(
             (failure) => failure.kind,
             'kind',
-            LabelMismatchFailureKind.reportFinalizeFailed,
+            ProductSubmissionFailureKind.reportFinalizeFailed,
           ),
         );
-        expect(second, isA<LabelMismatchSubmissionSuccess>());
+        expect(second, isA<ProductSubmissionSuccess>());
         expect(backend.uploads, hasLength(1));
         expect(backend.readyReportIds, contains(_reportId));
         expect(backend.operations, [
@@ -685,7 +693,7 @@ LabelMismatchReportDraft _draft({
   Set<LabelMismatchCategory> categories = const {
     LabelMismatchCategory.productIdentity,
   },
-  List<LabelMismatchPhoto> photos = const [],
+  List<ProductSubmissionPhoto> photos = const [],
 }) {
   return LabelMismatchReportDraft(
     reportId: reportId,
@@ -695,8 +703,11 @@ LabelMismatchReportDraft _draft({
   );
 }
 
-LabelMismatchPhoto _photo(LabelMismatchPhotoSlot slot, {Uint8List? bytes}) {
-  return LabelMismatchPhoto(
+ProductSubmissionPhoto _photo(
+  ProductSubmissionPhotoSlot slot, {
+  Uint8List? bytes,
+}) {
+  return ProductSubmissionPhoto(
     slot: slot,
     bytes: bytes ?? Uint8List.fromList([1, 2, 3]),
     contentType: 'image/jpeg',
@@ -710,7 +721,7 @@ class _UploadCall {
   const _UploadCall({required this.bucket, required this.objectPath});
 }
 
-class _FakeBackend implements LabelMismatchReportBackend {
+class _FakeBackend implements ProductSubmissionBackend {
   @override
   final String? authenticatedUserId;
   int persistFailuresRemaining;
@@ -725,8 +736,6 @@ class _FakeBackend implements LabelMismatchReportBackend {
   final operations = <String>[];
   final uploads = <_UploadCall>[];
   final reportRows = <Map<String, Object?>>[];
-  String? reportsTable;
-  String? photosTable;
   Map<String, Object?>? reportRow;
   List<Map<String, Object?>>? photoRows;
 
@@ -758,56 +767,62 @@ class _FakeBackend implements LabelMismatchReportBackend {
   }
 
   @override
-  Future<void> persistReport({
-    required String reportsTable,
-    required Map<String, Object?> reportRow,
-    required String photosTable,
-    required List<Map<String, Object?>> photoRows,
+  Future<void> persistSubmission({
+    required String functionName,
+    required Map<String, Object?> payload,
   }) async {
-    this.reportsTable = reportsTable;
-    this.photosTable = photosTable;
-    this.reportRow = Map<String, Object?>.unmodifiable(reportRow);
-    this.photoRows = List.unmodifiable(
-      photoRows.map(Map<String, Object?>.unmodifiable),
+    expect(functionName, ProductSubmissionService.createFunction);
+    reportRow = Map<String, Object?>.unmodifiable(payload);
+    final manifest = payload['p_photos']! as List<Map<String, Object?>>;
+    photoRows = List.unmodifiable(
+      manifest.map(Map<String, Object?>.unmodifiable),
     );
-    reportRows.add(Map<String, Object?>.unmodifiable(reportRow));
+    reportRows.add(Map<String, Object?>.unmodifiable(payload));
     operations.add('persist');
+    final submissionId = payload['p_submission_id']! as String;
     if (commitThenThrowFailuresRemaining > 0) {
       commitThenThrowFailuresRemaining--;
-      persistedReportIds.add(reportRow['id']! as String);
+      persistedReportIds.add(submissionId);
       throw StateError('response lost after commit');
     }
     if (persistFailuresRemaining > 0) {
       persistFailuresRemaining--;
       throw StateError('row insert failed');
     }
-    persistedReportIds.add(reportRow['id']! as String);
+    persistedReportIds.add(submissionId);
   }
 
   @override
-  Future<bool> finalizeReport({
+  Future<bool> finalizeSubmission({
     required String functionName,
-    required String reportId,
+    required String submissionId,
   }) async {
-    expect(functionName, LabelMismatchReportService.finalizeFunction);
-    operations.add('finalize:$reportId');
+    expect(functionName, ProductSubmissionService.finalizeFunction);
+    operations.add('finalize:$submissionId');
     if (finalizeFailuresRemaining > 0) {
       finalizeFailuresRemaining--;
       throw StateError('finalize failed');
     }
-    if (readyReportIds.contains(reportId)) return true;
-    if (!persistedReportIds.contains(reportId)) {
+    if (readyReportIds.contains(submissionId)) return true;
+    if (!persistedReportIds.contains(submissionId)) {
       throw StateError('report missing');
     }
     final expectedPaths = (photoRows ?? const <Map<String, Object?>>[]).map(
-      (row) => row['object_path']! as String,
+      (row) => '$_userId/$submissionId/${row['photo_slot']}',
     );
     if (!expectedPaths.every(successfulObjectPaths.contains)) return false;
-    readyReportIds.add(reportId);
+    readyReportIds.add(submissionId);
     if (commitThenThrowFinalizeFailuresRemaining > 0) {
       commitThenThrowFinalizeFailuresRemaining--;
       throw StateError('response lost after finalize commit');
     }
     return true;
+  }
+
+  @override
+  Future<List<Map<String, Object?>>> listOwnSubmissions({
+    required String table,
+  }) async {
+    return const [];
   }
 }

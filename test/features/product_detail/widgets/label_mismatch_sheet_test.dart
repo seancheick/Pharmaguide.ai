@@ -8,7 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
-import 'package:pharmaguide/services/label_mismatch_report_service.dart';
+import 'package:pharmaguide/services/product_submission_photo_service.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 const _reportId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11';
@@ -20,17 +21,17 @@ void main() {
     test(
       'accepts an exact 15 MiB supported image then stores sanitized JPEG',
       () async {
-        final photo = await buildLabelMismatchPhotoFromFile(
+        final photo = await buildProductSubmissionPhotoFromFile(
           file: XFile.fromData(
-            Uint8List(LabelMismatchPhoto.maxByteSize),
+            Uint8List(ProductSubmissionPhoto.maxByteSize),
             name: 'facts.JPG',
             mimeType: 'image/jpg; charset=binary',
           ),
-          slot: LabelMismatchPhotoSlot.supplementFacts,
+          slot: ProductSubmissionPhotoSlot.supplementFacts,
           sanitizer: (_) async => Uint8List.fromList([9, 8, 7]),
         );
 
-        expect(photo.slot, LabelMismatchPhotoSlot.supplementFacts);
+        expect(photo.slot, ProductSubmissionPhotoSlot.supplementFacts);
         expect(photo.contentType, 'image/jpeg');
         expect(photo.bytes, [9, 8, 7]);
       },
@@ -40,19 +41,19 @@ void main() {
       var sanitizerCalled = false;
 
       await _expectPhotoValidation(
-        buildLabelMismatchPhotoFromFile(
+        buildProductSubmissionPhotoFromFile(
           file: XFile.fromData(
-            Uint8List(LabelMismatchPhoto.maxByteSize + 1),
+            Uint8List(ProductSubmissionPhoto.maxByteSize + 1),
             name: 'facts.jpg',
             mimeType: 'image/jpeg',
           ),
-          slot: LabelMismatchPhotoSlot.supplementFacts,
+          slot: ProductSubmissionPhotoSlot.supplementFacts,
           sanitizer: (_) async {
             sanitizerCalled = true;
             return Uint8List.fromList([1]);
           },
         ),
-        LabelMismatchValidationFailure.photoTooLarge,
+        ProductSubmissionValidationFailure.photoTooLarge,
       );
       expect(sanitizerCalled, isFalse);
     });
@@ -63,28 +64,28 @@ void main() {
         var sanitizerCalled = false;
 
         await _expectPhotoValidation(
-          buildLabelMismatchPhotoFromFile(
+          buildProductSubmissionPhotoFromFile(
             file: XFile.fromData(
               Uint8List.fromList([1]),
               name: 'not-an-image.jpg',
               mimeType: 'application/pdf',
             ),
-            slot: LabelMismatchPhotoSlot.front,
+            slot: ProductSubmissionPhotoSlot.front,
             sanitizer: (_) async {
               sanitizerCalled = true;
               return Uint8List.fromList([1]);
             },
           ),
-          LabelMismatchValidationFailure.unsupportedPhotoContentType,
+          ProductSubmissionValidationFailure.unsupportedPhotoContentType,
         );
         expect(sanitizerCalled, isFalse);
       },
     );
 
     test('uses an image extension only when MIME is absent', () async {
-      final photo = await buildLabelMismatchPhotoFromFile(
+      final photo = await buildProductSubmissionPhotoFromFile(
         file: XFile.fromData(Uint8List.fromList([1]), path: 'facts.HeIc'),
-        slot: LabelMismatchPhotoSlot.supplementFacts,
+        slot: ProductSubmissionPhotoSlot.supplementFacts,
         sanitizer: (_) async => Uint8List.fromList([2]),
       );
 
@@ -94,28 +95,28 @@ void main() {
 
     test('rejects empty images and failed metadata sanitization', () async {
       await _expectPhotoValidation(
-        buildLabelMismatchPhotoFromFile(
+        buildProductSubmissionPhotoFromFile(
           file: XFile.fromData(
             Uint8List(0),
             name: 'empty.png',
             mimeType: 'image/png',
           ),
-          slot: LabelMismatchPhotoSlot.front,
+          slot: ProductSubmissionPhotoSlot.front,
           sanitizer: (_) async => Uint8List.fromList([1]),
         ),
-        LabelMismatchValidationFailure.emptyPhoto,
+        ProductSubmissionValidationFailure.emptyPhoto,
       );
       await _expectPhotoValidation(
-        buildLabelMismatchPhotoFromFile(
+        buildProductSubmissionPhotoFromFile(
           file: XFile.fromData(
             Uint8List.fromList([1]),
             name: 'front.png',
             mimeType: 'image/png',
           ),
-          slot: LabelMismatchPhotoSlot.front,
+          slot: ProductSubmissionPhotoSlot.front,
           sanitizer: (_) async => Uint8List(0),
         ),
-        LabelMismatchValidationFailure.photoSanitizationFailed,
+        ProductSubmissionValidationFailure.photoSanitizationFailed,
       );
     });
   });
@@ -241,7 +242,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     await _setLargePhone(tester);
     final backend = _FakeBackend();
-    final pickerCalls = <(LabelMismatchPhotoSlot, ImageSource)>[];
+    final pickerCalls = <(ProductSubmissionPhotoSlot, ImageSource)>[];
 
     await tester.pumpWidget(
       _sheetHarness(
@@ -258,7 +259,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(pickerCalls, [(LabelMismatchPhotoSlot.front, ImageSource.camera)]);
+    expect(pickerCalls, [
+      (ProductSubmissionPhotoSlot.front, ImageSource.camera),
+    ]);
     expect(find.text('Photo selected'), findsOneWidget);
     expect(
       find.byKey(const Key('label-mismatch-photo-front-preview')),
@@ -421,9 +424,10 @@ void main() {
     await tester.pumpWidget(
       _sheetHarness(
         backend: backend,
-        pickPhoto: (_, _) async => throw const LabelMismatchValidationException(
-          LabelMismatchValidationFailure.photoSanitizationFailed,
-        ),
+        pickPhoto: (_, _) async =>
+            throw const ProductSubmissionValidationException(
+              ProductSubmissionValidationFailure.photoSanitizationFailed,
+            ),
       ),
     );
 
@@ -554,7 +558,7 @@ Future<void> _setLargePhone(WidgetTester tester) async {
 
 Widget _sheetHarness({
   required _FakeBackend backend,
-  required PickLabelMismatchPhoto pickPhoto,
+  required PickProductSubmissionPhoto pickPhoto,
   TextScaler? textScaler,
 }) {
   return MaterialApp(
@@ -568,7 +572,7 @@ Widget _sheetHarness({
       body: LabelMismatchSheet(
         product: _metadata(),
         isAuthenticated: true,
-        reportService: LabelMismatchReportService(backend: backend),
+        reportService: ProductSubmissionService(backend: backend),
         pickPhoto: pickPhoto,
         reportIdFactory: () => _reportId,
         onSignIn: () async {},
@@ -578,13 +582,13 @@ Widget _sheetHarness({
 }
 
 Future<void> _expectPhotoValidation(
-  Future<LabelMismatchPhoto> future,
-  LabelMismatchValidationFailure reason,
+  Future<ProductSubmissionPhoto> future,
+  ProductSubmissionValidationFailure reason,
 ) {
   return expectLater(
     future,
     throwsA(
-      isA<LabelMismatchValidationException>().having(
+      isA<ProductSubmissionValidationException>().having(
         (error) => error.reason,
         'reason',
         reason,
@@ -601,11 +605,12 @@ LabelMismatchProductMetadata _metadata() => LabelMismatchProductMetadata(
   formulaFingerprint: _fingerprint,
 );
 
-LabelMismatchPhoto _photo(LabelMismatchPhotoSlot slot) => LabelMismatchPhoto(
-  slot: slot,
-  bytes: Uint8List.fromList([1, 2, 3]),
-  contentType: 'image/jpeg',
-);
+ProductSubmissionPhoto _photo(ProductSubmissionPhotoSlot slot) =>
+    ProductSubmissionPhoto(
+      slot: slot,
+      bytes: Uint8List.fromList([1, 2, 3]),
+      contentType: 'image/jpeg',
+    );
 
 Map<String, dynamic> _labelRecord() {
   const fields = <String, String>{
@@ -629,7 +634,7 @@ Map<String, dynamic> _labelRecord() {
   };
 }
 
-class _FakeBackend implements LabelMismatchReportBackend {
+class _FakeBackend implements ProductSubmissionBackend {
   @override
   String? get authenticatedUserId => _userId;
   int persistFailuresRemaining;
@@ -660,15 +665,13 @@ class _FakeBackend implements LabelMismatchReportBackend {
   }
 
   @override
-  Future<void> persistReport({
-    required String reportsTable,
-    required Map<String, Object?> reportRow,
-    required String photosTable,
-    required List<Map<String, Object?>> photoRows,
+  Future<void> persistSubmission({
+    required String functionName,
+    required Map<String, Object?> payload,
   }) async {
     operations.add('persist');
-    reportIds.add(reportRow['id']! as String);
-    this.photoRows = photoRows;
+    reportIds.add(payload['p_submission_id']! as String);
+    photoRows = payload['p_photos']! as List<Map<String, Object?>>;
     if (persistFailuresRemaining > 0) {
       persistFailuresRemaining--;
       throw StateError('persist failed');
@@ -677,13 +680,20 @@ class _FakeBackend implements LabelMismatchReportBackend {
   }
 
   @override
-  Future<bool> finalizeReport({
+  Future<bool> finalizeSubmission({
     required String functionName,
-    required String reportId,
+    required String submissionId,
   }) async {
     operations.add('finalize');
     return photoRows
-        .map((row) => row['object_path']! as String)
+        .map((row) => '$_userId/$submissionId/${row['photo_slot']}')
         .every(successfulObjectPaths.contains);
+  }
+
+  @override
+  Future<List<Map<String, Object?>>> listOwnSubmissions({
+    required String table,
+  }) async {
+    return const [];
   }
 }

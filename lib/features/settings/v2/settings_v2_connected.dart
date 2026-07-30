@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/history/health_history_screen.dart';
+import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/settings/v2/delete_account_sheet.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
+import 'package:pharmaguide/features/settings/v2/product_submission_status_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/clinician_report_preview_screen.dart';
+import 'package:pharmaguide/services/auth/account_deletion_service.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/history/health_attachment_store.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
+import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Production-wired settings screen. Reads:
@@ -66,6 +76,45 @@ class SettingsV2Connected extends ConsumerWidget {
               builder: (_) => const ClinicianReportPreviewScreen(),
             ),
           ),
+      onOpenProductSubmissions: signedIn
+          ? () => PGModal.bottomSheet<void>(
+              context: context,
+              builder: (_) => ProductSubmissionStatusSheet(
+                service: ProductSubmissionService.production(),
+              ),
+            )
+          : null,
+      onDeleteAccount: signedIn ? () => _openDeleteAccount(context, ref) : null,
+    );
+  }
+
+  static Future<void> _openDeleteAccount(BuildContext context, WidgetRef ref) {
+    final auth = PGAuthService();
+    final service = AccountDeletionService.production(
+      localPurges: [
+        ref.read(userDatabaseProvider).clearAllLocalUserData,
+        HealthAttachmentStore().clearAll,
+        RecentSearchesService().clearAll,
+        AccountOwnerStore().clear,
+        auth.signOutLocal,
+      ],
+    );
+    return PGModal.bottomSheet<void>(
+      context: context,
+      builder: (_) => DeleteAccountSheet(
+        onDelete: (confirmation) =>
+            service.deleteAccount(confirmation: confirmation),
+        onDeleted: () {
+          ref.read(authStateProvider.notifier).onSignedOut();
+          ref.invalidate(activeStackProvider);
+          ref.invalidate(profileProvider);
+          ref.invalidate(favoritesProvider);
+          ref.invalidate(isFavoriteProvider);
+          ref.invalidate(healthHistoryTimelineProvider);
+          ref.invalidate(healthHistoryUpcomingProvider);
+          ref.invalidate(_scanCountProvider);
+        },
+      ),
     );
   }
 

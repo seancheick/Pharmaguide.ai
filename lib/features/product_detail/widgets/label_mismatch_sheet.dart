@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,17 +7,15 @@ import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
-import 'package:pharmaguide/services/label_mismatch_report_service.dart';
+import 'package:pharmaguide/services/product_submission_photo_service.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-typedef PickLabelMismatchPhoto =
-    Future<LabelMismatchPhoto?> Function(
-      LabelMismatchPhotoSlot slot,
+typedef PickProductSubmissionPhoto =
+    Future<ProductSubmissionPhoto?> Function(
+      ProductSubmissionPhotoSlot slot,
       ImageSource source,
     );
-
-typedef SanitizeLabelMismatchPhoto =
-    Future<Uint8List> Function(Uint8List sourceBytes);
 
 /// Opens the structured, private label-mismatch flow.
 ///
@@ -29,8 +25,8 @@ Future<void> showLabelMismatchSheet(
   BuildContext context, {
   required LabelMismatchProductMetadata product,
   bool? isAuthenticated,
-  LabelMismatchReportService? reportService,
-  PickLabelMismatchPhoto? pickPhoto,
+  ProductSubmissionService? reportService,
+  PickProductSubmissionPhoto? pickPhoto,
   Future<void> Function()? onSignIn,
   String Function()? reportIdFactory,
 }) async {
@@ -38,7 +34,7 @@ Future<void> showLabelMismatchSheet(
   final picker = ImagePicker();
   final resolvedService =
       reportService ??
-      (signedIn ? LabelMismatchReportService.production() : null);
+      (signedIn ? ProductSubmissionService.production() : null);
 
   await PGModal.bottomSheet<void>(
     context: context,
@@ -48,7 +44,7 @@ Future<void> showLabelMismatchSheet(
       reportService: resolvedService,
       pickPhoto:
           pickPhoto ??
-          (slot, source) => _pickProductLabelPhoto(
+          (slot, source) => pickProductSubmissionPhoto(
             picker: picker,
             slot: slot,
             source: source,
@@ -69,8 +65,8 @@ Future<void> showLabelMismatchSheet(
 class LabelMismatchSheet extends StatefulWidget {
   final LabelMismatchProductMetadata product;
   final bool isAuthenticated;
-  final LabelMismatchReportService? reportService;
-  final PickLabelMismatchPhoto pickPhoto;
+  final ProductSubmissionService? reportService;
+  final PickProductSubmissionPhoto pickPhoto;
   final Future<void> Function() onSignIn;
   final String Function()? reportIdFactory;
 
@@ -90,14 +86,14 @@ class LabelMismatchSheet extends StatefulWidget {
 
 class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
   final _categories = <LabelMismatchCategory>{};
-  final _photos = <LabelMismatchPhotoSlot, LabelMismatchPhoto>{};
-  final _photoErrors = <LabelMismatchPhotoSlot, String>{};
+  final _photos = <ProductSubmissionPhotoSlot, ProductSubmissionPhoto>{};
+  final _photoErrors = <ProductSubmissionPhotoSlot, String>{};
 
   bool _consent = false;
   bool _submitting = false;
   bool _succeeded = false;
-  LabelMismatchSubmissionPhase? _phase;
-  LabelMismatchSubmissionFailure? _failure;
+  ProductSubmissionPhase? _phase;
+  ProductSubmissionFailure? _failure;
   LabelMismatchReportDraft? _draft;
 
   bool get _draftLocked => _draft != null;
@@ -124,7 +120,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
   }
 
   Future<void> _choosePhoto(
-    LabelMismatchPhotoSlot slot,
+    ProductSubmissionPhotoSlot slot,
     ImageSource source,
   ) async {
     if (_submitting || _succeeded || _draftLocked) return;
@@ -142,7 +138,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
         _photos[slot] = photo;
         _invalidateDraft();
       });
-    } on LabelMismatchValidationException catch (error) {
+    } on ProductSubmissionValidationException catch (error) {
       if (!mounted) return;
       setState(() => _photoErrors[slot] = _photoValidationMessage(error));
     } on Object {
@@ -155,7 +151,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
     }
   }
 
-  void _removePhoto(LabelMismatchPhotoSlot slot) {
+  void _removePhoto(ProductSubmissionPhotoSlot slot) {
     if (_draftLocked) return;
     setState(() {
       _photos.remove(slot);
@@ -169,9 +165,9 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
     final service = widget.reportService;
     if (service == null) {
       setState(() {
-        _failure = LabelMismatchSubmissionFailure(
-          reportId: _draft?.reportId ?? '',
-          kind: LabelMismatchFailureKind.authenticationRequired,
+        _failure = ProductSubmissionFailure(
+          submissionId: _draft?.submissionId ?? '',
+          kind: ProductSubmissionFailureKind.authenticationRequired,
         );
       });
       return;
@@ -183,7 +179,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
           product: widget.product,
           categories: _categories,
           photos: [
-            for (final slot in LabelMismatchPhotoSlot.values)
+            for (final slot in ProductSubmissionPhotoSlot.values)
               if (_photos[slot] case final photo?) photo,
           ],
           reportIdFactory: widget.reportIdFactory,
@@ -193,7 +189,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
     setState(() {
       _submitting = true;
       _failure = null;
-      _phase = LabelMismatchSubmissionPhase.savingReport;
+      _phase = ProductSubmissionPhase.savingReport;
     });
 
     final result = await service.submit(
@@ -207,13 +203,13 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
 
     setState(() {
       _submitting = false;
-      if (result is LabelMismatchSubmissionSuccess) {
+      if (result is ProductSubmissionSuccess) {
         _succeeded = true;
         _failure = null;
-        _phase = LabelMismatchSubmissionPhase.succeeded;
+        _phase = ProductSubmissionPhase.succeeded;
       } else {
-        _failure = result as LabelMismatchSubmissionFailure;
-        _phase = LabelMismatchSubmissionPhase.failed;
+        _failure = result as ProductSubmissionFailure;
+        _phase = ProductSubmissionPhase.failed;
       }
     });
   }
@@ -297,7 +293,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
               style: V2Typography.bodySm(color: V2Colors.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space12),
-            for (final slot in LabelMismatchPhotoSlot.values) ...[
+            for (final slot in ProductSubmissionPhotoSlot.values) ...[
               _PhotoSlotCard(
                 slot: slot,
                 photo: _photos[slot],
@@ -306,7 +302,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
                 onChoose: (source) => _choosePhoto(slot, source),
                 onRemove: () => _removePhoto(slot),
               ),
-              if (slot != LabelMismatchPhotoSlot.values.last)
+              if (slot != ProductSubmissionPhotoSlot.values.last)
                 const SizedBox(height: V2Spacing.space12),
             ],
             const SizedBox(height: V2Spacing.space24),
@@ -338,7 +334,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
             ],
             const SizedBox(height: V2Spacing.space16),
             if (_failure?.kind ==
-                LabelMismatchFailureKind.authenticationRequired)
+                ProductSubmissionFailureKind.authenticationRequired)
               PGPillButton(
                 key: const Key('label-mismatch-sign-in-again'),
                 label: 'Sign in to report a mismatch',
@@ -508,8 +504,8 @@ class _PrivacyNotice extends StatelessWidget {
 }
 
 class _PhotoSlotCard extends StatelessWidget {
-  final LabelMismatchPhotoSlot slot;
-  final LabelMismatchPhoto? photo;
+  final ProductSubmissionPhotoSlot slot;
+  final ProductSubmissionPhoto? photo;
   final String? error;
   final bool enabled;
   final ValueChanged<ImageSource> onChoose;
@@ -661,13 +657,13 @@ class _PhotoSourceButton extends StatelessWidget {
 }
 
 class _SubmissionProgress extends StatelessWidget {
-  final LabelMismatchSubmissionPhase? phase;
+  final ProductSubmissionPhase? phase;
 
   const _SubmissionProgress({required this.phase});
 
   @override
   Widget build(BuildContext context) {
-    final label = phase == LabelMismatchSubmissionPhase.uploadingPhotos
+    final label = phase == ProductSubmissionPhase.uploadingPhotos
         ? 'Uploading selected photos…'
         : 'Saving report…';
     return Semantics(
@@ -687,22 +683,22 @@ class _SubmissionProgress extends StatelessWidget {
 }
 
 class _FailureNotice extends StatelessWidget {
-  final LabelMismatchSubmissionFailure failure;
+  final ProductSubmissionFailure failure;
 
   const _FailureNotice({required this.failure});
 
   @override
   Widget build(BuildContext context) {
     final message = switch (failure.kind) {
-      LabelMismatchFailureKind.authenticationRequired =>
+      ProductSubmissionFailureKind.authenticationRequired =>
         'Your session ended. Sign in again to send this report.',
-      LabelMismatchFailureKind.photoUploadFailed =>
+      ProductSubmissionFailureKind.photoUploadFailed =>
         'We couldn’t confirm all selected photos were uploaded. Retry this '
             'same report.',
-      LabelMismatchFailureKind.reportInsertFailed =>
+      ProductSubmissionFailureKind.reportInsertFailed =>
         'We couldn’t confirm the report was saved. Retry this same report. '
             'Nothing changes in the catalog automatically.',
-      LabelMismatchFailureKind.reportFinalizeFailed =>
+      ProductSubmissionFailureKind.reportFinalizeFailed =>
         'We couldn’t confirm the report was finalized. Retry this same report. '
             'Nothing changes in the catalog automatically.',
     };
@@ -787,112 +783,6 @@ class _SuccessState extends StatelessWidget {
   }
 }
 
-Future<LabelMismatchPhoto?> _pickProductLabelPhoto({
-  required ImagePicker picker,
-  required LabelMismatchPhotoSlot slot,
-  required ImageSource source,
-}) async {
-  // Android lost-image recovery belongs to the app-startup lifecycle owner.
-  // This ephemeral sheet must not consume a different picker flow's result.
-  final file = await picker.pickImage(
-    source: source,
-    requestFullMetadata: false,
-  );
-  if (file == null) return null;
-
-  return buildLabelMismatchPhotoFromFile(file: file, slot: slot);
-}
-
-@visibleForTesting
-Future<LabelMismatchPhoto> buildLabelMismatchPhotoFromFile({
-  required XFile file,
-  required LabelMismatchPhotoSlot slot,
-  SanitizeLabelMismatchPhoto sanitizer = _sanitizeLabelMismatchPhoto,
-}) async {
-  _supportedContentType(file);
-  if (await file.length() > LabelMismatchPhoto.maxByteSize) {
-    throw const LabelMismatchValidationException(
-      LabelMismatchValidationFailure.photoTooLarge,
-    );
-  }
-
-  final sourceBytes = await file.readAsBytes();
-  if (sourceBytes.isEmpty) {
-    throw const LabelMismatchValidationException(
-      LabelMismatchValidationFailure.emptyPhoto,
-    );
-  }
-  if (sourceBytes.length > LabelMismatchPhoto.maxByteSize) {
-    throw const LabelMismatchValidationException(
-      LabelMismatchValidationFailure.photoTooLarge,
-    );
-  }
-
-  late final Uint8List sanitizedBytes;
-  try {
-    sanitizedBytes = await sanitizer(sourceBytes);
-  } on Object {
-    throw const LabelMismatchValidationException(
-      LabelMismatchValidationFailure.photoSanitizationFailed,
-    );
-  }
-  if (sanitizedBytes.isEmpty) {
-    throw const LabelMismatchValidationException(
-      LabelMismatchValidationFailure.photoSanitizationFailed,
-    );
-  }
-
-  return LabelMismatchPhoto(
-    slot: slot,
-    bytes: sanitizedBytes,
-    contentType: 'image/jpeg',
-  );
-}
-
-Future<Uint8List> _sanitizeLabelMismatchPhoto(Uint8List sourceBytes) async {
-  final result = await FlutterImageCompress.compressWithList(
-    sourceBytes,
-    minWidth: 2400,
-    minHeight: 2400,
-    quality: 90,
-    format: CompressFormat.jpeg,
-    keepExif: false,
-  );
-  return Uint8List.fromList(result);
-}
-
-String _supportedContentType(XFile file) {
-  final rawDeclared = file.mimeType?.split(';').first.trim().toLowerCase();
-  final declared = rawDeclared == null || rawDeclared.isEmpty
-      ? null
-      : rawDeclared;
-  final normalized = declared == 'image/jpg' ? 'image/jpeg' : declared;
-  if (normalized != null) {
-    if (LabelMismatchPhoto.allowedContentTypes.contains(normalized)) {
-      return normalized;
-    }
-    throw const LabelMismatchValidationException(
-      LabelMismatchValidationFailure.unsupportedPhotoContentType,
-    );
-  }
-
-  final extension = file.name.toLowerCase().split('.').last;
-  final inferred = switch (extension) {
-    'jpg' || 'jpeg' => 'image/jpeg',
-    'png' => 'image/png',
-    'heic' => 'image/heic',
-    'heif' => 'image/heif',
-    'webp' => 'image/webp',
-    _ => null,
-  };
-  if (inferred == null) {
-    throw const LabelMismatchValidationException(
-      LabelMismatchValidationFailure.unsupportedPhotoContentType,
-    );
-  }
-  return inferred;
-}
-
 bool _hasAuthenticatedUser() {
   try {
     return Supabase.instance.client.auth.currentUser != null;
@@ -901,15 +791,15 @@ bool _hasAuthenticatedUser() {
   }
 }
 
-String _photoValidationMessage(LabelMismatchValidationException error) {
+String _photoValidationMessage(ProductSubmissionValidationException error) {
   return switch (error.reason) {
-    LabelMismatchValidationFailure.emptyPhoto =>
+    ProductSubmissionValidationFailure.emptyPhoto =>
       'That image is empty. Choose another.',
-    LabelMismatchValidationFailure.photoTooLarge =>
+    ProductSubmissionValidationFailure.photoTooLarge =>
       'Photo must be 15 MB or smaller.',
-    LabelMismatchValidationFailure.unsupportedPhotoContentType =>
+    ProductSubmissionValidationFailure.unsupportedPhotoContentType =>
       'Use a JPEG, PNG, HEIC, HEIF, or WebP image.',
-    LabelMismatchValidationFailure.photoSanitizationFailed =>
+    ProductSubmissionValidationFailure.photoSanitizationFailed =>
       'We couldn’t remove embedded photo metadata. Choose another image.',
     _ => 'We couldn’t use that photo. Choose another.',
   };
@@ -929,8 +819,8 @@ String _categoryLabel(LabelMismatchCategory category) => switch (category) {
     'Catalog version or product status',
 };
 
-String _photoSlotLabel(LabelMismatchPhotoSlot slot) => switch (slot) {
-  LabelMismatchPhotoSlot.front => 'Front of bottle',
-  LabelMismatchPhotoSlot.supplementFacts => 'Supplement Facts',
-  LabelMismatchPhotoSlot.otherIngredients => 'Other Ingredients',
+String _photoSlotLabel(ProductSubmissionPhotoSlot slot) => switch (slot) {
+  ProductSubmissionPhotoSlot.front => 'Front of bottle',
+  ProductSubmissionPhotoSlot.supplementFacts => 'Supplement Facts',
+  ProductSubmissionPhotoSlot.otherIngredients => 'Other Ingredients',
 };

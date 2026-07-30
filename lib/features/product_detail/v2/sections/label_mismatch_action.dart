@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
-import 'package:pharmaguide/services/label_mismatch_report_service.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 
 /// Build the report metadata for a "Doesn't match your bottle?" action from a
 /// raw `label_record` blob map. Returns null when there is no identifier to
@@ -29,7 +29,7 @@ LabelMismatchProductMetadata? labelMismatchMetadataFrom(
       catalogSourceVersion: _blankToNull(record['catalog_version']),
       formulaFingerprint: _blankToNull(record['formula_fingerprint']),
     );
-  } on LabelMismatchValidationException {
+  } on ProductSubmissionValidationException {
     // Genuinely malformed provenance (e.g. a non-blank, non-sha256
     // fingerprint) must never crash the product page during build — the
     // mismatch action simply does not render.
