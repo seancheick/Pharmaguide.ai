@@ -168,10 +168,12 @@ void main() {
       contains(
         'create unique index idx_product_submissions_user_open_upc '
         'on public.product_submissions (user_id, kind, normalized_upc) '
-        'where normalized_upc is not null and upload_state = \'ready\'',
+        'where normalized_upc is not null and promoted_at is null '
+        'and upload_state = \'ready\'',
       ),
       reason:
-          'An abandoned pending manifest cannot block a fresh photo capture.',
+          'An abandoned pending manifest and an already-promoted contribution '
+          'must not block a fresh correction.',
     );
   });
 
@@ -247,6 +249,16 @@ void main() {
       expect(sql, contains("if p_duplicate_of = p_submission_id then"));
       expect(
         sql,
+        contains("target.review_status = 'approved'"),
+        reason: 'A duplicate must point to a reviewed canonical submission.',
+      );
+      expect(
+        sql,
+        contains('target.kind = submission.kind'),
+        reason: 'A duplicate cannot cross submission kinds.',
+      );
+      expect(
+        sql,
         contains(
           'revoke all on function '
           'public.product_submission_has_required_missing_evidence',
@@ -261,6 +273,27 @@ void main() {
       );
     },
   );
+
+  test('duplicate provenance cannot prevent an account deletion', () {
+    expect(
+      sql,
+      contains(
+        'duplicate_of uuid references public.product_submissions(id) '
+        'on delete set null',
+      ),
+      reason:
+          'Deleting one user must not be blocked by another user’s duplicate '
+          'reference.',
+    );
+    expect(
+      sql,
+      contains("review_status <> 'duplicate' and duplicate_of is null"),
+      reason:
+          'A historical duplicate may outlive a deleted target, but no other '
+          'status may carry a duplicate pointer.',
+    );
+    expect(sql, contains("or review_status = 'duplicate'"));
+  });
 
   test('private storage and retention/account-purge manifests are explicit', () {
     expect(
@@ -332,6 +365,29 @@ void main() {
         reason: '$functionName must be explicitly granted to service_role.',
       );
     }
+    expect(
+      sql,
+      isNot(
+        contains(
+          'grant select, update, delete on table public.product_submissions '
+          'to service_role',
+        ),
+      ),
+      reason:
+          'Edge Functions mutate lifecycle state through audited RPCs only.',
+    );
+    expect(
+      sql,
+      isNot(
+        contains(
+          'grant select, insert, update, delete '
+          'on table public.product_submission_photos to service_role',
+        ),
+      ),
+      reason:
+          'The service role may read photo manifests; it must not rewrite '
+          'immutable evidence outside the RPC boundary.',
+    );
   });
 
   test(

@@ -1195,17 +1195,25 @@ final depletionWatchProvider =
         return const {};
       }
 
-      // The event log is authoritative because it distinguishes an Undo from a
-      // genuine restart. Rows added before the v10 log existed have no events,
-      // so they fall back to their own `added_at` — still a device fact, and
-      // without it every long-tenured user (the cohort this exists for) would
-      // be invisible to the watch.
-      final trackedSince = Map<String, DateTime>.from(
-        await ref.watch(healthEventRepositoryProvider).getStackTrackedSince(),
-      );
+      // Precedence, most to least truthful:
+      //   1. `started_at` — what the person reports. Someone on metformin
+      //      since 2019 who installed last week is only visible this way.
+      //   2. the append-only event log, which distinguishes an Undo from a
+      //      genuine stop-and-restart.
+      //   3. `added_at`, for rows predating the v10 log.
+      // Each is a fact the app was told or observed; none is inferred.
+      final logged = await ref
+          .read(healthEventRepositoryProvider)
+          .getStackTrackedSince();
+      final trackedSince = <String, DateTime>{};
       for (final e in stack) {
         if (e.type != 'medication') continue;
-        trackedSince.putIfAbsent(e.id, () => e.addedAt.toUtc());
+        final reported = e.startedAt;
+        if (reported != null) {
+          trackedSince[e.id] = reported.toUtc();
+          continue;
+        }
+        trackedSince[e.id] = (logged[e.id] ?? e.addedAt).toUtc();
       }
 
       return DepletionWatchResolver().evaluate(

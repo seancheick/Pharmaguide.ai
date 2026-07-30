@@ -58,46 +58,63 @@ class PGDailyPlanCard extends StatelessWidget {
           boxShadow: V2Shadows.sm,
         ),
         clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.all(V2Spacing.space16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.schedule_rounded,
-                    size: 16,
-                    color: V2Colors.accent,
-                  ),
-                  SizedBox(width: V2Spacing.space8),
-                  PGEyebrow('Daily plan', color: V2Colors.accent),
-                ],
-              ),
-              const SizedBox(height: V2Spacing.space8),
-              Text(
-                'One way to space your day',
-                style: V2Typography.titleSm(color: V2Colors.fg),
-              ),
-              const SizedBox(height: V2Spacing.space4),
-              Text(
-                'Grouped from your timing guidance. Anchor these to meals '
-                'and bedtime you already keep — the grouping matters more '
-                'than the exact hour.',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
-              ),
-              const SizedBox(height: V2Spacing.space12),
-              for (final slot in filled) ...[
-                _SlotRow(
-                  slot: slot,
-                  icon: _slotIcons[slot]!,
-                  items: plan.itemsBySlot[slot]!,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 16,
+                          color: V2Colors.accent,
+                        ),
+                        SizedBox(width: V2Spacing.space8),
+                        PGEyebrow('Daily plan', color: V2Colors.accent),
+                      ],
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'One way to space your day',
+                        style: V2Typography.titleSm(color: V2Colors.fg),
+                      ),
+                    ),
+                    const SizedBox(height: V2Spacing.space4),
+                    Text(
+                      'Grouped from your timing guidance. Anchor these to meals '
+                      'and bedtime you already keep — the grouping matters more '
+                      'than the exact hour.',
+                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                    for (final slot in filled) ...[
+                      _SlotRow(
+                        slot: slot,
+                        icon: _slotIcons[slot]!,
+                        items: plan.itemsBySlot[slot]!,
+                      ),
+                      const SizedBox(height: V2Spacing.space12),
+                    ],
+                    if (plan.unsatisfied.isNotEmpty) _Conflicts(plan: plan),
+                  ],
                 ),
-                const SizedBox(height: V2Spacing.space12),
-              ],
-              if (plan.unsatisfied.isNotEmpty) _Conflicts(plan: plan),
-            ],
-          ),
+              ),
+            ),
+            const Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              child: ColoredBox(color: V2Colors.accent),
+            ),
+          ],
         ),
       ),
     );
@@ -113,25 +130,32 @@ class _SlotRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: V2Colors.accent),
-        const SizedBox(width: V2Spacing.space8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(slot.label, style: V2Typography.label(color: V2Colors.fg)),
-              const SizedBox(height: 2),
-              Text(
-                items.join(' · '),
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
-              ),
-            ],
+    // One label per slot, so a screen reader announces "With breakfast: iron,
+    // vitamin c" instead of walking a decorative icon and a middot-separated
+    // string. The visual separator is punctuation, not content.
+    return Semantics(
+      label: '${slot.label}: ${items.join(', ')}',
+      excludeSemantics: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: V2Colors.accent),
+          const SizedBox(width: V2Spacing.space8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(slot.label, style: V2Typography.label(color: V2Colors.fg)),
+                const SizedBox(height: 2),
+                Text(
+                  items.join(' · '),
+                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -154,9 +178,12 @@ class _Conflicts extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Timing to review',
-            style: V2Typography.label(color: V2Colors.fg),
+          Semantics(
+            header: true,
+            child: Text(
+              'Timing to review',
+              style: V2Typography.label(color: V2Colors.fg),
+            ),
           ),
           const SizedBox(height: V2Spacing.space4),
           Text(

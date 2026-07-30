@@ -28,6 +28,27 @@ class UserStacksLocal extends Table {
   TextColumn get frequency => text().nullable()();
   DateTimeColumn get addedAt =>
       dateTime().named('added_at').withDefault(currentDateAndTime)();
+
+  /// When the person actually started taking this, as they report it.
+  ///
+  /// Distinct from [addedAt], which only records when the row entered this
+  /// device. Someone on metformin since 2019 who installed last week has an
+  /// [addedAt] of days and a [startedAt] of years, and only the latter is a
+  /// truthful input to a duration-aware clinical watch.
+  ///
+  /// DEVICE-ONLY: deliberately absent from the Supabase sync payload. A
+  /// medication start date is health history, not catalog data.
+  DateTimeColumn get startedAt => dateTime().named('started_at').nullable()();
+
+  /// Local reminder time as minutes since midnight, or null for no reminder.
+  ///
+  /// Stored as a wall-clock offset rather than an instant so a daily reminder
+  /// stays at "8am" across travel and DST instead of drifting.
+  ///
+  /// DEVICE-ONLY: never synced. What someone takes and when is not something
+  /// this app puts in the cloud.
+  IntColumn get reminderMinutes =>
+      integer().named('reminder_minutes').nullable()();
   DateTimeColumn get clientUpdatedAt =>
       dateTime().named('client_updated_at').withDefault(currentDateAndTime)();
   DateTimeColumn get deletedAt => dateTime().named('deleted_at').nullable()();

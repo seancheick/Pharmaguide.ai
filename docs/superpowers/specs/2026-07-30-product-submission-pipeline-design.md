@@ -117,6 +117,10 @@ Unknown statuses render unavailable rather than complete.
 RLS restricts users to their own submission rows and manifests. Authenticated
 clients receive only `SELECT` table access plus the two narrow create/finalize
 RPCs. They cannot update review, extraction, approval, or publication fields.
+The service role receives direct `SELECT` access only for the review queue;
+every state change goes through an audited `SECURITY DEFINER` RPC. Photo
+manifests, extraction drafts, approved payloads, and review events therefore
+cannot be rewritten through an accidental raw service-role table mutation.
 
 The reviewer Edge Function:
 
@@ -153,6 +157,13 @@ the user. The database serializes approval by catalog target and rejects a
 second approved-but-unpromoted correction for that identity, preventing two
 reviewers from racing different labels into one release. Review notes are
 staff-only and never returned to the consumer status surface.
+
+A duplicate decision must point to an approved, ready submission of the same
+kind and exact UPC or DSLD target. The database rejects cross-kind and
+cross-product duplicate links. If the target owner later deletes their
+account, the historical duplicate status remains but the self-reference is
+cleared, so one user's contribution can never prevent another user's account
+deletion.
 
 The reviewer may create a correction for an existing numeric DSLD ID or a new
 missing-product payload. A label mismatch keeps the existing DSLD identity. A

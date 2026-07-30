@@ -60,7 +60,8 @@ CREATE TABLE public.product_submissions (
       OR btrim(promoted_catalog_version) <> ''
     ),
   promoted_at timestamptz,
-  duplicate_of uuid REFERENCES public.product_submissions(id),
+  duplicate_of uuid
+    REFERENCES public.product_submissions(id) ON DELETE SET NULL,
   cleanup_claimed_at timestamptz,
   evidence_purged_at timestamptz,
   CONSTRAINT product_submissions_id_user_unique UNIQUE (id, user_id),
@@ -80,7 +81,11 @@ CREATE TABLE public.product_submissions (
     )
   ),
   CONSTRAINT product_submissions_duplicate_consistent CHECK (
-    (review_status = 'duplicate') = (duplicate_of IS NOT NULL)
+    (
+      review_status <> 'duplicate'
+      AND duplicate_of IS NULL
+    )
+    OR review_status = 'duplicate'
   ),
   CONSTRAINT product_submissions_promotion_consistent CHECK (
     (
@@ -249,6 +254,7 @@ CREATE INDEX idx_product_submissions_upc
 CREATE UNIQUE INDEX idx_product_submissions_user_open_upc
   ON public.product_submissions (user_id, kind, normalized_upc)
   WHERE normalized_upc IS NOT NULL
+    AND promoted_at IS NULL
     AND upload_state = 'ready'
     AND review_status IN ('submitted', 'under_review', 'approved');
 CREATE UNIQUE INDEX idx_product_submission_photo_path
@@ -897,6 +903,31 @@ BEGIN
     RAISE EXCEPTION 'submission cannot duplicate itself'
       USING ERRCODE = '22023';
   END IF;
+  IF p_to_status = 'duplicate' AND NOT EXISTS (
+    SELECT 1
+    FROM public.product_submissions AS target
+    LEFT JOIN public.product_submission_mismatch_details AS current_mismatch
+      ON current_mismatch.submission_id = submission.id
+    LEFT JOIN public.product_submission_mismatch_details AS target_mismatch
+      ON target_mismatch.submission_id = target.id
+    WHERE target.id = p_duplicate_of
+      AND target.upload_state = 'ready'
+      AND target.review_status = 'approved'
+      AND target.kind = submission.kind
+      AND (
+        (
+          submission.kind = 'missing_product'
+          AND target.normalized_upc = submission.normalized_upc
+        )
+        OR (
+          submission.kind = 'label_mismatch'
+          AND target_mismatch.dsld_id = current_mismatch.dsld_id
+        )
+      )
+  ) THEN
+    RAISE EXCEPTION 'duplicate target must be an approved matching submission'
+      USING ERRCODE = '22023';
+  END IF;
 
   IF p_to_status = 'approved' THEN
     IF submission.kind = 'label_mismatch' THEN
@@ -1363,11 +1394,11 @@ REVOKE ALL ON TABLE public.product_submission_missing_details
 REVOKE ALL ON TABLE public.product_submission_photos
   FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.product_submission_extractions
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.product_submission_approved_labels
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.product_submission_review_events
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 
 GRANT SELECT ON TABLE public.product_submissions TO authenticated;
 GRANT SELECT ON TABLE public.product_submission_mismatch_details
@@ -1375,22 +1406,16 @@ GRANT SELECT ON TABLE public.product_submission_mismatch_details
 GRANT SELECT ON TABLE public.product_submission_missing_details
   TO authenticated;
 GRANT SELECT ON TABLE public.product_submission_photos TO authenticated;
-GRANT SELECT, UPDATE, DELETE ON TABLE public.product_submissions
+-- Edge Functions read the queue directly but mutate it only through the
+-- audited SECURITY DEFINER RPCs below. Keeping direct service-role DML out of
+-- the table grants makes immutable evidence and review history enforceable
+-- even if a future function accidentally constructs a raw table mutation.
+GRANT SELECT ON TABLE public.product_submissions TO service_role;
+GRANT SELECT ON TABLE public.product_submission_mismatch_details
   TO service_role;
-GRANT SELECT, INSERT, UPDATE, DELETE
-  ON TABLE public.product_submission_mismatch_details TO service_role;
-GRANT SELECT, INSERT, UPDATE, DELETE
-  ON TABLE public.product_submission_missing_details TO service_role;
-GRANT SELECT, INSERT, UPDATE, DELETE
-  ON TABLE public.product_submission_photos TO service_role;
-GRANT SELECT, INSERT, UPDATE, DELETE
-  ON TABLE public.product_submission_extractions TO service_role;
-GRANT SELECT, INSERT, UPDATE, DELETE
-  ON TABLE public.product_submission_approved_labels TO service_role;
-GRANT SELECT, INSERT
-  ON TABLE public.product_submission_review_events TO service_role;
-GRANT USAGE, SELECT
-  ON SEQUENCE public.product_submission_review_events_id_seq TO service_role;
+GRANT SELECT ON TABLE public.product_submission_missing_details
+  TO service_role;
+GRANT SELECT ON TABLE public.product_submission_photos TO service_role;
 
 REVOKE ALL ON TYPE public.product_submission_kind
   FROM PUBLIC, anon, authenticated, service_role;
