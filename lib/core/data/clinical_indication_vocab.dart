@@ -18,7 +18,7 @@
 //   }
 //
 // 22 entries, locked. Drives evidence grouping in product detail
-// (e.g. "Cardiovascular evidence" badge) and links to condition_vocab
+// (e.g. "Cardiovascular evidence" badge) and links to the clinical taxonomy
 // for context-relevant scoring boosts.
 //
 // Loaded once at first call to `loadClinicalIndicationVocab()`;

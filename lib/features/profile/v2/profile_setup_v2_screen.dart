@@ -10,11 +10,13 @@ import 'package:pharmaguide/core/components/pg_selection_sheet.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
+import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 /// Phase 11.7L.B.6 — v2 ProfileSetup restructure.
@@ -110,6 +112,7 @@ class ProfileSetupV2Screen extends ConsumerStatefulWidget {
 
 class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
   bool _saving = false;
+  ClinicalProfileSchema? _clinicalProfileSchema;
 
   /// Sections saved at least once in THIS session. Drives the
   /// guided flow's skip logic — never persisted; a fresh open of
@@ -144,6 +147,9 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
   /// confirmed, runs the existing full save + exit. Dismissing any
   /// sheet ends the chain — the user stays on the dashboard.
   Future<void> _onSectionTap(_Section section) async {
+    _clinicalProfileSchema ??= await _loadClinicalProfileSchema();
+    if (_clinicalProfileSchema == null || !mounted) return;
+
     var current = section;
     while (mounted) {
       final isLastRemaining = _remainingExcluding(current) == 0;
@@ -224,6 +230,23 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
 
   // ───────── sheet openers ─────────
 
+  Future<ClinicalProfileSchema?> _loadClinicalProfileSchema() async {
+    final loaded = ref.read(clinicalProfileSchemaProvider).asData?.value;
+    if (loaded != null) return loaded;
+    try {
+      return await ref.read(clinicalProfileSchemaProvider.future);
+    } on Object {
+      if (mounted) {
+        PGToast.show(
+          context,
+          'Clinical profile options are unavailable. Please try again.',
+          variant: PGToastVariant.error,
+        );
+      }
+      return null;
+    }
+  }
+
   Future<bool> _openGoalsSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
     // Goal priority-sort: high → medium → low. Same ordering the
@@ -273,6 +296,8 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
 
   Future<bool> _openConditionsSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
+    final schema = _clinicalProfileSchema;
+    if (schema == null || !mounted) return false;
     final result = await showPGSelectionSheet(
       context: context,
       eyebrow: 'Health conditions',
@@ -281,12 +306,10 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
           'Used only to personalize safety checks on this device. '
           'PharmaGuide does not diagnose — these flag interactions '
           'worth a conversation with your clinician.',
-      options: SchemaIds.conditions
+      options: schema.selectableConditions
           .map(
-            (id) => PGSelectionOption(
-              id: id,
-              label: SchemaIds.conditionLabels[id] ?? id,
-            ),
+            (condition) =>
+                PGSelectionOption(id: condition.id, label: condition.label),
           )
           .toList(),
       initialSelection: profile.conditionsForEvaluator.toSet(),
@@ -344,38 +367,27 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
     return true;
   }
 
-  /// Plain-language labels for the health-history profile flags. IDs are the
-  /// canonical [SchemaIds.profileFlags]; the labels are UI copy sourced from
-  /// clinical_risk_taxonomy.json. These flags escalate specific interaction
-  /// severities (bleeding / immunocompromised / etc.), so the rules that
-  /// depend on them are only reachable once the user can set them here.
-  static const Map<String, String> _healthHistoryLabels = {
-    'severely_immunocompromised':
-        'Immunocompromised (chemo, transplant, or immunosuppressants)',
-    'bleeding_history': 'Bleeding disorder (personal or family history)',
-    'hypoglycemia_history': 'History of low blood sugar (hypoglycemia)',
-    'post_op_recovery': 'Recovering from surgery',
-  };
-
   Future<bool> _openHealthHistorySheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
+    final schema = _clinicalProfileSchema;
+    if (schema == null || !mounted) return false;
+    final selectableIds = schema.userSelectableFlags
+        .map((flag) => flag.id)
+        .toSet();
     final result = await showPGSelectionSheet(
       context: context,
       eyebrow: 'Health history',
       title: 'Anything from your health history?',
       helperText:
-          'Optional. Used only on this device to raise the caution level on '
-          'specific interactions — for example, bleeding history flags '
-          'blood-thinning combinations. PharmaGuide does not diagnose.',
-      options: SchemaIds.profileFlags
-          .map(
-            (id) => PGSelectionOption(
-              id: id,
-              label: _healthHistoryLabels[id] ?? id,
-            ),
-          )
+          'Optional. Used only on this device for reviewed safety checks that '
+          'need more detail than a general health condition. PharmaGuide '
+          'does not diagnose.',
+      options: schema.userSelectableFlags
+          .map((flag) => PGSelectionOption(id: flag.id, label: flag.label))
           .toList(),
-      initialSelection: profile.profileFlags.toSet(),
+      initialSelection: profile.profileFlags
+          .where(selectableIds.contains)
+          .toSet(),
       // No sentinel needed — "None" just clears the selection, and an empty
       // set is the safe default (no escalation).
       noneLabel: 'None of these apply',
@@ -389,14 +401,6 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
         .setProfileFlags(result.selected.toList());
     return true;
   }
-
-  String _healthHistorySummaryTitle(ProfileState p) =>
-      p.profileFlags.isEmpty ? 'Optional' : '${p.profileFlags.length} selected';
-
-  String _healthHistorySummaryBody(ProfileState p) => p.profileFlags.isEmpty
-      ? 'Add bleeding, immune, surgery or low-blood-sugar history to sharpen '
-            'safety checks.'
-      : p.profileFlags.map((id) => _healthHistoryLabels[id] ?? id).join(', ');
 
   Future<bool> _openMedicationsSheet({required String saveLabel}) async {
     final profile = ref.read(profileProvider);
@@ -515,6 +519,10 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider);
+    final clinicalSchema = ref
+        .watch(clinicalProfileSchemaProvider)
+        .asData
+        ?.value;
     final mq = MediaQuery.of(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -558,7 +566,7 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
                     eyebrow: 'Health conditions',
-                    title: _conditionsSummaryTitle(profile),
+                    title: _conditionsSummaryTitle(profile, clinicalSchema),
                     body: _conditionsSummaryBody(profile),
                     icon: Icons.favorite_outline_rounded,
                     onTap: () => _onSectionTap(_Section.conditions),
@@ -574,8 +582,8 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
                   const SizedBox(height: V2Spacing.space12),
                   _GroupTile(
                     eyebrow: 'Health history',
-                    title: _healthHistorySummaryTitle(profile),
-                    body: _healthHistorySummaryBody(profile),
+                    title: _healthHistorySummaryTitle(profile, clinicalSchema),
+                    body: _healthHistorySummaryBody(profile, clinicalSchema),
                     icon: Icons.health_and_safety_outlined,
                     onTap: () => _onSectionTap(_Section.healthHistory),
                   ),
@@ -637,13 +645,16 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
     return null;
   }
 
-  String _conditionsSummaryTitle(ProfileState p) {
+  String _conditionsSummaryTitle(
+    ProfileState p,
+    ClinicalProfileSchema? schema,
+  ) {
     if (p.hasConditionNone) return 'None of these';
     final n = p.conditionsForEvaluator.length;
     if (n == 0) return 'Tap to pick';
     if (n == 1) {
-      return SchemaIds.conditionLabels[p.conditionsForEvaluator.first] ??
-          p.conditionsForEvaluator.first;
+      return schema?.conditionLabel(p.conditionsForEvaluator.first) ??
+          '1 selected';
     }
     return '$n selected';
   }
@@ -654,6 +665,38 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
       return 'Used to flag interactions worth a clinician chat.';
     }
     return null;
+  }
+
+  List<String> _selectedProfileFlags(
+    ProfileState profile,
+    ClinicalProfileSchema? schema,
+  ) {
+    if (schema == null) return const [];
+    final selectableIds = schema.userSelectableFlags
+        .map((flag) => flag.id)
+        .toSet();
+    return profile.profileFlags
+        .where(selectableIds.contains)
+        .toList(growable: false);
+  }
+
+  String _healthHistorySummaryTitle(
+    ProfileState profile,
+    ClinicalProfileSchema? schema,
+  ) {
+    final selected = _selectedProfileFlags(profile, schema);
+    return selected.isEmpty ? 'Optional' : '${selected.length} selected';
+  }
+
+  String _healthHistorySummaryBody(
+    ProfileState profile,
+    ClinicalProfileSchema? schema,
+  ) {
+    final selected = _selectedProfileFlags(profile, schema);
+    if (selected.isEmpty) {
+      return 'Add relevant severe-risk history to sharpen safety checks.';
+    }
+    return selected.map((id) => schema?.profileFlagLabel(id) ?? id).join(', ');
   }
 
   String _allergensSummaryTitle(ProfileState p) {

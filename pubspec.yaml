@@ -153,11 +153,6 @@ flutter:
     # used by interaction-rule warnings, harmful-additive flags, and
     # allergen alerts. Source: pipeline `scripts/data/severity_vocab.json`.
     - assets/data/severity_vocab.json
-    # Condition vocab — locked v1.0.0, 14 IDs (pregnancy, lactation, ttc,
-    # surgery_scheduled, hypertension, etc.). Lean schema (id+name+notes+
-    # optional synonyms+icd10). Migrated from hardcoded conditionLabels in
-    # schema_ids.dart. Source: pipeline `scripts/data/condition_vocab.json`.
-    - assets/data/condition_vocab.json
     # Drug-class vocab — locked v1.0.0, 21 IDs (13 user_selectable + 8
     # rule-only CYP/narrow families). Carries name, notes, examples,
     # rx_status, user_selectable. 13 user_selectable match drugClasses in

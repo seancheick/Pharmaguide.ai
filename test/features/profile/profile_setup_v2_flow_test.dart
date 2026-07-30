@@ -17,6 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/profile/v2/profile_setup_v2_screen.dart';
 
@@ -49,10 +51,35 @@ Widget _buildApp(_CountingProfileNotifier notifier) {
     ],
   );
   return ProviderScope(
-    overrides: [profileProvider.overrideWith((ref) => notifier)],
+    overrides: [
+      profileProvider.overrideWith((ref) => notifier),
+      clinicalProfileSchemaProvider.overrideWith(
+        (ref) async => _testClinicalProfileSchema,
+      ),
+    ],
     child: MaterialApp.router(routerConfig: router),
   );
 }
+
+const _testClinicalProfileSchema = ClinicalProfileSchema(
+  selectableConditions: <ClinicalProfileOption>[
+    ClinicalProfileOption(
+      id: 'pregnancy',
+      label: 'Pregnancy',
+      description: 'Currently pregnant.',
+      displayPriority: 1,
+    ),
+  ],
+  userSelectableFlags: <ClinicalProfileFlag>[
+    ClinicalProfileFlag(
+      id: 'severely_immunocompromised',
+      label: 'Severely immunocompromised',
+      description: 'Severely weakened immune defenses.',
+      captureMode: ProfileCaptureMode.userSelectable,
+    ),
+  ],
+  derivedFlagByCondition: <String, String>{'pregnancy': 'pregnant'},
+);
 
 /// Tall surface so every dashboard tile and sheet row is laid out.
 void _useTallSurface(WidgetTester tester) {

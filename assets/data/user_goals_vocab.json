@@ -12,7 +12,7 @@
       "name": "User-facing label shown in onboarding and the goals screen.",
       "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
       "priority": "Tier hint for default sort/recommendation weight. One of: high | medium | low.",
-      "related_condition_ids": "Optional. Condition IDs (from condition_vocab.json) that often co-occur with this goal — used for context-relevant warnings.",
+      "related_condition_ids": "Optional. Condition IDs from clinical_risk_taxonomy.json that often co-occur with this goal — used for context-relevant warnings.",
       "related_drug_class_ids": "Optional. Drug-class IDs (from drug_class_vocab.json) that often co-occur with this goal."
     },
     "char_limit_notes": 200

@@ -51,6 +51,11 @@ class ShareClinicianReportButton extends ConsumerWidget {
       // `.future` form awaits if still in flight.
       final userDb = ref.read(userDatabaseProvider);
       final profile = await userDb.getProfile();
+      final referenceDataRepository = ref.read(
+        reference_data.referenceDataRepositoryProvider,
+      );
+      final clinicalProfileSchema = await referenceDataRepository
+          .loadClinicalProfileSchema();
       final stack = await ref.read(activeStackProvider.future);
       final medicationIdentityStatuses =
           stack.any((entry) => entry.type == 'medication')
@@ -70,8 +75,7 @@ class ShareClinicianReportButton extends ConsumerWidget {
       final depletions = depletionReport.matches;
       Map<String, dynamic> depletionMetadata = const <String, dynamic>{};
       try {
-        final depletionArtifact = await ref
-            .read(reference_data.referenceDataRepositoryProvider)
+        final depletionArtifact = await referenceDataRepository
             .loadMedicationDepletions();
         final rawMetadata = depletionArtifact.data['_metadata'];
         if (rawMetadata is Map) {
@@ -159,6 +163,10 @@ class ShareClinicianReportButton extends ConsumerWidget {
         productCatalogVersion: productCatalogVersion,
         interactionRulesVersion: interactionRulesVersion,
         medicationIdentityStatuses: medicationIdentityStatuses,
+        conditionLabels: {
+          for (final condition in clinicalProfileSchema.selectableConditions)
+            condition.id: condition.label,
+        },
         generatedAt: DateTime.now(),
         logoBytes: logoBytes,
         regularFontBytes: regularFontBytes,

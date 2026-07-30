@@ -27,7 +27,7 @@ import 'package:pharmaguide/core/data/ban_context_vocab.dart';
 import 'package:pharmaguide/core/data/banned_status_vocab.dart';
 import 'package:pharmaguide/core/data/clinical_indication_vocab.dart';
 import 'package:pharmaguide/core/data/clinical_risk_vocab.dart';
-import 'package:pharmaguide/core/data/condition_vocab.dart';
+import 'package:pharmaguide/core/data/clinical_condition_adapter.dart';
 import 'package:pharmaguide/core/data/confidence_tier_vocab.dart';
 import 'package:pharmaguide/core/data/drug_class_vocab.dart';
 import 'package:pharmaguide/core/data/effect_direction_vocab.dart';

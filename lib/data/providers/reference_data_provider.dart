@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 
 /// App-wide reference-data repository.
@@ -11,6 +12,13 @@ final referenceDataRepositoryProvider = Provider<ReferenceDataRepository>((
   ref,
 ) {
   return ReferenceDataRepository();
+});
+
+/// Pipeline-owned clinical profile schema used by every profile entry surface.
+final clinicalProfileSchemaProvider = FutureProvider<ClinicalProfileSchema>((
+  ref,
+) {
+  return ref.watch(referenceDataRepositoryProvider).loadClinicalProfileSchema();
 });
 
 /// Active bundled RDA/UL artifact. Product-detail surfaces use its versioned

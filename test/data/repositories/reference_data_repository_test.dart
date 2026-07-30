@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 
 void main() {
@@ -25,11 +24,7 @@ void main() {
         expect(conditions.length, 15);
         expect((conditions.first as Map)['id'], 'pregnancy');
         expect(conditionIds, contains('immunocompromised'));
-        expect(conditionIds, SchemaIds.conditions.toSet());
-        expect(
-          SchemaIds.conditionLabels.keys.toSet(),
-          SchemaIds.conditions.toSet(),
-        );
+        expect(conditionIds, hasLength(15));
       },
     );
 
@@ -55,6 +50,28 @@ void main() {
         containsAll(['pregnant', 'trying_to_conceive', 'bleeding_history']),
       );
     });
+
+    test(
+      'builds the selectable clinical profile from taxonomy metadata',
+      () async {
+        final schema = await repo.loadClinicalProfileSchema();
+
+        expect(schema.selectableConditions, hasLength(15));
+        expect(
+          schema.selectableConditions.map((entry) => entry.id),
+          contains('immunocompromised'),
+        );
+        expect(schema.userSelectableFlags.map((entry) => entry.id), [
+          'severely_immunocompromised',
+        ]);
+        expect(schema.derivedFlagByCondition, {
+          'pregnancy': 'pregnant',
+          'ttc': 'trying_to_conceive',
+          'lactation': 'breastfeeding',
+          'surgery_scheduled': 'surgery_scheduled',
+        });
+      },
+    );
 
     test('loads user_goals_to_clusters with 18 goals', () async {
       final goals = await repo.loadGoalMappings();

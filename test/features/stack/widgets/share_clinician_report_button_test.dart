@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as reference_data;
@@ -254,7 +255,25 @@ void main() {
   });
 }
 
-class _UnavailableReferenceDataRepository extends ReferenceDataRepository {
+abstract class _TestReferenceDataRepository extends ReferenceDataRepository {
+  @override
+  Future<ClinicalProfileSchema> loadClinicalProfileSchema() async {
+    return const ClinicalProfileSchema(
+      selectableConditions: <ClinicalProfileOption>[
+        ClinicalProfileOption(
+          id: 'pregnancy',
+          label: 'Pregnancy',
+          description: 'Currently pregnant.',
+          displayPriority: 1,
+        ),
+      ],
+      userSelectableFlags: <ClinicalProfileFlag>[],
+      derivedFlagByCondition: <String, String>{'pregnancy': 'pregnant'},
+    );
+  }
+}
+
+class _UnavailableReferenceDataRepository extends _TestReferenceDataRepository {
   @override
   Future<({MedNutrientLoadStatus status, Map<String, dynamic> data})>
   loadMedicationDepletions() async {
@@ -262,7 +281,7 @@ class _UnavailableReferenceDataRepository extends ReferenceDataRepository {
   }
 }
 
-class _AvailableReferenceDataRepository extends ReferenceDataRepository {
+class _AvailableReferenceDataRepository extends _TestReferenceDataRepository {
   @override
   Future<({MedNutrientLoadStatus status, Map<String, dynamic> data})>
   loadMedicationDepletions() async {

@@ -32,6 +32,7 @@ class ClinicianPdfBuilder {
     String? interactionRulesVersion,
     Map<String, MedicationIdentityStatus> medicationIdentityStatuses =
         const <String, MedicationIdentityStatus>{},
+    Map<String, String> conditionLabels = const <String, String>{},
     required DateTime generatedAt,
     Uint8List? logoBytes,
     Uint8List? regularFontBytes,
@@ -67,7 +68,7 @@ class ClinicianPdfBuilder {
             interactionRulesVersion: interactionRulesVersion,
             status: depletionStatus,
           ),
-          _profileSection(theme, profile),
+          _profileSection(theme, profile, conditionLabels),
           _stackSection(
             theme,
             'Medications',
@@ -164,7 +165,11 @@ class ClinicianPdfBuilder {
     ]);
   }
 
-  pw.Widget _profileSection(_Theme theme, UserProfile? profile) {
+  pw.Widget _profileSection(
+    _Theme theme,
+    UserProfile? profile,
+    Map<String, String> conditionLabels,
+  ) {
     if (profile == null) return pw.SizedBox.shrink();
     final rows = <String>[];
 
@@ -180,6 +185,7 @@ class ClinicianPdfBuilder {
       'Conditions',
       profile.conditions,
       ClinicalProfileField.condition,
+      conditionLabels: conditionLabels,
     );
     _addJsonList(
       rows,
@@ -725,9 +731,14 @@ class ClinicianPdfBuilder {
     List<String> rows,
     String label,
     String? raw,
-    ClinicalProfileField field,
-  ) {
-    final list = clinicalProfileLabels(_decodeJsonStringList(raw), field);
+    ClinicalProfileField field, {
+    Map<String, String> conditionLabels = const <String, String>{},
+  }) {
+    final list = clinicalProfileLabels(
+      _decodeJsonStringList(raw),
+      field,
+      conditionLabels: conditionLabels,
+    );
     if (list.isNotEmpty) rows.add('$label: ${list.join(", ")}');
   }
 

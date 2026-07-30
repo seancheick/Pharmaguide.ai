@@ -232,6 +232,10 @@ void main() {
       ),
       safetyReport: const StackSafetyReport(),
       depletions: const [],
+      conditionLabels: const {
+        'ttc': 'Trying to Conceive',
+        'high_cholesterol': 'High Cholesterol',
+      },
       generatedAt: ts,
     );
 

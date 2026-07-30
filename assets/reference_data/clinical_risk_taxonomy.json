@@ -2,14 +2,20 @@
   "_metadata": {
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
-    "schema_version": "5.2.0",
+    "schema_version": "5.3.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
-    "last_updated": "2026-07-04",
+    "last_updated": "2026-07-29",
     "total_entries": 79,
     "flutter_top_level_key": "clinical_risk_taxonomy",
     "drug_classes_count": 30,
     "migration": {
       "completed_migrations": [
+        {
+          "from": "5.2.0",
+          "to": "5.3.0",
+          "date": "2026-07-29",
+          "summary": "Additive: made this taxonomy the sole authored clinical-profile schema. Conditions now own user-facing descriptions, synonyms, ICD-10 context, and selectability. Profile flags now declare whether they are derived, selectable, or reserved, including the source condition for derived flags."
+        },
         {
           "from": "5.1.0",
           "to": "5.2.0",
@@ -24,92 +30,273 @@
       "id": "pregnancy",
       "label": "Pregnancy",
       "category": "reproductive",
-      "display_priority": 1
+      "display_priority": 1,
+      "user_selectable": true,
+      "description": "Currently pregnant. Many supplements have specific dose limits or are contraindicated; some interact with maternal-fetal physiology.",
+      "synonyms": [
+        "expecting",
+        "gestation"
+      ],
+      "icd10": [
+        {
+          "code": "O00-O9A",
+          "description": "Pregnancy, childbirth and the puerperium"
+        }
+      ]
     },
     {
       "id": "lactation",
       "label": "Breastfeeding",
       "category": "reproductive",
-      "display_priority": 2
+      "display_priority": 2,
+      "user_selectable": true,
+      "description": "Currently nursing. Some supplements pass into breast milk and can affect the infant; others alter milk supply.",
+      "synonyms": [
+        "nursing",
+        "lactating"
+      ],
+      "icd10": [
+        {
+          "code": "Z39.1",
+          "description": "Encounter for care and examination of lactating mother"
+        }
+      ]
     },
     {
       "id": "ttc",
       "label": "Trying to Conceive",
       "category": "reproductive",
-      "display_priority": 3
+      "display_priority": 3,
+      "user_selectable": true,
+      "description": "Actively attempting pregnancy. Pre-conception nutrition matters for fetal development; some supplements impact fertility.",
+      "synonyms": [
+        "trying for a baby",
+        "preconception"
+      ],
+      "icd10": [
+        {
+          "code": "Z31",
+          "description": "Encounter for procreative management"
+        }
+      ]
     },
     {
       "id": "surgery_scheduled",
       "label": "Upcoming Surgery",
       "category": "perioperative",
-      "display_priority": 4
+      "display_priority": 4,
+      "user_selectable": true,
+      "description": "Surgery planned in the near term. Several supplements increase bleeding risk or interact with anesthesia and may need to be paused before surgery.",
+      "synonyms": [
+        "pre-op",
+        "preoperative"
+      ],
+      "icd10": [
+        {
+          "code": "Z01.818",
+          "description": "Encounter for other preprocedural examination"
+        }
+      ]
     },
     {
       "id": "hypertension",
       "label": "High Blood Pressure",
       "category": "cardiovascular",
-      "display_priority": 5
+      "display_priority": 5,
+      "user_selectable": true,
+      "description": "Diagnosed elevated blood pressure. Some supplements raise blood pressure or interact with antihypertensive medications.",
+      "synonyms": [
+        "high BP",
+        "HTN"
+      ],
+      "icd10": [
+        {
+          "code": "I10-I16",
+          "description": "Hypertensive diseases"
+        }
+      ]
     },
     {
       "id": "heart_disease",
       "label": "Heart Disease",
       "category": "cardiovascular",
-      "display_priority": 6
+      "display_priority": 6,
+      "user_selectable": true,
+      "description": "History of cardiac disease such as coronary artery disease, heart failure, or arrhythmia. Some supplements affect rhythm, contractility, or cardiac medications.",
+      "synonyms": [
+        "cardiovascular disease",
+        "CVD",
+        "CAD"
+      ],
+      "icd10": [
+        {
+          "code": "I20-I25",
+          "description": "Ischemic heart diseases"
+        }
+      ]
     },
     {
       "id": "diabetes",
       "label": "Diabetes",
       "category": "metabolic",
       "display_priority": 7,
-      "note": "Covers type 1 and type 2. Merged from diabetes_type1/diabetes_type2 \u2014 supplement interactions are the same for both types (blood sugar impact, hypoglycemic risk)."
+      "user_selectable": true,
+      "description": "Type 1, type 2, or pre-diabetes. Many supplements affect blood sugar; some can increase the effect of glucose-lowering medications.",
+      "synonyms": [
+        "DM",
+        "type 2 diabetes",
+        "T2D"
+      ],
+      "icd10": [
+        {
+          "code": "E08-E13",
+          "description": "Diabetes mellitus"
+        }
+      ]
     },
     {
       "id": "bleeding_disorders",
       "label": "Bleeding Disorders",
       "category": "hematologic",
-      "display_priority": 8
+      "display_priority": 8,
+      "user_selectable": true,
+      "description": "A diagnosed condition that affects clotting, such as hemophilia, von Willebrand disease, or low platelets.",
+      "synonyms": [
+        "coagulopathy",
+        "hemophilia"
+      ],
+      "icd10": [
+        {
+          "code": "D65-D69",
+          "description": "Coagulation defects, purpura and other hemorrhagic conditions"
+        }
+      ]
     },
     {
       "id": "kidney_disease",
       "label": "Kidney Disease",
       "category": "renal",
-      "display_priority": 9
+      "display_priority": 9,
+      "user_selectable": true,
+      "description": "Chronic kidney disease or reduced kidney function. Some supplement ingredients can accumulate when renal clearance is reduced.",
+      "synonyms": [
+        "CKD",
+        "renal disease"
+      ],
+      "icd10": [
+        {
+          "code": "N17-N19",
+          "description": "Acute kidney failure and chronic kidney disease"
+        }
+      ]
     },
     {
       "id": "liver_disease",
       "label": "Liver Disease",
       "category": "hepatic",
-      "display_priority": 10
+      "display_priority": 10,
+      "user_selectable": true,
+      "description": "A liver condition such as hepatitis, cirrhosis, fatty liver disease, or persistently elevated liver enzymes.",
+      "synonyms": [
+        "hepatic disease",
+        "cirrhosis"
+      ],
+      "icd10": [
+        {
+          "code": "K70-K77",
+          "description": "Diseases of liver"
+        }
+      ]
     },
     {
       "id": "thyroid_disorder",
       "label": "Thyroid Condition",
       "category": "endocrine",
-      "display_priority": 11
+      "display_priority": 11,
+      "user_selectable": true,
+      "description": "Hypothyroidism, hyperthyroidism, or another diagnosed thyroid condition. Some supplements affect thyroid function, medications, or laboratory tests.",
+      "synonyms": [
+        "hypothyroidism",
+        "hyperthyroidism"
+      ],
+      "icd10": [
+        {
+          "code": "E00-E07",
+          "description": "Disorders of thyroid gland"
+        }
+      ]
     },
     {
       "id": "autoimmune",
       "label": "Autoimmune Condition",
       "category": "immunologic",
-      "display_priority": 12
+      "display_priority": 12,
+      "user_selectable": true,
+      "description": "A diagnosed autoimmune condition such as lupus, rheumatoid arthritis, multiple sclerosis, or inflammatory bowel disease.",
+      "synonyms": [
+        "autoimmune disease",
+        "immune dysregulation"
+      ],
+      "icd10": [
+        {
+          "code": "M30-M36",
+          "description": "Systemic connective tissue disorders"
+        }
+      ]
     },
     {
       "id": "immunocompromised",
       "label": "Immunocompromised",
       "category": "immunologic",
-      "display_priority": 13
+      "display_priority": 13,
+      "user_selectable": true,
+      "description": "Weakened immune defenses due to a condition or treatment. A separate severe-history flag covers chemotherapy, transplant, and high-dose immunosuppression.",
+      "synonyms": [
+        "immune compromised",
+        "immunosuppressed"
+      ],
+      "icd10": [
+        {
+          "code": "D80-D89",
+          "description": "Certain disorders involving the immune mechanism"
+        }
+      ]
     },
     {
       "id": "seizure_disorder",
       "label": "Epilepsy/Seizures",
       "category": "neurologic",
-      "display_priority": 13
+      "display_priority": 14,
+      "user_selectable": true,
+      "description": "A diagnosed seizure disorder. Some supplements can affect seizure threshold or interact with anti-seizure medications.",
+      "synonyms": [
+        "epilepsy",
+        "seizures"
+      ],
+      "icd10": [
+        {
+          "code": "G40",
+          "description": "Epilepsy and recurrent seizures"
+        }
+      ]
     },
     {
       "id": "high_cholesterol",
       "label": "High Cholesterol",
       "category": "cardiovascular",
-      "display_priority": 14
+      "display_priority": 15,
+      "user_selectable": true,
+      "description": "Diagnosed high cholesterol or dyslipidemia. Some supplements can overlap with or interact with cholesterol-lowering therapy.",
+      "synonyms": [
+        "dyslipidemia",
+        "hyperlipidemia"
+      ],
+      "icd10": [
+        {
+          "code": "E78",
+          "description": "Disorders of lipoprotein metabolism and other lipidemias"
+        }
+      ]
     }
   ],
   "drug_classes": [
@@ -384,48 +571,60 @@
       "id": "pregnant",
       "label": "Pregnant",
       "category": "reproductive",
+      "capture_mode": "derived_from_condition",
+      "source_condition_id": "pregnancy",
       "description": "User is currently pregnant. Gates pregnancy-specific alerts."
     },
     {
       "id": "trying_to_conceive",
       "label": "Trying to Conceive",
       "category": "reproductive",
+      "capture_mode": "derived_from_condition",
+      "source_condition_id": "ttc",
       "description": "User is actively trying to conceive (preconception). Gates TTC and many pregnancy-precautionary alerts."
     },
     {
       "id": "breastfeeding",
       "label": "Breastfeeding",
       "category": "reproductive",
+      "capture_mode": "derived_from_condition",
+      "source_condition_id": "lactation",
       "description": "User is breastfeeding. Gates lactation-specific alerts."
     },
     {
       "id": "post_op_recovery",
       "label": "Post-Op Recovery",
       "category": "perioperative",
+      "capture_mode": "reserved",
       "description": "User is in post-operative recovery. Gates bleeding/wound-healing-related alerts that taper off after surgery."
     },
     {
       "id": "surgery_scheduled",
       "label": "Surgery Scheduled",
       "category": "perioperative",
+      "capture_mode": "derived_from_condition",
+      "source_condition_id": "surgery_scheduled",
       "description": "User has a scheduled surgery within a relevant time window. Gates pre-op bleeding-risk alerts (replaces previous condition_id usage)."
     },
     {
       "id": "hypoglycemia_history",
       "label": "Hypoglycemia History",
       "category": "metabolic",
+      "capture_mode": "reserved",
       "description": "User has a history of hypoglycemia. Used to escalate diabetes interaction severity (e.g., berberine baseline caution \u2192 avoid)."
     },
     {
       "id": "bleeding_history",
       "label": "Bleeding History",
       "category": "hematologic",
+      "capture_mode": "reserved",
       "description": "User has a personal/family bleeding-disorder history. Used to escalate antiplatelet/anticoagulant interaction severity."
     },
     {
       "id": "severely_immunocompromised",
-      "label": "Severely immunocompromised",
+      "label": "Severely immunocompromised (chemotherapy or transplant)",
       "category": "immune",
+      "capture_mode": "user_selectable",
       "description": "User is severely immunocompromised (e.g. chemotherapy, organ transplant, high-dose immunosuppressants). Gates probiotic infection risk and other severe-only warnings."
     }
   ],

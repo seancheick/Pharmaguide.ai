@@ -1,25 +1,10 @@
-// Condition vocab loader.
+// Clinical-condition taxonomy adapter.
 //
-// Pipeline contract (locked v1.0.0, schema in pipeline repo
-// `scripts/data/condition_vocab.json`):
-//
-//   {
-//     "schema_version": "1.0.0",
-//     "conditions": [
-//       {
-//         "id": "pregnancy",
-//         "name": "Pregnancy",
-//         "notes": "≤ 200-char user-facing description...",
-//         "synonyms": ["expecting", "gestation"],
-//         "icd10": [{"code": "O00-O9A", "description": "..."}]
-//       },
-//       ...
-//     ]
-//   }
-//
-// 15 entries, locked. The canonical set matches `conditions` in
-// lib/core/constants/schema_ids.dart. Migrating gives clinician
-// control of the user-facing condition copy.
+// The pipeline-owned `clinical_risk_taxonomy.json` is the only authored
+// condition schema. This adapter preserves the compact [ConditionEntry]
+// interface used by [VocabRegistry] while translating the taxonomy's
+// `label` / `description` names. Do not add a second condition asset or
+// hardcoded list here.
 //
 // Loaded once at first call to `loadConditionVocab()`; subsequent
 // calls return the cached value. Cache is process-lifetime.
@@ -55,11 +40,11 @@ class ConditionEntry {
     required this.icd10,
   });
 
-  factory ConditionEntry.fromJson(Map<String, dynamic> json) {
+  factory ConditionEntry.fromTaxonomyJson(Map<String, dynamic> json) {
     return ConditionEntry(
       id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
-      notes: json['notes']?.toString() ?? '',
+      name: json['label']?.toString() ?? '',
+      notes: json['description']?.toString() ?? '',
       synonyms:
           (json['synonyms'] as List?)
               ?.map((e) => e.toString())
@@ -81,14 +66,16 @@ Future<Map<String, ConditionEntry>> loadConditionVocab() async {
   final cached = _cache;
   if (cached != null) return cached;
 
-  final raw = await rootBundle.loadString('assets/data/condition_vocab.json');
+  final raw = await rootBundle.loadString(
+    'assets/reference_data/clinical_risk_taxonomy.json',
+  );
   final decoded = jsonDecode(raw) as Map<String, dynamic>;
   final entries = (decoded['conditions'] as List?) ?? const [];
 
   final byId = <String, ConditionEntry>{};
   for (final entry in entries) {
     if (entry is! Map<String, dynamic>) continue;
-    final c = ConditionEntry.fromJson(entry);
+    final c = ConditionEntry.fromTaxonomyJson(entry);
     if (c.id.isEmpty) continue;
     byId[c.id] = c;
   }

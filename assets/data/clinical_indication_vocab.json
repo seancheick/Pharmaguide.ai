@@ -11,7 +11,7 @@
       "id": "Stable snake_case identifier matching backed_clinical_studies.category.",
       "name": "User-facing label.",
       "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
-      "related_condition_ids": "Optional. Conditions (from condition_vocab) commonly served by ingredients in this category.",
+      "related_condition_ids": "Optional. Conditions from clinical_risk_taxonomy.json commonly served by ingredients in this category.",
       "examples": "Up to 5 ingredient names users might recognize as evidence-bearing for this indication."
     },
     "char_limit_notes": 200

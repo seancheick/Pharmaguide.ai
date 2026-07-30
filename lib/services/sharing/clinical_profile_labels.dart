@@ -1,4 +1,5 @@
 import 'package:pharmaguide/core/constants/schema_ids.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
 
 enum ClinicalProfileField { condition, drugClass, goal, allergen }
 
@@ -9,20 +10,32 @@ enum ClinicalProfileField { condition, drugClass, goal, allergen }
 /// never expose raw snake-case or schema prefixes.
 List<String> clinicalProfileLabels(
   Iterable<String> identifiers,
-  ClinicalProfileField field,
-) {
+  ClinicalProfileField field, {
+  Map<String, String> conditionLabels = const <String, String>{},
+}) {
   return identifiers
-      .map((identifier) => _clinicalProfileLabel(identifier, field))
+      .map(
+        (identifier) => _clinicalProfileLabel(
+          identifier,
+          field,
+          conditionLabels: conditionLabels,
+        ),
+      )
       .whereType<String>()
       .toList(growable: false);
 }
 
-String? _clinicalProfileLabel(String identifier, ClinicalProfileField field) {
+String? _clinicalProfileLabel(
+  String identifier,
+  ClinicalProfileField field, {
+  required Map<String, String> conditionLabels,
+}) {
   final value = identifier.trim();
   if (value.isEmpty || SchemaIds.noneSentinels.contains(value)) return null;
 
   final knownLabel = switch (field) {
-    ClinicalProfileField.condition => SchemaIds.conditionLabels[value],
+    ClinicalProfileField.condition =>
+      conditionLabels[value] ?? VocabRegistry.instance.condition(value)?.name,
     ClinicalProfileField.drugClass =>
       SchemaIds.drugClassLabels[_withoutClassPrefix(value)],
     ClinicalProfileField.goal =>

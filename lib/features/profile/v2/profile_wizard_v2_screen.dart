@@ -11,11 +11,13 @@ import 'package:pharmaguide/core/components/pg_selection_sheet.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
+import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 
@@ -262,6 +264,25 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
 
   Future<void> _openConditionsSheet() async {
     final profile = ref.read(profileProvider);
+    final ClinicalProfileSchema schema;
+    final loaded = ref.read(clinicalProfileSchemaProvider).asData?.value;
+    if (loaded != null) {
+      schema = loaded;
+    } else {
+      try {
+        schema = await ref.read(clinicalProfileSchemaProvider.future);
+      } on Object {
+        if (mounted) {
+          PGToast.show(
+            context,
+            'Clinical profile options are unavailable. Please try again.',
+            variant: PGToastVariant.error,
+          );
+        }
+        return;
+      }
+    }
+    if (!mounted) return;
     final result = await showPGSelectionSheet(
       context: context,
       eyebrow: 'Health conditions',
@@ -270,12 +291,10 @@ class _ProfileWizardV2ScreenState extends ConsumerState<ProfileWizardV2Screen> {
           'Used only to personalize safety checks on this device. '
           'PharmaGuide does not diagnose — these flag interactions '
           'worth a conversation with your clinician.',
-      options: SchemaIds.conditions
+      options: schema.selectableConditions
           .map(
-            (id) => PGSelectionOption(
-              id: id,
-              label: SchemaIds.conditionLabels[id] ?? id,
-            ),
+            (condition) =>
+                PGSelectionOption(id: condition.id, label: condition.label),
           )
           .toList(),
       initialSelection: profile.conditionsForEvaluator.toSet(),
@@ -707,6 +726,10 @@ class _HealthContextStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
+    final clinicalSchema = ref
+        .watch(clinicalProfileSchemaProvider)
+        .asData
+        ?.value;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         V2Spacing.space24,
@@ -731,7 +754,7 @@ class _HealthContextStep extends ConsumerWidget {
           const SizedBox(height: V2Spacing.space12),
           _WizardTile(
             eyebrow: 'Health conditions',
-            title: _conditionsTitle(profile),
+            title: _conditionsTitle(profile, clinicalSchema),
             body: profile.conditions.isEmpty
                 ? 'Used to flag interactions worth a clinician chat.'
                 : null,
@@ -772,13 +795,13 @@ class _HealthContextStep extends ConsumerWidget {
         .join(' · ');
   }
 
-  String _conditionsTitle(ProfileState p) {
+  String _conditionsTitle(ProfileState p, ClinicalProfileSchema? schema) {
     if (p.hasConditionNone) return 'None of these';
     final n = p.conditionsForEvaluator.length;
     if (n == 0) return 'Tap to pick';
     if (n == 1) {
-      return SchemaIds.conditionLabels[p.conditionsForEvaluator.first] ??
-          p.conditionsForEvaluator.first;
+      return schema?.conditionLabel(p.conditionsForEvaluator.first) ??
+          '1 selected';
     }
     return '$n selected';
   }

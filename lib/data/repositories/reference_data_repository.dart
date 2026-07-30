@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 
 class ReferenceDataRepository {
   Map<String, dynamic>? _taxonomyCache;
+  ClinicalProfileSchema? _clinicalProfileSchemaCache;
   Map<String, dynamic>? _goalsCache;
   Map<String, dynamic>? _rdaCache;
   Map<String, dynamic>? _timingCache;
@@ -20,6 +22,13 @@ class ReferenceDataRepository {
       'assets/reference_data/clinical_risk_taxonomy.json',
     );
     return _taxonomyCache!;
+  }
+
+  Future<ClinicalProfileSchema> loadClinicalProfileSchema() async {
+    _clinicalProfileSchemaCache ??= ClinicalProfileSchema.fromJson(
+      await loadClinicalRiskTaxonomy(),
+    );
+    return _clinicalProfileSchemaCache!;
   }
 
   Future<Map<String, dynamic>> loadGoalMappings() async {

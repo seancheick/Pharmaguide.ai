@@ -59,7 +59,7 @@ void main() {
           'severely_immunocompromised',
         ]);
         // These now reach the profile-gate evaluator — previously unreachable
-        // because no capture UI wrote SchemaIds.profileFlags.
+        // because no capture UI wrote the taxonomy-owned profile flags.
         expect(
           notifier.state.evaluatorProfileFlags,
           containsAll(['bleeding_history', 'severely_immunocompromised']),
