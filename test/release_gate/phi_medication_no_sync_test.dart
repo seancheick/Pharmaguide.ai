@@ -8,8 +8,9 @@
 //      `StackSyncService.pushAll()`.
 //   2. `StackSyncService.pushAll()` must belt-and-suspenders-assert
 //      `row.type == 'supplement'` before every `.upsert()` call.
-//   3. `StackActions.addMedication()` must not call `_triggerSync()` —
-//      the entry point is deliberately silent.
+//   3. Medication add/remove/restore entry points must not call
+//      `_triggerSync()` — every medication lifecycle mutation is deliberately
+//      silent.
 //
 // This file is a static grep test: it reads the sync source files and
 // asserts the above patterns exist, and asserts that only the audited
@@ -167,6 +168,40 @@ void main() {
         );
       },
     );
+
+    test('StackActions only syncs supplement removals and restores', () async {
+      final source = await File(_actionsFile).readAsString();
+      for (final method in const ['remove', 'restore']) {
+        final fnMatch = RegExp(
+          'Future<void>\\s+$method\\s*\\([\\s\\S]*?\\n  \\}',
+        ).firstMatch(source);
+        expect(
+          fnMatch,
+          isNotNull,
+          reason: 'could not locate StackActions.$method() in $_actionsFile',
+        );
+        final body = fnMatch!.group(0)!;
+        expect(
+          body,
+          contains("if (entry.type == 'supplement') _triggerSync();"),
+          reason:
+              'StackActions.$method() must not wake the cloud sync path for '
+              'a device-only medication lifecycle mutation.',
+        );
+        expect(
+          body
+              .split('\n')
+              .where((line) => line.contains('_triggerSync();'))
+              .every(
+                (line) =>
+                    line.trim() ==
+                    "if (entry.type == 'supplement') _triggerSync();",
+              ),
+          isTrue,
+          reason: 'StackActions.$method() contains an unguarded sync trigger.',
+        );
+      }
+    });
 
     test(
       'only the audited sync file references supabase.from(\'user_stacks\')',

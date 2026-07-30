@@ -78,6 +78,8 @@ final _testTimingRulesJson = {
       'ingredient1': 'magnesium',
       'ingredient2': 'sleep',
       'rule_type': 'time_of_day',
+      'daily_plan_eligible': false,
+      'daily_slots': ['with_dinner', 'bedtime'],
       'advice': 'Consider taking magnesium in the evening.',
       'mechanism': 'May support sleep quality.',
       'separation_hours': null,
@@ -132,6 +134,23 @@ void main() {
         expect(ironCalcium.first.separationHours, 2);
         expect(ironCalcium.first.product1Name, isNotNull);
         expect(ironCalcium.first.product2Name, isNotNull);
+      });
+
+      test('product names stay aligned with authored ingredient sides', () {
+        final results = service.evaluateStack(
+          supplementTags: {
+            // Deliberately visit ingredient2 first.
+            'Calcium Citrate': {'calcium'},
+            'Iron Supplement': {'iron'},
+          },
+          medicationNames: [],
+        );
+
+        final match = results.singleWhere(
+          (r) => r.ruleId == 'timing_iron_calcium_separate',
+        );
+        expect(match.product1Name, 'Iron Supplement');
+        expect(match.product2Name, 'Calcium Citrate');
       });
 
       test('fires take_together rule when both ingredients in stack', () {
@@ -192,6 +211,11 @@ void main() {
             .toList();
         expect(mag, hasLength(1));
         expect(mag.first.ruleType, TimingRuleType.timeOfDay);
+        expect(mag.first.allowedDailySlots, const {
+          DailySlot.withDinner,
+          DailySlot.bedtime,
+        });
+        expect(mag.first.dailyPlanEligible, isFalse);
       });
 
       test(
@@ -577,49 +601,59 @@ void main() {
         expect(withFood.first.product1Name, 'Calcium K/D');
       });
 
-      test('keeps one actionable meal context when a single product contains '
-          'ingredients with conflicting instructions', () {
-        final conflicting = TimingEvaluationService.fromJson({
-          'timing_rules': [
-            {
-              'id': 'ala_empty',
-              'ingredient1': 'alpha-lipoic acid',
-              'ingredient2': 'food',
-              'rule_type': 'take_on_empty_stomach',
-              'advice': 'Take alpha-lipoic acid on an empty stomach.',
-              'score_impact': -1,
-              'evidence_level': 'probable',
-            },
-            {
-              'id': 'vitamin_a_with_fat',
-              'ingredient1': 'vitamin a',
-              'ingredient2': 'dietary fat',
-              'rule_type': 'take_with_food',
-              'advice': 'Take vitamin A with a meal containing fat.',
-              'score_impact': -1,
-              'evidence_level': 'established',
-            },
-          ],
-        });
+      test(
+        'preserves conflicting meal guidance for the resolver to report',
+        () {
+          final conflicting = TimingEvaluationService.fromJson({
+            'timing_rules': [
+              {
+                'id': 'ala_empty',
+                'ingredient1': 'alpha-lipoic acid',
+                'ingredient2': 'food',
+                'rule_type': 'take_on_empty_stomach',
+                'advice': 'Take alpha-lipoic acid on an empty stomach.',
+                'score_impact': -1,
+                'evidence_level': 'probable',
+              },
+              {
+                'id': 'vitamin_a_with_fat',
+                'ingredient1': 'vitamin a',
+                'ingredient2': 'dietary fat',
+                'rule_type': 'take_with_food',
+                'advice': 'Take vitamin A with a meal containing fat.',
+                'score_impact': -1,
+                'evidence_level': 'established',
+              },
+            ],
+          });
 
-        final results = conflicting.evaluateStack(
-          supplementTags: {
-            'O.N.E. Multivitamin': {'alpha_lipoic_acid', 'vitamin_a'},
-          },
-          medicationNames: [],
-        );
+          final results = conflicting.evaluateStack(
+            supplementTags: {
+              'O.N.E. Multivitamin': {'alpha_lipoic_acid', 'vitamin_a'},
+            },
+            medicationNames: [],
+          );
 
-        final mealContext = results
-            .where(
-              (result) =>
-                  result.ruleType == TimingRuleType.takeWithFood ||
-                  result.ruleType == TimingRuleType.takeOnEmptyStomach,
-            )
-            .toList();
-        expect(mealContext, hasLength(1));
-        expect(mealContext.single.ruleType, TimingRuleType.takeWithFood);
-        expect(mealContext.single.product1Name, 'O.N.E. Multivitamin');
-      });
+          final mealContext = results
+              .where(
+                (result) =>
+                    result.ruleType == TimingRuleType.takeWithFood ||
+                    result.ruleType == TimingRuleType.takeOnEmptyStomach,
+              )
+              .toList();
+          expect(mealContext, hasLength(2));
+          expect(mealContext.map((result) => result.ruleType).toSet(), {
+            TimingRuleType.takeWithFood,
+            TimingRuleType.takeOnEmptyStomach,
+          });
+          expect(
+            mealContext.every(
+              (result) => result.product1Name == 'O.N.E. Multivitamin',
+            ),
+            isTrue,
+          );
+        },
+      );
     });
 
     group('dose gating', () {
@@ -737,6 +771,46 @@ void main() {
               'advice': 'This payload must fail closed.',
               'score_impact': -1,
               'evidence_level': 'established',
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('time-of-day rules require structured daily slots', () {
+      expect(
+        () => TimingEvaluationService.fromJson({
+          'timing_rules': [
+            {
+              'id': 'timing_unstructured_evening',
+              'ingredient1': 'magnesium',
+              'ingredient2': 'sleep',
+              'rule_type': 'time_of_day',
+              'advice': 'Take this in the evening.',
+              'score_impact': 0,
+              'evidence_level': 'possible',
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('daily-plan eligibility rejects non-boolean schema drift', () {
+      expect(
+        () => TimingEvaluationService.fromJson({
+          'timing_rules': [
+            {
+              'id': 'timing_invalid_eligibility',
+              'ingredient1': 'magnesium',
+              'ingredient2': 'sleep',
+              'rule_type': 'time_of_day',
+              'daily_plan_eligible': 'false',
+              'daily_slots': ['bedtime'],
+              'advice': 'This payload must fail closed.',
+              'score_impact': 0,
+              'evidence_level': 'possible',
             },
           ],
         }),

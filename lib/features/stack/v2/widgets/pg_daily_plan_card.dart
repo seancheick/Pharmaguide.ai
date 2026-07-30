@@ -14,6 +14,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
+import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -57,60 +58,46 @@ class PGDailyPlanCard extends StatelessWidget {
           boxShadow: V2Shadows.sm,
         ),
         clipBehavior: Clip.antiAlias,
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Padding(
-                padding: const EdgeInsets.all(V2Spacing.space16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.schedule_rounded,
-                          size: 16,
-                          color: V2Colors.accent,
-                        ),
-                        SizedBox(width: V2Spacing.space8),
-                        PGEyebrow('Daily plan', color: V2Colors.accent),
-                      ],
-                    ),
-                    const SizedBox(height: V2Spacing.space8),
-                    Text(
-                      'One way to space your day',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
-                    ),
-                    const SizedBox(height: V2Spacing.space4),
-                    Text(
-                      'Grouped from your timing guidance. Anchor these to meals '
-                      'and bedtime you already keep — the grouping matters more '
-                      'than the exact hour.',
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                    for (final slot in filled) ...[
-                      _SlotRow(
-                        slot: slot,
-                        icon: _slotIcons[slot]!,
-                        items: plan.itemsBySlot[slot]!,
-                      ),
-                      const SizedBox(height: V2Spacing.space12),
-                    ],
-                    if (plan.unsatisfied.isNotEmpty) _Conflicts(plan: plan),
-                  ],
-                ),
+        child: Padding(
+          padding: const EdgeInsets.all(V2Spacing.space16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: 16,
+                    color: V2Colors.accent,
+                  ),
+                  SizedBox(width: V2Spacing.space8),
+                  PGEyebrow('Daily plan', color: V2Colors.accent),
+                ],
               ),
-            ),
-            const Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 4,
-              child: ColoredBox(color: V2Colors.accent),
-            ),
-          ],
+              const SizedBox(height: V2Spacing.space8),
+              Text(
+                'One way to space your day',
+                style: V2Typography.titleSm(color: V2Colors.fg),
+              ),
+              const SizedBox(height: V2Spacing.space4),
+              Text(
+                'Grouped from your timing guidance. Anchor these to meals '
+                'and bedtime you already keep — the grouping matters more '
+                'than the exact hour.',
+                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              ),
+              const SizedBox(height: V2Spacing.space12),
+              for (final slot in filled) ...[
+                _SlotRow(
+                  slot: slot,
+                  icon: _slotIcons[slot]!,
+                  items: plan.itemsBySlot[slot]!,
+                ),
+                const SizedBox(height: V2Spacing.space12),
+              ],
+              if (plan.unsatisfied.isNotEmpty) _Conflicts(plan: plan),
+            ],
+          ),
         ),
       ),
     );
@@ -118,11 +105,7 @@ class PGDailyPlanCard extends StatelessWidget {
 }
 
 class _SlotRow extends StatelessWidget {
-  const _SlotRow({
-    required this.slot,
-    required this.icon,
-    required this.items,
-  });
+  const _SlotRow({required this.slot, required this.icon, required this.items});
 
   final DailySlot slot;
   final IconData icon;
@@ -139,10 +122,7 @@ class _SlotRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                slot.label,
-                style: V2Typography.label(color: V2Colors.fg),
-              ),
+              Text(slot.label, style: V2Typography.label(color: V2Colors.fg)),
               const SizedBox(height: 2),
               Text(
                 items.join(' · '),
@@ -175,7 +155,7 @@ class _Conflicts extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Couldn't fit into one day",
+            'Timing to review',
             style: V2Typography.label(color: V2Colors.fg),
           ),
           const SizedBox(height: V2Spacing.space4),

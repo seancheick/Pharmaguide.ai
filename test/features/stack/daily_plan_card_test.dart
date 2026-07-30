@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_daily_plan_card.dart';
 import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
 
@@ -26,7 +27,8 @@ TimingSequencePlan _plan({
 }) {
   return TimingSequencePlan(
     itemsBySlot: {
-      for (final slot in DailySlot.values) slot: items[slot] ?? const <String>[],
+      for (final slot in DailySlot.values)
+        slot: items[slot] ?? const <String>[],
     },
     unsatisfied: unsatisfied,
   );
@@ -59,7 +61,11 @@ void main() {
   testWidgets('omits slots with nothing in them', (tester) async {
     await _pump(
       tester,
-      _plan(items: {DailySlot.bedtime: ['magnesium']}),
+      _plan(
+        items: {
+          DailySlot.bedtime: ['magnesium'],
+        },
+      ),
     );
 
     expect(find.text('Before bed'), findsOneWidget);
@@ -95,7 +101,9 @@ void main() {
     await _pump(
       tester,
       _plan(
-        items: {DailySlot.withBreakfast: ['iron']},
+        items: {
+          DailySlot.withBreakfast: ['iron'],
+        },
         unsatisfied: const [
           UnsatisfiedTimingConstraint(
             ruleId: 'r1',
@@ -107,7 +115,7 @@ void main() {
     );
 
     expect(find.text(authored), findsOneWidget);
-    expect(find.textContaining("Couldn't fit into one day"), findsOneWidget);
+    expect(find.text('Timing to review'), findsOneWidget);
   });
 
   testWidgets('conflict copy stays calm-advisory', (tester) async {
@@ -140,10 +148,7 @@ void main() {
         reason: 'conflict copy must stay calm-advisory ($banned)',
       );
     }
-    expect(
-      find.textContaining('worth a conversation'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('worth a conversation'), findsOneWidget);
   });
 
   testWidgets('renders conflicts even when nothing could be placed', (

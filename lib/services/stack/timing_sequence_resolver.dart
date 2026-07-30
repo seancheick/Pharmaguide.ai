@@ -1,26 +1,5 @@
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 
-/// Four organizational buckets a daily routine anchors to.
-///
-/// These are scheduling buckets, NOT clinical advice. Their anchor hours exist
-/// only to decide whether two buckets are far enough apart to satisfy a
-/// pipeline-authored separation; the app never tells the user to take anything
-/// at a specific clock time it invented. Every word of advice shown to a user
-/// still comes from the rule's own `advice` text.
-enum DailySlot {
-  morningEmpty('Morning, before food', 7),
-  withBreakfast('With breakfast', 8),
-  withDinner('With dinner', 18),
-  bedtime('Before bed', 22);
-
-  const DailySlot(this.label, this.anchorHour);
-
-  final String label;
-  final int anchorHour;
-
-  bool get isWithFood => this == withBreakfast || this == withDinner;
-}
-
 int _hoursBetween(DailySlot a, DailySlot b) =>
     (a.anchorHour - b.anchorHour).abs();
 
@@ -86,55 +65,109 @@ class TimingSequenceResolver {
 
   TimingSequencePlan resolve(List<TimingOptimization> optimizations) {
     // Sort by rule id so input order can never change the outcome.
-    final constraints = [...optimizations]
-      ..sort((a, b) => a.ruleId.compareTo(b.ruleId));
+    final constraints =
+        optimizations
+            .where((optimization) => optimization.dailyPlanEligible)
+            .toList()
+          ..sort((a, b) => a.ruleId.compareTo(b.ruleId));
 
     // Unary constraints narrow an item's allowed slots. Binary constraints
     // relate two items. `food`/`sleep` pseudo-ingredients on the second side of
     // a unary rule are context, not stack items, so they are never placed.
     final domains = <String, Set<DailySlot>>{};
     final binary = <TimingOptimization>[];
+    final unaryByItem = <String, List<TimingOptimization>>{};
+    final authoredUnaryFailures = <UnsatisfiedTimingConstraint>[];
 
     void ensure(String name) {
       domains.putIfAbsent(name, () => DailySlot.values.toSet());
     }
 
+    void rememberUnary(String name, TimingOptimization constraint) {
+      unaryByItem.putIfAbsent(name, () => []).add(constraint);
+    }
+
     for (final c in constraints) {
+      final item1 = _itemName(c.product1Name, c.ingredient1);
+      final item2 = _itemName(c.product2Name, c.ingredient2);
       switch (c.ruleType) {
         case TimingRuleType.takeWithFood:
-          ensure(c.ingredient1);
-          domains[c.ingredient1] = domains[c.ingredient1]!
-              .where((s) => s.isWithFood)
-              .toSet();
+          ensure(item1);
+          rememberUnary(item1, c);
+          domains[item1] = domains[item1]!.where((s) => s.isWithFood).toSet();
         case TimingRuleType.takeOnEmptyStomach:
-          ensure(c.ingredient1);
-          domains[c.ingredient1] = domains[c.ingredient1]!
-              .where((s) => !s.isWithFood)
-              .toSet();
+          ensure(item1);
+          rememberUnary(item1, c);
+          domains[item1] = domains[item1]!.where((s) => !s.isWithFood).toSet();
         case TimingRuleType.timeOfDay:
-          ensure(c.ingredient1);
-          // The only authored time-of-day rules are evening/wind-down ones.
-          // Anything else keeps its full domain rather than being guessed at.
-          if (_isEveningAdvice(c.advice)) {
-            domains[c.ingredient1] = domains[c.ingredient1]!
-                .where((s) => s == DailySlot.bedtime || s == DailySlot.withDinner)
+          ensure(item1);
+          rememberUnary(item1, c);
+          if (c.allowedDailySlots.isEmpty) {
+            domains[item1] = <DailySlot>{};
+            authoredUnaryFailures.add(
+              UnsatisfiedTimingConstraint(
+                ruleId: c.ruleId,
+                advice: c.advice,
+                reason:
+                    'This time-of-day guidance has no reviewed structured '
+                    'daily slot.',
+              ),
+            );
+          } else {
+            domains[item1] = domains[item1]!
+                .where(c.allowedDailySlots.contains)
                 .toSet();
           }
         case TimingRuleType.separate:
         case TimingRuleType.takeTogether:
-          ensure(c.ingredient1);
-          ensure(c.ingredient2);
+          if ((c.product2Name == null || c.product2Name!.trim().isEmpty) &&
+              _isNonPhysicalContext(c.ingredient2)) {
+            authoredUnaryFailures.add(
+              UnsatisfiedTimingConstraint(
+                ruleId: c.ruleId,
+                advice: c.advice,
+                reason:
+                    'This rule does not identify a second physical stack '
+                    'item that can be scheduled safely.',
+              ),
+            );
+            continue;
+          }
+          ensure(item1);
+          ensure(item2);
           binary.add(c);
       }
     }
 
     if (domains.isEmpty) {
-      return const TimingSequencePlan(itemsBySlot: {}, unsatisfied: []);
+      return TimingSequencePlan(
+        itemsBySlot: const {},
+        unsatisfied: authoredUnaryFailures,
+      );
+    }
+
+    final unplaceable =
+        domains.entries
+            .where((entry) => entry.value.isEmpty)
+            .map((entry) => entry.key)
+            .toList()
+          ..sort();
+    final unplaceableSet = unplaceable.toSet();
+    final blockedBinary = <TimingOptimization>[];
+    final schedulableBinary = <TimingOptimization>[];
+    for (final constraint in binary) {
+      final first = _itemName(constraint.product1Name, constraint.ingredient1);
+      final second = _itemName(constraint.product2Name, constraint.ingredient2);
+      if (unplaceableSet.contains(first) || unplaceableSet.contains(second)) {
+        blockedBinary.add(constraint);
+      } else {
+        schedulableBinary.add(constraint);
+      }
     }
 
     // Relax the least-impactful constraints first when the set is
     // over-constrained, so what survives is what the pipeline weighted highest.
-    final relaxable = [...binary]
+    final relaxable = [...schedulableBinary]
       ..sort((a, b) {
         final byImpact = a.scoreImpact.abs().compareTo(b.scoreImpact.abs());
         return byImpact != 0 ? byImpact : a.ruleId.compareTo(b.ruleId);
@@ -151,6 +184,28 @@ class TimingSequenceResolver {
     }
 
     final unsatisfied = <UnsatisfiedTimingConstraint>[
+      ...authoredUnaryFailures,
+      for (final name in unplaceable)
+        for (final constraint
+            in unaryByItem[name] ?? const <TimingOptimization>[])
+          if (!authoredUnaryFailures.any(
+            (failure) => failure.ruleId == constraint.ruleId,
+          ))
+            UnsatisfiedTimingConstraint(
+              ruleId: constraint.ruleId,
+              advice: constraint.advice,
+              reason:
+                  'This guidance conflicts with other timing guidance for '
+                  'the same stack item.',
+            ),
+      for (final constraint in blockedBinary)
+        UnsatisfiedTimingConstraint(
+          ruleId: constraint.ruleId,
+          advice: constraint.advice,
+          reason:
+              'A stack item in this rule has other timing guidance that '
+              'cannot be placed.',
+        ),
       for (final c in dropped)
         UnsatisfiedTimingConstraint(
           ruleId: c.ruleId,
@@ -161,24 +216,6 @@ class TimingSequenceResolver {
               : 'This could not be placed alongside your other timing items.',
         ),
     ];
-
-    // An item whose unary constraints emptied its domain cannot be placed at
-    // all; surface that instead of dropping the item silently.
-    final unplaceable = domains.entries
-        .where((e) => e.value.isEmpty)
-        .map((e) => e.key)
-        .toList()
-      ..sort();
-    for (final name in unplaceable) {
-      unsatisfied.add(
-        UnsatisfiedTimingConstraint(
-          ruleId: 'unplaceable:$name',
-          advice: '$name has timing advice that cannot all apply at once.',
-          reason:
-              'Its guidance asks for both with-food and without-food timing.',
-        ),
-      );
-    }
 
     final itemsBySlot = <DailySlot, List<String>>{
       for (final slot in DailySlot.values) slot: <String>[],
@@ -196,11 +233,21 @@ class TimingSequenceResolver {
     );
   }
 
-  static bool _isEveningAdvice(String advice) {
-    final lower = advice.toLowerCase();
-    return lower.contains('evening') ||
-        lower.contains('night') ||
-        lower.contains('bed');
+  static String _itemName(String? productName, String ingredientName) {
+    final normalizedProduct = productName?.trim();
+    return normalizedProduct == null || normalizedProduct.isEmpty
+        ? ingredientName
+        : normalizedProduct;
+  }
+
+  static bool _isNonPhysicalContext(String value) {
+    return const {
+      'food',
+      'dietary fat',
+      'sleep',
+      'melatonin production',
+      'medications',
+    }.contains(value.trim().toLowerCase());
   }
 
   /// Deterministic backtracking over a 4-value domain. Items are visited in
@@ -246,8 +293,8 @@ class TimingSequenceResolver {
     List<TimingOptimization> binary,
   ) {
     for (final c in binary) {
-      final a = assigned[c.ingredient1];
-      final b = assigned[c.ingredient2];
+      final a = assigned[_itemName(c.product1Name, c.ingredient1)];
+      final b = assigned[_itemName(c.product2Name, c.ingredient2)];
       if (a == null || b == null) continue;
       switch (c.ruleType) {
         case TimingRuleType.takeTogether:

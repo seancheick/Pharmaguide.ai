@@ -35,6 +35,34 @@ enum TimingRuleType {
   }
 }
 
+/// Pipeline-authored scheduling buckets for a time-of-day rule.
+///
+/// These are coarse routine anchors, not invented clock-time prescriptions.
+/// A `time_of_day` rule must name one or more of these in structured data;
+/// consumer prose is never parsed to decide where a product belongs.
+enum DailySlot {
+  morningEmpty('morning_empty', 'Morning, before food', 7),
+  withBreakfast('with_breakfast', 'With breakfast', 8),
+  withDinner('with_dinner', 'With dinner', 18),
+  bedtime('bedtime', 'Before bed', 22);
+
+  const DailySlot(this.wireValue, this.label, this.anchorHour);
+
+  final String wireValue;
+  final String label;
+  final int anchorHour;
+
+  bool get isWithFood => this == withBreakfast || this == withDinner;
+
+  static DailySlot fromString(String value) {
+    final normalized = value.trim().toLowerCase();
+    return DailySlot.values.firstWhere(
+      (slot) => slot.wireValue == normalized,
+      orElse: () => throw FormatException('Unknown daily slot: $value'),
+    );
+  }
+}
+
 /// A single timing optimization recommendation for the user's stack.
 ///
 /// Produced by [TimingEvaluationService] when two items in the user's stack
@@ -80,6 +108,19 @@ class TimingOptimization {
   /// Whether a reviewed RxCUI on the timing rule matched a saved medication.
   final bool involvesMedication;
 
+  /// Structured scheduling choices authored on a `time_of_day` rule.
+  ///
+  /// Empty for every other rule type. The sequence resolver fails closed when
+  /// a time-of-day optimization reaches it without this structure.
+  final Set<DailySlot> allowedDailySlots;
+
+  /// Whether the pipeline permits this rule to drive the resolved daily plan.
+  ///
+  /// Some accurate informational rules depend on a purpose, formulation, or
+  /// unspecified medication schedule the app does not capture. They remain
+  /// visible as authored advice but must not be turned into a concrete slot.
+  final bool dailyPlanEligible;
+
   const TimingOptimization({
     required this.ruleId,
     required this.ingredient1,
@@ -94,6 +135,8 @@ class TimingOptimization {
     this.product1Name,
     this.product2Name,
     this.involvesMedication = false,
+    this.allowedDailySlots = const {},
+    this.dailyPlanEligible = true,
   });
 
   /// Whether this is a separation rule (the most actionable type).

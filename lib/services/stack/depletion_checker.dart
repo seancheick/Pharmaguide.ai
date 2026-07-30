@@ -857,10 +857,11 @@ class DepletionChecker {
 
   /// Parse the optional curated watch threshold, fail-closed.
   ///
-  /// Three conditions must ALL hold before a threshold is honoured:
+  /// Four conditions must ALL hold before a threshold is honoured:
   ///   1. `watch_threshold_days` is a positive whole number of days,
   ///   2. `watch_basis` cites the evidence for it, and
-  ///   3. `watch_review_status` is exactly `approved`.
+  ///   3. `watch_review_status` is exactly `approved`, and
+  ///   4. `watch_approver` identifies the reviewer.
   ///
   /// Condition 3 is the clinical sign-off gate, mirroring
   /// `citation_review_status`: a drafted threshold ships as `proposed` and is
@@ -875,11 +876,13 @@ class DepletionChecker {
     const empty = (watchThresholdDays: null, watchBasis: null);
     final status = dep['watch_review_status']?.toString().trim().toLowerCase();
     if (status != 'approved') return empty;
-    final raw = _asNum(dep['watch_threshold_days']);
-    if (raw == null || raw <= 0 || raw != raw.roundToDouble()) return empty;
+    final raw = dep['watch_threshold_days'];
+    if (raw is! int || raw <= 0) return empty;
     final basis = dep['watch_basis']?.toString().trim();
     if (basis == null || basis.isEmpty) return empty;
-    return (watchThresholdDays: raw.toInt(), watchBasis: basis);
+    final approver = dep['watch_approver']?.toString().trim();
+    if (approver == null || approver.isEmpty) return empty;
+    return (watchThresholdDays: raw, watchBasis: basis);
   }
 
   static String _normalizeDepletionType(Object? raw) {

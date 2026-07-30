@@ -17,6 +17,10 @@ TimingOptimization _rule({
   int? separationHours,
   int scoreImpact = -2,
   String advice = 'Pipeline-authored advice.',
+  String? product1Name,
+  String? product2Name,
+  Set<DailySlot> allowedDailySlots = const {},
+  bool dailyPlanEligible = true,
 }) {
   return TimingOptimization(
     ruleId: id,
@@ -27,6 +31,10 @@ TimingOptimization _rule({
     separationHours: separationHours,
     scoreImpact: scoreImpact,
     evidenceLevel: EvidenceLevel.established,
+    product1Name: product1Name,
+    product2Name: product2Name,
+    allowedDailySlots: allowedDailySlots,
+    dailyPlanEligible: dailyPlanEligible,
   );
 }
 
@@ -62,7 +70,10 @@ void main() {
     final calcium = _slotOf(plan, 'calcium');
     expect(iron, isNotNull);
     expect(calcium, isNotNull);
-    expect((iron!.anchorHour - calcium!.anchorHour).abs(), greaterThanOrEqualTo(2));
+    expect(
+      (iron!.anchorHour - calcium!.anchorHour).abs(),
+      greaterThanOrEqualTo(2),
+    );
   });
 
   test('a take-together constraint places items in the same slot', () {
@@ -107,26 +118,133 @@ void main() {
     expect(_slotOf(plan, 'iron')!.isWithFood, isFalse);
   });
 
-  test('evening time-of-day advice lands in the evening', () {
+  test('structured time-of-day slots are honored without parsing copy', () {
     final plan = resolver.resolve([
       _rule(
         id: 'timing_magnesium_evening',
         a: 'magnesium',
         b: 'sleep',
         type: TimingRuleType.timeOfDay,
-        advice: 'Evening is a reasonable time as a wind-down habit.',
+        advice: 'This wording intentionally contains no time keywords.',
+        allowedDailySlots: const {DailySlot.withDinner, DailySlot.bedtime},
       ),
     ]);
 
     final slot = _slotOf(plan, 'magnesium');
+    expect(slot == DailySlot.bedtime || slot == DailySlot.withDinner, isTrue);
+  });
+
+  test('time-of-day copy without structured slots fails closed', () {
+    final plan = resolver.resolve([
+      _rule(
+        id: 'timing_unstructured_evening',
+        a: 'magnesium',
+        b: 'sleep',
+        type: TimingRuleType.timeOfDay,
+        advice: 'Take this in the evening before bed.',
+      ),
+    ]);
+
+    expect(_slotOf(plan, 'magnesium'), isNull);
+    expect(plan.isFullySatisfied, isFalse);
+    expect(plan.unsatisfied.single.ruleId, 'timing_unstructured_evening');
     expect(
-      slot == DailySlot.bedtime || slot == DailySlot.withDinner,
-      isTrue,
+      plan.unsatisfied.single.advice,
+      'Take this in the evening before bed.',
     );
+  });
+
+  test('the plan schedules physical products, not nutrient components', () {
+    final plan = resolver.resolve([
+      _rule(
+        id: 'timing_iron_calcium_separate',
+        a: 'iron',
+        b: 'calcium',
+        type: TimingRuleType.separate,
+        separationHours: 2,
+        product1Name: 'Iron tablet',
+        product2Name: 'Calcium K/D',
+      ),
+    ]);
+
+    expect(_slotOf(plan, 'Iron tablet'), isNotNull);
+    expect(_slotOf(plan, 'Calcium K/D'), isNotNull);
+    expect(_slotOf(plan, 'iron'), isNull);
+    expect(_slotOf(plan, 'calcium'), isNull);
+  });
+
+  test(
+    'pipeline-ineligible conditional advice is not converted into a slot',
+    () {
+      final plan = resolver.resolve([
+        _rule(
+          id: 'timing_magnesium_evening',
+          a: 'magnesium',
+          b: 'sleep',
+          type: TimingRuleType.timeOfDay,
+          allowedDailySlots: const {DailySlot.bedtime},
+          dailyPlanEligible: false,
+        ),
+      ]);
+
+      expect(plan.isEmpty, isTrue);
+      expect(plan.unsatisfied, isEmpty);
+    },
+  );
+
+  test('an eligible binary rule without two products fails closed', () {
+    const authored =
+        'Take other medications at least three hours away from psyllium.';
+    final plan = resolver.resolve([
+      _rule(
+        id: 'timing_psyllium_medications',
+        a: 'psyllium',
+        b: 'medications',
+        type: TimingRuleType.separate,
+        separationHours: 3,
+        advice: authored,
+        product1Name: 'Psyllium Husk',
+      ),
+    ]);
+
+    expect(plan.isEmpty, isTrue);
+    expect(plan.unsatisfied.single.advice, authored);
   });
 
   test('conflicting food guidance is reported, not silently resolved', () {
     // Both with-food and without-food for the same item: no honest slot exists.
+    const withFoodAdvice = 'Take this product with food.';
+    const emptyAdvice = 'Take this product on an empty stomach.';
+    final plan = resolver.resolve([
+      _rule(
+        id: 'a_with_food',
+        a: 'iron',
+        b: 'food',
+        type: TimingRuleType.takeWithFood,
+        advice: withFoodAdvice,
+      ),
+      _rule(
+        id: 'b_empty',
+        a: 'iron',
+        b: 'food',
+        type: TimingRuleType.takeOnEmptyStomach,
+        advice: emptyAdvice,
+      ),
+    ]);
+
+    expect(plan.isFullySatisfied, isFalse);
+    expect(plan.unsatisfied.map((item) => item.ruleId), [
+      'a_with_food',
+      'b_empty',
+    ]);
+    expect(plan.unsatisfied.map((item) => item.advice), [
+      withFoodAdvice,
+      emptyAdvice,
+    ]);
+  });
+
+  test('a binary rule linked to an unplaceable product is also reported', () {
+    const separationAdvice = 'Keep this product away from calcium.';
     final plan = resolver.resolve([
       _rule(
         id: 'a_with_food',
@@ -140,12 +258,22 @@ void main() {
         b: 'food',
         type: TimingRuleType.takeOnEmptyStomach,
       ),
+      _rule(
+        id: 'c_separate',
+        a: 'iron',
+        b: 'calcium',
+        type: TimingRuleType.separate,
+        separationHours: 2,
+        advice: separationAdvice,
+      ),
     ]);
 
-    expect(plan.isFullySatisfied, isFalse);
     expect(
-      plan.unsatisfied.any((u) => u.ruleId.contains('iron')),
-      isTrue,
+      plan.unsatisfied
+          .where((item) => item.ruleId == 'c_separate')
+          .single
+          .advice,
+      separationAdvice,
     );
   });
 
@@ -227,6 +355,7 @@ void main() {
         b: 'sleep',
         type: TimingRuleType.timeOfDay,
         advice: 'Evening is a reasonable wind-down habit.',
+        allowedDailySlots: const {DailySlot.withDinner, DailySlot.bedtime},
       ),
     ];
 
@@ -269,6 +398,7 @@ void main() {
         b: 'sleep',
         type: TimingRuleType.timeOfDay,
         advice: 'Evening is a reasonable wind-down habit.',
+        allowedDailySlots: const {DailySlot.withDinner, DailySlot.bedtime},
       ),
     ]);
 

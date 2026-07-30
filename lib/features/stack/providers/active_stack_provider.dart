@@ -250,7 +250,7 @@ class StackActions {
           ),
         );
     _invalidate();
-    _triggerSync();
+    if (entry.type == 'supplement') _triggerSync();
   }
 
   /// Reverse a soft-delete — clears `deletedAt` so the entry re-appears.
@@ -288,7 +288,7 @@ class StackActions {
           ),
         );
     _invalidate();
-    _triggerSync();
+    if (entry.type == 'supplement') _triggerSync();
   }
 
   /// Update the user-entered dose/schedule and append the change to the

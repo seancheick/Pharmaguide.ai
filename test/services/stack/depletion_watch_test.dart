@@ -35,16 +35,14 @@ Map<String, dynamic> _data({
         if (metforminThreshold != null) ...{
           'watch_threshold_days': metforminThreshold,
           'watch_review_status': 'approved',
+          'watch_approver': 'PharmaGuide Clinical Team',
         },
         if (metforminBasis != null) 'watch_basis': metforminBasis,
       },
       {
         'id': 'DEP_ANTACIDS_IRON',
         'drug_ref': {'id': _ppiClassId, 'display_name': 'Acid reducers'},
-        'depleted_nutrient': {
-          'standard_name': 'Iron',
-          'canonical_id': 'iron',
-        },
+        'depleted_nutrient': {'standard_name': 'Iron', 'canonical_id': 'iron'},
         'depletion_type': 'depletion',
         'severity': 'moderate',
         'citation_review_status': 'verified',
@@ -54,6 +52,7 @@ Map<String, dynamic> _data({
         if (ppiThreshold != null) ...{
           'watch_threshold_days': ppiThreshold,
           'watch_review_status': 'approved',
+          'watch_approver': 'PharmaGuide Clinical Team',
         },
         if (ppiBasis != null) 'watch_basis': ppiBasis,
       },
@@ -174,7 +173,10 @@ void main() {
     // Same class, different rows: the exposure is as old as the longer-standing
     // medication, so the earliest start wins.
     final statuses = resolver.evaluate(
-      medications: [_ppi('entry-1', 'Omeprazole'), _ppi('entry-2', 'Famotidine')],
+      medications: [
+        _ppi('entry-1', 'Omeprazole'),
+        _ppi('entry-2', 'Famotidine'),
+      ],
       depletionsData: _data(ppiThreshold: 730, ppiBasis: 'Reviewer basis.'),
       trackedSinceByStackEntry: {
         'entry-1': DateTime.utc(2019, 1, 1),

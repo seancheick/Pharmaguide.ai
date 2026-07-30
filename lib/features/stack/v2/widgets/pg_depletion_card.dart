@@ -76,10 +76,7 @@ class PGDepletionCard extends StatelessWidget {
             ),
             const SizedBox(height: V2Spacing.space12),
             for (final dep in depletions)
-              _DepletionRow(
-                dep: dep,
-                watch: watchStatuses[dep.depletionId],
-              ),
+              _DepletionRow(dep: dep, watch: watchStatuses[dep.depletionId]),
           ],
         ),
       ),

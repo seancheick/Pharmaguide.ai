@@ -250,8 +250,8 @@ class TimingEvaluationService {
             if (pair != null) {
               results[indexed.rule.id] = _buildResult(
                 indexed.rule,
-                product1Name: pair.$1,
-                product2Name: pair.$2,
+                product1Name: indexed.isIngredient1 ? pair.$1 : pair.$2,
+                product2Name: indexed.isIngredient1 ? pair.$2 : pair.$1,
               );
             }
             break;
@@ -294,8 +294,12 @@ class TimingEvaluationService {
               final suppProducts = tagToProducts[alias]!;
               results[indexed.rule.id] = _buildResult(
                 indexed.rule,
-                product1Name: displayMedName,
-                product2Name: suppProducts.first,
+                product1Name: indexed.isIngredient1
+                    ? displayMedName
+                    : suppProducts.first,
+                product2Name: indexed.isIngredient1
+                    ? suppProducts.first
+                    : displayMedName,
               );
               break;
             }
@@ -307,7 +311,10 @@ class TimingEvaluationService {
     // Sort by priority (medication interactions first, then separations,
     // then other types).
     final sorted = results.values.toList()
-      ..sort((a, b) => b.displayPriority.compareTo(a.displayPriority));
+      ..sort((a, b) {
+        final priority = b.displayPriority.compareTo(a.displayPriority);
+        return priority != 0 ? priority : a.ruleId.compareTo(b.ruleId);
+      });
 
     // Collapse semantically-identical tips. Several distinct rule IDs can
     // describe the SAME user action for the SAME product(s) — e.g. a product
@@ -318,13 +325,7 @@ class TimingEvaluationService {
     // priority / strongest-evidence variant is the one kept.
     final deduped = <TimingOptimization>[];
     final seenSemanticKeys = <String>{};
-    final seenMealContextProducts = <String>{};
     for (final opt in sorted) {
-      final mealContextProduct = _mealContextProduct(opt);
-      if (mealContextProduct != null &&
-          !seenMealContextProducts.add(mealContextProduct)) {
-        continue;
-      }
       if (seenSemanticKeys.add(_semanticKey(opt))) deduped.add(opt);
     }
 
@@ -343,20 +344,6 @@ class TimingEvaluationService {
     if (p2 == null) return '$type|$p1';
     final pair = [p1, p2]..sort();
     return '$type|${pair.join('|')}';
-  }
-
-  /// With-food and empty-stomach instructions are mutually exclusive for one
-  /// physical product. A multinutrient pill cannot be split into its component
-  /// ingredients, so keep only the highest-priority instruction after sorting.
-  /// Pair rules are not part of this channel because they describe two
-  /// independently actionable stack entries.
-  static String? _mealContextProduct(TimingOptimization opt) {
-    if (opt.product2Name != null) return null;
-    if (opt.ruleType != TimingRuleType.takeWithFood &&
-        opt.ruleType != TimingRuleType.takeOnEmptyStomach) {
-      return null;
-    }
-    return opt.product1Name ?? opt.ingredient1;
   }
 
   static (String, String)? _firstDifferentProductPair(
@@ -394,6 +381,8 @@ class TimingEvaluationService {
       product1Name: product1Name,
       product2Name: product2Name,
       involvesMedication: rule.involvesMedication,
+      allowedDailySlots: rule.allowedDailySlots,
+      dailyPlanEligible: rule.dailyPlanEligible,
     );
   }
 
@@ -484,6 +473,8 @@ class _ParsedTimingRule {
   final List<String> sourceUrls;
   final Set<String> ingredient1Rxcuis;
   final Set<String> ingredient2Rxcuis;
+  final Set<DailySlot> allowedDailySlots;
+  final bool dailyPlanEligible;
 
   /// Optional dose gate: the rule only fires when [minDoseIngredient]'s total
   /// stack dose is at or above [minDoseMg]. Both null = no gate (always fire).
@@ -506,6 +497,8 @@ class _ParsedTimingRule {
     this.sourceUrls = const [],
     this.ingredient1Rxcuis = const {},
     this.ingredient2Rxcuis = const {},
+    this.allowedDailySlots = const {},
+    this.dailyPlanEligible = true,
     this.minDoseIngredient,
     this.minDoseMg,
   });
@@ -546,11 +539,41 @@ class _ParsedTimingRule {
       return raw.cast<String>().map((value) => value.trim()).toSet();
     }
 
+    Set<DailySlot> dailySlots() {
+      final raw = json['daily_slots'];
+      if (raw == null) return const {};
+      if (raw is! List || raw.isEmpty || raw.any((value) => value is! String)) {
+        throw const FormatException(
+          'daily_slots must contain structured slot strings',
+        );
+      }
+      final parsed = raw.cast<String>().map(DailySlot.fromString).toSet();
+      if (parsed.length != raw.length) {
+        throw const FormatException('daily_slots must not contain duplicates');
+      }
+      return parsed;
+    }
+
     final id = requiredString('id');
     final ingredient1 = requiredString('ingredient1');
     final ingredient2 = requiredString('ingredient2');
     final advice = requiredString('advice');
     final ruleType = TimingRuleType.fromString(requiredString('rule_type'));
+    final allowedDailySlots = dailySlots();
+    final dailyPlanEligibleRaw = json['daily_plan_eligible'];
+    if (dailyPlanEligibleRaw != null && dailyPlanEligibleRaw is! bool) {
+      throw FormatException('$id: daily_plan_eligible must be a boolean');
+    }
+    if (ruleType == TimingRuleType.timeOfDay && allowedDailySlots.isEmpty) {
+      throw FormatException(
+        '$id: time_of_day rule requires reviewed daily_slots',
+      );
+    }
+    if (ruleType != TimingRuleType.timeOfDay && allowedDailySlots.isNotEmpty) {
+      throw FormatException(
+        '$id: daily_slots are only valid for time_of_day rules',
+      );
+    }
     final separationRaw = json['separation_hours'];
     if (ruleType == TimingRuleType.separate &&
         (separationRaw is! num || separationRaw <= 0)) {
@@ -591,6 +614,8 @@ class _ParsedTimingRule {
       sourceUrls: sources,
       ingredient1Rxcuis: rxcuis('ingredient1_rxcuis'),
       ingredient2Rxcuis: rxcuis('ingredient2_rxcuis'),
+      allowedDailySlots: allowedDailySlots,
+      dailyPlanEligible: dailyPlanEligibleRaw as bool? ?? true,
       minDoseIngredient: minDoseIngredient,
       minDoseMg: minDoseMg,
     );

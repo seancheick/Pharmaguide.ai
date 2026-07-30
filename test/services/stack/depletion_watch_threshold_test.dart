@@ -13,6 +13,7 @@ Map<String, dynamic> _fixture({
   Object? thresholdDays,
   Object? basis,
   Object? reviewStatus = 'approved',
+  Object? approver = 'PharmaGuide Clinical Team',
 }) {
   return {
     'depletions': [
@@ -39,6 +40,7 @@ Map<String, dynamic> _fixture({
         if (thresholdDays != null) 'watch_threshold_days': thresholdDays,
         if (basis != null) 'watch_basis': basis,
         if (reviewStatus != null) 'watch_review_status': reviewStatus,
+        if (approver != null) 'watch_approver': approver,
       },
     ],
   };
@@ -52,6 +54,7 @@ void main() {
     Object? thresholdDays,
     Object? basis,
     Object? reviewStatus = 'approved',
+    Object? approver = 'PharmaGuide Clinical Team',
   }) {
     final out = checker.check(
       medications: const [metformin],
@@ -59,6 +62,7 @@ void main() {
         thresholdDays: thresholdDays,
         basis: basis,
         reviewStatus: reviewStatus,
+        approver: approver,
       ),
     );
     expect(out, hasLength(1));
@@ -72,15 +76,12 @@ void main() {
         basis: 'Reviewer note citing the entry source set.',
       );
       expect(match.watchThresholdDays, 1460);
-      expect(
-        match.watchBasis,
-        'Reviewer note citing the entry source set.',
-      );
+      expect(match.watchBasis, 'Reviewer note citing the entry source set.');
     });
 
-    test('a numeric string threshold is accepted', () {
+    test('a numeric string threshold is rejected as schema drift', () {
       final match = parseOne(thresholdDays: '730', basis: 'Cited basis.');
-      expect(match.watchThresholdDays, 730);
+      expect(match.watchThresholdDays, isNull);
     });
 
     test('surrounding whitespace in the basis is trimmed', () {
@@ -117,7 +118,10 @@ void main() {
 
     test('zero and negative thresholds are rejected', () {
       expect(parseOne(thresholdDays: 0, basis: 'b').watchThresholdDays, isNull);
-      expect(parseOne(thresholdDays: -30, basis: 'b').watchThresholdDays, isNull);
+      expect(
+        parseOne(thresholdDays: -30, basis: 'b').watchThresholdDays,
+        isNull,
+      );
     });
 
     test('a fractional threshold is rejected, never rounded', () {
@@ -179,6 +183,25 @@ void main() {
         reviewStatus: '  Approved ',
       );
       expect(match.watchThresholdDays, 1460);
+    });
+
+    test('an approved threshold without an attributable approver is inert', () {
+      final match = parseOne(
+        thresholdDays: 1460,
+        basis: 'Cited basis.',
+        approver: null,
+      );
+      expect(match.watchThresholdDays, isNull);
+      expect(match.watchBasis, isNull);
+    });
+
+    test('a blank approver fails closed', () {
+      final match = parseOne(
+        thresholdDays: 1460,
+        basis: 'Cited basis.',
+        approver: '   ',
+      );
+      expect(match.watchThresholdDays, isNull);
     });
   });
 

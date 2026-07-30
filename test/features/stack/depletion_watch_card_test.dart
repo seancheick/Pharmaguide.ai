@@ -92,7 +92,10 @@ void main() {
       },
     );
 
-    expect(find.textContaining('Tracked here for about 3 years'), findsOneWidget);
+    expect(
+      find.textContaining('Tracked here for about 3 years'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('renders months below two years', (tester) async {
