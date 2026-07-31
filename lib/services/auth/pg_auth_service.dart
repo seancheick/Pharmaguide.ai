@@ -93,6 +93,11 @@ class AccountOwnerStore {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(prefsKey, uid);
   }
+
+  Future<void> clear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(prefsKey);
+  }
 }
 
 /// Applies [decideAccountAction] to a live auth event: reads the durable
@@ -369,6 +374,14 @@ class PGAuthService {
   /// so the SAME user returning keeps their data and a DIFFERENT next
   /// sign-in triggers the account-switch clear. Do not add a wipe here.
   Future<void> signOut() => supabase.auth.signOut();
+
+  /// Clears only the session cached on this device.
+  ///
+  /// Account deletion happens server-side first. At that point a global
+  /// sign-out request can no longer authenticate, so the deletion flow uses
+  /// this local scope to guarantee the retired session cannot reopen the app.
+  Future<void> signOutLocal() =>
+      supabase.auth.signOut(scope: SignOutScope.local);
 
   // ---------------------------------------------------------------------
   // Helpers

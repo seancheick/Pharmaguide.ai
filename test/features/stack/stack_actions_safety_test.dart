@@ -16,6 +16,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 
 /// Minimal product fixture for guard assertions. We never reach the
@@ -219,5 +220,78 @@ void main() {
         expect(await HealthEventRepository(userDb).getTimeline(), hasLength(1));
       },
     );
+
+    test(
+      'a thirteenth reminder is rejected instead of silently ignored',
+      () async {
+        final userDb = UserDatabase.memory();
+        addTearDown(userDb.close);
+        for (var index = 0; index < 13; index++) {
+          await userDb.addToStack(
+            UserStacksLocalCompanion.insert(
+              id: 'med-$index',
+              type: const Value('medication'),
+              name: 'Medication $index',
+              reminderMinutes: index < 12
+                  ? const Value(8 * 60)
+                  : const Value.absent(),
+            ),
+          );
+        }
+        final localContainer = ProviderContainer(
+          overrides: [userDatabaseProvider.overrideWithValue(userDb)],
+        );
+        addTearDown(localContainer.dispose);
+        localContainer.read(authStateProvider.notifier).onSignedIn();
+
+        final actions = localContainer.read(stackActionsProvider);
+        await expectLater(
+          actions.updateSchedule(
+            entryId: 'med-12',
+            reminderMinutes: const Value(9 * 60),
+          ),
+          throwsA(isA<StackReminderLimitException>()),
+        );
+
+        final target = (await userDb.getActiveStack()).singleWhere(
+          (row) => row.id == 'med-12',
+        );
+        expect(target.reminderMinutes, isNull);
+      },
+    );
+
+    test('device-only schedule fields do not dirty cloud sync state', () async {
+      final userDb = UserDatabase.memory();
+      addTearDown(userDb.close);
+      final syncStamp = DateTime.utc(2026, 7, 30, 12);
+      await userDb.addToStack(
+        UserStacksLocalCompanion.insert(
+          id: 'supplement-1',
+          name: 'Vitamin D',
+          dsldId: const Value('278454'),
+          clientUpdatedAt: Value(syncStamp),
+          syncedAt: Value(syncStamp),
+        ),
+      );
+      final localContainer = ProviderContainer(
+        overrides: [userDatabaseProvider.overrideWithValue(userDb)],
+      );
+      addTearDown(localContainer.dispose);
+      localContainer.read(authStateProvider.notifier).onSignedIn();
+
+      final actions = localContainer.read(stackActionsProvider);
+      expect(
+        await actions.updateSchedule(
+          entryId: 'supplement-1',
+          startedAt: Value(DateTime.utc(2020, 1, 1)),
+          reminderMinutes: const Value(8 * 60),
+        ),
+        isTrue,
+      );
+
+      final row = (await userDb.getActiveStack()).single;
+      expect(row.clientUpdatedAt.toUtc(), syncStamp);
+      expect(await StackSyncQueue(userDb).dirtyRows(), isEmpty);
+    });
   });
 }

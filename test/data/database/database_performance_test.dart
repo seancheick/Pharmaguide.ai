@@ -217,7 +217,9 @@ void main() {
         final version = await db
             .customSelect('PRAGMA user_version')
             .getSingle();
-        expect(version.read<int>('user_version'), 10);
+        // Compare against the declared version rather than a literal so a
+        // future migration does not require touching this assertion.
+        expect(version.read<int>('user_version'), db.schemaVersion);
         final names = await _indexNames((sql) => db.customSelect(sql).get());
         expect(names, contains('idx_user_fav_dsld'));
         expect(
@@ -266,7 +268,9 @@ void main() {
 
       expect(await db.getFavorites(), hasLength(1));
       final version = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 10);
+      // Compare against the declared version rather than a literal so a
+      // future migration does not require touching this assertion.
+      expect(version.read<int>('user_version'), db.schemaVersion);
     });
   });
 

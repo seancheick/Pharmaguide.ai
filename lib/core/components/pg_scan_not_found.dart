@@ -20,6 +20,7 @@ class PGScanNotFound extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onSearchByName;
   final VoidCallback onManualEntry;
+  final VoidCallback? onSubmitProduct;
   final VoidCallback onClose;
 
   const PGScanNotFound({
@@ -28,6 +29,7 @@ class PGScanNotFound extends StatelessWidget {
     required this.onRetry,
     required this.onSearchByName,
     required this.onManualEntry,
+    this.onSubmitProduct,
     required this.onClose,
   });
 
@@ -133,6 +135,16 @@ class PGScanNotFound extends StatelessWidget {
                           expand: true,
                           onPressed: onRetry,
                         ),
+                        if (onSubmitProduct != null) ...[
+                          const SizedBox(height: V2Spacing.space8),
+                          PGPillButton(
+                            label: 'Help add this product',
+                            icon: Icons.add_photo_alternate_outlined,
+                            variant: PGPillVariant.secondary,
+                            expand: true,
+                            onPressed: onSubmitProduct,
+                          ),
+                        ],
                         const SizedBox(height: V2Spacing.space8),
                         PGPillButton(
                           label: 'Enter code manually',

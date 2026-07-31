@@ -19,6 +19,7 @@ import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
+import 'package:pharmaguide/services/stack/stack_reminder_scheduler.dart';
 
 /// Thrown when [StackActions.addProduct] is called with a product whose
 /// verdict is BLOCKED or UNSAFE (FLTR-16). Safety-first defense in
@@ -44,6 +45,16 @@ class StackRequiresSignInException implements Exception {
 
   @override
   String toString() => 'StackRequiresSignInException()';
+}
+
+class StackReminderLimitException implements Exception {
+  const StackReminderLimitException();
+
+  int get maxReminders => StackReminderScheduler.maxScheduled;
+
+  @override
+  String toString() =>
+      'StackReminderLimitException(maxReminders=$maxReminders)';
 }
 
 /// All non-deleted stack entries, newest first.
@@ -250,7 +261,7 @@ class StackActions {
           ),
         );
     _invalidate();
-    _triggerSync();
+    if (entry.type == 'supplement') _triggerSync();
   }
 
   /// Reverse a soft-delete — clears `deletedAt` so the entry re-appears.
@@ -288,7 +299,7 @@ class StackActions {
           ),
         );
     _invalidate();
-    _triggerSync();
+    if (entry.type == 'supplement') _triggerSync();
   }
 
   /// Update the user-entered dose/schedule and append the change to the
@@ -300,6 +311,10 @@ class StackActions {
     required String entryId,
     String? dosage,
     String? frequency,
+    // Sentinel-wrapped so "leave unchanged" is distinguishable from
+    // "clear this field" — both are legitimate edits.
+    Value<DateTime?> startedAt = const Value.absent(),
+    Value<int?> reminderMinutes = const Value.absent(),
   }) async {
     _requireSignedIn();
     final userDb = _ref.read(userDatabaseProvider);
@@ -312,9 +327,39 @@ class StackActions {
 
     final nextDosage = _cleanScheduleValue(dosage);
     final nextFrequency = _cleanScheduleValue(frequency);
-    if (entry.dosage == nextDosage && entry.frequency == nextFrequency) {
+    final nextStartedAt = startedAt.present ? startedAt.value : entry.startedAt;
+    final nextReminder = reminderMinutes.present
+        ? reminderMinutes.value
+        : entry.reminderMinutes;
+    if (nextReminder != null && (nextReminder < 0 || nextReminder >= 24 * 60)) {
+      throw RangeError.range(nextReminder, 0, 24 * 60 - 1, 'reminderMinutes');
+    }
+    if (entry.reminderMinutes == null && nextReminder != null) {
+      final activeReminderCount = (await userDb.getActiveStack())
+          .where((row) => row.reminderMinutes != null)
+          .length;
+      if (activeReminderCount >= StackReminderScheduler.maxScheduled) {
+        throw const StackReminderLimitException();
+      }
+    }
+    if (entry.dosage == nextDosage &&
+        entry.frequency == nextFrequency &&
+        entry.startedAt == nextStartedAt &&
+        entry.reminderMinutes == nextReminder) {
       return false;
     }
+
+    // Start dates and reminders are deliberately device-only. Do not advance
+    // the cloud-sync watermark when those are the only fields changing;
+    // otherwise a private local edit looks like an unsynced server mutation.
+    final syncableScheduleChanged =
+        entry.dosage != nextDosage || entry.frequency != nextFrequency;
+    final changedFields = <String>[
+      if (entry.dosage != nextDosage) 'dosage',
+      if (entry.frequency != nextFrequency) 'frequency',
+      if (entry.startedAt != nextStartedAt) 'start date',
+      if (entry.reminderMinutes != nextReminder) 'reminder',
+    ];
 
     final now = DateTime.now();
     final previous = _stackHistoryValue(entry);
@@ -322,6 +367,8 @@ class StackActions {
       ...previous,
       'dosage': nextDosage,
       'frequency': nextFrequency,
+      'started_at': nextStartedAt?.toUtc().toIso8601String(),
+      'reminder_minutes': nextReminder,
     };
     await _ref
         .read(healthEventRepositoryProvider)
@@ -333,7 +380,11 @@ class StackActions {
                 UserStacksLocalCompanion(
                   dosage: Value(nextDosage),
                   frequency: Value(nextFrequency),
-                  clientUpdatedAt: Value(now),
+                  startedAt: Value(nextStartedAt),
+                  reminderMinutes: Value(nextReminder),
+                  clientUpdatedAt: syncableScheduleChanged
+                      ? Value(now)
+                      : const Value.absent(),
                 ),
               ),
           HealthEventDraft(
@@ -342,18 +393,18 @@ class StackActions {
             subjectType: entry.type,
             subjectId: entry.id,
             title: 'Updated ${entry.name}',
-            summary: 'Changed the saved dose or schedule.',
+            summary: 'Changed the saved ${changedFields.join(', ')}.',
             effectiveAt: now,
             previousValue: previous,
             currentValue: current,
-            metadata: const {
-              'changed_fields': ['dosage', 'frequency'],
-            },
+            metadata: {'changed_fields': changedFields},
           ),
         );
     _invalidate();
     CrashReportingService().log('stack_update_schedule');
-    if (entry.type == 'supplement') _triggerSync();
+    if (entry.type == 'supplement' && syncableScheduleChanged) {
+      _triggerSync();
+    }
     return true;
   }
 

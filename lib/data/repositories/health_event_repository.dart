@@ -234,6 +234,65 @@ class HealthEventRepository {
     return latest;
   }
 
+  /// Continuously-tracked-since instant per active stack subject, folded from
+  /// the append-only log.
+  ///
+  /// `stack_item_restored` is the Undo of a removal (see
+  /// `ActiveStackNotifier.restore`, which reverses a soft-delete on the same
+  /// row id), so it *continues* the existing span rather than opening a new
+  /// one. A fresh `stack_item_added` always opens a new span, which is what
+  /// makes a genuine stop-and-restart reset the clock — clinically the right
+  /// answer, because a restarted medication restarts its depletion exposure.
+  ///
+  /// Subjects whose latest lifecycle row is a removal are absent from the map.
+  /// Subjects with no lifecycle rows at all — stack items added before the v10
+  /// event log existed — are also absent; callers fall back to the stack row's
+  /// own `added_at` rather than treating the item as untracked.
+  ///
+  /// Instants are returned in UTC. SQLite hands DateTime back in local time,
+  /// and Dart treats a local and a UTC DateTime as unequal even at the same
+  /// instant, so normalizing here keeps downstream duration arithmetic and
+  /// equality unambiguous.
+  Future<Map<String, DateTime>> getStackTrackedSince() async {
+    final rows =
+        await (_database.select(_database.healthHistoryEvents)
+              ..where(
+                (table) =>
+                    table.source.equals(HealthEventSource.stack.id) &
+                    table.eventType.isIn(const [
+                      HealthEventTypes.stackItemAdded,
+                      HealthEventTypes.stackItemRemoved,
+                      HealthEventTypes.stackItemRestored,
+                    ]),
+              )
+              ..orderBy([(table) => OrderingTerm(expression: table.sequence)]))
+            .get();
+
+    final startedAt = <String, DateTime>{};
+    final isActive = <String, bool>{};
+    for (final row in rows) {
+      final subjectId = row.subjectId;
+      if (subjectId == null) continue;
+      switch (row.eventType) {
+        case HealthEventTypes.stackItemAdded:
+          startedAt[subjectId] = row.effectiveAt.toUtc();
+          isActive[subjectId] = true;
+        case HealthEventTypes.stackItemRemoved:
+          isActive[subjectId] = false;
+        case HealthEventTypes.stackItemRestored:
+          isActive[subjectId] = true;
+          // Undo of a removal: keep the original span start. Only used as the
+          // span start when no prior `added` row exists (pre-v10 histories).
+          startedAt.putIfAbsent(subjectId, () => row.effectiveAt.toUtc());
+      }
+    }
+
+    return <String, DateTime>{
+      for (final entry in startedAt.entries)
+        if (isActive[entry.key] ?? false) entry.key: entry.value,
+    };
+  }
+
   /// Current future items are a projection of the same append-only log.
   /// Reschedules/cancellations win because only the latest row per subject is
   /// considered active.

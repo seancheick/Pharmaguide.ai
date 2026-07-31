@@ -19,6 +19,7 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
+import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
@@ -215,6 +216,22 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       _notFoundUpc = null;
       _hasScanned = false;
     });
+  }
+
+  Future<void> _openMissingProductSubmission() async {
+    final upc = _notFoundUpc;
+    if (upc == null || upc.isEmpty) return;
+    if (ref.read(authStateProvider) != AuthMode.signedIn) {
+      _dismissNotFound();
+      await context.push(Routes.authInvitation);
+      return;
+    }
+
+    final submitted = await showMissingProductSubmissionSheet(
+      context,
+      upc: upc,
+    );
+    if (submitted && mounted) _dismissNotFound();
   }
 
   /// Opens the manual barcode entry bottom sheet, then runs the same
@@ -420,6 +437,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 _dismissNotFound();
                 unawaited(_openManualBarcodeSheet());
               },
+              onSubmitProduct: () => unawaited(_openMissingProductSubmission()),
               onClose: _dismissNotFound,
             ),
         ],
@@ -584,12 +602,14 @@ class ScannerNotFoundSheet extends StatelessWidget {
   final String upc;
   final VoidCallback onTryAgain;
   final VoidCallback onSearchByName;
+  final VoidCallback? onSubmitProduct;
 
   const ScannerNotFoundSheet({
     super.key,
     required this.upc,
     required this.onTryAgain,
     required this.onSearchByName,
+    this.onSubmitProduct,
   });
 
   @override
@@ -675,6 +695,16 @@ class ScannerNotFoundSheet extends StatelessWidget {
               ),
             ],
           ),
+          if (onSubmitProduct != null) ...[
+            const SizedBox(height: V2Spacing.space12),
+            PGPillButton(
+              onPressed: onSubmitProduct,
+              icon: Icons.add_a_photo_outlined,
+              label: 'Help add this product',
+              variant: PGPillVariant.secondary,
+              expand: true,
+            ),
+          ],
         ],
       ),
     );

@@ -1,8 +1,33 @@
 # Longitudinal Health Organization — Three-Phase Roadmap
 
 **Date:** 2026-07-30
-**Status:** Approved direction — phased implementation remains subject to the
-clinical-data gates described below
+**Status:** Implemented (code) — 2026-07-30. All three phases ship end to end;
+Phase 3 is visible on Stack as a product-level daily plan.
+Phase 1 is inert until a clinical reviewer authors `watch_threshold_days`,
+which remains a clinician-owned change and is deliberately NOT part of the
+code implementation.
+
+**Divergences from this spec, decided during implementation:**
+- `DepletionChecker.check()` was NOT refactored to thread stack-entry ids.
+  It flattens identities into shared lookup sets, so threading ids would mean
+  operating on the identity matcher. The watch instead replays the same pure
+  `check()` once per medication, keeping the checker the sole matching
+  authority and the identity guard untouched.
+- "Promote `monitoring_tip_short`" means raising emphasis on a line the card
+  already renders unconditionally (`pg_depletion_card.dart`), not adding one.
+- Rows predating the v10 event log fall back to the stack row's own
+  `added_at`; without it every long-tenured user would be invisible to the
+  watch.
+- An approved watch threshold is inert unless it has a nonblank
+  `watch_approver`, and the runtime accepts only an integer day value matching
+  the release schema.
+- Phase 3 schedules physical product names, not nutrient components.
+  `time_of_day` placement comes only from pipeline-authored `daily_slots`;
+  consumer advice text is never parsed as clinical scheduling data.
+- Purpose-, formulation-, or unspecified-medication-dependent rules remain
+  visible as authored timing information but carry
+  `daily_plan_eligible: false`. The app cannot turn them into a concrete slot
+  without context it does not collect.
 **Scope:** Enhance three existing subsystems (depletion, timing, visit) into a
 longitudinal loop. No new subsystems.
 
@@ -15,7 +40,7 @@ PharmaGuide already has all three engines. Verified in code on 2026-07-30:
 | Capability | Exists | Where | Gap |
 |---|---|---|---|
 | Depletion | Yes | `depletion_checker.dart`, `pg_depletion_card.dart`, 80 curated entries | Point-in-time only; no time dimension |
-| Timing | Yes | `timing_evaluation_service.dart` (610 lines, inverted index), 32 rules | Pairwise advice; never resolved into a daily plan |
+| Timing | Yes | `timing_evaluation_service.dart`, reviewed timing-rules artifact | Pairwise findings feed the product-level daily plan |
 | Visit | Yes | `user_health_event_service.dart`, `clinician_pdf_builder.dart` | Two halves exist but are not connected |
 
 This roadmap connects what is already built. It is deliberately not a
@@ -98,10 +123,10 @@ For each active medication with a depletion entry that has a threshold:
 
 ### Edge cases
 
-- Item removed and re-added: the append-only health event log holds
-  `stack_item_removed` / `stack_item_restored`. Duration is computed from the
-  log, not from the current row, so a re-add does not reset the clock
-  incorrectly.
+- Undoing a removal restores the same row and continues its original
+  tracked-here span. A genuine later add creates a new row and starts a new
+  span, so a real stop/restart is never presented as continuous use. Rows that
+  predate the event log fall back to their current row's `added_at`.
 - Clock skew / backdated device time: clamp negative durations to zero.
 - Threshold crossed while the app was closed: crossing is evaluated at read
   time, not by a scheduler. No background job.
@@ -162,10 +187,12 @@ bundled rule artifact and its release gates remain the source of truth.
 
 ### Behavior
 
-Add a resolver layer *above* the existing engine — the engine is not
-modified. It takes the emitted constraint set and assigns items to a small
-fixed set of slots (morning / with food / evening / bedtime), reporting any
-constraint it could not satisfy rather than silently dropping it.
+Add a resolver layer *above* the existing engine. The matcher still decides
+which rules apply. Its result model carries the physical product names and
+the optional structured `daily_slots` authored on `time_of_day` rules. The
+resolver assigns products to a small fixed set of slots (morning / with food /
+evening / bedtime), reporting any constraint it could not satisfy rather than
+silently dropping it.
 
 ### Why last
 
@@ -216,14 +243,15 @@ bundled-DB and notification-permission gates.
 
 ---
 
-## Open questions for the owner
+## Resolved implementation decisions
 
-1. **Who authors `watch_threshold_days`?** It is a clinical judgment and
-   needs the same reviewer path as the rest of `medication_depletions.json`.
-   Phase 1 is blocked on this, not on Flutter work.
-2. **Which entries get a threshold first?** Recommend the highest-evidence
-   chronic ones (metformin→B12, PPI→iron at the documented 2-year mark)
-   rather than all 80 at once, per the one-entry-at-a-time rule.
-3. **Slot vocabulary for Phase 3** — fixed four slots, or per-user wake/sleep
-   anchoring? Fixed is simpler and matches the "anchor to existing routine"
-   habit-formation evidence.
+1. **Who authors `watch_threshold_days`?** The PharmaGuide Clinical Team owns
+   approval through the same attributable reviewer path as the rest of
+   `medication_depletions.json`. Flutter work is complete; proposed rows stay
+   inert until that review happens.
+2. **Which entries get a threshold first?** Three source-bounded proposals are
+   present for review: acid suppression→iron, acid suppression→B12, and
+   metformin→B12. The other records deliberately have no numeric threshold.
+3. **Slot vocabulary for Phase 3:** fixed four-slot vocabulary. The canonical
+   pipeline artifact is the sole writer; the release sync byte-copies and
+   parity-checks the Flutter asset.

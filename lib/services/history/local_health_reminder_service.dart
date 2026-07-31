@@ -3,10 +3,9 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
-import 'package:timezone/data/latest.dart' as timezone_data;
+import 'package:pharmaguide/services/notifications/local_notification_timezone.dart';
 import 'package:timezone/timezone.dart' as timezone;
 
 class HealthReminderSyncResult {
@@ -142,16 +141,7 @@ class _FlutterHealthReminderNotificationClient
   Future<void> initialize() => _initialization ??= _initialize();
 
   Future<void> _initialize() async {
-    timezone_data.initializeTimeZones();
-    try {
-      final local = await FlutterTimezone.getLocalTimezone();
-      timezone.setLocalLocation(timezone.getLocation(local.identifier));
-    } on Object catch (error) {
-      // The event timestamp is stored as an instant. UTC is therefore a safe
-      // scheduling fallback when the platform cannot supply an IANA zone.
-      debugPrint('[health-reminders] timezone fallback to UTC: $error');
-      timezone.setLocalLocation(timezone.UTC);
-    }
+    await initializeLocalNotificationTimezone();
     await _notifications.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('ic_launcher'),

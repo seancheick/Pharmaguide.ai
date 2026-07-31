@@ -24,6 +24,7 @@ import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
+import 'package:pharmaguide/services/stack/depletion_watch.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
@@ -656,27 +657,27 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     final timingJson = await refDataRepo.loadTimingRules();
     final timingService = TimingEvaluationService.fromJson(timingJson);
 
-    // Build supplement tag map: product_name → Set<canonical_tag>.
-    final supplementTags = <String, Set<String>>{};
+    // Keep each physical stack row's id beside its display name and reviewed
+    // matching identity. Display text is never used as an identifier.
+    final timingStackItems = <TimingStackItem>[];
     for (final h in hydrated) {
       final tags = ingredientTagsForProduct(h.product);
       if (tags.isNotEmpty) {
-        supplementTags[h.entry.name] = tags;
+        timingStackItems.add(
+          TimingStackItem.supplement(
+            stackEntryId: h.entry.id,
+            displayName: h.entry.name,
+            ingredientTags: tags,
+          ),
+        );
       }
     }
 
-    // Preserve display names for attribution, but match only through the saved
-    // RxNorm identity chain. Brand text is never a clinical identifier.
-    final medicationNames = safetyMedications
-        .map((m) => m.name)
-        .toList(growable: false);
-    final medicationRxCuisByName = <String, Set<String>>{};
+    // Preserve display names for attribution, but match medications only
+    // through the saved RxNorm identity chain.
     for (final medication in safetyMedications) {
       final snapshot = MedicationIdentitySnapshot.fromStackRow(medication);
-      final rxcuis = medicationRxCuisByName.putIfAbsent(
-        medication.name,
-        () => <String>{},
-      );
+      final rxcuis = <String>{};
       for (final value in [
         snapshot.rxcui,
         snapshot.genericRxcui,
@@ -687,6 +688,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           rxcuis.add(normalized);
         }
       }
+      timingStackItems.add(
+        TimingStackItem.medication(
+          stackEntryId: medication.id,
+          displayName: medication.name,
+          medicationRxCuis: rxcuis,
+        ),
+      );
     }
 
     // Per-nutrient total doses (mg only) for the currently authored timing
@@ -703,9 +711,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     }
 
     timingOptimizations = timingService.evaluateStack(
-      supplementTags: supplementTags,
-      medicationNames: medicationNames,
-      medicationRxCuisByName: medicationRxCuisByName,
+      stackItems: timingStackItems,
       ingredientDosesMg: ingredientDosesMg,
     );
   } on Object catch (e, st) {
@@ -1048,19 +1054,26 @@ final recalledIngredientsReportProvider =
 /// Depletion checker — matches medications against known nutrient
 /// depletions and highlights which ones the user's supplement stack
 /// already covers.
+/// Build the depletion matching identity for one stack medication row.
+///
+/// Shared by [depletionReportProvider] and [depletionWatchProvider] so the two
+/// can never drift: a watch must describe exactly the relationship its card
+/// renders.
+DepletionMedicationIdentity _depletionIdentityFor(UserStacksLocalData e) {
+  return DepletionMedicationIdentity(
+    name: e.name,
+    rxcui: e.rxcui,
+    genericRxcui: e.genericRxcui,
+    ingredientRxcuis: _decodeStackStringList(e.ingredientRxcuisCol),
+    drugClassIds: _decodeStackStringList(e.drugClassesCol),
+  );
+}
+
 final depletionReportProvider = FutureProvider<MedNutrientReport>((ref) async {
   final stack = await ref.watch(activeStackProvider.future);
   final medications = stack
       .where((e) => e.type == 'medication')
-      .map(
-        (e) => DepletionMedicationIdentity(
-          name: e.name,
-          rxcui: e.rxcui,
-          genericRxcui: e.genericRxcui,
-          ingredientRxcuis: _decodeStackStringList(e.ingredientRxcuisCol),
-          drugClassIds: _decodeStackStringList(e.drugClassesCol),
-        ),
-      )
+      .map(_depletionIdentityFor)
       .toList(growable: false);
 
   if (medications.isEmpty) {
@@ -1160,6 +1173,61 @@ final depletionReportProvider = FutureProvider<MedNutrientReport>((ref) async {
     ),
   );
 });
+
+/// Curated watch thresholds evaluated against how long each medication has
+/// actually been tracked, keyed by depletion entry id.
+///
+/// Empty whenever the clinical asset is unavailable or no reviewer has authored
+/// a `watch_threshold_days`. That is the current state of every entry, so this
+/// provider is inert until curated data enables it — it can never manufacture a
+/// clinical timeline on its own.
+final depletionWatchProvider =
+    FutureProvider<Map<String, DepletionWatchStatus>>((ref) async {
+      final stack = await ref.watch(activeStackProvider.future);
+      final medications = <WatchedMedication>[
+        for (final e in stack)
+          if (e.type == 'medication')
+            (stackEntryId: e.id, identity: _depletionIdentityFor(e)),
+      ];
+      if (medications.isEmpty) return const {};
+
+      final load = await ref
+          .watch(reference_data.referenceDataRepositoryProvider)
+          .loadMedicationDepletions();
+      if (load.status == MedNutrientLoadStatus.unavailable) {
+        // Never annotate a card the checker could not build. An unavailable
+        // asset is not a "nothing due" answer.
+        return const {};
+      }
+
+      // Precedence, most to least truthful:
+      //   1. `started_at` — what the person reports. Someone on metformin
+      //      since 2019 who installed last week is only visible this way.
+      //   2. the append-only event log, which distinguishes an Undo from a
+      //      genuine stop-and-restart.
+      //   3. `added_at`, for rows predating the v10 log.
+      // Each is a fact the app was told or observed; none is inferred.
+      final logged = await ref
+          .read(healthEventRepositoryProvider)
+          .getStackTrackedSince();
+      final trackedSince = <String, DateTime>{};
+      for (final e in stack) {
+        if (e.type != 'medication') continue;
+        final reported = e.startedAt;
+        if (reported != null) {
+          trackedSince[e.id] = reported.toUtc();
+          continue;
+        }
+        trackedSince[e.id] = (logged[e.id] ?? e.addedAt).toUtc();
+      }
+
+      return DepletionWatchResolver().evaluate(
+        medications: medications,
+        depletionsData: load.data,
+        trackedSinceByStackEntry: trackedSince,
+        now: DateTime.now(),
+      );
+    });
 
 /// Drug-class ids resolved for the user's CURRENT-STACK medications — the
 /// SAME already-resolved source stack safety and depletion consume

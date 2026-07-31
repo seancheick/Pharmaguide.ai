@@ -33,6 +33,7 @@ import 'package:pharmaguide/features/profile/v2/profile_setup_v2_screen.dart';
 import 'package:pharmaguide/features/profile/v2/profile_wizard_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
+import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/features/compare/compare_screen.dart';
@@ -212,8 +213,25 @@ class ScanScreen extends ConsumerWidget {
           Navigator.pop(ctx);
           context.push(Routes.search);
         },
+        onSubmitProduct: () {
+          Navigator.pop(ctx);
+          unawaited(_openMissingProductSubmission(context, ref, barcode));
+        },
       ),
     );
+  }
+
+  Future<void> _openMissingProductSubmission(
+    BuildContext context,
+    WidgetRef ref,
+    String barcode,
+  ) async {
+    if (ref.read(authStateProvider) != AuthMode.signedIn) {
+      await context.push(Routes.authInvitation);
+      return;
+    }
+    if (!context.mounted) return;
+    await showMissingProductSubmissionSheet(context, upc: barcode);
   }
 
   @override

@@ -131,6 +131,35 @@ void main() {
     );
   });
 
+  testWidgets('signed-in profile exposes private product submission status', (
+    tester,
+  ) async {
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsV2Screen(
+          signedIn: true,
+          onOpenProductSubmissions: () => opened = true,
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Product submissions'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(find.text('Product submissions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Product submissions'));
+
+    expect(opened, isTrue);
+    expect(
+      find.text('Track label corrections and missing products'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('connected settings reacts when auth state becomes guest', (
     tester,
   ) async {

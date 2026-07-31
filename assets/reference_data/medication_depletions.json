@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.07.30-b1-delta.3",
-    "content_hash": "sha256:dac490bc73da4910f63b248c87f5d98fd4b46601c2efd880a87bda86d0011800",
+    "content_version": "2026.07.30-b1-delta.4",
+    "content_hash": "sha256:ed274d0b7828e3b0d511e56137cb832a417a8148b21cc4545f8d8357851a4651",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -151,7 +151,13 @@
       "citation_review_status": "needs_revision",
       "reviewed_at": "2026-07-27",
       "reviewer": "b1_1_evidence_audit",
-      "citation_review_note": "B1.1 evidence revision completed. PPI-only scope retained; FDA labeling, a large observational study, and a heterogeneous 2023 meta-analysis support cautious long-term B12 wording. Blanket 1,000 mcg/day advice and the retired food-versus-supplement claim were removed. The record remains suppressed pending licensed pharmacist delta review."
+      "citation_review_note": "B1.1 evidence revision completed. PPI-only scope retained; FDA labeling, a large observational study, and a heterogeneous 2023 meta-analysis support cautious long-term B12 wording. Blanket 1,000 mcg/day advice and the retired food-versus-supplement claim were removed. The record remains suppressed pending licensed pharmacist delta review.",
+      "watch_threshold_days": 730,
+      "watch_basis": "Lam 2013 (PMID 24327038, on this entry): a >=2-year supply of PPIs was associated with incident vitamin B12 deficiency (OR 1.65, 95% CI 1.58-1.73); >=2 years of H2RAs OR 1.25 (95% CI 1.17-1.34), across 25,956 cases and 184,199 controls. Threshold set at the 2-year exposure the study stratified on.",
+      "watch_review_status": "proposed",
+      "watch_proposed_by": "claude_research_draft",
+      "watch_proposed_at": "2026-07-30",
+      "watch_approver": null
     },
     {
       "id": "DEP_ANTACIDS_MAGNESIUM",
@@ -308,7 +314,13 @@
       "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
       "b1_clinical_approval_status": "pending_delta_review",
       "b1_clinical_approver": null,
-      "b1_clinical_approved_at": null
+      "b1_clinical_approved_at": null,
+      "watch_threshold_days": 730,
+      "watch_basis": "Lam 2017 (PMID 27890768, on this entry): acid-suppressant use for >=2 years was associated with subsequent iron deficiency — PPI adjusted OR 2.49 (95% CI 2.35-2.64), H2RA OR 1.58 (95% CI 1.46-1.71). Threshold set at the 2-year exposure the study stratified on.",
+      "watch_review_status": "proposed",
+      "watch_proposed_by": "claude_research_draft",
+      "watch_proposed_at": "2026-07-30",
+      "watch_approver": null
     },
     {
       "id": "DEP_ANTACIDS_VITAMINC",
@@ -459,7 +471,13 @@
       "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
       "b1_clinical_approval_status": "approved_for_controlled_beta",
       "b1_clinical_approver": "PharmaGuide Clinical Team",
-      "b1_clinical_approved_at": "2026-07-27"
+      "b1_clinical_approved_at": "2026-07-27",
+      "watch_threshold_days": 1460,
+      "watch_basis": "Matches this entry’s own reviewed recommendation (\"especially after about 4–5 years\") and de Jager 2010 (PMID 20488910, on this entry), a 4.3-year randomised placebo-controlled trial in which metformin raised the absolute risk of B12 deficiency by 7.2 percentage points (NNH 13.8 per 4.3 years). Threshold set at the lower bound of the authored window, 4 years. NOTE FOR REVIEW: Ting 2006 (PMID 17030830, NOT currently on this entry) reports an adjusted OR of 2.39 at >=3 years; if the team wants the earlier trigger, add that source first and reduce this to 1095.",
+      "watch_review_status": "proposed",
+      "watch_proposed_by": "claude_research_draft",
+      "watch_proposed_at": "2026-07-30",
+      "watch_approver": null
     },
     {
       "id": "DEP_METFORMIN_FOLATE",

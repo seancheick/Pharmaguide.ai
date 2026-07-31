@@ -35,7 +35,7 @@ import 'package:flutter_test/flutter_test.dart';
 // levothyroxine/calcium and orlistat/vitamin-A copy plus the requested
 // acid-suppression/iron and SSRI/sodium evidence revisions.
 const _pinnedContentHash =
-    'sha256:dac490bc73da4910f63b248c87f5d98fd4b46601c2efd880a87bda86d0011800';
+    'sha256:ed274d0b7828e3b0d511e56137cb832a417a8148b21cc4545f8d8357851a4651';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

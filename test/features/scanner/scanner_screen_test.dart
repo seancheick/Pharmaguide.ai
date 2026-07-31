@@ -68,12 +68,31 @@ void main() {
       expect(find.text('UPC: 0123456789012'), findsOneWidget);
       expect(find.text('Search by name'), findsOneWidget);
       expect(find.text('Scan again'), findsOneWidget);
-      expect(find.text('Submit Product'), findsNothing);
-      expect(find.textContaining('submit the label'), findsNothing);
+      expect(find.text('Help add this product'), findsNothing);
       expect(
         find.textContaining('Search by name or scan again'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('can route a manual barcode miss into the same intake', (
+      tester,
+    ) async {
+      var submitted = false;
+      await tester.pumpWidget(
+        wrap(
+          ScannerNotFoundSheet(
+            upc: '050428381397',
+            onTryAgain: () {},
+            onSearchByName: () {},
+            onSubmitProduct: () => submitted = true,
+          ),
+        ),
+      );
+
+      expect(find.text('Help add this product'), findsOneWidget);
+      await tester.tap(find.text('Help add this product'));
+      expect(submitted, isTrue);
     });
   });
 
@@ -90,6 +109,7 @@ void main() {
             onRetry: () {},
             onSearchByName: () => searched = true,
             onManualEntry: () {},
+            onSubmitProduct: () {},
             onClose: () {},
           ),
         ),
@@ -100,10 +120,33 @@ void main() {
       expect(find.text('Search by name'), findsOneWidget);
       expect(find.text('Try again'), findsOneWidget);
       expect(find.text('Enter code manually'), findsOneWidget);
+      expect(find.text('Help add this product'), findsOneWidget);
 
       await tester.tap(find.text('Search by name'));
 
       expect(searched, isTrue);
+    });
+
+    testWidgets('opens the structured submission action for the scanned UPC', (
+      tester,
+    ) async {
+      var submitted = false;
+      await tester.pumpWidget(
+        wrap(
+          PGScanNotFound(
+            scannedCode: '050428341902',
+            onRetry: () {},
+            onSearchByName: () {},
+            onManualEntry: () {},
+            onSubmitProduct: () => submitted = true,
+            onClose: () {},
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Help add this product'));
+
+      expect(submitted, isTrue);
     });
 
     testWidgets('blocks background semantics and exposes a 44pt close action', (

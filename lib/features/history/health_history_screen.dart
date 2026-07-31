@@ -11,6 +11,7 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/features/history/add_health_event_sheet.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
+import 'package:pharmaguide/features/stack/widgets/stack_share_sheet.dart';
 import 'package:pharmaguide/services/history/user_health_event_service.dart';
 
 class HealthHistoryScreen extends ConsumerStatefulWidget {
@@ -446,6 +447,15 @@ class _EventDetailActions extends ConsumerWidget {
               spacing: V2Spacing.space8,
               runSpacing: V2Spacing.space8,
               children: [
+                // Before a visit: offer the report the user would otherwise
+                // have to go find on the Stack tab. Same share path — no
+                // second report implementation.
+                if (kind == UserHealthEventKind.doctorVisit)
+                  FilledButton.tonalIcon(
+                    onPressed: () => showStackShareSheet(context, ref),
+                    icon: const Icon(Icons.ios_share_rounded),
+                    label: const Text('Bring your stack'),
+                  ),
                 FilledButton.tonalIcon(
                   onPressed: () => _complete(context, ref, kind!),
                   icon: const Icon(Icons.check_rounded),
@@ -471,6 +481,14 @@ class _EventDetailActions extends ConsumerWidget {
     WidgetRef ref,
     UserHealthEventKind kind,
   ) async {
+    // After a visit, offer one optional capture of what changed. Skipping is a
+    // first-class outcome: the visit is recorded as complete either way, so
+    // this can never block finishing the task.
+    String? note;
+    if (kind == UserHealthEventKind.doctorVisit) {
+      note = await _askWhatChanged(context);
+      if (!context.mounted) return;
+    }
     await ref
         .read(userHealthEventServiceProvider)
         .complete(
@@ -478,8 +496,21 @@ class _EventDetailActions extends ConsumerWidget {
           subjectId: item.event.subjectId!,
           title: item.event.title,
           completedAt: DateTime.now(),
+          note: note,
         );
     if (context.mounted) Navigator.of(context).pop();
+  }
+
+  /// Optional post-visit note. Returns null when the user skips, which is the
+  /// default path — the dialog dismisses to null on a barrier tap too.
+  ///
+  /// The note stays in the device-only health event log; nothing here reaches
+  /// Supabase, crash reports, or a notification payload.
+  Future<String?> _askWhatChanged(BuildContext context) {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => const _WhatChangedDialog(),
+    );
   }
 
   Future<void> _reschedule(
@@ -622,3 +653,63 @@ IconData _categoryIcon(HealthHistoryCategory category) => switch (category) {
   HealthHistoryCategory.profile => Icons.person_outline_rounded,
   HealthHistoryCategory.note => Icons.note_alt_outlined,
 };
+
+/// Optional post-visit capture.
+///
+/// Stateful so the controller is disposed by the element lifecycle rather than
+/// on the dialog's completion future — the dialog is still animating out (and
+/// the field still mounted) when that future resolves.
+class _WhatChangedDialog extends StatefulWidget {
+  const _WhatChangedDialog();
+
+  @override
+  State<_WhatChangedDialog> createState() => _WhatChangedDialogState();
+}
+
+class _WhatChangedDialogState extends State<_WhatChangedDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Anything change?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Optional — a short note about what came out of this visit. '
+            'This stays on your device.',
+          ),
+          const SizedBox(height: V2Spacing.space12),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLength: 280,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Started a new medication, labs ordered…',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Skip'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Save note'),
+        ),
+      ],
+    );
+  }
+}

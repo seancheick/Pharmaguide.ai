@@ -4,9 +4,10 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/formula_history_model.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
 import 'package:pharmaguide/features/product_detail/widgets/formula_history_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
-import 'package:pharmaguide/services/label_mismatch_report_service.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 
 typedef OpenSourceLabel = Future<void> Function(Uri uri);
 typedef OpenLabelMismatchReport =
@@ -213,16 +214,11 @@ class _LabelRecordCard extends StatelessWidget {
       labelRecord: rawRecord,
       currentLabelRows: currentLabelRows,
     );
-    final reportDsldId = dsldId ?? record['source_record_id'];
-    final reportProduct = reportDsldId == null
-        ? null
-        : LabelMismatchProductMetadata(
-            dsldId: reportDsldId,
-            upc: upc,
-            sourceRecordId: record['source_record_id'],
-            catalogSourceVersion: record['catalog_version'],
-            formulaFingerprint: record['formula_fingerprint'],
-          );
+    final reportProduct = labelMismatchMetadataFrom(
+      rawRecord,
+      dsldId: dsldId,
+      upc: upc,
+    );
     Future<void> openMismatchReport() async {
       final product = reportProduct!;
       final callback = onReportMismatch;

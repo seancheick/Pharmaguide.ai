@@ -25,6 +25,7 @@ import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
 import 'package:pharmaguide/services/catalog_swap.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -552,6 +553,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           // Device notifications are a disposable projection of the same
           // append-only Health History log. No second reminder store exists.
           ref.watch(healthReminderSyncProvider);
+          // Per-item stack reminders are the same idea over the stack table:
+          // a separate id namespace, rebuilt from the database, never a
+          // second source of truth.
+          ref.watch(stackReminderSyncProvider);
           return child!;
         },
         child: PharmaGuideApp(

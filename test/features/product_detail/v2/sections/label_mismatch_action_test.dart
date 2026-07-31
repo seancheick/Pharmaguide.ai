@@ -53,11 +53,18 @@ void main() {
       expect(meta.formulaFingerprint, isNull);
     });
 
-    test('falls back to source_record_id when dsldId is absent', () {
+    test('falls back only to a numeric source_record_id', () {
       final meta = labelMismatchMetadataFrom(const {
-        'source_record_id': 'SRC-9',
+        'source_record_id': '278454',
       });
-      expect(meta?.dsldId, 'SRC-9');
+      expect(meta?.dsldId, '278454');
+      expect(
+        labelMismatchMetadataFrom(const {'source_record_id': 'SRC-9'}),
+        isNull,
+        reason:
+            'Opaque provenance must never masquerade as a DSLD target that '
+            'the canonical pipeline cannot replace.',
+      );
     });
 
     test('returns null when there is no identifier to report against', () {
