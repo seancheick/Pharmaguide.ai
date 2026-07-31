@@ -104,6 +104,33 @@ final _testTimingRulesJson = {
   ],
 };
 
+List<TimingOptimization> _evaluate(
+  TimingEvaluationService service, {
+  required Map<String, Set<String>> supplementTags,
+  required List<String> medicationNames,
+  Map<String, Set<String>> medicationRxCuisByName = const {},
+  Map<String, double> ingredientDosesMg = const {},
+}) {
+  return service.evaluateStack(
+    stackItems: [
+      for (final entry in supplementTags.entries.indexed)
+        TimingStackItem.supplement(
+          stackEntryId: 'supplement-${entry.$1}',
+          displayName: entry.$2.key,
+          ingredientTags: entry.$2.value,
+        ),
+      for (final entry in medicationNames.indexed)
+        TimingStackItem.medication(
+          stackEntryId: 'medication-${entry.$1}',
+          displayName: entry.$2,
+          medicationRxCuis:
+              medicationRxCuisByName[entry.$2] ?? const <String>{},
+        ),
+    ],
+    ingredientDosesMg: ingredientDosesMg,
+  );
+}
+
 void main() {
   group('TimingEvaluationService', () {
     late TimingEvaluationService service;
@@ -118,7 +145,8 @@ void main() {
 
     group('supplement × supplement matching', () {
       test('fires separation rule when both ingredients in stack', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
             'Calcium Citrate': {'calcium'},
@@ -137,7 +165,8 @@ void main() {
       });
 
       test('product names stay aligned with authored ingredient sides', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             // Deliberately visit ingredient2 first.
             'Calcium Citrate': {'calcium'},
@@ -154,7 +183,8 @@ void main() {
       });
 
       test('fires take_together rule when both ingredients in stack', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
             'Vitamin C': {'vitamin_c'},
@@ -170,7 +200,8 @@ void main() {
       });
 
       test('does NOT fire when only one side of the pair is in stack', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
           },
@@ -184,7 +215,8 @@ void main() {
       });
 
       test('fires single-ingredient rules (food context)', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'CoQ10 200mg': {'coq10'},
           },
@@ -199,7 +231,8 @@ void main() {
       });
 
       test('fires time_of_day rules for magnesium', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Magnesium Glycinate': {'magnesium'},
           },
@@ -221,7 +254,8 @@ void main() {
       test(
         'does not fire psyllium medication spacing without a medication',
         () {
-          final results = service.evaluateStack(
+          final results = _evaluate(
+            service,
             supplementTags: {
               'Psyllium Husk': {'psyllium'},
             },
@@ -238,7 +272,8 @@ void main() {
       test(
         'fires psyllium medication spacing when a medication is present',
         () {
-          final results = service.evaluateStack(
+          final results = _evaluate(
+            service,
             supplementTags: {
               'Psyllium Husk': {'psyllium'},
             },
@@ -262,7 +297,8 @@ void main() {
 
     group('medication × supplement matching', () {
       test('fires levothyroxine + iron separation rule', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
           },
@@ -282,7 +318,8 @@ void main() {
       });
 
       test('matches a brand through its normalized generic RxCUI', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
           },
@@ -299,7 +336,8 @@ void main() {
       });
 
       test('does not infer medication identity from a display name', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
           },
@@ -313,7 +351,8 @@ void main() {
       });
 
       test('does NOT fire medication rule when medication not in stack', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
           },
@@ -329,9 +368,10 @@ void main() {
 
     group('deduplication', () {
       test(
-        'each rule fires at most once even with multiple matching products',
+        'one reviewed rule preserves every actionable physical product pair',
         () {
-          final results = service.evaluateStack(
+          final results = _evaluate(
+            service,
             supplementTags: {
               'Iron Bisglycinate': {'iron'},
               'Ferrous Sulfate': {'iron'},
@@ -346,16 +386,54 @@ void main() {
               .toList();
           expect(
             ironCalcium,
-            hasLength(1),
-            reason: 'Same rule should not fire multiple times',
+            hasLength(4),
+            reason:
+                'two iron rows by two calcium rows are four distinct actions',
+          );
+          expect(
+            ironCalcium
+                .map(
+                  (result) =>
+                      '${result.product1StackEntryId}|'
+                      '${result.product2StackEntryId}',
+                )
+                .toSet(),
+            hasLength(4),
           );
         },
       );
+
+      test('duplicate display names remain separate physical rows', () {
+        final results = service.evaluateStack(
+          stackItems: const [
+            TimingStackItem.supplement(
+              stackEntryId: 'first-coq10',
+              displayName: 'Daily Softgel',
+              ingredientTags: {'coq10'},
+            ),
+            TimingStackItem.supplement(
+              stackEntryId: 'second-coq10',
+              displayName: 'Daily Softgel',
+              ingredientTags: {'coq10'},
+            ),
+          ],
+        );
+
+        final coq10 = results
+            .where((result) => result.ruleId == 'timing_coq10_with_food')
+            .toList();
+        expect(coq10, hasLength(2));
+        expect(coq10.map((result) => result.product1StackEntryId).toSet(), {
+          'first-coq10',
+          'second-coq10',
+        });
+      });
     });
 
     group('priority ordering', () {
       test('medication separations sort before supplement separations', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
             'Calcium Citrate': {'calcium'},
@@ -381,7 +459,8 @@ void main() {
 
     group('evidence level mapping', () {
       test('maps established correctly', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Iron Supplement': {'iron'},
             'Calcium Citrate': {'calcium'},
@@ -396,7 +475,8 @@ void main() {
       });
 
       test('maps possible to theoretical', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {
             'Magnesium Glycinate': {'magnesium'},
           },
@@ -412,7 +492,8 @@ void main() {
 
     group('empty stack', () {
       test('returns empty list for empty supplement stack', () {
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: {},
           medicationNames: [],
         );
@@ -422,7 +503,8 @@ void main() {
       test(
         'returns empty list for medications-only stack with no matching rules',
         () {
-          final results = service.evaluateStack(
+          final results = _evaluate(
+            service,
             supplementTags: {},
             medicationNames: ['Metformin 500mg'],
           );
@@ -451,7 +533,8 @@ void main() {
         }
 
         final stopwatch = Stopwatch()..start();
-        final results = service.evaluateStack(
+        final results = _evaluate(
+          service,
           supplementTags: largeSuppTags,
           medicationNames: ['Levothyroxine 50mcg', 'Warfarin 5mg'],
         );
@@ -523,7 +606,8 @@ void main() {
         () {
           // Calcium K/D carries vitamin D and K in the SAME pill — the
           // "Take X with X" self-pairing bug.
-          final results = svc.evaluateStack(
+          final results = _evaluate(
+            svc,
             supplementTags: {
               'Calcium K/D': {'vitamin_d', 'vitamin_k'},
             },
@@ -538,7 +622,8 @@ void main() {
       );
 
       test('still fires take_together across two different products', () {
-        final results = svc.evaluateStack(
+        final results = _evaluate(
+          svc,
           supplementTags: {
             'Vitamin D3': {'vitamin_d'},
             'Vitamin K2': {'vitamin_k'},
@@ -553,7 +638,8 @@ void main() {
       });
 
       test('suppresses separate when both minerals are one product', () {
-        final results = svc.evaluateStack(
+        final results = _evaluate(
+          svc,
           supplementTags: {
             'Multivitamin': {'iron', 'calcium'},
           },
@@ -569,7 +655,8 @@ void main() {
       test(
         'uses a different product pair when one product contains both sides',
         () {
-          final results = svc.evaluateStack(
+          final results = _evaluate(
+            svc,
             supplementTags: {
               'Multivitamin': {'iron', 'calcium'},
               'Iron Solo': {'iron'},
@@ -588,7 +675,8 @@ void main() {
       test('collapses duplicate take-with-food tips for the same product', () {
         // Vitamin D and K each trip their own with-food rule, but the user
         // should be told to take THAT product with a meal only once.
-        final results = svc.evaluateStack(
+        final results = _evaluate(
+          svc,
           supplementTags: {
             'Calcium K/D': {'vitamin_d', 'vitamin_k'},
           },
@@ -627,7 +715,8 @@ void main() {
             ],
           });
 
-          final results = conflicting.evaluateStack(
+          final results = _evaluate(
+            conflicting,
             supplementTags: {
               'O.N.E. Multivitamin': {'alpha_lipoic_acid', 'vitamin_a'},
             },
@@ -682,7 +771,8 @@ void main() {
       };
 
       test('fires when the gated dose is at/above threshold', () {
-        final results = svc.evaluateStack(
+        final results = _evaluate(
+          svc,
           supplementTags: both,
           medicationNames: [],
           ingredientDosesMg: {'vitamin_e': 180},
@@ -696,7 +786,8 @@ void main() {
       });
 
       test('suppressed when the gated dose is below threshold', () {
-        final results = svc.evaluateStack(
+        final results = _evaluate(
+          svc,
           supplementTags: both,
           medicationNames: [],
           ingredientDosesMg: {'vitamin_e': 20},
@@ -711,7 +802,8 @@ void main() {
       });
 
       test('suppresses a dose-gated tip when the dose is unknown', () {
-        final results = svc.evaluateStack(
+        final results = _evaluate(
+          svc,
           supplementTags: both,
           medicationNames: [],
           // no doses supplied
@@ -741,13 +833,15 @@ void main() {
         ],
       });
 
-      final citrateResults = carbonate.evaluateStack(
+      final citrateResults = _evaluate(
+        carbonate,
         supplementTags: {
           'Calcium Citrate': {'calcium'},
         },
         medicationNames: [],
       );
-      final carbonateResults = carbonate.evaluateStack(
+      final carbonateResults = _evaluate(
+        carbonate,
         supplementTags: {
           'Calcium Carbonate': {'calcium', 'calcium_carbonate'},
         },

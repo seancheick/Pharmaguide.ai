@@ -2,6 +2,38 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 
+enum TimingStackItemKind { supplement, medication }
+
+/// One physical stack row presented to the timing evaluator.
+///
+/// The row id is the identity. [displayName] is attribution copy only, while
+/// ingredient tags and RxCUIs are the reviewed matching inputs. Keeping them
+/// together prevents parallel name-keyed maps from collapsing two products
+/// with the same label.
+class TimingStackItem {
+  const TimingStackItem.supplement({
+    required this.stackEntryId,
+    required this.displayName,
+    required this.ingredientTags,
+  }) : assert(stackEntryId != ''),
+       kind = TimingStackItemKind.supplement,
+       medicationRxCuis = const {};
+
+  const TimingStackItem.medication({
+    required this.stackEntryId,
+    required this.displayName,
+    required this.medicationRxCuis,
+  }) : assert(stackEntryId != ''),
+       kind = TimingStackItemKind.medication,
+       ingredientTags = const {};
+
+  final String stackEntryId;
+  final String displayName;
+  final TimingStackItemKind kind;
+  final Set<String> ingredientTags;
+  final Set<String> medicationRxCuis;
+}
+
 /// Evaluates the user's supplement + medication stack against timing rules
 /// and produces actionable timing advice.
 ///
@@ -175,28 +207,39 @@ class TimingEvaluationService {
 
   /// Evaluate the user's current stack and return timing optimizations.
   ///
-  /// [supplementTags] — map of product_name to a Set of canonical ingredient
-  ///   tags for each supplement in the stack.
-  /// [medicationNames] — list of medication display names in the stack.
-  /// [medicationRxCuisByName] — exact saved and normalized ingredient RxCUIs,
-  ///   keyed by the same display name. Missing identity never falls back to
-  ///   text matching.
+  /// [stackItems] keeps each physical row's stable id beside its display name
+  /// and reviewed matching identities. Missing medication identity never
+  /// falls back to text matching.
   ///
   /// Returns a deduplicated, priority-sorted list of timing advice.
   List<TimingOptimization> evaluateStack({
-    required Map<String, Set<String>> supplementTags,
-    required List<String> medicationNames,
-    Map<String, Set<String>> medicationRxCuisByName = const {},
+    required List<TimingStackItem> stackItems,
     Map<String, double> ingredientDosesMg = const {},
   }) {
     final results = <String, TimingOptimization>{};
 
+    void addResult(
+      _ParsedTimingRule rule, {
+      required TimingStackItem product1,
+      TimingStackItem? product2,
+    }) {
+      final result = _buildResult(rule, product1: product1, product2: product2);
+      results[_physicalResultKey(result)] = result;
+    }
+
+    final supplements = stackItems
+        .where((item) => item.kind == TimingStackItemKind.supplement)
+        .toList(growable: false);
+    final medications = stackItems
+        .where((item) => item.kind == TimingStackItemKind.medication)
+        .toList(growable: false);
+
     // Collect all ingredient tags across the entire stack into a
-    // tag → [product_names] map for O(1) "is this in the stack?" checks.
-    final tagToProducts = <String, List<String>>{};
-    for (final entry in supplementTags.entries) {
-      for (final tag in entry.value) {
-        tagToProducts.putIfAbsent(tag, () => []).add(entry.key);
+    // tag → [physical stack rows] map for O(1) membership checks.
+    final tagToProducts = <String, List<TimingStackItem>>{};
+    for (final item in supplements) {
+      for (final tag in item.ingredientTags) {
+        tagToProducts.putIfAbsent(tag, () => []).add(item);
       }
     }
 
@@ -207,7 +250,6 @@ class TimingEvaluationService {
       if (matchingRules == null) continue;
 
       for (final indexed in matchingRules) {
-        if (results.containsKey(indexed.rule.id)) continue;
         if (!_passesDoseGate(indexed.rule, ingredientDosesMg)) continue;
 
         // Find the OTHER side of this rule.
@@ -218,15 +260,13 @@ class TimingEvaluationService {
         // Is the other side a context-only value (food, sleep, etc.)?
         // If so, this is a single-ingredient timing rule — always fire.
         if (_isContextOnly(otherIngredient)) {
-          if (otherIngredient == 'medications' && medicationNames.isEmpty) {
+          if (otherIngredient == 'medications' && medications.isEmpty) {
             continue;
           }
-          final productNames = tagToProducts[tag]!;
-          results[indexed.rule.id] = _buildResult(
-            indexed.rule,
-            product1Name: productNames.first,
-            product2Name: null,
-          );
+          final products = tagToProducts[tag]!;
+          for (final product in products) {
+            addResult(indexed.rule, product1: product);
+          }
           continue;
         }
 
@@ -234,25 +274,19 @@ class TimingEvaluationService {
         final otherAliases = _resolveAliases(otherIngredient);
         for (final alias in otherAliases) {
           if (tagToProducts.containsKey(alias)) {
-            final product1Names = tagToProducts[tag]!;
-            final product2Names = tagToProducts[alias]!;
-            // Pick a DIFFERENT product for each side. When both ingredients
-            // live only in the same single product there is no actionable
-            // timing advice — a "separate" pair can't be pulled apart inside
-            // one pill, and a "take together" pair is already co-formulated.
-            // Suppressing this is the fix for the "Take X with X" self-pairing
-            // bug (e.g. a calcium + vitamin-D + K product tripping the
-            // calcium↔vitamin-D synergy rule against itself).
-            final pair = _firstDifferentProductPair(
-              product1Names,
-              product2Names,
-            );
-            if (pair != null) {
-              results[indexed.rule.id] = _buildResult(
-                indexed.rule,
-                product1Name: indexed.isIngredient1 ? pair.$1 : pair.$2,
-                product2Name: indexed.isIngredient1 ? pair.$2 : pair.$1,
-              );
+            final product1Rows = tagToProducts[tag]!;
+            final product2Rows = tagToProducts[alias]!;
+            for (final first in product1Rows) {
+              for (final second in product2Rows) {
+                // A rule cannot separate or join nutrients inside one
+                // physical bottle. Compare row identity, never names.
+                if (first.stackEntryId == second.stackEntryId) continue;
+                addResult(
+                  indexed.rule,
+                  product1: indexed.isIngredient1 ? first : second,
+                  product2: indexed.isIngredient1 ? second : first,
+                );
+              }
             }
             break;
           }
@@ -261,14 +295,12 @@ class TimingEvaluationService {
     }
 
     // --- Pass 2: Medication × Supplement timing rules ---
-    for (final displayMedName in medicationNames) {
-      final rxcuis = medicationRxCuisByName[displayMedName] ?? const <String>{};
-      for (final rxcui in rxcuis) {
+    for (final medication in medications) {
+      for (final rxcui in medication.medicationRxCuis) {
         final matchingRules = _medicationIndex[rxcui];
         if (matchingRules == null) continue;
 
         for (final indexed in matchingRules) {
-          if (results.containsKey(indexed.rule.id)) continue;
           if (!_passesDoseGate(indexed.rule, ingredientDosesMg)) continue;
 
           // Find the supplement side of the rule.
@@ -279,11 +311,7 @@ class TimingEvaluationService {
           if (_isContextOnly(suppIngredient)) {
             // Medication-only rule (e.g., "take levothyroxine on empty
             // stomach") — always fire if the medication is in the stack.
-            results[indexed.rule.id] = _buildResult(
-              indexed.rule,
-              product1Name: displayMedName,
-              product2Name: null,
-            );
+            addResult(indexed.rule, product1: medication);
             continue;
           }
 
@@ -292,15 +320,13 @@ class TimingEvaluationService {
           for (final alias in suppAliases) {
             if (tagToProducts.containsKey(alias)) {
               final suppProducts = tagToProducts[alias]!;
-              results[indexed.rule.id] = _buildResult(
-                indexed.rule,
-                product1Name: indexed.isIngredient1
-                    ? displayMedName
-                    : suppProducts.first,
-                product2Name: indexed.isIngredient1
-                    ? suppProducts.first
-                    : displayMedName,
-              );
+              for (final supplement in suppProducts) {
+                addResult(
+                  indexed.rule,
+                  product1: indexed.isIngredient1 ? medication : supplement,
+                  product2: indexed.isIngredient1 ? supplement : medication,
+                );
+              }
               break;
             }
           }
@@ -320,9 +346,9 @@ class TimingEvaluationService {
     // describe the SAME user action for the SAME product(s) — e.g. a product
     // carrying both vitamin D and vitamin K trips two "take with food" rules,
     // but the user only needs to be told once to take that product with a
-    // meal. Rule-ID dedup (above) can't catch this; key on the resolved
-    // product(s) + rule type instead. Sorted-first wins, so the highest
-    // priority / strongest-evidence variant is the one kept.
+    // meal. Physical-result dedup preserves different bottles, while this
+    // semantic pass keys on the resolved product(s) + rule type. Sorted-first
+    // wins, so the highest-priority / strongest-evidence variant is kept.
     final deduped = <TimingOptimization>[];
     final seenSemanticKeys = <String>{};
     for (final opt in sorted) {
@@ -339,23 +365,21 @@ class TimingEvaluationService {
   /// collapse to one.
   static String _semanticKey(TimingOptimization opt) {
     final type = opt.ruleType.name;
-    final p1 = opt.product1Name ?? opt.ingredient1;
-    final p2 = opt.product2Name;
+    final p1 = opt.product1StackEntryId ?? opt.product1Name ?? opt.ingredient1;
+    final p2 = opt.product2StackEntryId ?? opt.product2Name;
     if (p2 == null) return '$type|$p1';
     final pair = [p1, p2]..sort();
     return '$type|${pair.join('|')}';
   }
 
-  static (String, String)? _firstDifferentProductPair(
-    List<String> product1Names,
-    List<String> product2Names,
-  ) {
-    for (final p1 in product1Names) {
-      for (final p2 in product2Names) {
-        if (p1 != p2) return (p1, p2);
-      }
-    }
-    return null;
+  /// Deduplicates the same rule reached through multiple aliases or both
+  /// indexed sides, without collapsing distinct physical stack rows.
+  static String _physicalResultKey(TimingOptimization opt) {
+    final first =
+        opt.product1StackEntryId ?? opt.product1Name ?? opt.ingredient1;
+    final second =
+        opt.product2StackEntryId ?? opt.product2Name ?? opt.ingredient2;
+    return '${opt.ruleId}|$first|$second';
   }
 
   // ---------------------------------------------------------------------------
@@ -364,8 +388,8 @@ class TimingEvaluationService {
 
   TimingOptimization _buildResult(
     _ParsedTimingRule rule, {
-    String? product1Name,
-    String? product2Name,
+    TimingStackItem? product1,
+    TimingStackItem? product2,
   }) {
     return TimingOptimization(
       ruleId: rule.id,
@@ -378,8 +402,10 @@ class TimingEvaluationService {
       evidenceLevel: rule.evidenceLevel,
       mechanism: rule.mechanism,
       sourceUrls: rule.sourceUrls,
-      product1Name: product1Name,
-      product2Name: product2Name,
+      product1Name: product1?.displayName,
+      product1StackEntryId: product1?.stackEntryId,
+      product2Name: product2?.displayName,
+      product2StackEntryId: product2?.stackEntryId,
       involvesMedication: rule.involvesMedication,
       allowedDailySlots: rule.allowedDailySlots,
       dailyPlanEligible: rule.dailyPlanEligible,

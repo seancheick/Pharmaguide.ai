@@ -657,27 +657,27 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     final timingJson = await refDataRepo.loadTimingRules();
     final timingService = TimingEvaluationService.fromJson(timingJson);
 
-    // Build supplement tag map: product_name → Set<canonical_tag>.
-    final supplementTags = <String, Set<String>>{};
+    // Keep each physical stack row's id beside its display name and reviewed
+    // matching identity. Display text is never used as an identifier.
+    final timingStackItems = <TimingStackItem>[];
     for (final h in hydrated) {
       final tags = ingredientTagsForProduct(h.product);
       if (tags.isNotEmpty) {
-        supplementTags[h.entry.name] = tags;
+        timingStackItems.add(
+          TimingStackItem.supplement(
+            stackEntryId: h.entry.id,
+            displayName: h.entry.name,
+            ingredientTags: tags,
+          ),
+        );
       }
     }
 
-    // Preserve display names for attribution, but match only through the saved
-    // RxNorm identity chain. Brand text is never a clinical identifier.
-    final medicationNames = safetyMedications
-        .map((m) => m.name)
-        .toList(growable: false);
-    final medicationRxCuisByName = <String, Set<String>>{};
+    // Preserve display names for attribution, but match medications only
+    // through the saved RxNorm identity chain.
     for (final medication in safetyMedications) {
       final snapshot = MedicationIdentitySnapshot.fromStackRow(medication);
-      final rxcuis = medicationRxCuisByName.putIfAbsent(
-        medication.name,
-        () => <String>{},
-      );
+      final rxcuis = <String>{};
       for (final value in [
         snapshot.rxcui,
         snapshot.genericRxcui,
@@ -688,6 +688,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           rxcuis.add(normalized);
         }
       }
+      timingStackItems.add(
+        TimingStackItem.medication(
+          stackEntryId: medication.id,
+          displayName: medication.name,
+          medicationRxCuis: rxcuis,
+        ),
+      );
     }
 
     // Per-nutrient total doses (mg only) for the currently authored timing
@@ -704,9 +711,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     }
 
     timingOptimizations = timingService.evaluateStack(
-      supplementTags: supplementTags,
-      medicationNames: medicationNames,
-      medicationRxCuisByName: medicationRxCuisByName,
+      stackItems: timingStackItems,
       ingredientDosesMg: ingredientDosesMg,
     );
   } on Object catch (e, st) {

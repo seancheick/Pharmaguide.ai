@@ -18,7 +18,9 @@ TimingOptimization _rule({
   int scoreImpact = -2,
   String advice = 'Pipeline-authored advice.',
   String? product1Name,
+  String? product1StackEntryId,
   String? product2Name,
+  String? product2StackEntryId,
   Set<DailySlot> allowedDailySlots = const {},
   bool dailyPlanEligible = true,
 }) {
@@ -32,7 +34,9 @@ TimingOptimization _rule({
     scoreImpact: scoreImpact,
     evidenceLevel: EvidenceLevel.established,
     product1Name: product1Name,
+    product1StackEntryId: product1StackEntryId,
     product2Name: product2Name,
+    product2StackEntryId: product2StackEntryId,
     allowedDailySlots: allowedDailySlots,
     dailyPlanEligible: dailyPlanEligible,
   );
@@ -163,7 +167,9 @@ void main() {
         type: TimingRuleType.separate,
         separationHours: 2,
         product1Name: 'Iron tablet',
+        product1StackEntryId: 'stack-iron',
         product2Name: 'Calcium K/D',
+        product2StackEntryId: 'stack-calcium',
       ),
     ]);
 
@@ -171,6 +177,34 @@ void main() {
     expect(_slotOf(plan, 'Calcium K/D'), isNotNull);
     expect(_slotOf(plan, 'iron'), isNull);
     expect(_slotOf(plan, 'calcium'), isNull);
+  });
+
+  test('duplicate display names remain distinct and resolve by stack id', () {
+    final plan = resolver.resolve([
+      _rule(
+        id: 'iron_one_with_food',
+        a: 'iron',
+        b: 'food',
+        type: TimingRuleType.takeWithFood,
+        product1Name: 'Daily Mineral',
+        product1StackEntryId: 'stack-first',
+      ),
+      _rule(
+        id: 'iron_two_empty',
+        a: 'iron',
+        b: 'food',
+        type: TimingRuleType.takeOnEmptyStomach,
+        product1Name: 'Daily Mineral',
+        product1StackEntryId: 'stack-second',
+      ),
+    ]);
+
+    expect(plan.slotForStackEntryId('stack-first')?.isWithFood, isTrue);
+    expect(plan.slotForStackEntryId('stack-second')?.isWithFood, isFalse);
+    expect(
+      plan.itemsBySlot.values.expand((items) => items),
+      containsAllInOrder(['Daily Mineral', 'Daily Mineral']),
+    );
   });
 
   test(

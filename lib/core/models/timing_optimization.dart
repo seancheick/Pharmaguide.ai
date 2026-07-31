@@ -102,8 +102,17 @@ class TimingOptimization {
   /// Name of the product in the user's stack that triggered ingredient1.
   final String? product1Name;
 
+  /// Stable local stack-row identity for [product1Name].
+  ///
+  /// Display names are not identifiers: two bottles may share a name, and
+  /// fuzzy name matching can attach a plan slot to the wrong row.
+  final String? product1StackEntryId;
+
   /// Name of the product in the user's stack that triggered ingredient2.
   final String? product2Name;
+
+  /// Stable local stack-row identity for [product2Name].
+  final String? product2StackEntryId;
 
   /// Whether a reviewed RxCUI on the timing rule matched a saved medication.
   final bool involvesMedication;
@@ -133,7 +142,9 @@ class TimingOptimization {
     this.mechanism,
     this.sourceUrls = const [],
     this.product1Name,
+    this.product1StackEntryId,
     this.product2Name,
+    this.product2StackEntryId,
     this.involvesMedication = false,
     this.allowedDailySlots = const {},
     this.dailyPlanEligible = true,

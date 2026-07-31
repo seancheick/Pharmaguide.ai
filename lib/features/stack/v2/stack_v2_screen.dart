@@ -17,7 +17,6 @@ import 'package:pharmaguide/core/components/pg_type_badge.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
-import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -1187,7 +1186,7 @@ Future<void> _showEditStackScheduleSheet(
       frequency: entry.frequency,
       startedAt: entry.startedAt,
       reminderMinutes: entry.reminderMinutes,
-      suggestedSlotLabel: _suggestedSlotLabel(ref, entry.name),
+      suggestedSlotLabel: _suggestedSlotLabel(ref, entry.id),
       onSave: ({dosage, frequency, startedAt, reminderMinutes}) => ref
           .read(stackActionsProvider)
           .updateSchedule(
@@ -1222,25 +1221,13 @@ typedef _SaveStackSchedule =
 /// Read-only: the plan is a suggestion surfaced next to the schedule field, and
 /// is never written into the user's saved schedule on their behalf. The
 /// pipeline decides the constraint; the person decides their day.
-String? _suggestedSlotLabel(WidgetRef ref, String itemName) {
+String? _suggestedSlotLabel(WidgetRef ref, String stackEntryId) {
   final report = ref.read(stackSafetyReportProvider).asData?.value;
   if (report == null || !report.hasTimingAdvice) return null;
   final plan = const TimingSequenceResolver().resolve(
     report.timingOptimizations,
   );
-  final needle = itemName.trim().toLowerCase();
-  if (needle.isEmpty) return null;
-  for (final slot in DailySlot.values) {
-    final items = plan.itemsBySlot[slot] ?? const <String>[];
-    for (final planned in items) {
-      final candidate = planned.trim().toLowerCase();
-      if (candidate.isEmpty) continue;
-      if (needle.contains(candidate) || candidate.contains(needle)) {
-        return slot.label;
-      }
-    }
-  }
-  return null;
+  return plan.slotForStackEntryId(stackEntryId)?.label;
 }
 
 class _EditStackScheduleSheet extends StatefulWidget {
