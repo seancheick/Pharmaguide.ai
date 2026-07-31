@@ -146,7 +146,7 @@ void main() {
     expect(client.scheduled.single.$2, 0);
   });
 
-  test('the schedule is bounded and deterministic', () async {
+  test('the schedule reports every reminder omitted by the cap', () async {
     final client = _FakeClient();
     final many = [
       for (var i = 0; i < 30; i++)
@@ -160,6 +160,8 @@ void main() {
 
     expect(first.scheduled, StackReminderScheduler.maxScheduled);
     expect(second.scheduled, StackReminderScheduler.maxScheduled);
+    expect(first.omittedDueToLimit, 18);
+    expect(second.omittedDueToLimit, 18);
   });
 
   test('the health scheduler still owns its own range', () {

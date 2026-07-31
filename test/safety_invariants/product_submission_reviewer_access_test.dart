@@ -50,6 +50,23 @@ void main() {
     final photoSigning = source.indexOf('createSignedUrls(');
 
     expect(readyFilter, greaterThanOrEqualTo(0));
+    expect(
+      source,
+      allOf(
+        contains("'product_submission_mismatch_details!'"),
+        contains("'product_submission_mismatch_details_submission_id_fkey('"),
+      ),
+      reason:
+          'The detail embed must name its one-to-one foreign key because '
+          'the owner integrity constraint creates a second relationship.',
+    );
+    expect(
+      source,
+      allOf(
+        contains("'product_submission_missing_details!'"),
+        contains("'product_submission_missing_details_submission_id_fkey('"),
+      ),
+    );
     expect(photoSigning, greaterThan(readyFilter));
     expect(
       source,

@@ -1,6 +1,7 @@
 -- =============================================================================
 -- Private, structured product-label mismatch reports
 -- =============================================================================
+-- Production migration version: 20260731144153.
 -- Reports contain only product/catalog lineage and closed mismatch categories.
 -- They intentionally contain no user-entered narrative fields. Submission is
 -- append-only for authenticated clients: reviewers use server-held

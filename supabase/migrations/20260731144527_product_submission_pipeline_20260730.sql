@@ -1,6 +1,7 @@
 -- =============================================================================
 -- Unified, private product-submission evidence pipeline
 -- =============================================================================
+-- Production migration version: 20260731144527.
 -- One append-only user submission spine serves both catalog-label mismatch
 -- reports and missing-product evidence. The app can submit evidence; only the
 -- service-held review boundary can change editorial state or publish data.
@@ -1339,7 +1340,8 @@ DROP FUNCTION IF EXISTS public.enforce_label_mismatch_owner_immutable();
 DROP TYPE public.label_mismatch_photo_slot;
 DROP TYPE public.label_mismatch_upload_state;
 DROP TYPE public.label_mismatch_report_status;
-DELETE FROM storage.buckets WHERE id = 'label-mismatch-report-photos';
+-- The empty legacy bucket is removed through the Supabase Storage API before
+-- this migration runs. Supabase protects storage tables from direct deletion.
 
 -- Preserve the closed mismatch-category vocabulary because it is the typed
 -- detail contract. Everything else now uses product_submission_* names.

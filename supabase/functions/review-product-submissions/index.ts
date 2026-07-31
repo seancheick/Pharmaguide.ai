@@ -344,9 +344,13 @@ Deno.serve(async (request: Request): Promise<Response> => {
         .select(
           "id,kind,normalized_upc,review_status,created_at,submitted_at," +
             "reviewed_at,promoted_catalog_version," +
-            "product_submission_mismatch_details(dsld_id,source_record_id," +
+            "product_submission_mismatch_details!" +
+            "product_submission_mismatch_details_submission_id_fkey(" +
+            "dsld_id,source_record_id," +
             "catalog_source_version,formula_fingerprint,mismatch_categories)," +
-            "product_submission_missing_details(other_ingredients_not_present)",
+            "product_submission_missing_details!" +
+            "product_submission_missing_details_submission_id_fkey(" +
+            "other_ingredients_not_present)",
         )
         .eq("upload_state", "ready")
         .order("submitted_at", { ascending: true })

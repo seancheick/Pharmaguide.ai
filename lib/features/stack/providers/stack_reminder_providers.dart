@@ -89,15 +89,10 @@ class _FlutterStackReminderClient implements StackReminderNotificationClient {
     required int minutesAfterMidnight,
   }) {
     final now = timezone.TZDateTime.now(timezone.local);
-    var first = timezone.TZDateTime(
-      timezone.local,
-      now.year,
-      now.month,
-      now.day,
-      minutesAfterMidnight ~/ 60,
-      minutesAfterMidnight % 60,
+    final first = nextLocalNotificationTime(
+      now: now,
+      minutesAfterMidnight: minutesAfterMidnight,
     );
-    if (!first.isAfter(now)) first = first.add(const Duration(days: 1));
 
     return _notifications.zonedSchedule(
       id: id,

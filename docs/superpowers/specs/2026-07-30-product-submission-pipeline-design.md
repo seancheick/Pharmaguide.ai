@@ -27,7 +27,7 @@ There is one submission spine:
 
 The implementation is in:
 
-- `supabase/migrations/20260730175438_product_submission_pipeline.sql`
+- `supabase/migrations/20260731144527_product_submission_pipeline_20260730.sql`
 - `lib/services/product_submission_service.dart`
 - `lib/services/product_submission_photo_service.dart`
 - `supabase/functions/review-product-submissions/index.ts`
@@ -252,7 +252,7 @@ Do not expose the UI before its private backend exists.
    un-migrated objects, and export/reconcile any historical `pending_products`
    rows. The migration fails closed if either legacy surface still carries
    unresolved data.
-3. Apply `20260730175438_product_submission_pipeline.sql`.
+3. Apply `20260731144527_product_submission_pipeline_20260730.sql`.
 4. Configure:
    - `PRODUCT_SUBMISSION_REVIEWER_IDS`
    - `PRODUCT_SUBMISSION_CLEANUP_SECRET`

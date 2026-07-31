@@ -22,6 +22,43 @@ Future<void> _initializeLocalNotificationTimezone() async {
   timezone.setLocalLocation(location);
 }
 
+/// Returns the next occurrence of a local wall-clock reminder time.
+///
+/// Calendar construction is deliberate: adding 24 hours to a zoned instant
+/// moves an 8 AM reminder to 9 AM or 7 AM when daylight-saving time changes.
+timezone.TZDateTime nextLocalNotificationTime({
+  required timezone.TZDateTime now,
+  required int minutesAfterMidnight,
+}) {
+  if (minutesAfterMidnight < 0 || minutesAfterMidnight >= 24 * 60) {
+    throw RangeError.range(
+      minutesAfterMidnight,
+      0,
+      24 * 60 - 1,
+      'minutesAfterMidnight',
+    );
+  }
+  final hour = minutesAfterMidnight ~/ 60;
+  final minute = minutesAfterMidnight % 60;
+  final today = timezone.TZDateTime(
+    now.location,
+    now.year,
+    now.month,
+    now.day,
+    hour,
+    minute,
+  );
+  if (today.isAfter(now)) return today;
+  return timezone.TZDateTime(
+    now.location,
+    now.year,
+    now.month,
+    now.day + 1,
+    hour,
+    minute,
+  );
+}
+
 @visibleForTesting
 Future<timezone.Location> resolveNotificationTimezone({
   required Future<String> Function() readDeviceTimezone,

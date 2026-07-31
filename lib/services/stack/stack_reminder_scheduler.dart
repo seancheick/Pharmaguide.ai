@@ -6,11 +6,13 @@ class StackReminderSyncResult {
     required this.scheduled,
     required this.cancelled,
     required this.permissionGranted,
+    required this.omittedDueToLimit,
   });
 
   final int scheduled;
   final int cancelled;
   final bool permissionGranted;
+  final int omittedDueToLimit;
 }
 
 /// Platform boundary, mirrored from the Health History reminder service so
@@ -59,11 +61,16 @@ class StackReminderScheduler {
     await client.initialize();
 
     final desired = <int, StackReminder>{};
-    final ordered = [...reminders]
-      ..sort((a, b) => a.stackEntryId.compareTo(b.stackEntryId));
+    final ordered =
+        reminders
+            .where(
+              (reminder) =>
+                  reminder.minutesAfterMidnight >= 0 &&
+                  reminder.minutesAfterMidnight < 24 * 60,
+            )
+            .toList(growable: false)
+          ..sort((a, b) => a.stackEntryId.compareTo(b.stackEntryId));
     for (final reminder in ordered.take(maxScheduled)) {
-      final minutes = reminder.minutesAfterMidnight;
-      if (minutes < 0 || minutes > 24 * 60 - 1) continue;
       var notificationId = notificationIdFor(reminder.stackEntryId);
       while (desired.containsKey(notificationId)) {
         notificationId++;
@@ -88,6 +95,7 @@ class StackReminderScheduler {
         scheduled: 0,
         cancelled: cancelled,
         permissionGranted: true,
+        omittedDueToLimit: ordered.length - desired.length,
       );
     }
 
@@ -99,6 +107,7 @@ class StackReminderScheduler {
         scheduled: 0,
         cancelled: cancelled,
         permissionGranted: false,
+        omittedDueToLimit: ordered.length - desired.length,
       );
     }
 
@@ -113,6 +122,7 @@ class StackReminderScheduler {
       scheduled: desired.length,
       cancelled: cancelled,
       permissionGranted: true,
+      omittedDueToLimit: ordered.length - desired.length,
     );
   }
 

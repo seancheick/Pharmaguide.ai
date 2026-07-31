@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const _migrationPath =
-    'supabase/migrations/20260730175438_product_submission_pipeline.sql';
+    'supabase/migrations/'
+    '20260731144527_product_submission_pipeline_20260730.sql';
 
 String _normalized(String source) => source
     .replaceAll(RegExp(r'--[^\n]*'), ' ')
@@ -402,6 +403,13 @@ void main() {
         contains('pending_products contains unreconciled legacy submissions'),
       );
       expect(sql, contains('drop table public.pending_products'));
+      expect(
+        sql,
+        isNot(contains('delete from storage.buckets')),
+        reason:
+            'Supabase protects Storage tables from direct deletion; empty '
+            'legacy buckets must be retired through the Storage API.',
+      );
       expect(
         sql,
         isNot(contains('alter table label_mismatch_reports add column kind')),
