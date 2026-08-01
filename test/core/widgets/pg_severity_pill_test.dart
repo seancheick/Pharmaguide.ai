@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_pill.dart';
 
@@ -89,7 +89,7 @@ void main() {
   });
 
   group('PGSeverityPill — dark mode', () {
-    testWidgets('dark mode renders all severities with higher bg alpha', (
+    testWidgets('dark mode uses the dark severity token, not the light one', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -99,10 +99,60 @@ void main() {
         ),
       );
       expect(find.text('Do not use'), findsOneWidget);
-      // Verify color is the severity token (exact alpha is internal)
-      final iconFinder = find.byIcon(Icons.block_rounded);
-      final icon = tester.widget<Icon>(iconFinder);
-      expect(icon.color, V2Colors.contraindicated);
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.block_rounded));
+      expect(
+        icon.color,
+        V2Palette.dark.contraindicated,
+        reason:
+            'The light token measures 2.38:1 on a dark surface — below even '
+            'the 3:1 non-text floor.',
+      );
+      expect(icon.color, isNot(V2Palette.light.contraindicated));
+    });
+
+    testWidgets('dark mode fills neutral, never a tint of its own hue', (
+      tester,
+    ) async {
+      // A same-hue tint lifts the background toward the label: at the previous
+      // 22% alpha the highest-stakes pill in the app rendered at 2.11:1. The
+      // label is 11.5-12.5pt bold, under WCAG's 14pt-bold threshold, so 4.5:1
+      // is required and the 3:1 floor is unavailable.
+      await tester.pumpWidget(
+        wrap(
+          const PGSeverityPill(severity: Severity.contraindicated),
+          brightness: Brightness.dark,
+        ),
+      );
+
+      final decorated = tester.widget<Container>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.block_rounded),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      final fill = (decorated.decoration! as BoxDecoration).color!;
+
+      expect(
+        fill,
+        V2Palette.dark.surfaceHigh,
+        reason: 'dark pills fill with the neutral elevated surface',
+      );
+      expect(
+        fill.a,
+        1.0,
+        reason: 'an opaque fill keeps the rendered contrast predictable',
+      );
+    });
+
+    testWidgets('light mode keeps its tinted fill', (tester) async {
+      await tester.pumpWidget(
+        wrap(const PGSeverityPill(severity: Severity.contraindicated)),
+      );
+      final icon = tester.widget<Icon>(find.byIcon(Icons.block_rounded));
+      expect(icon.color, V2Palette.light.contraindicated);
     });
   });
 }

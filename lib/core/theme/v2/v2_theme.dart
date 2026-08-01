@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -11,6 +12,7 @@ abstract final class V2Theme {
 
   static ThemeData _build({required Brightness brightness}) {
     final isDark = brightness == Brightness.dark;
+    final palette = V2Palette.of(brightness);
     final bg = isDark ? V2Colors.bgDark : V2Colors.bg;
     final surface = isDark ? V2Colors.surfaceDark : V2Colors.surface;
     final fg = isDark ? V2Colors.fgDark : V2Colors.fg;
@@ -29,10 +31,13 @@ abstract final class V2Theme {
       onSecondary: isDark ? V2Colors.bgDark : Colors.white,
       secondaryContainer: accentTint,
       onSecondaryContainer: accent,
-      tertiary: V2Colors.safe,
-      onTertiary: Colors.white,
-      error: V2Colors.contraindicated,
-      onError: Colors.white,
+      // Resolved per brightness. Previously pinned to the light-mode values,
+      // which put `safe` at 2.59:1 and `contraindicated` at 2.38:1 on the dark
+      // surface — below even the 3:1 large-text floor.
+      tertiary: palette.safe,
+      onTertiary: isDark ? V2Colors.bgDark : Colors.white,
+      error: palette.contraindicated,
+      onError: isDark ? V2Colors.bgDark : Colors.white,
       surface: surface,
       onSurface: fg,
       surfaceContainerLowest: bg,
@@ -70,6 +75,8 @@ abstract final class V2Theme {
 
     return base.copyWith(
       colorScheme: colorScheme,
+      // The brightness-resolved palette every widget reads via `context.v2`.
+      extensions: <ThemeExtension<dynamic>>[palette],
       scaffoldBackgroundColor: bg,
       canvasColor: bg,
       textTheme: textTheme,

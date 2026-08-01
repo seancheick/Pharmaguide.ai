@@ -56,4 +56,31 @@ abstract final class V2Colors {
   static const monitorTint = Color(0x1A827140);
   static const safe = Color(0xFF3F6250);
   static const safeTint = Color(0x1A3F6250);
+
+  // Dark-mode severity tiers.
+  //
+  // Derived from the light tiers by holding hue and saturation constant and
+  // raising ONLY lightness, by the minimum needed to clear 4.5:1. That honours
+  // "never brighten these" as far as legibility allows: the light values are
+  // unreadable on a dark surface — `contraindicated` measures 2.38:1 and `safe`
+  // 2.59:1, both below even the lenient 3:1 large-text floor — and an illegible
+  // severity colour is a safety problem, not a style preference.
+  //
+  // Measured against the LIGHTEST dark surface (`surfaceContainerHighestDark`,
+  // #22272A), not `surfaceDark`. A ramp tuned only to the darkest surface
+  // passes there and fails on every elevated card — which is where severity
+  // pills and badges actually render.
+  //
+  // Quoted ratios are the worst case across all four dark surfaces, asserted in
+  // test/core/theme/v2_palette_contrast_test.dart.
+  static const contraindicatedDark = Color(0xFFD96E6E); // 4.60:1
+  static const contraindicatedTintDark = Color(0x1FD96E6E);
+  static const avoidDark = Color(0xFFD37552); // 4.62:1
+  static const avoidTintDark = Color(0x1FD37552);
+  static const cautionDark = Color(0xFFBB8427); // 4.63:1
+  static const cautionTintDark = Color(0x1FBB8427);
+  static const monitorDark = Color(0xFFA28D50); // 4.64:1
+  static const monitorTintDark = Color(0x1FA28D50);
+  static const safeDark = Color(0xFF639A7D); // 4.63:1
+  static const safeTintDark = Color(0x1F639A7D);
 }

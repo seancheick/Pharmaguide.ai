@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 
 /// Pill badge for a [Severity] value — icon + label + tinted background.
@@ -20,19 +20,36 @@ class PGSeverityPill extends StatelessWidget {
     this.compact = false,
   });
 
-  ({Color bg, Color fg, IconData icon, String label}) _style(bool isDark) {
+  /// Dark mode fills with a NEUTRAL elevated surface rather than a tint of the
+  /// severity hue.
+  ///
+  /// A same-hue tint lifts the background toward its own text: at the previous
+  /// 22% alpha the "Do not use" pill measured 2.11:1, and even with the dark
+  /// severity ramp it only reached 3.38:1. The label is 11.5–12.5pt bold, below
+  /// WCAG's 14pt-bold large-text threshold, so 4.5:1 is required and 3:1 is not
+  /// available. A neutral fill clears 5.06–5.11:1 while leaving the muted
+  /// palette untouched — the severity signal moves to the icon and label, which
+  /// is also where a screen reader finds it.
+  ({Color bg, Color fg, IconData icon, String label}) _style(
+    V2Palette p,
+    bool isDark,
+  ) {
     switch (severity) {
       case Severity.contraindicated:
         return (
-          bg: V2Colors.contraindicated.withValues(alpha: isDark ? 0.22 : 0.10),
-          fg: V2Colors.contraindicated,
+          bg: isDark
+              ? p.surfaceHigh
+              : p.contraindicated.withValues(alpha: 0.10),
+          fg: p.contraindicated,
           icon: Icons.block_rounded,
           label: 'Do not use',
         );
       case Severity.avoid:
         return (
-          bg: V2Colors.avoid.withValues(alpha: isDark ? 0.22 : 0.10),
-          fg: V2Colors.avoid,
+          bg: isDark
+              ? p.surfaceHigh
+              : p.avoid.withValues(alpha: 0.10),
+          fg: p.avoid,
           icon: Icons.error_outline_rounded,
           // Sean 2026-04-30 — see severity.dart for the softer-tone
           // vocab rationale. The word "Avoid" is reserved for
@@ -41,15 +58,19 @@ class PGSeverityPill extends StatelessWidget {
         );
       case Severity.caution:
         return (
-          bg: V2Colors.caution.withValues(alpha: isDark ? 0.22 : 0.12),
-          fg: V2Colors.caution,
+          bg: isDark
+              ? p.surfaceHigh
+              : p.caution.withValues(alpha: 0.12),
+          fg: p.caution,
           icon: Icons.warning_amber_rounded,
           label: 'Use caution',
         );
       case Severity.monitor:
         return (
-          bg: V2Colors.monitor.withValues(alpha: isDark ? 0.22 : 0.14),
-          fg: V2Colors.monitor,
+          bg: isDark
+              ? p.surfaceHigh
+              : p.monitor.withValues(alpha: 0.14),
+          fg: p.monitor,
           icon: Icons.visibility_outlined,
           label: 'Monitor',
         );
@@ -58,15 +79,19 @@ class PGSeverityPill extends StatelessWidget {
         // material but the user's profile hasn't declared the triggering
         // condition/drug class.
         return (
-          bg: V2Colors.fgMuted.withValues(alpha: isDark ? 0.22 : 0.12),
-          fg: V2Colors.fgMuted,
+          bg: isDark
+              ? p.surfaceHigh
+              : p.fgMuted.withValues(alpha: 0.12),
+          fg: p.fgMuted,
           icon: Icons.info_outline_rounded,
           label: 'Info',
         );
       case Severity.safe:
         return (
-          bg: V2Colors.safe.withValues(alpha: isDark ? 0.22 : 0.10),
-          fg: V2Colors.safe,
+          bg: isDark
+              ? p.surfaceHigh
+              : p.safe.withValues(alpha: 0.10),
+          fg: p.safe,
           icon: Icons.check_circle_outline_rounded,
           label: 'Safe',
         );
@@ -76,7 +101,7 @@ class PGSeverityPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final s = _style(isDark);
+    final s = _style(context.v2, isDark);
 
     final iconSize = compact ? 13.0 : 15.0;
     final textSize = compact ? 11.5 : 12.5;
