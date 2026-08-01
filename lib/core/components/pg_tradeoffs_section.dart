@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -49,15 +49,15 @@ class PGTradeoffsSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,9 +66,9 @@ class PGTradeoffsSection extends StatelessWidget {
                 Expanded(
                   child: _TradeoffColumn(
                     eyebrow: 'What\'s good',
-                    eyebrowColor: V2Colors.safe,
+                    eyebrowColor: context.v2.safe,
                     items: pros,
-                    dotColor: V2Colors.safe,
+                    dotColor: context.v2.safe,
                     overflowSingularNoun: 'bonus',
                   ),
                 ),
@@ -78,9 +78,9 @@ class PGTradeoffsSection extends StatelessWidget {
                 Expanded(
                   child: _TradeoffColumn(
                     eyebrow: 'What to consider',
-                    eyebrowColor: V2Colors.caution,
+                    eyebrowColor: context.v2.caution,
                     items: considerations,
-                    dotColor: V2Colors.caution,
+                    dotColor: context.v2.caution,
                     overflowSingularNoun: 'concern',
                     leading: considerationLeading,
                   ),
@@ -186,7 +186,7 @@ class _ExpandableTradeoffColumnState extends State<_ExpandableTradeoffColumn> {
                         ? 'Show 1 more ${widget.overflowSingularNoun}'
                         : 'Show $overflow more '
                               '${_pluralize(widget.overflowSingularNoun)}',
-                    style: V2Typography.label(color: V2Colors.fgMuted),
+                    style: V2Typography.label(color: context.v2.fgMuted),
                   ),
                   const SizedBox(width: V2Spacing.space4),
                   Icon(
@@ -194,7 +194,7 @@ class _ExpandableTradeoffColumnState extends State<_ExpandableTradeoffColumn> {
                         ? Icons.expand_less_rounded
                         : Icons.expand_more_rounded,
                     size: 16,
-                    color: V2Colors.fgMuted,
+                    color: context.v2.fgMuted,
                   ),
                 ],
               ),
@@ -243,13 +243,13 @@ class _TradeoffRow extends StatelessWidget {
             children: [
               Text(
                 item.headline,
-                style: V2Typography.bodySm(color: V2Colors.fg),
+                style: V2Typography.bodySm(color: context.v2.fg),
               ),
               if (item.caption != null) ...[
                 const SizedBox(height: 2),
                 Text(
                   item.caption!,
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
               ],
             ],

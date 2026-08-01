@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -101,13 +101,13 @@ class PGTrustReceiptsSheet extends StatelessWidget {
             const SizedBox(height: V2Spacing.space8),
             Text(
               'How PG Score works',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Six pillars, each scored on its own scale. Together they add '
               'up to your PG Score out of 100.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space12),
             for (final (key, label, max) in kV4PillarSpec) ...[
@@ -162,13 +162,13 @@ class PGTrustReceiptsSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(V2Spacing.space16),
               decoration: BoxDecoration(
-                color: V2Colors.accentTint,
+                color: context.v2.accentTint,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               ),
               child: Text(
                 "We don't sell supplements, and scores can't be bought. "
                 'Your health profile and medications never leave your device.',
-                style: V2Typography.bodySm(color: V2Colors.fg),
+                style: V2Typography.bodySm(color: context.v2.fg),
               ),
             ),
           ],
@@ -196,19 +196,19 @@ class _PillarRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 130,
-          child: Text(label, style: V2Typography.bodySm(color: V2Colors.fg)),
+          child: Text(label, style: V2Typography.bodySm(color: context.v2.fg)),
         ),
         SizedBox(
           width: 34,
           child: Text(
             '/$max',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ),
         Expanded(
           child: Text(
             definition,
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ),
       ],
@@ -237,28 +237,28 @@ class _SourceRow extends StatelessWidget {
         Container(
           width: 32,
           height: 32,
-          decoration: const BoxDecoration(
-            color: V2Colors.accentTint,
+          decoration: BoxDecoration(
+            color: context.v2.accentTint,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, size: 17, color: V2Colors.accent),
+          child: Icon(icon, size: 17, color: context.v2.accent),
         ),
         const SizedBox(width: V2Spacing.space12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: V2Typography.bodyMedium(color: V2Colors.fg)),
+              Text(title, style: V2Typography.bodyMedium(color: context.v2.fg)),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: V2Typography.caption(color: V2Colors.fgMuted),
+                style: V2Typography.caption(color: context.v2.fgMuted),
               ),
               if (detail != null) ...[
                 const SizedBox(height: 2),
                 Text(
                   detail!,
-                  style: V2Typography.caption(color: V2Colors.fgSubtle),
+                  style: V2Typography.caption(color: context.v2.fgSubtle),
                 ),
               ],
             ],

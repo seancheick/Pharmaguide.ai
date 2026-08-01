@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 
 /// Halo background — soft radial gradient accent.
 ///
@@ -38,7 +38,7 @@ class PGHaloBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = (color ?? V2Colors.accent).withValues(alpha: intensity);
+    final tint = (color ?? context.v2.accent).withValues(alpha: intensity);
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: RadialGradient(

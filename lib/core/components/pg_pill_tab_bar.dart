@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -51,7 +51,7 @@ class PGPillTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColor ?? V2Colors.accentTint.withValues(alpha: 0.5);
+    final bg = backgroundColor ?? context.v2.accentTint.withValues(alpha: 0.5);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -79,7 +79,7 @@ class PGPillTabBar extends StatelessWidget {
                 width: tabWidth,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: V2Colors.accent,
+                    color: context.v2.accent,
                     borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                     boxShadow: V2Shadows.sm,
                   ),
@@ -129,7 +129,7 @@ class _PillTab extends StatelessWidget {
         duration: V2Motion.fast,
         curve: V2Motion.smooth,
         style: V2Typography.label(
-          color: selected ? Colors.white : V2Colors.fgMuted,
+          color: selected ? Colors.white : context.v2.fgMuted,
         ),
         textAlign: TextAlign.center,
         child: Padding(

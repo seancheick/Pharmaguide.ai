@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -59,10 +59,10 @@ class PGEmptyState extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: V2Colors.accentTint,
+              color: context.v2.accentTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             ),
-            child: Icon(icon, size: 36, color: V2Colors.accent),
+            child: Icon(icon, size: 36, color: context.v2.accent),
           ),
           const SizedBox(height: V2Spacing.space24),
           if (eyebrow != null) ...[
@@ -71,14 +71,14 @@ class PGEmptyState extends StatelessWidget {
           ],
           Text(
             headline,
-            style: V2Typography.displayXs(color: V2Colors.fg),
+            style: V2Typography.displayXs(color: context.v2.fg),
             textAlign: TextAlign.center,
           ),
           if (body != null) ...[
             const SizedBox(height: V2Spacing.space12),
             Text(
               body!,
-              style: V2Typography.body(color: V2Colors.fgMuted),
+              style: V2Typography.body(color: context.v2.fgMuted),
               textAlign: TextAlign.center,
             ),
           ],

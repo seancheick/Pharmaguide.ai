@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -62,8 +62,8 @@ class PGProductHero extends StatelessWidget {
           productName,
           style:
               (longName
-                      ? V2Typography.titleSm(color: V2Colors.fg)
-                      : V2Typography.title(color: V2Colors.fg))
+                      ? V2Typography.titleSm(color: context.v2.fg)
+                      : V2Typography.title(color: context.v2.fg))
                   .copyWith(height: 1.2),
           maxLines: 3,
           softWrap: true,
@@ -95,9 +95,9 @@ class _MetaPair extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PGEyebrow(label, color: V2Colors.fgMuted),
+        PGEyebrow(label, color: context.v2.fgMuted),
         const SizedBox(height: V2Spacing.space4),
-        Text(value, style: V2Typography.body(color: V2Colors.fg)),
+        Text(value, style: V2Typography.body(color: context.v2.fg)),
       ],
     );
   }
@@ -122,9 +122,9 @@ class _HeroImageFrame extends StatelessWidget {
         aspectRatio: aspectRatio,
         child: Container(
           decoration: BoxDecoration(
-            color: V2Colors.surface,
+            color: context.v2.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
             boxShadow: V2Shadows.sm,
           ),
           clipBehavior: Clip.antiAlias,
@@ -161,7 +161,7 @@ class _MissingProductPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       alignment: Alignment.center,
       padding: const EdgeInsets.all(V2Spacing.space24),
       child: Column(
@@ -170,12 +170,12 @@ class _MissingProductPlaceholder extends StatelessWidget {
           Icon(
             Icons.medication_outlined,
             size: 40,
-            color: V2Colors.fgMuted.withValues(alpha: 0.5),
+            color: context.v2.fgMuted.withValues(alpha: 0.5),
           ),
           const SizedBox(height: V2Spacing.space12),
-          const PGEyebrow(
+          PGEyebrow(
             'Image not yet available',
-            color: V2Colors.fgMuted,
+            color: context.v2.fgMuted,
             textAlign: TextAlign.center,
           ),
         ],
@@ -210,7 +210,7 @@ class _ShimmerFillState extends State<_ShimmerFill>
       animation: _controller,
       builder: (context, _) {
         final alpha = (0.04 + _controller.value * 0.04).clamp(0.0, 1.0);
-        return Container(color: V2Colors.fg.withValues(alpha: alpha));
+        return Container(color: context.v2.fg.withValues(alpha: alpha));
       },
     );
   }

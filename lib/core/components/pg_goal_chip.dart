@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -30,13 +30,13 @@ class PGGoalChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? V2Colors.accentTint : V2Colors.surface;
+    final bg = selected ? context.v2.accentTint : context.v2.surface;
     final border = selected
-        ? V2Colors.accent
-        : (disabled ? V2Colors.outline : V2Colors.outline);
+        ? context.v2.accent
+        : (disabled ? context.v2.outline : context.v2.outline);
     final fg = disabled
-        ? V2Colors.fgSubtle
-        : (selected ? V2Colors.accent : V2Colors.fg);
+        ? context.v2.fgSubtle
+        : (selected ? context.v2.accent : context.v2.fg);
 
     return Semantics(
       button: true,

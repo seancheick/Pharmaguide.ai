@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -57,9 +57,9 @@ class PGSegmentedControl extends StatelessWidget {
               // Track.
               Container(
                 decoration: BoxDecoration(
-                  color: V2Colors.surfaceContainerHighest,
+                  color: context.v2.surfaceHighest,
                   borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                  border: Border.all(color: V2Colors.outline),
+                  border: Border.all(color: context.v2.outline),
                 ),
               ),
               // Sliding highlighter — AnimatedPositioned glides between
@@ -73,7 +73,7 @@ class PGSegmentedControl extends StatelessWidget {
                 height: highlightHeight,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: V2Colors.surface,
+                    color: context.v2.surface,
                     borderRadius: BorderRadius.circular(
                       (highlightHeight / 2) - 0.5,
                     ),
@@ -96,9 +96,9 @@ class PGSegmentedControl extends StatelessWidget {
                           duration: V2Motion.base,
                           curve: V2Motion.emphasized,
                           style: isActive
-                              ? V2Typography.label(color: V2Colors.accent)
+                              ? V2Typography.label(color: context.v2.accent)
                               : V2Typography.bodyMedium(
-                                  color: V2Colors.fgMuted,
+                                  color: context.v2.fgMuted,
                                 ),
                           child: Text(segments[i]),
                         ),

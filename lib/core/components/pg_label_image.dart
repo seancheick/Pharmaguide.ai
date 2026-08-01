@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -41,9 +41,9 @@ class PGLabelImage extends StatelessWidget {
       aspectRatio: aspectRatio,
       child: Container(
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
         ),
         clipBehavior: Clip.antiAlias,
         child: missing
@@ -79,7 +79,7 @@ class _MissingLabelPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       padding: const EdgeInsets.all(V2Spacing.space16),
       alignment: Alignment.center,
       child: Column(
@@ -88,18 +88,18 @@ class _MissingLabelPlaceholder extends StatelessWidget {
           Icon(
             Icons.description_outlined,
             size: 32,
-            color: V2Colors.fgMuted.withValues(alpha: 0.5),
+            color: context.v2.fgMuted.withValues(alpha: 0.5),
           ),
           const SizedBox(height: V2Spacing.space12),
-          const PGEyebrow(
+          PGEyebrow(
             'Label not yet available',
-            color: V2Colors.fgMuted,
+            color: context.v2.fgMuted,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: V2Spacing.space4),
           Text(
             'We add Supplement Facts photos as manufacturers publish them.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
             textAlign: TextAlign.center,
           ),
         ],
@@ -134,7 +134,7 @@ class _LoadingShimmerState extends State<_LoadingShimmer>
       animation: _controller,
       builder: (context, _) {
         final alpha = (0.05 + (_controller.value * 0.05)).clamp(0.0, 1.0);
-        return Container(color: V2Colors.fg.withValues(alpha: alpha));
+        return Container(color: context.v2.fg.withValues(alpha: alpha));
       },
     );
   }

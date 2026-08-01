@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// Compact avatar — circular accent-tint tile with mono caps initials.
@@ -52,8 +52,8 @@ class PGAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = foreground ?? V2Colors.accent;
-    final bg = background ?? V2Colors.accentTint;
+    final fg = foreground ?? context.v2.accent;
+    final bg = background ?? context.v2.accentTint;
     return Container(
       width: size,
       height: size,

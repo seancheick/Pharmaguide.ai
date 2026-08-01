@@ -8,7 +8,7 @@
 // and the reasons from FitScoreResult.
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_pressable.dart';
@@ -38,14 +38,14 @@ class PGContextChips extends StatelessWidget {
             (c) => Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: V2Colors.bg,
+                color: context.v2.bg,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                border: Border.all(color: V2Colors.outline, width: 0.8),
+                border: Border.all(color: context.v2.outline, width: 0.8),
               ),
               child: Text(
                 _humanize(c),
                 style: V2Typography.caption(
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                 ).copyWith(fontWeight: FontWeight.w600),
               ),
             ),
@@ -103,7 +103,7 @@ class _PGWhyThisFitsExpanderState extends State<PGWhyThisFitsExpander> {
               Text(
                 'Why this fits you',
                 style: V2Typography.label(
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                 ).copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 4),
@@ -112,7 +112,7 @@ class _PGWhyThisFitsExpanderState extends State<PGWhyThisFitsExpander> {
                     ? Icons.keyboard_arrow_up_rounded
                     : Icons.keyboard_arrow_down_rounded,
                 size: 18,
-                color: V2Colors.fgMuted,
+                color: context.v2.fgMuted,
               ),
             ],
           ),
@@ -138,8 +138,8 @@ class _PGWhyThisFitsExpanderState extends State<PGWhyThisFitsExpander> {
                                 child: Container(
                                   width: 4,
                                   height: 4,
-                                  decoration: const BoxDecoration(
-                                    color: V2Colors.fgMuted,
+                                  decoration: BoxDecoration(
+                                    color: context.v2.fgMuted,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -149,7 +149,7 @@ class _PGWhyThisFitsExpanderState extends State<PGWhyThisFitsExpander> {
                                 child: Text(
                                   b,
                                   style: V2Typography.bodySm(
-                                    color: V2Colors.fg,
+                                    color: context.v2.fg,
                                   ).copyWith(height: 1.35),
                                 ),
                               ),

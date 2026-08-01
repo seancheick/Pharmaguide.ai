@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -75,9 +75,9 @@ class PGMetricCard extends StatelessWidget {
     final card = Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -86,14 +86,14 @@ class PGMetricCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: PGEyebrow(label, color: V2Colors.fgMuted)),
+              Expanded(child: PGEyebrow(label, color: context.v2.fgMuted)),
               if (trailing != null) trailing!,
             ],
           ),
           const SizedBox(height: V2Spacing.space12),
           Text(
             value,
-            style: V2Typography.title(color: V2Colors.fg).copyWith(
+            style: V2Typography.title(color: context.v2.fg).copyWith(
               fontSize: valueSize ?? 28,
               height: 1.05,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -101,7 +101,7 @@ class PGMetricCard extends StatelessWidget {
           ),
           if (caption != null) ...[
             const SizedBox(height: V2Spacing.space4),
-            Text(caption!, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
+            Text(caption!, style: V2Typography.bodySm(color: context.v2.fgMuted)),
           ],
           if (delta != null) ...[
             const SizedBox(height: V2Spacing.space12),
@@ -133,14 +133,14 @@ class _DeltaPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (trend) {
-      PGMetricTrend.up => V2Colors.safe,
-      PGMetricTrend.down => V2Colors.caution,
-      PGMetricTrend.flat => V2Colors.fgMuted,
+      PGMetricTrend.up => context.v2.safe,
+      PGMetricTrend.down => context.v2.caution,
+      PGMetricTrend.flat => context.v2.fgMuted,
     };
     final tint = switch (trend) {
-      PGMetricTrend.up => V2Colors.safeTint,
-      PGMetricTrend.down => V2Colors.cautionTint,
-      PGMetricTrend.flat => V2Colors.outline,
+      PGMetricTrend.up => context.v2.safeTint,
+      PGMetricTrend.down => context.v2.cautionTint,
+      PGMetricTrend.flat => context.v2.outline,
     };
     final caret = switch (trend) {
       PGMetricTrend.up => '↑',

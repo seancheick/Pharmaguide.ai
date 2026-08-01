@@ -202,19 +202,20 @@ class V2Palette extends ThemeExtension<V2Palette> {
 extension V2PaletteContext on BuildContext {
   /// The brightness-resolved v2 palette.
   ///
-  /// Throws when `V2Theme` is not an ancestor. That is deliberate: a silent
-  /// fallback to the light palette would reintroduce exactly the invisible
-  /// light-on-dark failure this replaces, and would do it in whichever test or
-  /// screen forgot the theme — the hardest place to notice it.
-  V2Palette get v2 {
-    final palette = Theme.of(this).extension<V2Palette>();
-    assert(
-      palette != null,
-      'No V2Palette in scope. Wrap the widget in V2Theme.light or '
-      'V2Theme.dark — a light-mode fallback would hide the bug.',
-    );
-    return palette ?? V2Palette.of(Theme.of(this).brightness);
-  }
+  /// Falls back to `V2Palette.of(brightness)` when `V2Theme` is not an
+  /// ancestor. That fallback is CORRECT, not a silent failure: it still
+  /// resolves by brightness, so a widget under a bare `ThemeData.dark()` gets
+  /// dark colours. The bug this class replaces was light constants pinned
+  /// regardless of brightness — something neither branch can produce.
+  ///
+  /// An earlier version asserted here instead. That broke 257 widget tests
+  /// which legitimately pump a bare MaterialApp, in exchange for guarding a
+  /// failure mode the fallback already handles. The real invariant — that both
+  /// app entry points register the extension — is one assertion, not one per
+  /// widget, and lives in test/core/theme/dark_mode_surface_test.dart.
+  V2Palette get v2 =>
+      Theme.of(this).extension<V2Palette>() ??
+      V2Palette.of(Theme.of(this).brightness);
 }
 
 /// System chrome (status bar + navigation bar) matching the current theme.

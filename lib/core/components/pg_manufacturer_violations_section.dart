@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -63,15 +63,15 @@ class PGManufacturerViolationsSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space12),
           for (var i = 0; i < visible.length; i++) ...[
             if (i > 0) const SizedBox(height: V2Spacing.space12),
@@ -81,7 +81,7 @@ class PGManufacturerViolationsSection extends StatelessWidget {
             const SizedBox(height: V2Spacing.space12),
             Text(
               '+ $overflow more violation${overflow == 1 ? '' : 's'} on file',
-              style: V2Typography.label(color: V2Colors.accent),
+              style: V2Typography.label(color: context.v2.accent),
             ),
           ],
         ],
@@ -118,14 +118,14 @@ class _ViolationRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   violation.type,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  style: V2Typography.bodyMedium(color: context.v2.fg),
                 ),
               ),
               if (violation.date != null) ...[
                 const SizedBox(width: V2Spacing.space8),
                 Text(
                   violation.date!,
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
               ],
             ],
@@ -133,13 +133,13 @@ class _ViolationRow extends StatelessWidget {
           const SizedBox(height: V2Spacing.space8),
           Text(
             violation.trustSummary,
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
           if (violation.referenceId != null) ...[
             const SizedBox(height: V2Spacing.space4),
             Text(
               'Ref: ${violation.referenceId}',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ],
         ],

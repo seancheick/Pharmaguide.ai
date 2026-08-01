@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -44,7 +44,7 @@ class PGScanNotFound extends StatelessWidget {
           // Solid amber wash. cautionTint is already 10% opacity over
           // the system bg, so we layer it on a fuller surface so the
           // overlay reads as a single calm material.
-          color: V2Colors.caution.withValues(alpha: 0.08),
+          color: context.v2.caution.withValues(alpha: 0.08),
           child: SafeArea(
             child: CustomScrollView(
               slivers: [
@@ -68,19 +68,19 @@ class PGScanNotFound extends StatelessWidget {
                           width: 88,
                           height: 88,
                           decoration: BoxDecoration(
-                            color: V2Colors.caution.withValues(alpha: 0.14),
+                            color: context.v2.caution.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(
                               V2Spacing.radiusCard,
                             ),
                             border: Border.all(
-                              color: V2Colors.caution.withValues(alpha: 0.22),
+                              color: context.v2.caution.withValues(alpha: 0.22),
                               width: 0.8,
                             ),
                             boxShadow: V2Shadows.sm,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.search_off_rounded,
-                            color: V2Colors.caution,
+                            color: context.v2.caution,
                             size: 40,
                           ),
                         ),
@@ -88,7 +88,7 @@ class PGScanNotFound extends StatelessWidget {
                         Text(
                           "We couldn't find this product",
                           textAlign: TextAlign.center,
-                          style: V2Typography.titleSm(color: V2Colors.fg),
+                          style: V2Typography.titleSm(color: context.v2.fg),
                         ),
                         const SizedBox(height: V2Spacing.space8),
                         Text(
@@ -96,7 +96,7 @@ class PGScanNotFound extends StatelessWidget {
                           'by name for nearby matches, try again, or enter the code '
                           'by hand.',
                           textAlign: TextAlign.center,
-                          style: V2Typography.body(color: V2Colors.fgMuted),
+                          style: V2Typography.body(color: context.v2.fgMuted),
                         ),
                         if (scannedCode != null) ...[
                           const SizedBox(height: V2Spacing.space16),
@@ -106,16 +106,16 @@ class PGScanNotFound extends StatelessWidget {
                               vertical: V2Spacing.space4,
                             ),
                             decoration: BoxDecoration(
-                              color: V2Colors.surface,
+                              color: context.v2.surface,
                               borderRadius: BorderRadius.circular(
                                 V2Spacing.radiusPill,
                               ),
-                              border: Border.all(color: V2Colors.outline),
+                              border: Border.all(color: context.v2.outline),
                             ),
                             child: Text(
                               scannedCode!,
                               style: V2Typography.overline(
-                                color: V2Colors.fgMuted,
+                                color: context.v2.fgMuted,
                               ),
                             ),
                           ),
@@ -173,15 +173,15 @@ class _CloseChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.surface,
-      shape: const CircleBorder(side: BorderSide(color: V2Colors.outline)),
+      color: context.v2.surface,
+      shape: CircleBorder(side: BorderSide(color: context.v2.outline)),
       elevation: 0,
       child: IconButton(
         tooltip: 'Close product not found',
         onPressed: onTap,
         constraints: const BoxConstraints.tightFor(width: 44, height: 44),
         padding: EdgeInsets.zero,
-        icon: const Icon(Icons.close_rounded, color: V2Colors.fg, size: 20),
+        icon: Icon(Icons.close_rounded, color: context.v2.fg, size: 20),
       ),
     );
   }

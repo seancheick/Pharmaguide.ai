@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -106,8 +106,8 @@ class _PGCelebrationState extends State<PGCelebration>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          V2Colors.accent.withValues(alpha: 0.10),
-                          V2Colors.accent.withValues(alpha: 0.0),
+                          context.v2.accent.withValues(alpha: 0.10),
+                          context.v2.accent.withValues(alpha: 0.0),
                         ],
                       ),
                     ),
@@ -117,7 +117,7 @@ class _PGCelebrationState extends State<PGCelebration>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (widget.eyebrow != null) ...[
-                      PGEyebrow(widget.eyebrow!, color: V2Colors.accent),
+                      PGEyebrow(widget.eyebrow!, color: context.v2.accent),
                       const SizedBox(height: V2Spacing.space12),
                     ],
                     Padding(
@@ -126,7 +126,7 @@ class _PGCelebrationState extends State<PGCelebration>
                       ),
                       child: Text(
                         widget.headline,
-                        style: V2Typography.displayXs(color: V2Colors.fg),
+                        style: V2Typography.displayXs(color: context.v2.fg),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -138,7 +138,7 @@ class _PGCelebrationState extends State<PGCelebration>
                         ),
                         child: Text(
                           widget.subline!,
-                          style: V2Typography.body(color: V2Colors.fgMuted),
+                          style: V2Typography.body(color: context.v2.fgMuted),
                           textAlign: TextAlign.center,
                         ),
                       ),

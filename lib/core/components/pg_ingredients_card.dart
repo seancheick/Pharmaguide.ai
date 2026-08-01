@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_inactive_row.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -21,8 +21,8 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 ///   to see all if more")
 /// - Card hides entirely when both lists are empty
 ///
-/// Surface: V2Colors.surface + outline + sm shadow. Header title in
-/// Geist Sans 500. Count badge bg V2Colors.accentTint.
+/// Surface: context.v2.surface + outline + sm shadow. Header title in
+/// Geist Sans 500. Count badge bg context.v2.accentTint.
 class PGIngredientsCard extends StatefulWidget {
   /// Pre-built active-ingredients content. Caller composes the list of
   /// [PGActiveIngredientTile] (with its own collapse header if the active
@@ -87,9 +87,9 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -97,22 +97,22 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
         children: [
           Text(
             'What’s inside',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space12),
-          const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+          Divider(color: context.v2.outline, height: 1, thickness: 0.5),
           const SizedBox(height: V2Spacing.space8),
           if (hasActive) widget.activeContent!,
           if (hasActive && hasInactive) ...[
             const SizedBox(height: V2Spacing.space16),
-            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space16),
           ],
           if (hasInactive) _buildInactiveSection(),
           if (hasAdditional) ...[
             if (hasActive || hasInactive) ...[
               const SizedBox(height: V2Spacing.space16),
-              const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+              Divider(color: context.v2.outline, height: 1, thickness: 0.5),
               const SizedBox(height: V2Spacing.space8),
             ],
             additional,
@@ -149,7 +149,7 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
                       child: Text(
                         'Other ingredients',
                         style: V2Typography.bodyMedium(
-                          color: V2Colors.fg,
+                          color: context.v2.fg,
                         ).copyWith(fontSize: 16),
                         softWrap: true,
                       ),
@@ -161,14 +161,14 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: V2Colors.accentTint,
+                        color: context.v2.accentTint,
                         borderRadius: BorderRadius.circular(
                           V2Spacing.radiusPill,
                         ),
                       ),
                       child: Text(
                         '${ingredients.length}',
-                        style: V2Typography.overline(color: V2Colors.accent)
+                        style: V2Typography.overline(color: context.v2.accent)
                             .copyWith(
                               fontSize: 11,
                               letterSpacing: 0.2,
@@ -182,10 +182,10 @@ class _PGIngredientsCardState extends State<PGIngredientsCard> {
                     AnimatedRotation(
                       turns: _expanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 180),
-                      child: const Icon(
+                      child: Icon(
                         Icons.expand_more_rounded,
                         size: 22,
-                        color: V2Colors.fgMuted,
+                        color: context.v2.fgMuted,
                       ),
                     ),
                   ],
@@ -363,7 +363,7 @@ class _PGActiveIngredientsSectionState
                       child: Text(
                         widget.title,
                         style: V2Typography.bodyMedium(
-                          color: V2Colors.fg,
+                          color: context.v2.fg,
                         ).copyWith(fontSize: 16),
                         softWrap: true,
                       ),
@@ -375,14 +375,14 @@ class _PGActiveIngredientsSectionState
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: V2Colors.accentTint,
+                        color: context.v2.accentTint,
                         borderRadius: BorderRadius.circular(
                           V2Spacing.radiusPill,
                         ),
                       ),
                       child: Text(
                         '$_logicalIngredientCount',
-                        style: V2Typography.overline(color: V2Colors.accent)
+                        style: V2Typography.overline(color: context.v2.accent)
                             .copyWith(
                               fontSize: 11,
                               letterSpacing: 0.2,
@@ -396,10 +396,10 @@ class _PGActiveIngredientsSectionState
                     AnimatedRotation(
                       turns: _expanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 180),
-                      child: const Icon(
+                      child: Icon(
                         Icons.expand_more_rounded,
                         size: 22,
-                        color: V2Colors.fgMuted,
+                        color: context.v2.fgMuted,
                       ),
                     ),
                   ],
@@ -451,7 +451,7 @@ class _PGActiveIngredientsSectionState
                   child: Center(
                     child: Text(
                       'Show more',
-                      style: V2Typography.bodyMedium(color: V2Colors.accent),
+                      style: V2Typography.bodyMedium(color: context.v2.accent),
                     ),
                   ),
                 ),

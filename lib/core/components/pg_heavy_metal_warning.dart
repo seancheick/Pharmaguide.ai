@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -33,12 +33,12 @@ class PGHeavyMetalWarning extends StatelessWidget {
   Widget build(BuildContext context) {
     if (metals.isEmpty) return const SizedBox.shrink();
 
-    const tone = V2Colors.caution;
+    final tone = context.v2.caution;
     final card = Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       clipBehavior: Clip.antiAlias,
@@ -54,7 +54,7 @@ class PGHeavyMetalWarning extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.warning_amber_rounded,
                       size: 20,
                       color: tone,
@@ -64,18 +64,18 @@ class PGHeavyMetalWarning extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const PGEyebrow('Heavy metal risk', color: tone),
+                          PGEyebrow('Heavy metal risk', color: tone),
                           const SizedBox(height: V2Spacing.space4),
                           Text(
                             metals.join(' · '),
-                            style: V2Typography.bodyMedium(color: V2Colors.fg),
+                            style: V2Typography.bodyMedium(color: context.v2.fg),
                           ),
                           if (note != null) ...[
                             const SizedBox(height: V2Spacing.space4),
                             Text(
                               note!,
                               style: V2Typography.bodySm(
-                                color: V2Colors.fgMuted,
+                                color: context.v2.fgMuted,
                               ),
                             ),
                           ],
@@ -84,7 +84,7 @@ class PGHeavyMetalWarning extends StatelessWidget {
                     ),
                     if (onTap != null) ...[
                       const SizedBox(width: V2Spacing.space8),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right_rounded,
                         size: 18,
                         color: tone,

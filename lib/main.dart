@@ -527,6 +527,8 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         debugShowCheckedModeBanner: false,
         theme: V2Theme.light,
         darkTheme: V2Theme.dark,
+        // Explicit: the bootstrap screen follows the device appearance too.
+        themeMode: ThemeMode.system,
         home: const _BootstrapLoadingScreen(),
       );
     }

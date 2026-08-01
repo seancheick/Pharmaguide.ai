@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -61,18 +61,18 @@ class _PGPillButtonState extends State<PGPillButton> {
 
     final bg = switch (widget.variant) {
       PGPillVariant.primary =>
-        disabled ? V2Colors.accent.withValues(alpha: 0.5) : V2Colors.accent,
+        disabled ? context.v2.accent.withValues(alpha: 0.5) : context.v2.accent,
       PGPillVariant.secondary => Colors.transparent,
       PGPillVariant.ghost => Colors.transparent,
     };
 
     final fg = switch (widget.variant) {
       PGPillVariant.primary => Colors.white,
-      PGPillVariant.secondary || PGPillVariant.ghost => V2Colors.accent,
+      PGPillVariant.secondary || PGPillVariant.ghost => context.v2.accent,
     };
 
     final border = isSecondary
-        ? BorderSide(color: V2Colors.accent.withValues(alpha: 0.4))
+        ? BorderSide(color: context.v2.accent.withValues(alpha: 0.4))
         : BorderSide.none;
 
     final shadow = isPrimary && _pressed && !disabled

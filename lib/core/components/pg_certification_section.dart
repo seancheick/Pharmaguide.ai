@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -43,15 +43,15 @@ class PGCertificationSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space12),
           for (var i = 0; i < certifications.length; i++) ...[
             if (i > 0) const SizedBox(height: V2Spacing.space8),
@@ -69,7 +69,7 @@ class _CertificationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = cert.verified ? V2Colors.safe : V2Colors.fgSubtle;
+    final tone = cert.verified ? context.v2.safe : context.v2.fgSubtle;
     final icon = cert.verified
         ? Icons.check_circle_rounded
         : Icons.cancel_outlined;
@@ -84,13 +84,13 @@ class _CertificationRow extends StatelessWidget {
             children: [
               Text(
                 cert.label,
-                style: V2Typography.bodyMedium(color: V2Colors.fg),
+                style: V2Typography.bodyMedium(color: context.v2.fg),
               ),
               if (cert.caption != null) ...[
                 const SizedBox(height: 2),
                 Text(
                   cert.caption!,
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
               ],
             ],

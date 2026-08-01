@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -50,12 +50,12 @@ class PGSectionHeader extends StatelessWidget {
         Text(
           title,
           style: serif
-              ? V2Typography.displayXs(color: V2Colors.fg)
-              : V2Typography.title(color: V2Colors.fg),
+              ? V2Typography.displayXs(color: context.v2.fg)
+              : V2Typography.title(color: context.v2.fg),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: V2Spacing.space8),
-          Text(subtitle!, style: V2Typography.body(color: V2Colors.fgMuted)),
+          Text(subtitle!, style: V2Typography.body(color: context.v2.fgMuted)),
         ],
       ],
     );

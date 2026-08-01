@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -85,7 +85,7 @@ class PGScoreLine extends StatelessWidget {
               '$displayScore/100',
               style:
                   V2Typography.bodyMedium(
-                    color: prominent ? tier.textColor : V2Colors.fg,
+                    color: prominent ? tier.textColor : context.v2.fg,
                   ).copyWith(
                     fontSize: headlineSize,
                     fontWeight: headlineWeight,
@@ -113,7 +113,7 @@ class PGScoreLine extends StatelessWidget {
           const SizedBox(height: V2Spacing.space4),
           Text(
             descriptionOverride ?? tier.description,
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
         ],
       ],

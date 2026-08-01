@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/widgets/inactive_color.dart';
@@ -45,8 +45,8 @@ class PGInactiveRow extends StatelessWidget {
           decoration: BoxDecoration(
             border: isLast
                 ? null
-                : const Border(
-                    bottom: BorderSide(color: V2Colors.outline, width: 0.4),
+                : Border(
+                    bottom: BorderSide(color: context.v2.outline, width: 0.4),
                   ),
           ),
           child: Padding(
@@ -69,7 +69,7 @@ class PGInactiveRow extends StatelessWidget {
                     children: [
                       Text(
                         ingredient.name,
-                        style: V2Typography.bodyMedium(color: V2Colors.fg),
+                        style: V2Typography.bodyMedium(color: context.v2.fg),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -78,7 +78,7 @@ class PGInactiveRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           ingredient.roleHelper!,
-                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(color: context.v2.fgMuted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// Mono-caps eyebrow label.
 ///
 /// Use for section labels, brand labels, metadata. ALWAYS uppercase the
 /// passed string. Color defaults to the accent for emphasis; pass
-/// [V2Colors.fgMuted] for quieter metadata.
+/// [context.v2.fgMuted] for quieter metadata.
 class PGEyebrow extends StatelessWidget {
   final String text;
   final Color? color;
@@ -31,7 +31,7 @@ class PGEyebrow extends StatelessWidget {
     // single-line layout is required (chip / pill contexts).
     return Text(
       text.toUpperCase(),
-      style: V2Typography.eyebrow(color: color ?? V2Colors.accent),
+      style: V2Typography.eyebrow(color: color ?? context.v2.accent),
       textAlign: textAlign,
       softWrap: true,
       maxLines: maxLines,
@@ -52,7 +52,7 @@ class PGOverline extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: V2Typography.overline(color: color ?? V2Colors.fgMuted),
+      style: V2Typography.overline(color: color ?? context.v2.fgMuted),
     );
   }
 }

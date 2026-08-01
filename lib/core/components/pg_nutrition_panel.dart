@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -92,9 +92,9 @@ class _PGNutritionPanelState extends State<PGNutritionPanel> {
       decoration: widget.embedded
           ? null
           : BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
               boxShadow: V2Shadows.sm,
             ),
       child: Column(
@@ -116,17 +116,17 @@ class _PGNutritionPanelState extends State<PGNutritionPanel> {
                     Expanded(
                       child: Text(
                         widget.title,
-                        style: V2Typography.titleSm(color: V2Colors.fg),
+                        style: V2Typography.titleSm(color: context.v2.fg),
                       ),
                     ),
                     if (widget.collapsible)
                       AnimatedRotation(
                         turns: _expanded ? 0.5 : 0,
                         duration: const Duration(milliseconds: 180),
-                        child: const Icon(
+                        child: Icon(
                           Icons.expand_more_rounded,
                           size: 22,
-                          color: V2Colors.fgMuted,
+                          color: context.v2.fgMuted,
                         ),
                       ),
                   ],
@@ -145,7 +145,7 @@ class _PGNutritionPanelState extends State<PGNutritionPanel> {
                       if (widget.servingSize != null) ...[
                         Text(
                           'Serving size · ${widget.servingSize}',
-                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(color: context.v2.fgMuted),
                         ),
                       ],
                       const SizedBox(height: V2Spacing.space8),
@@ -182,14 +182,14 @@ class _NutritionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labelStyle = fact.isHeadline
-        ? V2Typography.bodyMedium(color: V2Colors.fg)
-        : V2Typography.bodySm(color: V2Colors.fg);
+        ? V2Typography.bodyMedium(color: context.v2.fg)
+        : V2Typography.bodySm(color: context.v2.fg);
     return Container(
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(
-                bottom: BorderSide(color: V2Colors.outline, width: 0.4),
+            : Border(
+                bottom: BorderSide(color: context.v2.outline, width: 0.4),
               ),
       ),
       child: Padding(
@@ -204,7 +204,7 @@ class _NutritionRow extends StatelessWidget {
                 child: Text(fact.label, style: labelStyle),
               ),
             ),
-            Text(fact.value, style: V2Typography.monoData(color: V2Colors.fg)),
+            Text(fact.value, style: V2Typography.monoData(color: context.v2.fg)),
             if (fact.dailyValue != null) ...[
               const SizedBox(width: V2Spacing.space12),
               SizedBox(
@@ -212,7 +212,7 @@ class _NutritionRow extends StatelessWidget {
                 child: Text(
                   fact.dailyValue!,
                   textAlign: TextAlign.right,
-                  style: V2Typography.monoData(color: V2Colors.fgMuted),
+                  style: V2Typography.monoData(color: context.v2.fgMuted),
                 ),
               ),
             ],

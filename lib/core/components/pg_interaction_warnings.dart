@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -117,7 +117,7 @@ class _PGInteractionWarningsState extends State<PGInteractionWarnings> {
           _SubSectionHeader(
             eyebrow: 'Applies to you',
             count: widget.personalized.length,
-            tone: V2Colors.caution,
+            tone: context.v2.caution,
           ),
           const SizedBox(height: V2Spacing.space8),
           for (var i = 0; i < widget.personalized.length; i++) ...[
@@ -142,9 +142,9 @@ class _PGInteractionWarningsState extends State<PGInteractionWarnings> {
     // mis-attached).
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       clipBehavior: Clip.antiAlias,
@@ -163,16 +163,16 @@ class _PGInteractionWarningsState extends State<PGInteractionWarnings> {
                       child: _SubSectionHeader(
                         eyebrow: 'Other precautions',
                         count: widget.generic.length,
-                        tone: V2Colors.fgMuted,
+                        tone: context.v2.fgMuted,
                       ),
                     ),
                     AnimatedRotation(
                       turns: _genericExpanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 180),
-                      child: const Icon(
+                      child: Icon(
                         Icons.expand_more_rounded,
                         size: 22,
-                        color: V2Colors.fgMuted,
+                        color: context.v2.fgMuted,
                       ),
                     ),
                   ],
@@ -272,9 +272,9 @@ class _PGWarningCardState extends State<PGWarningCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       clipBehavior: Clip.antiAlias,
@@ -307,7 +307,7 @@ class _PGWarningCardState extends State<PGWarningCard> {
                     Text(
                       w.title,
                       style: V2Typography.bodyMedium(
-                        color: V2Colors.fg,
+                        color: context.v2.fg,
                       ).copyWith(fontSize: 16, height: 1.3),
                     ),
                     const SizedBox(height: V2Spacing.space8),
@@ -399,13 +399,13 @@ class _EvidenceBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: V2Colors.outline,
+        color: context.v2.outline,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         evidence.label.toUpperCase(),
         style: V2Typography.overline(
-          color: V2Colors.fgMuted,
+          color: context.v2.fgMuted,
         ).copyWith(fontSize: 10, letterSpacing: 0.4),
       ),
     );
@@ -429,14 +429,14 @@ class _Mechanism extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!_isTruncatable) {
-      return Text(text, style: V2Typography.bodySm(color: V2Colors.fgMuted));
+      return Text(text, style: V2Typography.bodySm(color: context.v2.fgMuted));
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           text,
-          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
           maxLines: expanded ? null : 3,
           overflow: expanded ? null : TextOverflow.ellipsis,
         ),
@@ -445,7 +445,7 @@ class _Mechanism extends StatelessWidget {
           onTap: onToggle,
           child: Text(
             expanded ? 'Show less' : 'Show more',
-            style: V2Typography.label(color: V2Colors.accent),
+            style: V2Typography.label(color: context.v2.accent),
           ),
         ),
       ],
@@ -463,16 +463,16 @@ class _ManagementBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        color: V2Colors.bg,
+        color: context.v2.bg,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PGEyebrow('What to do', color: tone),
           const SizedBox(height: V2Spacing.space4),
-          Text(text, style: V2Typography.body(color: V2Colors.fg)),
+          Text(text, style: V2Typography.body(color: context.v2.fg)),
         ],
       ),
     );
@@ -495,23 +495,23 @@ class _SourcesChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: V2Colors.accent.withValues(alpha: 0.10),
+            color: context.v2.accent.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(color: V2Colors.accent.withValues(alpha: 0.3)),
+            border: Border.all(color: context.v2.accent.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.menu_book_outlined,
                 size: 14,
-                color: V2Colors.accent,
+                color: context.v2.accent,
               ),
               const SizedBox(width: 6),
               Text(
                 '$count source${count == 1 ? '' : 's'}',
                 style: V2Typography.caption(
-                  color: V2Colors.accent,
+                  color: context.v2.accent,
                 ).copyWith(fontSize: 11, fontWeight: FontWeight.w500),
               ),
             ],

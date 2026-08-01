@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -80,7 +80,7 @@ class PGSelectionResult {
 ///   [noneLabel] is non-null. Selecting it clears every other pick
 ///   in the draft; tapping any real chip clears the None pick.
 /// - Chip wrap below the None card. Selected chips use
-///   `V2Colors.accentTint` + a 14px check icon, unselected use the
+///   `context.v2.accentTint` + a 14px check icon, unselected use the
 ///   cream surface with hairline outline.
 /// - Sticky bottom action bar: primary "Save" pill on the right,
 ///   ghost "Clear" on the left.
@@ -252,31 +252,31 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
     final discard = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: V2Colors.surface,
+        backgroundColor: context.v2.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
         title: Text(
           'Discard changes?',
-          style: V2Typography.title(color: V2Colors.fg),
+          style: V2Typography.title(color: context.v2.fg),
         ),
         content: Text(
           'You haven\'t saved this selection yet.',
-          style: V2Typography.body(color: V2Colors.fgMuted),
+          style: V2Typography.body(color: context.v2.fgMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               'Keep editing',
-              style: V2Typography.label(color: V2Colors.accent),
+              style: V2Typography.label(color: context.v2.accent),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               'Discard',
-              style: V2Typography.label(color: V2Colors.contraindicated),
+              style: V2Typography.label(color: context.v2.contraindicated),
             ),
           ),
         ],
@@ -375,9 +375,9 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight),
         child: DecoratedBox(
-          decoration: const BoxDecoration(
-            color: V2Colors.bg,
-            borderRadius: BorderRadius.vertical(
+          decoration: BoxDecoration(
+            color: context.v2.bg,
+            borderRadius: const BorderRadius.vertical(
               top: Radius.circular(V2Spacing.radiusSheet),
             ),
             boxShadow: V2Shadows.md,
@@ -399,12 +399,12 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                     const SizedBox(height: V2Spacing.space8),
                     Text(
                       widget.title,
-                      style: V2Typography.displayXs(color: V2Colors.fg),
+                      style: V2Typography.displayXs(color: context.v2.fg),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                     Text(
                       widget.helperText,
-                      style: V2Typography.body(color: V2Colors.fgMuted),
+                      style: V2Typography.body(color: context.v2.fgMuted),
                     ),
                   ],
                 ),
@@ -443,7 +443,7 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                           !_noneSelected) ...[
                         Text(
                           widget.maxSelectionHint!,
-                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(color: context.v2.fgMuted),
                         ),
                         const SizedBox(height: V2Spacing.space12),
                       ],
@@ -454,7 +454,7 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                           ),
                           child: Text(
                             'No matches for "${_searchController.text}"',
-                            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                            style: V2Typography.bodySm(color: context.v2.fgMuted),
                           ),
                         )
                       else if (widget.layout == PGSheetLayout.rows)
@@ -513,7 +513,7 @@ class _DragHandle extends StatelessWidget {
         width: 40,
         height: 4,
         decoration: BoxDecoration(
-          color: V2Colors.fgSubtle.withValues(alpha: 0.35),
+          color: context.v2.fgSubtle.withValues(alpha: 0.35),
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -530,28 +530,28 @@ class _SearchField extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space12),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, size: 18, color: V2Colors.fgSubtle),
+          Icon(Icons.search_rounded, size: 18, color: context.v2.fgSubtle),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: TextField(
               controller: controller,
               decoration: InputDecoration(
                 hintText: 'Search',
-                hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+                hintStyle: V2Typography.body(color: context.v2.fgSubtle),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: V2Spacing.space12,
                 ),
                 isCollapsed: true,
               ),
-              style: V2Typography.body(color: V2Colors.fg),
-              cursorColor: V2Colors.accent,
+              style: V2Typography.body(color: context.v2.fg),
+              cursorColor: context.v2.accent,
               cursorWidth: 1.5,
               textInputAction: TextInputAction.search,
             ),
@@ -560,10 +560,10 @@ class _SearchField extends StatelessWidget {
             IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
-              icon: const Icon(
+              icon: Icon(
                 Icons.close_rounded,
                 size: 18,
-                color: V2Colors.fgSubtle,
+                color: context.v2.fgSubtle,
               ),
               onPressed: controller.clear,
             ),
@@ -598,10 +598,10 @@ class _NoneTile extends StatelessWidget {
           curve: V2Motion.smooth,
           padding: const EdgeInsets.all(V2Spacing.space16),
           decoration: BoxDecoration(
-            color: selected ? V2Colors.accentTint : V2Colors.surface,
+            color: selected ? context.v2.accentTint : context.v2.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             border: Border.all(
-              color: selected ? V2Colors.accent : V2Colors.outline,
+              color: selected ? context.v2.accent : context.v2.outline,
               width: selected ? 1.5 : 1.0,
             ),
           ),
@@ -616,14 +616,14 @@ class _NoneTile extends StatelessWidget {
                     Text(
                       label,
                       style: V2Typography.bodyMedium(
-                        color: selected ? V2Colors.accent : V2Colors.fg,
+                        color: selected ? context.v2.accent : context.v2.fg,
                       ),
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: V2Spacing.space4),
                       Text(
                         subtitle!,
-                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
                       ),
                     ],
                   ],
@@ -650,9 +650,9 @@ class _CheckCircle extends StatelessWidget {
       height: 20,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: selected ? V2Colors.accent : Colors.transparent,
+        color: selected ? context.v2.accent : Colors.transparent,
         border: Border.all(
-          color: selected ? V2Colors.accent : V2Colors.outline,
+          color: selected ? context.v2.accent : context.v2.outline,
           width: selected ? 0 : 1.5,
         ),
       ),
@@ -681,11 +681,11 @@ class _SheetChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? V2Colors.accentTint : V2Colors.surface;
-    final border = selected ? V2Colors.accent : V2Colors.outline;
+    final bg = selected ? context.v2.accentTint : context.v2.surface;
+    final border = selected ? context.v2.accent : context.v2.outline;
     final fg = disabled
-        ? V2Colors.fgSubtle
-        : (selected ? V2Colors.accent : V2Colors.fg);
+        ? context.v2.fgSubtle
+        : (selected ? context.v2.accent : context.v2.fg);
 
     return GestureDetector(
       onTap: disabled ? null : onTap,
@@ -706,7 +706,7 @@ class _SheetChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (selected) ...[
-              const Icon(Icons.check_rounded, size: 14, color: V2Colors.accent),
+              Icon(Icons.check_rounded, size: 14, color: context.v2.accent),
               const SizedBox(width: V2Spacing.space8),
             ],
             Flexible(
@@ -725,7 +725,7 @@ class _SheetChip extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         subtitle!,
-                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
                       ),
                     ),
                 ],
@@ -781,9 +781,9 @@ class _SheetActionBar extends StatelessWidget {
     }
 
     return Container(
-      decoration: const BoxDecoration(
-        color: V2Colors.bg,
-        border: Border(top: BorderSide(color: V2Colors.outline)),
+      decoration: BoxDecoration(
+        color: context.v2.bg,
+        border: Border(top: BorderSide(color: context.v2.outline)),
       ),
       padding: const EdgeInsets.fromLTRB(
         V2Spacing.space24,
@@ -826,9 +826,9 @@ class _SheetRowList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -865,8 +865,8 @@ class _SheetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labelStyle = selected
-        ? V2Typography.bodyMedium(color: V2Colors.accent)
-        : V2Typography.body(color: disabled ? V2Colors.fgSubtle : V2Colors.fg);
+        ? V2Typography.bodyMedium(color: context.v2.accent)
+        : V2Typography.body(color: disabled ? context.v2.fgSubtle : context.v2.fg);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -892,7 +892,7 @@ class _SheetRow extends StatelessWidget {
                           Text(
                             option.subtitle!,
                             style: V2Typography.caption(
-                              color: V2Colors.fgMuted,
+                              color: context.v2.fgMuted,
                             ),
                           ),
                         ],
@@ -903,12 +903,12 @@ class _SheetRow extends StatelessWidget {
               ),
             ),
             if (showDivider)
-              const Padding(
-                padding: EdgeInsets.only(left: V2Spacing.space48),
+              Padding(
+                padding: const EdgeInsets.only(left: V2Spacing.space48),
                 child: Divider(
                   height: 1,
                   thickness: 0.5,
-                  color: V2Colors.outline,
+                  color: context.v2.outline,
                 ),
               ),
           ],

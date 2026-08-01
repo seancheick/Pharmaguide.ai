@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 
 /// Two-state scan-confirmation flash. Sean 2026-05-15: no per-tier
@@ -103,8 +103,8 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
   }
 
   Color get _tone => switch (widget.kind) {
-    PGVerdictKind.success => V2Colors.safe,
-    PGVerdictKind.attention => V2Colors.caution,
+    PGVerdictKind.success => context.v2.safe,
+    PGVerdictKind.attention => context.v2.caution,
   };
 
   IconData get _icon => switch (widget.kind) {

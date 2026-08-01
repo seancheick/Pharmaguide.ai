@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -56,15 +56,15 @@ class PGFormulationSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
           if (form != null) ...[
             const SizedBox(height: V2Spacing.space12),
             Row(
@@ -72,14 +72,14 @@ class PGFormulationSection extends StatelessWidget {
                 Expanded(
                   child: Text(
                     form!,
-                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
                 ),
                 if (formTierLabel != null) ...[
                   const SizedBox(width: V2Spacing.space8),
                   _TierBadge(
                     label: formTierLabel!,
-                    color: formTierColor ?? V2Colors.monitor,
+                    color: formTierColor ?? context.v2.monitor,
                   ),
                 ],
               ],
@@ -89,7 +89,7 @@ class PGFormulationSection extends StatelessWidget {
             const SizedBox(height: V2Spacing.space12),
             Text(
               'Absorption enhancers',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space4),
             Wrap(
@@ -97,7 +97,7 @@ class PGFormulationSection extends StatelessWidget {
               runSpacing: 4,
               children: [
                 for (final e in absorptionEnhancers)
-                  _IngredientPill(label: e, color: V2Colors.safe),
+                  _IngredientPill(label: e, color: context.v2.safe),
               ],
             ),
           ],
@@ -105,7 +105,7 @@ class PGFormulationSection extends StatelessWidget {
             const SizedBox(height: V2Spacing.space12),
             Text(
               'Botanicals',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space4),
             Wrap(
@@ -115,7 +115,7 @@ class PGFormulationSection extends StatelessWidget {
                 for (final b in botanicals)
                   _IngredientPill(
                     label: b,
-                    color: V2Colors.safe,
+                    color: context.v2.safe,
                     icon: Icons.eco_outlined,
                   ),
               ],
@@ -125,7 +125,7 @@ class PGFormulationSection extends StatelessWidget {
             const SizedBox(height: V2Spacing.space12),
             Text(
               'Listed but not credited',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space4),
             Wrap(
@@ -133,7 +133,7 @@ class PGFormulationSection extends StatelessWidget {
               runSpacing: 4,
               children: [
                 for (final d in demotedEnhancers)
-                  _IngredientPill(label: d, color: V2Colors.fgSubtle),
+                  _IngredientPill(label: d, color: context.v2.fgSubtle),
               ],
             ),
           ],

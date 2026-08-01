@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_type_badge.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 
 /// Compact product / medication thumbnail.
@@ -59,9 +59,9 @@ class PGProductThumbnail extends StatelessWidget {
             // Frame.
             Container(
               decoration: BoxDecoration(
-                color: missing ? type.tint : V2Colors.surface,
+                color: missing ? type.tint : context.v2.surface,
                 borderRadius: BorderRadius.circular(r),
-                border: Border.all(color: V2Colors.outline),
+                border: Border.all(color: context.v2.outline),
               ),
               clipBehavior: Clip.antiAlias,
               child: missing

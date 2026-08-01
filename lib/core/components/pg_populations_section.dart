@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -48,15 +48,15 @@ class PGPopulationsSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space12),
           for (var i = 0; i < callouts.length; i++)
             _PopulationRow(
@@ -86,10 +86,10 @@ class _PopulationRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: V2Colors.cautionTint,
+              color: context.v2.cautionTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             ),
-            child: Icon(callout.icon, size: 18, color: V2Colors.caution),
+            child: Icon(callout.icon, size: 18, color: context.v2.caution),
           ),
           const SizedBox(width: V2Spacing.space12),
           Expanded(
@@ -98,22 +98,22 @@ class _PopulationRow extends StatelessWidget {
               children: [
                 Text(
                   callout.label,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  style: V2Typography.bodyMedium(color: context.v2.fg),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   callout.body,
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
               ],
             ),
           ),
           if (callout.onTap != null) ...[
             const SizedBox(width: V2Spacing.space8),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 18,
-              color: V2Colors.fgMuted,
+              color: context.v2.fgMuted,
             ),
           ],
         ],
@@ -131,7 +131,7 @@ class _PopulationRow extends StatelessWidget {
     return Column(
       children: [
         wrapped,
-        const Divider(color: V2Colors.outline, height: 1, thickness: 0.4),
+        Divider(color: context.v2.outline, height: 1, thickness: 0.4),
       ],
     );
   }

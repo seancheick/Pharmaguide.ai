@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -71,13 +71,13 @@ class PGLabelConfidenceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
 
-    final tone = isCaution ? V2Colors.caution : V2Colors.fgMuted;
+    final tone = isCaution ? context.v2.caution : context.v2.fgMuted;
 
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -95,13 +95,13 @@ class PGLabelConfidenceCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     header,
-                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+          Divider(color: context.v2.outline, height: 1, thickness: 0.5),
           for (var i = 0; i < items.length; i++)
             _LabelConfidenceRow(item: items[i], isLast: i == items.length - 1),
         ],
@@ -126,7 +126,7 @@ class _LabelConfidenceRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(item.icon, size: 18, color: V2Colors.fgMuted),
+          Icon(item.icon, size: 18, color: context.v2.fgMuted),
           const SizedBox(width: V2Spacing.space12),
           Expanded(
             child: Column(
@@ -134,18 +134,18 @@ class _LabelConfidenceRow extends StatelessWidget {
               children: [
                 Text(
                   item.title,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  style: V2Typography.bodyMedium(color: context.v2.fg),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   item.body,
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
                 if (item.detail != null) ...[
                   const SizedBox(height: V2Spacing.space4),
                   Text(
                     item.detail!,
-                    style: V2Typography.caption(color: V2Colors.fgSubtle),
+                    style: V2Typography.caption(color: context.v2.fgSubtle),
                   ),
                 ],
               ],
@@ -153,10 +153,10 @@ class _LabelConfidenceRow extends StatelessWidget {
           ),
           if (item.onTap != null) ...[
             const SizedBox(width: V2Spacing.space8),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 18,
-              color: V2Colors.fgMuted,
+              color: context.v2.fgMuted,
             ),
           ],
         ],
@@ -174,8 +174,8 @@ class _LabelConfidenceRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(
-                bottom: BorderSide(color: V2Colors.outline, width: 0.4),
+            : Border(
+                bottom: BorderSide(color: context.v2.outline, width: 0.4),
               ),
       ),
       child: wrapped,

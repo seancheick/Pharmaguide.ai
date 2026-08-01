@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 
@@ -59,10 +59,10 @@ class PGProgressDots extends StatelessWidget {
             height: dotHeight,
             decoration: BoxDecoration(
               color: isCurrent
-                  ? V2Colors.accent
+                  ? context.v2.accent
                   : (isPast
-                        ? V2Colors.accent.withValues(alpha: 0.35)
-                        : V2Colors.outline),
+                        ? context.v2.accent.withValues(alpha: 0.35)
+                        : context.v2.outline),
               borderRadius: BorderRadius.circular(dotHeight / 2),
             ),
           ),

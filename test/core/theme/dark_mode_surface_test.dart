@@ -148,4 +148,66 @@ void main() {
       );
     });
   });
+
+  group('the extension is registered where it matters', () {
+    // This replaces a per-widget assert on context.v2. The fallback
+    // (V2Palette.of(brightness)) is already correct, so the only invariant
+    // worth enforcing is that the real app themes carry the extension —
+    // one assertion instead of one per widget.
+    test('both V2Theme entry points register V2Palette', () {
+      expect(
+        V2Theme.light.extension<V2Palette>(),
+        same(V2Palette.light),
+        reason: 'V2Theme.light must carry the palette',
+      );
+      expect(
+        V2Theme.dark.extension<V2Palette>(),
+        same(V2Palette.dark),
+        reason: 'V2Theme.dark must carry the palette',
+      );
+    });
+
+    test('both app entry points wire V2Theme with system brightness', () {
+      // lib/app.dart and lib/main.dart each build a MaterialApp; if either
+      // stops passing V2Theme, widgets silently drop to the fallback and the
+      // registered extension stops mattering.
+      for (final path in ['lib/app.dart', 'lib/main.dart']) {
+        final src = File(path).readAsStringSync();
+        expect(
+          src.contains('V2Theme.light'),
+          isTrue,
+          reason: '$path must pass V2Theme.light',
+        );
+        expect(
+          src.contains('V2Theme.dark'),
+          isTrue,
+          reason: '$path must pass V2Theme.dark as darkTheme',
+        );
+        expect(
+          src.contains('ThemeMode.system'),
+          isTrue,
+          reason: '$path must follow the device appearance',
+        );
+      }
+    });
+
+    testWidgets('a widget without the extension still resolves by brightness', (
+      tester,
+    ) async {
+      // The fallback path: correct, not a silent light default.
+      late V2Palette resolved;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: Brightness.dark),
+          home: Builder(
+            builder: (context) {
+              resolved = context.v2;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(resolved, same(V2Palette.dark));
+    });
+  });
 }

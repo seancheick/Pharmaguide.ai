@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -54,18 +54,18 @@ class PGBetterAlternatives extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
           if (body != null) ...[
             const SizedBox(height: V2Spacing.space4),
-            Text(body!, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
+            Text(body!, style: V2Typography.bodySm(color: context.v2.fgMuted)),
           ],
           const SizedBox(height: V2Spacing.space12),
           for (var i = 0; i < alternatives.length; i++) ...[
@@ -91,9 +91,9 @@ class _AlternativeCard extends StatelessWidget {
     final card = Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        color: V2Colors.bg,
+        color: context.v2.bg,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -111,13 +111,13 @@ class _AlternativeCard extends StatelessWidget {
               children: [
                 Text(
                   alt.brand,
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   alt.name,
                   style: V2Typography.bodySm(
-                    color: V2Colors.fg,
+                    color: context.v2.fg,
                   ).copyWith(fontWeight: FontWeight.w500),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -129,10 +129,10 @@ class _AlternativeCard extends StatelessWidget {
           ),
           if (alt.onTap != null) ...[
             const SizedBox(width: V2Spacing.space8),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 16,
-              color: V2Colors.fgMuted,
+              color: context.v2.fgMuted,
             ),
           ],
         ],
@@ -157,13 +157,13 @@ class _AlternativePlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.accentTint,
+        color: context.v2.accentTint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       ),
-      child: const Icon(
+      child: Icon(
         Icons.medication_outlined,
         size: 24,
-        color: V2Colors.accent,
+        color: context.v2.accent,
       ),
     );
   }
@@ -186,7 +186,7 @@ class PGBetterAlternativesSkeleton extends StatelessWidget {
           width: 240,
           height: 20,
           decoration: BoxDecoration(
-            color: V2Colors.outline,
+            color: context.v2.outline,
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -197,9 +197,9 @@ class PGBetterAlternativesSkeleton extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(V2Spacing.space12),
               decoration: BoxDecoration(
-                color: V2Colors.surface,
+                color: context.v2.surface,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                border: Border.all(color: V2Colors.outline),
+                border: Border.all(color: context.v2.outline),
                 boxShadow: V2Shadows.sm,
               ),
               child: Row(
@@ -209,7 +209,7 @@ class PGBetterAlternativesSkeleton extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: V2Colors.outline,
+                      color: context.v2.outline,
                       borderRadius: BorderRadius.circular(V2Spacing.space8),
                     ),
                   ),
@@ -222,7 +222,7 @@ class PGBetterAlternativesSkeleton extends StatelessWidget {
                           width: 200,
                           height: 14,
                           decoration: BoxDecoration(
-                            color: V2Colors.outline,
+                            color: context.v2.outline,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -231,7 +231,7 @@ class PGBetterAlternativesSkeleton extends StatelessWidget {
                           width: 120,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: V2Colors.outline,
+                            color: context.v2.outline,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),

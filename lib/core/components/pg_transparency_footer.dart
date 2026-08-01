@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -66,10 +66,10 @@ class PGTransparencyFooter extends StatelessWidget {
                 : MainAxisAlignment.start,
             mainAxisSize: center ? MainAxisSize.min : MainAxisSize.max,
             children: [
-              const Icon(
+              Icon(
                 Icons.verified_outlined,
                 size: 13,
-                color: V2Colors.accent,
+                color: context.v2.accent,
               ),
               const SizedBox(width: V2Spacing.space4),
               const PGEyebrow('Data sources'),
@@ -77,13 +77,13 @@ class PGTransparencyFooter extends StatelessWidget {
               center
                   ? Text(
                       sources.join(' · '),
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      style: V2Typography.caption(color: context.v2.fgMuted),
                       maxLines: 1,
                     )
                   : Expanded(
                       child: Text(
                         sources.join(' · '),
-                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
                         maxLines: 1,
                       ),
                     ),
@@ -98,14 +98,14 @@ class PGTransparencyFooter extends StatelessWidget {
               padding: EdgeInsets.only(left: center ? 0 : 17),
               child: Text(
                 freshnessLabel!,
-                style: V2Typography.caption(color: V2Colors.fgSubtle),
+                style: V2Typography.caption(color: context.v2.fgSubtle),
               ),
             ),
           ],
           const SizedBox(height: V2Spacing.space8),
           Text(
             disclaimer,
-            style: V2Typography.caption(color: V2Colors.fgSubtle),
+            style: V2Typography.caption(color: context.v2.fgSubtle),
             textAlign: center ? TextAlign.center : TextAlign.start,
           ),
         ],

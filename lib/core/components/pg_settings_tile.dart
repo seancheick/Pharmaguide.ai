@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -38,18 +38,18 @@ class PGSettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = destructive ? V2Colors.contraindicated : V2Colors.fg;
-    final iconColor = destructive ? V2Colors.contraindicated : V2Colors.fgMuted;
+    final fg = destructive ? context.v2.contraindicated : context.v2.fg;
+    final iconColor = destructive ? context.v2.contraindicated : context.v2.fgMuted;
     final captionColor = destructive
-        ? V2Colors.contraindicated
-        : V2Colors.fgMuted;
+        ? context.v2.contraindicated
+        : context.v2.fgMuted;
 
     final tail =
         trailing ??
         (onTap != null
-            ? const Icon(
+            ? Icon(
                 Icons.chevron_right_rounded,
-                color: V2Colors.fgSubtle,
+                color: context.v2.fgSubtle,
                 size: 20,
               )
             : null);
@@ -111,17 +111,17 @@ class PGSettingsGroup extends StatelessWidget {
         if (eyebrow != null) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
-            child: PGEyebrow(eyebrow!, color: V2Colors.fgMuted),
+            child: PGEyebrow(eyebrow!, color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space8),
         ],
         Material(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
             ),
             child: Column(
               children: [
@@ -145,9 +145,9 @@ class _TileDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(left: V2Spacing.space48),
-      child: Divider(color: V2Colors.outline, height: 1, thickness: 1),
+    return Padding(
+      padding: const EdgeInsets.only(left: V2Spacing.space48),
+      child: Divider(color: context.v2.outline, height: 1, thickness: 1),
     );
   }
 }
