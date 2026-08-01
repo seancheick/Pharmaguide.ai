@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 
 /// Visual hierarchy for [EvidenceLevel] — uses signal bars (like cell
@@ -16,28 +16,28 @@ class PGEvidenceBadge extends StatelessWidget {
 
   const PGEvidenceBadge({super.key, required this.level});
 
-  ({Color color, String label, int bars}) _style() {
+  ({Color color, String label, int bars}) _style(V2Palette p) {
     switch (level) {
       case EvidenceLevel.established:
-        return (color: V2Colors.accent, label: 'Strong evidence', bars: 3);
+        return (color: p.accent, label: 'Strong evidence', bars: 3);
       case EvidenceLevel.probable:
-        return (color: V2Colors.monitor, label: 'Good evidence', bars: 2);
+        return (color: p.monitor, label: 'Good evidence', bars: 2);
       case EvidenceLevel.moderate:
-        return (color: V2Colors.monitor, label: 'Moderate evidence', bars: 2);
+        return (color: p.monitor, label: 'Moderate evidence', bars: 2);
       case EvidenceLevel.limited:
-        return (color: V2Colors.fgSubtle, label: 'Limited evidence', bars: 1);
+        return (color: p.fgSubtle, label: 'Limited evidence', bars: 1);
       case EvidenceLevel.theoretical:
-        return (color: V2Colors.fgSubtle, label: 'Theoretical', bars: 1);
+        return (color: p.fgSubtle, label: 'Theoretical', bars: 1);
       case EvidenceLevel.noData:
-        return (color: V2Colors.fgMuted, label: 'No evidence data', bars: 0);
+        return (color: p.fgMuted, label: 'No evidence data', bars: 0);
       case EvidenceLevel.ungraded:
-        return (color: V2Colors.fgMuted, label: 'Evidence not graded', bars: 0);
+        return (color: p.fgMuted, label: 'Evidence not graded', bars: 0);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final s = _style();
+    final s = _style(context.v2);
     final scheme = Theme.of(context).colorScheme;
 
     return Container(

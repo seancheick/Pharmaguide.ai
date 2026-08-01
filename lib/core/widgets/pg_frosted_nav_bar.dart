@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 
 /// Canonical nav bar total height used by [PGFrostedNavBar]. Modal bottom
 /// sheets should add this to their bottom padding when the app is using
@@ -58,14 +58,15 @@ class PGFrostedNavBar extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final surface = isDark ? V2Colors.surfaceDark : V2Colors.surface;
-    final outline = isDark ? V2Colors.outlineDark : V2Colors.outline;
-    final indicator = V2Colors.accent.withValues(alpha: isDark ? 0.18 : 0.12);
+    final palette = context.v2;
+    final surface = palette.surface;
+    final outline = palette.outline;
+    final indicator = palette.accent.withValues(alpha: isDark ? 0.18 : 0.12);
 
     // Subtle cool tint — 8% blend of fg into surface gives the bar a
     // neutral-cool hue that contrasts noticeably against the warm cream
     // bg without looking gray.
-    final tinted = Color.lerp(surface, V2Colors.fg, isDark ? 0.0 : 0.08)!;
+    final tinted = Color.lerp(surface, palette.fg, isDark ? 0.0 : 0.08)!;
     final decoration = BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topCenter,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Unknown verdicts already breadcrumbed this session. colorFor/labelFor run
@@ -44,27 +44,31 @@ bool isUnsafeVerdict(String? verdict) {
 /// (SAFE / CAUTION / POOR / BLOCKED / NOT_SCORED / NUTRITION_ONLY).
 /// Retired labels are still accepted for old fixtures / cached rows.
 abstract final class VerdictBadge {
-  /// Brightness-aware color for a verdict string. Used externally by
-  /// consumers that need to color text or icons to match.
-  static Color colorFor(String verdict) {
+  /// Brightness-aware colour for a verdict string.
+  ///
+  /// Takes the palette explicitly: the previous signature promised
+  /// brightness-awareness in its doc while returning fixed light tokens, so a
+  /// BLOCKED verdict rendered at 2.38:1 on a dark surface. Requiring the
+  /// palette makes the promise checkable at the call site.
+  static Color colorFor(V2Palette p, String verdict) {
     switch (verdict.trim().toUpperCase()) {
       case 'RECOMMENDED':
-        return V2Colors.safe;
+        return p.safe;
       case 'SAFE':
       case 'GOOD':
-        return V2Colors.safe;
+        return p.safe;
       case 'CAUTION':
       case 'REVIEW':
-        return V2Colors.caution;
+        return p.caution;
       case 'POOR':
       case 'MODERATE':
-        return V2Colors.avoid;
+        return p.avoid;
       case 'UNSAFE':
       case 'BLOCKED':
-        return V2Colors.contraindicated;
+        return p.contraindicated;
       case 'NOT_SCORED':
       case 'NUTRITION_ONLY':
-        return V2Colors.fgSubtle;
+        return p.fgSubtle;
       default:
         // Fail-open guard: an unrecognized, non-empty verdict must NOT
         // render as a calm neutral chip — a future/corrupted BLOCKED-class
@@ -72,9 +76,9 @@ abstract final class VerdictBadge {
         // (not neutral, not safe) and breadcrumb the drift. An empty string
         // is "no verdict yet / not-scored placeholder", which stays neutral.
         final normalized = verdict.trim().toUpperCase();
-        if (normalized.isEmpty) return V2Colors.fgSubtle;
+        if (normalized.isEmpty) return p.fgSubtle;
         _reportUnknownVerdict(normalized);
-        return V2Colors.caution;
+        return p.caution;
     }
   }
 

@@ -1,16 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 
 void main() {
   group('VerdictBadge verdict contract', () {
     test('live catalog verdicts map to expected colors', () {
-      expect(VerdictBadge.colorFor('SAFE'), V2Colors.safe);
-      expect(VerdictBadge.colorFor('CAUTION'), V2Colors.caution);
-      expect(VerdictBadge.colorFor('POOR'), V2Colors.avoid);
-      expect(VerdictBadge.colorFor('BLOCKED'), V2Colors.contraindicated);
-      expect(VerdictBadge.colorFor('NOT_SCORED'), V2Colors.fgSubtle);
-      expect(VerdictBadge.colorFor('NUTRITION_ONLY'), V2Colors.fgSubtle);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'SAFE'), V2Palette.light.safe);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'CAUTION'), V2Palette.light.caution);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'POOR'), V2Palette.light.avoid);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'BLOCKED'), V2Palette.light.contraindicated);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'NOT_SCORED'), V2Palette.light.fgSubtle);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'NUTRITION_ONLY'), V2Palette.light.fgSubtle);
     });
 
     test('live catalog verdicts map to user-facing labels', () {
@@ -23,11 +23,11 @@ void main() {
     });
 
     test('retired aliases remain supported for cached rows and fixtures', () {
-      expect(VerdictBadge.colorFor('RECOMMENDED'), V2Colors.safe);
-      expect(VerdictBadge.colorFor('GOOD'), V2Colors.safe);
-      expect(VerdictBadge.colorFor('REVIEW'), V2Colors.caution);
-      expect(VerdictBadge.colorFor('MODERATE'), V2Colors.avoid);
-      expect(VerdictBadge.colorFor('UNSAFE'), V2Colors.contraindicated);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'RECOMMENDED'), V2Palette.light.safe);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'GOOD'), V2Palette.light.safe);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'REVIEW'), V2Palette.light.caution);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'MODERATE'), V2Palette.light.avoid);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'UNSAFE'), V2Palette.light.contraindicated);
     });
 
     test(
@@ -37,7 +37,7 @@ void main() {
         // know. Rendering it as a calm neutral/gray chip would let a
         // future/corrupted BLOCKED-class verdict slip past every blocked
         // gate, so colorFor fails toward CAUTION tone (not neutral, not safe).
-        expect(VerdictBadge.colorFor('FUTURE_LABEL'), V2Colors.caution);
+        expect(VerdictBadge.colorFor(V2Palette.light, 'FUTURE_LABEL'), V2Palette.light.caution);
         // labelFor still echoes the raw value so the corrupt verdict is
         // visible for debugging rather than masked behind a generic word.
         expect(VerdictBadge.labelFor('FUTURE_LABEL'), 'FUTURE_LABEL');
@@ -45,12 +45,12 @@ void main() {
     );
 
     test('empty / whitespace verdict stays neutral (no verdict yet)', () {
-      expect(VerdictBadge.colorFor(''), V2Colors.fgSubtle);
-      expect(VerdictBadge.colorFor('   '), V2Colors.fgSubtle);
+      expect(VerdictBadge.colorFor(V2Palette.light, ''), V2Palette.light.fgSubtle);
+      expect(VerdictBadge.colorFor(V2Palette.light, '   '), V2Palette.light.fgSubtle);
     });
 
     test('normalizes whitespace and case', () {
-      expect(VerdictBadge.colorFor('  caution  '), V2Colors.caution);
+      expect(VerdictBadge.colorFor(V2Palette.light, '  caution  '), V2Palette.light.caution);
       expect(VerdictBadge.labelFor('  nutrition_only  '), 'Nutrition only');
     });
   });

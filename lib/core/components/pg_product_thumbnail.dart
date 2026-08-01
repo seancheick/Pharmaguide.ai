@@ -59,7 +59,7 @@ class PGProductThumbnail extends StatelessWidget {
             // Frame.
             Container(
               decoration: BoxDecoration(
-                color: missing ? type.tint : context.v2.surface,
+                color: missing ? type.tint(context.v2) : context.v2.surface,
                 borderRadius: BorderRadius.circular(r),
                 border: Border.all(color: context.v2.outline),
               ),
@@ -100,10 +100,10 @@ class _PlaceholderArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (type == PGItemType.medication) {
-      return CustomPaint(painter: _BottlePainter(color: type.color));
+      return CustomPaint(painter: _BottlePainter(color: type.color(context.v2)));
     }
     return Center(
-      child: Icon(type.icon, size: size * 0.42, color: type.color),
+      child: Icon(type.icon, size: size * 0.42, color: type.color(context.v2)),
     );
   }
 }

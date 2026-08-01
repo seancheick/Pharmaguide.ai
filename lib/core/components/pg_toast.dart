@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -50,7 +50,7 @@ abstract final class PGToast {
   }) {
     if (messenger == null) return;
     final isDark = Theme.of(messenger.context).brightness == Brightness.dark;
-    final style = _style(variant, isDark);
+    final style = _style(variant, isDark, messenger.context.v2);
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -72,30 +72,30 @@ abstract final class PGToast {
   }
 
   static ({Color bg, Color fg, Color outline, Color iconTint, IconData icon})
-  _style(PGToastVariant variant, bool isDark) {
-    final bg = isDark ? V2Colors.surfaceDark : V2Colors.surface;
-    final fg = isDark ? V2Colors.fgDark : V2Colors.fg;
-    final outline = isDark ? V2Colors.outlineDark : V2Colors.outline;
+  _style(PGToastVariant variant, bool isDark, V2Palette p) {
+    final bg = p.surface;
+    final fg = p.fg;
+    final outline = p.outline;
     return switch (variant) {
       PGToastVariant.success => (
         bg: bg,
         fg: fg,
         outline: outline,
-        iconTint: V2Colors.safe,
+        iconTint: p.safe,
         icon: Icons.check_circle_rounded,
       ),
       PGToastVariant.info => (
         bg: bg,
         fg: fg,
         outline: outline,
-        iconTint: isDark ? V2Colors.accentDark : V2Colors.accent,
+        iconTint: p.accent,
         icon: Icons.info_rounded,
       ),
       PGToastVariant.error => (
         bg: bg,
         fg: fg,
         outline: outline,
-        iconTint: V2Colors.avoid,
+        iconTint: p.avoid,
         icon: Icons.error_rounded,
       ),
     };

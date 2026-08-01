@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -32,17 +32,21 @@ extension PGItemTypeX on PGItemType {
   /// Foreground tone. Supplements get the brand accent; medications get
   /// a calm desaturated brown-grey so the visual hierarchy stays muted
   /// (medications shouldn't shout — they're contextual, not alerts).
-  Color get color => switch (this) {
-    PGItemType.supplement => V2Colors.accent,
-    PGItemType.medication => V2Colors.monitor,
-    PGItemType.bookmark => V2Colors.fgMuted,
+  // Takes the palette: an enum has no element tree, but its colour
+  // still has to follow brightness.
+  Color color(V2Palette p) => switch (this) {
+    PGItemType.supplement => p.accent,
+    PGItemType.medication => p.monitor,
+    PGItemType.bookmark => p.fgMuted,
   };
 
   /// Background tint at low opacity.
-  Color get tint => switch (this) {
-    PGItemType.supplement => V2Colors.accentTint,
-    PGItemType.medication => V2Colors.monitorTint,
-    PGItemType.bookmark => V2Colors.outline,
+  // Takes the palette: an enum has no element tree, but its colour
+  // still has to follow brightness.
+  Color tint(V2Palette p) => switch (this) {
+    PGItemType.supplement => p.accentTint,
+    PGItemType.medication => p.monitorTint,
+    PGItemType.bookmark => p.outline,
   };
 }
 
@@ -71,8 +75,8 @@ class PGTypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = type.color;
-    final bg = solid ? color : type.tint;
+    final color = type.color(context.v2);
+    final bg = solid ? color : type.tint(context.v2);
     final fg = solid ? Colors.white : color;
 
     return Container(

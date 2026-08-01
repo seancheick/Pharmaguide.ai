@@ -985,7 +985,7 @@ class _RecentScanCard extends StatelessWidget {
   /// Score slot — decision delegated to [recentScanScoreDisplayFor] so a
   /// BLOCKED / UNSAFE / NOT_SCORED / low-coverage product can never
   /// render a fabricated tier-colored "0/100 Poor" line (P0, 2026-07-05).
-  Widget _scoreSlot() {
+  Widget _scoreSlot(BuildContext context) {
     switch (recentScanScoreDisplayFor(
       score: scan.score,
       verdict: scan.verdict,
@@ -1001,7 +1001,7 @@ class _RecentScanCard extends StatelessWidget {
           // verdict tone, not a score tier. Everything else stays muted.
           style: V2Typography.bodyMedium(
             color: unsafe
-                ? VerdictBadge.colorFor(scan.verdict!)
+                ? VerdictBadge.colorFor(context.v2, scan.verdict!)
                 : V2Colors.fgMuted,
           ).copyWith(fontSize: 14),
           maxLines: 1,
@@ -1011,7 +1011,7 @@ class _RecentScanCard extends StatelessWidget {
         return Text(
           'Limited data',
           style: V2Typography.bodyMedium(
-            color: V2Colors.fgMuted,
+            color: context.v2.fgMuted,
           ).copyWith(fontSize: 14),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -1078,7 +1078,7 @@ class _RecentScanCard extends StatelessWidget {
                 // Compact score line keeps tone alignment with the rest
                 // of v2 product surfaces. Verdict/coverage-gated — see
                 // _scoreSlot.
-                Center(child: _scoreSlot()),
+                Center(child: _scoreSlot(context)),
                 const SizedBox(height: V2Spacing.space8),
                 Expanded(
                   child: Column(

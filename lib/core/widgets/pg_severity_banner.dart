@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -57,33 +57,38 @@ class PGSeverityBanner extends StatelessWidget {
     this.margin = EdgeInsets.zero,
   });
 
-  ({Color accent, IconData icon}) _style() {
+  // Takes the palette rather than a BuildContext: this helper needs
+  // colours, not the element tree.
+  ({Color accent, IconData icon}) _style(V2Palette p) {
     switch (tone) {
       case PGBannerTone.info:
-        return (accent: V2Colors.accent, icon: Icons.info_outline_rounded);
+        return (accent: p.accent, icon: Icons.info_outline_rounded);
       case PGBannerTone.caution:
-        return (accent: V2Colors.caution, icon: Icons.warning_amber_rounded);
+        return (accent: p.caution, icon: Icons.warning_amber_rounded);
       case PGBannerTone.danger:
-        return (accent: V2Colors.contraindicated, icon: Icons.block_rounded);
+        return (accent: p.contraindicated, icon: Icons.block_rounded);
       case PGBannerTone.success:
         return (
-          accent: V2Colors.safe,
+          accent: p.safe,
           icon: Icons.check_circle_outline_rounded,
         );
       case PGBannerTone.neutral:
-        return (accent: V2Colors.fgMuted, icon: Icons.help_outline_rounded);
+        return (accent: p.fgMuted, icon: Icons.help_outline_rounded);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final style = _style();
+    final palette = context.v2;
+    final style = _style(palette);
     final tint = style.accent.withValues(alpha: isDark ? 0.14 : 0.06);
 
-    const surfaceColor = V2Colors.surface;
-    const outlineColor = V2Colors.outline;
-    const mutedColor = V2Colors.fgMuted;
+    // These were `const`, so they could not react to brightness even in
+    // principle — the banner stayed a bright card on a dark screen.
+    final surfaceColor = palette.surface;
+    final outlineColor = palette.outline;
+    final mutedColor = palette.fgMuted;
     const horizontalPadding = V2Spacing.space16;
     const verticalPadding = V2Spacing.space12;
     const iconGap = V2Spacing.space12;
@@ -140,7 +145,7 @@ class PGSeverityBanner extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: V2Typography.titleSm(color: V2Colors.fg),
+                        style: V2Typography.titleSm(color: palette.fg),
                       ),
                       if (body != null && body!.isNotEmpty) ...[
                         const SizedBox(height: bodyGap),

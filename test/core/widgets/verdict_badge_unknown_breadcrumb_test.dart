@@ -6,23 +6,23 @@
 // verdicts and the empty/placeholder verdict are unchanged.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 void main() {
   group('VerdictBadge unknown-verdict fail-open guard', () {
     test('unknown verdict is caution-tone, never safe or neutral', () {
-      final c = VerdictBadge.colorFor('SOME_NEW_VERDICT');
-      expect(c, V2Colors.caution);
-      expect(c, isNot(V2Colors.safe));
-      expect(c, isNot(V2Colors.fgSubtle));
+      final c = VerdictBadge.colorFor(V2Palette.light, 'SOME_NEW_VERDICT');
+      expect(c, V2Palette.light.caution);
+      expect(c, isNot(V2Palette.light.safe));
+      expect(c, isNot(V2Palette.light.fgSubtle));
     });
 
     test('known verdicts are untouched by the guard', () {
-      expect(VerdictBadge.colorFor('SAFE'), V2Colors.safe);
-      expect(VerdictBadge.colorFor('BLOCKED'), V2Colors.contraindicated);
-      expect(VerdictBadge.colorFor('NOT_SCORED'), V2Colors.fgSubtle);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'SAFE'), V2Palette.light.safe);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'BLOCKED'), V2Palette.light.contraindicated);
+      expect(VerdictBadge.colorFor(V2Palette.light, 'NOT_SCORED'), V2Palette.light.fgSubtle);
     });
 
     test('unknown verdict is breadcrumbed once per session (deduped)', () {
@@ -32,8 +32,8 @@ void main() {
       // Unique token so the module-global dedup set hasn't seen it. Each
       // test file runs in its own isolate, so this is fresh here.
       const canary = 'DRIFT_CANARY_XYZZY';
-      VerdictBadge.colorFor(canary);
-      VerdictBadge.colorFor(canary); // repeat render must NOT double-log
+      VerdictBadge.colorFor(V2Palette.light, canary);
+      VerdictBadge.colorFor(V2Palette.light, canary); // repeat render must NOT double-log
       VerdictBadge.labelFor(canary); // label path shares the dedup
 
       final hits = crash.breadcrumbs
@@ -50,8 +50,8 @@ void main() {
       final crash = CrashReportingService();
       crash.clearBuffersForTest();
 
-      VerdictBadge.colorFor('');
-      VerdictBadge.colorFor('   ');
+      VerdictBadge.colorFor(V2Palette.light, '');
+      VerdictBadge.colorFor(V2Palette.light, '   ');
 
       expect(crash.breadcrumbs, isEmpty);
     });

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -47,7 +47,7 @@ class PGComparePillarRow extends StatelessWidget {
     this.scoreB,
   });
 
-  Widget _side(double? score, int max) {
+  Widget _side(BuildContext context, double? score, int max) {
     final tone = PGScoreBreakdownCard.pillarTone(score, max);
     final fill = (score == null || max <= 0)
         ? 0.0
@@ -61,7 +61,7 @@ class PGComparePillarRow extends StatelessWidget {
             height: 6,
             child: Stack(
               children: [
-                Container(color: V2Colors.outline.withValues(alpha: 0.45)),
+                Container(color: context.v2.outline.withValues(alpha: 0.45)),
                 FractionallySizedBox(
                   widthFactor: fill,
                   child: Container(color: tone),
@@ -74,7 +74,7 @@ class PGComparePillarRow extends StatelessWidget {
         Text(
           score == null ? '—' : '${PGScoreBreakdownCard.fmtScore(score)}/$max',
           style: V2Typography.monoData(
-            color: score == null ? V2Colors.fgSubtle : tone,
+            color: score == null ? context.v2.fgSubtle : tone,
           ),
         ),
         // Shared presentation status (Strong / Mixed / Limited) beside the
@@ -97,14 +97,14 @@ class PGComparePillarRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: V2Typography.bodyMedium(color: V2Colors.fg)),
+        Text(label, style: V2Typography.bodyMedium(color: context.v2.fg)),
         const SizedBox(height: V2Spacing.space8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _side(scoreA, maxA)),
+            Expanded(child: _side(context, scoreA, maxA)),
             const SizedBox(width: V2Spacing.space16),
-            Expanded(child: _side(scoreB, maxB)),
+            Expanded(child: _side(context, scoreB, maxB)),
           ],
         ),
       ],
