@@ -41,9 +41,7 @@ class _HealthHistoryScreenState extends ConsumerState<HealthHistoryScreen> {
           : healthHistoryUpcomingProvider,
     );
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       appBar: AppBar(
-        backgroundColor: V2Colors.bg,
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Health History',

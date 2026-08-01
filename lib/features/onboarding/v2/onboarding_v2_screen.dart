@@ -155,7 +155,6 @@ class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
   Widget build(BuildContext context) {
     if (_celebrating) {
       return Scaffold(
-        backgroundColor: V2Colors.bg,
         body: PGHaloBackground(
           origin: const Alignment(0, -0.2),
           radius: 1.1,
@@ -177,7 +176,6 @@ class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
     final isLast = _currentPage == _totalPages - 1;
 
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       body: SafeArea(
         child: Column(
           children: [

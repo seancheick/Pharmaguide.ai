@@ -247,7 +247,6 @@ class ChatScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       body: SafeArea(
         bottom: false,
         child: ListView(
@@ -330,7 +329,6 @@ class CatalogUnavailableScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(V2Spacing.space24),
@@ -992,7 +990,6 @@ class _AuthCallbackScreenState extends State<_AuthCallbackScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       body: SafeArea(
         child: Center(
           child: Padding(

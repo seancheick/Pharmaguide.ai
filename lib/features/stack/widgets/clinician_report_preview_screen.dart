@@ -22,9 +22,7 @@ class ClinicianReportPreviewScreen extends ConsumerWidget {
     final document = ref.watch(clinicianReportDocumentProvider);
 
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       appBar: AppBar(
-        backgroundColor: V2Colors.bg,
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Clinician report',

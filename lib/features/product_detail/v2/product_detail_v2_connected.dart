@@ -312,9 +312,7 @@ class _ProductDetailV2ConnectedState
   Widget build(BuildContext context) {
     if (_productLoading) {
       return Scaffold(
-        backgroundColor: V2Colors.bg,
         appBar: AppBar(
-          backgroundColor: V2Colors.bg,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
         ),
@@ -324,9 +322,7 @@ class _ProductDetailV2ConnectedState
 
     if (_product == null) {
       return Scaffold(
-        backgroundColor: V2Colors.bg,
         appBar: AppBar(
-          backgroundColor: V2Colors.bg,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
@@ -624,7 +620,6 @@ class _ProductDetailV2ConnectedState
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: V2Colors.bg,
         body: CustomScrollView(
           controller: _anchors.scrollController,
           physics: const BouncingScrollPhysics(
@@ -1046,7 +1041,6 @@ class _ProductDetailV2ConnectedState
 
   Widget _buildAppBar() {
     return SliverAppBar(
-      backgroundColor: V2Colors.bg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       pinned: false,

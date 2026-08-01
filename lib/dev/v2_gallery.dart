@@ -42,7 +42,6 @@ class V2Gallery extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       appBar: AppBar(
         title: Text('v2 gallery', style: V2Typography.titleSm()),
         backgroundColor: V2Colors.bg,

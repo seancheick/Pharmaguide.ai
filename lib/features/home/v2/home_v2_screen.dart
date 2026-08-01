@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -172,14 +173,8 @@ class HomeV2Screen extends ConsumerWidget {
             child: scrollView,
           );
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: V2Colors.bg,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
+      value: v2SystemOverlay(context),
       child: Scaffold(
-        backgroundColor: V2Colors.bg,
         extendBody: true,
         body: body,
         bottomNavigationBar: !showNavBar

@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
@@ -138,14 +139,8 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: V2Colors.bg,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
+      value: v2SystemOverlay(context),
       child: Scaffold(
-        backgroundColor: V2Colors.bg,
         body: PGHaloBackground(
           // Halo origin matches splash for emotional continuity — the
           // user has just seen the same soft accent glow on the

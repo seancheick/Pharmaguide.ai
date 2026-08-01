@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 
 /// Brightness-resolved semantic colours for every v2 surface.
@@ -214,4 +215,32 @@ extension V2PaletteContext on BuildContext {
     );
     return palette ?? V2Palette.of(Theme.of(this).brightness);
   }
+}
+
+/// System chrome (status bar + navigation bar) matching the current theme.
+///
+/// Screens previously hardcoded `Brightness.dark` icons over a light nav bar.
+/// In dark mode that paints dark icons onto a dark bar, so the clock and
+/// battery vanish — the same invisible-on-invisible failure as the text, just
+/// in the OS chrome where it is easy to miss.
+/// Resolves from brightness alone, deliberately NOT via `context.v2`.
+///
+/// System chrome must render even where the extension is absent — a bare
+/// `MaterialApp` in a widget test, or any surface not yet migrated. Requiring
+/// the extension here coupled every screen's chrome to full theme
+/// registration and broke 42 tests that legitimately pump a plain app. The
+/// assert on `context.v2` still guards *content*, which is where a wrong
+/// colour is invisible rather than merely unthemed.
+SystemUiOverlayStyle v2SystemOverlay(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final palette = V2Palette.of(Theme.of(context).brightness);
+  // Icon brightness is the INVERSE of the surface it sits on.
+  final iconBrightness = isDark ? Brightness.light : Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: iconBrightness,
+    statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+    systemNavigationBarColor: palette.bg,
+    systemNavigationBarIconBrightness: iconBrightness,
+  );
 }

@@ -47,9 +47,7 @@ class CompareScreen extends ConsumerWidget {
     final entryB = ref.watch(compareEntryProvider(dsldIdB));
 
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       appBar: AppBar(
-        backgroundColor: V2Colors.bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(

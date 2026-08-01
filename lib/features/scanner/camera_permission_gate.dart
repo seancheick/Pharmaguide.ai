@@ -98,7 +98,6 @@ class _CameraPermissionCheckingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       body: SafeArea(
         child: Center(
           child: Padding(

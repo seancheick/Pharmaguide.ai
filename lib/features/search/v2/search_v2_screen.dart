@@ -370,7 +370,6 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     final mq = MediaQuery.paddingOf(context);
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       body: SafeArea(
         bottom: false,
         child: Column(

@@ -65,7 +65,6 @@ class SettingsV2Screen extends StatelessWidget {
         (Uri uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
 
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       body: SafeArea(
         bottom: false,
         child: ListView(

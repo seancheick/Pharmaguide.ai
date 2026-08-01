@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
@@ -64,14 +65,8 @@ class CameraPermissionV2Screen extends StatelessWidget {
         : Icons.camera_alt_rounded;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: V2Colors.bg,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
+      value: v2SystemOverlay(context),
       child: Scaffold(
-        backgroundColor: V2Colors.bg,
         body: PGHaloBackground(
           origin: const Alignment(0, -0.45),
           radius: 1.0,

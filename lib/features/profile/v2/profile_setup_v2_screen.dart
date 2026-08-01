@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -526,14 +527,8 @@ class _ProfileSetupV2ScreenState extends ConsumerState<ProfileSetupV2Screen> {
     final mq = MediaQuery.of(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: V2Colors.bg,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
+      value: v2SystemOverlay(context),
       child: Scaffold(
-        backgroundColor: V2Colors.bg,
         body: SafeArea(
           bottom: false,
           child: Stack(
