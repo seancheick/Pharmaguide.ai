@@ -14,26 +14,26 @@
 //                          the bigger clinical risk).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 
 void main() {
   group('searchVerdictTone', () {
     test('SAFE maps to the safe/green tone — not the gray fallback', () {
-      expect(searchVerdictTone('SAFE'), V2Colors.safe);
+      expect(searchVerdictTone(V2Palette.light, 'SAFE'), V2Palette.light.safe);
     });
 
     test('verdict tone matching is case/whitespace-insensitive', () {
-      expect(searchVerdictTone(' safe '), V2Colors.safe);
+      expect(searchVerdictTone(V2Palette.light, ' safe '), V2Palette.light.safe);
     });
 
     test('BLOCKED / UNSAFE stay contraindicated', () {
-      expect(searchVerdictTone('BLOCKED'), V2Colors.contraindicated);
-      expect(searchVerdictTone('UNSAFE'), V2Colors.contraindicated);
+      expect(searchVerdictTone(V2Palette.light, 'BLOCKED'), V2Palette.light.contraindicated);
+      expect(searchVerdictTone(V2Palette.light, 'UNSAFE'), V2Palette.light.contraindicated);
     });
 
     test('NOT_SCORED stays on the neutral fallback', () {
-      expect(searchVerdictTone('NOT_SCORED'), V2Colors.fgMuted);
+      expect(searchVerdictTone(V2Palette.light, 'NOT_SCORED'), V2Palette.light.fgMuted);
     });
   });
 

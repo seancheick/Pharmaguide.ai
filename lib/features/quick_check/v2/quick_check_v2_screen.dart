@@ -17,7 +17,7 @@
 //
 // What it does change visually:
 //
-//   * Cream `V2Colors.bg` Scaffold, no Material AppBar.
+//   * Cream `context.v2.bg` Scaffold, no Material AppBar.
 //   * Top row: back chip + page eyebrow "Check together".
 //   * Newsreader serif header that names the moment plainly
 //     ("Check two things together.") plus a calm helper line.
@@ -37,7 +37,7 @@
 //         "Ingredient data is incomplete" headline. Sean
 //         requirement #7: the fallback behavior for one or both
 //         products missing ingredient data renders here unchanged.
-//       - **Clean** — `V2Colors.safe` accent-tint card with a
+//       - **Clean** — `context.v2.safe` accent-tint card with a
 //         check icon, "No known interactions" headline, and a
 //         calm "Always check with your clinician" footer.
 //       - **One or more interactions** — count badge eyebrow at
@@ -69,7 +69,6 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -465,18 +464,18 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
                       const SizedBox(height: V2Spacing.space12),
                     ],
                     if (_checkError)
-                      const _StateCard(
+                      _StateCard(
                         icon: Icons.cloud_off_rounded,
-                        tint: V2Colors.caution,
+                        tint: context.v2.caution,
                         headline: 'Database unavailable',
                         body:
                             'The interaction database could not be loaded. '
                             'Try again in a moment.',
                       )
                     else if (_insufficientData)
-                      const _StateCard(
+                      _StateCard(
                         icon: Icons.help_outline_rounded,
-                        tint: V2Colors.monitor,
+                        tint: context.v2.monitor,
                         headline: 'Ingredient data is incomplete',
                         body:
                             'One or both products lack the detailed '
@@ -534,9 +533,9 @@ class _TopBar extends StatelessWidget {
             SizedBox(
               width: 40,
               child: IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_ios_new_rounded,
-                  color: V2Colors.fg,
+                  color: context.v2.fg,
                   size: 18,
                 ),
                 onPressed: onBack,
@@ -562,14 +561,14 @@ class _Header extends StatelessWidget {
       children: [
         Text(
           'Check two things\ntogether.',
-          style: V2Typography.displaySm(color: V2Colors.fg),
+          style: V2Typography.displaySm(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space12),
         Text(
           'Pick two supplements or medications and we’ll flag known '
           'interactions worth a clinician conversation. Used only on '
           'this device.',
-          style: V2Typography.body(color: V2Colors.fgMuted),
+          style: V2Typography.body(color: context.v2.fgMuted),
         ),
       ],
     );
@@ -611,10 +610,10 @@ class _ProductSearchSection extends StatelessWidget {
     final focused = focusNode.hasFocus;
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         border: Border.all(
-          color: selected != null ? V2Colors.accent : V2Colors.outline,
+          color: selected != null ? context.v2.accent : context.v2.outline,
           width: selected != null ? 1.5 : 1.0,
         ),
         boxShadow: V2Shadows.sm,
@@ -634,14 +633,14 @@ class _ProductSearchSection extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: V2Colors.accentTint,
+                  color: context.v2.accentTint,
                   borderRadius: BorderRadius.circular(V2Spacing.space8),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, size: 16, color: V2Colors.accent),
+                child: Icon(icon, size: 16, color: context.v2.accent),
               ),
               const SizedBox(width: V2Spacing.space12),
-              PGEyebrow(eyebrow, color: V2Colors.fgMuted),
+              PGEyebrow(eyebrow, color: context.v2.fgMuted),
             ],
           ),
           const SizedBox(height: V2Spacing.space12),
@@ -659,10 +658,10 @@ class _ProductSearchSection extends StatelessWidget {
                 horizontal: V2Spacing.space12,
               ),
               decoration: BoxDecoration(
-                color: V2Colors.bg,
+                color: context.v2.bg,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                 border: Border.all(
-                  color: focused ? V2Colors.accent : V2Colors.outline,
+                  color: focused ? context.v2.accent : context.v2.outline,
                   width: focused ? 1.5 : 1.0,
                 ),
               ),
@@ -671,7 +670,7 @@ class _ProductSearchSection extends StatelessWidget {
                   Icon(
                     Icons.search_rounded,
                     size: 18,
-                    color: focused ? V2Colors.accent : V2Colors.fgSubtle,
+                    color: focused ? context.v2.accent : context.v2.fgSubtle,
                   ),
                   const SizedBox(width: V2Spacing.space8),
                   Expanded(
@@ -682,7 +681,7 @@ class _ProductSearchSection extends StatelessWidget {
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
                         hintText: 'Search by name',
-                        hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+                        hintStyle: V2Typography.body(color: context.v2.fgSubtle),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -692,8 +691,8 @@ class _ProductSearchSection extends StatelessWidget {
                         isCollapsed: true,
                         isDense: true,
                       ),
-                      style: V2Typography.body(color: V2Colors.fg),
-                      cursorColor: V2Colors.accent,
+                      style: V2Typography.body(color: context.v2.fg),
+                      cursorColor: context.v2.accent,
                       cursorWidth: 1.5,
                       onChanged: onChanged,
                     ),
@@ -709,10 +708,10 @@ class _ProductSearchSection extends StatelessWidget {
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
                 itemCount: suggestions.length,
-                separatorBuilder: (_, __) => const Divider(
+                separatorBuilder: (_, __) => Divider(
                   height: 1,
                   thickness: 0.5,
-                  color: V2Colors.outline,
+                  color: context.v2.outline,
                 ),
                 itemBuilder: (context, i) => _SuggestionRow(
                   item: suggestions[i],
@@ -752,7 +751,7 @@ class _SuggestionRow extends StatelessWidget {
                   children: [
                     Text(
                       item.name,
-                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -761,7 +760,7 @@ class _SuggestionRow extends StatelessWidget {
                       item.isMedication
                           ? 'Medication'
                           : item.brandName ?? 'Supplement',
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      style: V2Typography.caption(color: context.v2.fgMuted),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -778,12 +777,12 @@ class _SuggestionRow extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: V2Colors.accentTint,
+                    color: context.v2.accentTint,
                     borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                   ),
                   child: Text(
                     '${item.score}',
-                    style: V2Typography.eyebrow(color: V2Colors.accent),
+                    style: V2Typography.eyebrow(color: context.v2.accent),
                   ),
                 ),
               ],
@@ -803,7 +802,7 @@ class _TypeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = item.isMedication ? 'Rx' : 'Supp';
-    final tone = item.isMedication ? V2Colors.monitor : V2Colors.accent;
+    final tone = item.isMedication ? context.v2.monitor : context.v2.accent;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: V2Spacing.space8,
@@ -834,10 +833,10 @@ class _SelectedItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(
+        Icon(
           Icons.check_circle_rounded,
           size: 18,
-          color: V2Colors.accent,
+          color: context.v2.accent,
         ),
         const SizedBox(width: V2Spacing.space12),
         Expanded(
@@ -846,7 +845,7 @@ class _SelectedItemRow extends StatelessWidget {
             children: [
               Text(
                 item.name,
-                style: V2Typography.bodyMedium(color: V2Colors.fg),
+                style: V2Typography.bodyMedium(color: context.v2.fg),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -857,7 +856,7 @@ class _SelectedItemRow extends StatelessWidget {
                     : item.isMedication
                     ? 'Medication'
                     : item.brandName ?? 'Supplement',
-                style: V2Typography.caption(color: V2Colors.fgMuted),
+                style: V2Typography.caption(color: context.v2.fgMuted),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -874,7 +873,7 @@ class _SelectedItemRow extends StatelessWidget {
             ),
             child: Text(
               'Change',
-              style: V2Typography.label(color: V2Colors.accent),
+              style: V2Typography.label(color: context.v2.accent),
             ),
           ),
         ),
@@ -905,9 +904,9 @@ class _StateCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space24),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -924,9 +923,9 @@ class _StateCard extends StatelessWidget {
             child: Icon(icon, size: 18, color: tint),
           ),
           const SizedBox(height: V2Spacing.space12),
-          Text(headline, style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(headline, style: V2Typography.titleSm(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space8),
-          Text(body, style: V2Typography.body(color: V2Colors.fgMuted)),
+          Text(body, style: V2Typography.body(color: context.v2.fgMuted)),
         ],
       ),
     );
@@ -951,9 +950,9 @@ class _SelfVerdictBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space24),
       decoration: BoxDecoration(
-        color: V2Colors.contraindicatedTint,
+        color: context.v2.contraindicatedTint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.contraindicated, width: 1.5),
+        border: Border.all(color: context.v2.contraindicated, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -961,16 +960,16 @@ class _SelfVerdictBanner extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
+              Icon(
                 Icons.block_rounded,
-                color: V2Colors.contraindicated,
+                color: context.v2.contraindicated,
                 size: 22,
               ),
               const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: PGEyebrow(
                   VerdictBadge.labelFor(verdict).toUpperCase(),
-                  color: V2Colors.contraindicated,
+                  color: context.v2.contraindicated,
                 ),
               ),
             ],
@@ -980,7 +979,7 @@ class _SelfVerdictBanner extends StatelessWidget {
             '$name is flagged unsafe to use on its own. A "safe together" '
             'check can\'t clear a product that\'s already unsafe by itself — '
             'do not use it, and talk to your clinician.',
-            style: V2Typography.body(color: V2Colors.fg),
+            style: V2Typography.body(color: context.v2.fg),
           ),
         ],
       ),
@@ -1022,8 +1021,8 @@ class _ResultsBlock extends StatelessWidget {
       final String eyebrow;
       final String body;
       if (coverageIncomplete) {
-        tint = V2Colors.caution;
-        tintBg = V2Colors.cautionTint;
+        tint = context.v2.caution;
+        tintBg = context.v2.cautionTint;
         icon = Icons.warning_amber_rounded;
         eyebrow = 'Coverage incomplete';
         body =
@@ -1031,8 +1030,8 @@ class _ResultsBlock extends StatelessWidget {
             'data for one or both selections — interaction coverage '
             'may be incomplete. Always confirm with a clinician.';
       } else {
-        tint = V2Colors.accent;
-        tintBg = V2Colors.surface;
+        tint = context.v2.accent;
+        tintBg = context.v2.surface;
         icon = Icons.check_circle_outline_rounded;
         eyebrow = 'No interaction catalogued';
         body =
@@ -1060,7 +1059,7 @@ class _ResultsBlock extends StatelessWidget {
               ],
             ),
             const SizedBox(height: V2Spacing.space12),
-            Text(body, style: V2Typography.body(color: V2Colors.fg)),
+            Text(body, style: V2Typography.body(color: context.v2.fg)),
           ],
         ),
       );
@@ -1086,7 +1085,7 @@ class _ResultsBlock extends StatelessWidget {
         Text(
           'This is educational information, not medical advice. '
           'Always consult your healthcare provider.',
-          style: V2Typography.caption(color: V2Colors.fgMuted),
+          style: V2Typography.caption(color: context.v2.fgMuted),
         ),
       ],
     );
@@ -1097,31 +1096,31 @@ class _InteractionCard extends StatelessWidget {
   final InteractionResult result;
   const _InteractionCard({required this.result});
 
-  Color get _severityColor => switch (result.severity) {
-    Severity.contraindicated => V2Colors.contraindicated,
-    Severity.avoid => V2Colors.avoid,
-    Severity.caution => V2Colors.caution,
-    Severity.monitor => V2Colors.monitor,
-    Severity.informational => V2Colors.fgMuted,
-    Severity.safe => V2Colors.safe,
+  Color _severityColor(V2Palette p) => switch (result.severity) {
+    Severity.contraindicated => p.contraindicated,
+    Severity.avoid => p.avoid,
+    Severity.caution => p.caution,
+    Severity.monitor => p.monitor,
+    Severity.informational => p.fgMuted,
+    Severity.safe => p.safe,
   };
 
-  Color get _severityTint => switch (result.severity) {
-    Severity.contraindicated => V2Colors.contraindicatedTint,
-    Severity.avoid => V2Colors.avoidTint,
-    Severity.caution => V2Colors.cautionTint,
-    Severity.monitor => V2Colors.monitorTint,
-    Severity.informational => V2Colors.outline,
-    Severity.safe => V2Colors.safeTint,
+  Color _severityTint(V2Palette p) => switch (result.severity) {
+    Severity.contraindicated => p.contraindicatedTint,
+    Severity.avoid => p.avoidTint,
+    Severity.caution => p.cautionTint,
+    Severity.monitor => p.monitorTint,
+    Severity.informational => p.outline,
+    Severity.safe => p.safeTint,
   };
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -1130,7 +1129,7 @@ class _InteractionCard extends StatelessWidget {
           // Severity strip + label
           Container(
             decoration: BoxDecoration(
-              color: _severityTint,
+              color: _severityTint(context.v2),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(V2Spacing.radiusCard),
               ),
@@ -1145,19 +1144,19 @@ class _InteractionCard extends StatelessWidget {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: _severityColor,
+                    color: _severityColor(context.v2),
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: V2Spacing.space8),
                 Text(
                   result.severity.label.toUpperCase(),
-                  style: V2Typography.eyebrow(color: _severityColor),
+                  style: V2Typography.eyebrow(color: _severityColor(context.v2)),
                 ),
                 const Spacer(),
                 Text(
                   result.evidenceLevel.label,
-                  style: V2Typography.overline(color: V2Colors.fgMuted),
+                  style: V2Typography.overline(color: context.v2.fgMuted),
                 ),
               ],
             ),
@@ -1170,20 +1169,20 @@ class _InteractionCard extends StatelessWidget {
                 _PairLine(a: result.agent1Name, b: result.agent2Name),
                 if (result.mechanism.isNotEmpty) ...[
                   const SizedBox(height: V2Spacing.space16),
-                  const PGEyebrow('Why', color: V2Colors.fgMuted),
+                  PGEyebrow('Why', color: context.v2.fgMuted),
                   const SizedBox(height: V2Spacing.space4),
                   Text(
                     result.mechanism,
-                    style: V2Typography.body(color: V2Colors.fg),
+                    style: V2Typography.body(color: context.v2.fg),
                   ),
                 ],
                 if (result.management.isNotEmpty) ...[
                   const SizedBox(height: V2Spacing.space16),
-                  const PGEyebrow('What to do', color: V2Colors.fgMuted),
+                  PGEyebrow('What to do', color: context.v2.fgMuted),
                   const SizedBox(height: V2Spacing.space4),
                   Text(
                     result.management,
-                    style: V2Typography.body(color: V2Colors.fg),
+                    style: V2Typography.body(color: context.v2.fg),
                   ),
                 ],
               ],
@@ -1208,22 +1207,22 @@ class _PairLine extends StatelessWidget {
         Expanded(
           child: Text(
             a,
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: V2Spacing.space8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
           child: Text(
             '·',
-            style: TextStyle(fontSize: 16, color: V2Colors.fgMuted),
+            style: TextStyle(fontSize: 16, color: context.v2.fgMuted),
           ),
         ),
         Expanded(
           child: Text(
             b,
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,

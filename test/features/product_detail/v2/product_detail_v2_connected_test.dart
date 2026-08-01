@@ -2,11 +2,11 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -613,7 +613,7 @@ void main() {
         final decoration =
             tester.widget<Container>(disclosureCard).decoration
                 as BoxDecoration;
-        expect(decoration.color, V2Colors.surface);
+        expect(decoration.color, V2Palette.light.surface);
         expect(decoration.border, isNotNull);
         expect(
           decoration.borderRadius,

@@ -5,9 +5,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/pg_favorite_button.dart';
@@ -94,7 +94,7 @@ void main() {
       expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
       expect(
         tester.widget<Icon>(find.byIcon(Icons.favorite_rounded)).color,
-        V2Colors.accent,
+        V2Palette.light.accent,
       );
 
       await tester.tap(find.byKey(const Key('product-favorite-heart')));

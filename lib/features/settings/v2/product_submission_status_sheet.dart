@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
@@ -50,13 +50,13 @@ class _ProductSubmissionStatusSheetState
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Product submissions',
-              style: V2Typography.title(color: V2Colors.fg),
+              style: V2Typography.title(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Only products you submitted appear here. A reviewer must '
               'approve label evidence before it can enter the catalog.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space16),
             Flexible(
@@ -73,7 +73,7 @@ class _ProductSubmissionStatusSheetState
                   if (statuses.isEmpty) {
                     return Text(
                       'No product submissions yet.',
-                      style: V2Typography.body(color: V2Colors.fgMuted),
+                      style: V2Typography.body(color: context.v2.fgMuted),
                     );
                   }
                   return ListView.separated(
@@ -101,7 +101,7 @@ class _SubmissionStatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final display = _statusDisplay(status);
+    final display = _statusDisplay(context.v2, status);
     final identity = switch (status.kind) {
       ProductSubmissionKind.labelMismatch => 'Catalog correction',
       ProductSubmissionKind.missingProduct =>
@@ -120,7 +120,7 @@ class _SubmissionStatusRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(identity, style: V2Typography.body(color: V2Colors.fg)),
+                Text(identity, style: V2Typography.body(color: context.v2.fg)),
                 const SizedBox(height: V2Spacing.space4),
                 Text(
                   display.label,
@@ -130,7 +130,7 @@ class _SubmissionStatusRow extends StatelessWidget {
                   const SizedBox(height: V2Spacing.space4),
                   Text(
                     'Catalog version $version',
-                    style: V2Typography.caption(color: V2Colors.fgMuted),
+                    style: V2Typography.caption(color: context.v2.fgMuted),
                   ),
                 ],
               ],
@@ -150,53 +150,53 @@ class _StatusDisplay {
   final Color color;
 }
 
-_StatusDisplay _statusDisplay(ProductSubmissionSummary status) {
+_StatusDisplay _statusDisplay(V2Palette p, ProductSubmissionSummary status) {
   if (!status.hasKnownState) {
-    return const _StatusDisplay(
+    return _StatusDisplay(
       'Status unavailable',
       Icons.help_outline_rounded,
-      V2Colors.fgMuted,
+      p.fgMuted,
     );
   }
   if (status.isComplete) {
-    return const _StatusDisplay(
+    return _StatusDisplay(
       'Added to catalog',
       Icons.task_alt_rounded,
-      V2Colors.safe,
+      p.safe,
     );
   }
   if (status.uploadState != ProductSubmissionUploadState.ready) {
-    return const _StatusDisplay(
+    return _StatusDisplay(
       'Upload incomplete — start a new submission to try again',
       Icons.cloud_off_outlined,
-      V2Colors.caution,
+      p.caution,
     );
   }
   return switch (status.reviewStatus) {
-    ProductSubmissionReviewStatus.submitted => const _StatusDisplay(
+    ProductSubmissionReviewStatus.submitted => _StatusDisplay(
       'Waiting for review',
       Icons.schedule_rounded,
-      V2Colors.fgMuted,
+      p.fgMuted,
     ),
-    ProductSubmissionReviewStatus.underReview => const _StatusDisplay(
+    ProductSubmissionReviewStatus.underReview => _StatusDisplay(
       'Under review',
       Icons.fact_check_outlined,
-      V2Colors.accent,
+      p.accent,
     ),
-    ProductSubmissionReviewStatus.approved => const _StatusDisplay(
+    ProductSubmissionReviewStatus.approved => _StatusDisplay(
       'Approved — waiting for a catalog release',
       Icons.verified_outlined,
-      V2Colors.safe,
+      p.safe,
     ),
-    ProductSubmissionReviewStatus.rejected => const _StatusDisplay(
+    ProductSubmissionReviewStatus.rejected => _StatusDisplay(
       'Not added',
       Icons.block_outlined,
-      V2Colors.fgMuted,
+      p.fgMuted,
     ),
-    ProductSubmissionReviewStatus.duplicate => const _StatusDisplay(
+    ProductSubmissionReviewStatus.duplicate => _StatusDisplay(
       'Already under review',
       Icons.content_copy_outlined,
-      V2Colors.fgMuted,
+      p.fgMuted,
     ),
     ProductSubmissionReviewStatus.unknown => throw StateError(
       'Unknown review state must be handled before display.',
@@ -216,7 +216,7 @@ class _StatusError extends StatelessWidget {
       children: [
         Text(
           'Submission status is unavailable right now.',
-          style: V2Typography.body(color: V2Colors.fgMuted),
+          style: V2Typography.body(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space12),
         TextButton(onPressed: onRetry, child: const Text('Try again')),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -63,17 +63,17 @@ class StackSafetyDetailsSheet extends StatelessWidget {
           children: [
             PGEyebrow(
               'Review ${signals.length} signals',
-              color: V2Colors.caution,
+              color: context.v2.caution,
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Stack safety',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               'Review supplement totals and interactions found in your stack.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space16),
             Flexible(
@@ -81,9 +81,9 @@ class StackSafetyDetailsSheet extends StatelessWidget {
                 shrinkWrap: true,
                 children: [
                   if (needsAttention.isNotEmpty)
-                    ..._section('Needs attention', needsAttention),
+                    ..._section(context, 'Needs attention', needsAttention),
                   if (goodToKnow.isNotEmpty)
-                    ..._section('Good to know', goodToKnow),
+                    ..._section(context, 'Good to know', goodToKnow),
                   if (checkIncomplete) const _CheckStatusNotice(),
                 ],
               ),
@@ -94,15 +94,15 @@ class StackSafetyDetailsSheet extends StatelessWidget {
     );
   }
 
-  List<Widget> _section(String heading, List<ClinicalSignal> signals) {
+  List<Widget> _section(BuildContext context, String heading, List<ClinicalSignal> signals) {
     return [
       Padding(
         padding: const EdgeInsets.only(bottom: V2Spacing.space8),
-        child: PGEyebrow(heading, color: V2Colors.fgMuted),
+        child: PGEyebrow(heading, color: context.v2.fgMuted),
       ),
       for (var i = 0; i < signals.length; i++) ...[
         if (i > 0)
-          const Divider(height: V2Spacing.space24, color: V2Colors.outline),
+          Divider(height: V2Spacing.space24, color: context.v2.outline),
         _SafetySignalRow(
           key: Key('stack-safety-signal-${signals[i].signalId}'),
           signal: signals[i],
@@ -126,19 +126,19 @@ class _CheckStatusNotice extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PGEyebrow('Check status', color: V2Colors.fgMuted),
+          PGEyebrow('Check status', color: context.v2.fgMuted),
           const SizedBox(height: V2Spacing.space8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.help_outline, color: V2Colors.fgMuted, size: 20),
+              Icon(Icons.help_outline, color: context.v2.fgMuted, size: 20),
               const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: Text(
                   'Some checks could not be completed. This is not an all-clear '
                   '— review your stack with your clinician.',
                   style: V2Typography.bodySm(
-                    color: V2Colors.fgMuted,
+                    color: context.v2.fgMuted,
                   ).copyWith(height: 1.35),
                 ),
               ),
@@ -163,7 +163,7 @@ class _SafetySignalRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(model.icon, color: _colorFor(model.severity), size: 20),
+          Icon(model.icon, color: _colorFor(context.v2, model.severity), size: 20),
           const SizedBox(width: V2Spacing.space12),
           Expanded(
             child: Column(
@@ -171,13 +171,13 @@ class _SafetySignalRow extends StatelessWidget {
               children: [
                 Text(
                   model.title,
-                  style: V2Typography.label(color: V2Colors.fg),
+                  style: V2Typography.label(color: context.v2.fg),
                 ),
                 const SizedBox(height: V2Spacing.space4),
                 Text(
                   model.body,
                   style: V2Typography.bodySm(
-                    color: V2Colors.fgMuted,
+                    color: context.v2.fgMuted,
                   ).copyWith(height: 1.35),
                 ),
               ],
@@ -188,18 +188,18 @@ class _SafetySignalRow extends StatelessWidget {
     );
   }
 
-  static Color _colorFor(Severity severity) {
+  static Color _colorFor(V2Palette p, Severity severity) {
     switch (severity) {
       case Severity.contraindicated:
       case Severity.avoid:
-        return V2Colors.contraindicated;
+        return p.contraindicated;
       case Severity.caution:
       case Severity.monitor:
-        return V2Colors.caution;
+        return p.caution;
       case Severity.informational:
-        return V2Colors.accent;
+        return p.accent;
       case Severity.safe:
-        return V2Colors.safe;
+        return p.safe;
     }
   }
 }

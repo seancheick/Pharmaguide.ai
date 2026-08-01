@@ -13,7 +13,7 @@
 //
 // Visual contract:
 //
-//   * Cream `V2Colors.bg` Scaffold, no Material AppBar.
+//   * Cream `context.v2.bg` Scaffold, no Material AppBar.
 //   * Top row: back chip + v2 search field (cream surface, accent
 //     focus, search icon, inline clear chip — same shape as the
 //     MedicationEntry v2 search field).
@@ -60,7 +60,7 @@ import 'package:pharmaguide/core/presentation/package_identity.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -459,7 +459,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
               },
               child: Text(
                 'Clear All',
-                style: V2Typography.body(color: V2Colors.fgMuted),
+                style: V2Typography.body(color: context.v2.fgMuted),
               ),
             ),
           ],
@@ -567,7 +567,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
               Expanded(
                 child: Text(
                   _resultsHeaderText(partition),
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -600,7 +600,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
     // Editing the query (exploring) brings them back.
     final suggestions = _committed
         ? const <_SearchSuggestion>[]
-        : _buildSuggestions(_query, partition.onMarket);
+        : _buildSuggestions(context.v2, _query, partition.onMarket);
     final products = partition.onMarket.isNotEmpty
         ? partition.onMarket
         : partition.offMarket;
@@ -680,8 +680,8 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
         ),
       );
       children.add(
-        const Padding(
-          padding: EdgeInsets.fromLTRB(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
             V2Spacing.space4,
             V2Spacing.space24,
@@ -693,7 +693,7 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
             'Tap to see the timeline.',
             style: TextStyle(
               fontSize: 12,
-              color: V2Colors.fgMuted,
+              color: context.v2.fgMuted,
               height: 1.5,
             ),
           ),
@@ -927,7 +927,7 @@ class _TopRow extends StatelessWidget {
             width: 56,
             height: 56,
             child: Material(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               shape: const CircleBorder(),
               child: InkWell(
                 customBorder: const CircleBorder(),
@@ -935,9 +935,9 @@ class _TopRow extends StatelessWidget {
                   unawaited(PGHaptics.tap(context));
                   onBack();
                 },
-                child: const Icon(
+                child: Icon(
                   Icons.arrow_back_rounded,
-                  color: V2Colors.fg,
+                  color: context.v2.fg,
                   size: 27,
                 ),
               ),
@@ -953,11 +953,11 @@ class _TopRow extends StatelessWidget {
                 horizontal: V2Spacing.space16,
               ),
               decoration: BoxDecoration(
-                color: V2Colors.surface,
+                color: context.v2.surface,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                 border: Border.all(
                   color: focused
-                      ? V2Colors.safe.withValues(alpha: 0.26)
+                      ? context.v2.safe.withValues(alpha: 0.26)
                       : Colors.transparent,
                   width: 1.0,
                 ),
@@ -968,7 +968,7 @@ class _TopRow extends StatelessWidget {
                   Icon(
                     Icons.search_rounded,
                     size: 30,
-                    color: focused ? V2Colors.safe : V2Colors.fgMuted,
+                    color: focused ? context.v2.safe : context.v2.fgMuted,
                   ),
                   const SizedBox(width: V2Spacing.space12),
                   Expanded(
@@ -981,7 +981,7 @@ class _TopRow extends StatelessWidget {
                       decoration: InputDecoration(
                         hintText: 'Search supplements',
                         hintStyle: V2Typography.bodyXl(
-                          color: V2Colors.fgSubtle,
+                          color: context.v2.fgSubtle,
                         ),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
@@ -992,8 +992,8 @@ class _TopRow extends StatelessWidget {
                         isCollapsed: true,
                         isDense: true,
                       ),
-                      style: V2Typography.bodyXl(color: V2Colors.fg),
-                      cursorColor: V2Colors.safe,
+                      style: V2Typography.bodyXl(color: context.v2.fg),
+                      cursorColor: context.v2.safe,
                       cursorWidth: 2,
                       onChanged: onChanged,
                       onSubmitted: onSubmitted,
@@ -1001,18 +1001,18 @@ class _TopRow extends StatelessWidget {
                   ),
                   if (query.isNotEmpty)
                     Material(
-                      color: V2Colors.fgMuted,
+                      color: context.v2.fgMuted,
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
                         onTap: onClear,
-                        child: const SizedBox(
+                        child: SizedBox(
                           width: 26,
                           height: 26,
                           child: Icon(
                             Icons.close_rounded,
                             size: 18,
-                            color: V2Colors.surface,
+                            color: context.v2.surface,
                           ),
                         ),
                       ),
@@ -1095,9 +1095,9 @@ class _ViewToggleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? V2Colors.accentTint : V2Colors.surface;
-    final border = selected ? V2Colors.accent : V2Colors.outline;
-    final fg = selected ? V2Colors.accent : V2Colors.fgMuted;
+    final bg = selected ? context.v2.accentTint : context.v2.surface;
+    final border = selected ? context.v2.accent : context.v2.outline;
+    final fg = selected ? context.v2.accent : context.v2.fgMuted;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -1138,7 +1138,7 @@ class _SectionEyebrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = muted ? V2Colors.fgMuted : V2Colors.accent;
+    final color = muted ? context.v2.fgMuted : context.v2.accent;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         V2Spacing.space24,
@@ -1156,7 +1156,7 @@ class _SectionEyebrow extends StatelessWidget {
               vertical: 2,
             ),
             decoration: BoxDecoration(
-              color: muted ? V2Colors.outline : V2Colors.accentTint,
+              color: muted ? context.v2.outline : context.v2.accentTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
             ),
             child: Text('$count', style: V2Typography.eyebrow(color: color)),
@@ -1172,9 +1172,9 @@ class _HairlineDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(left: 84, right: V2Spacing.space16),
-      child: Divider(height: 0.5, thickness: 0.5, color: V2Colors.outline),
+    return Padding(
+      padding: const EdgeInsets.only(left: 84, right: V2Spacing.space16),
+      child: Divider(height: 0.5, thickness: 0.5, color: context.v2.outline),
     );
   }
 }
@@ -1208,21 +1208,21 @@ class _RecentSearchRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
           child: Row(
             children: [
-              const Icon(Icons.search_rounded, size: 26, color: V2Colors.safe),
+              Icon(Icons.search_rounded, size: 26, color: context.v2.safe),
               const SizedBox(width: V2Spacing.space16),
               Expanded(
                 child: Text(
                   term,
-                  style: V2Typography.bodyXl(color: V2Colors.fgMuted),
+                  style: V2Typography.bodyXl(color: context.v2.fgMuted),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.close_rounded,
                   size: 16,
-                  color: V2Colors.fgSubtle,
+                  color: context.v2.fgSubtle,
                 ),
                 onPressed: onRemove,
                 splashRadius: 16,
@@ -1282,7 +1282,7 @@ class _SearchSectionTitle extends StatelessWidget {
     return Text(
       label,
       style: V2Typography.displayXs(
-        color: V2Colors.fgMuted,
+        color: context.v2.fgMuted,
       ).copyWith(letterSpacing: 0),
     );
   }
@@ -1321,12 +1321,12 @@ class _SuggestedSearchRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     text: TextSpan(
-                      style: V2Typography.bodyXl(color: V2Colors.fgMuted),
+                      style: V2Typography.bodyXl(color: context.v2.fgMuted),
                       children: [
                         TextSpan(
                           text: suggestion.label,
                           style: V2Typography.bodyXl(
-                            color: V2Colors.fg,
+                            color: context.v2.fg,
                           ).copyWith(fontWeight: FontWeight.w500),
                         ),
                         if (suggestion.scopeLabel != null)
@@ -1496,9 +1496,9 @@ class _LoadingList extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(V2Spacing.space12),
               decoration: BoxDecoration(
-                color: V2Colors.surface,
+                color: context.v2.surface,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                border: Border.all(color: V2Colors.outline),
+                border: Border.all(color: context.v2.outline),
               ),
               child: Row(
                 children: [
@@ -1506,7 +1506,7 @@ class _LoadingList extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: V2Colors.outline,
+                      color: context.v2.outline,
                       borderRadius: BorderRadius.circular(V2Spacing.space8),
                     ),
                   ),
@@ -1519,7 +1519,7 @@ class _LoadingList extends StatelessWidget {
                           width: 180,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: V2Colors.outline,
+                            color: context.v2.outline,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -1528,7 +1528,7 @@ class _LoadingList extends StatelessWidget {
                           width: 110,
                           height: 10,
                           decoration: BoxDecoration(
-                            color: V2Colors.outline,
+                            color: context.v2.outline,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -1557,12 +1557,12 @@ class _LoadingMoreFooter extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (loading)
-            const SizedBox(
+            SizedBox(
               width: 16,
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: V2Colors.fgSubtle,
+                color: context.v2.fgSubtle,
               ),
             )
           else
@@ -1570,14 +1570,14 @@ class _LoadingMoreFooter extends StatelessWidget {
               width: 14,
               height: 14,
               decoration: BoxDecoration(
-                border: Border.all(color: V2Colors.fgSubtle, width: 1.4),
+                border: Border.all(color: context.v2.fgSubtle, width: 1.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           const SizedBox(width: V2Spacing.space12),
           Text(
             'Loading more',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
         ],
       ),
@@ -1631,8 +1631,8 @@ class _SearchProductListTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => context.push('${Routes.product}/${product.dsldId}'),
-          splashColor: V2Colors.accent.withValues(alpha: 0.08),
-          highlightColor: V2Colors.accent.withValues(alpha: 0.04),
+          splashColor: context.v2.accent.withValues(alpha: 0.08),
+          highlightColor: context.v2.accent.withValues(alpha: 0.04),
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: V2Spacing.space24,
@@ -1649,7 +1649,7 @@ class _SearchProductListTile extends StatelessWidget {
                     children: [
                       Text(
                         product.productName,
-                        style: V2Typography.bodyMedium(color: V2Colors.fg),
+                        style: V2Typography.bodyMedium(color: context.v2.fg),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1657,7 +1657,7 @@ class _SearchProductListTile extends StatelessWidget {
                         const SizedBox(height: V2Spacing.space4),
                         Text(
                           product.brandName!,
-                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(color: context.v2.fgMuted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1666,7 +1666,7 @@ class _SearchProductListTile extends StatelessWidget {
                         const SizedBox(height: V2Spacing.space4),
                         Text(
                           packSizeLabel,
-                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(color: context.v2.fgMuted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1695,9 +1695,9 @@ class _SearchProductListTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: V2Spacing.space8),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: V2Colors.fgSubtle,
+                  color: context.v2.fgSubtle,
                   size: 20,
                 ),
               ],
@@ -1746,9 +1746,9 @@ class _SearchProductGridTile extends StatelessWidget {
           '${product.productName}$brandLabel$packSemantics$scoreLabel. Tap to view details.',
       child: Container(
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
           boxShadow: V2Shadows.sm,
         ),
         child: Material(
@@ -1770,7 +1770,7 @@ class _SearchProductGridTile extends StatelessWidget {
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: V2Colors.surfaceContainerHighest.withValues(
+                            color: context.v2.surfaceHighest.withValues(
                               alpha: 0.42,
                             ),
                             borderRadius: const BorderRadius.vertical(
@@ -1827,7 +1827,7 @@ class _SearchProductGridTile extends StatelessWidget {
                           Text(
                             product.brandName!,
                             style: V2Typography.caption(
-                              color: V2Colors.fgMuted,
+                              color: context.v2.fgMuted,
                             ).copyWith(letterSpacing: 0),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1837,7 +1837,7 @@ class _SearchProductGridTile extends StatelessWidget {
                         Text(
                           product.productName,
                           style: V2Typography.label(
-                            color: V2Colors.fg,
+                            color: context.v2.fg,
                           ).copyWith(letterSpacing: 0),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -1847,7 +1847,7 @@ class _SearchProductGridTile extends StatelessWidget {
                           Text(
                             packSizeLabel,
                             style: V2Typography.bodySm(
-                              color: V2Colors.fgMuted,
+                              color: context.v2.fgMuted,
                             ).copyWith(letterSpacing: 0),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1883,9 +1883,9 @@ class _SearchProductImage extends StatelessWidget {
       height: size,
       padding: const EdgeInsets.all(V2Spacing.space4),
       decoration: BoxDecoration(
-        color: V2Colors.surfaceContainerHighest.withValues(alpha: 0.55),
+        color: context.v2.surfaceHighest.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       child: ProductImage(
         dsldId: product.dsldId,
@@ -1944,12 +1944,12 @@ class _LimitedDataChip extends StatelessWidget {
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
-        color: V2Colors.fgMuted.withValues(alpha: 0.12),
+        color: context.v2.fgMuted.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         'Limited data',
-        style: V2Typography.caption(color: V2Colors.fgMuted),
+        style: V2Typography.caption(color: context.v2.fgMuted),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -1970,12 +1970,12 @@ class _LimitedAssessmentChip extends StatelessWidget {
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
-        color: V2Colors.fgMuted.withValues(alpha: 0.12),
+        color: context.v2.fgMuted.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         '${score.round()} · Limited assessment',
-        style: V2Typography.caption(color: V2Colors.fgMuted),
+        style: V2Typography.caption(color: context.v2.fgMuted),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -1990,7 +1990,7 @@ class _VerdictChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = searchVerdictTone(label);
+    final tone = searchVerdictTone(context.v2, label);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: V2Spacing.space8,
@@ -2019,7 +2019,7 @@ class _CategoryText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       _formatCategoryLabel(category),
-      style: V2Typography.caption(color: V2Colors.fgMuted),
+      style: V2Typography.caption(color: context.v2.fgMuted),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
@@ -2076,6 +2076,7 @@ const _commonSearches = <_CommonSearch>[
 enum _SuggestionIconKind { brand, ingredient, search }
 
 List<_SearchSuggestion> _buildSuggestions(
+  V2Palette palette,
   String query,
   List<ProductsCoreData> products,
 ) {
@@ -2103,7 +2104,7 @@ List<_SearchSuggestion> _buildSuggestions(
           query: brand,
           scopeLabel: 'Brand',
           iconKind: _SuggestionIconKind.brand,
-          iconColor: V2Colors.accentStrong,
+          iconColor: palette.accentStrong,
         ),
       );
       break;
@@ -2117,7 +2118,7 @@ List<_SearchSuggestion> _buildSuggestions(
         query: term,
         scopeLabel: 'Ingredient',
         iconKind: _SuggestionIconKind.ingredient,
-        iconColor: V2Colors.accentStrong,
+        iconColor: palette.accentStrong,
       ),
     );
     if (out.length >= 4) return out;
@@ -2132,7 +2133,7 @@ List<_SearchSuggestion> _buildSuggestions(
         label: _compactProductQuery(name, normalizedQuery),
         query: _compactProductQuery(name, normalizedQuery),
         iconKind: _SuggestionIconKind.search,
-        iconColor: V2Colors.safe,
+        iconColor: palette.safe,
       ),
     );
     if (out.length >= 4) return out;
@@ -2144,7 +2145,7 @@ List<_SearchSuggestion> _buildSuggestions(
         label: q,
         query: q,
         iconKind: _SuggestionIconKind.search,
-        iconColor: V2Colors.safe,
+        iconColor: palette.safe,
       ),
     );
   }
@@ -2269,24 +2270,24 @@ Color _scoreTone(double score) => tierForScore(score.round()).color;
 /// regression (SAFE used to fall through to the gray NOT_SCORED fallback)
 /// stays locked in test/features/search/v2/search_chip_decision_test.dart.
 @visibleForTesting
-Color searchVerdictTone(String verdict) {
+Color searchVerdictTone(V2Palette p, String verdict) {
   switch (verdict.trim().toUpperCase()) {
     case 'SAFE':
     case 'RECOMMENDED':
     case 'GOOD':
-      return V2Colors.safe;
+      return p.safe;
     case 'CAUTION':
     case 'MODERATE':
     case 'REVIEW':
-      return V2Colors.caution;
+      return p.caution;
     case 'POOR':
     case 'AVOID':
-      return V2Colors.avoid;
+      return p.avoid;
     case 'BLOCKED':
     case 'UNSAFE':
-      return V2Colors.contraindicated;
+      return p.contraindicated;
     default:
-      return V2Colors.fgMuted;
+      return p.fgMuted;
   }
 }
 

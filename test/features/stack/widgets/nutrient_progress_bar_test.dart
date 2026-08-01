@@ -9,7 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_progress_bar.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -17,18 +17,18 @@ void main() {
   group('NutrientProgressBar.tierColorFor', () {
     test('every tier maps to a non-null color', () {
       for (final tier in NutrientTier.values) {
-        expect(NutrientProgressBar.tierColorFor(tier), isNotNull);
+        expect(NutrientProgressBar.tierColorFor(V2Palette.light, tier), isNotNull);
       }
     });
 
     test('only exceedsUl is red and only approachingUl is amber', () {
       expect(
-        NutrientProgressBar.tierColorFor(NutrientTier.exceedsUl),
-        V2Colors.contraindicated,
+        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.exceedsUl),
+        V2Palette.light.contraindicated,
       );
       expect(
-        NutrientProgressBar.tierColorFor(NutrientTier.approachingUl),
-        V2Colors.caution,
+        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.approachingUl),
+        V2Palette.light.caution,
       );
     });
 
@@ -37,20 +37,20 @@ void main() {
       // the RDA are not a hazard while there is headroom to the limit. Only the
       // UL story (approaching/exceeds) escalates color.
       expect(
-        NutrientProgressBar.tierColorFor(NutrientTier.aboveTypical),
-        V2Colors.safe,
+        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.aboveTypical),
+        V2Palette.light.safe,
       );
       expect(
-        NutrientProgressBar.tierColorFor(NutrientTier.abundant),
-        V2Colors.safe,
+        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.abundant),
+        V2Palette.light.safe,
       );
       expect(
-        NutrientProgressBar.tierColorFor(NutrientTier.adequate),
-        V2Colors.safe,
+        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.adequate),
+        V2Palette.light.safe,
       );
       expect(
-        NutrientProgressBar.tierColorFor(NutrientTier.aboveAdequateNoUl),
-        V2Colors.safe,
+        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.aboveAdequateNoUl),
+        V2Palette.light.safe,
       );
     });
   });

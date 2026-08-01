@@ -54,7 +54,7 @@ void main() {
     testWidgets('a Scaffold with no override takes the dark background', (
       tester,
     ) async {
-      // The whole point: this was V2Colors.bg (near-white) in dark mode.
+      // The whole point: this was V2Palette.light.bg (near-white) in dark mode.
       expect(
         await _scaffoldBackground(tester, V2Theme.dark),
         V2Palette.dark.bg,
@@ -116,7 +116,7 @@ void main() {
   });
 
   group('no screen re-hardcodes its background', () {
-    test('no Scaffold or AppBar pins V2Colors.bg', () {
+    test('no Scaffold or AppBar pins V2Palette.light.bg', () {
       // Guards the fix: both default to brightness-resolved theme values, so
       // an explicit override is always a regression.
       final offenders = <String>[];
@@ -128,7 +128,7 @@ void main() {
         if (!entity.path.contains('/lib/')) continue;
         final lines = entity.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
-          if (lines[i].trim() != 'backgroundColor: V2Colors.bg,') continue;
+          if (lines[i].trim() != 'backgroundColor: V2Palette.light.bg,') continue;
           final prev = lines
               .sublist(0, i)
               .reversed

@@ -6,8 +6,8 @@
 // labels are unique; descriptions don't end with a period).
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 
 void main() {
   group('tierForScore — boundary thresholds', () {
@@ -112,7 +112,7 @@ void main() {
     });
 
     test('tier text colors meet 4.5:1 contrast on the app background', () {
-      final backgroundLuminance = V2Colors.bg.computeLuminance();
+      final backgroundLuminance = V2Palette.light.bg.computeLuminance();
       for (final tier in ScoreTier.values) {
         final foregroundLuminance = tier.textColor.computeLuminance();
         final lighter = foregroundLuminance > backgroundLuminance

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
@@ -153,10 +154,10 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final dark = brightness == Brightness.dark;
-    final background = dark ? V2Colors.bgDark : V2Colors.bg;
-    final foreground = dark ? V2Colors.fgDark : V2Colors.fg;
-    final muted = dark ? V2Colors.fgMutedDark : V2Colors.fgMuted;
-    final accent = dark ? V2Colors.accentDark : V2Colors.accent;
+    final background = context.v2.bg;
+    final foreground = context.v2.fg;
+    final muted = context.v2.fgMuted;
+    final accent = context.v2.accent;
 
     return AnimatedOpacity(
       opacity: _exiting ? 0 : 1,

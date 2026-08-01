@@ -18,7 +18,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -55,9 +55,9 @@ class StackCoverageCard extends StatelessWidget {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
           boxShadow: V2Shadows.sm,
         ),
         padding: const EdgeInsets.all(V2Spacing.space16),
@@ -68,7 +68,7 @@ class StackCoverageCard extends StatelessWidget {
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Is your stack working?',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space12),
             // Goals invitation renders ALONGSIDE the goal-independent
@@ -76,7 +76,7 @@ class StackCoverageCard extends StatelessWidget {
             // exist regardless of goals. Users who explicitly opted out
             // of goals (GOAL_NONE) are not nagged.
             if (!report.hasGoals && !report.goalsOptedOut) ...[
-              _noGoalsInvitation(),
+              _noGoalsInvitation(context),
               const SizedBox(height: V2Spacing.space12),
             ],
             if (report.hasGoals) ...[
@@ -84,7 +84,7 @@ class StackCoverageCard extends StatelessWidget {
                 key: const Key('coverage-supported'),
                 title: 'Supported',
                 count: report.supported.length,
-                tone: V2Colors.safe,
+                tone: context.v2.safe,
                 emptyLine:
                     'None of your goals are currently matched by products '
                     'in your stack.',
@@ -104,7 +104,7 @@ class StackCoverageCard extends StatelessWidget {
                 key: const Key('coverage-partial'),
                 title: 'Partially supported',
                 count: report.partiallySupported.length,
-                tone: V2Colors.monitor,
+                tone: context.v2.monitor,
                 emptyLine:
                     'No goals are partly covered — matched goals are either '
                     'fully supported or not yet addressed.',
@@ -119,7 +119,7 @@ class StackCoverageCard extends StatelessWidget {
               key: const Key('coverage-priority-gaps'),
               title: 'Priority gaps',
               count: report.priorityGaps.length,
-              tone: V2Colors.accent,
+              tone: context.v2.accent,
               emptyLine: 'No priority nutrient gaps detected in your stack.',
               rows: [
                 for (final gap in report.priorityGaps)
@@ -131,7 +131,7 @@ class StackCoverageCard extends StatelessWidget {
               key: const Key('coverage-underdosed'),
               title: 'Underdosed',
               count: report.underdosed.length,
-              tone: V2Colors.monitor,
+              tone: context.v2.monitor,
               emptyLine: 'No below-target doses detected in your stack.',
               rows: [
                 for (final n in report.underdosed)
@@ -143,7 +143,7 @@ class StackCoverageCard extends StatelessWidget {
               key: const Key('coverage-unaddressed'),
               title: 'Unaddressed',
               count: report.unaddressedCount,
-              tone: V2Colors.caution,
+              tone: context.v2.caution,
               emptyLine:
                   'Every goal and known nutrient gap has something in '
                   'your stack working on it.',
@@ -159,7 +159,7 @@ class StackCoverageCard extends StatelessWidget {
               Text(
                 coverageHedge('coverage may be incomplete'),
                 key: const Key('coverage-hedge-line'),
-                style: V2Typography.caption(color: V2Colors.fgSubtle),
+                style: V2Typography.caption(color: context.v2.fgSubtle),
               ),
             ],
           ],
@@ -170,11 +170,11 @@ class StackCoverageCard extends StatelessWidget {
 
   /// Calm single-line invitation when no goals are set — no fake
   /// analysis, just a pointer to the profile.
-  Widget _noGoalsInvitation() {
+  Widget _noGoalsInvitation(BuildContext context) {
     final text = Text(
       'Add goals to your profile to see what your stack covers.',
       key: const Key('coverage-no-goals'),
-      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+      style: V2Typography.bodySm(color: context.v2.fgMuted),
     );
     if (onAddGoals == null) return text;
     return Column(
@@ -193,12 +193,12 @@ class StackCoverageCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
               border: Border.all(
-                color: V2Colors.accent.withValues(alpha: 0.32),
+                color: context.v2.accent.withValues(alpha: 0.32),
               ),
             ),
             child: Text(
               'Add goals',
-              style: V2Typography.label(color: V2Colors.accent),
+              style: V2Typography.label(color: context.v2.accent),
             ),
           ),
         ),
@@ -260,9 +260,9 @@ class _CoverageSectionState extends State<_CoverageSection> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.bg,
+        color: context.v2.bg,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -289,7 +289,7 @@ class _CoverageSectionState extends State<_CoverageSection> {
                   Expanded(
                     child: Text(
                       widget.title,
-                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
                     ),
                   ),
                   Container(
@@ -310,10 +310,10 @@ class _CoverageSectionState extends State<_CoverageSection> {
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0,
                     duration: V2Motion.base,
-                    child: const Icon(
+                    child: Icon(
                       Icons.keyboard_arrow_down_rounded,
                       size: 18,
-                      color: V2Colors.fgMuted,
+                      color: context.v2.fgMuted,
                     ),
                   ),
                 ],
@@ -340,7 +340,7 @@ class _CoverageSectionState extends State<_CoverageSection> {
                         ? Text(
                             widget.emptyLine,
                             style: V2Typography.caption(
-                              color: V2Colors.fgMuted,
+                              color: context.v2.fgMuted,
                             ),
                           )
                         : Column(
@@ -372,9 +372,9 @@ class _CoverageRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: V2Typography.bodySm(color: V2Colors.fg)),
+        Text(title, style: V2Typography.bodySm(color: context.v2.fg)),
         const SizedBox(height: 2),
-        Text(detail, style: V2Typography.caption(color: V2Colors.fgMuted)),
+        Text(detail, style: V2Typography.caption(color: context.v2.fgMuted)),
       ],
     );
   }

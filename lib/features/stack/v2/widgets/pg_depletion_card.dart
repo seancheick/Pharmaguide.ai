@@ -13,7 +13,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -51,28 +51,28 @@ class PGDepletionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(
                   Icons.info_outline_rounded,
                   size: 16,
-                  color: V2Colors.monitor,
+                  color: context.v2.monitor,
                 ),
-                SizedBox(width: V2Spacing.space8),
-                PGEyebrow('Medication & nutrients', color: V2Colors.monitor),
+                const SizedBox(width: V2Spacing.space8),
+                PGEyebrow('Medication & nutrients', color: context.v2.monitor),
               ],
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Nutrients to monitor',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               'Some medications are associated with changes in nutrient '
               'status or function. Your supplement stack shows intake—'
               'not your blood level or nutrient status.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space12),
             for (final dep in depletions)
@@ -96,21 +96,21 @@ class _MedicationNutrientFrame extends StatelessWidget {
       padding: margin,
       child: Container(
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
           boxShadow: V2Shadows.sm,
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
             Padding(padding: const EdgeInsets.only(left: 4), child: child),
-            const Positioned(
+            Positioned(
               left: 0,
               top: 0,
               bottom: 0,
               width: 4,
-              child: ColoredBox(color: V2Colors.monitor),
+              child: ColoredBox(color: context.v2.monitor),
             ),
           ],
         ),
@@ -135,27 +135,27 @@ class PGDepletionUnavailableCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(
                   Icons.error_outline_rounded,
                   size: 16,
-                  color: V2Colors.monitor,
+                  color: context.v2.monitor,
                 ),
-                SizedBox(width: V2Spacing.space8),
-                PGEyebrow('Medication & nutrients', color: V2Colors.monitor),
+                const SizedBox(width: V2Spacing.space8),
+                PGEyebrow('Medication & nutrients', color: context.v2.monitor),
               ],
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Check unavailable',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               "We couldn't load the medication & nutrient checks right "
               "now. This is not an all-clear — please try again later.",
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ],
         ),
@@ -261,9 +261,9 @@ class _DepletionRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space12),
         decoration: BoxDecoration(
-          color: V2Colors.bg,
+          color: context.v2.bg,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,10 +271,10 @@ class _DepletionRow extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline_rounded,
                   size: 18,
-                  color: V2Colors.monitor,
+                  color: context.v2.monitor,
                 ),
                 const SizedBox(width: V2Spacing.space8),
                 Expanded(
@@ -283,22 +283,22 @@ class _DepletionRow extends StatelessWidget {
                     children: [
                       PGEyebrow(
                         medNutrientRelationshipLabel(d.depletionType),
-                        color: V2Colors.fgMuted,
+                        color: context.v2.fgMuted,
                       ),
                       const SizedBox(height: V2Spacing.space4),
                       Text(
                         nutrientTitle,
-                        style: V2Typography.bodyMedium(color: V2Colors.fg),
+                        style: V2Typography.bodyMedium(color: context.v2.fg),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subjectLine,
-                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
                       ),
                       const SizedBox(height: V2Spacing.space8),
                       Text(
                         _bodyCopy(),
-                        style: V2Typography.bodySm(color: V2Colors.fg),
+                        style: V2Typography.bodySm(color: context.v2.fg),
                       ),
                       if (_isDue) ...[
                         const SizedBox(height: V2Spacing.space8),
@@ -310,17 +310,17 @@ class _DepletionRow extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.schedule_rounded,
                                 size: 14,
-                                color: V2Colors.monitor,
+                                color: context.v2.monitor,
                               ),
                               const SizedBox(width: V2Spacing.space4),
                               Expanded(
                                 child: Text(
                                   _trackedForLine(),
                                   style: V2Typography.caption(
-                                    color: V2Colors.monitor,
+                                    color: context.v2.monitor,
                                   ),
                                 ),
                               ),
@@ -338,8 +338,8 @@ class _DepletionRow extends StatelessWidget {
                               Icons.lightbulb_outline_rounded,
                               size: 14,
                               color: _isDue
-                                  ? V2Colors.monitor
-                                  : V2Colors.fgMuted,
+                                  ? context.v2.monitor
+                                  : context.v2.fgMuted,
                             ),
                             const SizedBox(width: V2Spacing.space4),
                             Expanded(
@@ -347,8 +347,8 @@ class _DepletionRow extends StatelessWidget {
                                 d.monitoringTipShort!,
                                 style: V2Typography.caption(
                                   color: _isDue
-                                      ? V2Colors.fg
-                                      : V2Colors.fgMuted,
+                                      ? context.v2.fg
+                                      : context.v2.fgMuted,
                                 ),
                               ),
                             ),
@@ -375,13 +375,13 @@ class _DepletionRow extends StatelessWidget {
                       children: [
                         Text(
                           'Why this happens',
-                          style: V2Typography.label(color: V2Colors.accent),
+                          style: V2Typography.label(color: context.v2.accent),
                         ),
                         const SizedBox(width: V2Spacing.space4),
-                        const Icon(
+                        Icon(
                           Icons.chevron_right_rounded,
                           size: 18,
-                          color: V2Colors.accent,
+                          color: context.v2.accent,
                         ),
                       ],
                     ),
@@ -428,17 +428,17 @@ class _MedicationNutrientDetailsSheet extends StatelessWidget {
           children: [
             PGEyebrow(
               medNutrientRelationshipLabel(dep.depletionType),
-              color: V2Colors.monitor,
+              color: context.v2.monitor,
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Medication & nutrient details',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               '$drug · $nutrient',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space16),
             Flexible(
@@ -465,26 +465,26 @@ class _DetailSection extends StatelessWidget {
       margin: const EdgeInsets.only(top: V2Spacing.space8),
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        color: V2Colors.surfaceContainerHighest,
+        color: context.v2.surfaceHighest,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (d.clinicalImpact != null && d.clinicalImpact!.isNotEmpty) ...[
-            _labelled('What can happen', d.clinicalImpact!),
+            _labelled(context, 'What can happen', d.clinicalImpact!),
             const SizedBox(height: V2Spacing.space8),
           ],
           if (d.foodSourcesShort != null && d.foodSourcesShort!.isNotEmpty) ...[
-            _labelled('From food', d.foodSourcesShort!),
+            _labelled(context, 'From food', d.foodSourcesShort!),
             const SizedBox(height: V2Spacing.space8),
           ],
           if (d.mechanism.isNotEmpty) ...[
-            _labelled('Why', d.mechanism),
+            _labelled(context, 'Why', d.mechanism),
             const SizedBox(height: V2Spacing.space8),
           ],
           if (d.recommendation.isNotEmpty) ...[
-            _labelled('Clinical guidance', d.recommendation),
+            _labelled(context, 'Clinical guidance', d.recommendation),
             const SizedBox(height: V2Spacing.space8),
           ],
           if (d.sourceUrls.isNotEmpty) _SourcesRow(urls: d.sourceUrls),
@@ -493,13 +493,13 @@ class _DetailSection extends StatelessWidget {
     );
   }
 
-  Widget _labelled(String label, String body) {
+  Widget _labelled(BuildContext context, String label, String body) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PGEyebrow(label, color: V2Colors.fgMuted),
+        PGEyebrow(label, color: context.v2.fgMuted),
         const SizedBox(height: V2Spacing.space4),
-        Text(body, style: V2Typography.bodySm(color: V2Colors.fg)),
+        Text(body, style: V2Typography.bodySm(color: context.v2.fg)),
       ],
     );
   }
@@ -528,22 +528,22 @@ class _SourcesRow extends StatelessWidget {
               vertical: V2Spacing.space4,
             ),
             decoration: BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.open_in_new_rounded,
                   size: 11,
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                 ),
                 const SizedBox(width: V2Spacing.space4),
                 Text(
                   'Source',
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
               ],
             ),

@@ -7,7 +7,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -18,14 +18,14 @@ class NutrientProgressBar extends StatelessWidget {
 
   final NutrientStatus status;
 
-  static Color tierColorFor(NutrientTier tier) {
+  static Color tierColorFor(V2Palette p, NutrientTier tier) {
     switch (tier) {
       // Only crossing the UL is red, and only 80-99% of the UL is amber — one
       // warning tone, reached only as a real ceiling approaches.
       case NutrientTier.exceedsUl:
-        return V2Colors.contraindicated;
+        return p.contraindicated;
       case NutrientTier.approachingUl:
-        return V2Colors.caution;
+        return p.caution;
       // High intake that is NOT nearing a ceiling is calm/green, never a
       // warning tone. This covers both no-UL nutrients above target
       // (aboveAdequateNoUl) and UL-bounded nutrients still comfortably below
@@ -35,17 +35,17 @@ class NutrientProgressBar extends StatelessWidget {
       case NutrientTier.abundant:
       case NutrientTier.adequate:
       case NutrientTier.aboveAdequateNoUl:
-        return V2Colors.safe;
+        return p.safe;
       case NutrientTier.underFifty:
       case NutrientTier.noRda:
-        return V2Colors.fgSubtle;
+        return p.fgSubtle;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final total = status.total;
-    final tierColor = NutrientProgressBar.tierColorFor(status.tier);
+    final tierColor = NutrientProgressBar.tierColorFor(context.v2, status.tier);
     final fillPct = _fillPercent(status);
     final hasOnlyExcludedContributions =
         total.contributions.isEmpty && total.excludedContributions.isNotEmpty;
@@ -80,17 +80,17 @@ class NutrientProgressBar extends StatelessWidget {
                         Flexible(
                           child: Text(
                             total.displayName,
-                            style: _labelStyle(V2Colors.fg),
+                            style: _labelStyle(context.v2.fg),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (hasContributions) ...[
                           const SizedBox(width: V2Spacing.space4),
-                          const Icon(
+                          Icon(
                             Icons.chevron_right_rounded,
                             size: 16,
-                            color: V2Colors.fgMuted,
+                            color: context.v2.fgMuted,
                           ),
                         ],
                       ],
@@ -109,7 +109,7 @@ class NutrientProgressBar extends StatelessWidget {
                   const SizedBox(width: V2Spacing.space8),
                   // Inline compact subtitle (% target / UL) — moved from
                   // its own row so each nutrient is a tight single line.
-                  _buildSubtitleText(),
+                  _buildSubtitleText(context),
                 ],
               ),
               if (!hasOnlyExcludedContributions) ...[
@@ -119,7 +119,7 @@ class NutrientProgressBar extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: fillPct.clamp(0.0, 1.0),
                     minHeight: 4,
-                    backgroundColor: V2Colors.outline,
+                    backgroundColor: context.v2.outline,
                     valueColor: AlwaysStoppedAnimation<Color>(tierColor),
                   ),
                 ),
@@ -129,7 +129,7 @@ class NutrientProgressBar extends StatelessWidget {
                 Text(
                   'This label amount could not be safely included in a '
                   'nutrient total.',
-                  style: _captionStyle(V2Colors.fgMuted),
+                  style: _captionStyle(context.v2.fgMuted),
                 ),
               ],
               if (status.warning != null) ...[
@@ -141,14 +141,14 @@ class NutrientProgressBar extends StatelessWidget {
                 Text(
                   'UL not calculated: the label does not provide enough '
                   'form detail.',
-                  style: _captionStyle(V2Colors.fgMuted),
+                  style: _captionStyle(context.v2.fgMuted),
                 ),
               ],
               if (total.hasUnitConflict) ...[
                 const SizedBox(height: V2Spacing.space4),
                 Text(
                   'Note: excludes products reported in a different unit.',
-                  style: _captionStyle(V2Colors.fgMuted),
+                  style: _captionStyle(context.v2.fgMuted),
                 ),
               ],
             ],
@@ -171,7 +171,7 @@ class NutrientProgressBar extends StatelessWidget {
   /// so each nutrient entry takes a single tight row instead of two.
   /// Appends an asterisk when RDA came from the anonymous baseline
   /// (Female 19-30) so the user knows the value isn't profile-specific.
-  Widget _buildSubtitleText() {
+  Widget _buildSubtitleText(BuildContext context) {
     final rda = status.pctOfRda;
     final ul = status.pctOfUl;
     // Prefer UL when the nutrient has a hard ceiling to flag; otherwise
@@ -189,7 +189,7 @@ class NutrientProgressBar extends StatelessWidget {
       text = '—';
     }
 
-    return Text(text, style: _captionStyle(V2Colors.fgMuted));
+    return Text(text, style: _captionStyle(context.v2.fgMuted));
   }
 
   /// Format intake-vs-target percentage. Labeled "target" rather than "RDA"
@@ -278,25 +278,25 @@ class _NutrientContributorsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PGEyebrow('From your stack', color: V2Colors.fgMuted),
+            PGEyebrow('From your stack', color: context.v2.fgMuted),
             const SizedBox(height: V2Spacing.space8),
             Text(
               '${total.displayName} contributors',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               '${NutrientProgressBar._formatAmountRange(total.minimumTotalAmount, total.totalAmount, total.unit)} $totalBasis from the supplement labels in your stack.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space16),
             Flexible(
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: contributions.length,
-                separatorBuilder: (_, _) => const Divider(
+                separatorBuilder: (_, _) => Divider(
                   height: V2Spacing.space24,
-                  color: V2Colors.outline,
+                  color: context.v2.outline,
                 ),
                 itemBuilder: (_, index) {
                   final contribution = contributions[index];
@@ -310,10 +310,10 @@ class _NutrientContributorsSheet extends StatelessWidget {
                         '$pctOfTotal percent of the stack total',
                     child: Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.inventory_2_outlined,
                           size: 20,
-                          color: V2Colors.accent,
+                          color: context.v2.accent,
                         ),
                         const SizedBox(width: V2Spacing.space12),
                         Expanded(
@@ -321,7 +321,7 @@ class _NutrientContributorsSheet extends StatelessWidget {
                             NutrientProgressBar._contributionLabel(
                               contribution,
                             ),
-                            style: _captionStyle(V2Colors.fg),
+                            style: _captionStyle(context.v2.fg),
                           ),
                         ),
                         const SizedBox(width: V2Spacing.space8),
@@ -334,11 +334,11 @@ class _NutrientContributorsSheet extends StatelessWidget {
                                 contribution.amount,
                                 contribution.unit,
                               ),
-                              style: _captionStyle(V2Colors.fg),
+                              style: _captionStyle(context.v2.fg),
                             ),
                             Text(
                               '$pctOfTotal%',
-                              style: _captionStyle(V2Colors.fgMuted),
+                              style: _captionStyle(context.v2.fgMuted),
                             ),
                           ],
                         ),
