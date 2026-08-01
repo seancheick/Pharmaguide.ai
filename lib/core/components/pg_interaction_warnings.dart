@@ -222,6 +222,7 @@ class _SubSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final countStyle = context.v2.tintedLabel(tone, fillAlpha: 0.15);
     return Row(
       children: [
         PGEyebrow(eyebrow, color: tone),
@@ -229,12 +230,12 @@ class _SubSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
-            color: tone.withValues(alpha: 0.15),
+            color: countStyle.fill,
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
           ),
           child: Text(
             '$count',
-            style: V2Typography.overline(color: tone).copyWith(
+            style: V2Typography.overline(color: countStyle.foreground).copyWith(
               fontSize: 11,
               letterSpacing: 0.2,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -361,10 +362,11 @@ class _SeverityPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = severity.tint(context.v2);
+    final style = context.v2.tintedLabel(color, fillAlpha: 0.18);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Row(
@@ -378,7 +380,7 @@ class _SeverityPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             _label,
-            style: V2Typography.caption(color: color).copyWith(
+            style: V2Typography.caption(color: style.foreground).copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.3,
@@ -486,6 +488,7 @@ class _SourcesChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(context.v2.accent, borderAlpha: 0.30);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
@@ -495,9 +498,9 @@ class _SourcesChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: context.v2.accent.withValues(alpha: 0.10),
+            color: style.fill,
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(color: context.v2.accent.withValues(alpha: 0.3)),
+            border: Border.all(color: style.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -511,7 +514,7 @@ class _SourcesChip extends StatelessWidget {
               Text(
                 '$count source${count == 1 ? '' : 's'}',
                 style: V2Typography.caption(
-                  color: context.v2.accent,
+                  color: style.foreground,
                 ).copyWith(fontSize: 11, fontWeight: FontWeight.w500),
               ),
             ],

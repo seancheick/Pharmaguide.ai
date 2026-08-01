@@ -1993,18 +1993,19 @@ class _VerdictChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = searchVerdictTone(context.v2, label);
+    final style = context.v2.tintedLabel(tone, fillAlpha: 0.12);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: V2Spacing.space8,
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.12),
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         label.toUpperCase(),
-        style: V2Typography.overline(color: tone),
+        style: V2Typography.overline(color: style.foreground),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),

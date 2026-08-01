@@ -85,8 +85,9 @@ class PGTypeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = type.color(context.v2);
-    final bg = solid ? color : type.tint(context.v2);
-    final fg = solid ? type.onColor(context.v2) : color;
+    final tinted = context.v2.tintedLabel(color, borderAlpha: 0.25);
+    final bg = solid ? color : tinted.fill;
+    final fg = solid ? type.onColor(context.v2) : tinted.foreground;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -96,7 +97,7 @@ class PGTypeBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        border: solid ? null : Border.all(color: color.withValues(alpha: 0.25)),
+        border: solid ? null : Border.all(color: tinted.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

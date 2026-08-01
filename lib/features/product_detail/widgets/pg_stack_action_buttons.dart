@@ -314,16 +314,14 @@ class _InStackPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(context.v2.safe, borderAlpha: 0.22);
     return Container(
       height: 52,
       padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space16),
       decoration: BoxDecoration(
-        color: context.v2.safeTint,
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        border: Border.all(
-          color: context.v2.safe.withValues(alpha: 0.22),
-          width: 0.8,
-        ),
+        border: Border.all(color: style.border, width: 0.8),
       ),
       child: Row(
         children: [
@@ -335,7 +333,7 @@ class _InStackPanel extends StatelessWidget {
           const SizedBox(width: V2Spacing.space8),
           Text(
             'In your stack',
-            style: V2Typography.label(color: context.v2.safe),
+            style: V2Typography.label(color: style.foreground),
           ),
           const Spacer(),
           TextButton.icon(

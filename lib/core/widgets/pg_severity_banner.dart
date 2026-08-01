@@ -68,10 +68,7 @@ class PGSeverityBanner extends StatelessWidget {
       case PGBannerTone.danger:
         return (accent: p.contraindicated, icon: Icons.block_rounded);
       case PGBannerTone.success:
-        return (
-          accent: p.safe,
-          icon: Icons.check_circle_outline_rounded,
-        );
+        return (accent: p.safe, icon: Icons.check_circle_outline_rounded);
       case PGBannerTone.neutral:
         return (accent: p.fgMuted, icon: Icons.help_outline_rounded);
     }
@@ -169,15 +166,13 @@ class PGSeverityBanner extends StatelessWidget {
                               children: [
                                 Text(
                                   actionLabel!,
-                                  style: V2Typography.label(
-                                    color: style.accent,
-                                  ),
+                                  style: V2Typography.label(color: palette.fg),
                                 ),
                                 const SizedBox(width: chevronGap),
                                 Icon(
                                   Icons.chevron_right_rounded,
                                   size: 16,
-                                  color: style.accent,
+                                  color: palette.fg,
                                 ),
                               ],
                             ),

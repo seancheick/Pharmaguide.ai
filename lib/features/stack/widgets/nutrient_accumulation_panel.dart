@@ -427,6 +427,10 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final alertStyle = context.v2.tintedLabel(
+      context.v2.contraindicated,
+      borderAlpha: 0.35,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
       child: Row(
@@ -447,15 +451,13 @@ class _Header extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: context.v2.contraindicatedTint,
+                color: alertStyle.fill,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                border: Border.all(
-                  color: context.v2.contraindicated.withValues(alpha: 0.35),
-                ),
+                border: Border.all(color: alertStyle.border),
               ),
               child: Text(
                 '$warningCount ${warningCount == 1 ? "alert" : "alerts"}',
-                style: V2Typography.overline(color: context.v2.contraindicated),
+                style: V2Typography.overline(color: alertStyle.foreground),
               ),
             )
           else

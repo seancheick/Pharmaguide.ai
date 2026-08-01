@@ -721,6 +721,7 @@ class _StackSummaryCard extends ConsumerWidget {
       hasError: hasError,
     );
     final Color tone = status?.color ?? fallback.tone;
+    final statusTone = context.v2.tintedLabel(tone);
     final statusLabel = status?.label ?? fallback.label;
     final insightLine = intelligence == null
         ? stackHealthFallbackSummary(
@@ -776,12 +777,9 @@ class _StackSummaryCard extends ConsumerWidget {
                   vertical: V2Spacing.space4,
                 ),
                 decoration: BoxDecoration(
-                  color: tone.withValues(alpha: 0.10),
+                  color: statusTone.fill,
                   borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                  border: Border.all(
-                    color: tone.withValues(alpha: 0.20),
-                    width: 0.8,
-                  ),
+                  border: Border.all(color: statusTone.border, width: 0.8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -795,7 +793,10 @@ class _StackSummaryCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: V2Spacing.space8),
-                    Text(statusLabel, style: V2Typography.label(color: tone)),
+                    Text(
+                      statusLabel,
+                      style: V2Typography.label(color: statusTone.foreground),
+                    ),
                   ],
                 ),
               ),

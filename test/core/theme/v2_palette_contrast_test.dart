@@ -111,29 +111,20 @@ void main() {
         );
       });
 
-      test('every severity tier clears the non-text UI floor', () {
-        // 3:1 is the universal floor: severity renders as pills, badges, and
-        // icons. See the dark-only test below for the stricter bar.
+      test('every severity tier clears the body-text floor', () {
+        // Severity tokens render as small labels as well as icons and badges.
+        // The labels are below WCAG's large-text threshold, so all tiers must
+        // meet 4.5:1 rather than relying on the 3:1 non-text allowance.
         expectAtLeast(
           'contraindicated',
           p.contraindicated,
-          _largeTextAndUi,
-          usage: 'severity UI',
+          _bodyText,
+          usage: 'severity text',
         );
-        expectAtLeast('avoid', p.avoid, _largeTextAndUi, usage: 'severity UI');
-        expectAtLeast(
-          'caution',
-          p.caution,
-          _largeTextAndUi,
-          usage: 'severity UI',
-        );
-        expectAtLeast(
-          'monitor',
-          p.monitor,
-          _largeTextAndUi,
-          usage: 'severity UI',
-        );
-        expectAtLeast('safe', p.safe, _largeTextAndUi, usage: 'severity UI');
+        expectAtLeast('avoid', p.avoid, _bodyText, usage: 'severity text');
+        expectAtLeast('caution', p.caution, _bodyText, usage: 'severity text');
+        expectAtLeast('monitor', p.monitor, _bodyText, usage: 'severity text');
+        expectAtLeast('safe', p.safe, _bodyText, usage: 'severity text');
       });
 
       test('severity tiers stay visually distinct from one another', () {
@@ -186,42 +177,45 @@ void main() {
           );
         }
       });
+
+      test('tinted-label styles stay readable on every surface', () {
+        final tones = <String, Color>{
+          'accent': p.accent,
+          'contraindicated': p.contraindicated,
+          'avoid': p.avoid,
+          'caution': p.caution,
+          'monitor': p.monitor,
+          'safe': p.safe,
+        };
+
+        for (final tone in tones.entries) {
+          for (final surface in surfaces.entries) {
+            // 18% is the strongest label tint used by the app. Proving the
+            // worst case also covers the 8–15% variants.
+            final style = p.tintedLabel(tone.value, fillAlpha: 0.18);
+            final rendered = composite(style.fill, surface.value);
+            final ratio = contrastRatio(style.foreground, rendered);
+            expect(
+              ratio,
+              greaterThanOrEqualTo(_bodyText),
+              reason:
+                  '$mode ${tone.key}: tinted-label foreground '
+                  '${_hex(style.foreground)} on ${surface.key} rendered as '
+                  '${_hex(rendered)} is ${ratio.toStringAsFixed(2)}:1.',
+            );
+          }
+        }
+      });
     });
   }
 
-  group('dark palette — the stricter bar', () {
-    // The dark ramp was authored in this change, so it is held to full body
-    // contrast on every dark surface rather than the 3:1 UI floor.
+  group('dark palette — additional checks', () {
     final surfaces = <String, Color>{
       'bg': V2Palette.dark.bg,
       'surface': V2Palette.dark.surface,
       'surfaceHigh': V2Palette.dark.surfaceHigh,
       'surfaceHighest': V2Palette.dark.surfaceHighest,
     };
-
-    test('every severity tier meets 4.5:1 on every dark surface', () {
-      final tiers = {
-        'contraindicated': V2Palette.dark.contraindicated,
-        'avoid': V2Palette.dark.avoid,
-        'caution': V2Palette.dark.caution,
-        'monitor': V2Palette.dark.monitor,
-        'safe': V2Palette.dark.safe,
-      };
-      for (final tier in tiers.entries) {
-        for (final s in surfaces.entries) {
-          final ratio = contrastRatio(tier.value, s.value);
-          expect(
-            ratio,
-            greaterThanOrEqualTo(_bodyText),
-            reason:
-                'dark: ${tier.key} ${_hex(tier.value)} on ${s.key} '
-                '${_hex(s.value)} is ${ratio.toStringAsFixed(2)}:1. The ramp '
-                'must clear 4.5:1 on the LIGHTEST dark surface, not just the '
-                'darkest — elevated cards are where severity actually renders.',
-          );
-        }
-      }
-    });
 
     test('subtle text meets the UI floor on every dark surface', () {
       for (final s in surfaces.entries) {
@@ -233,23 +227,6 @@ void main() {
       }
     });
   });
-
-  // ---------------------------------------------------------------------------
-  // Known pre-existing light-palette gaps, measured 2026-07-31.
-  //
-  // Recorded rather than asserted: these are authored brand values that predate
-  // this change, and altering them is a palette redesign (out of scope). No
-  // inverted "expect this to be bad" test, because that breaks the day someone
-  // improves it — exactly backwards.
-  //
-  //   light fgSubtle #8A8D90  worst 2.85:1  — below the 3:1 UI floor
-  //   light caution  #AD7A24  worst 3.21:1  — passes 3:1, below 4.5:1
-  //   light monitor  #827140  worst 4.09:1  — passes 3:1, below 4.5:1
-  //   light avoid    #B8542F  worst 4.13:1  — passes 3:1, below 4.5:1
-  //
-  // The universal 3:1 severity floor above covers all of these. Raising the
-  // light ramp to 4.5:1 is a separate, deliberate palette decision.
-  // ---------------------------------------------------------------------------
 
   group('severity pill — composited contrast', () {
     // The pill is the highest-stakes surface in the app: it is what a
@@ -278,24 +255,29 @@ void main() {
       );
     }
 
-    test('dark pills use a neutral fill and stay readable', () {
-      const p = V2Palette.dark;
-      // Matches PGSeverityPill._style: dark fills with surfaceHigh, never a
-      // tint of the label's own hue.
-      for (final tier in {
-        'contraindicated': p.contraindicated,
-        'avoid': p.avoid,
-        'caution': p.caution,
-        'monitor': p.monitor,
-        'safe': p.safe,
+    test('pills use a neutral fill and stay readable in both modes', () {
+      for (final entry in {
+        'light': V2Palette.light,
+        'dark': V2Palette.dark,
       }.entries) {
-        expectPillReadable(
-          mode: 'dark',
-          tier: tier.key,
-          label: tier.value,
-          fill: p.surfaceHigh,
-          surface: p.surface,
-        );
+        final p = entry.value;
+        // Matches PGSeverityPill._style: pills use surfaceHigh, never a tint
+        // of the label's own hue.
+        for (final tier in {
+          'contraindicated': p.contraindicated,
+          'avoid': p.avoid,
+          'caution': p.caution,
+          'monitor': p.monitor,
+          'safe': p.safe,
+        }.entries) {
+          expectPillReadable(
+            mode: entry.key,
+            tier: tier.key,
+            label: tier.value,
+            fill: p.surfaceHigh,
+            surface: p.surface,
+          );
+        }
       }
     });
 

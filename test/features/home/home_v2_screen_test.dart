@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -35,15 +36,19 @@ void main() {
   Future<void> pumpHomeV2(
     WidgetTester tester,
     CoreDatabase coreDb,
-    UserDatabase userDb,
-  ) async {
+    UserDatabase userDb, {
+    ThemeData? theme,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
           userDatabaseProvider.overrideWithValue(userDb),
         ],
-        child: const MaterialApp(home: HomeV2Screen(showNavBar: false)),
+        child: MaterialApp(
+          theme: theme,
+          home: const HomeV2Screen(showNavBar: false),
+        ),
       ),
     );
     await tester.pump();
@@ -159,5 +164,27 @@ void main() {
     );
     expect(find.bySemanticsLabel('Search supplements'), findsOneWidget);
     semantics.dispose();
+  });
+
+  testWidgets('pinned search background follows a live appearance change', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    await pumpHomeV2(tester, coreDb, userDb, theme: V2Theme.light);
+    ColoredBox header() => tester.widget<ColoredBox>(
+      find.byKey(const ValueKey('home-pinned-search-background')),
+    );
+    expect(header().color, V2Theme.light.scaffoldBackgroundColor);
+
+    await pumpHomeV2(tester, coreDb, userDb, theme: V2Theme.dark);
+    await tester.pumpAndSettle();
+    expect(header().color, V2Theme.dark.scaffoldBackgroundColor);
   });
 }

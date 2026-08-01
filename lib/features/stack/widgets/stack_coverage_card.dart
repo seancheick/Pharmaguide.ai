@@ -258,6 +258,7 @@ class _CoverageSectionState extends State<_CoverageSection> {
 
   @override
   Widget build(BuildContext context) {
+    final countStyle = context.v2.tintedLabel(widget.tone);
     return Container(
       decoration: BoxDecoration(
         color: context.v2.bg,
@@ -298,12 +299,12 @@ class _CoverageSectionState extends State<_CoverageSection> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: widget.tone.withValues(alpha: 0.10),
+                      color: countStyle.fill,
                       borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                     ),
                     child: Text(
                       '${widget.count}',
-                      style: V2Typography.caption(color: widget.tone),
+                      style: V2Typography.caption(color: countStyle.foreground),
                     ),
                   ),
                   const SizedBox(width: V2Spacing.space8),

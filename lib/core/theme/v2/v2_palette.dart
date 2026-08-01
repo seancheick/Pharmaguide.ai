@@ -113,9 +113,7 @@ class V2Palette extends ThemeExtension<V2Palette> {
     onAvoid: Colors.white,
     caution: V2Colors.caution,
     cautionTint: V2Colors.cautionTint,
-    // White is only 3.76:1 on this fill. The primary foreground clears AA
-    // without changing the clinically authored caution colour.
-    onCaution: V2Colors.bgDark,
+    onCaution: Colors.white,
     monitor: V2Colors.monitor,
     monitorTint: V2Colors.monitorTint,
     onMonitor: Colors.white,
@@ -160,6 +158,27 @@ class V2Palette extends ThemeExtension<V2Palette> {
 
   static V2Palette of(Brightness brightness) =>
       brightness == Brightness.dark ? dark : light;
+
+  /// A readable label treatment on a translucent semantic tint.
+  ///
+  /// Using [tone] for both the fill and its small text looks coherent but
+  /// reduces contrast in both directions: the fill moves toward the text.
+  /// That dropped light caution labels to 3.21:1 and dark labels on elevated
+  /// cards to 4.02–4.47:1. Keep the semantic hue in the fill/border/icon and
+  /// use the palette foreground for text so meaning is never color-only.
+  ({Color fill, Color border, Color foreground}) tintedLabel(
+    Color tone, {
+    double fillAlpha = 0.10,
+    double borderAlpha = 0.20,
+  }) {
+    assert(fillAlpha >= 0 && fillAlpha <= 1);
+    assert(borderAlpha >= 0 && borderAlpha <= 1);
+    return (
+      fill: tone.withValues(alpha: fillAlpha),
+      border: tone.withValues(alpha: borderAlpha),
+      foreground: fg,
+    );
+  }
 
   @override
   V2Palette copyWith({

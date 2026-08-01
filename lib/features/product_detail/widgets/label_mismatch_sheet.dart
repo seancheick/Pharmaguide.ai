@@ -702,6 +702,7 @@ class _FailureNotice extends StatelessWidget {
         'We couldn’t confirm the report was finalized. Retry this same report. '
             'Nothing changes in the catalog automatically.',
     };
+    final style = context.v2.tintedLabel(context.v2.contraindicated);
     return Semantics(
       liveRegion: true,
       excludeSemantics: true,
@@ -709,16 +710,13 @@ class _FailureNotice extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space12),
         decoration: BoxDecoration(
-          color: context.v2.contraindicatedTint,
+          color: style.fill,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              message,
-              style: V2Typography.bodySm(color: context.v2.contraindicated),
-            ),
+            Text(message, style: V2Typography.bodySm(color: style.foreground)),
           ],
         ),
       ),

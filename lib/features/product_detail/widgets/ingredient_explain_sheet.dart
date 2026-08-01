@@ -140,7 +140,10 @@ class _FactTile extends StatelessWidget {
             style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           Expanded(
-            child: Text(value, style: V2Typography.bodySm(color: context.v2.fg)),
+            child: Text(
+              value,
+              style: V2Typography.bodySm(color: context.v2.fg),
+            ),
           ),
         ],
       ),
@@ -163,17 +166,18 @@ class _Block extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(accent, borderAlpha: 0.18);
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
         color: tint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: accent.withValues(alpha: 0.18)),
+        border: Border.all(color: style.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(heading, style: V2Typography.label(color: accent)),
+          Text(heading, style: V2Typography.label(color: style.foreground)),
           const SizedBox(height: V2Spacing.space4),
           Text(body, style: V2Typography.bodySm(color: context.v2.fg)),
         ],

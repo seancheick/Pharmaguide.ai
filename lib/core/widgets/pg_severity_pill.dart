@@ -20,35 +20,27 @@ class PGSeverityPill extends StatelessWidget {
     this.compact = false,
   });
 
-  /// Dark mode fills with a NEUTRAL elevated surface rather than a tint of the
-  /// severity hue.
+  /// Uses a NEUTRAL elevated surface rather than a tint of the severity hue.
   ///
   /// A same-hue tint lifts the background toward its own text: at the previous
   /// 22% alpha the "Do not use" pill measured 2.11:1, and even with the dark
   /// severity ramp it only reached 3.38:1. The label is 11.5–12.5pt bold, below
   /// WCAG's 14pt-bold large-text threshold, so 4.5:1 is required and 3:1 is not
-  /// available. A neutral fill clears 5.06–5.11:1 while leaving the muted
-  /// palette untouched — the severity signal moves to the icon and label, which
-  /// is also where a screen reader finds it.
-  ({Color bg, Color fg, IconData icon, String label}) _style(
-    V2Palette p,
-    bool isDark,
-  ) {
+  /// available. A neutral fill preserves contrast in both appearances while
+  /// the severity hue remains in the icon and label. The written label also
+  /// means the treatment never relies on colour alone.
+  ({Color bg, Color fg, IconData icon, String label}) _style(V2Palette p) {
     switch (severity) {
       case Severity.contraindicated:
         return (
-          bg: isDark
-              ? p.surfaceHigh
-              : p.contraindicated.withValues(alpha: 0.10),
+          bg: p.surfaceHigh,
           fg: p.contraindicated,
           icon: Icons.block_rounded,
           label: 'Do not use',
         );
       case Severity.avoid:
         return (
-          bg: isDark
-              ? p.surfaceHigh
-              : p.avoid.withValues(alpha: 0.10),
+          bg: p.surfaceHigh,
           fg: p.avoid,
           icon: Icons.error_outline_rounded,
           // Sean 2026-04-30 — see severity.dart for the softer-tone
@@ -58,18 +50,14 @@ class PGSeverityPill extends StatelessWidget {
         );
       case Severity.caution:
         return (
-          bg: isDark
-              ? p.surfaceHigh
-              : p.caution.withValues(alpha: 0.12),
+          bg: p.surfaceHigh,
           fg: p.caution,
           icon: Icons.warning_amber_rounded,
           label: 'Use caution',
         );
       case Severity.monitor:
         return (
-          bg: isDark
-              ? p.surfaceHigh
-              : p.monitor.withValues(alpha: 0.14),
+          bg: p.surfaceHigh,
           fg: p.monitor,
           icon: Icons.visibility_outlined,
           label: 'Monitor',
@@ -79,18 +67,14 @@ class PGSeverityPill extends StatelessWidget {
         // material but the user's profile hasn't declared the triggering
         // condition/drug class.
         return (
-          bg: isDark
-              ? p.surfaceHigh
-              : p.fgMuted.withValues(alpha: 0.12),
+          bg: p.surfaceHigh,
           fg: p.fgMuted,
           icon: Icons.info_outline_rounded,
           label: 'Info',
         );
       case Severity.safe:
         return (
-          bg: isDark
-              ? p.surfaceHigh
-              : p.safe.withValues(alpha: 0.10),
+          bg: p.surfaceHigh,
           fg: p.safe,
           icon: Icons.check_circle_outline_rounded,
           label: 'Safe',
@@ -100,8 +84,7 @@ class PGSeverityPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final s = _style(context.v2, isDark);
+    final s = _style(context.v2);
 
     final iconSize = compact ? 13.0 : 15.0;
     final textSize = compact ? 11.5 : 12.5;

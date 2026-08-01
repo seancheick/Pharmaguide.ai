@@ -373,15 +373,16 @@ class _CountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(tone, fillAlpha: 0.18);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.18),
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         '$count',
-        style: V2Typography.overline(color: tone).copyWith(
+        style: V2Typography.overline(color: style.foreground).copyWith(
           fontSize: 11,
           letterSpacing: 0.2,
           fontFeatures: const [FontFeature.tabularFigures()],

@@ -99,11 +99,7 @@ class _NoHistoryState extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.history_rounded,
-                size: 20,
-                color: context.v2.fgMuted,
-              ),
+              Icon(Icons.history_rounded, size: 20, color: context.v2.fgMuted),
               const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: Text(
@@ -132,7 +128,7 @@ class _SnapshotCard extends StatelessWidget {
         ? 'Formula unchanged'
         : 'Formula differs from current label';
     final accent = isUnchanged ? context.v2.safe : context.v2.caution;
-    final tint = isUnchanged ? context.v2.safeTint : context.v2.cautionTint;
+    final style = context.v2.tintedLabel(accent);
 
     return Semantics(
       container: true,
@@ -159,12 +155,12 @@ class _SnapshotCard extends StatelessWidget {
                   vertical: V2Spacing.space4,
                 ),
                 decoration: BoxDecoration(
-                  color: tint,
+                  color: style.fill,
                   borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                 ),
                 child: Text(
                   comparisonLabel,
-                  style: V2Typography.caption(color: accent),
+                  style: V2Typography.caption(color: style.foreground),
                 ),
               ),
               const SizedBox(height: V2Spacing.space12),

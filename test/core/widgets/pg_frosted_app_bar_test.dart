@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_app_bar.dart';
 
 void main() {
@@ -87,6 +88,34 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsNothing);
+    });
+
+    testWidgets('title follows a live appearance change', (tester) async {
+      Widget app(ThemeData theme) => MaterialApp(
+        theme: theme,
+        home: const Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              PGFrostedAppBar(
+                title: 'Appearance',
+                automaticallyImplyLeading: false,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(app(V2Theme.light));
+      await tester.pumpAndSettle();
+      final light = tester.widget<Text>(find.text('Appearance')).style?.color;
+
+      await tester.pumpWidget(app(V2Theme.dark));
+      await tester.pumpAndSettle();
+      final dark = tester.widget<Text>(find.text('Appearance')).style?.color;
+
+      expect(light, V2Theme.light.textTheme.titleMedium?.color);
+      expect(dark, V2Theme.dark.textTheme.titleMedium?.color);
+      expect(dark, isNot(light));
     });
   });
 }

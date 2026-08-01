@@ -417,18 +417,19 @@ class _PillChipV2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(color, fillAlpha: 0.12);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(4),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
+          color: style.fill,
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           label,
-          style: V2Typography.caption(color: color).copyWith(
+          style: V2Typography.caption(color: style.foreground).copyWith(
             fontSize: 11,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.3,
@@ -456,10 +457,11 @@ class _MiniChipV2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: style.fill,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -469,7 +471,7 @@ class _MiniChipV2 extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: V2Typography.caption(color: color).copyWith(
+            style: V2Typography.caption(color: style.foreground).copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.2,

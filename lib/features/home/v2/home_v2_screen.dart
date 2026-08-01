@@ -82,7 +82,13 @@ class HomeV2Screen extends ConsumerWidget {
         // beneath it. ColoredBox keeps the cream bg continuous.
         SliverPersistentHeader(
           pinned: true,
-          delegate: _PinnedSearchDelegate(topPadding: mq.padding.top),
+          delegate: _PinnedSearchDelegate(
+            topPadding: mq.padding.top,
+            // Resolved HERE, not inside the delegate: a persistent header
+            // repaints only when shouldRebuild says so, and it can only
+            // compare what it was given.
+            background: context.v2.bg,
+          ),
         ),
 
         // 2. Hero greeting.
@@ -521,6 +527,8 @@ class _StackHealthCard extends ConsumerWidget {
       hasError: hasError,
     );
     final Color tone = status?.color ?? fallback.tone;
+    final statusTone = context.v2.tintedLabel(tone);
+    final insightTone = context.v2.tintedLabel(tone, fillAlpha: 0.08);
     final statusLabel = status?.label ?? fallback.label;
     final insightLine = hasRealData
         ? intelligence == null
@@ -605,12 +613,12 @@ class _StackHealthCard extends ConsumerWidget {
                             vertical: V2Spacing.space4,
                           ),
                           decoration: BoxDecoration(
-                            color: tone.withValues(alpha: 0.10),
+                            color: statusTone.fill,
                             borderRadius: BorderRadius.circular(
                               V2Spacing.radiusPill,
                             ),
                             border: Border.all(
-                              color: tone.withValues(alpha: 0.20),
+                              color: statusTone.border,
                               width: 0.8,
                             ),
                           ),
@@ -630,7 +638,9 @@ class _StackHealthCard extends ConsumerWidget {
                               const SizedBox(width: V2Spacing.space8),
                               Text(
                                 statusLabel,
-                                style: V2Typography.label(color: tone),
+                                style: V2Typography.label(
+                                  color: statusTone.foreground,
+                                ),
                               ),
                             ],
                           ),
@@ -645,7 +655,7 @@ class _StackHealthCard extends ConsumerWidget {
                         vertical: V2Spacing.space8,
                       ),
                       decoration: BoxDecoration(
-                        color: tone.withValues(alpha: 0.08),
+                        color: insightTone.fill,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -667,7 +677,7 @@ class _StackHealthCard extends ConsumerWidget {
                             child: Text(
                               insightLine,
                               style: V2Typography.caption(
-                                color: tone,
+                                color: insightTone.foreground,
                               ).copyWith(fontWeight: FontWeight.w500),
                             ),
                           ),
@@ -1421,11 +1431,27 @@ final _v2RecentScansProvider = FutureProvider.autoDispose<List<RecentScan>>((
 // =============================================================================
 
 class _PinnedSearchDelegate extends SliverPersistentHeaderDelegate {
-  _PinnedSearchDelegate({required this.topPadding});
+  _PinnedSearchDelegate({required this.topPadding, required this.background});
 
   /// System status-bar inset; we draw inside this padding so the search
   /// field never sits underneath the notch / Dynamic Island.
   final double topPadding;
+
+  /// The page background, resolved by the caller and compared in
+  /// `shouldRebuild`.
+  ///
+  /// A persistent header repaints ONLY when its delegate says to, so reading
+  /// the theme inside `build` silently freezes it. Comparing `topPadding`
+  /// alone left this header painting the previous appearance after a
+  /// light/dark switch, while the status-bar icons — which do follow the
+  /// switch — turned invisible against the stale bar.
+  ///
+  /// Comparing `Brightness` instead is not enough either: brightness flips
+  /// discretely at the START of the theme animation while the palette lerps
+  /// across it, so the header rebuilds once, captures a mid-transition
+  /// colour, and freezes there. The resolved colour changes every frame,
+  /// which is exactly what makes it the right thing to compare.
+  final Color background;
 
   // 48pt launcher + 12pt top + 8pt bottom = 68pt below the status bar.
   static const double _topPadding = V2Spacing.space12;
@@ -1448,7 +1474,8 @@ class _PinnedSearchDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     return ColoredBox(
-      color: context.v2.bg,
+      key: const ValueKey('home-pinned-search-background'),
+      color: background,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           V2Spacing.space24,
@@ -1463,6 +1490,7 @@ class _PinnedSearchDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _PinnedSearchDelegate oldDelegate) {
-    return oldDelegate.topPadding != topPadding;
+    return oldDelegate.topPadding != topPadding ||
+        oldDelegate.background != background;
   }
 }

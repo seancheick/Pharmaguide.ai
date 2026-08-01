@@ -291,10 +291,11 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Row(
@@ -306,7 +307,7 @@ class _InfoChip extends StatelessWidget {
             child: Text(
               label,
               style: V2Typography.caption(
-                color: color,
+                color: style.foreground,
               ).copyWith(fontWeight: FontWeight.w600),
             ),
           ),

@@ -362,19 +362,24 @@ class _WarningChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(
+      color,
+      fillAlpha: 0.08,
+      borderAlpha: 0.25,
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        border: Border.all(color: style.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.warning_amber_rounded, size: 14, color: color),
           const SizedBox(width: V2Spacing.space8),
-          Flexible(child: Text(text, style: _captionStyle(color))),
+          Flexible(child: Text(text, style: _captionStyle(style.foreground))),
         ],
       ),
     );

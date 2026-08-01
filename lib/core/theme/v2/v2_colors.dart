@@ -49,12 +49,16 @@ abstract final class V2Colors {
   // NEVER brighten these. The website's reds are muted on purpose.
   static const contraindicated = Color(0xFF9F2929);
   static const contraindicatedTint = Color(0x1A9F2929);
-  static const avoid = Color(0xFFB8542F);
-  static const avoidTint = Color(0x1AB8542F);
-  static const caution = Color(0xFFAD7A24);
-  static const cautionTint = Color(0x1AAD7A24);
-  static const monitor = Color(0xFF827140);
-  static const monitorTint = Color(0x1A827140);
+  // These three are minimally darker than the original brand ramp so small
+  // clinical labels clear WCAG AA on the lightest elevated surface. Hue and
+  // saturation stay intact; only lightness moves. The full ramp is locked by
+  // v2_palette_contrast_test.dart.
+  static const avoid = Color(0xFFAA4E2B);
+  static const avoidTint = Color(0x1AAA4E2B);
+  static const caution = Color(0xFF8A611D);
+  static const cautionTint = Color(0x1A8A611D);
+  static const monitor = Color(0xFF78683B);
+  static const monitorTint = Color(0x1A78683B);
   static const safe = Color(0xFF3F6250);
   static const safeTint = Color(0x1A3F6250);
 

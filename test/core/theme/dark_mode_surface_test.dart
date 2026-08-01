@@ -180,23 +180,50 @@ void main() {
     });
 
     test('adaptive solid-fill widgets never hardcode a white foreground', () {
-      const adaptiveSolidSurfaces = <String>{
-        'lib/features/home/v2/home_v2_screen.dart',
-        'lib/core/components/pg_pill_button.dart',
-        'lib/core/components/pg_pill_tab_bar.dart',
-        'lib/core/components/pg_type_badge.dart',
-        'lib/core/components/pg_verdict_reveal.dart',
-        'lib/core/components/pg_selection_sheet.dart',
-        'lib/features/product_detail/widgets/pg_stack_action_buttons.dart',
+      // Computed, not enumerated. An allowlist only re-checks the files that
+      // were already fixed; this checks the invariant on every file.
+      //
+      // pg_type_badge escaped the first sweep because it resolves colour
+      // through `type.color(context.v2)` — the palette is never named at the
+      // use site, so searching for `context.v2.accent` could not see it.
+      // Matching on "touches the palette at all" catches that indirection.
+      const themeOwners = <String>{
+        // These author the on* values. `isDark ? bgDark : white` IS the
+        // brightness resolution, not a bypass of it.
+        'lib/core/theme/v2/v2_palette.dart',
+        'lib/core/theme/v2/v2_theme.dart',
       };
-      final offenders = <String>[];
+      const fixedDarkChrome = <String>{
+        // Always-dark chrome over the camera feed. Both palettes resolve
+        // cameraOverlay* to the same constants, so white is correct here.
+        'lib/features/scanner/scanner_screen.dart',
+        'lib/features/scanner/v2/scanner_v2_screen.dart',
+      };
+      // White that resolves brightness on its own line is not a hardcode.
+      final brightnessAware = RegExp(
+        r'(Colors\.white[^;]*isDark)|(isDark[^;]*Colors\.white)',
+      );
+      final touchesPalette = RegExp(r'context\.v2\b|V2Palette');
 
-      for (final path in adaptiveSolidSurfaces) {
-        final lines = File(path).readAsLinesSync();
+      final offenders = <String>[];
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final relative = entity.path.replaceFirst(
+          '${Directory.current.path}/',
+          '',
+        );
+        if (themeOwners.contains(relative)) continue;
+        if (fixedDarkChrome.contains(relative)) continue;
+
+        final source = entity.readAsStringSync();
+        if (!source.contains('Colors.white')) continue;
+        if (!touchesPalette.hasMatch(source)) continue;
+
+        final lines = source.split('\n');
         for (var i = 0; i < lines.length; i++) {
-          if (lines[i].contains('Colors.white')) {
-            offenders.add('$path:${i + 1}');
-          }
+          if (!lines[i].contains('Colors.white')) continue;
+          if (brightnessAware.hasMatch(lines[i])) continue;
+          offenders.add('$relative:${i + 1}');
         }
       }
 
@@ -205,8 +232,58 @@ void main() {
         isEmpty,
         reason:
             'Brightness-aware fills require their matching context.v2.on* '
-            'foreground; white fails against dark-mode accent/severity fills:'
-            '\n${offenders.join('\n')}',
+            'foreground; white fails against every dark-mode accent and '
+            'severity fill — 1.64:1 at worst:\n${offenders.join('\n')}',
+      );
+    });
+  });
+
+  group('pinned headers repaint when the appearance changes', () {
+    // A SliverPersistentHeader repaints ONLY when its delegate's
+    // shouldRebuild says to. A theme value read inside the delegate's build
+    // is therefore invisible to that check, and the header freezes on the
+    // previous appearance — while the status-bar icons, which DO follow the
+    // switch, go invisible against the stale bar. Caught on device; no
+    // contrast maths can see it, because every colour involved is correct.
+    // Only the repaint was missing.
+    //
+    // Comparing `Brightness` is not a fix. Brightness flips discretely at
+    // the START of the theme animation while the palette lerps across it,
+    // so the header rebuilds once, captures a mid-transition colour, and
+    // freezes there — verified on device. Resolve theme values at the call
+    // site and compare those; they change every frame.
+    test('a delegate never reads the theme inside build', () {
+      final offenders = <String>[];
+
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final source = entity.readAsStringSync();
+        final declaration = source.indexOf(
+          'extends SliverPersistentHeaderDelegate',
+        );
+        if (declaration == -1) continue;
+
+        final relative = entity.path.replaceFirst(
+          '${Directory.current.path}/',
+          '',
+        );
+        // Scope to the delegate class: the enclosing widget resolves the
+        // theme legitimately, and it lives in the same file.
+        final body = source.substring(declaration);
+        for (final read in ['context.v2', 'Theme.of(context)']) {
+          if (body.contains(read)) {
+            offenders.add('$relative (delegate build reads $read)');
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'A persistent header cannot see theme changes it reads itself. '
+            'Resolve the value where the delegate is constructed and compare '
+            'it in shouldRebuild:\n${offenders.join('\n')}',
       );
     });
   });

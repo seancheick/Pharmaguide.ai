@@ -805,17 +805,18 @@ class _TypeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = item.isMedication ? 'Rx' : 'Supp';
     final tone = item.isMedication ? context.v2.monitor : context.v2.accent;
+    final style = context.v2.tintedLabel(tone, borderAlpha: 0.18);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: V2Spacing.space8,
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.10),
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        border: Border.all(color: tone.withValues(alpha: 0.18), width: 0.8),
+        border: Border.all(color: style.border, width: 0.8),
       ),
-      child: Text(label, style: V2Typography.eyebrow(color: tone)),
+      child: Text(label, style: V2Typography.eyebrow(color: style.foreground)),
     );
   }
 }
@@ -945,10 +946,11 @@ class _SelfVerdictBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(context.v2.contraindicated);
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space24),
       decoration: BoxDecoration(
-        color: context.v2.contraindicatedTint,
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         border: Border.all(color: context.v2.contraindicated, width: 1.5),
       ),
@@ -967,7 +969,7 @@ class _SelfVerdictBanner extends StatelessWidget {
               Expanded(
                 child: PGEyebrow(
                   VerdictBadge.labelFor(verdict).toUpperCase(),
-                  color: context.v2.contraindicated,
+                  color: style.foreground,
                 ),
               ),
             ],
@@ -1020,7 +1022,7 @@ class _ResultsBlock extends StatelessWidget {
       final String body;
       if (coverageIncomplete) {
         tint = context.v2.caution;
-        tintBg = context.v2.cautionTint;
+        tintBg = context.v2.tintedLabel(tint).fill;
         icon = Icons.warning_amber_rounded;
         eyebrow = 'Coverage incomplete';
         body =
@@ -1053,7 +1055,12 @@ class _ResultsBlock extends StatelessWidget {
               children: [
                 Icon(icon, color: tint, size: 22),
                 const SizedBox(width: V2Spacing.space12),
-                Expanded(child: PGEyebrow(eyebrow, color: tint)),
+                Expanded(
+                  child: PGEyebrow(
+                    eyebrow,
+                    color: coverageIncomplete ? context.v2.fg : tint,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: V2Spacing.space12),

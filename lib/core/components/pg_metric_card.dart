@@ -101,7 +101,10 @@ class PGMetricCard extends StatelessWidget {
           ),
           if (caption != null) ...[
             const SizedBox(height: V2Spacing.space4),
-            Text(caption!, style: V2Typography.bodySm(color: context.v2.fgMuted)),
+            Text(
+              caption!,
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
+            ),
           ],
           if (delta != null) ...[
             const SizedBox(height: V2Spacing.space12),
@@ -132,16 +135,12 @@ class _DeltaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (trend) {
-      PGMetricTrend.up => context.v2.safe,
-      PGMetricTrend.down => context.v2.caution,
-      PGMetricTrend.flat => context.v2.fgMuted,
-    };
     final tint = switch (trend) {
       PGMetricTrend.up => context.v2.safeTint,
       PGMetricTrend.down => context.v2.cautionTint,
       PGMetricTrend.flat => context.v2.outline,
     };
+    final foreground = context.v2.fg;
     final caret = switch (trend) {
       PGMetricTrend.up => '↑',
       PGMetricTrend.down => '↓',
@@ -160,10 +159,10 @@ class _DeltaPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (caret != null) ...[
-            Text(caret, style: V2Typography.label(color: color)),
+            Text(caret, style: V2Typography.label(color: foreground)),
             const SizedBox(width: V2Spacing.space4),
           ],
-          Text(text, style: V2Typography.caption(color: color)),
+          Text(text, style: V2Typography.caption(color: foreground)),
         ],
       ),
     );

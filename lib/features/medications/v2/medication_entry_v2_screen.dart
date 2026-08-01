@@ -1152,12 +1152,16 @@ class _MedicationProfileReviewCard extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final warning = warnings.isNotEmpty ? warnings.first : null;
+    final reviewStyle = context.v2.tintedLabel(
+      context.v2.caution,
+      borderAlpha: 0.32,
+    );
     return Container(
       key: const Key('med-entry-profile-review-card'),
       decoration: BoxDecoration(
-        color: context.v2.cautionTint,
+        color: reviewStyle.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: context.v2.caution.withValues(alpha: 0.32)),
+        border: Border.all(color: reviewStyle.border),
       ),
       padding: const EdgeInsets.all(V2Spacing.space16),
       child: Row(
@@ -1182,7 +1186,7 @@ class _MedicationProfileReviewCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                PGEyebrow('Profile review', color: context.v2.caution),
+                PGEyebrow('Profile review', color: reviewStyle.foreground),
                 const SizedBox(height: V2Spacing.space8),
                 Text(
                   resolving

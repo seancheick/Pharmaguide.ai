@@ -69,6 +69,12 @@ class PGFrostedAppBar extends StatelessWidget {
         actions: actions,
         blurSigma: blurSigma,
         topPadding: mq.padding.top,
+        // Resolved HERE so shouldRebuild can compare it. Reading the theme
+        // inside the delegate freezes the header on an appearance change.
+        titleStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
+        ),
       ),
     );
   }
@@ -82,6 +88,15 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
   final double blurSigma;
   final double topPadding;
 
+  /// Resolved by the caller so `shouldRebuild` can compare it.
+  ///
+  /// A persistent header repaints only when its delegate says to, so theme
+  /// values read inside `build` freeze on an appearance change. `TextStyle`
+  /// has value equality and its colour lerps across the theme animation,
+  /// which makes it repaint on every frame of the transition rather than
+  /// once at the start.
+  final TextStyle? titleStyle;
+
   static const double _barHeight = 44; // iOS standard nav bar content
   static const double _verticalPadding = 6;
 
@@ -92,6 +107,7 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
     required this.actions,
     required this.blurSigma,
     required this.topPadding,
+    required this.titleStyle,
   });
 
   double get _height => topPadding + _verticalPadding * 2 + _barHeight;
@@ -107,8 +123,6 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    final theme = Theme.of(context);
-
     Widget? leadingWidget = leading;
     if (leadingWidget == null && automaticallyImplyLeading) {
       final canPop = ModalRoute.of(context)?.canPop ?? false;
@@ -139,10 +153,7 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
               Center(
                 child: Text(
                   title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.2,
-                  ),
+                  style: titleStyle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -172,6 +183,7 @@ class _PGFrostedAppBarDelegate extends SliverPersistentHeaderDelegate {
         // button's onTap captures a fresh closure when _product loads).
         !listEquals(oldDelegate.actions, actions) ||
         oldDelegate.blurSigma != blurSigma ||
-        oldDelegate.topPadding != topPadding;
+        oldDelegate.topPadding != topPadding ||
+        oldDelegate.titleStyle != titleStyle;
   }
 }

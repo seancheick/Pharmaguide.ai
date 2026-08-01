@@ -529,14 +529,12 @@ class _HeroCautionPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(context.v2.caution, borderAlpha: 0.55);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: context.v2.cautionTint,
-        border: Border.all(
-          color: context.v2.caution.withValues(alpha: 0.55),
-          width: 0.7,
-        ),
+        color: style.fill,
+        border: Border.all(color: style.border, width: 0.7),
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Row(
@@ -550,7 +548,7 @@ class _HeroCautionPill extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             'Use caution',
-            style: V2Typography.caption(color: context.v2.caution).copyWith(
+            style: V2Typography.caption(color: style.foreground).copyWith(
               fontSize: 10,
               fontWeight: FontWeight.w500,
               letterSpacing: -0.05,

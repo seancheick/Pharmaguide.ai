@@ -34,6 +34,7 @@ class PGHeavyMetalWarning extends StatelessWidget {
     if (metals.isEmpty) return const SizedBox.shrink();
 
     final tone = context.v2.caution;
+    final headerStyle = context.v2.tintedLabel(tone, fillAlpha: 0.06);
     final card = Container(
       decoration: BoxDecoration(
         color: context.v2.surface,
@@ -50,25 +51,26 @@ class PGHeavyMetalWarning extends StatelessWidget {
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(V2Spacing.space16),
-                color: tone.withValues(alpha: 0.06),
+                color: headerStyle.fill,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      size: 20,
-                      color: tone,
-                    ),
+                    Icon(Icons.warning_amber_rounded, size: 20, color: tone),
                     const SizedBox(width: V2Spacing.space12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          PGEyebrow('Heavy metal risk', color: tone),
+                          PGEyebrow(
+                            'Heavy metal risk',
+                            color: headerStyle.foreground,
+                          ),
                           const SizedBox(height: V2Spacing.space4),
                           Text(
                             metals.join(' · '),
-                            style: V2Typography.bodyMedium(color: context.v2.fg),
+                            style: V2Typography.bodyMedium(
+                              color: context.v2.fg,
+                            ),
                           ),
                           if (note != null) ...[
                             const SizedBox(height: V2Spacing.space4),
@@ -84,11 +86,7 @@ class PGHeavyMetalWarning extends StatelessWidget {
                     ),
                     if (onTap != null) ...[
                       const SizedBox(width: V2Spacing.space8),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 18,
-                        color: tone,
-                      ),
+                      Icon(Icons.chevron_right_rounded, size: 18, color: tone),
                     ],
                   ],
                 ),

@@ -151,15 +151,16 @@ class _TierBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(color, fillAlpha: 0.12);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: style.fill,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         label.toUpperCase(),
-        style: V2Typography.overline(color: color),
+        style: V2Typography.overline(color: style.foreground),
       ),
     );
   }
@@ -174,10 +175,11 @@ class _IngredientPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = context.v2.tintedLabel(color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: style.fill,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -190,7 +192,7 @@ class _IngredientPill extends StatelessWidget {
           Text(
             label,
             style: V2Typography.caption(
-              color: color,
+              color: style.foreground,
             ).copyWith(fontSize: 11, fontWeight: FontWeight.w500),
           ),
         ],
