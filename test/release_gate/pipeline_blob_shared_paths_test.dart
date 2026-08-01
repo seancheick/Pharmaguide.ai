@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
@@ -129,10 +129,10 @@ void main() {
   );
 
   test('Scanner blocked verdict renders red, never safe/neutral', () {
-    expect(verdictFlashColor('BLOCKED'), V2Colors.contraindicated);
+    expect(verdictFlashColor(V2Palette.light, 'BLOCKED'), V2Palette.light.contraindicated);
     expect(
-      verdictFlashColor(pipelineBlob['verdict'] as String),
-      V2Colors.contraindicated,
+      verdictFlashColor(V2Palette.light, pipelineBlob['verdict'] as String),
+      V2Palette.light.contraindicated,
     );
   });
 }

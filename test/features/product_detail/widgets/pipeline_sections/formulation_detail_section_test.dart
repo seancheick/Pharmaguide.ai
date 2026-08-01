@@ -10,9 +10,13 @@ Future<void> _pump(
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: buildFormulationSection(
-          formulationDetail: formulationDetail,
-          ingredientQualityData: ingredientQualityData,
+        // Builder so the section receives a context beneath MaterialApp.
+        body: Builder(
+          builder: (context) => buildFormulationSection(
+            context: context,
+            formulationDetail: formulationDetail,
+            ingredientQualityData: ingredientQualityData,
+          ),
         ),
       ),
     ),

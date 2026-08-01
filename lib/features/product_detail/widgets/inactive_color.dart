@@ -15,7 +15,7 @@
 // built before display_tone existed (offline cache).
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 
 /// Visual tone for an inactive ingredient's color dot. Maps cleanly
 /// to a 4-stop palette (green = best, red = worst).
@@ -77,16 +77,18 @@ InactiveTone inactiveColorRank(Map<String, dynamic> inactive) {
 /// shared palette file) because the rubric is tied to this widget's
 /// semantics — green/yellow/orange/red as severity, not as hue.
 extension InactiveToneColor on InactiveTone {
-  Color get color {
+  /// Takes the palette: an enum has no element tree, but its colour still
+  /// has to follow brightness.
+  Color color(V2Palette p) {
     switch (this) {
       case InactiveTone.green:
-        return V2Colors.safe;
+        return p.safe;
       case InactiveTone.yellow:
-        return V2Colors.caution;
+        return p.caution;
       case InactiveTone.orange:
-        return V2Colors.avoid;
+        return p.avoid;
       case InactiveTone.red:
-        return V2Colors.contraindicated;
+        return p.contraindicated;
     }
   }
 }

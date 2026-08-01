@@ -27,7 +27,7 @@
 // clinical/advisory throughout.
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
@@ -43,6 +43,7 @@ import 'package:url_launcher/url_launcher.dart';
 /// when there is no headline to render (defensive — should never
 /// happen in production because `isBlocked` already implies a verdict).
 Widget buildBlockedBannerSection({
+  required BuildContext context,
   required String verdict,
   required String blockingReason,
   required List<Map<String, dynamic>> topWarnings,
@@ -98,7 +99,7 @@ Widget buildBlockedBannerSection({
           padding: const EdgeInsets.only(top: V2Spacing.space8),
           child: Text(
             reasonBody,
-            style: V2Typography.bodySm(color: V2Colors.fg),
+            style: V2Typography.bodySm(color: context.v2.fg),
           ),
         ),
 
@@ -107,7 +108,7 @@ Widget buildBlockedBannerSection({
           const SizedBox(height: V2Spacing.space8),
           Text(
             regulatoryLine,
-            style: V2Typography.label(color: V2Colors.contraindicated),
+            style: V2Typography.label(color: context.v2.contraindicated),
           ),
         ],
 
@@ -116,7 +117,7 @@ Widget buildBlockedBannerSection({
           const SizedBox(height: V2Spacing.space12),
           Text(
             'Ingredient: $substanceName',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
         ],
 
@@ -125,7 +126,7 @@ Widget buildBlockedBannerSection({
           const SizedBox(height: V2Spacing.space8),
           Text(
             safetyWarning,
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
         ],
 
@@ -135,7 +136,7 @@ Widget buildBlockedBannerSection({
           Text(
             contextNote,
             style: V2Typography.bodySm(
-              color: V2Colors.fgMuted,
+              color: context.v2.fgMuted,
             ).copyWith(fontStyle: FontStyle.italic),
           ),
         ],
@@ -143,7 +144,7 @@ Widget buildBlockedBannerSection({
         // 6. Detail / FDA-story paragraph.
         if (detailText != null && detailText.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space12),
-          Text(detailText, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
+          Text(detailText, style: V2Typography.bodySm(color: context.v2.fgMuted)),
         ],
 
         // 7. FDA sources link list.
@@ -189,7 +190,7 @@ class _FdaSourcesBlock extends StatelessWidget {
         children: [
           Text(
             'FDA SOURCES',
-            style: V2Typography.eyebrow(color: V2Colors.contraindicated),
+            style: V2Typography.eyebrow(color: context.v2.contraindicated),
           ),
           const SizedBox(height: V2Spacing.space4),
           ...links.map((url) => _FdaLinkRow(url: url)),
@@ -216,16 +217,16 @@ class _FdaLinkRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.open_in_new_rounded,
               size: 11,
-              color: V2Colors.contraindicated,
+              color: context.v2.contraindicated,
             ),
             const SizedBox(width: V2Spacing.space4),
             Expanded(
               child: Text(
                 url,
-                style: V2Typography.label(color: V2Colors.contraindicated)
+                style: V2Typography.label(color: context.v2.contraindicated)
                     .copyWith(
                       decoration: TextDecoration.underline,
                       overflow: TextOverflow.ellipsis,

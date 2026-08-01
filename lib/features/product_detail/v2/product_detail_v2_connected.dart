@@ -604,6 +604,7 @@ class _ProductDetailV2ConnectedState
     // -------------------------------------------------------------
     final heroBottomBanner = isBlocked
         ? buildBlockedBannerSection(
+            context: context,
             verdict: _product?.verdict ?? '',
             blockingReason: _product?.blockingReason ?? '',
             topWarnings: parseTopWarnings(_product),
@@ -729,6 +730,7 @@ class _ProductDetailV2ConnectedState
                         blobAllergens == null || blobAllergens.isEmpty,
                   )) ...[
                     buildAllergenSummaryBannerSection(
+            context: context,
                       allergenSummary: _product?.allergenSummary,
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -744,7 +746,7 @@ class _ProductDetailV2ConnectedState
                         blobAllergens == null || blobAllergens.isEmpty,
                     allergenSummary: _product?.allergenSummary,
                   )) ...[
-                    buildAllergenDataUnavailableHedge(),
+                    buildAllergenDataUnavailableHedge(context),
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
@@ -903,6 +905,7 @@ class _ProductDetailV2ConnectedState
                   if (showDeepDive) ...[
                     ..._sectionWithTrailingGap(
                       buildFormulationSection(
+            context: context,
                         formulationDetail: _blobMap(
                           detailBlob,
                           'formulation_detail',

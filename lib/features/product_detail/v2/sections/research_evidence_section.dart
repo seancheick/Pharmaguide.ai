@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/models/research_pair_evidence.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -133,7 +133,7 @@ class ResearchSupportSection extends ConsumerWidget {
         evidenceData: evidenceData,
         relatedResearch: research.isEmpty
             ? null
-            : buildResearchEvidenceSheetSection(research),
+            : buildResearchEvidenceSheetSection(context, research),
       );
     }
 
@@ -172,9 +172,9 @@ class _ResearchEvidenceCard extends StatelessWidget {
           duration: V2Motion.base,
           curve: V2Motion.smooth,
           decoration: BoxDecoration(
-            color: V2Colors.surface,
+            color: context.v2.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
             boxShadow: V2Shadows.sm,
           ),
           padding: const EdgeInsets.all(V2Spacing.space16),
@@ -187,14 +187,14 @@ class _ResearchEvidenceCard extends StatelessWidget {
                   Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
-                      color: V2Colors.accentTint,
+                    decoration: BoxDecoration(
+                      color: context.v2.accentTint,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.biotech_outlined,
                       size: 20,
-                      color: V2Colors.accent,
+                      color: context.v2.accent,
                     ),
                   ),
                   const SizedBox(width: V2Spacing.space12),
@@ -206,30 +206,30 @@ class _ResearchEvidenceCard extends StatelessWidget {
                         const SizedBox(height: V2Spacing.space4),
                         Text(
                           headline,
-                          style: V2Typography.bodyMedium(color: V2Colors.fg),
+                          style: V2Typography.bodyMedium(color: context.v2.fg),
                         ),
                         if (otherCount > 0) ...[
                           const SizedBox(height: V2Spacing.space4),
                           Text(
                             '$paperCount published ${paperCount == 1 ? "paper" : "papers"} across these pairs',
                             style: V2Typography.caption(
-                              color: V2Colors.fgMuted,
+                              color: context.v2.fgMuted,
                             ),
                           ),
                         ],
                         const SizedBox(height: V2Spacing.space4),
                         Text(
                           "Where this product's ingredients appear in research together with other substances — context, not a warning.",
-                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(color: context.v2.fgMuted),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: V2Spacing.space8),
-                  const Icon(
+                  Icon(
                     Icons.expand_more_rounded,
                     size: 22,
-                    color: V2Colors.fgMuted,
+                    color: context.v2.fgMuted,
                   ),
                 ],
               ),
@@ -265,14 +265,14 @@ class _EvidencePill extends StatelessWidget {
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
-        color: V2Colors.accentTint,
+        color: context.v2.accentTint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         '$label - $count',
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: V2Typography.caption(color: V2Colors.accent),
+        style: V2Typography.caption(color: context.v2.accent),
       ),
     );
   }
@@ -293,18 +293,21 @@ void showResearchEvidenceDrawer(
 /// studies sheet (T10). Non-scrolling — the host sheet owns the scroll —
 /// and reuses [_ResearchEvidenceRow] so the rows never drift from the
 /// standalone drawer.
-Widget buildResearchEvidenceSheetSection(List<ResearchPairEvidence> evidence) {
+Widget buildResearchEvidenceSheetSection(
+  BuildContext context,
+  List<ResearchPairEvidence> evidence,
+) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
     children: [
-      const PGEyebrow('Related ingredient research', color: V2Colors.fgMuted),
+      PGEyebrow('Related ingredient research', color: context.v2.fgMuted),
       const SizedBox(height: V2Spacing.space8),
       Text(
         "Where this product's ingredients appear alongside other substances "
         'in published literature — context for your reading, not warnings, '
         'scores, or clinical instructions.',
-        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+        style: V2Typography.bodySm(color: context.v2.fgMuted),
       ),
       const SizedBox(height: V2Spacing.space16),
       for (var i = 0; i < evidence.length; i++) ...[
@@ -337,12 +340,12 @@ class _ResearchEvidenceDrawer extends StatelessWidget {
           const SizedBox(height: V2Spacing.space8),
           Text(
             'PubMed co-occurrences from supp.ai',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             "Where this product's ingredients and other substances appear together in published literature — context for your reading, not warnings, scores, or clinical instructions.",
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space16),
           for (var i = 0; i < evidence.length; i++) ...[
@@ -366,27 +369,27 @@ class _ResearchEvidenceRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        color: V2Colors.bg,
+        color: context.v2.bg,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             evidence.pairLabel,
-            style: V2Typography.bodyMedium(color: V2Colors.fg),
+            style: V2Typography.bodyMedium(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space4),
           Text(
             _summary(evidence),
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           if (primarySentence != null) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
               primarySentence.sentence,
-              style: V2Typography.bodySm(color: V2Colors.fg),
+              style: V2Typography.bodySm(color: context.v2.fg),
             ),
           ],
           if (evidence.topPmids.isNotEmpty) ...[
@@ -431,13 +434,13 @@ class _PmidChip extends StatelessWidget {
           vertical: V2Spacing.space4,
         ),
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
         ),
         child: Text(
           'PMID $pmid',
-          style: V2Typography.overline(color: V2Colors.accent),
+          style: V2Typography.overline(color: context.v2.accent),
         ),
       ),
     );

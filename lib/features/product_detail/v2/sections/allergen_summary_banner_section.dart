@@ -11,7 +11,7 @@
 // flag, then renders this section adapter when true.
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -23,12 +23,16 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// than presented as an authoritative match. Returns `SizedBox.shrink()`
 /// when the summary is null/empty. The gate is enforced upstream by
 /// `shouldShowAllergenSummaryBanner`.
-Widget buildAllergenSummaryBannerSection({required String? allergenSummary}) {
+Widget buildAllergenSummaryBannerSection({
+  required BuildContext context,
+  required String? allergenSummary,
+}) {
   if (allergenSummary == null || allergenSummary.trim().isEmpty) {
     return const SizedBox.shrink();
   }
   return _allergenBanner(
-    accent: V2Colors.caution,
+    context: context,
+    accent: context.v2.caution,
     icon: Icons.warning_amber_rounded,
     title: 'Check the label for your allergens',
     text: allergenSummary.trim(),
@@ -40,9 +44,10 @@ Widget buildAllergenSummaryBannerSection({required String? allergenSummary}) {
 /// Info-toned (not an alarm): "unknown != safe" means the absence of data
 /// must read as "check the label", never as a silent clean bill. The gate
 /// is enforced upstream by `shouldShowAllergenDataUnavailableHedge`.
-Widget buildAllergenDataUnavailableHedge() {
+Widget buildAllergenDataUnavailableHedge(BuildContext context) {
   return _allergenBanner(
-    accent: V2Colors.monitor,
+    context: context,
+    accent: context.v2.monitor,
     icon: Icons.info_outline_rounded,
     text:
         "Allergen data isn't available for this product — check the "
@@ -53,6 +58,7 @@ Widget buildAllergenDataUnavailableHedge() {
 /// Shared left-accent info/caution banner used by the allergen fallback
 /// surfaces. Keeps the two builders visually identical apart from tone.
 Widget _allergenBanner({
+  required BuildContext context,
   required Color accent,
   required IconData icon,
   required String text,
@@ -60,9 +66,9 @@ Widget _allergenBanner({
 }) {
   return Container(
     decoration: BoxDecoration(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-      border: Border.all(color: V2Colors.outline),
+      border: Border.all(color: context.v2.outline),
       boxShadow: V2Shadows.sm,
     ),
     clipBehavior: Clip.antiAlias,
@@ -89,14 +95,14 @@ Widget _allergenBanner({
                           Text(
                             title,
                             style: V2Typography.bodySm(
-                              color: V2Colors.fg,
+                              color: context.v2.fg,
                             ).copyWith(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 4),
                         ],
                         Text(
                           text,
-                          style: V2Typography.bodySm(color: V2Colors.fg),
+                          style: V2Typography.bodySm(color: context.v2.fg),
                         ),
                       ],
                     ),

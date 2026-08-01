@@ -59,7 +59,7 @@ class PGInactiveRow extends StatelessWidget {
                   height: 8,
                   margin: const EdgeInsets.only(right: 10),
                   decoration: BoxDecoration(
-                    color: ingredient.tone.color,
+                    color: ingredient.tone.color(context.v2),
                     shape: BoxShape.circle,
                   ),
                 ),

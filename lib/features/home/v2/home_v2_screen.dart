@@ -516,6 +516,7 @@ class _StackHealthCard extends ConsumerWidget {
         recallAsync.hasError ||
         doseAlertsAsync.hasError;
     final fallback = stackHealthFallbackDisplay(
+      palette: context.v2,
       isAnalyzing: isAnalyzing,
       hasError: hasError,
     );

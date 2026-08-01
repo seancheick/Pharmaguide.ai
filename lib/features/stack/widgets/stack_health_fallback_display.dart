@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 
 /// Shared fallback for stack-health surfaces before a diagnosis is available.
 ///
@@ -7,16 +7,17 @@ import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 /// Stack both consume this helper so one screen cannot present an unavailable
 /// analysis as clean while the other hedges.
 ({Color tone, String label}) stackHealthFallbackDisplay({
+  required V2Palette palette,
   required bool isAnalyzing,
   required bool hasError,
 }) {
   if (isAnalyzing) {
-    return (tone: V2Colors.safe, label: 'Analyzing');
+    return (tone: palette.safe, label: 'Analyzing');
   }
   if (hasError) {
-    return (tone: V2Colors.fgMuted, label: "Couldn't check");
+    return (tone: palette.fgMuted, label: "Couldn't check");
   }
-  return (tone: V2Colors.safe, label: 'No data yet');
+  return (tone: palette.safe, label: 'No data yet');
 }
 
 String stackHealthFallbackSummary({

@@ -11,7 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_formulation_section.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 
 /// Extract display names from a pipeline list field that may ship in
 /// legacy string-list shape or current map-list shape.
@@ -30,6 +30,7 @@ List<String> extractIngredientNames(dynamic raw) {
 /// Build the Formulation section. Returns `SizedBox.shrink()` when
 /// the blob is null or no formulation signals are present.
 Widget buildFormulationSection({
+  required BuildContext context,
   required Map<String, dynamic>? formulationDetail,
   required Map<String, dynamic>? ingredientQualityData,
 }) {
@@ -64,7 +65,7 @@ Widget buildFormulationSection({
     form: deliveryForm.isNotEmpty ? deliveryForm : null,
     formTierLabel: deliveryTier.isNotEmpty ? deliveryTier : null,
     formTierColor: deliveryTier.toLowerCase() == 'premium'
-        ? V2Colors.safe
+        ? context.v2.safe
         : null,
     absorptionEnhancers: enhancers,
     botanicals: botanicals,
