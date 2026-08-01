@@ -8,8 +8,8 @@ enum TimingStackItemKind { supplement, medication }
 ///
 /// The row id is the identity. [displayName] is attribution copy only, while
 /// ingredient tags and RxCUIs are the reviewed matching inputs. Keeping them
-/// together prevents parallel name-keyed maps from collapsing two products
-/// with the same label.
+/// together prevents parallel name-keyed maps from collapsing two products with
+/// the same label.
 class TimingStackItem {
   const TimingStackItem.supplement({
     required this.stackEntryId,
@@ -34,101 +34,57 @@ class TimingStackItem {
   final Set<String> medicationRxCuis;
 }
 
-/// Evaluates the user's supplement + medication stack against timing rules
-/// and produces actionable timing advice.
+/// Evaluates the user's stack against reviewed timing rules.
 ///
-/// **Design:**
+/// **Identity.** Rules carry pipeline-authored canonical tags — the same
+/// identifiers written into `products_core.key_ingredient_tags`. There is no
+/// app-side alias table and no name normalisation: a rule either names a tag the
+/// catalog actually emits, or it matches nothing. The former alias map silently
+/// invented tags (`vitamin_b12` when the catalog emits `vitamin_b12_cobalamin`),
+/// which made rules look reachable while matching zero products.
 ///
-/// At load time, builds an inverted index: `ingredient_key → [rules]` so
-/// that evaluating a stack of N items requires only O(N) lookups instead
-/// of O(N × R) brute-force comparisons. Each ingredient in the stack is
-/// looked up once; matching rules are collected and deduplicated by rule ID.
+/// **Publication.** Only `review_status: verified` rules are indexed at all.
+/// A rule that has not been through source verification cannot reach a user by
+/// any path, including the clinical-signal aggregator.
 ///
-/// **Matching strategy:**
-///
-/// Supplements are matched via their `key_ingredient_tags` canonical IDs
-/// (e.g., "iron", "calcium", "vitamin_d") — the same identifiers the
-/// pipeline writes into `products_core`.
-///
-/// Medications are matched only through reviewed RxCUIs authored on each
-/// timing rule. Display names are never used as clinical identity.
-///
-/// **Performance:**
-///
-/// Index build: O(R) where R = number of rules.
-/// Stack evaluation: O(S × avg_rules_per_ingredient) where S = stack size.
-/// Runtime scales with indexed matches rather than scanning the full rule set
-/// for every stack item.
+/// **Performance.** Index build O(R); evaluation O(S x rules-per-tag).
 class TimingEvaluationService {
   TimingEvaluationService._({
     required this._rules,
     required this._ingredientIndex,
     required this._medicationIndex,
+    required this.suppressedRuleCount,
   });
 
-  /// Number of timing rules loaded.
+  /// Number of publishable (verified) timing rules loaded.
   int get ruleCount => _rules.length;
 
-  /// All parsed timing rules (internal).
+  /// Rules parsed successfully but withheld because they are not verified.
+  ///
+  /// Exposed so a release gate can assert the suppression count deliberately
+  /// rather than discovering silently that everything stopped rendering.
+  final int suppressedRuleCount;
+
   final List<_ParsedTimingRule> _rules;
-
-  /// ingredient_key → list of rules that reference this ingredient.
   final Map<String, List<_IndexedRule>> _ingredientIndex;
-
-  /// RxCUI → list of rules that reference this medication.
   final Map<String, List<_IndexedRule>> _medicationIndex;
 
-  /// Supplement ingredient keys that map to timing rule ingredient names.
-  /// Most are 1:1 but some need aliases (e.g., timing says "omega-3",
-  /// product tags say "omega_3").
-  static const _ingredientAliases = <String, List<String>>{
-    'iron': ['iron'],
-    'calcium': ['calcium'],
-    'calcium carbonate': ['calcium_carbonate'],
-    'zinc': ['zinc'],
-    'copper': ['copper'],
-    'magnesium': ['magnesium'],
-    'vitamin c': ['vitamin_c'],
-    'vitamin d': ['vitamin_d'],
-    'vitamin e': ['vitamin_e'],
-    'vitamin k': ['vitamin_k'],
-    'vitamin b12': ['vitamin_b12'],
-    'vitamin b complex': [
-      'vitamin_b1',
-      'vitamin_b2',
-      'vitamin_b3',
-      'vitamin_b5',
-      'vitamin_b6',
-      'vitamin_b12',
-    ],
-    'folate': ['folate', 'vitamin_b9'],
-    'omega-3': ['omega_3', 'fish_oil', 'epa', 'dha'],
-    'coq10': ['coq10'],
-    'turmeric': ['turmeric', 'curcumin'],
-    'probiotics': ['probiotics', 'probiotic'],
-    'melatonin': ['melatonin'],
-    'green tea extract': ['green_tea_extract', 'egcg'],
-    'caffeine': ['caffeine', 'guarana'],
-    'fiber': ['fiber', 'psyllium', 'inulin'],
-    'nac': ['nac', 'n_acetyl_cysteine'],
-    'alpha-lipoic acid': ['alpha_lipoic_acid'],
-    'collagen peptides': ['collagen'],
-    'quercetin': ['quercetin'],
-    'bromelain': ['bromelain'],
-    'ashwagandha': ['ashwagandha'],
-    'l-theanine': ['l_theanine'],
-    'berberine': ['berberine'],
-    'soy protein': ['soy', 'soy_protein', 'soy_isoflavones'],
-  };
+  /// Canonical tags referenced by any verified rule.
+  ///
+  /// Used to decide whether a bottle is "standalone" for a rule — see
+  /// [_isStandaloneFor].
+  late final Set<String> _timingRelevantTags = _ingredientIndex.keys.toSet();
 
   // ---------------------------------------------------------------------------
   // Factory
   // ---------------------------------------------------------------------------
 
-  /// Build the service from raw JSON (the contents of timing_rules.json).
+  /// Build the service from the contents of timing_rules.json.
   ///
-  /// Call once at app startup or when the reference data cache refreshes.
-  /// The returned instance is immutable and safe to share across isolates.
+  /// Fails closed: a rule missing `category`, `applies_to`, `review_status`,
+  /// `actionability`, `source_authority`, or `timing_relation` throws rather
+  /// than defaulting. A malformed artifact must surface as unavailable, never as
+  /// a clean result.
   factory TimingEvaluationService.fromJson(Map<String, dynamic> json) {
     final rawList = json['timing_rules'];
     if (rawList is! List) {
@@ -146,7 +102,6 @@ class TimingEvaluationService {
     }
 
     final parsed = <_ParsedTimingRule>[];
-
     for (final raw in rawList) {
       if (raw is! Map) {
         throw const FormatException('each timing rule must be a JSON object');
@@ -154,50 +109,53 @@ class TimingEvaluationService {
       parsed.add(_ParsedTimingRule.fromJson(Map<String, dynamic>.from(raw)));
     }
 
-    // Build inverted indexes.
+    final publishable = parsed
+        .where((rule) => rule.reviewStatus.isPublishable)
+        .toList(growable: false);
+
     final ingredientIndex = <String, List<_IndexedRule>>{};
     final medicationIndex = <String, List<_IndexedRule>>{};
 
-    for (final rule in parsed) {
-      final i1Norm = rule.ingredient1Normalized;
-      final i2Norm = rule.ingredient2Normalized;
-
-      // Index ingredient1 side.
+    for (final rule in publishable) {
       if (rule.ingredient1Rxcuis.isNotEmpty) {
         for (final rxcui in rule.ingredient1Rxcuis) {
-          _addToMedIndex(medicationIndex, rxcui, rule, isIngredient1: true);
+          medicationIndex
+              .putIfAbsent(rxcui, () => [])
+              .add(_IndexedRule(rule: rule, isIngredient1: true));
         }
       } else {
-        _addToIngredientIndex(
-          ingredientIndex,
-          i1Norm,
-          rule,
-          isIngredient1: true,
-        );
+        for (final tag in rule.ingredient1Tags) {
+          ingredientIndex
+              .putIfAbsent(tag, () => [])
+              .add(_IndexedRule(rule: rule, isIngredient1: true));
+        }
       }
 
-      // Index ingredient2 side (skip non-matchable context like "food",
-      // "sleep", "dietary fat", "medications", "melatonin production").
-      if (!_isContextOnly(i2Norm)) {
-        if (rule.ingredient2Rxcuis.isNotEmpty) {
-          for (final rxcui in rule.ingredient2Rxcuis) {
-            _addToMedIndex(medicationIndex, rxcui, rule, isIngredient1: false);
-          }
-        } else {
-          _addToIngredientIndex(
-            ingredientIndex,
-            i2Norm,
-            rule,
-            isIngredient1: false,
-          );
+      // Only a binary relation has a second matchable side. Unary relations
+      // encode their context in `timing_relation`, so there is no pseudo
+      // ingredient ("food", "sleep") to filter out any more.
+      if (!rule.relation.isBinary) continue;
+
+      if (rule.ingredient2Rxcuis.isNotEmpty) {
+        for (final rxcui in rule.ingredient2Rxcuis) {
+          medicationIndex
+              .putIfAbsent(rxcui, () => [])
+              .add(_IndexedRule(rule: rule, isIngredient1: false));
+        }
+      } else {
+        for (final tag in rule.ingredient2Tags) {
+          ingredientIndex
+              .putIfAbsent(tag, () => [])
+              .add(_IndexedRule(rule: rule, isIngredient1: false));
         }
       }
     }
 
     return TimingEvaluationService._(
-      rules: parsed,
+      rules: publishable,
       ingredientIndex: ingredientIndex,
       medicationIndex: medicationIndex,
+      suppressedRuleCount: parsed.length - publishable.length,
     );
   }
 
@@ -206,12 +164,6 @@ class TimingEvaluationService {
   // ---------------------------------------------------------------------------
 
   /// Evaluate the user's current stack and return timing optimizations.
-  ///
-  /// [stackItems] keeps each physical row's stable id beside its display name
-  /// and reviewed matching identities. Missing medication identity never
-  /// falls back to text matching.
-  ///
-  /// Returns a deduplicated, priority-sorted list of timing advice.
   List<TimingOptimization> evaluateStack({
     required List<TimingStackItem> stackItems,
     Map<String, double> ingredientDosesMg = const {},
@@ -222,8 +174,14 @@ class TimingEvaluationService {
       _ParsedTimingRule rule, {
       required TimingStackItem product1,
       TimingStackItem? product2,
+      required bool medicationIsProduct1,
     }) {
-      final result = _buildResult(rule, product1: product1, product2: product2);
+      final result = _buildResult(
+        rule,
+        product1: product1,
+        product2: product2,
+        medicationIsProduct1: medicationIsProduct1,
+      );
       results[_physicalResultKey(result)] = result;
     }
 
@@ -234,8 +192,6 @@ class TimingEvaluationService {
         .where((item) => item.kind == TimingStackItemKind.medication)
         .toList(growable: false);
 
-    // Collect all ingredient tags across the entire stack into a
-    // tag → [physical stack rows] map for O(1) membership checks.
     final tagToProducts = <String, List<TimingStackItem>>{};
     for (final item in supplements) {
       for (final tag in item.ingredientTags) {
@@ -243,128 +199,152 @@ class TimingEvaluationService {
       }
     }
 
-    // --- Pass 1: Supplement × Supplement timing rules ---
-    // For each tag in the stack, check if any rule references it.
+    // --- Pass 1: supplement-side rules ---
     for (final tag in tagToProducts.keys) {
       final matchingRules = _ingredientIndex[tag];
       if (matchingRules == null) continue;
 
       for (final indexed in matchingRules) {
-        if (!_passesDoseGate(indexed.rule, ingredientDosesMg)) continue;
+        final rule = indexed.rule;
+        if (!_passesDoseGate(rule, ingredientDosesMg)) continue;
 
-        // Find the OTHER side of this rule.
-        final otherIngredient = indexed.isIngredient1
-            ? indexed.rule.ingredient2Normalized
-            : indexed.rule.ingredient1Normalized;
-
-        // Is the other side a context-only value (food, sleep, etc.)?
-        // If so, this is a single-ingredient timing rule — always fire.
-        if (_isContextOnly(otherIngredient)) {
-          if (otherIngredient == 'medications' && medications.isEmpty) {
-            continue;
-          }
-          final products = tagToProducts[tag]!;
-          for (final product in products) {
-            addResult(indexed.rule, product1: product);
+        if (!rule.relation.isBinary) {
+          // Unary: constrains the bottle carrying this tag, on its own.
+          for (final product in tagToProducts[tag]!) {
+            if (!_isStandaloneGatePassed(rule, product, tag)) continue;
+            addResult(rule, product1: product, medicationIsProduct1: false);
           }
           continue;
         }
 
-        // Check if the other ingredient is also in the stack.
-        final otherAliases = _resolveAliases(otherIngredient);
-        for (final alias in otherAliases) {
-          if (tagToProducts.containsKey(alias)) {
-            final product1Rows = tagToProducts[tag]!;
-            final product2Rows = tagToProducts[alias]!;
-            for (final first in product1Rows) {
-              for (final second in product2Rows) {
-                // A rule cannot separate or join nutrients inside one
-                // physical bottle. Compare row identity, never names.
-                if (first.stackEntryId == second.stackEntryId) continue;
-                addResult(
-                  indexed.rule,
-                  product1: indexed.isIngredient1 ? first : second,
-                  product2: indexed.isIngredient1 ? second : first,
-                );
-              }
+        final otherTags = indexed.isIngredient1
+            ? rule.ingredient2Tags
+            : rule.ingredient1Tags;
+        for (final otherTag in otherTags) {
+          final otherProducts = tagToProducts[otherTag];
+          if (otherProducts == null) continue;
+          for (final first in tagToProducts[tag]!) {
+            for (final second in otherProducts) {
+              // A rule cannot separate two nutrients inside one bottle.
+              // Compare row identity, never names.
+              if (first.stackEntryId == second.stackEntryId) continue;
+              addResult(
+                rule,
+                product1: indexed.isIngredient1 ? first : second,
+                product2: indexed.isIngredient1 ? second : first,
+                medicationIsProduct1: false,
+              );
             }
-            break;
           }
         }
       }
     }
 
-    // --- Pass 2: Medication × Supplement timing rules ---
+    // --- Pass 2: medication-side rules ---
     for (final medication in medications) {
       for (final rxcui in medication.medicationRxCuis) {
         final matchingRules = _medicationIndex[rxcui];
         if (matchingRules == null) continue;
 
         for (final indexed in matchingRules) {
-          if (!_passesDoseGate(indexed.rule, ingredientDosesMg)) continue;
+          final rule = indexed.rule;
+          if (!_passesDoseGate(rule, ingredientDosesMg)) continue;
 
-          // Find the supplement side of the rule.
-          final suppIngredient = indexed.isIngredient1
-              ? indexed.rule.ingredient2Normalized
-              : indexed.rule.ingredient1Normalized;
-
-          if (_isContextOnly(suppIngredient)) {
-            // Medication-only rule (e.g., "take levothyroxine on empty
-            // stomach") — always fire if the medication is in the stack.
-            addResult(indexed.rule, product1: medication);
+          if (!rule.relation.isBinary) {
+            // A unary rule about a prescribed medication would be an
+            // instruction about how to take that prescription. That belongs to
+            // the prescriber, so it is never emitted.
             continue;
           }
 
-          // Check if the supplement side is in the stack.
-          final suppAliases = _resolveAliases(suppIngredient);
-          for (final alias in suppAliases) {
-            if (tagToProducts.containsKey(alias)) {
-              final suppProducts = tagToProducts[alias]!;
-              for (final supplement in suppProducts) {
-                addResult(
-                  indexed.rule,
-                  product1: indexed.isIngredient1 ? medication : supplement,
-                  product2: indexed.isIngredient1 ? supplement : medication,
-                );
-              }
-              break;
+          final supplementTags = indexed.isIngredient1
+              ? rule.ingredient2Tags
+              : rule.ingredient1Tags;
+          for (final tag in supplementTags) {
+            final supplementProducts = tagToProducts[tag];
+            if (supplementProducts == null) continue;
+            for (final supplement in supplementProducts) {
+              addResult(
+                rule,
+                product1: indexed.isIngredient1 ? medication : supplement,
+                product2: indexed.isIngredient1 ? supplement : medication,
+                medicationIsProduct1: indexed.isIngredient1,
+              );
             }
           }
         }
       }
     }
 
-    // Sort by priority (medication interactions first, then separations,
-    // then other types).
     final sorted = results.values.toList()
       ..sort((a, b) {
         final priority = b.displayPriority.compareTo(a.displayPriority);
         return priority != 0 ? priority : a.ruleId.compareTo(b.ruleId);
       });
 
-    // Collapse semantically-identical tips. Several distinct rule IDs can
-    // describe the SAME user action for the SAME product(s) — e.g. a product
-    // carrying both vitamin D and vitamin K trips two "take with food" rules,
-    // but the user only needs to be told once to take that product with a
-    // meal. Physical-result dedup preserves different bottles, while this
-    // semantic pass keys on the resolved product(s) + rule type. Sorted-first
-    // wins, so the highest-priority / strongest-evidence variant is kept.
+    // Collapse semantically identical tips. Several rule ids can describe the
+    // same user action for the same bottle — a product carrying vitamin D and
+    // vitamin K trips two "with food" rules, but the user is told once.
     final deduped = <TimingOptimization>[];
-    final seenSemanticKeys = <String>{};
+    final seen = <String>{};
     for (final opt in sorted) {
-      if (seenSemanticKeys.add(_semanticKey(opt))) deduped.add(opt);
+      if (seen.add(_semanticKey(opt))) deduped.add(opt);
     }
-
     return deduped;
   }
 
-  /// A key that identifies the *user-facing action* of a tip, independent of
-  /// which rule produced it. Single-product tips (take with food, time of
-  /// day, empty stomach) key on (product, type); pair tips key on the
-  /// unordered product pair + type so "A & B separate" and "B & A separate"
-  /// collapse to one.
+  /// Most ingredient tags a bottle may carry and still be "essentially this
+  /// ingredient": the named one plus at most one companion.
+  ///
+  /// A composition fact about the product, deliberately independent of how many
+  /// rules happen to be verified — see [_isStandaloneFor].
+  static const _maxStandaloneIngredientTags = 2;
+
+  /// Whether a `standalone` rule may fire for [product].
+  ///
+  /// "Standalone" means the instruction is unambiguous for this bottle. O.N.E.
+  /// Multivitamin carries alpha-lipoic acid alongside vitamins A/D/E and zinc;
+  /// "take on an empty stomach" is advice about an ALA supplement, not about a
+  /// 25-ingredient capsule containing a trace of it.
+  bool _isStandaloneGatePassed(
+    _ParsedTimingRule rule,
+    TimingStackItem product,
+    String matchedTag,
+  ) {
+    if (rule.appliesTo == TimingAppliesTo.any) return true;
+    return _isStandaloneFor(product, matchedTag);
+  }
+
+  /// Two independent conditions, both required.
+  ///
+  /// The rule-coverage half alone was unsafe: it asked whether the matched tag
+  /// was the only one on the bottle that any VERIFIED rule speaks to, which
+  /// silently loosens as rules are retired. When the vitamin A, K and zinc
+  /// rules were rejected, `vitamin_e` became the only timing-relevant tag on a
+  /// 25-ingredient multivitamin — so the multivitamin began qualifying as a
+  /// standalone vitamin E supplement. A gate whose strictness depends on how
+  /// much of the corpus survived review is not a gate.
+  ///
+  /// The composition half fixes that: a bottle listing many actives is not
+  /// "essentially this ingredient" no matter what the rule set looks like.
+  /// It is a bounded app-side heuristic, and the honest long-term answer is a
+  /// pipeline-authored formulation flag.
+  bool _isStandaloneFor(TimingStackItem product, String matchedTag) {
+    if (product.ingredientTags.length > _maxStandaloneIngredientTags) {
+      return false;
+    }
+    for (final tag in product.ingredientTags) {
+      if (tag == matchedTag) continue;
+      if (_timingRelevantTags.contains(tag)) return false;
+    }
+    return true;
+  }
+
+  /// Identifies the *user-facing action* of a tip, independent of which rule
+  /// produced it. Single-product tips key on (product, relation); pair tips key
+  /// on the unordered product pair + relation.
   static String _semanticKey(TimingOptimization opt) {
-    final type = opt.ruleType.name;
+    final type = opt.relation.type.wireValue;
     final p1 = opt.product1StackEntryId ?? opt.product1Name ?? opt.ingredient1;
     final p2 = opt.product2StackEntryId ?? opt.product2Name;
     if (p2 == null) return '$type|$p1';
@@ -372,13 +352,13 @@ class TimingEvaluationService {
     return '$type|${pair.join('|')}';
   }
 
-  /// Deduplicates the same rule reached through multiple aliases or both
-  /// indexed sides, without collapsing distinct physical stack rows.
+  /// Deduplicates the same rule reached through both indexed sides, without
+  /// collapsing distinct physical stack rows.
   static String _physicalResultKey(TimingOptimization opt) {
     final first =
         opt.product1StackEntryId ?? opt.product1Name ?? opt.ingredient1;
     final second =
-        opt.product2StackEntryId ?? opt.product2Name ?? opt.ingredient2;
+        opt.product2StackEntryId ?? opt.product2Name ?? opt.ingredient2 ?? '';
     return '${opt.ruleId}|$first|$second';
   }
 
@@ -388,95 +368,44 @@ class TimingEvaluationService {
 
   TimingOptimization _buildResult(
     _ParsedTimingRule rule, {
-    TimingStackItem? product1,
+    required TimingStackItem product1,
     TimingStackItem? product2,
+    required bool medicationIsProduct1,
   }) {
     return TimingOptimization(
       ruleId: rule.id,
       ingredient1: rule.ingredient1Display,
       ingredient2: rule.ingredient2Display,
       advice: rule.advice,
-      ruleType: rule.ruleType,
-      separationHours: rule.separationHours,
-      scoreImpact: rule.scoreImpact,
+      relation: rule.relation,
+      category: rule.category,
+      actionability: rule.actionability,
       evidenceLevel: rule.evidenceLevel,
+      sourceAuthority: rule.sourceAuthority,
+      scoreImpact: rule.scoreImpact,
       mechanism: rule.mechanism,
       sourceUrls: rule.sourceUrls,
-      product1Name: product1?.displayName,
-      product1StackEntryId: product1?.stackEntryId,
+      product1Name: product1.displayName,
+      product1StackEntryId: product1.stackEntryId,
       product2Name: product2?.displayName,
       product2StackEntryId: product2?.stackEntryId,
       involvesMedication: rule.involvesMedication,
-      allowedDailySlots: rule.allowedDailySlots,
-      dailyPlanEligible: rule.dailyPlanEligible,
+      medicationIsProduct1: medicationIsProduct1,
     );
-  }
-
-  /// Resolve a timing rule ingredient name to all possible canonical tag
-  /// values that might appear in a product's key_ingredient_tags.
-  List<String> _resolveAliases(String normalizedIngredient) {
-    final aliases = _ingredientAliases[normalizedIngredient];
-    if (aliases != null) return aliases;
-    // Fallback: the normalized name itself might be a direct tag match.
-    return [normalizedIngredient.replaceAll(' ', '_').replaceAll('-', '_')];
   }
 
   /// True if [rule]'s optional dose gate is satisfied (or absent).
   ///
-  /// Dose-conditional copy is suppressed when the relevant total is unknown.
-  /// The caller separately reports incomplete nutrient coverage; this method
-  /// must never imply that a threshold was crossed without a measured total.
+  /// Dose-conditional copy is suppressed when the relevant total is unknown:
+  /// this must never imply a threshold was crossed without a measured total.
   bool _passesDoseGate(_ParsedTimingRule rule, Map<String, double> doses) {
-    final ingredient = rule.minDoseIngredient;
+    final tag = rule.minDoseTag;
     final threshold = rule.minDoseMg;
-    if (ingredient == null || threshold == null) return true;
+    if (tag == null || threshold == null) return true;
     if (doses.isEmpty) return false;
-    for (final alias in _resolveAliases(ingredient)) {
-      final dose = doses[alias];
-      if (dose != null) return dose >= threshold;
-    }
-    return false;
-  }
-
-  /// Context-only ingredients that don't correspond to a real stack item.
-  /// These are the "other side" of single-ingredient timing rules like
-  /// "take CoQ10 with food" where ingredient2 = "dietary fat".
-  static bool _isContextOnly(String normalized) {
-    const contextTerms = {
-      'food',
-      'dietary fat',
-      'sleep',
-      'melatonin production',
-      'medications',
-    };
-    return contextTerms.contains(normalized);
-  }
-
-  static void _addToIngredientIndex(
-    Map<String, List<_IndexedRule>> index,
-    String ingredientName,
-    _ParsedTimingRule rule, {
-    required bool isIngredient1,
-  }) {
-    final aliases = _ingredientAliases[ingredientName];
-    final keys =
-        aliases ?? [ingredientName.replaceAll(' ', '_').replaceAll('-', '_')];
-    for (final key in keys) {
-      index
-          .putIfAbsent(key, () => [])
-          .add(_IndexedRule(rule: rule, isIngredient1: isIngredient1));
-    }
-  }
-
-  static void _addToMedIndex(
-    Map<String, List<_IndexedRule>> index,
-    String rxcui,
-    _ParsedTimingRule rule, {
-    required bool isIngredient1,
-  }) {
-    index
-        .putIfAbsent(rxcui, () => [])
-        .add(_IndexedRule(rule: rule, isIngredient1: isIngredient1));
+    final dose = doses[tag];
+    if (dose == null) return false;
+    return dose >= threshold;
   }
 }
 
@@ -487,67 +416,77 @@ class TimingEvaluationService {
 class _ParsedTimingRule {
   final String id;
   final String ingredient1Display;
-  final String ingredient2Display;
-  final String ingredient1Normalized;
-  final String ingredient2Normalized;
-  final TimingRuleType ruleType;
+  final String? ingredient2Display;
+  final Set<String> ingredient1Tags;
+  final Set<String> ingredient2Tags;
+  final Set<String> ingredient1Rxcuis;
+  final Set<String> ingredient2Rxcuis;
+  final TimingRelation relation;
+  final TimingCategory category;
+  final TimingAppliesTo appliesTo;
+  final TimingActionability actionability;
+  final TimingReviewStatus reviewStatus;
+  final SourceAuthority sourceAuthority;
   final String advice;
   final String? mechanism;
-  final int? separationHours;
   final int scoreImpact;
   final EvidenceLevel evidenceLevel;
   final List<String> sourceUrls;
-  final Set<String> ingredient1Rxcuis;
-  final Set<String> ingredient2Rxcuis;
-  final Set<DailySlot> allowedDailySlots;
-  final bool dailyPlanEligible;
 
-  /// Optional dose gate: the rule only fires when [minDoseIngredient]'s total
-  /// stack dose is at or above [minDoseMg]. Both null = no gate (always fire).
-  /// e.g. iron↔zinc competition only matters at iron ≥ 25 mg fasting.
-  final String? minDoseIngredient;
+  /// Optional dose gate, keyed on a canonical tag.
+  final String? minDoseTag;
   final double? minDoseMg;
 
   _ParsedTimingRule({
     required this.id,
     required this.ingredient1Display,
     required this.ingredient2Display,
-    required this.ingredient1Normalized,
-    required this.ingredient2Normalized,
-    required this.ruleType,
+    required this.ingredient1Tags,
+    required this.ingredient2Tags,
+    required this.ingredient1Rxcuis,
+    required this.ingredient2Rxcuis,
+    required this.relation,
+    required this.category,
+    required this.appliesTo,
+    required this.actionability,
+    required this.reviewStatus,
+    required this.sourceAuthority,
     required this.advice,
-    this.mechanism,
-    this.separationHours,
     required this.scoreImpact,
     required this.evidenceLevel,
+    this.mechanism,
     this.sourceUrls = const [],
-    this.ingredient1Rxcuis = const {},
-    this.ingredient2Rxcuis = const {},
-    this.allowedDailySlots = const {},
-    this.dailyPlanEligible = true,
-    this.minDoseIngredient,
+    this.minDoseTag,
     this.minDoseMg,
   });
 
   factory _ParsedTimingRule.fromJson(Map<String, dynamic> json) {
-    final sources = json
-        .safeMapList('sources')
-        .map((s) => s.safeString('url'))
-        .where((url) => url.isNotEmpty)
-        .toList(growable: false);
-
-    final evidenceStr = json.safeString('evidence_level', 'possible');
-    // Map "possible" → "theoretical" since EvidenceLevel enum doesn't have "possible"
-    final mappedEvidence = evidenceStr == 'possible'
-        ? 'theoretical'
-        : evidenceStr;
-
     String requiredString(String key) {
       final value = json[key];
       if (value is! String || value.trim().isEmpty) {
         throw FormatException('timing rule requires non-empty $key');
       }
       return value.trim();
+    }
+
+    final id = requiredString('id');
+
+    String requiredEnumString(String key) {
+      final value = json[key];
+      if (value is! String || value.trim().isEmpty) {
+        throw FormatException('$id: $key is required');
+      }
+      return value.trim();
+    }
+
+    Set<String> tags(String key) {
+      final raw = json[key];
+      if (raw == null) return const {};
+      if (raw is! List ||
+          raw.any((v) => v is! String || v.trim().isEmpty)) {
+        throw FormatException('$id: $key must be a list of canonical tags');
+      }
+      return raw.cast<String>().map((v) => v.trim()).toSet();
     }
 
     Set<String> rxcuis(String key) {
@@ -560,89 +499,147 @@ class _ParsedTimingRule {
                 value.trim().isEmpty ||
                 !RegExp(r'^\d+$').hasMatch(value.trim()),
           )) {
-        throw FormatException('$key must contain RxCUI strings');
+        throw FormatException('$id: $key must contain RxCUI strings');
       }
       return raw.cast<String>().map((value) => value.trim()).toSet();
     }
 
-    Set<DailySlot> dailySlots() {
-      final raw = json['daily_slots'];
-      if (raw == null) return const {};
-      if (raw is! List || raw.isEmpty || raw.any((value) => value is! String)) {
-        throw const FormatException(
-          'daily_slots must contain structured slot strings',
-        );
-      }
-      final parsed = raw.cast<String>().map(DailySlot.fromString).toSet();
-      if (parsed.length != raw.length) {
-        throw const FormatException('daily_slots must not contain duplicates');
-      }
-      return parsed;
+    final rawRelation = json['timing_relation'];
+    if (rawRelation is! Map) {
+      throw FormatException('$id: timing_relation is required');
+    }
+    final relation = TimingRelation.fromJson(
+      id,
+      Map<String, dynamic>.from(rawRelation),
+    );
+
+    final category = TimingCategory.fromString(requiredEnumString('category'));
+    final appliesTo = TimingAppliesTo.fromString(
+      requiredEnumString('applies_to'),
+    );
+    final reviewStatus = TimingReviewStatus.fromString(
+      requiredEnumString('review_status'),
+    );
+    final actionability = TimingActionability.fromString(
+      requiredEnumString('actionability'),
+    );
+    final sourceAuthority = SourceAuthority.fromString(
+      requiredEnumString('source_authority'),
+    );
+
+    // An "optional optimization" must be positively approved. Failing to
+    // qualify for the other two categories is not an argument for showing it.
+    if (category == TimingCategory.optional &&
+        reviewStatus == TimingReviewStatus.verified &&
+        json['clinician_approved'] != true) {
+      throw FormatException(
+        '$id: category=optional requires clinician_approved: true',
+      );
     }
 
-    final id = requiredString('id');
-    final ingredient1 = requiredString('ingredient1');
-    final ingredient2 = requiredString('ingredient2');
-    final advice = requiredString('advice');
-    final ruleType = TimingRuleType.fromString(requiredString('rule_type'));
-    final allowedDailySlots = dailySlots();
-    final dailyPlanEligibleRaw = json['daily_plan_eligible'];
-    if (dailyPlanEligibleRaw != null && dailyPlanEligibleRaw is! bool) {
-      throw FormatException('$id: daily_plan_eligible must be a boolean');
-    }
-    if (ruleType == TimingRuleType.timeOfDay && allowedDailySlots.isEmpty) {
+    // The schema migration had to give every rule a parseable relation. Where
+    // the legacy `take_together` had no equivalent, it parked `with_food` —
+    // a value the pipeline never authored and which does not represent the
+    // original claim. Such a rule must be structurally incapable of shipping:
+    // marking it verified without first re-authoring the relation would
+    // publish a placeholder as clinical guidance.
+    if (json['_relation_is_migration_placeholder'] == true &&
+        reviewStatus == TimingReviewStatus.verified) {
       throw FormatException(
-        '$id: time_of_day rule requires reviewed daily_slots',
+        '$id: a migration-placeholder relation cannot be verified. Re-author '
+        'timing_relation from the source before promoting this rule.',
       );
     }
-    if (ruleType != TimingRuleType.timeOfDay && allowedDailySlots.isNotEmpty) {
+
+    final ingredient1Tags = tags('ingredient1_tags');
+    final ingredient2Tags = tags('ingredient2_tags');
+    final ingredient1Rxcuis = rxcuis('ingredient1_rxcuis');
+    final ingredient2Rxcuis = rxcuis('ingredient2_rxcuis');
+
+    if (ingredient1Tags.isEmpty && ingredient1Rxcuis.isEmpty) {
       throw FormatException(
-        '$id: daily_slots are only valid for time_of_day rules',
+        '$id: needs ingredient1_tags or ingredient1_rxcuis',
       );
     }
-    final separationRaw = json['separation_hours'];
-    if (ruleType == TimingRuleType.separate &&
-        (separationRaw is! num || separationRaw <= 0)) {
+    if (relation.isBinary &&
+        ingredient2Tags.isEmpty &&
+        ingredient2Rxcuis.isEmpty) {
       throw FormatException(
-        '$id: separate timing rule requires positive separation_hours',
+        '$id: a ${relation.type.wireValue} relation needs a second identity',
       );
     }
+    if (!relation.isBinary &&
+        (ingredient2Tags.isNotEmpty || ingredient2Rxcuis.isNotEmpty)) {
+      throw FormatException(
+        '$id: ${relation.type.wireValue} is unary and must not carry a '
+        'second identity',
+      );
+    }
+
     if (json['score_impact'] is! int) {
       throw FormatException('$id: score_impact must be an integer');
     }
 
-    final minDose = json['min_dose'];
-    String? minDoseIngredient;
+    // A dose gate that fails to parse must not silently become a rule that
+    // always fires. Either it gates, or the artifact is rejected.
+    String? minDoseTag;
     double? minDoseMg;
-    if (minDose is Map) {
-      final ing = minDose['ingredient'];
-      final mg = minDose['mg'];
-      if (ing is String && mg is num) {
-        minDoseIngredient = ing.toLowerCase().trim();
-        minDoseMg = mg.toDouble();
+    final minDose = json['min_dose'];
+    if (minDose != null) {
+      if (minDose is! Map) {
+        throw FormatException('$id: min_dose must be an object');
       }
+      final tag = minDose['tag'];
+      final mg = minDose['mg'];
+      if (tag is! String || tag.trim().isEmpty || mg is! num) {
+        throw FormatException(
+          '$id: min_dose requires a canonical `tag` and numeric `mg`',
+        );
+      }
+      minDoseTag = tag.trim();
+      minDoseMg = mg.toDouble();
+    }
+
+    final sources = json.safeMapList('sources');
+    final sourceUrls = sources
+        .map((s) => s.safeString('url'))
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
+
+    final evidenceStr = requiredEnumString('evidence_level');
+    // "possible" predates the shared evidence vocabulary; map it to the
+    // weakest graded tier rather than inventing a stronger one.
+    final mappedEvidence = evidenceStr == 'possible'
+        ? 'theoretical'
+        : evidenceStr;
+
+    final ingredient2Display = json['ingredient2'];
+    if (ingredient2Display != null && ingredient2Display is! String) {
+      throw FormatException('$id: ingredient2 must be a string when present');
     }
 
     return _ParsedTimingRule(
       id: id,
-      ingredient1Display: ingredient1,
-      ingredient2Display: ingredient2,
-      ingredient1Normalized: ingredient1.toLowerCase().trim(),
-      ingredient2Normalized: ingredient2.toLowerCase().trim(),
-      ruleType: ruleType,
-      advice: advice,
+      ingredient1Display: requiredString('ingredient1'),
+      ingredient2Display: (ingredient2Display as String?)?.trim(),
+      ingredient1Tags: ingredient1Tags,
+      ingredient2Tags: ingredient2Tags,
+      ingredient1Rxcuis: ingredient1Rxcuis,
+      ingredient2Rxcuis: ingredient2Rxcuis,
+      relation: relation,
+      category: category,
+      appliesTo: appliesTo,
+      actionability: actionability,
+      reviewStatus: reviewStatus,
+      sourceAuthority: sourceAuthority,
+      advice: requiredString('advice'),
       mechanism: json['mechanism'] is String
           ? json['mechanism'] as String
           : null,
-      separationHours: separationRaw is num ? separationRaw.toInt() : null,
       scoreImpact: json.safeInt('score_impact'),
       evidenceLevel: EvidenceLevel.fromString(mappedEvidence),
-      sourceUrls: sources,
-      ingredient1Rxcuis: rxcuis('ingredient1_rxcuis'),
-      ingredient2Rxcuis: rxcuis('ingredient2_rxcuis'),
-      allowedDailySlots: allowedDailySlots,
-      dailyPlanEligible: dailyPlanEligibleRaw as bool? ?? true,
-      minDoseIngredient: minDoseIngredient,
+      sourceUrls: sourceUrls,
+      minDoseTag: minDoseTag,
       minDoseMg: minDoseMg,
     );
   }
@@ -655,7 +652,6 @@ class _IndexedRule {
   final _ParsedTimingRule rule;
 
   /// True if this rule was indexed via its ingredient1 side.
-  /// Used to determine which side is the "other" during matching.
   final bool isIngredient1;
 
   const _IndexedRule({required this.rule, required this.isIngredient1});

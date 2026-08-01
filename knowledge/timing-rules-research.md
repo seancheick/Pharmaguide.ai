@@ -23,7 +23,7 @@ the cited source, test.
 |---|---|---|---|
 | `timing_calcium_magnesium_separate` | **FOLKLORE.** Ca & Mg use different transporters; "they compete" is unsupported at supplement doses; NIH ODS does not recommend separation. | **Remove** (or downgrade to a dose-splitting note, not a separation). | Brannan 1976 **PMID 965905**; Fine 1991 **PMID 2040711**; NIH ODS Magnesium |
 | `timing_zinc_copper_separate` | **Mis-framed as timing.** Separating by hours does nothing — it's a *chronic cumulative-dose* rule (sustained Zn ≥40 mg/d depletes copper). | Reframe as a dose-safety flag (Zn ≥40 mg/d), not a "space apart" tip. | PMID 18525032; IOM Zn UL 40 mg/d; NIH ODS Zinc |
-| `timing_magnesium_evening` | Daily Mg-for-sleep is MODERATE-WEAK; **evening timing specifically is folklore** (no RCT shows evening > morning). | Downgrade / reframe: "take whenever you'll be consistent." | Schuster 2025 DOI 10.2147/NSS.S524348; Mah 2022 PMID 35184264 |
+| `timing_magnesium_evening` | **REJECTED 2026-08-01** — see `scripts/data/timing_rules_rejected.json`. Daily Mg-for-sleep is MODERATE-WEAK; **evening timing specifically is folklore** (no RCT compares evening vs morning). | Removed from the runtime artifact; GI-tolerance guidance survives as `timing_magnesium_with_food`. | Arab 2022 **PMID 35184264**; Mah 2021 **PMID 33865376** |
 | `timing_vitamin_d_morning` | "Evening D suppresses melatonin / ruins sleep" is **folklore** (cites a hypothesis paper; D half-life ~2–3 wk, no acute mechanism). | Remove or mark explicitly weak. | NIH ODS Vitamin D (silent on timing) |
 | `timing_b_vitamins_morning` | "B vitamins for morning energy / disrupt sleep" is **folklore/placebo** in non-deficient people. | Downgrade / mark weak. | Linus Pauling Institute B6 |
 | `timing_iron_calcium_separate` & co. | Real but **dose-gated & context-gated** — mainly matters for iron-deficient/pregnant on therapeutic iron, with food; attenuates long-term. | Gate on dose + profile before firing. | Hallberg 1991 PMID 1899425; Minihane 1998 PMID 9701177 |
@@ -86,6 +86,11 @@ Self-pairing + duplicate-tip bugs already fixed in `TimingEvaluationService`
 - **Iron — alternate-day single morning > consecutive (EVIDENCE-BASED; lever is
   frequency, not hour).** 21.8% vs 16.3% absorption. Stoffel 2017 DOI 10.1016/S2352-3026(17)30182-5.
 - **Magnesium evening / Vitamin D morning / B-vitamins morning — FOLKLORE.**
+  Magnesium-evening was rejected on 2026-08-01. Citation correction made at the
+  same time: PMID 35184264 is **Arab** et al. 2022 (*Biol Trace Elem Res*), not
+  "Mah 2022" as this table previously stated; Mah & Pitre is **PMID 33865376**
+  (2021, *BMC Complement Med Ther*). Both were content-verified against PubMed,
+  and neither compares evening to morning administration.
 
 ## 5. DOSE-SPLITTING
 

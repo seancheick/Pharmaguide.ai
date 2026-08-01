@@ -97,12 +97,13 @@ void main() {
     test(
       'timing_rules keeps only corrected evidence-based timing rules',
       () async {
-        // Regression guard for the evidence-based corrections: Ca↔Mg
-        // "competition" was removed; zinc↔copper is a chronic-dose concern, not
-        // a timing one. Magnesium sleep timing was later re-added only as a
-        // cautious, non-scoring evening-routine suggestion with sleep-specific
-        // evidence.
-        // See knowledge/timing-rules-research.md.
+        // Regression guard for the evidence-based corrections: Ca<->Mg
+        // "competition" was removed; zinc<->copper is a chronic-dose concern,
+        // not a timing one. Magnesium-evening was REJECTED on 2026-08-01 — its
+        // own mechanism text conceded no trial compares evening to morning
+        // dosing, and with the scheduler gone it had no defensible relation.
+        // See knowledge/timing-rules-research.md and
+        // dsld_clean/scripts/data/timing_rules_rejected.json.
         final timing = await repo.loadTimingRules();
         final rules = (timing['timing_rules']! as List<dynamic>)
             .cast<Map<String, dynamic>>();
@@ -115,6 +116,19 @@ void main() {
           'timing_b_vitamins_morning',
           'timing_collagen_empty_stomach',
           'timing_probiotics_empty_stomach',
+          'timing_magnesium_evening',
+          // Rejected 2026-08-01 after source verification. Each entry's full
+          // reasoning and citations live in
+          // dsld_clean/scripts/data/timing_rules_rejected.json.
+          'timing_magnesium_with_food',
+          'timing_ashwagandha_with_food',
+          'timing_zinc_with_food',
+          'timing_vitamin_k_with_food',
+          'timing_iron_empty_stomach',
+          'timing_omega3_with_meal',
+          'timing_fat_soluble_vitamins_with_food',
+          'timing_coffee_iron_separate',
+          'timing_thyroid_med_coffee_separate',
         ]) {
           expect(
             ids,
@@ -123,30 +137,87 @@ void main() {
           );
         }
 
-        // The magnesium rule was reframed to evidence-based GI-tolerance guidance.
-        final mag = rules.firstWhere(
-          (r) => r['id'] == 'timing_magnesium_with_food',
+        // The iron GI note survives, but re-authored FROM its source rather
+        // than inherited: the NIH ODS iron page recommends taking iron with
+        // food to minimize GI effects, which is the opposite of what
+        // timing_iron_empty_stomach told users.
+        final iron = rules.firstWhere(
+          (r) => r['id'] == 'timing_iron_with_food_gi',
         );
-        expect(mag['rule_type'], 'take_with_food');
-
-        final magEvening = rules.firstWhere(
-          (r) => r['id'] == 'timing_magnesium_evening',
-        );
-        expect(magEvening['rule_type'], 'time_of_day');
-        expect(magEvening['score_impact'], 0);
-        expect(magEvening['evidence_level'], 'possible');
-        expect(magEvening['advice'], contains('not a proven sleep aid'));
-        expect(
-          (magEvening['sources'] as List<dynamic>)
-              .cast<Map<String, dynamic>>()
-              .map((s) => s['url']),
-          containsAll([
-            'https://pubmed.ncbi.nlm.nih.gov/35184264/',
-            'https://pubmed.ncbi.nlm.nih.gov/33865376/',
-          ]),
-        );
+        expect(iron['timing_relation']['type'], 'with_food');
+        expect(iron['review_status'], 'verified');
+        expect(iron['supersedes'], 'timing_iron_empty_stomach');
       },
     );
+
+    test('a verified rule carries the full publication contract', () async {
+      // Section 2 promotes rules one at a time. Promotion is only legitimate
+      // when the rule also carries the evidence of its own verification, so a
+      // future edit cannot flip review_status alone.
+      final timing = await repo.loadTimingRules();
+      final rules = (timing['timing_rules']! as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+
+      final verified = rules
+          .where((r) => r['review_status'] == 'verified')
+          .toList();
+      expect(
+        verified,
+        isNotEmpty,
+        reason: 'Section 2 has promoted rules; this guard must stay meaningful',
+      );
+
+      for (final rule in verified) {
+        final id = rule['id'];
+        expect(
+          rule['canaries'],
+          isNotNull,
+          reason: '$id is verified without catalog canaries',
+        );
+        final canaries = rule['canaries'] as Map<String, dynamic>;
+        expect(
+          canaries['negative'],
+          isNotEmpty,
+          reason:
+              '$id has no negative canary — reachability alone does not prove '
+              'a rule stops firing where it should not',
+        );
+        expect(
+          (rule['sources'] as List<dynamic>),
+          isNotEmpty,
+          reason: '$id is verified without a source',
+        );
+        // fda_label is the strongest authority the app can display and must
+        // not be assignable without an FDA source.
+        if (rule['source_authority'] == 'fda_label') {
+          expect(
+            (rule['sources'] as List<dynamic>)
+                .cast<Map<String, dynamic>>()
+                .any((s) => s['source_type'] == 'fda'),
+            isTrue,
+            reason: '$id claims FDA authority without an FDA source',
+          );
+        }
+      }
+    });
+
+    test('a suppressed rule records why it is suppressed', () async {
+      final timing = await repo.loadTimingRules();
+      final rules = (timing['timing_rules']! as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+
+      for (final rule in rules.where(
+        (r) => r['review_status'] == 'needs_revision',
+      )) {
+        expect(
+          rule['review_note'],
+          isNotNull,
+          reason:
+              '${rule['id']} is suppressed with no recorded blocker — the next '
+              'reader cannot tell whether it is unsafe or merely unfinished',
+        );
+      }
+    });
 
     test('timing_rules excludes dead legacy source URLs', () async {
       final timing = await repo.loadTimingRules();

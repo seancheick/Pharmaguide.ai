@@ -109,10 +109,17 @@ StackSafetyReport _safetyReport() {
         ingredient2: 'Lisinopril',
         advice:
             'Separate calcium and this medication unless your clinician says otherwise.',
-        ruleType: TimingRuleType.separate,
-        separationHours: 2,
+        relation: TimingRelation(
+          type: TimingRelationType.separateFrom,
+          minimumHours: 2,
+        ),
+        category: TimingCategory.importantSeparation,
+        actionability: TimingActionability.recommended,
+        sourceAuthority: SourceAuthority.clinicalStudy,
         scoreImpact: -2,
         evidenceLevel: EvidenceLevel.probable,
+        product1Name: 'Calcium Citrate',
+        product1StackEntryId: 'stack-calcium',
       ),
     ],
   );
@@ -913,10 +920,17 @@ void main() {
         ingredient1: 'Ingredient $index',
         ingredient2: 'Medication $index',
         advice: 'TimingMarker$index',
-        ruleType: TimingRuleType.separate,
-        separationHours: 2,
+        relation: const TimingRelation(
+          type: TimingRelationType.separateFrom,
+          minimumHours: 2,
+        ),
+        category: TimingCategory.importantSeparation,
+        actionability: TimingActionability.recommended,
+        sourceAuthority: SourceAuthority.clinicalStudy,
         scoreImpact: -1,
         evidenceLevel: EvidenceLevel.probable,
+        product1Name: 'Bottle $index',
+        product1StackEntryId: 'stack-$index',
       ),
     );
     final bytes = await const ClinicianPdfBuilder(compress: false).build(
@@ -1030,9 +1044,11 @@ void main() {
           TimingOptimization(
             ruleId: 'ala_empty',
             ingredient1: 'alpha-lipoic acid',
-            ingredient2: 'food',
             advice: 'Take alpha-lipoic acid on an empty stomach.',
-            ruleType: TimingRuleType.takeOnEmptyStomach,
+            relation: TimingRelation(type: TimingRelationType.emptyStomach),
+            category: TimingCategory.howToTake,
+            actionability: TimingActionability.recommended,
+            sourceAuthority: SourceAuthority.clinicalStudy,
             scoreImpact: -1,
             evidenceLevel: EvidenceLevel.probable,
             product1Name: 'O.N.E. Multivitamin',
@@ -1041,9 +1057,11 @@ void main() {
           TimingOptimization(
             ruleId: 'vitamin_a_with_fat',
             ingredient1: 'vitamin a',
-            ingredient2: 'dietary fat',
             advice: 'Take vitamin A with a meal containing fat.',
-            ruleType: TimingRuleType.takeWithFood,
+            relation: TimingRelation(type: TimingRelationType.withFood),
+            category: TimingCategory.howToTake,
+            actionability: TimingActionability.recommended,
+            sourceAuthority: SourceAuthority.clinicalStudy,
             scoreImpact: -1,
             evidenceLevel: EvidenceLevel.established,
             product1Name: 'O.N.E. Multivitamin',
@@ -1058,11 +1076,10 @@ void main() {
     final body = latin1.decode(bytes, allowInvalid: true);
     expect(body, contains('O.N.E.'));
     expect(body, contains('Multivitamin'));
-    expect(body, contains('conflicting'));
-    expect(body, contains('guidance'));
-    // The instructions are now named, but only inside a sentence stating they
-    // cannot both be followed - never as separate schedulable advice.
-    expect(body, contains('followed'));
+    // The bottle is named and the reason is stated. No instruction is issued,
+    // because two applicable rules disagree about the same capsule.
+    expect(body, contains('conflict'));
+    expect(body, contains('issued'));
   });
 
   // ===================================================================
@@ -1803,14 +1820,16 @@ void main() {
   // Timing.
   // ===================================================================
 
-  test('renders the resolved daily schedule, not just advice lines', () async {
+  test('renders guidance under the bottle, with its evidence', () async {
     final bytes = await _timingReport(const [
       TimingOptimization(
         ruleId: 'iron_with_food',
         ingredient1: 'iron',
-        ingredient2: 'food',
         advice: 'Take iron with a meal.',
-        ruleType: TimingRuleType.takeWithFood,
+        relation: TimingRelation(type: TimingRelationType.withFood),
+        category: TimingCategory.howToTake,
+        actionability: TimingActionability.recommended,
+        sourceAuthority: SourceAuthority.fdaLabel,
         scoreImpact: -1,
         evidenceLevel: EvidenceLevel.probable,
         product1Name: 'AlphaBottle',
@@ -1819,17 +1838,23 @@ void main() {
     ]);
     final body = latin1.decode(bytes, allowInvalid: true);
     expect(body, contains('AlphaBottle'));
-    expect(body, contains('breakfast'));
+    expect(body, contains('Administration'));
+    // The clinician copy carries the audit trail the app card omits: how
+    // certain the claim is AND what kind of source it came from.
+    expect(body, contains('Probable'));
+    expect(body, contains('FDA'));
   });
 
-  test('does not imply simultaneous administration in the schedule', () async {
+  test('prints no daypart, clock time, or invented window', () async {
     final bytes = await _timingReport(const [
       TimingOptimization(
         ruleId: 'iron_with_food',
         ingredient1: 'iron',
-        ingredient2: 'food',
         advice: 'Take iron with a meal.',
-        ruleType: TimingRuleType.takeWithFood,
+        relation: TimingRelation(type: TimingRelationType.withFood),
+        category: TimingCategory.howToTake,
+        actionability: TimingActionability.recommended,
+        sourceAuthority: SourceAuthority.fdaLabel,
         scoreImpact: -1,
         evidenceLevel: EvidenceLevel.probable,
         product1Name: 'AlphaBottle',
@@ -1837,8 +1862,41 @@ void main() {
       ),
     ]);
     final body = latin1.decode(bytes, allowInvalid: true);
-    expect(body, isNot(contains('Take together')));
-    expect(body, contains('window'));
+    expect(body, isNot(contains('Suggested time window')));
+    for (final daypart in ['breakfast', 'With dinner', 'Before bed']) {
+      expect(body, isNot(contains(daypart)));
+    }
+  });
+
+  test('states the exact interval behind a separation', () async {
+    final bytes = await _timingReport(const [
+      TimingOptimization(
+        ruleId: 'calcium_levothyroxine',
+        ingredient1: 'levothyroxine',
+        ingredient2: 'calcium',
+        advice: 'Keep calcium away from levothyroxine.',
+        relation: TimingRelation(
+          type: TimingRelationType.separateFrom,
+          minimumHours: 4,
+        ),
+        category: TimingCategory.importantSeparation,
+        actionability: TimingActionability.recommended,
+        sourceAuthority: SourceAuthority.fdaLabel,
+        scoreImpact: -2,
+        evidenceLevel: EvidenceLevel.established,
+        product1Name: 'Levothyroxine',
+        product1StackEntryId: 'stack-levo',
+        product2Name: 'Calcium K/D',
+        product2StackEntryId: 'stack-calcium',
+        involvesMedication: true,
+        medicationIsProduct1: true,
+      ),
+    ]);
+    final body = latin1.decode(bytes, allowInvalid: true);
+    // Guidance is filed under the supplement, never the prescription.
+    expect(body, contains('Calcium'));
+    expect(body, contains('separation'));
+    expect(body, contains('prescribed'));
   });
 
   test('explains what a same-product timing conflict actually is', () async {
@@ -1846,9 +1904,11 @@ void main() {
       TimingOptimization(
         ruleId: 'ala_empty',
         ingredient1: 'alpha-lipoic acid',
-        ingredient2: 'food',
         advice: 'Take alpha-lipoic acid on an empty stomach.',
-        ruleType: TimingRuleType.takeOnEmptyStomach,
+        relation: TimingRelation(type: TimingRelationType.emptyStomach),
+        category: TimingCategory.howToTake,
+        actionability: TimingActionability.recommended,
+        sourceAuthority: SourceAuthority.clinicalStudy,
         scoreImpact: -1,
         evidenceLevel: EvidenceLevel.probable,
         product1Name: 'O.N.E. Multivitamin',
@@ -1857,9 +1917,11 @@ void main() {
       TimingOptimization(
         ruleId: 'vitamin_a_with_fat',
         ingredient1: 'vitamin a',
-        ingredient2: 'dietary fat',
         advice: 'Take vitamin A with a meal containing fat.',
-        ruleType: TimingRuleType.takeWithFood,
+        relation: TimingRelation(type: TimingRelationType.withFood),
+        category: TimingCategory.howToTake,
+        actionability: TimingActionability.recommended,
+        sourceAuthority: SourceAuthority.clinicalStudy,
         scoreImpact: -1,
         evidenceLevel: EvidenceLevel.established,
         product1Name: 'O.N.E. Multivitamin',
@@ -1867,29 +1929,33 @@ void main() {
       ),
     ]);
     final body = latin1.decode(bytes, allowInvalid: true);
-    expect(body, contains('followed'));
-    expect(body, contains('stomach'));
-    expect(body, contains('meal'));
+    // Two applicable rules disagree about one capsule, so no instruction is
+    // issued and neither raw rule is printed as if it stood alone.
+    expect(body, contains('conflict'));
+    expect(body, contains('issued'));
+    expect(body, isNot(contains('empty stomach')));
   });
 
-  test('never prints an unsatisfiable timing rule as valid advice', () async {
+  test('reports an unresolved identity rather than dropping it', () async {
     final bytes = await _timingReport(const [
       TimingOptimization(
-        ruleId: 'unplaceable_tod',
+        ruleId: 'orphan_rule',
         ingredient1: 'ashwagandha',
-        ingredient2: 'sleep',
-        advice: 'UNPLACEABLEADVICE',
-        ruleType: TimingRuleType.timeOfDay,
+        advice: 'ORPHANADVICE',
+        relation: TimingRelation(type: TimingRelationType.withFood),
+        category: TimingCategory.howToTake,
+        actionability: TimingActionability.recommended,
+        sourceAuthority: SourceAuthority.reference,
         scoreImpact: -1,
         evidenceLevel: EvidenceLevel.probable,
-        product1Name: 'SleepBottle',
-        product1StackEntryId: 'supp-sleep',
+        // No product row: the app card stays silent, but a clinical report
+        // must distinguish "checked, nothing found" from "could not check".
       ),
     ]);
     final body = latin1.decode(bytes, allowInvalid: true);
-    expect(body, contains('UNPLACEABLEADVICE'));
-    expect(body, contains('reviewed'));
-    expect(body, contains('slot'));
+    expect(body, isNot(contains('ORPHANADVICE')));
+    expect(body, contains('tied'));
+    expect(body, contains('ashwagandha'));
   });
 
   test(

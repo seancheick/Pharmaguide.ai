@@ -1,1070 +1,490 @@
+// TimingEvaluationService — matching, identity, gating.
+//
+// Structural invariants (no dayparts, no medication scheduling, suppression,
+// fail-closed parsing) live in timing_guidance_invariants_test.dart. This file
+// covers what the service does once a rule is verified: which stack rows it
+// matches, how medication identity is resolved, and when a tip is withheld.
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
-import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
 
-/// Minimal timing_rules.json for testing — 6 rules covering each rule type.
-final _testTimingRulesJson = {
-  '_metadata': {'schema_version': '5.1.0', 'total_entries': 7},
-  'timing_rules': [
-    {
-      'id': 'timing_iron_calcium_separate',
-      'ingredient1': 'iron',
-      'ingredient2': 'calcium',
-      'rule_type': 'separate',
-      'advice': 'Take iron and calcium at least 2 hours apart.',
-      'mechanism': 'Calcium inhibits iron absorption.',
-      'separation_hours': 2,
-      'score_impact': -2,
-      'evidence_level': 'established',
-      'sources': [
-        {
-          'source_type': 'pubmed',
-          'url': 'https://pubmed.ncbi.nlm.nih.gov/1984335/',
-        },
-      ],
-    },
-    {
-      'id': 'timing_iron_vitamin_c_together',
-      'ingredient1': 'iron',
-      'ingredient2': 'vitamin c',
-      'rule_type': 'take_together',
-      'advice': 'Take iron with vitamin C to enhance absorption.',
-      'mechanism': 'Vitamin C reduces Fe3+ to Fe2+.',
-      'separation_hours': null,
-      'score_impact': 0,
-      'evidence_level': 'established',
-      'sources': <Map<String, String>>[],
-    },
-    {
-      'id': 'timing_coq10_with_food',
-      'ingredient1': 'coq10',
-      'ingredient2': 'dietary fat',
-      'rule_type': 'take_with_food',
-      'advice': 'Take CoQ10 with a meal containing fat.',
-      'mechanism': 'Lipophilic compound needs micellar transport.',
-      'separation_hours': null,
-      'score_impact': -1,
-      'evidence_level': 'established',
-      'sources': <Map<String, String>>[],
-    },
-    {
-      'id': 'timing_iron_empty_stomach',
-      'ingredient1': 'iron',
-      'ingredient2': 'food',
-      'rule_type': 'take_on_empty_stomach',
-      'advice': 'Take iron on an empty stomach for best absorption.',
-      'mechanism': 'Food reduces non-heme iron absorption.',
-      'separation_hours': null,
-      'score_impact': -1,
-      'evidence_level': 'established',
-      'sources': <Map<String, String>>[],
-    },
-    {
-      'id': 'timing_thyroid_med_iron_separate',
-      'ingredient1': 'levothyroxine',
-      'ingredient1_rxcuis': ['10582'],
-      'ingredient2': 'iron',
-      'rule_type': 'separate',
-      'advice': 'Take levothyroxine at least 4 hours apart from iron.',
-      'mechanism': 'Iron forms insoluble complexes with levothyroxine.',
-      'separation_hours': 4,
-      'score_impact': -2,
-      'evidence_level': 'established',
-      'sources': <Map<String, String>>[],
-    },
-    {
-      'id': 'timing_magnesium_evening',
-      'ingredient1': 'magnesium',
-      'ingredient2': 'sleep',
-      'rule_type': 'time_of_day',
-      'daily_plan_eligible': false,
-      'daily_slots': ['with_dinner', 'bedtime'],
-      'advice': 'Consider taking magnesium in the evening.',
-      'mechanism': 'May support sleep quality.',
-      'separation_hours': null,
-      'score_impact': 0,
-      'evidence_level': 'possible',
-      'sources': <Map<String, String>>[],
-    },
-    {
-      'id': 'timing_psyllium_water_med_spacing',
-      'ingredient1': 'psyllium',
-      'ingredient2': 'medications',
-      'rule_type': 'separate',
-      'advice':
-          'Mix psyllium with at least 8 oz of liquid, and take other medications at least 3 hours away.',
-      'mechanism':
-          'Bulk-forming psyllium can swell and delay absorption of some medications.',
-      'separation_hours': 3,
-      'score_impact': -1,
-      'evidence_level': 'established',
-      'sources': <Map<String, String>>[],
-    },
-  ],
-};
-
-List<TimingOptimization> _evaluate(
-  TimingEvaluationService service, {
-  required Map<String, Set<String>> supplementTags,
-  required List<String> medicationNames,
-  Map<String, Set<String>> medicationRxCuisByName = const {},
-  Map<String, double> ingredientDosesMg = const {},
+Map<String, dynamic> _rule({
+  required String id,
+  required Map<String, dynamic> relation,
+  String category = 'how_to_take',
+  String appliesTo = 'any',
+  String actionability = 'recommended',
+  String evidenceLevel = 'established',
+  String sourceAuthority = 'fda_label',
+  String reviewStatus = 'verified',
+  String ingredient1 = 'iron',
+  List<String>? ingredient1Tags,
+  List<String>? ingredient1Rxcuis,
+  String? ingredient2,
+  List<String>? ingredient2Tags,
+  List<String>? ingredient2Rxcuis,
+  String advice = 'Authored advice.',
+  int scoreImpact = -2,
+  Map<String, dynamic>? minDose,
+  List<Map<String, dynamic>> sources = const [],
 }) {
-  return service.evaluateStack(
-    stackItems: [
-      for (final entry in supplementTags.entries.indexed)
-        TimingStackItem.supplement(
-          stackEntryId: 'supplement-${entry.$1}',
-          displayName: entry.$2.key,
-          ingredientTags: entry.$2.value,
-        ),
-      for (final entry in medicationNames.indexed)
-        TimingStackItem.medication(
-          stackEntryId: 'medication-${entry.$1}',
-          displayName: entry.$2,
-          medicationRxCuis:
-              medicationRxCuisByName[entry.$2] ?? const <String>{},
-        ),
-    ],
-    ingredientDosesMg: ingredientDosesMg,
-  );
+  return {
+    'id': id,
+    'ingredient1': ingredient1,
+    if (ingredient1Tags != null) 'ingredient1_tags': ingredient1Tags,
+    if (ingredient1Rxcuis != null) 'ingredient1_rxcuis': ingredient1Rxcuis,
+    if (ingredient2 != null) 'ingredient2': ingredient2,
+    if (ingredient2Tags != null) 'ingredient2_tags': ingredient2Tags,
+    if (ingredient2Rxcuis != null) 'ingredient2_rxcuis': ingredient2Rxcuis,
+    'timing_relation': relation,
+    'category': category,
+    'applies_to': appliesTo,
+    'actionability': actionability,
+    'source_authority': sourceAuthority,
+    'review_status': reviewStatus,
+    if (minDose != null) 'min_dose': minDose,
+    'advice': advice,
+    'score_impact': scoreImpact,
+    'evidence_level': evidenceLevel,
+    'sources': sources,
+  };
 }
 
+TimingEvaluationService _serviceOf(List<Map<String, dynamic>> rules) =>
+    TimingEvaluationService.fromJson({
+      '_metadata': {'total_entries': rules.length},
+      'timing_rules': rules,
+    });
+
+const _separate2h = {'type': 'separate_from', 'minimum_hours': 2};
+const _withFood = {'type': 'with_food'};
+
+TimingStackItem _supplement(String id, String name, Set<String> tags) =>
+    TimingStackItem.supplement(
+      stackEntryId: id,
+      displayName: name,
+      ingredientTags: tags,
+    );
+
 void main() {
-  group('TimingEvaluationService', () {
+  group('rule parsing', () {
+    test('parses a verified rule and indexes both sides', () {
+      final service = _serviceOf([
+        _rule(
+          id: 'timing_iron_calcium_separate',
+          ingredient1Tags: const ['iron'],
+          ingredient2: 'calcium',
+          ingredient2Tags: const ['calcium'],
+          relation: _separate2h,
+          category: 'important_separation',
+        ),
+      ]);
+      expect(service.ruleCount, 1);
+      expect(service.suppressedRuleCount, 0);
+    });
+
+    test('rejects a metadata count that disagrees with the array', () {
+      expect(
+        () => TimingEvaluationService.fromJson({
+          '_metadata': {'total_entries': 5},
+          'timing_rules': [
+            _rule(
+              id: 'a',
+              ingredient1Tags: const ['iron'],
+              relation: _withFood,
+            ),
+          ],
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('maps the legacy `possible` tier to theoretical, never upward', () {
+      final service = _serviceOf([
+        _rule(
+          id: 'timing_possible',
+          ingredient1Tags: const ['iron'],
+          relation: _withFood,
+          evidenceLevel: 'possible',
+        ),
+      ]);
+      final result = service.evaluateStack(
+        stackItems: [_supplement('row-iron', 'Iron', {'iron'})],
+      );
+      expect(result.single.evidenceLevel, EvidenceLevel.theoretical);
+    });
+
+    test('rejects a rule with neither tags nor rxcuis on side one', () {
+      expect(
+        () => _serviceOf([_rule(id: 'timing_bare', relation: _withFood)]),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
+
+  group('supplement matching', () {
     late TimingEvaluationService service;
 
     setUp(() {
-      service = TimingEvaluationService.fromJson(_testTimingRulesJson);
+      service = _serviceOf([
+        _rule(
+          id: 'timing_iron_calcium_separate',
+          ingredient1: 'iron',
+          ingredient1Tags: const ['iron'],
+          ingredient2: 'calcium',
+          ingredient2Tags: const ['calcium'],
+          relation: _separate2h,
+          category: 'important_separation',
+        ),
+      ]);
     });
 
-    test('parses rules from JSON', () {
-      expect(service.ruleCount, 7);
-    });
-
-    group('supplement × supplement matching', () {
-      test('fires separation rule when both ingredients in stack', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-            'Calcium Citrate': {'calcium'},
-          },
-          medicationNames: [],
-        );
-
-        final ironCalcium = results
-            .where((r) => r.ruleId == 'timing_iron_calcium_separate')
-            .toList();
-        expect(ironCalcium, hasLength(1));
-        expect(ironCalcium.first.ruleType, TimingRuleType.separate);
-        expect(ironCalcium.first.separationHours, 2);
-        expect(ironCalcium.first.product1Name, isNotNull);
-        expect(ironCalcium.first.product2Name, isNotNull);
-      });
-
-      test('product names stay aligned with authored ingredient sides', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            // Deliberately visit ingredient2 first.
-            'Calcium Citrate': {'calcium'},
-            'Iron Supplement': {'iron'},
-          },
-          medicationNames: [],
-        );
-
-        final match = results.singleWhere(
-          (r) => r.ruleId == 'timing_iron_calcium_separate',
-        );
-        expect(match.product1Name, 'Iron Supplement');
-        expect(match.product2Name, 'Calcium Citrate');
-      });
-
-      test('fires take_together rule when both ingredients in stack', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-            'Vitamin C': {'vitamin_c'},
-          },
-          medicationNames: [],
-        );
-
-        final ironVitC = results
-            .where((r) => r.ruleId == 'timing_iron_vitamin_c_together')
-            .toList();
-        expect(ironVitC, hasLength(1));
-        expect(ironVitC.first.ruleType, TimingRuleType.takeTogether);
-      });
-
-      test('does NOT fire when only one side of the pair is in stack', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-          },
-          medicationNames: [],
-        );
-
-        final ironCalcium = results
-            .where((r) => r.ruleId == 'timing_iron_calcium_separate')
-            .toList();
-        expect(ironCalcium, isEmpty);
-      });
-
-      test('fires single-ingredient rules (food context)', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'CoQ10 200mg': {'coq10'},
-          },
-          medicationNames: [],
-        );
-
-        final coq10 = results
-            .where((r) => r.ruleId == 'timing_coq10_with_food')
-            .toList();
-        expect(coq10, hasLength(1));
-        expect(coq10.first.ruleType, TimingRuleType.takeWithFood);
-      });
-
-      test('fires time_of_day rules for magnesium', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Magnesium Glycinate': {'magnesium'},
-          },
-          medicationNames: [],
-        );
-
-        final mag = results
-            .where((r) => r.ruleId == 'timing_magnesium_evening')
-            .toList();
-        expect(mag, hasLength(1));
-        expect(mag.first.ruleType, TimingRuleType.timeOfDay);
-        expect(mag.first.allowedDailySlots, const {
-          DailySlot.withDinner,
-          DailySlot.bedtime,
-        });
-        expect(mag.first.dailyPlanEligible, isFalse);
-      });
-
-      test(
-        'does not fire psyllium medication spacing without a medication',
-        () {
-          final results = _evaluate(
-            service,
-            supplementTags: {
-              'Psyllium Husk': {'psyllium'},
-            },
-            medicationNames: [],
-          );
-
-          final psyllium = results
-              .where((r) => r.ruleId == 'timing_psyllium_water_med_spacing')
-              .toList();
-          expect(psyllium, isEmpty);
-        },
-      );
-
-      test(
-        'fires psyllium medication spacing when a medication is present',
-        () {
-          final results = _evaluate(
-            service,
-            supplementTags: {
-              'Psyllium Husk': {'psyllium'},
-            },
-            medicationNames: ['Metformin'],
-            medicationRxCuisByName: {
-              'Metformin': {'6809'},
-            },
-          );
-
-          final psyllium = results
-              .where((r) => r.ruleId == 'timing_psyllium_water_med_spacing')
-              .toList();
-          expect(psyllium, hasLength(1));
-          expect(psyllium.first.ruleType, TimingRuleType.separate);
-          expect(psyllium.first.separationHours, 3);
-          expect(psyllium.first.product1Name, 'Psyllium Husk');
-          expect(psyllium.first.product2Name, isNull);
-        },
-      );
-    });
-
-    group('medication × supplement matching', () {
-      test('fires levothyroxine + iron separation rule', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-          },
-          medicationNames: ['Levothyroxine 50mcg'],
-          medicationRxCuisByName: {
-            'Levothyroxine 50mcg': {'10582'},
-          },
-        );
-
-        final thyroidIron = results
-            .where((r) => r.ruleId == 'timing_thyroid_med_iron_separate')
-            .toList();
-        expect(thyroidIron, hasLength(1));
-        expect(thyroidIron.first.separationHours, 4);
-        expect(thyroidIron.first.product1Name, 'Levothyroxine 50mcg');
-        expect(thyroidIron.first.product2Name, 'Iron Supplement');
-      });
-
-      test('matches a brand through its normalized generic RxCUI', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-          },
-          medicationNames: ['Unithroid 100mcg'],
-          medicationRxCuisByName: {
-            'Unithroid 100mcg': {'890003', '10582'},
-          },
-        );
-
-        final thyroidIron = results
-            .where((r) => r.ruleId == 'timing_thyroid_med_iron_separate')
-            .toList();
-        expect(thyroidIron, hasLength(1));
-      });
-
-      test('does not infer medication identity from a display name', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-          },
-          medicationNames: ['Synthroid 100mcg'],
-        );
-
-        expect(
-          results.where((r) => r.ruleId == 'timing_thyroid_med_iron_separate'),
-          isEmpty,
-        );
-      });
-
-      test('does NOT fire medication rule when medication not in stack', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-          },
-          medicationNames: ['Metformin 500mg'],
-        );
-
-        final thyroidIron = results
-            .where((r) => r.ruleId == 'timing_thyroid_med_iron_separate')
-            .toList();
-        expect(thyroidIron, isEmpty);
-      });
-    });
-
-    group('deduplication', () {
-      test(
-        'one reviewed rule preserves every actionable physical product pair',
-        () {
-          final results = _evaluate(
-            service,
-            supplementTags: {
-              'Iron Bisglycinate': {'iron'},
-              'Ferrous Sulfate': {'iron'},
-              'Calcium Citrate': {'calcium'},
-              'Calcium Carbonate': {'calcium'},
-            },
-            medicationNames: [],
-          );
-
-          final ironCalcium = results
-              .where((r) => r.ruleId == 'timing_iron_calcium_separate')
-              .toList();
-          expect(
-            ironCalcium,
-            hasLength(4),
-            reason:
-                'two iron rows by two calcium rows are four distinct actions',
-          );
-          expect(
-            ironCalcium
-                .map(
-                  (result) =>
-                      '${result.product1StackEntryId}|'
-                      '${result.product2StackEntryId}',
-                )
-                .toSet(),
-            hasLength(4),
-          );
-        },
-      );
-
-      test('duplicate display names remain separate physical rows', () {
-        final results = service.evaluateStack(
-          stackItems: const [
-            TimingStackItem.supplement(
-              stackEntryId: 'first-coq10',
-              displayName: 'Daily Softgel',
-              ingredientTags: {'coq10'},
-            ),
-            TimingStackItem.supplement(
-              stackEntryId: 'second-coq10',
-              displayName: 'Daily Softgel',
-              ingredientTags: {'coq10'},
-            ),
-          ],
-        );
-
-        final coq10 = results
-            .where((result) => result.ruleId == 'timing_coq10_with_food')
-            .toList();
-        expect(coq10, hasLength(2));
-        expect(coq10.map((result) => result.product1StackEntryId).toSet(), {
-          'first-coq10',
-          'second-coq10',
-        });
-      });
-    });
-
-    group('priority ordering', () {
-      test('medication separations sort before supplement separations', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-            'Calcium Citrate': {'calcium'},
-          },
-          medicationNames: ['Levothyroxine 50mcg'],
-          medicationRxCuisByName: {
-            'Levothyroxine 50mcg': {'10582'},
-          },
-        );
-
-        // Should have at least: thyroid+iron (med), iron+calcium (supp)
-        expect(results.length, greaterThanOrEqualTo(2));
-
-        // First result should be the medication interaction (higher priority).
-        final first = results.first;
-        expect(
-          first.ruleId,
-          'timing_thyroid_med_iron_separate',
-          reason: 'Medication interaction should sort first',
-        );
-      });
-    });
-
-    group('evidence level mapping', () {
-      test('maps established correctly', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Iron Supplement': {'iron'},
-            'Calcium Citrate': {'calcium'},
-          },
-          medicationNames: [],
-        );
-
-        final ironCalcium = results.firstWhere(
-          (r) => r.ruleId == 'timing_iron_calcium_separate',
-        );
-        expect(ironCalcium.evidenceLevel, EvidenceLevel.established);
-      });
-
-      test('maps possible to theoretical', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {
-            'Magnesium Glycinate': {'magnesium'},
-          },
-          medicationNames: [],
-        );
-
-        final mag = results.firstWhere(
-          (r) => r.ruleId == 'timing_magnesium_evening',
-        );
-        expect(mag.evidenceLevel, EvidenceLevel.theoretical);
-      });
-    });
-
-    group('empty stack', () {
-      test('returns empty list for empty supplement stack', () {
-        final results = _evaluate(
-          service,
-          supplementTags: {},
-          medicationNames: [],
-        );
-        expect(results, isEmpty);
-      });
-
-      test(
-        'returns empty list for medications-only stack with no matching rules',
-        () {
-          final results = _evaluate(
-            service,
-            supplementTags: {},
-            medicationNames: ['Metformin 500mg'],
-          );
-          expect(results, isEmpty);
-        },
-      );
-    });
-
-    group('large stack performance', () {
-      test('handles 50+ item stack without timeout', () {
-        final largeSuppTags = <String, Set<String>>{};
-        final nutrients = [
-          'iron',
-          'calcium',
-          'magnesium',
-          'zinc',
-          'vitamin_c',
-          'vitamin_d',
-          'vitamin_e',
-          'vitamin_k',
-          'coq10',
-          'omega_3',
-        ];
-        for (var i = 0; i < 50; i++) {
-          largeSuppTags['Product $i'] = {nutrients[i % nutrients.length]};
-        }
-
-        final stopwatch = Stopwatch()..start();
-        final results = _evaluate(
-          service,
-          supplementTags: largeSuppTags,
-          medicationNames: ['Levothyroxine 50mcg', 'Warfarin 5mg'],
-        );
-        stopwatch.stop();
-
-        expect(
-          stopwatch.elapsedMilliseconds,
-          lessThan(100),
-          reason: 'Timing evaluation should complete in <100ms',
-        );
-        expect(results, isNotEmpty);
-      });
-    });
-
-    group('same-product suppression + semantic dedup', () {
-      final rulesJson = {
-        'timing_rules': [
-          {
-            'id': 'vitd_vitk_together',
-            'ingredient1': 'vitamin d',
-            'ingredient2': 'vitamin k',
-            'rule_type': 'take_together',
-            'advice': 'Take vitamin D and K together.',
-            'separation_hours': null,
-            'score_impact': 1,
-            'evidence_level': 'established',
-            'sources': <Map<String, String>>[],
-          },
-          {
-            'id': 'iron_calcium_separate',
-            'ingredient1': 'iron',
-            'ingredient2': 'calcium',
-            'rule_type': 'separate',
-            'advice': 'Take iron and calcium 2h apart.',
-            'separation_hours': 2,
-            'score_impact': -2,
-            'evidence_level': 'established',
-            'sources': <Map<String, String>>[],
-          },
-          {
-            'id': 'vitd_food',
-            'ingredient1': 'vitamin d',
-            'ingredient2': 'dietary fat',
-            'rule_type': 'take_with_food',
-            'advice': 'Take vitamin D with a fatty meal.',
-            'separation_hours': null,
-            'score_impact': -1,
-            'evidence_level': 'established',
-            'sources': <Map<String, String>>[],
-          },
-          {
-            'id': 'vitk_food',
-            'ingredient1': 'vitamin k',
-            'ingredient2': 'dietary fat',
-            'rule_type': 'take_with_food',
-            'advice': 'Take vitamin K with a fatty meal.',
-            'separation_hours': null,
-            'score_impact': -1,
-            'evidence_level': 'established',
-            'sources': <Map<String, String>>[],
-          },
+    test('fires when both sides are in the stack as separate rows', () {
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('row-iron', 'Gentle Iron', {'iron'}),
+          _supplement('row-cal', 'Calcium Citrate', {'calcium'}),
         ],
-      };
-      late TimingEvaluationService svc;
-      setUp(() => svc = TimingEvaluationService.fromJson(rulesJson));
-
-      test(
-        'suppresses take_together when both ingredients are one product',
-        () {
-          // Calcium K/D carries vitamin D and K in the SAME pill — the
-          // "Take X with X" self-pairing bug.
-          final results = _evaluate(
-            svc,
-            supplementTags: {
-              'Calcium K/D': {'vitamin_d', 'vitamin_k'},
-            },
-            medicationNames: [],
-          );
-          expect(
-            results.where((r) => r.ruleId == 'vitd_vitk_together'),
-            isEmpty,
-            reason: 'a co-formulated pair is already taken together — no tip',
-          );
-        },
       );
-
-      test('still fires take_together across two different products', () {
-        final results = _evaluate(
-          svc,
-          supplementTags: {
-            'Vitamin D3': {'vitamin_d'},
-            'Vitamin K2': {'vitamin_k'},
-          },
-          medicationNames: [],
-        );
-        final hit = results
-            .where((r) => r.ruleId == 'vitd_vitk_together')
-            .toList();
-        expect(hit, hasLength(1));
-        expect(hit.first.product1Name, isNot(hit.first.product2Name));
-      });
-
-      test('suppresses separate when both minerals are one product', () {
-        final results = _evaluate(
-          svc,
-          supplementTags: {
-            'Multivitamin': {'iron', 'calcium'},
-          },
-          medicationNames: [],
-        );
-        expect(
-          results.where((r) => r.ruleId == 'iron_calcium_separate'),
-          isEmpty,
-          reason: "ingredients in one pill can't be separated",
-        );
-      });
-
-      test(
-        'uses a different product pair when one product contains both sides',
-        () {
-          final results = _evaluate(
-            svc,
-            supplementTags: {
-              'Multivitamin': {'iron', 'calcium'},
-              'Iron Solo': {'iron'},
-            },
-            medicationNames: [],
-          );
-
-          final hit = results
-              .where((r) => r.ruleId == 'iron_calcium_separate')
-              .single;
-          expect(hit.product1Name, 'Iron Solo');
-          expect(hit.product2Name, 'Multivitamin');
-        },
-      );
-
-      test('collapses duplicate take-with-food tips for the same product', () {
-        // Vitamin D and K each trip their own with-food rule, but the user
-        // should be told to take THAT product with a meal only once.
-        final results = _evaluate(
-          svc,
-          supplementTags: {
-            'Calcium K/D': {'vitamin_d', 'vitamin_k'},
-          },
-          medicationNames: [],
-        );
-        final withFood = results
-            .where((r) => r.ruleType == TimingRuleType.takeWithFood)
-            .toList();
-        expect(withFood, hasLength(1));
-        expect(withFood.first.product1Name, 'Calcium K/D');
-      });
-
-      test(
-        'preserves conflicting meal guidance for the resolver to report',
-        () {
-          final conflicting = TimingEvaluationService.fromJson({
-            'timing_rules': [
-              {
-                'id': 'ala_empty',
-                'ingredient1': 'alpha-lipoic acid',
-                'ingredient2': 'food',
-                'rule_type': 'take_on_empty_stomach',
-                'advice': 'Take alpha-lipoic acid on an empty stomach.',
-                'score_impact': -1,
-                'evidence_level': 'probable',
-              },
-              {
-                'id': 'vitamin_a_with_fat',
-                'ingredient1': 'vitamin a',
-                'ingredient2': 'dietary fat',
-                'rule_type': 'take_with_food',
-                'advice': 'Take vitamin A with a meal containing fat.',
-                'score_impact': -1,
-                'evidence_level': 'established',
-              },
-            ],
-          });
-
-          final results = _evaluate(
-            conflicting,
-            supplementTags: {
-              'O.N.E. Multivitamin': {'alpha_lipoic_acid', 'vitamin_a'},
-            },
-            medicationNames: [],
-          );
-
-          final mealContext = results
-              .where(
-                (result) =>
-                    result.ruleType == TimingRuleType.takeWithFood ||
-                    result.ruleType == TimingRuleType.takeOnEmptyStomach,
-              )
-              .toList();
-          expect(mealContext, hasLength(2));
-          expect(mealContext.map((result) => result.ruleType).toSet(), {
-            TimingRuleType.takeWithFood,
-            TimingRuleType.takeOnEmptyStomach,
-          });
-          expect(
-            mealContext.every(
-              (result) => result.product1Name == 'O.N.E. Multivitamin',
-            ),
-            isTrue,
-          );
-
-          final plan = const TimingSequenceResolver().resolve(results);
-          expect(plan.isEmpty, isTrue);
-          expect(plan.unsatisfied, hasLength(1));
-          expect(
-            plan.unsatisfied.single.advice,
-            'O.N.E. Multivitamin has conflicting timing guidance.',
-          );
-          expect(
-            plan.unsatisfied.single.sourceRuleIds,
-            containsAll(<String>['ala_empty', 'vitamin_a_with_fat']),
-          );
-        },
-      );
+      expect(results, hasLength(1));
+      expect(results.single.separationHours, 2);
     });
 
-    group('dose gating', () {
-      final rulesJson = {
-        'timing_rules': [
-          {
-            'id': 'timing_vitamin_e_vitamin_k_separate',
-            'ingredient1': 'vitamin e',
-            'ingredient2': 'vitamin k',
-            'rule_type': 'separate',
-            'advice': 'Space high-dose vitamin E from vitamin K.',
-            'separation_hours': 2,
-            'score_impact': -2,
-            'evidence_level': 'established',
-            'min_dose': {'ingredient': 'vitamin e', 'mg': 180},
-            'sources': <Map<String, String>>[],
-          },
+    test('does not fire when only one side is present', () {
+      final results = service.evaluateStack(
+        stackItems: [_supplement('row-iron', 'Gentle Iron', {'iron'})],
+      );
+      expect(results, isEmpty);
+    });
+
+    test('product names stay aligned with the authored ingredient sides', () {
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('row-cal', 'Calcium Citrate', {'calcium'}),
+          _supplement('row-iron', 'Gentle Iron', {'iron'}),
         ],
-      };
-      late TimingEvaluationService svc;
-      setUp(() => svc = TimingEvaluationService.fromJson(rulesJson));
-
-      const both = {
-        'O.N.E. Multivitamin': {'vitamin_e'},
-        'Calcium K/D': {'vitamin_k'},
-      };
-
-      test('fires when the gated dose is at/above threshold', () {
-        final results = _evaluate(
-          svc,
-          supplementTags: both,
-          medicationNames: [],
-          ingredientDosesMg: {'vitamin_e': 180},
-        );
-        expect(
-          results.where(
-            (r) => r.ruleId == 'timing_vitamin_e_vitamin_k_separate',
-          ),
-          hasLength(1),
-        );
-      });
-
-      test('suppressed when the gated dose is below threshold', () {
-        final results = _evaluate(
-          svc,
-          supplementTags: both,
-          medicationNames: [],
-          ingredientDosesMg: {'vitamin_e': 20},
-        );
-        expect(
-          results.where(
-            (r) => r.ruleId == 'timing_vitamin_e_vitamin_k_separate',
-          ),
-          isEmpty,
-          reason: 'vitamin E 20mg is below the 180mg threshold',
-        );
-      });
-
-      test('suppresses a dose-gated tip when the dose is unknown', () {
-        final results = _evaluate(
-          svc,
-          supplementTags: both,
-          medicationNames: [],
-          // no doses supplied
-        );
-        expect(
-          results.where(
-            (r) => r.ruleId == 'timing_vitamin_e_vitamin_k_separate',
-          ),
-          isEmpty,
-          reason: 'dose-conditional copy must not display without a known dose',
-        );
-      });
+      );
+      final result = results.single;
+      expect(result.ingredient1, 'iron');
+      expect(result.product1Name, 'Gentle Iron');
+      expect(result.ingredient2, 'calcium');
+      expect(result.product2Name, 'Calcium Citrate');
     });
 
-    test('calcium carbonate advice does not match generic calcium', () {
-      final carbonate = TimingEvaluationService.fromJson({
-        'timing_rules': [
-          {
-            'id': 'timing_calcium_carbonate_with_food',
-            'ingredient1': 'calcium carbonate',
-            'ingredient2': 'food',
-            'rule_type': 'take_with_food',
-            'advice': 'Take calcium carbonate with food.',
-            'score_impact': 0,
-            'evidence_level': 'established',
-          },
+    test('suppresses a separation when both minerals are one bottle', () {
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('row-combo', 'Cal-Mag-Iron', {'iron', 'calcium'}),
         ],
-      });
-
-      final citrateResults = _evaluate(
-        carbonate,
-        supplementTags: {
-          'Calcium Citrate': {'calcium'},
-        },
-        medicationNames: [],
       );
-      final carbonateResults = _evaluate(
-        carbonate,
-        supplementTags: {
-          'Calcium Carbonate': {'calcium', 'calcium_carbonate'},
-        },
-        medicationNames: [],
-      );
-
-      expect(citrateResults, isEmpty);
-      expect(carbonateResults, hasLength(1));
-    });
-
-    test('rejects malformed timing rule payloads instead of defaulting', () {
       expect(
-        () => TimingEvaluationService.fromJson({
-          '_metadata': {'total_entries': 2},
-          'timing_rules': [
-            {
-              'id': 'bad_rule',
-              'ingredient1': 'iron',
-              'ingredient2': 'calcium',
-              'rule_type': 'renamed_type',
-              'advice': 'This payload must fail closed.',
-              'score_impact': -1,
-              'evidence_level': 'established',
-            },
-          ],
-        }),
-        throwsFormatException,
+        results,
+        isEmpty,
+        reason: 'a rule cannot separate two nutrients inside one capsule',
       );
     });
 
-    test('time-of-day rules require structured daily slots', () {
+    test('duplicate display names remain separate physical rows', () {
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('row-a', 'Iron', {'iron'}),
+          _supplement('row-b', 'Iron', {'calcium'}),
+        ],
+      );
+      expect(results, hasLength(1));
+      expect(results.single.product1StackEntryId, 'row-a');
+      expect(results.single.product2StackEntryId, 'row-b');
+    });
+
+    test('fires a unary rule once per bottle carrying the tag', () {
+      final results = _serviceOf([
+        _rule(
+          id: 'timing_vitamin_d_with_food',
+          ingredient1: 'vitamin d',
+          ingredient1Tags: const ['vitamin_d'],
+          relation: _withFood,
+        ),
+      ]).evaluateStack(
+        stackItems: [
+          _supplement('row-d3', 'D3 5000', {'vitamin_d'}),
+          _supplement('row-multi', 'Multi', {'vitamin_d', 'zinc'}),
+        ],
+      );
+      expect(results, hasLength(2));
       expect(
-        () => TimingEvaluationService.fromJson({
-          'timing_rules': [
-            {
-              'id': 'timing_unstructured_evening',
-              'ingredient1': 'magnesium',
-              'ingredient2': 'sleep',
-              'rule_type': 'time_of_day',
-              'advice': 'Take this in the evening.',
-              'score_impact': 0,
-              'evidence_level': 'possible',
-            },
-          ],
-        }),
-        throwsFormatException,
+        results.map((r) => r.product1StackEntryId),
+        containsAll(['row-d3', 'row-multi']),
       );
     });
 
-    test('daily-plan eligibility rejects non-boolean schema drift', () {
-      expect(
-        () => TimingEvaluationService.fromJson({
-          'timing_rules': [
-            {
-              'id': 'timing_invalid_eligibility',
-              'ingredient1': 'magnesium',
-              'ingredient2': 'sleep',
-              'rule_type': 'time_of_day',
-              'daily_plan_eligible': 'false',
-              'daily_slots': ['bedtime'],
-              'advice': 'This payload must fail closed.',
-              'score_impact': 0,
-              'evidence_level': 'possible',
-            },
-          ],
-        }),
-        throwsFormatException,
+    test('collapses duplicate with-food tips for the same bottle', () {
+      final results = _serviceOf([
+        _rule(
+          id: 'timing_vitamin_d_with_food',
+          ingredient1: 'vitamin d',
+          ingredient1Tags: const ['vitamin_d'],
+          relation: _withFood,
+        ),
+        _rule(
+          id: 'timing_vitamin_k_with_food',
+          ingredient1: 'vitamin k',
+          ingredient1Tags: const ['vitamin_k1'],
+          relation: _withFood,
+        ),
+      ]).evaluateStack(
+        stackItems: [
+          _supplement('row-dk', 'D+K', {'vitamin_d', 'vitamin_k1'}),
+        ],
       );
+      expect(
+        results,
+        hasLength(1),
+        reason: 'the user is told to take this bottle with food once',
+      );
+    });
+
+    test('returns an empty list for an empty stack', () {
+      expect(service.evaluateStack(stackItems: const []), isEmpty);
+    });
+
+    test('handles a 50+ item stack without timing out', () {
+      final stack = [
+        for (var i = 0; i < 60; i++)
+          _supplement('row-$i', 'Product $i', {'iron', 'calcium'}),
+      ];
+      final stopwatch = Stopwatch()..start();
+      service.evaluateStack(stackItems: stack);
+      stopwatch.stop();
+      expect(stopwatch.elapsedMilliseconds, lessThan(2000));
     });
   });
 
-  group('TimingRuleType', () {
-    test('parses all rule types from string', () {
-      expect(TimingRuleType.fromString('separate'), TimingRuleType.separate);
-      expect(
-        TimingRuleType.fromString('take_together'),
-        TimingRuleType.takeTogether,
-      );
-      expect(
-        TimingRuleType.fromString('take_with_food'),
-        TimingRuleType.takeWithFood,
-      );
-      expect(
-        TimingRuleType.fromString('take_on_empty_stomach'),
-        TimingRuleType.takeOnEmptyStomach,
-      );
-      expect(
-        TimingRuleType.fromString('time_of_day'),
-        TimingRuleType.timeOfDay,
-      );
+  group('medication identity', () {
+    late TimingEvaluationService service;
+
+    setUp(() {
+      service = _serviceOf([
+        _rule(
+          id: 'timing_thyroid_med_iron_separate',
+          ingredient1: 'levothyroxine',
+          ingredient1Rxcuis: const ['10582'],
+          ingredient2: 'iron',
+          ingredient2Tags: const ['iron'],
+          relation: const {'type': 'separate_from', 'minimum_hours': 4},
+          category: 'important_separation',
+        ),
+      ]);
     });
 
-    test('rejects unknown type', () {
-      expect(() => TimingRuleType.fromString('unknown'), throwsFormatException);
+    test('fires through a reviewed RxCUI', () {
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('row-iron', 'Gentle Iron', {'iron'}),
+          const TimingStackItem.medication(
+            stackEntryId: 'row-levo',
+            displayName: 'Synthroid',
+            medicationRxCuis: {'10582'},
+          ),
+        ],
+      );
+      expect(results, hasLength(1));
+      expect(results.single.involvesMedication, isTrue);
+      expect(results.single.medicationIsProduct1, isTrue);
+      expect(results.single.separationHours, 4);
+    });
+
+    test('matches a brand through its normalized generic RxCUI', () {
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('row-iron', 'Gentle Iron', {'iron'}),
+          const TimingStackItem.medication(
+            stackEntryId: 'row-levo',
+            displayName: 'Euthyrox',
+            medicationRxCuis: {'999999', '10582'},
+          ),
+        ],
+      );
+      expect(results, hasLength(1));
+    });
+
+    test('never infers medication identity from a display name', () {
+      final results = service.evaluateStack(
+        stackItems: [
+          _supplement('row-iron', 'Gentle Iron', {'iron'}),
+          const TimingStackItem.medication(
+            stackEntryId: 'row-levo',
+            displayName: 'Levothyroxine 50mcg',
+            medicationRxCuis: {},
+          ),
+        ],
+      );
+      expect(results, isEmpty, reason: 'display text is not clinical identity');
+    });
+
+    test('does not fire when the medication is absent', () {
+      final results = service.evaluateStack(
+        stackItems: [_supplement('row-iron', 'Gentle Iron', {'iron'})],
+      );
+      expect(results, isEmpty);
     });
   });
 
-  group('TimingOptimization model', () {
-    test('displayPriority ranks medication separations highest', () {
-      const medSep = TimingOptimization(
-        ruleId: 'test_med',
-        ingredient1: 'levothyroxine',
-        ingredient2: 'iron',
-        advice: 'test',
-        ruleType: TimingRuleType.separate,
-        scoreImpact: -2,
-        evidenceLevel: EvidenceLevel.established,
-        product1Name: 'Synthroid',
-        involvesMedication: true,
-      );
+  group('dose gating', () {
+    late TimingEvaluationService service;
 
-      const suppSep = TimingOptimization(
-        ruleId: 'test_supp',
-        ingredient1: 'iron',
-        ingredient2: 'calcium',
-        advice: 'test',
-        ruleType: TimingRuleType.separate,
-        scoreImpact: -2,
-        evidenceLevel: EvidenceLevel.established,
-      );
-
-      const foodRule = TimingOptimization(
-        ruleId: 'test_food',
-        ingredient1: 'coq10',
-        ingredient2: 'food',
-        advice: 'test',
-        ruleType: TimingRuleType.takeWithFood,
-        scoreImpact: -1,
-        evidenceLevel: EvidenceLevel.established,
-      );
-
-      expect(medSep.displayPriority, greaterThan(suppSep.displayPriority));
-      expect(suppSep.displayPriority, greaterThan(foodRule.displayPriority));
+    setUp(() {
+      service = _serviceOf([
+        _rule(
+          id: 'timing_iron_zinc_separate',
+          ingredient1: 'iron',
+          ingredient1Tags: const ['iron'],
+          ingredient2: 'zinc',
+          ingredient2Tags: const ['zinc'],
+          relation: _separate2h,
+          category: 'important_separation',
+          minDose: const {'tag': 'iron', 'mg': 25},
+        ),
+      ]);
     });
 
-    test('isSeparation returns true only for separate type', () {
-      const sep = TimingOptimization(
-        ruleId: 'test',
-        ingredient1: 'a',
-        ingredient2: 'b',
-        advice: 'test',
-        ruleType: TimingRuleType.separate,
-        scoreImpact: 0,
-        evidenceLevel: EvidenceLevel.established,
-      );
-      const food = TimingOptimization(
-        ruleId: 'test',
-        ingredient1: 'a',
-        ingredient2: 'b',
-        advice: 'test',
-        ruleType: TimingRuleType.takeWithFood,
-        scoreImpact: 0,
-        evidenceLevel: EvidenceLevel.established,
-      );
+    List<TimingOptimization> evaluate(Map<String, double> doses) =>
+        service.evaluateStack(
+          stackItems: [
+            _supplement('row-iron', 'Iron', {'iron'}),
+            _supplement('row-zinc', 'Zinc', {'zinc'}),
+          ],
+          ingredientDosesMg: doses,
+        );
 
-      expect(sep.isSeparation, isTrue);
-      expect(food.isSeparation, isFalse);
+    test('fires at or above the threshold', () {
+      expect(evaluate({'iron': 25}), hasLength(1));
+      expect(evaluate({'iron': 65}), hasLength(1));
     });
 
-    test('involvesMedication comes from reviewed rule identity', () {
-      const medFirst = TimingOptimization(
-        ruleId: 'test_med_first',
-        ingredient1: 'Levothyroxine',
-        ingredient2: 'iron',
-        advice: 'test',
-        ruleType: TimingRuleType.separate,
-        scoreImpact: -2,
-        evidenceLevel: EvidenceLevel.established,
-        involvesMedication: true,
-      );
-      const medSecond = TimingOptimization(
-        ruleId: 'test_med_second',
-        ingredient1: 'calcium',
-        ingredient2: 'Warfarin',
-        advice: 'test',
-        ruleType: TimingRuleType.separate,
-        scoreImpact: -2,
-        evidenceLevel: EvidenceLevel.established,
-        involvesMedication: true,
-      );
-      const suppOnly = TimingOptimization(
-        ruleId: 'test_supp_only',
-        ingredient1: 'iron',
-        ingredient2: 'calcium',
-        advice: 'test',
-        ruleType: TimingRuleType.separate,
-        scoreImpact: -2,
-        evidenceLevel: EvidenceLevel.established,
-      );
+    test('is suppressed below the threshold', () {
+      expect(evaluate({'iron': 18}), isEmpty);
+    });
 
-      expect(medFirst.involvesMedication, isTrue);
+    test('is suppressed when the dose is unknown', () {
       expect(
-        medSecond.involvesMedication,
-        isTrue,
-        reason: 'either RxCUI-authored side must count',
+        evaluate(const {}),
+        isEmpty,
+        reason:
+            'dose-conditional copy must never imply a threshold was crossed '
+            'without a measured total',
       );
-      expect(suppOnly.involvesMedication, isFalse);
+      expect(evaluate({'zinc': 50}), isEmpty);
+    });
+  });
+
+  group('ordering and derived fields', () {
+    test('important separations outrank how-to-take guidance', () {
+      final results = _serviceOf([
+        _rule(
+          id: 'timing_with_food',
+          ingredient1: 'iron',
+          ingredient1Tags: const ['iron'],
+          relation: _withFood,
+        ),
+        _rule(
+          id: 'timing_separate',
+          ingredient1: 'iron',
+          ingredient1Tags: const ['iron'],
+          ingredient2: 'calcium',
+          ingredient2Tags: const ['calcium'],
+          relation: _separate2h,
+          category: 'important_separation',
+        ),
+      ]).evaluateStack(
+        stackItems: [
+          _supplement('row-iron', 'Iron', {'iron'}),
+          _supplement('row-cal', 'Calcium', {'calcium'}),
+        ],
+      );
+      expect(results.first.ruleId, 'timing_separate');
     });
 
-    test('involvesMedication does not infer identity from display text', () {
-      const med = TimingOptimization(
-        ruleId: 'test_no_products',
-        ingredient1: 'warfarin',
-        ingredient2: 'vitamin k',
-        advice: 'test',
-        ruleType: TimingRuleType.separate,
-        scoreImpact: -2,
-        evidenceLevel: EvidenceLevel.established,
+    test('evidence breaks ties within a category, never across', () {
+      const weakSeparation = TimingOptimization(
+        ruleId: 'weak',
+        ingredient1: 'a',
+        advice: 'x',
+        relation: TimingRelation(
+          type: TimingRelationType.separateFrom,
+          minimumHours: 2,
+        ),
+        category: TimingCategory.importantSeparation,
+        actionability: TimingActionability.informational,
+        evidenceLevel: EvidenceLevel.noData,
+        sourceAuthority: SourceAuthority.mechanism,
+        scoreImpact: 0,
       );
-      expect(med.involvesMedication, isFalse);
+      const strongHowTo = TimingOptimization(
+        ruleId: 'strong',
+        ingredient1: 'b',
+        advice: 'y',
+        relation: TimingRelation(type: TimingRelationType.withFood),
+        category: TimingCategory.howToTake,
+        actionability: TimingActionability.recommended,
+        evidenceLevel: EvidenceLevel.established,
+        sourceAuthority: SourceAuthority.fdaLabel,
+        scoreImpact: 0,
+      );
+      expect(
+        weakSeparation.displayPriority,
+        greaterThan(strongHowTo.displayPriority),
+        reason:
+            'strong evidence must not promote a rule into a more prominent '
+            'category',
+      );
+    });
+
+    test('isSeparation covers both separation relations', () {
+      for (final type in TimingRelationType.values) {
+        final optimization = TimingOptimization(
+          ruleId: 'r',
+          ingredient1: 'a',
+          advice: 'x',
+          relation: TimingRelation(
+            type: type,
+            minimumHours: 2,
+            event: TimingEvent.intendedSleep,
+            minimumMinutes: 30,
+          ),
+          category: TimingCategory.howToTake,
+          actionability: TimingActionability.recommended,
+          evidenceLevel: EvidenceLevel.established,
+          sourceAuthority: SourceAuthority.reference,
+          scoreImpact: 0,
+        );
+        expect(
+          optimization.isSeparation,
+          type == TimingRelationType.separateFrom ||
+              type == TimingRelationType.separateFromMedications,
+        );
+      }
+    });
+
+    test('involvesMedication comes from reviewed rule identity only', () {
+      final results = _serviceOf([
+        _rule(
+          id: 'timing_supplement_only',
+          ingredient1: 'iron',
+          ingredient1Tags: const ['iron'],
+          ingredient2: 'calcium',
+          ingredient2Tags: const ['calcium'],
+          relation: _separate2h,
+          category: 'important_separation',
+        ),
+      ]).evaluateStack(
+        stackItems: [
+          _supplement('row-iron', 'Levothyroxine lookalike', {'iron'}),
+          _supplement('row-cal', 'Calcium', {'calcium'}),
+        ],
+      );
+      expect(results.single.involvesMedication, isFalse);
     });
   });
 }

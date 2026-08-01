@@ -264,6 +264,14 @@ class _SignalPresentation {
           body: match.clinicalImpact ?? match.mechanism,
           icon: Icons.medical_information_outlined,
         );
+      case TimingSeparationPayload(:final optimization):
+        // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart.
+        return _SignalPresentation(
+          severity: severity,
+          title: optimization.product1Name ?? optimization.ingredient1,
+          body: optimization.advice,
+          icon: Icons.schedule_rounded,
+        );
     }
   }
 }

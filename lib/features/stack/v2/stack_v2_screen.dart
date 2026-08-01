@@ -33,13 +33,14 @@ import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart'
     show MedNutrientLoadStatus;
 import 'package:pharmaguide/services/stack/depletion_watch.dart'
     show DepletionWatchStatus;
-import 'package:pharmaguide/features/stack/v2/widgets/pg_daily_plan_card.dart';
-import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
+import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_guidance_card.dart';
+import 'package:pharmaguide/services/stack/timing_guidance_builder.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/stack_safety_details_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
@@ -638,7 +639,7 @@ class _StackTabState extends ConsumerState<_StackTab> {
           ],
           // Timing + depletion advice, then the broader coverage review
           // at the bottom. Each slot collapses when nothing applies.
-          const _TimingPlanSlot(),
+          const _TimingGuidanceSlot(),
           const _DepletionSlot(),
           const _CoverageSlot(),
         ],
@@ -971,9 +972,15 @@ class _StackItemRow extends ConsumerWidget {
     final itemType = entry.isMedication
         ? PGItemType.medication
         : PGItemType.supplement;
+    // The saved reminder survives a permission denial by design, but the row
+    // must not announce a notification the device was never allowed to
+    // schedule.
+    final remindersDeliverable = ref.watch(stackRemindersDeliverableProvider);
     final reminderLabel = entry.reminderMinutes == null
         ? null
-        : 'Daily reminder at ${TimeOfDay(hour: entry.reminderMinutes! ~/ 60, minute: entry.reminderMinutes! % 60).format(context)}';
+        : remindersDeliverable
+        ? 'Daily reminder at ${TimeOfDay(hour: entry.reminderMinutes! ~/ 60, minute: entry.reminderMinutes! % 60).format(context)}'
+        : 'Reminder saved — notifications are off for PharmaGuide';
     final trackingDetails = [
       if (entry.isMedication) entry.dosage,
       if (entry.isMedication) entry.frequency,
@@ -2536,7 +2543,12 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
     final reportAsync = ref.watch(stackSafetyReportProvider);
     return reportAsync.when(
       data: (report) {
-        if (report.isEmpty) return const SizedBox.shrink();
+        // `isEmpty` counts findings only — it says nothing about whether the
+        // checks ran. Guarding on it skipped the hedge StackSafetyBanner
+        // already knows how to draw, so a stack whose timing or interaction
+        // pass threw showed no banner at all: indistinguishable from a clean
+        // result. `hasNothingToReport` is the guard that accounts for both.
+        if (report.hasNothingToReport) return const SizedBox.shrink();
         return StackSafetyBanner(
           report: report,
           onTap: () => showStackSafetyDetailsSheet(context, report),
@@ -2592,26 +2604,30 @@ class _ProfileNudgeSlot extends ConsumerWidget {
   }
 }
 
-/// One product-level timing surface resolved from the reviewed constraints.
+/// One product-level timing surface built from the reviewed rules.
 ///
-/// Ingredient rules may explain why a constraint exists, but a person can
-/// only schedule the physical bottle or medication in their stack. The
-/// resolver therefore groups by stable stack-row identity and reports any
-/// same-bottle contradiction instead of rendering a second raw-rule card.
-class _TimingPlanSlot extends ConsumerWidget {
-  const _TimingPlanSlot();
+/// Ingredient rules may explain why a constraint exists, but a person only
+/// handles the physical bottle in their stack. The builder therefore groups by
+/// stable stack-row identity, never renders an ingredient as if it were a
+/// bottle, and never states when a prescribed medication is taken.
+class _TimingGuidanceSlot extends ConsumerWidget {
+  const _TimingGuidanceSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reportAsync = ref.watch(stackSafetyReportProvider);
     return reportAsync.when(
       data: (report) {
-        if (!report.hasTimingAdvice) return const SizedBox.shrink();
-        final plan = const TimingSequenceResolver().resolve(
+        final guidance = const TimingGuidanceBuilder().build(
           report.timingOptimizations,
         );
-        return PGDailyPlanCard(
-          plan: plan,
+        // A failed timing check must never read as "nothing found". The card
+        // itself stays silent unless it can honestly assert one or the other.
+        if (report.checksIncomplete && guidance.products.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return PGTimingGuidanceCard(
+          guidance: guidance,
           margin: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
             V2Spacing.space12,

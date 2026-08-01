@@ -17,6 +17,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/clinical_signal.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -64,6 +65,17 @@ sealed class SignalPayload {
 final class InteractionPayload extends SignalPayload {
   final InteractionResult result;
   const InteractionPayload(this.result);
+}
+
+final class TimingSeparationPayload extends SignalPayload {
+  final TimingOptimization optimization;
+
+  /// The stack row the guidance attaches to — always the supplement when a
+  /// medication is involved, because the app constrains the supplement around
+  /// the prescription and never the other way round.
+  final String? anchorStackEntryId;
+
+  const TimingSeparationPayload(this.optimization, {this.anchorStackEntryId});
 }
 
 final class MedicationProfilePayload extends SignalPayload {
@@ -170,6 +182,59 @@ class ClinicalSignal {
       copyId: ruleId,
       sourceUrls: r.sourceUrls,
       payload: InteractionPayload(r),
+    );
+  }
+
+  /// A verified `important_separation` timing rule, as a clinical signal.
+  ///
+  /// Returns null for anything else. The gate is deliberately
+  /// (category == importantSeparation), NOT (relation is a separation): a rule
+  /// that has not been through source verification and category assignment must
+  /// not reach a more prominent surface just because its relation type looks
+  /// severe. `TimingEvaluationService` already withholds unverified rules, so
+  /// this is the second of two independent gates.
+  ///
+  /// Severity is CAPPED at caution, mirroring the medication–nutrient rule: a
+  /// spacing instruction is manageable by the user and must never be presented
+  /// with the weight of an avoid / contraindicated interaction.
+  static ClinicalSignal? fromTimingSeparation(TimingOptimization o) {
+    if (o.category != TimingCategory.importantSeparation) return null;
+
+    final subjects = <String>[
+      o.product1Name ?? o.ingredient1,
+      ?(o.product2Name ?? o.ingredient2),
+    ];
+    final severity = o.involvesMedication ? Severity.caution : Severity.monitor;
+
+    return ClinicalSignal(
+      signalId: deriveSignalId(
+        family: SignalFamily.timingSeparation,
+        sourceRuleId: o.ruleId,
+        subjectIds: subjects,
+      ),
+      signalIdCanonical: canonicalSignalId(
+        family: SignalFamily.timingSeparation,
+        sourceRuleId: o.ruleId,
+        subjectIds: subjects,
+      ),
+      family: SignalFamily.timingSeparation,
+      sourceRuleId: o.ruleId,
+      subjectIds: _sortedSubjects(subjects),
+      clinicalSeverity: severity,
+      consumerDisposition: _dispositionForSeverity(severity),
+      evaluationStatus: EvaluationStatus.applicable,
+      title: subjects.length > 1
+          ? '${subjects[0]} \u00d7 ${subjects[1]}'
+          : subjects[0],
+      body: o.advice,
+      copyId: o.ruleId,
+      sourceUrls: o.sourceUrls,
+      payload: TimingSeparationPayload(
+        o,
+        anchorStackEntryId: o.involvesMedication && o.medicationIsProduct1
+            ? o.product2StackEntryId
+            : o.product1StackEntryId,
+      ),
     );
   }
 

@@ -30,6 +30,32 @@ final stackReminderSyncProvider =
       return ref.watch(stackReminderSchedulerProvider).sync(reminders);
     });
 
+/// Whether the OS will actually deliver the reminders the user saved.
+///
+/// The saved `reminder_minutes` row is the source of truth and deliberately
+/// survives a permission denial, so granting later restores the projection with
+/// no data loss. But the sync result carrying that denial had exactly one
+/// reader, which discarded it — leaving the stack row reading "Daily reminder
+/// at 8:00 AM" while nothing was scheduled.
+///
+/// Defaults to true while loading or on error: a transient failure to ask must
+/// not tell the user their reminders are off.
+final stackRemindersDeliverableProvider = Provider.autoDispose<bool>((ref) {
+  return ref
+      .watch(stackReminderSyncProvider)
+      .maybeWhen(data: (result) => result.permissionGranted, orElse: () => true);
+});
+
+/// Reminders the user saved that exceed the platform scheduling cap.
+///
+/// Reported for the same reason as the denial above: silently dropping them
+/// makes the saved row a promise the device never keeps.
+final stackRemindersOmittedProvider = Provider.autoDispose<int>((ref) {
+  return ref
+      .watch(stackReminderSyncProvider)
+      .maybeWhen(data: (result) => result.omittedDueToLimit, orElse: () => 0);
+});
+
 class _FlutterStackReminderClient implements StackReminderNotificationClient {
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();

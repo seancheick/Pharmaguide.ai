@@ -184,6 +184,9 @@ class StackSafetyBanner extends StatelessWidget {
         // Not in the banner's data source today (depletions come from a
         // separate provider); reserved for when they are folded in.
         return '$prefix — ${match.drugDisplayName}';
+      case TimingSeparationPayload(:final optimization):
+        // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart.
+        return '$prefix — ${optimization.product1Name ?? optimization.ingredient1}';
     }
   }
 
@@ -216,6 +219,9 @@ class StackSafetyBanner extends StatelessWidget {
         primary = _nutrientHint(status);
       case MedicationNutrientPayload(:final match):
         primary = match.clinicalImpact ?? match.mechanism;
+      case TimingSeparationPayload(:final optimization):
+        // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart.
+        primary = optimization.advice;
     }
 
     final extraCount = signals.length - 1;

@@ -14,7 +14,7 @@ import 'package:pharmaguide/services/medications/medication_identity_status.dart
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
-import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
+import 'package:pharmaguide/services/stack/timing_guidance_builder.dart';
 
 class ClinicianPdfBuilder {
   const ClinicianPdfBuilder({this.compress = true});
@@ -675,6 +675,9 @@ class ClinicianPdfBuilder {
           );
         case MedicationNutrientPayload():
           break;
+        case TimingSeparationPayload():
+          // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart. Timing already has its own section in this report.
+          break;
       }
     }
     headlines.remove('');
@@ -713,6 +716,9 @@ class ClinicianPdfBuilder {
         }
       case MedicationNutrientPayload():
         // Medication-nutrient matches are rendered in their dedicated section.
+        break;
+      case TimingSeparationPayload():
+        // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart. Timing already has its own section in this report.
         break;
     }
 
@@ -837,91 +843,107 @@ class ClinicianPdfBuilder {
     _Theme theme,
     List<TimingOptimization> optimizations,
   ) {
-    if (optimizations.isEmpty) return const <pw.Widget>[];
+    final guidance = const TimingGuidanceBuilder().build(optimizations);
+    if (guidance.products.isEmpty && guidance.issues.isEmpty) {
+      return const <pw.Widget>[];
+    }
 
-    final sorted = [...optimizations]
-      ..sort((a, b) => b.displayPriority.compareTo(a.displayPriority));
-    final plan = const TimingSequenceResolver().resolve(sorted);
-    final adviceByRuleId = {
-      for (final item in sorted) item.ruleId: item.advice,
-    };
-
-    final productConflicts = plan.unsatisfied
-        .where((failure) => failure.sourceRuleIds.length > 1)
-        .toList(growable: false);
-    final otherFailures = plan.unsatisfied
-        .where((failure) => failure.sourceRuleIds.length <= 1)
-        .toList(growable: false);
-
-    // EVERY unsatisfied constraint must be suppressed from the plain advice
-    // list. Only multi-rule same-product conflicts were, so a rule the
-    // resolver had rejected — an unplaceable time-of-day rule, a separation
-    // wider than a day — still printed as ordinary guidance with its failure
-    // reason discarded.
-    final unsatisfiedRuleIds = <String>{
-      for (final failure in productConflicts) ...failure.sourceRuleIds,
-      for (final failure in otherFailures) failure.ruleId,
-    };
-
-    // The resolver already places every schedulable item into a slot. Printing
-    // only the pairwise advice leaves the clinician to assemble a plan the app
-    // has already assembled.
-    final scheduleRows = <List<pw.Widget>>[
-      for (final slot in DailySlot.values)
-        if ((plan.itemsBySlot[slot] ?? const <String>[]).isNotEmpty)
+    // The app card and this report must agree on the CONCLUSION. They need not
+    // agree on detail: the clinician copy additionally carries the audit trail —
+    // which bottle, the exact interval, the evidence tier and what kind of
+    // source it came from — so a reviewer can check the reasoning rather than
+    // take the recommendation on trust.
+    final rows = <List<pw.Widget>>[
+      for (final product in guidance.products)
+        for (final item in [
+          ...product.importantSeparation,
+          ...product.howToTake,
+          ...product.optional,
+        ])
           [
-            _cell(theme, slot.label),
-            _cell(theme, plan.itemsBySlot[slot]!.join(', ')),
+            _cell(theme, product.productName),
+            _cell(theme, _categoryLabel(item.category)),
+            _cell(theme, _instructionFor(item)),
+            // Reuse the report's own evidence vocabulary rather than the
+            // model's UI label, so one report never names the same tier two
+            // ways. Authority is printed beside it, never merged into it: a
+            // mechanism paper and a drug label can share a tier.
+            _cell(
+              theme,
+              '${_evidenceLabel(item.evidenceLevel.wireId)} - '
+              '${item.sourceAuthority.label}',
+            ),
           ],
     ];
 
-    return _section(theme, 'Timing recommendations', [
-      if (scheduleRows.isNotEmpty) ...[
+    return _section(theme, 'Timing guidance', [
+      if (rows.isNotEmpty)
         _dataTable(
           theme,
-          // A shared slot is a window, not an instruction to swallow items
-          // simultaneously.
-          headers: const ['Suggested time window', 'Products'],
-          widths: const [pw.FlexColumnWidth(2.4), pw.FlexColumnWidth(5.6)],
-          rows: scheduleRows,
+          headers: const ['Product', 'Type', 'Instruction', 'Evidence'],
+          widths: const [
+            pw.FlexColumnWidth(2.0),
+            pw.FlexColumnWidth(1.4),
+            pw.FlexColumnWidth(3.4),
+            pw.FlexColumnWidth(1.7),
+          ],
+          rows: rows,
         ),
-        pw.SizedBox(height: 10),
-      ],
-      for (final item in sorted)
-        if (!unsatisfiedRuleIds.contains(item.ruleId))
-          _line(
-            theme,
-            '${item.advice}'
-            '${item.separationHours == null ? '' : ' (${item.separationHours}h separation)'}',
-          ),
-      // Naming that a conflict exists without naming the conflict leaves the
-      // reader nothing to act on. The two instructions are quoted INSIDE a
-      // sentence that says they cannot both be followed, which preserves the
-      // resolver's guard against presenting them as independently schedulable
-      // while answering "conflicting how?".
-      for (final conflict in productConflicts)
-        _line(theme, _conflictSentence(conflict, adviceByRuleId)),
-      // A single-rule failure is equally unfollowable and must carry its
-      // reason rather than vanish.
-      for (final failure in otherFailures)
-        _line(theme, '${failure.advice} ${failure.reason}'),
+      if (rows.isEmpty && guidance.canAssertNoFindings)
+        _line(
+          theme,
+          'No important timing findings identified for the products '
+          'successfully assessed.',
+        ),
+      // Unresolved inputs belong in a clinical report even when the app stays
+      // silent about them: a reader must be able to tell "checked, nothing
+      // found" from "could not check".
+      for (final issue in guidance.issues) _line(theme, _issueSentence(issue)),
     ]);
   }
 
-  String _conflictSentence(
-    UnsatisfiedTimingConstraint conflict,
-    Map<String, String> adviceByRuleId,
-  ) {
-    final instructions = [
-      for (final ruleId in conflict.sourceRuleIds)
-        if ((adviceByRuleId[ruleId] ?? '').trim().isNotEmpty)
-          adviceByRuleId[ruleId]!.trim(),
-    ];
-    if (instructions.isEmpty) return '${conflict.advice} ${conflict.reason}';
-    // The named instructions say what the generic reason said, concretely.
-    return '${conflict.advice} These cannot both be followed for one product: '
-        '${instructions.join(' ')}';
+  static String _categoryLabel(TimingCategory category) => switch (category) {
+    TimingCategory.importantSeparation => 'Important',
+    TimingCategory.howToTake => 'Administration',
+    TimingCategory.optional => 'Optional',
+  };
+
+  /// The authored advice plus the exact structured interval behind it.
+  static String _instructionFor(TimingOptimization item) {
+    final relation = item.relation;
+    final detail = switch (relation.type) {
+      TimingRelationType.separateFrom ||
+      TimingRelationType.separateFromMedications =>
+        relation.minimumHours == null
+            ? ''
+            : ' (minimum ${relation.minimumHours}h separation)',
+      TimingRelationType.beforeEvent || TimingRelationType.afterEvent =>
+        relation.minimumMinutes == null
+            ? ''
+            : ' (${relation.minimumMinutes}'
+                  '${relation.maximumMinutes == null ? '' : '-${relation.maximumMinutes}'}'
+                  ' minutes)',
+      _ => '',
+    };
+    final prescription = item.involvesMedication
+        ? ' Medication schedule remains as prescribed.'
+        : '';
+    return '${item.advice}$detail$prescription';
   }
+
+  static String _issueSentence(TimingEvaluationIssue issue) => switch (issue) {
+    ConflictingProductGuidance(:final productName) =>
+      '$productName: applicable timing rules conflict for a single product; '
+          'no instruction was issued.',
+    FormulationUnknown(:final productName) =>
+      '$productName: formulation could not be determined, so timing guidance '
+          'was not issued.',
+    IdentityUnresolved(:final ingredient) =>
+      'A timing rule matched $ingredient but could not be tied to a specific '
+          'product in the stack.',
+    AnalysisUnavailable(:final reason) =>
+      'Timing analysis unavailable ($reason). This is not a clean result.',
+  };
 
   List<pw.Widget> _depletionSection(
     _Theme theme,

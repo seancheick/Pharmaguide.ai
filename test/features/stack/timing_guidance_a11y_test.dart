@@ -6,26 +6,58 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
-import 'package:pharmaguide/features/stack/v2/widgets/pg_daily_plan_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
+import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_guidance_card.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/depletion_watch.dart';
-import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
+import 'package:pharmaguide/services/stack/timing_guidance_builder.dart';
 
-TimingSequencePlan _plan({
-  Map<DailySlot, List<String>> items = const {},
-  List<UnsatisfiedTimingConstraint> unsatisfied = const [],
-}) {
-  return TimingSequencePlan(
-    itemsBySlot: {
-      for (final slot in DailySlot.values)
-        slot: items[slot] ?? const <String>[],
-    },
-    unsatisfied: unsatisfied,
-  );
-}
+const _withFood = TimingOptimization(
+  ruleId: 'timing_with_food',
+  ingredient1: 'vitamin d',
+  advice: 'Take with a meal.',
+  relation: TimingRelation(type: TimingRelationType.withFood),
+  category: TimingCategory.howToTake,
+  actionability: TimingActionability.recommended,
+  evidenceLevel: EvidenceLevel.established,
+  sourceAuthority: SourceAuthority.fdaLabel,
+  scoreImpact: -1,
+);
+
+const _magnesiumWithFood = TimingOptimization(
+  ruleId: 'timing_magnesium_with_food',
+  ingredient1: 'magnesium',
+  advice:
+      'Take magnesium with food to ease the loose stools or stomach upset it '
+      'can cause on an empty stomach.',
+  relation: TimingRelation(type: TimingRelationType.withFood),
+  category: TimingCategory.howToTake,
+  actionability: TimingActionability.recommended,
+  evidenceLevel: EvidenceLevel.established,
+  sourceAuthority: SourceAuthority.fdaLabel,
+  scoreImpact: -1,
+);
+
+const _calciumSeparation = TimingOptimization(
+  ruleId: 'timing_calcium_levothyroxine',
+  ingredient1: 'levothyroxine',
+  ingredient2: 'calcium',
+  advice: 'Keep calcium at least 4 hours away from levothyroxine.',
+  relation: TimingRelation(
+    type: TimingRelationType.separateFrom,
+    minimumHours: 4,
+  ),
+  category: TimingCategory.importantSeparation,
+  actionability: TimingActionability.recommended,
+  evidenceLevel: EvidenceLevel.established,
+  sourceAuthority: SourceAuthority.fdaLabel,
+  scoreImpact: -2,
+  involvesMedication: true,
+  medicationIsProduct1: true,
+);
 
 const _match = DepletionMatch(
   depletionId: 'DEP_METFORMIN_VITAMINB12',
@@ -51,46 +83,53 @@ Widget _wrap(Widget child, {double textScale = 1.0}) {
 }
 
 void main() {
-  group('daily plan accessibility', () {
-    testWidgets('each slot is announced as one labelled group', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          PGDailyPlanCard(
-            plan: _plan(
-              items: {
-                DailySlot.withBreakfast: ['iron', 'vitamin c'],
-              },
-            ),
-          ),
-        ),
-      );
-
-      // Commas, not middots: punctuation is visual, not something to read out.
-      expect(
-        find.bySemanticsLabel('With breakfast: iron, vitamin c'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('section titles are exposed as headings', (tester) async {
+  group('timing guidance accessibility', () {
+    testWidgets('each product name is exposed as a heading', (tester) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(
         _wrap(
-          PGDailyPlanCard(
-            plan: _plan(
-              items: {
-                DailySlot.bedtime: ['magnesium'],
-              },
+          const PGTimingGuidanceCard(
+            guidance: TimingGuidance(
+              products: [
+                ProductTimingGuidance(
+                  stackEntryId: 'row-d3',
+                  productName: 'D3 5000 IU',
+                  howToTake: [_withFood],
+                ),
+              ],
             ),
           ),
         ),
       );
 
       expect(
-        tester.getSemantics(find.text('One way to space your day')),
-        matchesSemantics(label: 'One way to space your day', isHeader: true),
+        tester.getSemantics(find.text('D3 5000 IU')),
+        matchesSemantics(label: 'D3 5000 IU', isHeader: true),
       );
       handle.dispose();
+    });
+
+    testWidgets('the medication caveat is text, not styling', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          const PGTimingGuidanceCard(
+            guidance: TimingGuidance(
+              products: [
+                ProductTimingGuidance(
+                  stackEntryId: 'row-cal',
+                  productName: 'Calcium K/D',
+                  importantSeparation: [_calciumSeparation],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.text('Continue taking your medication exactly as prescribed.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('survives a large accessibility text size', (tester) async {
@@ -101,12 +140,15 @@ void main() {
 
       await tester.pumpWidget(
         _wrap(
-          PGDailyPlanCard(
-            plan: _plan(
-              items: {
-                DailySlot.morningEmpty: ['iron'],
-                DailySlot.withDinner: ['calcium', 'magnesium glycinate'],
-              },
+          const PGTimingGuidanceCard(
+            guidance: TimingGuidance(
+              products: [
+                ProductTimingGuidance(
+                  stackEntryId: 'row-a',
+                  productName: 'Magnesium Glycinate 400mg Capsules',
+                  howToTake: [_magnesiumWithFood],
+                ),
+              ],
             ),
           ),
           textScale: 2.0,

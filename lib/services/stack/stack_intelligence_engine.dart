@@ -190,6 +190,9 @@ class StackIntelligenceEngine {
         case MedicationNutrientPayload():
           // Depletions are not part of the safety report's aggregation.
           continue;
+        case TimingSeparationPayload():
+          // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart.
+          continue;
       }
     }
 

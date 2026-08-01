@@ -17,6 +17,13 @@ enum SignalFamily {
 
   /// NutrientStatus — a nutrient's cumulative stack exposure vs its UL.
   cumulativeExposure,
+
+  /// TimingOptimization — a verified `important_separation` rule.
+  ///
+  /// Only this timing category becomes a signal. Losing levothyroxine
+  /// absorption is a safety concern, not the optimization advice the other two
+  /// timing categories carry.
+  timingSeparation,
 }
 
 /// Namespace + version prefix for every signal's canonical identity. Bump the
@@ -58,6 +65,7 @@ String canonicalSignalId({
     case SignalFamily.pairwiseInteraction:
     case SignalFamily.medicationProfile:
     case SignalFamily.medicationNutrient:
+    case SignalFamily.timingSeparation:
       if (sourceRuleId == null || sourceRuleId.trim().isEmpty) {
         throw ArgumentError('${family.name} signal id requires a sourceRuleId');
       }
