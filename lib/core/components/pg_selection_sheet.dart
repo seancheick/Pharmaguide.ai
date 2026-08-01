@@ -252,7 +252,9 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
     final discard = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: context.v2.surface,
+        // No explicit backgroundColor: dialogTheme supplies it and resolves
+        // on every build. Passing context.v2.surface here baked one
+        // appearance into the route.
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),

@@ -17,7 +17,6 @@ Future<void> showFormulaHistorySheet(
   );
   return PGModal.bottomSheet<void>(
     context: context,
-    backgroundColor: context.v2.surface,
     builder: (_) => DraggableScrollableSheet(
       initialChildSize: 0.68,
       minChildSize: 0.42,

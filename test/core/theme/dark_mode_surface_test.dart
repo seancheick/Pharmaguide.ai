@@ -344,8 +344,26 @@ void main() {
     // Same family as the persistent-header bug above: a theme value
     // captured at construction instead of resolved in build.
 
-    test('only pg_modal.dart creates modal routes', () {
-      // The gate below only has to inspect one file as long as this holds.
+    test('no modal route is constructed with a theme-resolved colour', () {
+      // The earlier version of this gate checked only that pg_modal.dart
+      // itself avoided Theme.of. Six CALLERS were passing
+      // `backgroundColor: context.v2.surface` into PGModal, which bakes the
+      // appearance into the route just as effectively — found on device in
+      // the Add-Health-Event sheet, where switching appearance left dark
+      // labels on a dark surface.
+      //
+      // It also matched the literal string `showDialog(`, so
+      // `showDialog<bool>(` in pg_selection_sheet slipped straight past it.
+      // Generic parameters are now part of the pattern.
+      final routeCtor = RegExp(
+        r'(PGModal\.\w+|showModalBottomSheet|showDialog|showGeneralDialog|'
+        r'AlertDialog|Dialog)\s*(<[^>]*>)?\s*\(',
+      );
+      final bakedColour = RegExp(
+        r'(backgroundColor|barrierColor|surfaceTintColor)\s*:\s*[^,\n]*'
+        r'(context\.v2|Theme\.of\(context\))',
+      );
+
       final offenders = <String>[];
       for (final entity in Directory('lib').listSync(recursive: true)) {
         if (entity is! File || !entity.path.endsWith('.dart')) continue;
@@ -353,22 +371,26 @@ void main() {
           '${Directory.current.path}/',
           '',
         );
-        if (relative == 'lib/core/widgets/pg_modal.dart') continue;
-        final source = entity.readAsStringSync();
-        for (final ctor in [
-          'showModalBottomSheet(',
-          'showDialog(',
-          'showGeneralDialog(',
-        ]) {
-          if (source.contains(ctor)) offenders.add('$relative calls $ctor');
+        final lines = entity.readAsStringSync().split('\n');
+        for (var i = 0; i < lines.length; i++) {
+          if (!routeCtor.hasMatch(lines[i])) continue;
+          // A route's arguments sit just below its constructor call.
+          final end = (i + 15).clamp(0, lines.length);
+          for (var j = i; j < end; j++) {
+            if (bakedColour.hasMatch(lines[j])) {
+              offenders.add('$relative:${j + 1}');
+            }
+          }
         }
       }
+
       expect(
-        offenders,
+        offenders.toSet().toList(),
         isEmpty,
         reason:
-            'Route creation belongs in PGModal so appearance handling is '
-            'fixed in one place:\n${offenders.join('\n')}',
+            'A route outlives the build that created it, so a colour resolved '
+            'at call time freezes on one appearance. Omit it and let '
+            'bottomSheetTheme / dialogTheme supply it:\n${offenders.join('\n')}',
       );
     });
 

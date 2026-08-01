@@ -20,7 +20,6 @@ Future<void> showIngredientExplainSheet(
   );
   return PGModal.bottomSheet<void>(
     context: context,
-    backgroundColor: context.v2.surface,
     builder: (_) => _Sheet(explain: explain),
   );
 }

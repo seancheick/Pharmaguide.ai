@@ -21,7 +21,6 @@ enum _StackShareChoice { supplements, clinicianReport }
 Future<void> showStackShareSheet(BuildContext context, WidgetRef ref) async {
   final choice = await PGModal.bottomSheet<_StackShareChoice>(
     context: context,
-    backgroundColor: context.v2.surface,
     builder: (_) => const _StackShareOptions(),
   );
   if (!context.mounted || choice == null) return;

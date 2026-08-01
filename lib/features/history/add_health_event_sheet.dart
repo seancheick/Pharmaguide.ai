@@ -14,7 +14,6 @@ import 'package:pharmaguide/services/history/user_health_event_service.dart';
 Future<void> showAddHealthEventSheet(BuildContext context, WidgetRef ref) {
   return PGModal.bottomSheet<_AddHealthEventResult>(
     context: context,
-    backgroundColor: context.v2.surface,
     builder: (_) => const _AddHealthEventSheet(),
   ).then((result) {
     if (result == _AddHealthEventResult.savedWithoutDeviceReminder &&

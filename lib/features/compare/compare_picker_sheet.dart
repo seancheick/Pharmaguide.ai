@@ -33,7 +33,6 @@ Future<void> showComparePickerSheet(
 }) {
   return PGModal.bottomSheet<void>(
     context: context,
-    backgroundColor: context.v2.surface,
     builder: (_) => ComparePickerSheet(currentDsldId: currentDsldId),
   );
 }

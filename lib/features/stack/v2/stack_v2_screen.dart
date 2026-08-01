@@ -253,7 +253,6 @@ enum _StackAddChoice { supplement, medication }
 Future<void> _showAddToStackSheet(BuildContext context) async {
   final choice = await PGModal.bottomSheet<_StackAddChoice>(
     context: context,
-    backgroundColor: context.v2.surface,
     builder: (_) => const _AddToStackSheet(),
   );
   if (!context.mounted || choice == null) return;
