@@ -288,6 +288,67 @@ void main() {
     });
   });
 
+  group('modal routes resolve their surface at build time', () {
+    // A route outlives the build that created it. `PGModal.bottomSheet`
+    // passed `Theme.of(context).colorScheme.surface` as the sheet
+    // background, which baked one appearance into the route: switching
+    // light/dark with a sheet open rebuilt the CONTENT to the new
+    // brightness while the background stayed on the old one, putting
+    // light-mode text on a dark-mode surface. Found on device at 4f98ee1.
+    //
+    // Same family as the persistent-header bug above: a theme value
+    // captured at construction instead of resolved in build.
+
+    test('only pg_modal.dart creates modal routes', () {
+      // The gate below only has to inspect one file as long as this holds.
+      final offenders = <String>[];
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final relative = entity.path.replaceFirst(
+          '${Directory.current.path}/',
+          '',
+        );
+        if (relative == 'lib/core/widgets/pg_modal.dart') continue;
+        final source = entity.readAsStringSync();
+        for (final ctor in [
+          'showModalBottomSheet(',
+          'showDialog(',
+          'showGeneralDialog(',
+        ]) {
+          if (source.contains(ctor)) offenders.add('$relative calls $ctor');
+        }
+      }
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Route creation belongs in PGModal so appearance handling is '
+            'fixed in one place:\n${offenders.join('\n')}',
+      );
+    });
+
+    test('PGModal never bakes a theme colour into a route', () {
+      final source = File('lib/core/widgets/pg_modal.dart').readAsStringSync();
+      final offenders = <String>[];
+      final lines = source.split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        if (line.trimLeft().startsWith('//')) continue;
+        if (line.contains('Theme.of(context)')) {
+          offenders.add('lib/core/widgets/pg_modal.dart:${i + 1}');
+        }
+      }
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Leave the colour null and let bottomSheetTheme/dialogTheme supply '
+            'it — those resolve on every build, a captured value never '
+            'does:\n${offenders.join('\n')}',
+      );
+    });
+  });
+
   group('the extension is registered where it matters', () {
     // This replaces a per-widget assert on context.v2. The fallback
     // (V2Palette.of(brightness)) is already correct, so the only invariant

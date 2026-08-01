@@ -57,7 +57,14 @@ abstract final class PGModal {
       showDragHandle: showDragHandle,
       useRootNavigator: true,
       isScrollControlled: true,
-      backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.surface,
+      // Deliberately NOT `?? Theme.of(context).colorScheme.surface`. That
+      // resolved the colour once, at show time, and baked it into the route:
+      // when the device appearance changed with a sheet open, the content
+      // rebuilt to the new brightness while this background stayed on the
+      // old one, putting light-mode text on a dark-mode surface. Left null,
+      // Flutter falls back to `bottomSheetTheme.backgroundColor`, which
+      // v2_theme already supplies and which resolves on every build.
+      backgroundColor: backgroundColor,
       constraints: constraints ?? const BoxConstraints(maxWidth: 560),
     );
   }
