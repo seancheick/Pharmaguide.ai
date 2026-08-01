@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 // Display labels — sentence case, softer-tone vocabulary (Sean 2026-04-30).
@@ -17,54 +15,26 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 // Enum names + ordering are unchanged — only the user-facing display
 // label moves.
 enum Severity {
-  contraindicated(
-    weight: 5,
-    e2cPenalty: -8,
-    label: 'Do not use',
-    color: Color(0xFFDC2626),
-  ),
-  avoid(
-    weight: 4,
-    e2cPenalty: -5,
-    label: 'Not recommended',
-    color: Color(0xFFDC2626),
-  ),
-  caution(
-    weight: 3,
-    e2cPenalty: -3,
-    label: 'Use caution',
-    color: Color(0xFFF97316),
-  ),
-  monitor(
-    weight: 2,
-    e2cPenalty: -1,
-    label: 'Monitor',
-    color: Color(0xFFEAB308),
-  ),
+  contraindicated(weight: 5, e2cPenalty: -8, label: 'Do not use'),
+  avoid(weight: 4, e2cPenalty: -5, label: 'Not recommended'),
+  caution(weight: 3, e2cPenalty: -3, label: 'Use caution'),
+  monitor(weight: 2, e2cPenalty: -1, label: 'Monitor'),
   // Informational tier — the profile-less rendering of rules whose
   // intrinsic severity is `avoid` or `caution`. Zero E2C penalty: the
   // user's profile hasn't declared the triggering condition / drug
-  // class, so the warning is context, not a score hit. Neutral slate
-  // color (not alarming, not congratulatory). Emitted by the pipeline
-  // as `severity_contextual` under schema v5.2.
-  informational(
-    weight: 1,
-    e2cPenalty: 0,
-    label: 'Informational',
-    color: Color(0xFF64748B),
-  ),
-  safe(weight: 0, e2cPenalty: 0, label: 'Safe', color: Color(0xFF22C55E));
+  // class, so the warning is context, not a score hit. Emitted by the
+  // pipeline as `severity_contextual` under schema v5.2.
+  informational(weight: 1, e2cPenalty: 0, label: 'Informational'),
+  safe(weight: 0, e2cPenalty: 0, label: 'Safe');
 
   final int weight;
   final int e2cPenalty;
   final String label;
-  final Color color;
 
   const Severity({
     required this.weight,
     required this.e2cPenalty,
     required this.label,
-    required this.color,
   });
 
   /// A "hard" warning — `contraindicated` or `avoid`. The single source of

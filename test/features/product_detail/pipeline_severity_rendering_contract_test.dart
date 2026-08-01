@@ -93,38 +93,31 @@ void main() {
           raw: 'critical',
           text: 'Do not use',
           icon: Icons.block_rounded,
-          color: const Color(0xFFDC2626),
         ),
         (
           raw: 'high',
           text: 'Not recommended',
           icon: Icons.error_outline_rounded,
-          color: const Color(0xFFDC2626),
         ),
         (
           raw: 'moderate',
           text: 'Use caution',
           icon: Icons.warning_amber_rounded,
-          color: const Color(0xFFF97316),
         ),
         (
           raw: 'low',
           text: 'Monitor',
           icon: Icons.visibility_outlined,
-          color: const Color(0xFFEAB308),
         ),
         (
           raw: 'no_data',
           text: 'Monitor',
           icon: Icons.visibility_outlined,
-          color: const Color(0xFFEAB308),
         ),
       ];
 
       for (final c in cases) {
         final severity = Severity.fromString(c.raw);
-        expect(severity.color, c.color, reason: c.raw);
-
         await tester.pumpWidget(wrap(PGSeverityPill(severity: severity)));
         expect(find.text(c.text), findsOneWidget, reason: c.raw);
         expect(find.byIcon(c.icon), findsOneWidget, reason: c.raw);

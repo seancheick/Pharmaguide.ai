@@ -288,6 +288,51 @@ void main() {
     });
   });
 
+  group('clinical enums carry no fixed colour', () {
+    // `Severity` and `RiskTier` each declared a `Color` field. Both were
+    // dead — declared, never read — but they were a standing invitation to
+    // render clinically-meaningful colour that cannot follow the device
+    // appearance, which is exactly how ScoreTier shipped unreadable in dark
+    // mode. Removed 2026-08-01; colour for these concepts comes from
+    // V2Palette's severity slots, which resolve per appearance.
+    //
+    // StackHealthLabel deliberately keeps its fixed token: audited, no
+    // contrast defect, and it renders only as a 6pt dot beside a redundant
+    // text label. The reasoning is documented on the field itself.
+    test('Severity and RiskTier declare no Color field', () {
+      const guarded = <String, String>{
+        'lib/core/constants/severity.dart': 'Severity',
+        'lib/core/models/stack_safety_score.dart': 'RiskTier',
+      };
+      final offenders = <String>[];
+
+      for (final entry in guarded.entries) {
+        final source = File(entry.key).readAsStringSync();
+        final start = source.indexOf('enum ${entry.value} {');
+        expect(
+          start,
+          isNot(-1),
+          reason: 'enum ${entry.value} not found in ${entry.key}',
+        );
+        // Scan to the end of the enum declaration only — the file may hold
+        // other enums that legitimately keep a token.
+        final end = source.indexOf('\n}', start);
+        final body = source.substring(start, end == -1 ? source.length : end);
+        if (body.contains('Color ') || body.contains('Color(0x')) {
+          offenders.add('${entry.key}: ${entry.value}');
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'A const enum field cannot resolve an appearance. Resolve these '
+            'through V2Palette instead:\n${offenders.join('\n')}',
+      );
+    });
+  });
+
   group('modal routes resolve their surface at build time', () {
     // A route outlives the build that created it. `PGModal.bottomSheet`
     // passed `Theme.of(context).colorScheme.surface` as the sheet

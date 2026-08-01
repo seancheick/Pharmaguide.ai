@@ -5,15 +5,14 @@ import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 
 enum RiskTier {
-  excellent(label: 'Your stack looks great', color: Color(0xFF22C55E)),
-  good(label: 'Minor optimizations available', color: Color(0xFF22C55E)),
-  caution(label: 'Some concerns to review', color: Color(0xFFEAB308)),
-  moderateRisk(label: 'Important issues found', color: Color(0xFFF97316)),
-  highRisk(label: 'Serious interactions detected', color: Color(0xFFDC2626));
+  excellent(label: 'Your stack looks great'),
+  good(label: 'Minor optimizations available'),
+  caution(label: 'Some concerns to review'),
+  moderateRisk(label: 'Important issues found'),
+  highRisk(label: 'Serious interactions detected');
 
   final String label;
-  final Color color;
-  const RiskTier({required this.label, required this.color});
+  const RiskTier({required this.label});
 
   static RiskTier fromScore(int score) {
     if (score >= 90) return RiskTier.excellent;
