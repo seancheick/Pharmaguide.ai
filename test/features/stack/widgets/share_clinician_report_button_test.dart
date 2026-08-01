@@ -53,6 +53,10 @@ void main() {
     expect(find.text('Share from your stack'), findsOneWidget);
     expect(find.text('Share supplements'), findsOneWidget);
     expect(find.text('Clinician report'), findsOneWidget);
+    expect(
+      find.textContaining('Product names and brands only'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Clinician report'));
     await tester.pump();

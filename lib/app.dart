@@ -11,7 +11,7 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
@@ -259,9 +259,9 @@ class ChatScreen extends StatelessWidget {
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
-                color: V2Colors.surface,
+                color: context.v2.surface,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
-                border: Border.all(color: V2Colors.outline),
+                border: Border.all(color: context.v2.outline),
                 boxShadow: V2Shadows.sm,
               ),
               child: Padding(
@@ -273,26 +273,26 @@ class ChatScreen extends StatelessWidget {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: V2Colors.accentTint,
+                        color: context.v2.accentTint,
                         borderRadius: BorderRadius.circular(
                           V2Spacing.radiusCard,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.auto_awesome_rounded,
-                        color: V2Colors.accent,
+                        color: context.v2.accent,
                         size: 28,
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space16),
                     Text(
                       'Ask PharmaGuide',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                     ),
                     const SizedBox(height: V2Spacing.space8),
                     Text(
                       'Clinical-grade chat is still being prepared. For now, use the verified catalog flows below for product and interaction decisions.',
-                      style: V2Typography.body(color: V2Colors.fgMuted),
+                      style: V2Typography.body(color: context.v2.fgMuted),
                     ),
                     const SizedBox(height: V2Spacing.space24),
                     PGPillButton(
@@ -334,9 +334,9 @@ class CatalogUnavailableScreen extends StatelessWidget {
           padding: const EdgeInsets.all(V2Spacing.space24),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
               boxShadow: V2Shadows.md,
             ),
             child: Padding(
@@ -348,26 +348,26 @@ class CatalogUnavailableScreen extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: V2Colors.cautionTint,
+                      color: context.v2.cautionTint,
                       borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.cloud_off_outlined,
-                      color: V2Colors.caution,
+                      color: context.v2.caution,
                       size: 28,
                     ),
                   ),
                   const SizedBox(height: V2Spacing.space16),
                   Text(
                     'Catalog unavailable',
-                    style: V2Typography.titleSm(color: V2Colors.fg),
+                    style: V2Typography.titleSm(color: context.v2.fg),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: V2Spacing.space8),
                   Text(
                     message ??
                         'The verified supplement catalog is not available on this device yet.',
-                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    style: V2Typography.bodySm(color: context.v2.fgMuted),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: V2Spacing.space24),
@@ -996,9 +996,9 @@ class _AuthCallbackScreenState extends State<_AuthCallbackScreen> {
             padding: const EdgeInsets.all(V2Spacing.space24),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: V2Colors.surface,
+                color: context.v2.surface,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
-                border: Border.all(color: V2Colors.outline),
+                border: Border.all(color: context.v2.outline),
                 boxShadow: V2Shadows.sm,
               ),
               child: Padding(
@@ -1006,24 +1006,24 @@ class _AuthCallbackScreenState extends State<_AuthCallbackScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 28,
                       height: 28,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
-                        color: V2Colors.accent,
+                        color: context.v2.accent,
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space16),
                     Text(
                       'Finishing sign in',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: V2Spacing.space8),
                     Text(
                       'We are completing the secure handoff.',
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      style: V2Typography.bodySm(color: context.v2.fgMuted),
                       textAlign: TextAlign.center,
                     ),
                   ],

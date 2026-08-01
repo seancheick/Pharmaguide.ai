@@ -11,6 +11,7 @@ class UnsatisfiedTimingConstraint {
     required this.ruleId,
     required this.advice,
     required this.reason,
+    this.sourceRuleIds = const <String>[],
   });
 
   final String ruleId;
@@ -20,6 +21,32 @@ class UnsatisfiedTimingConstraint {
 
   /// Why it could not be placed, in scheduling terms only.
   final String reason;
+
+  /// Source rule ids represented by a product-level conflict summary.
+  ///
+  /// Empty for ordinary one-rule failures. Consumers can use this to replace
+  /// the conflicting raw rules instead of displaying both and contradicting
+  /// the product-level plan.
+  final List<String> sourceRuleIds;
+}
+
+/// Authored timing context that is useful to show but cannot safely place an
+/// item into a concrete daily slot.
+///
+/// Conditional rules (for example, "if you take magnesium for sleep") stay
+/// attached to the physical product that triggered them. This prevents an
+/// ingredient inside a combination product from looking like a separate
+/// bottle while preserving reviewed guidance.
+class TimingReviewItem {
+  const TimingReviewItem({
+    required this.ruleId,
+    required this.itemName,
+    required this.advice,
+  });
+
+  final String ruleId;
+  final String itemName;
+  final String advice;
 }
 
 /// One item placed in the daily plan.
@@ -36,10 +63,12 @@ class TimingSequencePlan {
     required this.itemsBySlot,
     required this.unsatisfied,
     this.slotByStackEntryId = const {},
+    this.reviewOnly = const [],
   });
 
   final Map<DailySlot, List<String>> itemsBySlot;
   final List<UnsatisfiedTimingConstraint> unsatisfied;
+  final List<TimingReviewItem> reviewOnly;
 
   /// Exact stack-row identity to resolved slot.
   ///
@@ -50,6 +79,10 @@ class TimingSequencePlan {
   DailySlot? slotForStackEntryId(String stackEntryId) =>
       slotByStackEntryId[stackEntryId];
 
+  /// Whether no concrete item was scheduled.
+  ///
+  /// Review-only and unsatisfied guidance may still be present when this is
+  /// true; those are deliberately not represented as scheduled items.
   bool get isEmpty => itemsBySlot.values.every((items) => items.isEmpty);
   bool get isFullySatisfied => unsatisfied.isEmpty;
 
@@ -74,6 +107,22 @@ class TimingSequenceResolver {
   const TimingSequenceResolver();
 
   TimingSequencePlan resolve(List<TimingOptimization> optimizations) {
+    final reviewOnly =
+        optimizations
+            .where((optimization) => !optimization.dailyPlanEligible)
+            .map(
+              (optimization) => TimingReviewItem(
+                ruleId: optimization.ruleId,
+                itemName: _displayName(
+                  optimization.product1Name,
+                  optimization.ingredient1,
+                ),
+                advice: optimization.advice,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.ruleId.compareTo(b.ruleId));
+
     // Sort by rule id so input order can never change the outcome.
     final constraints =
         optimizations
@@ -172,6 +221,7 @@ class TimingSequenceResolver {
       return TimingSequencePlan(
         itemsBySlot: const {},
         unsatisfied: authoredUnaryFailures,
+        reviewOnly: reviewOnly,
       );
     }
 
@@ -220,21 +270,63 @@ class TimingSequenceResolver {
       dropped.add(active.removeAt(0));
     }
 
+    final unplaceableUnaryFailures = <UnsatisfiedTimingConstraint>[];
+    for (final key in unplaceable) {
+      final constraints = (unaryByItem[key] ?? const <TimingOptimization>[])
+          .where(
+            (constraint) => !authoredUnaryFailures.any(
+              (failure) => failure.ruleId == constraint.ruleId,
+            ),
+          )
+          .toList(growable: false);
+      if (constraints.isEmpty) continue;
+
+      // Multiple ingredient rules can apply to one physical combination
+      // product. When their domains conflict, showing each rule's ingredient
+      // prose makes those ingredients look like independently schedulable
+      // bottles. Collapse that impossible instruction set into one honest,
+      // product-level review item.
+      final productName = displayNameByKey[key];
+      final hasPhysicalProduct = constraints.every(
+        (constraint) =>
+            constraint.product1StackEntryId?.trim().isNotEmpty == true ||
+            constraint.product1Name?.trim().isNotEmpty == true,
+      );
+      if (constraints.length > 1 &&
+          hasPhysicalProduct &&
+          productName != null &&
+          productName.isNotEmpty) {
+        final sourceRuleIds =
+            constraints.map((constraint) => constraint.ruleId).toList()..sort();
+        unplaceableUnaryFailures.add(
+          UnsatisfiedTimingConstraint(
+            ruleId: sourceRuleIds.join('|'),
+            advice: '$productName has conflicting timing guidance.',
+            reason:
+                'Different ingredients in this physical stack item have '
+                'timing guidance that cannot all be followed separately.',
+            sourceRuleIds: sourceRuleIds,
+          ),
+        );
+        continue;
+      }
+
+      for (final constraint in constraints) {
+        unplaceableUnaryFailures.add(
+          UnsatisfiedTimingConstraint(
+            ruleId: constraint.ruleId,
+            advice: constraint.advice,
+            reason:
+                'This guidance conflicts with other timing guidance for '
+                'the same stack item.',
+          ),
+        );
+      }
+    }
+
     final unsatisfied = <UnsatisfiedTimingConstraint>[
       ...authoredUnaryFailures,
-      for (final name in unplaceable)
-        for (final constraint
-            in unaryByItem[name] ?? const <TimingOptimization>[])
-          if (!authoredUnaryFailures.any(
-            (failure) => failure.ruleId == constraint.ruleId,
-          ))
-            UnsatisfiedTimingConstraint(
-              ruleId: constraint.ruleId,
-              advice: constraint.advice,
-              reason:
-                  'This guidance conflicts with other timing guidance for '
-                  'the same stack item.',
-            ),
+      ...unplaceableUnaryFailures,
       for (final constraint in blockedBinary)
         UnsatisfiedTimingConstraint(
           ruleId: constraint.ruleId,
@@ -272,7 +364,15 @@ class TimingSequenceResolver {
       itemsBySlot: itemsBySlot,
       unsatisfied: unsatisfied,
       slotByStackEntryId: slotByStackEntryId,
+      reviewOnly: reviewOnly,
     );
+  }
+
+  static String _displayName(String? productName, String ingredientName) {
+    final normalizedProduct = productName?.trim();
+    return normalizedProduct == null || normalizedProduct.isEmpty
+        ? ingredientName
+        : normalizedProduct;
   }
 
   static ({String key, String displayName, String? stackEntryId})
@@ -281,10 +381,7 @@ class TimingSequenceResolver {
     required String? productName,
     required String ingredientName,
   }) {
-    final normalizedProduct = productName?.trim();
-    final displayName = normalizedProduct == null || normalizedProduct.isEmpty
-        ? ingredientName
-        : normalizedProduct;
+    final displayName = _displayName(productName, ingredientName);
     return (
       key: _itemKey(stackEntryId, productName, ingredientName),
       displayName: displayName,

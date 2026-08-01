@@ -5,15 +5,19 @@
 // advice), and must show a constraint it could not place in the pipeline's own
 // words rather than dropping it.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_daily_plan_card.dart';
 import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
 
 Future<void> _pump(WidgetTester tester, TimingSequencePlan plan) {
   return tester.pumpWidget(
     MaterialApp(
+      theme: V2Theme.light,
       home: Scaffold(
         body: SingleChildScrollView(child: PGDailyPlanCard(plan: plan)),
       ),
@@ -24,6 +28,7 @@ Future<void> _pump(WidgetTester tester, TimingSequencePlan plan) {
 TimingSequencePlan _plan({
   Map<DailySlot, List<String>> items = const {},
   List<UnsatisfiedTimingConstraint> unsatisfied = const [],
+  List<TimingReviewItem> reviewOnly = const [],
 }) {
   return TimingSequencePlan(
     itemsBySlot: {
@@ -31,10 +36,20 @@ TimingSequencePlan _plan({
         slot: items[slot] ?? const <String>[],
     },
     unsatisfied: unsatisfied,
+    reviewOnly: reviewOnly,
   );
 }
 
 void main() {
+  test('stack screen composes one timing surface', () {
+    final source = File(
+      'lib/features/stack/v2/stack_v2_screen.dart',
+    ).readAsStringSync();
+
+    expect(source, isNot(contains('const _TimingAdviceSlot()')));
+    expect(source, contains('const _TimingPlanSlot()'));
+  });
+
   testWidgets('an empty plan renders nothing', (tester) async {
     await _pump(tester, _plan());
     expect(find.byType(Card), findsNothing);
@@ -52,6 +67,8 @@ void main() {
       ),
     );
 
+    expect(find.text('TIMING PLAN'), findsOneWidget);
+    expect(find.text('DAILY PLAN'), findsNothing);
     expect(find.text('With breakfast'), findsOneWidget);
     expect(find.text('iron · vitamin c'), findsOneWidget);
     expect(find.text('Before bed'), findsOneWidget);
@@ -115,6 +132,10 @@ void main() {
     );
 
     expect(find.text(authored), findsOneWidget);
+    expect(
+      find.text('Needs more separation than one day allows.'),
+      findsOneWidget,
+    );
     expect(find.text('Timing to review'), findsOneWidget);
   });
 
@@ -168,5 +189,29 @@ void main() {
     );
 
     expect(find.text('Conflicting guidance for iron.'), findsOneWidget);
+  });
+
+  testWidgets('keeps conditional advice attached to the physical product', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _plan(
+        reviewOnly: const [
+          TimingReviewItem(
+            ruleId: 'timing_magnesium_evening',
+            itemName: 'Daily Mineral',
+            advice:
+                'If you take magnesium for sleep, evening is a reasonable '
+                'time.',
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Timing to review'), findsOneWidget);
+    expect(find.text('Daily Mineral'), findsOneWidget);
+    expect(find.textContaining('magnesium for sleep'), findsOneWidget);
+    expect(find.text('Before bed'), findsNothing);
   });
 }

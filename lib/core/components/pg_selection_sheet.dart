@@ -399,7 +399,7 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                     const SizedBox(height: V2Spacing.space8),
                     Text(
                       widget.title,
-                      style: V2Typography.displayXs(color: context.v2.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                     Text(
@@ -443,7 +443,9 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                           !_noneSelected) ...[
                         Text(
                           widget.maxSelectionHint!,
-                          style: V2Typography.caption(color: context.v2.fgMuted),
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
                         ),
                         const SizedBox(height: V2Spacing.space12),
                       ],
@@ -454,7 +456,9 @@ class _PGSelectionSheetState extends State<_PGSelectionSheet> {
                           ),
                           child: Text(
                             'No matches for "${_searchController.text}"',
-                            style: V2Typography.bodySm(color: context.v2.fgMuted),
+                            style: V2Typography.bodySm(
+                              color: context.v2.fgMuted,
+                            ),
                           ),
                         )
                       else if (widget.layout == PGSheetLayout.rows)
@@ -866,7 +870,9 @@ class _SheetRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final labelStyle = selected
         ? V2Typography.bodyMedium(color: context.v2.accent)
-        : V2Typography.body(color: disabled ? context.v2.fgSubtle : context.v2.fg);
+        : V2Typography.body(
+            color: disabled ? context.v2.fgSubtle : context.v2.fg,
+          );
     return Material(
       color: Colors.transparent,
       child: InkWell(

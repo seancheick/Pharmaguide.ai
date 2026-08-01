@@ -14,17 +14,10 @@ typedef PdfShareInvocation =
 /// flow. Medication, profile, warning, score, and condition data have no place
 /// in this model, which prevents accidental disclosure by construction.
 class SupplementShareItem {
-  const SupplementShareItem({
-    required this.name,
-    this.brand,
-    this.dosage,
-    this.frequency,
-  });
+  const SupplementShareItem({required this.name, this.brand});
 
   final String name;
   final String? brand;
-  final String? dosage;
-  final String? frequency;
 }
 
 /// Handles sharing products and stack summaries.
@@ -106,13 +99,7 @@ class ShareService {
               ? 'Supplement'
               : item.name.trim();
           final brand = item.brand?.trim() ?? '';
-          final dosage = item.dosage?.trim() ?? '';
-          final frequency = item.frequency?.trim() ?? '';
-          final schedule = [dosage, frequency].where((part) => part.isNotEmpty);
-          return [
-            '• ${brand.isEmpty ? name : '$name — $brand'}',
-            if (schedule.isNotEmpty) '  ${schedule.join(' · ')}',
-          ].join('\n');
+          return '• ${brand.isEmpty ? name : '$name — $brand'}';
         })
         .join('\n');
 

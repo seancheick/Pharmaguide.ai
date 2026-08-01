@@ -18,6 +18,7 @@ import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/connectivity_service.dart';
 
 /// Minimal product fixture for guard assertions. We never reach the
 /// Drift code path because the guard throws first, so the other
@@ -35,6 +36,8 @@ ProductsCoreData _product({required String dsldId, required String verdict}) {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('StackActions.addProduct FLTR-16 verdict guard', () {
     late ProviderContainer container;
 
@@ -170,10 +173,11 @@ void main() {
     );
 
     test(
-      'dose and schedule changes use the same local history transaction',
+      'medication dose changes use the same local history transaction',
       () async {
         final userDb = UserDatabase.memory();
         addTearDown(userDb.close);
+        final syncStamp = DateTime.utc(2026, 7, 30, 12);
         await userDb.addToStack(
           UserStacksLocalCompanion.insert(
             id: 'med-1',
@@ -181,6 +185,8 @@ void main() {
             name: 'Metformin',
             dosage: const Value('500 mg'),
             frequency: const Value('Daily'),
+            clientUpdatedAt: Value(syncStamp),
+            syncedAt: Value(syncStamp),
           ),
         );
         final localContainer = ProviderContainer(
@@ -191,17 +197,23 @@ void main() {
 
         final actions = localContainer.read(stackActionsProvider);
         expect(
-          await actions.updateSchedule(
+          await actions.updateTracking(
             entryId: 'med-1',
-            dosage: ' 1000 mg ',
-            frequency: 'Twice daily',
+            dosage: const Value(' 1000 mg '),
           ),
           isTrue,
         );
 
         final row = (await userDb.getActiveStack()).single;
         expect(row.dosage, '1000 mg');
-        expect(row.frequency, 'Twice daily');
+        expect(row.frequency, 'Daily');
+        expect(
+          row.clientUpdatedAt.toUtc(),
+          syncStamp,
+          reason:
+              'Medication dose is private device-only data and must not '
+              'advance the supplement cloud-sync watermark.',
+        );
         final history = await HealthEventRepository(userDb).getTimeline();
         expect(history, hasLength(1));
         expect(history.single.eventType, HealthEventTypes.stackItemChanged);
@@ -210,14 +222,74 @@ void main() {
         expect(history.single.currentValueJson, contains('1000 mg'));
 
         expect(
-          await actions.updateSchedule(
+          await actions.updateTracking(
             entryId: 'med-1',
-            dosage: '1000 mg',
-            frequency: 'Twice daily',
+            dosage: const Value('1000 mg'),
           ),
           isFalse,
         );
         expect(await HealthEventRepository(userDb).getTimeline(), hasLength(1));
+      },
+    );
+
+    test(
+      'supplement label dose and schedule cannot be overridden by stack edits',
+      () async {
+        final userDb = UserDatabase.memory();
+        addTearDown(userDb.close);
+        final syncStamp = DateTime.utc(2026, 7, 30, 12);
+        await userDb.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'supplement-1',
+            name: 'Verified Multivitamin',
+            dsldId: const Value('278454'),
+            dosage: const Value('Legacy user-entered dose'),
+            frequency: const Value('Legacy user-entered schedule'),
+            clientUpdatedAt: Value(syncStamp),
+            syncedAt: Value(syncStamp),
+          ),
+        );
+        final connectivity = ConnectivityService();
+        addTearDown(connectivity.dispose);
+        final localContainer = ProviderContainer(
+          overrides: [
+            userDatabaseProvider.overrideWithValue(userDb),
+            connectivityServiceProvider.overrideWithValue(connectivity),
+          ],
+        );
+        addTearDown(localContainer.dispose);
+        localContainer.read(authStateProvider.notifier).onSignedIn();
+
+        final actions = localContainer.read(stackActionsProvider);
+        expect(
+          await actions.updateTracking(
+            entryId: 'supplement-1',
+            dosage: const Value('8 capsules'),
+            startedAt: Value(DateTime.utc(2020, 1, 1)),
+          ),
+          isTrue,
+        );
+
+        final row = (await userDb.getActiveStack()).single;
+        expect(row.dosage, isNull);
+        expect(row.frequency, isNull);
+        expect(row.startedAt?.toUtc(), DateTime.utc(2020, 1, 1));
+        expect(
+          row.clientUpdatedAt.toUtc(),
+          syncStamp,
+          reason:
+              'Removing legacy device-only schedule text must not create a '
+              'cloud mutation.',
+        );
+        expect(await StackSyncQueue(userDb).dirtyRows(), isEmpty);
+        final history = await HealthEventRepository(userDb).getTimeline();
+        expect(history, hasLength(1));
+        expect(
+          history.single.previousValueJson,
+          contains('Legacy user-entered'),
+        );
+        expect(history.single.currentValueJson, contains('"dosage":null'));
+        expect(history.single.currentValueJson, contains('"frequency":null'));
       },
     );
 
@@ -246,7 +318,7 @@ void main() {
 
         final actions = localContainer.read(stackActionsProvider);
         await expectLater(
-          actions.updateSchedule(
+          actions.updateTracking(
             entryId: 'med-12',
             reminderMinutes: const Value(9 * 60),
           ),
@@ -281,7 +353,7 @@ void main() {
 
       final actions = localContainer.read(stackActionsProvider);
       expect(
-        await actions.updateSchedule(
+        await actions.updateTracking(
           entryId: 'supplement-1',
           startedAt: Value(DateTime.utc(2020, 1, 1)),
           reminderMinutes: const Value(8 * 60),

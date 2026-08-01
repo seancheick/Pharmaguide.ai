@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:intl/intl.dart';
 
@@ -17,7 +18,6 @@ import 'package:pharmaguide/core/components/pg_type_badge.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -38,7 +38,6 @@ import 'package:pharmaguide/services/stack/depletion_checker.dart'
     show MedNutrientLoadStatus;
 import 'package:pharmaguide/services/stack/depletion_watch.dart'
     show DepletionWatchStatus;
-import 'package:pharmaguide/features/stack/v2/widgets/pg_timing_advice_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_daily_plan_card.dart';
 import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/stack_safety_details_sheet.dart';
@@ -115,14 +114,8 @@ class _StackV2ScreenState extends State<StackV2Screen> {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: V2Colors.bg,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
+      value: v2SystemOverlay(context),
       child: Scaffold(
-        backgroundColor: V2Colors.bg,
         extendBody: true,
         appBar: _StackAppBar(
           segment: _segment,
@@ -214,25 +207,24 @@ class _StackAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: V2Colors.bg,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
       titleSpacing: V2Spacing.space24,
-      title: Text('My stack', style: V2Typography.title(color: V2Colors.fg)),
+      title: Text('My stack', style: V2Typography.title(color: context.v2.fg)),
       actions: [
         IconButton(
-          icon: const Icon(Icons.add_rounded, color: V2Colors.fg),
+          icon: Icon(Icons.add_rounded, color: context.v2.fg),
           tooltip: 'Add to stack',
           onPressed: () => unawaited(_showAddToStackSheet(context)),
         ),
         // Reuse production `ShareClinicianReportButton` — wraps the full
         // profile/stack/safety snapshot + share_plus flow. IconTheme
-        // override matches the v2 app-bar foreground (V2Colors.fg).
-        const IconTheme(
-          data: IconThemeData(color: V2Colors.fg),
-          child: ShareClinicianReportButton(),
+        // override matches the v2 app-bar foreground (context.v2.fg).
+        IconTheme(
+          data: IconThemeData(color: context.v2.fg),
+          child: const ShareClinicianReportButton(),
         ),
         const SizedBox(width: V2Spacing.space8),
       ],
@@ -261,7 +253,7 @@ enum _StackAddChoice { supplement, medication }
 Future<void> _showAddToStackSheet(BuildContext context) async {
   final choice = await PGModal.bottomSheet<_StackAddChoice>(
     context: context,
-    backgroundColor: V2Colors.surface,
+    backgroundColor: context.v2.surface,
     builder: (_) => const _AddToStackSheet(),
   );
   if (!context.mounted || choice == null) return;
@@ -297,7 +289,7 @@ class _AddToStackSheet extends StatelessWidget {
             const SizedBox(height: V2Spacing.space8),
             Text(
               'What are you adding?',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space16),
             _StackAddOption(
@@ -351,18 +343,18 @@ class _StackAddOption extends StatelessWidget {
           padding: const EdgeInsets.all(V2Spacing.space16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
           ),
           child: Row(
             children: [
               Container(
                 width: 44,
                 height: 44,
-                decoration: const BoxDecoration(
-                  color: V2Colors.accentTint,
+                decoration: BoxDecoration(
+                  color: context.v2.accentTint,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: V2Colors.accent, size: 22),
+                child: Icon(icon, color: context.v2.accent, size: 22),
               ),
               const SizedBox(width: V2Spacing.space16),
               Expanded(
@@ -371,18 +363,18 @@ class _StackAddOption extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
                     ),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       subtitle,
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      style: V2Typography.caption(color: context.v2.fgMuted),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: V2Spacing.space12),
-              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
+              Icon(Icons.chevron_right_rounded, color: context.v2.fgSubtle),
             ],
           ),
         ),
@@ -573,11 +565,11 @@ class _StackTabState extends ConsumerState<_StackTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+              Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
               const SizedBox(height: 2),
               Text(
                 'Swipe left to remove',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
             ],
           ),
@@ -647,8 +639,7 @@ class _StackTabState extends ConsumerState<_StackTab> {
           ],
           // Timing + depletion advice, then the broader coverage review
           // at the bottom. Each slot collapses when nothing applies.
-          const _TimingAdviceSlot(),
-          const _DailyPlanSlot(),
+          const _TimingPlanSlot(),
           const _DepletionSlot(),
           const _CoverageSlot(),
         ],
@@ -725,6 +716,7 @@ class _StackSummaryCard extends ConsumerWidget {
     // verdict; otherwise a pure fallback (green while analyzing / empty,
     // neutral hedge on error).
     final fallback = stackHealthFallbackDisplay(
+      palette: context.v2,
       isAnalyzing: isAnalyzing,
       hasError: hasError,
     );
@@ -745,10 +737,13 @@ class _StackSummaryCard extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [V2Colors.surface, Color.lerp(V2Colors.surface, tone, 0.05)!],
+          colors: [
+            context.v2.surface,
+            Color.lerp(context.v2.surface, tone, 0.05)!,
+          ],
         ),
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.md,
       ),
       padding: const EdgeInsets.all(V2Spacing.space16),
@@ -764,12 +759,12 @@ class _StackSummaryCard extends ConsumerWidget {
                   children: [
                     Text(
                       'Stack Health',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       insightLine,
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      style: V2Typography.bodySm(color: context.v2.fgMuted),
                     ),
                   ],
                 ),
@@ -861,13 +856,13 @@ class _CountChip extends StatelessWidget {
           vertical: V2Spacing.space8,
         ),
         decoration: BoxDecoration(
-          color: V2Colors.bg,
+          color: context.v2.bg,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: V2Colors.accent),
+            Icon(icon, size: 16, color: context.v2.accent),
             const SizedBox(width: V2Spacing.space8),
             Expanded(
               child: Column(
@@ -876,13 +871,14 @@ class _CountChip extends StatelessWidget {
                 children: [
                   Text(
                     '$count',
-                    style: V2Typography.bodyMedium(color: V2Colors.fg).copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                    style: V2Typography.bodyMedium(color: context.v2.fg)
+                        .copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                   ),
                   Text(
                     label,
-                    style: V2Typography.caption(color: V2Colors.fgMuted),
+                    style: V2Typography.caption(color: context.v2.fgMuted),
                   ),
                 ],
               ),
@@ -975,6 +971,14 @@ class _StackItemRow extends ConsumerWidget {
     final itemType = entry.isMedication
         ? PGItemType.medication
         : PGItemType.supplement;
+    final reminderLabel = entry.reminderMinutes == null
+        ? null
+        : 'Daily reminder at ${TimeOfDay(hour: entry.reminderMinutes! ~/ 60, minute: entry.reminderMinutes! % 60).format(context)}';
+    final trackingDetails = [
+      if (entry.isMedication) entry.dosage,
+      if (entry.isMedication) entry.frequency,
+      reminderLabel,
+    ].whereType<String>().where((value) => value.isNotEmpty).toList();
 
     return Dismissible(
       key: ValueKey('stack_${entry.id}'),
@@ -985,18 +989,18 @@ class _StackItemRow extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: V2Spacing.space24),
         decoration: BoxDecoration(
-          color: V2Colors.caution.withValues(alpha: 0.12),
+          color: context.v2.caution.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
-        child: const Icon(
+        child: Icon(
           Icons.delete_outline_rounded,
-          color: V2Colors.caution,
+          color: context.v2.caution,
           size: 22,
         ),
       ),
       onDismissed: (_) => onRemoved?.call(),
       child: Material(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
           // Supplement rows open catalog details when possible. Medication
@@ -1036,7 +1040,7 @@ class _StackItemRow extends ConsumerWidget {
             padding: const EdgeInsets.all(V2Spacing.space12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
               boxShadow: V2Shadows.sm,
             ),
             child: Row(
@@ -1073,7 +1077,7 @@ class _StackItemRow extends ConsumerWidget {
                     children: [
                       Text(
                         displayName,
-                        style: V2Typography.bodyMedium(color: V2Colors.fg),
+                        style: V2Typography.bodyMedium(color: context.v2.fg),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1081,58 +1085,40 @@ class _StackItemRow extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           displayBrand,
-                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                      if (entry.dosage != null ||
-                          entry.frequency != null ||
-                          entry.hasReminder) ...[
+                      if (trackingDetails.isNotEmpty) ...[
                         const SizedBox(height: V2Spacing.space4),
-                        Builder(
-                          builder: (context) {
-                            final schedule = [entry.dosage, entry.frequency]
-                                .whereType<String>()
-                                .where((s) => s.isNotEmpty)
-                                .join(' · ');
-                            // The bell is the only visual signal that a
-                            // reminder exists, so its meaning has to be in the
-                            // label too — an icon alone is invisible to a
-                            // screen reader and to anyone who can't
-                            // distinguish the accent colour.
-                            final spoken = [
-                              if (schedule.isNotEmpty)
-                                schedule.replaceAll(' · ', ', '),
-                              if (entry.hasReminder) 'Daily reminder on',
-                            ].join('. ');
-                            return Semantics(
-                              label: spoken.isEmpty ? null : spoken,
-                              excludeSemantics: spoken.isNotEmpty,
-                              child: Row(
-                                children: [
-                                  if (entry.hasReminder) ...[
-                                    const Icon(
-                                      Icons.notifications_active_outlined,
-                                      size: 12,
-                                      color: V2Colors.accent,
-                                    ),
-                                    const SizedBox(width: 4),
-                                  ],
-                                  Flexible(
-                                    child: Text(
-                                      schedule,
-                                      style: V2Typography.caption(
-                                        color: V2Colors.fgSubtle,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                        Semantics(
+                          label: trackingDetails.join(', '),
+                          excludeSemantics: true,
+                          child: Row(
+                            children: [
+                              if (entry.hasReminder) ...[
+                                Icon(
+                                  Icons.notifications_active_outlined,
+                                  size: 12,
+                                  color: context.v2.accent,
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Flexible(
+                                child: Text(
+                                  trackingDetails.join(' · '),
+                                  style: V2Typography.caption(
+                                    color: context.v2.fgSubtle,
                                   ),
-                                ],
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
                       ],
                       if (score != null) ...[
@@ -1144,23 +1130,25 @@ class _StackItemRow extends ConsumerWidget {
                 ),
                 const SizedBox(width: V2Spacing.space8),
                 IconButton(
-                  tooltip: 'Edit dose and schedule for $displayName',
+                  tooltip: entry.isMedication
+                      ? 'Edit dose and tracking for $displayName'
+                      : 'Edit tracking for $displayName',
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.edit_outlined,
-                    color: V2Colors.fgMuted,
+                    color: context.v2.fgMuted,
                     size: 18,
                   ),
-                  onPressed: () => _showEditStackScheduleSheet(
+                  onPressed: () => _showEditStackTrackingSheet(
                     context,
                     ref,
                     entry: entry,
                     displayName: displayName,
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                   size: 18,
                 ),
               ],
@@ -1172,7 +1160,7 @@ class _StackItemRow extends ConsumerWidget {
   }
 }
 
-Future<void> _showEditStackScheduleSheet(
+Future<void> _showEditStackTrackingSheet(
   BuildContext context,
   WidgetRef ref, {
   required _StackEntry entry,
@@ -1180,19 +1168,17 @@ Future<void> _showEditStackScheduleSheet(
 }) async {
   final saved = await PGModal.bottomSheet<bool>(
     context: context,
-    builder: (_) => _EditStackScheduleSheet(
+    builder: (_) => _EditStackTrackingSheet(
       displayName: displayName,
-      dosage: entry.dosage,
-      frequency: entry.frequency,
+      isMedication: entry.isMedication,
+      dosage: entry.isMedication ? entry.dosage : null,
       startedAt: entry.startedAt,
       reminderMinutes: entry.reminderMinutes,
-      suggestedSlotLabel: _suggestedSlotLabel(ref, entry.id),
-      onSave: ({dosage, frequency, startedAt, reminderMinutes}) => ref
+      onSave: ({dosage, startedAt, reminderMinutes}) => ref
           .read(stackActionsProvider)
-          .updateSchedule(
+          .updateTracking(
             entryId: entry.id,
-            dosage: dosage,
-            frequency: frequency,
+            dosage: dosage ?? const Value.absent(),
             startedAt: startedAt ?? const Value.absent(),
             reminderMinutes: reminderMinutes ?? const Value.absent(),
           ),
@@ -1201,83 +1187,68 @@ Future<void> _showEditStackScheduleSheet(
   if (saved == true && context.mounted) {
     PGToast.show(
       context,
-      'Saved dose and schedule.',
+      'Saved tracking details.',
       variant: PGToastVariant.success,
     );
   }
 }
 
-typedef _SaveStackSchedule =
+typedef _SaveStackTracking =
     Future<bool> Function({
-      String? dosage,
-      String? frequency,
+      Value<String?>? dosage,
       Value<DateTime?>? startedAt,
       Value<int?>? reminderMinutes,
     });
 
-/// The daily-plan slot this item falls into, when the timing engine has
-/// guidance that mentions it.
-///
-/// Read-only: the plan is a suggestion surfaced next to the schedule field, and
-/// is never written into the user's saved schedule on their behalf. The
-/// pipeline decides the constraint; the person decides their day.
-String? _suggestedSlotLabel(WidgetRef ref, String stackEntryId) {
-  final report = ref.read(stackSafetyReportProvider).asData?.value;
-  if (report == null || !report.hasTimingAdvice) return null;
-  final plan = const TimingSequenceResolver().resolve(
-    report.timingOptimizations,
-  );
-  return plan.slotForStackEntryId(stackEntryId)?.label;
-}
-
-class _EditStackScheduleSheet extends StatefulWidget {
-  const _EditStackScheduleSheet({
+class _EditStackTrackingSheet extends StatefulWidget {
+  const _EditStackTrackingSheet({
     required this.displayName,
+    required this.isMedication,
     required this.dosage,
-    required this.frequency,
     required this.startedAt,
     required this.reminderMinutes,
     required this.onSave,
-    this.suggestedSlotLabel,
   });
 
   final String displayName;
+  final bool isMedication;
   final String? dosage;
-  final String? frequency;
   final DateTime? startedAt;
   final int? reminderMinutes;
-  final _SaveStackSchedule onSave;
-
-  /// The slot this item lands in on the resolved daily plan, when the timing
-  /// engine has guidance for it. Offered as a suggestion the user can take or
-  /// ignore — never applied on their behalf.
-  final String? suggestedSlotLabel;
+  final _SaveStackTracking onSave;
 
   @override
-  State<_EditStackScheduleSheet> createState() =>
-      _EditStackScheduleSheetState();
+  State<_EditStackTrackingSheet> createState() =>
+      _EditStackTrackingSheetState();
 }
 
-class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
+class _EditStackTrackingSheetState extends State<_EditStackTrackingSheet> {
   late final TextEditingController _dosageController;
-  late final TextEditingController _frequencyController;
   DateTime? _startedAt;
   int? _reminderMinutes;
   var _saving = false;
+  var _discardApproved = false;
+  var _confirmingDiscard = false;
 
   @override
   void initState() {
     super.initState();
     _dosageController = TextEditingController(text: widget.dosage);
-    _frequencyController = TextEditingController(text: widget.frequency);
+    _dosageController.addListener(_onDosageChanged);
     _startedAt = widget.startedAt;
     _reminderMinutes = widget.reminderMinutes;
   }
 
+  void _onDosageChanged() {
+    // PopScope receives canPop during build, so controller edits must rebuild
+    // the guard rather than only changing the controller's internal state.
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _dosageController.removeListener(_onDosageChanged);
     _dosageController.dispose();
-    _frequencyController.dispose();
     super.dispose();
   }
 
@@ -1317,8 +1288,8 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
 
   /// True when the sheet holds edits that would be lost on dismissal.
   bool get _isDirty =>
-      _dosageController.text.trim() != (widget.dosage ?? '').trim() ||
-      _frequencyController.text.trim() != (widget.frequency ?? '').trim() ||
+      (widget.isMedication &&
+          _dosageController.text.trim() != (widget.dosage ?? '').trim()) ||
       _startedAt != widget.startedAt ||
       _reminderMinutes != widget.reminderMinutes;
 
@@ -1350,12 +1321,21 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
       // Swiping the sheet away is the easiest gesture to hit by accident, and
       // a discarded start date is silently wrong data rather than a visible
       // failure. Confirm before losing it.
-      canPop: !_isDirty,
+      canPop: _discardApproved || !_isDirty,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        if (await _confirmDiscard() && mounted) {
-          if (context.mounted) Navigator.of(context).pop();
-        }
+        if (didPop || _confirmingDiscard) return;
+        _confirmingDiscard = true;
+        final approved = await _confirmDiscard();
+        if (!mounted) return;
+        _confirmingDiscard = false;
+        if (!approved) return;
+
+        // PopScope must rebuild with canPop=true before the second pop attempt;
+        // otherwise the same guard intercepts the programmatic dismissal.
+        setState(() => _discardApproved = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.of(context).pop();
+        });
       },
       child: _buildBody(context),
     );
@@ -1373,68 +1353,45 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PGEyebrow('Saved dose & schedule', color: V2Colors.fgMuted),
+          PGEyebrow(
+            widget.isMedication ? 'Dose & tracking' : 'Tracking details',
+            color: context.v2.fgMuted,
+          ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             widget.displayName,
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
-            'This records how you take the item. It does not change the '
-            'amount printed on the product label or provide dosing advice.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            widget.isMedication
+                ? 'Save the dose as prescribed, plus an optional start date '
+                      'or daily reminder. PharmaGuide does not change your '
+                      'prescription.'
+                : 'Supplement amounts come from the verified product label. '
+                      'Add an optional start date or daily reminder here.',
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
-          const SizedBox(height: V2Spacing.space24),
-          TextField(
-            controller: _dosageController,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Dose (optional)',
-              hintText: 'For example, 1 tablet or 20 mg',
-            ),
-          ),
-          const SizedBox(height: V2Spacing.space16),
-          TextField(
-            controller: _frequencyController,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: 'Schedule (optional)',
-              hintText: widget.suggestedSlotLabel == null
-                  ? 'For example, every morning'
-                  : 'For example, ${widget.suggestedSlotLabel!.toLowerCase()}',
-            ),
-          ),
-          if (widget.suggestedSlotLabel != null) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.auto_awesome_outlined,
-                  size: 14,
-                  color: V2Colors.accent,
-                ),
-                const SizedBox(width: V2Spacing.space4),
-                Expanded(
-                  child: Text(
-                    'Your daily plan groups this under '
-                    '"${widget.suggestedSlotLabel}".',
-                    style: V2Typography.caption(color: V2Colors.fgMuted),
-                  ),
-                ),
-              ],
+          if (widget.isMedication) ...[
+            const SizedBox(height: V2Spacing.space24),
+            TextField(
+              controller: _dosageController,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Dose (optional)',
+                hintText: 'For example, 500 mg',
+              ),
             ),
           ],
           const SizedBox(height: V2Spacing.space24),
 
           // --- Start date -------------------------------------------------
-          const PGEyebrow('Since when', color: V2Colors.fgMuted),
+          PGEyebrow('Since when', color: context.v2.fgMuted),
           const SizedBox(height: V2Spacing.space4),
           Text(
             'If you started before adding this to PharmaGuide, saying so makes '
             'long-term monitoring notes accurate.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space8),
           Row(
@@ -1468,12 +1425,12 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
           const SizedBox(height: V2Spacing.space24),
 
           // --- Reminder ---------------------------------------------------
-          const PGEyebrow('Reminder', color: V2Colors.fgMuted),
+          PGEyebrow('Reminder', color: context.v2.fgMuted),
           const SizedBox(height: V2Spacing.space4),
           Text(
-            'Off by default, and per item — so the one you want to remember '
-            'is not lost among the rest.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            'Optional notification only. Timing guidance stays in your '
+            'reviewed Daily Plan.',
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space8),
           SwitchListTile.adaptive(
@@ -1492,7 +1449,7 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
               _reminderMinutes == null
                   ? 'No reminder'
                   : 'Every day at ${_formatReminder(_reminderMinutes!)}',
-              style: V2Typography.bodySm(color: V2Colors.fg),
+              style: V2Typography.bodySm(color: context.v2.fg),
             ),
           ),
           if (_reminderMinutes != null)
@@ -1519,8 +1476,9 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
     setState(() => _saving = true);
     try {
       final changed = await widget.onSave(
-        dosage: _dosageController.text,
-        frequency: _frequencyController.text,
+        dosage: widget.isMedication
+            ? Value(_dosageController.text)
+            : const Value.absent(),
         startedAt: Value(_startedAt),
         reminderMinutes: Value(_reminderMinutes),
       );
@@ -1539,7 +1497,7 @@ class _EditStackScheduleSheetState extends State<_EditStackScheduleSheet> {
       setState(() => _saving = false);
       PGToast.show(
         context,
-        'Could not save the dose and schedule. Try again.',
+        'Could not save tracking details. Try again.',
         variant: PGToastVariant.error,
       );
     }
@@ -1580,45 +1538,36 @@ class _MedicationDetailsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PGEyebrow('Medication details', color: V2Colors.fgMuted),
+            PGEyebrow('Medication details', color: context.v2.fgMuted),
             const SizedBox(height: V2Spacing.space8),
-            Text(name, style: V2Typography.title(color: V2Colors.fg)),
+            Text(name, style: V2Typography.title(color: context.v2.fg)),
             const SizedBox(height: V2Spacing.space16),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
                 children: [
                   _MedicationMatchStatus(assessment: assessment),
-                  const Divider(
-                    height: V2Spacing.space32,
-                    color: V2Colors.outline,
-                  ),
-                  const PGEyebrow('Saved schedule', color: V2Colors.fgMuted),
+                  Divider(height: V2Spacing.space32, color: context.v2.outline),
+                  PGEyebrow('Saved schedule', color: context.v2.fgMuted),
                   const SizedBox(height: V2Spacing.space8),
                   Text(
                     schedule.isEmpty
                         ? 'No dose or schedule saved for this entry.'
                         : schedule,
-                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
                   if (_identityLines(identity, assessment).isNotEmpty) ...[
-                    const Divider(
+                    Divider(
                       height: V2Spacing.space32,
-                      color: V2Colors.outline,
+                      color: context.v2.outline,
                     ),
-                    const PGEyebrow(
-                      'Recorded identity',
-                      color: V2Colors.fgMuted,
-                    ),
+                    PGEyebrow('Recorded identity', color: context.v2.fgMuted),
                     const SizedBox(height: V2Spacing.space8),
                     for (final line in _identityLines(identity, assessment))
                       _MedicationDetailLine(text: line),
                   ],
-                  const Divider(
-                    height: V2Spacing.space32,
-                    color: V2Colors.outline,
-                  ),
-                  const PGEyebrow('About this entry', color: V2Colors.fgMuted),
+                  Divider(height: V2Spacing.space32, color: context.v2.outline),
+                  PGEyebrow('About this entry', color: context.v2.fgMuted),
                   const SizedBox(height: V2Spacing.space8),
                   Text(
                     'PharmaGuide uses this saved identity to check supplement '
@@ -1626,22 +1575,24 @@ class _MedicationDetailsSheet extends StatelessWidget {
                     'relationships. This is not a medication monograph and '
                     'does not provide prescribing, side-effect, or dosing '
                     'advice.',
-                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    style: V2Typography.bodySm(color: context.v2.fgMuted),
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.lock_outline_rounded,
                         size: 16,
-                        color: V2Colors.fgMuted,
+                        color: context.v2.fgMuted,
                       ),
                       const SizedBox(width: V2Spacing.space8),
                       Expanded(
                         child: Text(
                           'Medication entries stay on this device.',
-                          style: V2Typography.caption(color: V2Colors.fgMuted),
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -1691,35 +1642,35 @@ class _MedicationMatchStatus extends StatelessWidget {
         'RxNorm ingredient identity and reviewed interaction coverage are '
             'available for matching.',
         Icons.verified_outlined,
-        V2Colors.safe,
+        context.v2.safe,
       ),
       MedicationIdentityStatus.partial => (
         'Partially matched',
         'Some reviewed checks are available, but other medication-specific '
             'checks may be unavailable.',
         Icons.info_outline_rounded,
-        V2Colors.caution,
+        context.v2.caution,
       ),
       MedicationIdentityStatus.classOnly => (
         'Medication-group matching available',
         'A reviewed medication-group match is available; product-specific '
             'checks may be limited.',
         Icons.info_outline_rounded,
-        V2Colors.caution,
+        context.v2.caution,
       ),
       MedicationIdentityStatus.exactOnly => (
         'Identity saved; coverage limited',
         'The RxNorm identity is saved, but no reviewed direct or medication-'
             'group coverage was found. Interaction checks may be incomplete.',
         Icons.info_outline_rounded,
-        V2Colors.caution,
+        context.v2.caution,
       ),
       MedicationIdentityStatus.unresolved => (
         'Matching incomplete',
         'Reviewed interaction coverage could not be confirmed for this entry, '
             'so medication checks may be incomplete.',
         Icons.error_outline_rounded,
-        V2Colors.caution,
+        context.v2.caution,
       ),
     };
 
@@ -1736,7 +1687,10 @@ class _MedicationMatchStatus extends StatelessWidget {
               children: [
                 PGEyebrow(label, color: color),
                 const SizedBox(height: V2Spacing.space4),
-                Text(body, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
+                Text(
+                  body,
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
+                ),
               ],
             ),
           ),
@@ -1757,14 +1711,14 @@ class _MedicationDetailLine extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: V2Spacing.space8),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.check_circle_outline_rounded,
             size: 16,
-            color: V2Colors.fgMuted,
+            color: context.v2.fgMuted,
           ),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
-            child: Text(text, style: V2Typography.bodySm(color: V2Colors.fg)),
+            child: Text(text, style: V2Typography.bodySm(color: context.v2.fg)),
           ),
         ],
       ),
@@ -1799,14 +1753,14 @@ class _V2StackEmptyPanel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
       child: Material(
-        color: V2Colors.bg,
+        color: context.v2.bg,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(V2Spacing.space24),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1815,10 +1769,10 @@ class _V2StackEmptyPanel extends StatelessWidget {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: V2Colors.accentTint,
+                  color: context.v2.accentTint,
                   borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                 ),
-                child: Icon(icon, color: V2Colors.accent, size: 28),
+                child: Icon(icon, color: context.v2.accent, size: 28),
               ),
               const SizedBox(height: V2Spacing.space16),
               PGEyebrow(eyebrow),
@@ -1826,13 +1780,13 @@ class _V2StackEmptyPanel extends StatelessWidget {
               Text(
                 headline,
                 textAlign: TextAlign.center,
-                style: V2Typography.titleSm(color: V2Colors.fg),
+                style: V2Typography.titleSm(color: context.v2.fg),
               ),
               const SizedBox(height: V2Spacing.space8),
               Text(
                 body,
                 textAlign: TextAlign.center,
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
               if (actionLabel != null && onAction != null) ...[
                 const SizedBox(height: V2Spacing.space16),
@@ -1847,12 +1801,12 @@ class _V2StackEmptyPanel extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                       border: Border.all(
-                        color: V2Colors.accent.withValues(alpha: 0.32),
+                        color: context.v2.accent.withValues(alpha: 0.32),
                       ),
                     ),
                     child: Text(
                       actionLabel!,
-                      style: V2Typography.label(color: V2Colors.accent),
+                      style: V2Typography.label(color: context.v2.accent),
                     ),
                   ),
                 ),
@@ -1941,8 +1895,8 @@ class _NutrientsTab extends ConsumerWidget {
     // gesture so a user adding a product elsewhere can refresh
     // nutrient totals without bouncing through the Stack tab first.
     return RefreshIndicator(
-      color: V2Colors.accent,
-      backgroundColor: V2Colors.surface,
+      color: context.v2.accent,
+      backgroundColor: context.v2.surface,
       onRefresh: () async {
         ref.invalidate(activeStackProvider);
         await ref.read(activeStackProvider.future);
@@ -1966,12 +1920,12 @@ class _NutrientsTab extends ConsumerWidget {
               children: [
                 Text(
                   'Daily nutrient coverage',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  style: V2Typography.titleSm(color: context.v2.fg),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Totals across your stack vs. RDA / UL benchmarks.',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
               ],
             ),
@@ -2009,9 +1963,9 @@ class _NutrientsTab extends ConsumerWidget {
               ),
               child: Container(
                 decoration: BoxDecoration(
-                  color: V2Colors.surface,
+                  color: context.v2.surface,
                   borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                  border: Border.all(color: V2Colors.outline),
+                  border: Border.all(color: context.v2.outline),
                   boxShadow: V2Shadows.sm,
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -2058,10 +2012,10 @@ class _NutrientRow extends StatelessWidget {
 
   // Mirror the production NutrientProgressBar color story: exceeding a UL is
   // red, approaching one (80-99%) is amber, everything else is calm.
-  Color get _tone => switch (status.tier) {
-    _NutrientTier.warning => V2Colors.contraindicated,
-    _NutrientTier.monitor => V2Colors.caution,
-    _NutrientTier.normal => V2Colors.accent,
+  Color _tone(V2Palette palette) => switch (status.tier) {
+    _NutrientTier.warning => palette.contraindicated,
+    _NutrientTier.monitor => palette.caution,
+    _NutrientTier.normal => palette.accent,
   };
 
   @override
@@ -2072,7 +2026,7 @@ class _NutrientRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: isLast ? Colors.transparent : V2Colors.outline,
+            color: isLast ? Colors.transparent : context.v2.outline,
             width: 0.5,
           ),
         ),
@@ -2085,14 +2039,14 @@ class _NutrientRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   status.name,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  style: V2Typography.bodyMedium(color: context.v2.fg),
                 ),
               ),
               const SizedBox(width: V2Spacing.space8),
               Text(
                 status.detail,
                 style: V2Typography.caption(
-                  color: _tone,
+                  color: _tone(context.v2),
                 ).copyWith(fontWeight: FontWeight.w500),
               ),
             ],
@@ -2104,10 +2058,10 @@ class _NutrientRow extends StatelessWidget {
               height: 6,
               child: Stack(
                 children: [
-                  Container(color: V2Colors.outline),
+                  Container(color: context.v2.outline),
                   FractionallySizedBox(
                     widthFactor: clampedPercent,
-                    child: Container(color: _tone),
+                    child: Container(color: _tone(context.v2)),
                   ),
                 ],
               ),
@@ -2255,7 +2209,7 @@ class _WishlistTab extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: V2Spacing.space8),
                   child: Text(
                     '${favorites.length} saved',
-                    style: V2Typography.eyebrow(color: V2Colors.fgMuted),
+                    style: V2Typography.eyebrow(color: context.v2.fgMuted),
                   ),
                 );
               }
@@ -2294,12 +2248,12 @@ class _WishlistItemRow extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: V2Spacing.space24),
         decoration: BoxDecoration(
-          color: V2Colors.accentTint,
+          color: context.v2.accentTint,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
-        child: const Icon(
+        child: Icon(
           Icons.favorite_border_rounded,
-          color: V2Colors.accent,
+          color: context.v2.accent,
           size: 22,
         ),
       ),
@@ -2329,7 +2283,7 @@ class _WishlistItemRow extends ConsumerWidget {
         }
       },
       child: Material(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
           onTap: () => context.push(Routes.productDetail(dsldId)),
@@ -2338,7 +2292,7 @@ class _WishlistItemRow extends ConsumerWidget {
             padding: const EdgeInsets.all(V2Spacing.space12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
               boxShadow: V2Shadows.sm,
             ),
             child: Row(
@@ -2365,7 +2319,7 @@ class _WishlistItemRow extends ConsumerWidget {
                         displayName,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: V2Typography.label(color: V2Colors.fg),
+                        style: V2Typography.label(color: context.v2.fg),
                       ),
                       if (displayBrand != null && displayBrand.isNotEmpty) ...[
                         const SizedBox(height: 2),
@@ -2373,7 +2327,7 @@ class _WishlistItemRow extends ConsumerWidget {
                           displayBrand,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                          style: V2Typography.bodySm(color: context.v2.fgMuted),
                         ),
                       ],
                       if (showScore) ...[
@@ -2385,9 +2339,9 @@ class _WishlistItemRow extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: 'Remove from Wishlist',
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.favorite_rounded,
-                    color: V2Colors.accent,
+                    color: context.v2.accent,
                     size: 22,
                   ),
                   onPressed: () async {
@@ -2458,15 +2412,19 @@ class _StackV2PreviewState extends State<StackV2Preview> {
           top: MediaQuery.of(context).padding.top + 4,
           right: 8,
           child: Material(
-            color: V2Colors.surface,
+            color: context.v2.surface,
             shape: const CircleBorder(),
             elevation: 0,
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: () => context.go('/dev/v2'),
-              child: const Padding(
-                padding: EdgeInsets.all(V2Spacing.space8),
-                child: Icon(Icons.close_rounded, color: V2Colors.fg, size: 20),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space8),
+                child: Icon(
+                  Icons.close_rounded,
+                  color: context.v2.fg,
+                  size: 20,
+                ),
               ),
             ),
           ),
@@ -2634,41 +2592,14 @@ class _ProfileNudgeSlot extends ConsumerWidget {
   }
 }
 
-/// Phase 11.7L.C — timing advice slot wired to the v2 mirror card.
-/// Same data + provider as before; only the surface changes.
-class _TimingAdviceSlot extends ConsumerWidget {
-  const _TimingAdviceSlot();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(stackSafetyReportProvider);
-    return reportAsync.when(
-      data: (report) {
-        if (!report.hasTimingAdvice) return const SizedBox.shrink();
-        return PGTimingAdviceCard(
-          optimizations: report.timingOptimizations,
-          margin: const EdgeInsets.fromLTRB(
-            V2Spacing.space24,
-            V2Spacing.space12,
-            V2Spacing.space24,
-            0,
-          ),
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      // The stack-safety slot watches this same provider and renders the
-      // single unavailable banner. Avoid duplicating it here.
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-}
-
-/// Roadmap Phase 3 — the same timing constraints, arranged into one day.
+/// One product-level timing surface resolved from the reviewed constraints.
 ///
-/// Sits directly beneath the per-rule timing card: that card explains each
-/// piece of guidance, this one shows what following all of it looks like.
-class _DailyPlanSlot extends ConsumerWidget {
-  const _DailyPlanSlot();
+/// Ingredient rules may explain why a constraint exists, but a person can
+/// only schedule the physical bottle or medication in their stack. The
+/// resolver therefore groups by stable stack-row identity and reports any
+/// same-bottle contradiction instead of rendering a second raw-rule card.
+class _TimingPlanSlot extends ConsumerWidget {
+  const _TimingPlanSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

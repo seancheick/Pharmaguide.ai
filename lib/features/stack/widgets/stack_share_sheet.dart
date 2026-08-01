@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -21,7 +21,7 @@ enum _StackShareChoice { supplements, clinicianReport }
 Future<void> showStackShareSheet(BuildContext context, WidgetRef ref) async {
   final choice = await PGModal.bottomSheet<_StackShareChoice>(
     context: context,
-    backgroundColor: V2Colors.surface,
+    backgroundColor: context.v2.surface,
     builder: (_) => const _StackShareOptions(),
   );
   if (!context.mounted || choice == null) return;
@@ -43,14 +43,7 @@ Future<void> showStackShareSheet(BuildContext context, WidgetRef ref) async {
         if (dsldId != null && dsldId.isNotEmpty) {
           brand = (await coreDb.findById(dsldId))?.brandName;
         }
-        supplements.add(
-          SupplementShareItem(
-            name: entry.name,
-            brand: brand,
-            dosage: entry.dosage,
-            frequency: entry.frequency,
-          ),
-        );
+        supplements.add(SupplementShareItem(name: entry.name, brand: brand));
       }
       if (!context.mounted) return;
       await Navigator.of(context, rootNavigator: true).push(
@@ -80,20 +73,20 @@ class _StackShareOptions extends StatelessWidget {
         children: [
           Text(
             'Share from your stack',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Choose exactly what leaves this device.',
-            style: V2Typography.body(color: V2Colors.fgMuted),
+            style: V2Typography.body(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space16),
           _ShareOption(
             icon: Icons.medication_outlined,
             title: 'Share supplements',
             description:
-                'Product names and saved schedules only. Medications and '
-                'health profile are never included.',
+                'Product names and brands only. Medications and health '
+                'profile are never included.',
             onTap: () =>
                 Navigator.of(context).pop(_StackShareChoice.supplements),
           ),
@@ -129,7 +122,7 @@ class _ShareOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.bg,
+      color: context.v2.bg,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -139,7 +132,7 @@ class _ShareOption extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: V2Colors.accent, size: 24),
+              Icon(icon, color: context.v2.accent, size: 24),
               const SizedBox(width: V2Spacing.space16),
               Expanded(
                 child: Column(
@@ -147,17 +140,17 @@ class _ShareOption extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
                     ),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       description,
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      style: V2Typography.bodySm(color: context.v2.fgMuted),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
+              Icon(Icons.chevron_right_rounded, color: context.v2.fgSubtle),
             ],
           ),
         ),
@@ -179,13 +172,11 @@ class SupplementSharePreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: V2Colors.bg,
       appBar: AppBar(
-        backgroundColor: V2Colors.bg,
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Share supplements',
-          style: V2Typography.titleSm(color: V2Colors.fg),
+          style: V2Typography.titleSm(color: context.v2.fg),
         ),
       ),
       body: SafeArea(
@@ -198,21 +189,21 @@ class SupplementSharePreviewScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(V2Spacing.space16),
                 decoration: BoxDecoration(
-                  color: V2Colors.accentTint,
+                  color: context.v2.accentTint,
                   borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                 ),
                 child: Text(
-                  'This list contains supplements and saved schedules only. '
-                  'It does not include medications, health conditions, '
-                  'warnings, scores, or clinician-report details.',
-                  style: V2Typography.bodySm(color: V2Colors.fg),
+                  'This list contains supplement names and brands only. It '
+                  'does not include medications, health conditions, warnings, '
+                  'scores, or clinician-report details.',
+                  style: V2Typography.bodySm(color: context.v2.fg),
                 ),
               ),
               const SizedBox(height: V2Spacing.space24),
               Text(
                 '${supplements.length} '
                 '${supplements.length == 1 ? 'supplement' : 'supplements'}',
-                style: V2Typography.titleSm(color: V2Colors.fg),
+                style: V2Typography.titleSm(color: context.v2.fg),
               ),
               const SizedBox(height: V2Spacing.space12),
               Expanded(
@@ -221,43 +212,33 @@ class SupplementSharePreviewScreen extends StatelessWidget {
                         child: Text(
                           'No supplements are saved in your stack.',
                           textAlign: TextAlign.center,
-                          style: V2Typography.body(color: V2Colors.fgMuted),
+                          style: V2Typography.body(color: context.v2.fgMuted),
                         ),
                       )
                     : ListView.separated(
                         itemCount: supplements.length,
                         separatorBuilder: (_, _) =>
-                            const Divider(color: V2Colors.outline),
+                            Divider(color: context.v2.outline),
                         itemBuilder: (_, index) {
                           final item = supplements[index];
-                          final schedule = [item.dosage, item.frequency]
-                              .whereType<String>()
-                              .where((value) => value.trim().isNotEmpty)
-                              .join(' · ');
+                          final brand = item.brand?.trim() ?? '';
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(
+                            leading: Icon(
                               Icons.medication_outlined,
-                              color: V2Colors.accent,
+                              color: context.v2.accent,
                             ),
                             title: Text(
                               item.name,
                               style: V2Typography.bodyMedium(
-                                color: V2Colors.fg,
+                                color: context.v2.fg,
                               ),
                             ),
-                            subtitle:
-                                (item.brand?.trim().isNotEmpty ?? false) ||
-                                    schedule.isNotEmpty
+                            subtitle: brand.isNotEmpty
                                 ? Text(
-                                    [
-                                      if (item.brand?.trim().isNotEmpty ??
-                                          false)
-                                        item.brand!.trim(),
-                                      if (schedule.isNotEmpty) schedule,
-                                    ].join('\n'),
+                                    brand,
                                     style: V2Typography.bodySm(
-                                      color: V2Colors.fgMuted,
+                                      color: context.v2.fgMuted,
                                     ),
                                   )
                                 : null,

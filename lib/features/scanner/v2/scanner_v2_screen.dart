@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
@@ -88,7 +88,7 @@ class _ScannerV2ScreenState extends State<ScannerV2Screen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: V2Colors.cameraOverlayTop,
+        backgroundColor: context.v2.cameraOverlayTop,
         extendBody: true,
         body: Stack(
           fit: StackFit.expand,
@@ -225,12 +225,12 @@ class _CameraSurrogate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [V2Colors.cameraOverlayTop, V2Colors.cameraOverlayBottom],
+          colors: [context.v2.cameraOverlayTop, context.v2.cameraOverlayBottom],
         ),
       ),
     );

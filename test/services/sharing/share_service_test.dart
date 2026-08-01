@@ -103,17 +103,16 @@ void main() {
       );
 
       await service.shareSupplementList(const [
-        SupplementShareItem(
-          name: 'Magnesium Glycinate',
-          brand: 'Example Labs',
-          dosage: '2 capsules',
-          frequency: 'Daily',
-        ),
+        SupplementShareItem(name: 'Magnesium Glycinate', brand: 'Example Labs'),
       ]);
 
       expect(capturedSubject, 'My supplements');
-      expect(capturedText, contains('Magnesium Glycinate — Example Labs'));
-      expect(capturedText, contains('2 capsules · Daily'));
+      expect(
+        capturedText,
+        'My supplements\n\n'
+        '• Magnesium Glycinate — Example Labs\n\n'
+        'Shared from PharmaGuide',
+      );
       expect(capturedText, isNot(contains('medication')));
       expect(capturedText, isNot(contains('condition')));
       expect(capturedText, isNot(contains('safety score')));

@@ -36,6 +36,7 @@ abstract final class V2Colors {
 
   // Light-mode highest-elevation surface — neutral-warm offwhite,
   // distinct from `bg` and `surface` so M3 tonal layering works.
+  static const surfaceContainerLow = Color(0xFFF4F1EA);
   static const surfaceContainerHighest = Color(0xFFEFEDE8);
 
   // Scanner-overlay gradient stops. Sit OVER the camera feed (or its

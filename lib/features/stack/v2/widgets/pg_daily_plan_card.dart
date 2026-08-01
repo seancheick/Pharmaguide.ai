@@ -15,7 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -40,21 +40,22 @@ class PGDailyPlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (plan.isEmpty && plan.unsatisfied.isEmpty) {
+    if (plan.isEmpty && plan.unsatisfied.isEmpty && plan.reviewOnly.isEmpty) {
       return const SizedBox.shrink();
     }
 
     final filled = DailySlot.values
         .where((slot) => (plan.itemsBySlot[slot] ?? const []).isNotEmpty)
         .toList(growable: false);
+    final palette = context.v2;
 
     return Padding(
       padding: margin,
       child: Container(
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: palette.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: palette.outline),
           boxShadow: V2Shadows.sm,
         ),
         clipBehavior: Clip.antiAlias,
@@ -67,15 +68,15 @@ class PGDailyPlanCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(
                           Icons.schedule_rounded,
                           size: 16,
-                          color: V2Colors.accent,
+                          color: palette.accent,
                         ),
-                        SizedBox(width: V2Spacing.space8),
-                        PGEyebrow('Daily plan', color: V2Colors.accent),
+                        const SizedBox(width: V2Spacing.space8),
+                        PGEyebrow('Timing plan', color: palette.accent),
                       ],
                     ),
                     const SizedBox(height: V2Spacing.space8),
@@ -83,15 +84,15 @@ class PGDailyPlanCard extends StatelessWidget {
                       header: true,
                       child: Text(
                         'One way to space your day',
-                        style: V2Typography.titleSm(color: V2Colors.fg),
+                        style: V2Typography.titleSm(color: palette.fg),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
-                      'Grouped from your timing guidance. Anchor these to meals '
-                      'and bedtime you already keep — the grouping matters more '
-                      'than the exact hour.',
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      'Each line is a bottle or medication in your stack. '
+                      'Anchor the groups to meals and bedtime you already keep; '
+                      'the spacing matters more than the exact hour.',
+                      style: V2Typography.bodySm(color: palette.fgMuted),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                     for (final slot in filled) ...[
@@ -102,17 +103,19 @@ class PGDailyPlanCard extends StatelessWidget {
                       ),
                       const SizedBox(height: V2Spacing.space12),
                     ],
-                    if (plan.unsatisfied.isNotEmpty) _Conflicts(plan: plan),
+                    if (plan.unsatisfied.isNotEmpty ||
+                        plan.reviewOnly.isNotEmpty)
+                      _TimingReview(plan: plan),
                   ],
                 ),
               ),
             ),
-            const Positioned(
+            Positioned(
               left: 0,
               top: 0,
               bottom: 0,
               width: 4,
-              child: ColoredBox(color: V2Colors.accent),
+              child: ColoredBox(color: palette.accent),
             ),
           ],
         ),
@@ -130,6 +133,7 @@ class _SlotRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.v2;
     // One label per slot, so a screen reader announces "With breakfast: iron,
     // vitamin c" instead of walking a decorative icon and a middot-separated
     // string. The visual separator is punctuation, not content.
@@ -139,17 +143,17 @@ class _SlotRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: V2Colors.accent),
+          Icon(icon, size: 16, color: palette.accent),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(slot.label, style: V2Typography.label(color: V2Colors.fg)),
+                Text(slot.label, style: V2Typography.label(color: palette.fg)),
                 const SizedBox(height: 2),
                 Text(
                   items.join(' · '),
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: palette.fgMuted),
                 ),
               ],
             ),
@@ -160,20 +164,21 @@ class _SlotRow extends StatelessWidget {
   }
 }
 
-class _Conflicts extends StatelessWidget {
-  const _Conflicts({required this.plan});
+class _TimingReview extends StatelessWidget {
+  const _TimingReview({required this.plan});
 
   final TimingSequencePlan plan;
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.v2;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        color: V2Colors.bg,
+        color: palette.bg,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: palette.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,22 +187,36 @@ class _Conflicts extends StatelessWidget {
             header: true,
             child: Text(
               'Timing to review',
-              style: V2Typography.label(color: V2Colors.fg),
+              style: V2Typography.label(color: palette.fg),
             ),
           ),
           const SizedBox(height: V2Spacing.space4),
           Text(
             'These are worth a conversation with your pharmacist or doctor, '
             'who can weigh them against your full routine.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: palette.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space8),
           for (final conflict in plan.unsatisfied) ...[
             Text(
               conflict.advice,
-              style: V2Typography.bodySm(color: V2Colors.fg),
+              style: V2Typography.bodySm(color: palette.fg),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              conflict.reason,
+              style: V2Typography.caption(color: palette.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space4),
+          ],
+          for (final item in plan.reviewOnly) ...[
+            Text(item.itemName, style: V2Typography.label(color: palette.fg)),
+            const SizedBox(height: 2),
+            Text(
+              item.advice,
+              style: V2Typography.bodySm(color: palette.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space8),
           ],
         ],
       ),

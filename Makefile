@@ -79,7 +79,8 @@ run-v2pd-ios: hydrate-interaction-db ## v2 product detail on iOS simulator
 
 .PHONY: build-ipa-v2pd
 build-ipa-v2pd: hydrate-interaction-db ## Build TestFlight IPA with v2 product detail enabled
-	$(FLUTTER) build ipa $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true --release
+	@bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES) \
+		--dart-define=USE_V2_PRODUCT_DETAIL=true
 
 # ─── Phase 11.7L.B staged route swap — ProfileSetup v2 ────────────────────────
 # Combine with `run-v2pd` flags as needed — both toggles are independent.
@@ -114,20 +115,18 @@ run-v2all: hydrate-interaction-db ## Run with ALL v2 toggles enabled (PD + Profi
 
 .PHONY: build-ipa-v2all
 build-ipa-v2all: hydrate-interaction-db ## Build TestFlight IPA with ALL v2 toggles on
-	$(FLUTTER) build ipa $(DART_DEFINES) \
+	@bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES) \
 		--dart-define=USE_V2_PRODUCT_DETAIL=true \
 		--dart-define=USE_V2_PROFILE_SETUP=true \
 		--dart-define=USE_V2_MEDICATION_ENTRY=true \
 		--dart-define=USE_V2_SEARCH=true \
-		--dart-define=USE_V2_QUICK_CHECK=true \
-		--release
+		--dart-define=USE_V2_QUICK_CHECK=true
 
 # ─── Build ────────────────────────────────────────────────────────────────────
 
 .PHONY: build-ios
-build-ios: hydrate-interaction-db ## Build iOS release IPA (auto-increments build number for next upload)
-	$(FLUTTER) build ipa $(DART_DEFINES) --release
-	@bash scripts/bump_build_number.sh
+build-ios: hydrate-interaction-db ## Build and verify the next App Store IPA
+	@bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES)
 
 .PHONY: build-android
 build-android: hydrate-interaction-db ## Build Android release AAB

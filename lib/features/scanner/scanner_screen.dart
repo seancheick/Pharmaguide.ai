@@ -9,7 +9,7 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -467,25 +467,25 @@ class GuestScanLimitSheet extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: V2Colors.accentTint,
+              color: context.v2.accentTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.lock_open_rounded,
-              color: V2Colors.accent,
+              color: context.v2.accent,
               size: 28,
             ),
           ),
           const SizedBox(height: V2Spacing.space16),
           Text(
             'Sign in to keep scanning',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Guest mode includes 3 scans per day. Early-access accounts get unlimited scans and can save a stack, profile, and history.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: V2Spacing.space24),
@@ -516,9 +516,9 @@ class _ScannerUnavailableCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.lg,
       ),
       child: Padding(
@@ -530,25 +530,25 @@ class _ScannerUnavailableCard extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: V2Colors.accentTint,
+                color: context.v2.accentTint,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.qr_code_scanner_rounded,
-                color: V2Colors.accent,
+                color: context.v2.accent,
               ),
             ),
             const SizedBox(height: V2Spacing.space12),
             Text(
               'Camera unavailable',
               textAlign: TextAlign.center,
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Enter the barcode manually to search the same on-device catalog.',
               textAlign: TextAlign.center,
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ],
         ),
@@ -569,9 +569,9 @@ class ScannerLookupOverlay extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: V2Spacing.space24),
           padding: const EdgeInsets.all(V2Spacing.space24),
           decoration: BoxDecoration(
-            color: V2Colors.surfaceDark.withValues(alpha: 0.92),
+            color: V2Palette.dark.surface.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
-            border: Border.all(color: V2Colors.outlineDark),
+            border: Border.all(color: V2Palette.dark.outline),
             boxShadow: V2Shadows.lg,
           ),
           child: Column(
@@ -581,13 +581,13 @@ class ScannerLookupOverlay extends StatelessWidget {
               const SizedBox(height: V2Spacing.space16),
               Text(
                 'Checking this barcode',
-                style: V2Typography.titleSm(color: V2Colors.fgDark),
+                style: V2Typography.titleSm(color: V2Palette.dark.fg),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: V2Spacing.space8),
               Text(
                 'Comparing it against PharmaGuide’s on-device product database.',
-                style: V2Typography.bodySm(color: V2Colors.fgMutedDark),
+                style: V2Typography.bodySm(color: V2Palette.dark.fgMuted),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -634,19 +634,19 @@ class ScannerNotFoundSheet extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: V2Colors.cautionTint,
+              color: context.v2.cautionTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.search_off_rounded,
-              color: V2Colors.caution,
+              color: context.v2.caution,
               size: 28,
             ),
           ),
           const SizedBox(height: V2Spacing.space16),
           Text(
             'Product not found',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: V2Spacing.space8),
@@ -656,19 +656,19 @@ class ScannerNotFoundSheet extends StatelessWidget {
               vertical: V2Spacing.space8,
             ),
             decoration: BoxDecoration(
-              color: V2Colors.surfaceContainerHighest,
+              color: context.v2.surfaceHighest,
               borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
             ),
             child: Text(
               'UPC: $upc',
-              style: V2Typography.monoData(color: V2Colors.fgMuted),
+              style: V2Typography.monoData(color: context.v2.fgMuted),
             ),
           ),
           const SizedBox(height: V2Spacing.space12),
           Text(
             "We couldn't match this barcode yet. Search by name or "
             'scan again to check the on-device catalog.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: V2Spacing.space24),

@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -585,24 +585,24 @@ class _BootstrapLoadingScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 28,
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.4,
-                    color: V2Colors.accent,
+                    color: context.v2.accent,
                   ),
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 Text(
                   'Preparing PharmaGuide',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  style: V2Typography.titleSm(color: context.v2.fg),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: V2Spacing.space8),
                 Text(
                   'Opening the verified on-device catalog.',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                   textAlign: TextAlign.center,
                 ),
               ],

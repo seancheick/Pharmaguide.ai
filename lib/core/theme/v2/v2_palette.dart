@@ -17,8 +17,11 @@ class V2Palette extends ThemeExtension<V2Palette> {
   const V2Palette({
     required this.bg,
     required this.surface,
+    required this.surfaceLow,
     required this.surfaceHigh,
     required this.surfaceHighest,
+    required this.cameraOverlayTop,
+    required this.cameraOverlayBottom,
     required this.fg,
     required this.fgMuted,
     required this.fgSubtle,
@@ -41,8 +44,11 @@ class V2Palette extends ThemeExtension<V2Palette> {
   // Surfaces, low to high elevation.
   final Color bg;
   final Color surface;
+  final Color surfaceLow;
   final Color surfaceHigh;
   final Color surfaceHighest;
+  final Color cameraOverlayTop;
+  final Color cameraOverlayBottom;
 
   // Foregrounds, most to least emphasis.
   final Color fg;
@@ -71,8 +77,11 @@ class V2Palette extends ThemeExtension<V2Palette> {
   static const light = V2Palette(
     bg: V2Colors.bg,
     surface: V2Colors.surface,
+    surfaceLow: V2Colors.surfaceContainerLow,
     surfaceHigh: V2Colors.bg,
     surfaceHighest: V2Colors.surfaceContainerHighest,
+    cameraOverlayTop: V2Colors.cameraOverlayTop,
+    cameraOverlayBottom: V2Colors.cameraOverlayBottom,
     fg: V2Colors.fg,
     fgMuted: V2Colors.fgMuted,
     fgSubtle: V2Colors.fgSubtle,
@@ -95,8 +104,11 @@ class V2Palette extends ThemeExtension<V2Palette> {
   static const dark = V2Palette(
     bg: V2Colors.bgDark,
     surface: V2Colors.surfaceDark,
+    surfaceLow: V2Colors.surfaceContainerLowDark,
     surfaceHigh: V2Colors.surfaceContainerHighDark,
     surfaceHighest: V2Colors.surfaceContainerHighestDark,
+    cameraOverlayTop: V2Colors.cameraOverlayTop,
+    cameraOverlayBottom: V2Colors.cameraOverlayBottom,
     fg: V2Colors.fgDark,
     fgMuted: V2Colors.fgMutedDark,
     fgSubtle: V2Colors.fgSubtleDark,
@@ -123,8 +135,11 @@ class V2Palette extends ThemeExtension<V2Palette> {
   V2Palette copyWith({
     Color? bg,
     Color? surface,
+    Color? surfaceLow,
     Color? surfaceHigh,
     Color? surfaceHighest,
+    Color? cameraOverlayTop,
+    Color? cameraOverlayBottom,
     Color? fg,
     Color? fgMuted,
     Color? fgSubtle,
@@ -146,8 +161,11 @@ class V2Palette extends ThemeExtension<V2Palette> {
     return V2Palette(
       bg: bg ?? this.bg,
       surface: surface ?? this.surface,
+      surfaceLow: surfaceLow ?? this.surfaceLow,
       surfaceHigh: surfaceHigh ?? this.surfaceHigh,
       surfaceHighest: surfaceHighest ?? this.surfaceHighest,
+      cameraOverlayTop: cameraOverlayTop ?? this.cameraOverlayTop,
+      cameraOverlayBottom: cameraOverlayBottom ?? this.cameraOverlayBottom,
       fg: fg ?? this.fg,
       fgMuted: fgMuted ?? this.fgMuted,
       fgSubtle: fgSubtle ?? this.fgSubtle,
@@ -176,8 +194,11 @@ class V2Palette extends ThemeExtension<V2Palette> {
     return V2Palette(
       bg: mix(bg, other.bg),
       surface: mix(surface, other.surface),
+      surfaceLow: mix(surfaceLow, other.surfaceLow),
       surfaceHigh: mix(surfaceHigh, other.surfaceHigh),
       surfaceHighest: mix(surfaceHighest, other.surfaceHighest),
+      cameraOverlayTop: mix(cameraOverlayTop, other.cameraOverlayTop),
+      cameraOverlayBottom: mix(cameraOverlayBottom, other.cameraOverlayBottom),
       fg: mix(fg, other.fg),
       fgMuted: mix(fgMuted, other.fgMuted),
       fgSubtle: mix(fgSubtle, other.fgSubtle),

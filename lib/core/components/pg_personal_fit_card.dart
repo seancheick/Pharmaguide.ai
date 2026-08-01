@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -49,15 +49,15 @@ class PGPersonalFitCard extends StatelessWidget {
     // this card would be noise. Skip entirely.
     if (fit is FitHidden) return const SizedBox.shrink();
 
-    final tone = _toneFor(fit);
+    final tone = _toneFor(fit, context.v2);
     final icon = _iconFor(fit);
 
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -84,7 +84,7 @@ class PGPersonalFitCard extends StatelessWidget {
                   // pencil eating horizontal room. 18pt lets the 2-line
                   // wrap actually breathe.
                   style: V2Typography.bodyXl(
-                    color: V2Colors.fg,
+                    color: context.v2.fg,
                   ).copyWith(fontWeight: FontWeight.w500, height: 1.3),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -108,14 +108,14 @@ class PGPersonalFitCard extends StatelessWidget {
   }
 
   /// Tone color per fit state. Mirrors production `_toneFor(fit)`.
-  static Color _toneFor(FitDisplay fit) {
+  static Color _toneFor(FitDisplay fit, V2Palette palette) {
     return switch (fit) {
-      FitStrongMatch() => V2Colors.safe,
-      FitGoodMatch() => V2Colors.safe,
-      FitLimitedFit() => V2Colors.monitor,
-      FitNotRecommended() => V2Colors.avoid,
-      FitHidden() => V2Colors.contraindicated,
-      FitIncomplete() => V2Colors.accent,
+      FitStrongMatch() => palette.safe,
+      FitGoodMatch() => palette.safe,
+      FitLimitedFit() => palette.monitor,
+      FitNotRecommended() => palette.avoid,
+      FitHidden() => palette.contraindicated,
+      FitIncomplete() => palette.accent,
     };
   }
 
@@ -147,15 +147,11 @@ class _EditPencil extends StatelessWidget {
         customBorder: const CircleBorder(),
         child: Container(
           padding: const EdgeInsets.all(6),
-          decoration: const BoxDecoration(
-            color: V2Colors.accentTint,
+          decoration: BoxDecoration(
+            color: context.v2.accentTint,
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.edit_outlined,
-            size: 16,
-            color: V2Colors.accent,
-          ),
+          child: Icon(Icons.edit_outlined, size: 16, color: context.v2.accent),
         ),
       ),
     );
@@ -178,8 +174,8 @@ class _CausalBullet extends StatelessWidget {
           child: Container(
             width: 4,
             height: 4,
-            decoration: const BoxDecoration(
-              color: V2Colors.fgMuted,
+            decoration: BoxDecoration(
+              color: context.v2.fgMuted,
               shape: BoxShape.circle,
             ),
           ),
@@ -191,7 +187,7 @@ class _CausalBullet extends StatelessWidget {
             // ("Magnesium supports your sleep goal") on a single line
             // without sacrificing legibility.
             text,
-            style: V2Typography.bodySm(color: V2Colors.fg),
+            style: V2Typography.bodySm(color: context.v2.fg),
           ),
         ),
       ],

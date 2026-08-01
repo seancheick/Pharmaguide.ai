@@ -561,7 +561,7 @@ class _Header extends StatelessWidget {
       children: [
         Text(
           'Check two things\ntogether.',
-          style: V2Typography.displaySm(color: context.v2.fg),
+          style: V2Typography.title(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space12),
         Text(
@@ -681,7 +681,9 @@ class _ProductSearchSection extends StatelessWidget {
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
                         hintText: 'Search by name',
-                        hintStyle: V2Typography.body(color: context.v2.fgSubtle),
+                        hintStyle: V2Typography.body(
+                          color: context.v2.fgSubtle,
+                        ),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -833,11 +835,7 @@ class _SelectedItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          Icons.check_circle_rounded,
-          size: 18,
-          color: context.v2.accent,
-        ),
+        Icon(Icons.check_circle_rounded, size: 18, color: context.v2.accent),
         const SizedBox(width: V2Spacing.space12),
         Expanded(
           child: Column(
@@ -1151,7 +1149,9 @@ class _InteractionCard extends StatelessWidget {
                 const SizedBox(width: V2Spacing.space8),
                 Text(
                   result.severity.label.toUpperCase(),
-                  style: V2Typography.eyebrow(color: _severityColor(context.v2)),
+                  style: V2Typography.eyebrow(
+                    color: _severityColor(context.v2),
+                  ),
                 ),
                 const Spacer(),
                 Text(
@@ -1214,10 +1214,7 @@ class _PairLine extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
-          child: Text(
-            '·',
-            style: TextStyle(fontSize: 16, color: context.v2.fgMuted),
-          ),
+          child: Text('·', style: V2Typography.body(color: context.v2.fgMuted)),
         ),
         Expanded(
           child: Text(

@@ -96,7 +96,7 @@ class _ViolationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = violation.severity.tint;
+    final tone = violation.severity.tint(context.v2);
     final card = Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(

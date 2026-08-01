@@ -13,10 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 
-Future<Color?> _scaffoldBackground(
-  WidgetTester tester,
-  ThemeData theme,
-) async {
+Future<Color?> _scaffoldBackground(WidgetTester tester, ThemeData theme) async {
   await tester.pumpWidget(
     MaterialApp(
       // Keyed by brightness: pumping twice in one test would otherwise reuse
@@ -29,10 +26,7 @@ Future<Color?> _scaffoldBackground(
   );
   final material = tester.widget<Material>(
     find
-        .descendant(
-          of: find.byType(Scaffold),
-          matching: find.byType(Material),
-        )
+        .descendant(of: find.byType(Scaffold), matching: find.byType(Material))
         .first,
   );
   return material.color;
@@ -121,14 +115,17 @@ void main() {
       // an explicit override is always a regression.
       final offenders = <String>[];
       final dir = Directory.current;
-      for (final entity in dir
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'))) {
+      for (final entity
+          in dir
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.dart'))) {
         if (!entity.path.contains('/lib/')) continue;
         final lines = entity.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
-          if (lines[i].trim() != 'backgroundColor: V2Palette.light.bg,') continue;
+          if (lines[i].trim() != 'backgroundColor: V2Palette.light.bg,') {
+            continue;
+          }
           final prev = lines
               .sublist(0, i)
               .reversed
@@ -145,6 +142,40 @@ void main() {
         reason:
             'These pin the light background and will not follow dark mode:\n'
             '${offenders.join('\n')}',
+      );
+    });
+  });
+
+  group('widgets use the semantic palette', () {
+    test('only the theme layer reads raw V2Colors tokens', () {
+      const rawTokenOwners = <String>{
+        'lib/core/theme/v2/v2_palette.dart',
+        'lib/core/theme/v2/v2_theme.dart',
+      };
+      final offenders = <String>[];
+
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final relative = entity.path.replaceFirst(
+          '${Directory.current.path}/',
+          '',
+        );
+        if (rawTokenOwners.contains(relative)) continue;
+
+        final lines = entity.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          if (lines[i].contains('V2Colors.')) {
+            offenders.add('$relative:${i + 1}');
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Widgets must resolve brightness through context.v2. Raw tokens '
+            'hardcode one appearance:\n${offenders.join('\n')}',
       );
     });
   });

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -24,11 +24,11 @@ enum PGReviewTone {
 }
 
 extension PGReviewToneMeta on PGReviewTone {
-  Color get tint => switch (this) {
-    PGReviewTone.safe => V2Colors.safe,
-    PGReviewTone.caution => V2Colors.caution,
-    PGReviewTone.danger => V2Colors.contraindicated,
-    PGReviewTone.info => V2Colors.accent,
+  Color tint(V2Palette palette) => switch (this) {
+    PGReviewTone.safe => palette.safe,
+    PGReviewTone.caution => palette.caution,
+    PGReviewTone.danger => palette.contraindicated,
+    PGReviewTone.info => palette.accent,
   };
 
   IconData get icon => switch (this) {
@@ -156,16 +156,16 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
 
   @override
   Widget build(BuildContext context) {
-    final tone = widget.tone.tint;
+    final tone = widget.tone.tint(context.v2);
     final rows = widget.rows;
     final hasRows = rows.isNotEmpty;
     final isInteractive = hasRows; // banner is tappable when rows exist
 
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       clipBehavior: Clip.antiAlias,
@@ -203,7 +203,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                                     Text(
                                       widget.eyebrow!.toUpperCase(),
                                       style: V2Typography.eyebrow(
-                                        color: V2Colors.fgMuted,
+                                        color: context.v2.fgMuted,
                                       ),
                                     ),
                                     const SizedBox(height: V2Spacing.space4),
@@ -214,7 +214,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                                         child: Text(
                                           widget.title,
                                           style: V2Typography.titleSm(
-                                            color: V2Colors.fg,
+                                            color: context.v2.fg,
                                           ),
                                         ),
                                       ),
@@ -230,7 +230,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                                     Text(
                                       widget.body!,
                                       style: V2Typography.bodySm(
-                                        color: V2Colors.fgMuted,
+                                        color: context.v2.fgMuted,
                                       ),
                                     ),
                                   ],
@@ -269,8 +269,8 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
             child: hasRows && _expanded
                 ? Column(
                     children: [
-                      const Divider(
-                        color: V2Colors.outline,
+                      Divider(
+                        color: context.v2.outline,
                         height: 1,
                         thickness: 0.5,
                       ),
@@ -285,7 +285,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                 : const SizedBox(width: double.infinity),
           ),
           if (widget.footer != null) ...[
-            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
             Padding(
               padding: const EdgeInsets.all(V2Spacing.space16),
               child: widget.footer!,
@@ -310,7 +310,7 @@ class _ReviewRowTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = (row.rowTone ?? fallbackTone).tint;
+    final tone = (row.rowTone ?? fallbackTone).tint(context.v2);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -323,8 +323,8 @@ class _ReviewRowTile extends StatelessWidget {
           decoration: BoxDecoration(
             border: isLast
                 ? null
-                : const Border(
-                    bottom: BorderSide(color: V2Colors.outline, width: 0.4),
+                : Border(
+                    bottom: BorderSide(color: context.v2.outline, width: 0.4),
                   ),
           ),
           child: Row(
@@ -338,13 +338,13 @@ class _ReviewRowTile extends StatelessWidget {
                   children: [
                     Text(
                       row.headline,
-                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
                     ),
                     if (row.caption != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         row.caption!,
-                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
                       ),
                     ],
                   ],
@@ -352,10 +352,10 @@ class _ReviewRowTile extends StatelessWidget {
               ),
               if (row.onTap != null) ...[
                 const SizedBox(width: V2Spacing.space8),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                 ),
               ],
             ],

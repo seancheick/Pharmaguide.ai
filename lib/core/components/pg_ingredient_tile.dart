@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
@@ -133,7 +133,7 @@ class PGActiveIngredientTile extends StatelessWidget {
                               child: Text(
                                 i.name,
                                 style: V2Typography.bodyMedium(
-                                  color: V2Colors.fg,
+                                  color: context.v2.fg,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -147,7 +147,7 @@ class PGActiveIngredientTile extends StatelessWidget {
                                 child: Text(
                                   i.dose!,
                                   style: V2Typography.monoData(
-                                    color: V2Colors.fgMuted,
+                                    color: context.v2.fgMuted,
                                   ).copyWith(fontSize: 12),
                                 ),
                               ),
@@ -158,7 +158,7 @@ class PGActiveIngredientTile extends StatelessWidget {
                           Text(
                             _parenthesize(i.parentheticalDoseText!),
                             style: V2Typography.monoData(
-                              color: V2Colors.fgMuted,
+                              color: context.v2.fgMuted,
                             ).copyWith(fontSize: 12),
                           ),
                         ],
@@ -169,7 +169,7 @@ class PGActiveIngredientTile extends StatelessWidget {
                             // form must never collapse to lower case.
                             i.formLabel!,
                             style: V2Typography.caption(
-                              color: V2Colors.fgMuted,
+                              color: context.v2.fgMuted,
                             ),
                           ),
                         ],
@@ -199,16 +199,16 @@ class PGActiveIngredientTile extends StatelessWidget {
                                   onTap: onTap,
                                 ),
                               if (!suppressClaims && i.isSafetyConcern)
-                                const _MiniChipV2(
+                                _MiniChipV2(
                                   label: 'Safety concern',
                                   icon: Icons.warning_amber_rounded,
-                                  color: V2Colors.contraindicated,
+                                  color: context.v2.contraindicated,
                                 ),
                               if (!suppressClaims && i.isInferredFromLabel)
-                                const _MiniChipV2(
+                                _MiniChipV2(
                                   label: 'Inferred from label',
                                   icon: Icons.manage_search_rounded,
-                                  color: V2Colors.fgSubtle,
+                                  color: context.v2.fgSubtle,
                                 ),
                             ],
                           ),
@@ -222,7 +222,7 @@ class PGActiveIngredientTile extends StatelessWidget {
           ),
         ),
         if (showBottomDivider)
-          const Divider(height: 0.5, thickness: 0.5, color: V2Colors.outline),
+          Divider(height: 0.5, thickness: 0.5, color: context.v2.outline),
       ],
     );
   }
@@ -322,17 +322,22 @@ class _FormStatusChipV2 extends StatelessWidget {
     required this.onTap,
   });
 
-  static Color _color(PGIngredientFormDisplayState state) => switch (state) {
-    PGIngredientFormDisplayState.notDisclosed => V2Colors.fgMuted,
-    PGIngredientFormDisplayState.listedNotAssessed => V2Colors.accentStrong,
-    PGIngredientFormDisplayState.needsReview => V2Colors.caution,
-    PGIngredientFormDisplayState.assessed => V2Colors.safe,
-    PGIngredientFormDisplayState.notApplicable => V2Colors.fgMuted,
-  };
+  static Color _color(PGIngredientFormDisplayState state, V2Palette palette) =>
+      switch (state) {
+        PGIngredientFormDisplayState.notDisclosed => palette.fgMuted,
+        PGIngredientFormDisplayState.listedNotAssessed => palette.accentStrong,
+        PGIngredientFormDisplayState.needsReview => palette.caution,
+        PGIngredientFormDisplayState.assessed => palette.safe,
+        PGIngredientFormDisplayState.notApplicable => palette.fgMuted,
+      };
 
   @override
   Widget build(BuildContext context) {
-    return _PillChipV2(label: label, color: _color(state), onTap: onTap);
+    return _PillChipV2(
+      label: label,
+      color: _color(state, context.v2),
+      onTap: onTap,
+    );
   }
 }
 
@@ -346,19 +351,19 @@ class _FormChipV2 extends StatelessWidget {
   /// excellent/good → safe, fair → caution,
   /// **poor → severityCaution (amber, NOT red — bioavailability is form
   /// quality, not safety)**, unknown → insufficientData.
-  static Color _color(FormQuality q) => switch (q) {
-    FormQuality.excellent => V2Colors.safe,
-    FormQuality.good => V2Colors.safe,
-    FormQuality.fair => V2Colors.caution,
-    FormQuality.poor => V2Colors.caution,
-    FormQuality.unknown => V2Colors.fgSubtle,
+  static Color _color(FormQuality q, V2Palette palette) => switch (q) {
+    FormQuality.excellent => palette.safe,
+    FormQuality.good => palette.safe,
+    FormQuality.fair => palette.caution,
+    FormQuality.poor => palette.caution,
+    FormQuality.unknown => palette.fgSubtle,
   };
 
   @override
   Widget build(BuildContext context) {
     return _PillChipV2(
       label: formChipLabel(quality),
-      color: _color(quality),
+      color: _color(quality, context.v2),
       onTap: onTap,
     );
   }
@@ -376,18 +381,18 @@ class _DoseChipV2 extends StatelessWidget {
 
   /// Color mapping mirrors production meaning. Only high and low instantiate
   /// this widget; the remaining cases keep the switch exhaustive.
-  static Color _color(DoseCallOut d) => switch (d) {
-    DoseCallOut.high => V2Colors.avoid,
-    DoseCallOut.low => V2Colors.caution,
-    DoseCallOut.notDisclosed => V2Colors.fgSubtle,
-    DoseCallOut.withinLimits => V2Colors.safe,
+  static Color _color(DoseCallOut d, V2Palette palette) => switch (d) {
+    DoseCallOut.high => palette.avoid,
+    DoseCallOut.low => palette.caution,
+    DoseCallOut.notDisclosed => palette.fgSubtle,
+    DoseCallOut.withinLimits => palette.safe,
   };
 
   @override
   Widget build(BuildContext context) {
     return _PillChipV2(
       label: doseChipLabel(callOut),
-      color: _color(callOut),
+      color: _color(callOut, context.v2),
       onTap: onTap,
     );
   }

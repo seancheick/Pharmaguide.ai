@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_halo_background.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -179,12 +178,7 @@ class _AnimatedSplashV2ScreenState extends State<AnimatedSplashV2Screen>
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  background,
-                  dark
-                      ? V2Colors.surfaceContainerLowDark
-                      : const Color(0xFFF4F1EA),
-                ],
+                colors: [background, context.v2.surfaceLow],
               ),
             ),
             child: PGHaloBackground(

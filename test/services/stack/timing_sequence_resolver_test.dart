@@ -208,8 +208,10 @@ void main() {
   });
 
   test(
-    'pipeline-ineligible conditional advice is not converted into a slot',
+    'pipeline-ineligible conditional advice remains product-labelled review',
     () {
+      const authored =
+          'If you take magnesium for sleep, evening is a reasonable time.';
       final plan = resolver.resolve([
         _rule(
           id: 'timing_magnesium_evening',
@@ -218,11 +220,17 @@ void main() {
           type: TimingRuleType.timeOfDay,
           allowedDailySlots: const {DailySlot.bedtime},
           dailyPlanEligible: false,
+          advice: authored,
+          product1Name: 'Daily Mineral',
+          product1StackEntryId: 'stack-mineral',
         ),
       ]);
 
-      expect(plan.isEmpty, isTrue);
+      expect(plan.itemsBySlot.values.expand((items) => items), isEmpty);
       expect(plan.unsatisfied, isEmpty);
+      expect(plan.reviewOnly, hasLength(1));
+      expect(plan.reviewOnly.single.itemName, 'Daily Mineral');
+      expect(plan.reviewOnly.single.advice, authored);
     },
   );
 
@@ -276,6 +284,44 @@ void main() {
       emptyAdvice,
     ]);
   });
+
+  test(
+    'same-bottle ingredient conflicts collapse to one product-level review',
+    () {
+      final plan = resolver.resolve([
+        _rule(
+          id: 'ala_empty',
+          a: 'alpha-lipoic acid',
+          b: 'food',
+          type: TimingRuleType.takeOnEmptyStomach,
+          advice: 'Take alpha-lipoic acid on an empty stomach.',
+          product1Name: 'O.N.E. Multivitamin',
+          product1StackEntryId: 'stack-multi',
+        ),
+        _rule(
+          id: 'vitamin_a_with_fat',
+          a: 'vitamin a',
+          b: 'dietary fat',
+          type: TimingRuleType.takeWithFood,
+          advice: 'Take vitamin A with a meal containing fat.',
+          product1Name: 'O.N.E. Multivitamin',
+          product1StackEntryId: 'stack-multi',
+        ),
+      ]);
+
+      expect(plan.isEmpty, isTrue);
+      expect(plan.unsatisfied, hasLength(1));
+      expect(
+        plan.unsatisfied.single.advice,
+        'O.N.E. Multivitamin has conflicting timing guidance.',
+      );
+      expect(plan.unsatisfied.single.advice, isNot(contains('vitamin A')));
+      expect(
+        plan.unsatisfied.single.advice,
+        isNot(contains('alpha-lipoic acid')),
+      );
+    },
+  );
 
   test('a binary rule linked to an unplaceable product is also reported', () {
     const separationAdvice = 'Keep this product away from calcium.';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -81,10 +81,10 @@ class PGScoreBreakdownCard extends StatefulWidget {
   /// as the hero. Pillar rows keep one-decimal precision through [fmtScore].
   static String fmtTotalScore(num value) => value.round().toString();
 
-  static Color pillarTone(double? rawScore, num max) {
-    if (rawScore == null || max <= 0) return V2Colors.fgSubtle;
+  static Color pillarTone(double? rawScore, num max, V2Palette palette) {
+    if (rawScore == null || max <= 0) return palette.fgSubtle;
     final fraction = (rawScore / max).clamp(0.0, 1.0);
-    return fraction >= 0.5 ? V2Colors.safe : V2Colors.monitor;
+    return fraction >= 0.5 ? palette.safe : palette.monitor;
   }
 
   @override
@@ -169,9 +169,9 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -187,7 +187,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                     // hero). Keep the label neutral.
                     ? Text.rich(
                         TextSpan(
-                          style: V2Typography.titleSm(color: V2Colors.fg),
+                          style: V2Typography.titleSm(color: context.v2.fg),
                           children: [
                             const TextSpan(text: 'Why this scored '),
                             TextSpan(
@@ -205,7 +205,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                       )
                     : Text(
                         'Why this scored',
-                        style: V2Typography.titleSm(color: V2Colors.fg),
+                        style: V2Typography.titleSm(color: context.v2.fg),
                       ),
               ),
             ],
@@ -213,7 +213,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
           const SizedBox(height: V2Spacing.space4),
           Text(
             'Six pillars, out of 100 — they add up to the score.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space16),
           for (var index = 0; index < widget.pillars.length; index++) ...[
@@ -226,13 +226,13 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
           ],
           if (sum != null) ...[
             const SizedBox(height: V2Spacing.space12),
-            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space8),
             Align(
               alignment: Alignment.centerRight,
               child: Text(
                 '= ${PGScoreBreakdownCard.fmtTotalScore(sum)}/100',
-                style: V2Typography.monoData(color: V2Colors.fg),
+                style: V2Typography.monoData(color: context.v2.fg),
               ),
             ),
           ],
@@ -271,27 +271,27 @@ class _HowPGScoreWorksButton extends StatelessWidget {
               vertical: V2Spacing.space8,
             ),
             decoration: BoxDecoration(
-              color: V2Colors.accentTint,
+              color: context.v2.accentTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline_rounded,
                   size: 18,
-                  color: V2Colors.accent,
+                  color: context.v2.accent,
                 ),
                 const SizedBox(width: V2Spacing.space8),
                 Expanded(
                   child: Text(
                     'How PG Score works',
-                    style: V2Typography.bodyMedium(color: V2Colors.accent),
+                    style: V2Typography.bodyMedium(color: context.v2.accent),
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
-                  color: V2Colors.accent,
+                  color: context.v2.accent,
                 ),
               ],
             ),
@@ -355,7 +355,7 @@ class _PGPillarRow extends StatelessWidget {
     final fill = hasScore && pillar.max > 0
         ? (score / pillar.max).clamp(0.0, 1.0)
         : 0.0;
-    final tone = PGScoreBreakdownCard.pillarTone(score, pillar.max);
+    final tone = PGScoreBreakdownCard.pillarTone(score, pillar.max, context.v2);
     final status = statusForPillar(score, pillar.max);
     final statusLabel = v4PillarStatusLabel(status);
     return Material(
@@ -391,7 +391,7 @@ class _PGPillarRow extends StatelessWidget {
                                 child: Text(
                                   pillar.label,
                                   style: V2Typography.bodyMedium(
-                                    color: V2Colors.fg,
+                                    color: context.v2.fg,
                                   ),
                                 ),
                               ),
@@ -419,7 +419,7 @@ class _PGPillarRow extends StatelessWidget {
                           Text(
                             'No data',
                             style: V2Typography.caption(
-                              color: V2Colors.fgSubtle,
+                              color: context.v2.fgSubtle,
                             ),
                           ),
                       ],
@@ -435,7 +435,7 @@ class _PGPillarRow extends StatelessWidget {
                       const SizedBox(height: V2Spacing.space4),
                       Text(
                         _inlineZeroReason!,
-                        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                        style: V2Typography.bodySm(color: context.v2.fgMuted),
                       ),
                     ],
                     const SizedBox(height: V2Spacing.space8),
@@ -446,7 +446,7 @@ class _PGPillarRow extends StatelessWidget {
                         child: Stack(
                           children: [
                             Container(
-                              color: V2Colors.outline.withValues(alpha: 0.45),
+                              color: context.v2.outline.withValues(alpha: 0.45),
                             ),
                             FractionallySizedBox(
                               widthFactor: fill,
@@ -472,7 +472,7 @@ class _PGPillarRow extends StatelessWidget {
                               Text(
                                 pillar.effectiveReason!,
                                 style: V2Typography.bodySm(
-                                  color: V2Colors.fgMuted,
+                                  color: context.v2.fgMuted,
                                 ),
                               ),
                             for (final fact in pillar.facts) ...[
@@ -507,13 +507,13 @@ class _PillarFact extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(fact.label, style: V2Typography.caption(color: V2Colors.fgMuted)),
-      Text(fact.valueDisplay, style: V2Typography.bodySm(color: V2Colors.fg)),
+      Text(fact.label, style: V2Typography.caption(color: context.v2.fgMuted)),
+      Text(fact.valueDisplay, style: V2Typography.bodySm(color: context.v2.fg)),
       if (fact.detail != null) ...[
         const SizedBox(height: 2),
         Text(
           fact.detail!,
-          style: V2Typography.caption(color: V2Colors.fgMuted),
+          style: V2Typography.caption(color: context.v2.fgMuted),
         ),
       ],
     ],

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
@@ -57,6 +58,19 @@ void main() {
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('user@example.com'), findsOneWidget);
     expect(find.text('sean@example.com'), findsNothing);
+  });
+
+  testWidgets('signed-in profile clears the persistent navigation bar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: SettingsV2Screen(signedIn: true)),
+    );
+
+    final list = tester.widget<ListView>(find.byType(ListView));
+    final padding = list.padding!.resolve(TextDirection.ltr);
+
+    expect(padding.bottom, greaterThanOrEqualTo(kPGNavBarHeight));
   });
 
   testWidgets('signed-in account can sign out from settings', (tester) async {

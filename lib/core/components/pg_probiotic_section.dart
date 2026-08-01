@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -26,11 +26,11 @@ extension PGProbioticResearchStatusMeta on PGProbioticResearchStatus {
     PGProbioticResearchStatus.none => Icons.search_off_outlined,
   };
 
-  Color get color => switch (this) {
-    PGProbioticResearchStatus.exactStrain => V2Colors.safe,
-    PGProbioticResearchStatus.formulaOnly => V2Colors.accent,
+  Color color(V2Palette palette) => switch (this) {
+    PGProbioticResearchStatus.exactStrain => palette.safe,
+    PGProbioticResearchStatus.formulaOnly => palette.accent,
     PGProbioticResearchStatus.speciesLevel ||
-    PGProbioticResearchStatus.none => V2Colors.fgMuted,
+    PGProbioticResearchStatus.none => palette.fgMuted,
   };
 }
 
@@ -99,9 +99,9 @@ class PGProbioticSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -112,7 +112,7 @@ class PGProbioticSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  style: V2Typography.titleSm(color: context.v2.fg),
                 ),
               ),
               Semantics(
@@ -125,10 +125,10 @@ class PGProbioticSection extends StatelessWidget {
                     minWidth: 44,
                     minHeight: 44,
                   ),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.info_outline,
                     size: 20,
-                    color: V2Colors.accent,
+                    color: context.v2.accent,
                   ),
                   onPressed: () => _showExplanation(context),
                 ),
@@ -138,14 +138,14 @@ class PGProbioticSection extends StatelessWidget {
           Text(
             'Probiotic effects may depend on the named microorganism, '
             'dose, and intended use.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
           if (totalCfuLabel != null) ...[
             const SizedBox(height: V2Spacing.space12),
             Text(
               '${totalCfuLabel!} total per serving',
               semanticsLabel: '${_expandCfu(totalCfuLabel!)} total per serving',
-              style: V2Typography.bodyMedium(color: V2Colors.fg),
+              style: V2Typography.bodyMedium(color: context.v2.fg),
             ),
           ],
           if (namedCount > 0) ...[
@@ -158,7 +158,7 @@ class PGProbioticSection extends StatelessWidget {
                   icon: Icons.bubble_chart_outlined,
                   label:
                       '$namedCount named microorganism${namedCount == 1 ? '' : 's'}',
-                  color: V2Colors.accent,
+                  color: context.v2.accent,
                 ),
                 _InfoChip(
                   icon: verifiedCount > 0
@@ -167,7 +167,9 @@ class PGProbioticSection extends StatelessWidget {
                   label: verifiedCount > 0
                       ? '$verifiedCount of $namedCount matched to verified research'
                       : 'No verified strain-specific research matches',
-                  color: verifiedCount > 0 ? V2Colors.safe : V2Colors.fgMuted,
+                  color: verifiedCount > 0
+                      ? context.v2.safe
+                      : context.v2.fgMuted,
                 ),
               ],
             ),
@@ -176,12 +178,12 @@ class PGProbioticSection extends StatelessWidget {
             const SizedBox(height: V2Spacing.space8),
             Text(
               disclosure,
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ],
           if (strains.isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space16),
-            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space8),
             for (var i = 0; i < strains.length; i++)
               _StrainRow(
@@ -192,11 +194,11 @@ class PGProbioticSection extends StatelessWidget {
           ],
           if (hasFormulaDetails) ...[
             const SizedBox(height: V2Spacing.space12),
-            const Divider(color: V2Colors.outline, height: 1, thickness: 0.5),
+            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space12),
             Text(
               'Formula details',
-              style: V2Typography.bodyMedium(color: V2Colors.fg),
+              style: V2Typography.bodyMedium(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Wrap(
@@ -207,7 +209,7 @@ class PGProbioticSection extends StatelessWidget {
                   _InfoChip(
                     icon: Icons.shield_outlined,
                     label: survivabilityReason ?? 'Survivability coating',
-                    color: V2Colors.accent,
+                    color: context.v2.accent,
                   ),
                 if (prebioticPresent)
                   _InfoChip(
@@ -215,13 +217,13 @@ class PGProbioticSection extends StatelessWidget {
                     label: prebioticName != null && prebioticName!.isNotEmpty
                         ? 'Prebiotic · $prebioticName'
                         : 'Prebiotic included',
-                    color: V2Colors.accent,
+                    color: context.v2.accent,
                   ),
                 if (hasPostbioticStrains)
-                  const _InfoChip(
+                  _InfoChip(
                     icon: Icons.spa_outlined,
                     label: 'Postbiotic included',
-                    color: V2Colors.monitor,
+                    color: context.v2.monitor,
                   ),
               ],
             ),
@@ -234,24 +236,29 @@ class PGProbioticSection extends StatelessWidget {
   void _showExplanation(BuildContext context) {
     PGModal.bottomSheet<void>(
       context: context,
-      builder: (sheetContext) => const Padding(
-        padding: EdgeInsets.fromLTRB(20, 8, 20, 28),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('What this card means', style: TextStyle(fontSize: 20)),
-            SizedBox(height: V2Spacing.space12),
+            Text(
+              'What this card means',
+              style: V2Typography.titleSm(color: sheetContext.v2.fg),
+            ),
+            const SizedBox(height: V2Spacing.space12),
             Text(
               'We compare microorganisms named on the label with curated '
               'human research. A research match does not mean this exact '
               'product, formula, dose, or intended use was studied.',
+              style: V2Typography.body(color: sheetContext.v2.fgMuted),
             ),
-            SizedBox(height: V2Spacing.space12),
+            const SizedBox(height: V2Spacing.space12),
             Text(
               '“No verified strain-specific research found” does not prove '
               'that no research exists. It means PharmaGuide could not '
               'verify an exact-strain match in the evidence reviewed so far.',
+              style: V2Typography.body(color: sheetContext.v2.fgMuted),
             ),
           ],
         ),
@@ -336,9 +343,7 @@ class _StrainRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(
-                bottom: BorderSide(color: V2Colors.outline, width: 0.4),
-              ),
+            : Border(bottom: BorderSide(color: context.v2.outline, width: 0.4)),
       ),
       padding: const EdgeInsets.symmetric(vertical: V2Spacing.space12),
       child: Column(
@@ -353,7 +358,7 @@ class _StrainRow extends StatelessWidget {
                 children: [
                   Text(
                     strain.name,
-                    style: V2Typography.bodySm(color: V2Colors.fg),
+                    style: V2Typography.bodySm(color: context.v2.fg),
                   ),
                   const SizedBox(height: V2Spacing.space4),
                   Row(
@@ -362,14 +367,14 @@ class _StrainRow extends StatelessWidget {
                       Icon(
                         strain.researchStatus.icon,
                         size: 18,
-                        color: strain.researchStatus.color,
+                        color: strain.researchStatus.color(context.v2),
                       ),
                       const SizedBox(width: V2Spacing.space8),
                       Expanded(
                         child: Text(
                           strain.researchStatus.label,
                           style: V2Typography.bodySm(
-                            color: strain.researchStatus.color,
+                            color: strain.researchStatus.color(context.v2),
                           ).copyWith(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -379,21 +384,21 @@ class _StrainRow extends StatelessWidget {
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       supportLine,
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      style: V2Typography.caption(color: context.v2.fgMuted),
                     ),
                   ],
                   if (strain.cfuLabel.isNotEmpty) ...[
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       '${strain.cfuLabel} per serving',
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      style: V2Typography.caption(color: context.v2.fgMuted),
                     ),
                   ],
                   if (strain.isInactivated) ...[
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       'Postbiotic · inactivated microorganism',
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      style: V2Typography.caption(color: context.v2.fgMuted),
                     ),
                   ],
                 ],

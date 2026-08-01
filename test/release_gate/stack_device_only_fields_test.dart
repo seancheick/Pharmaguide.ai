@@ -1,13 +1,14 @@
 // Release gate: device-only stack fields never reach Supabase.
 //
-// `user_stacks_local` is partially synced — supplements push name, dsld_id,
-// dosage, frequency and timestamps. That makes every NEW column on this table
-// a privacy decision, because adding one to the payload is a one-line change
-// that no other test would catch.
+// `user_stacks_local` is partially synced — supplements push catalog identity
+// and timestamps. That makes every NEW column on this table a privacy
+// decision, because adding one to the payload is a one-line change that no
+// other test would catch.
 //
 // `started_at` (when someone actually began a medication) and
 // `reminder_minutes` (when they take it) are health history, not catalog data.
-// They stay on the device.
+// Medication dose/frequency also stay on device. Supplements use verified
+// catalog label amounts and reviewed timing guidance, never user overrides.
 
 import 'dart:io';
 
@@ -17,7 +18,12 @@ import 'package:pharmaguide/data/database/user_database.dart';
 
 const _syncSourcePath = 'lib/features/stack/services/stack_sync_queue.dart';
 
-const _deviceOnlyColumns = <String>['started_at', 'reminder_minutes'];
+const _deviceOnlyColumns = <String>[
+  'dosage',
+  'frequency',
+  'started_at',
+  'reminder_minutes',
+];
 
 void main() {
   group('release gate: device-only stack fields', () {

@@ -106,7 +106,8 @@ human-authored or agent-authored — must pass them before merge:
   `stack_sync_queue._rowToRemote` to an explicit column allowlist and
   scans the rest of `lib/` for forbidden health tokens (`conditions`,
   `medications`, `dob`, `birthdate`, `fit_score`, etc.) appearing near
-  any Supabase `.upsert/.insert/.update` call.
+  any Supabase `.upsert/.insert/.update` call. Supplement dose and frequency
+  are device-only and are deliberately excluded from that remote allowlist.
 - `test/safety_invariants/fit_score_non_persistence_test.dart` — scans
   Drift tables, `shared_preferences` keys, and Riverpod providers to
   verify nothing persists FitScore.

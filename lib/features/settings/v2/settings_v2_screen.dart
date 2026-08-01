@@ -5,10 +5,11 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/settings/v2/beta_feedback_sheet.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
@@ -72,7 +73,7 @@ class SettingsV2Screen extends StatelessWidget {
             V2Spacing.space24,
             V2Spacing.space16,
             V2Spacing.space24,
-            V2Spacing.space48,
+            kPGNavBarHeight + V2Spacing.space16,
           ),
           children: [
             _ProfileHero(
@@ -324,7 +325,7 @@ class SettingsV2Screen extends StatelessWidget {
             Center(
               child: Text(
                 'Your health data stays on this device.',
-                style: V2Typography.caption(color: V2Colors.fgSubtle),
+                style: V2Typography.caption(color: context.v2.fgSubtle),
               ),
             ),
           ],
@@ -419,7 +420,7 @@ class _SettingsInfoSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = destructive ? V2Colors.contraindicated : V2Colors.accent;
+    final tone = destructive ? context.v2.contraindicated : context.v2.accent;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         V2Spacing.space24,
@@ -431,9 +432,9 @@ class _SettingsInfoSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: V2Typography.titleSm(color: V2Colors.fg)),
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space8),
-          Text(body, style: V2Typography.body(color: V2Colors.fgMuted)),
+          Text(body, style: V2Typography.body(color: context.v2.fgMuted)),
           if (bullets.isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space16),
             for (final bullet in bullets)
@@ -447,7 +448,7 @@ class _SettingsInfoSheet extends StatelessWidget {
                     Expanded(
                       child: Text(
                         bullet,
-                        style: V2Typography.bodySm(color: V2Colors.fg),
+                        style: V2Typography.bodySm(color: context.v2.fg),
                       ),
                     ),
                   ],
@@ -487,9 +488,9 @@ class _ProfileHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space24),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       // **Phase 11.7j.4 — Sean 2026-05-16 profile polish.**
@@ -507,12 +508,12 @@ class _ProfileHero extends StatelessWidget {
           const SizedBox(height: V2Spacing.space4),
           Text(
             nickname.trim().isEmpty ? 'Hello there' : nickname,
-            style: V2Typography.displayXs(color: V2Colors.fg),
+            style: V2Typography.displayXs(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             _statsLine(),
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
         ],
       ),

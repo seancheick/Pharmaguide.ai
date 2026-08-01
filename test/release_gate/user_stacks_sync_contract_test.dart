@@ -17,6 +17,8 @@ const _timestampMigrationPath =
     'supabase/migrations/20260710200321_user_stacks_require_client_timestamp.sql';
 const _appDataAccessMigrationPath =
     'supabase/migrations/20260710210013_app_data_schema_authority_and_access.sql';
+const _deviceOnlyScheduleMigrationPath =
+    'supabase/migrations/20260801040925_user_stacks_device_only_schedule.sql';
 
 void main() {
   group('release gate: user stack sync contract', () {
@@ -147,6 +149,31 @@ void main() {
         expect(sql, isNot(contains('catalog_releases')));
         expect(sql, isNot(contains('rotate_manifest')));
         expect(sql, isNot(contains('ALTER DEFAULT PRIVILEGES')));
+      },
+    );
+
+    test(
+      'an immutable migration removes and rejects remote schedule details',
+      () async {
+        final sql = await File(_deviceOnlyScheduleMigrationPath).readAsString();
+
+        expect(sql, contains('UPDATE public.user_stacks'));
+        expect(sql, contains('SET dosage = NULL'));
+        expect(sql, contains('frequency = NULL'));
+        expect(
+          sql,
+          contains(
+            'CREATE OR REPLACE FUNCTION '
+            'public.clear_user_stack_device_only_schedule()',
+          ),
+        );
+        expect(
+          sql,
+          contains('CREATE TRIGGER aa_user_stacks_clear_device_only_schedule'),
+        );
+        expect(sql, contains('NEW.dosage := NULL'));
+        expect(sql, contains('NEW.frequency := NULL'));
+        expect(sql, contains('BEFORE INSERT OR UPDATE ON public.user_stacks'));
       },
     );
   });

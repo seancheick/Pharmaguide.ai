@@ -691,11 +691,9 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
             'Shown below the on-market matches so you can still find '
             'a product that was reformulated, renamed, or pulled. '
             'Tap to see the timeline.',
-            style: TextStyle(
-              fontSize: 12,
+            style: V2Typography.caption(
               color: context.v2.fgMuted,
-              height: 1.5,
-            ),
+            ).copyWith(height: 1.5),
           ),
         ),
       );
@@ -1281,7 +1279,7 @@ class _SearchSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: V2Typography.displayXs(
+      style: V2Typography.titleSm(
         color: context.v2.fgMuted,
       ).copyWith(letterSpacing: 0),
     );
@@ -1657,7 +1655,9 @@ class _SearchProductListTile extends StatelessWidget {
                         const SizedBox(height: V2Spacing.space4),
                         Text(
                           product.brandName!,
-                          style: V2Typography.caption(color: context.v2.fgMuted),
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1666,7 +1666,9 @@ class _SearchProductListTile extends StatelessWidget {
                         const SizedBox(height: V2Spacing.space4),
                         Text(
                           packSizeLabel,
-                          style: V2Typography.caption(color: context.v2.fgMuted),
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

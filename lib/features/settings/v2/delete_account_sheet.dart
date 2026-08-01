@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/services/auth/account_deletion_service.dart';
@@ -84,116 +85,125 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(
-          V2Spacing.space24,
-          V2Spacing.space8,
-          V2Spacing.space24,
-          V2Spacing.space24,
-        ),
-        children: [
-          const Icon(
-            Icons.delete_forever_outlined,
-            color: V2Colors.contraindicated,
-            size: 40,
+    final palette = context.v2;
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return AnimatedPadding(
+      duration: V2Motion.fast,
+      curve: V2Motion.decelerate,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: SafeArea(
+        top: false,
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space8,
+            V2Spacing.space24,
+            V2Spacing.space24,
           ),
-          const SizedBox(height: V2Spacing.space16),
-          Text(
-            'Delete account permanently?',
-            style: V2Typography.title(color: V2Colors.fg),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: V2Spacing.space8),
-          Text(
-            'This cannot be undone. You will need to create a new account to '
-            'use signed-in features again.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: V2Spacing.space16),
-          const _WarningLine('Your supplement and medication stack'),
-          const _WarningLine(
-            'Your profile, scans, health history, and attachments',
-          ),
-          const _WarningLine(
-            'Your private product submission photos and statuses',
-          ),
-          const _WarningLine('Your PharmaGuide sign-in account'),
-          const SizedBox(height: V2Spacing.space24),
-          if (!_showFinalConfirmation)
-            SizedBox(
-              height: 48,
-              child: FilledButton(
-                onPressed: () => setState(() => _showFinalConfirmation = true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: V2Colors.contraindicated,
-                ),
-                child: const Text('Continue'),
-              ),
-            )
-          else ...[
+          children: [
+            Icon(
+              Icons.delete_forever_outlined,
+              color: palette.contraindicated,
+              size: 40,
+            ),
+            const SizedBox(height: V2Spacing.space16),
             Text(
-              'Type DELETE to confirm',
-              style: V2Typography.body(color: V2Colors.fg),
+              'Delete account permanently?',
+              style: V2Typography.title(color: palette.fg),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: V2Spacing.space8),
-            TextField(
-              controller: _confirmation,
-              enabled: !_deleting,
-              autocorrect: false,
-              enableSuggestions: false,
-              textCapitalization: TextCapitalization.characters,
-              onChanged: (_) => setState(() => _error = null),
-              decoration: const InputDecoration(
-                hintText: 'DELETE',
-                border: OutlineInputBorder(),
-              ),
+            Text(
+              'This cannot be undone. You will need to create a new account to '
+              'use signed-in features again.',
+              style: V2Typography.bodySm(color: palette.fgMuted),
+              textAlign: TextAlign.center,
             ),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: _understands,
-              onChanged: _deleting
-                  ? null
-                  : (value) => setState(() {
-                      _understands = value ?? false;
-                      _error = null;
-                    }),
-              title: Text(
-                'I understand this cannot be undone',
-                style: V2Typography.bodySm(color: V2Colors.fg),
-              ),
+            const SizedBox(height: V2Spacing.space16),
+            const _WarningLine('Your supplement and medication stack'),
+            const _WarningLine(
+              'Your profile, scans, health history, and attachments',
             ),
-            if (_error != null) ...[
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  _error!,
-                  style: V2Typography.bodySm(color: V2Colors.contraindicated),
+            const _WarningLine(
+              'Your private product submission photos and statuses',
+            ),
+            const _WarningLine('Your PharmaGuide sign-in account'),
+            const SizedBox(height: V2Spacing.space24),
+            if (!_showFinalConfirmation)
+              SizedBox(
+                height: 48,
+                child: FilledButton(
+                  onPressed: () =>
+                      setState(() => _showFinalConfirmation = true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: palette.contraindicated,
+                  ),
+                  child: const Text('Continue'),
+                ),
+              )
+            else ...[
+              Text(
+                'Type DELETE to confirm',
+                style: V2Typography.body(color: palette.fg),
+              ),
+              const SizedBox(height: V2Spacing.space8),
+              TextField(
+                controller: _confirmation,
+                enabled: !_deleting,
+                autocorrect: false,
+                enableSuggestions: false,
+                textCapitalization: TextCapitalization.characters,
+                onChanged: (_) => setState(() => _error = null),
+                decoration: const InputDecoration(
+                  hintText: 'DELETE',
+                  border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: V2Spacing.space12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _understands,
+                onChanged: _deleting
+                    ? null
+                    : (value) => setState(() {
+                        _understands = value ?? false;
+                        _error = null;
+                      }),
+                title: Text(
+                  'I understand this cannot be undone',
+                  style: V2Typography.bodySm(color: palette.fg),
+                ),
+              ),
+              if (_error != null) ...[
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _error!,
+                    style: V2Typography.bodySm(color: palette.contraindicated),
+                  ),
+                ),
+                const SizedBox(height: V2Spacing.space12),
+              ],
+              SizedBox(
+                height: 48,
+                child: FilledButton(
+                  onPressed: _canDelete ? _delete : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: palette.contraindicated,
+                  ),
+                  child: _deleting
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Delete forever'),
+                ),
+              ),
             ],
-            SizedBox(
-              height: 48,
-              child: FilledButton(
-                onPressed: _canDelete ? _delete : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: V2Colors.contraindicated,
-                ),
-                child: _deleting
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Delete forever'),
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -206,22 +216,23 @@ class _WarningLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.v2;
     return Padding(
       padding: const EdgeInsets.only(bottom: V2Spacing.space8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 4),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
             child: Icon(
               Icons.remove_circle_outline,
               size: 18,
-              color: V2Colors.contraindicated,
+              color: palette.contraindicated,
             ),
           ),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
-            child: Text(text, style: V2Typography.bodySm(color: V2Colors.fg)),
+            child: Text(text, style: V2Typography.bodySm(color: palette.fg)),
           ),
         ],
       ),

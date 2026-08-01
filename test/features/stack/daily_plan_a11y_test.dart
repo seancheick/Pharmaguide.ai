@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_daily_plan_card.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
@@ -41,6 +42,7 @@ const _match = DepletionMatch(
 
 Widget _wrap(Widget child, {double textScale = 1.0}) {
   return MaterialApp(
+    theme: V2Theme.light,
     home: MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
       child: Scaffold(body: SingleChildScrollView(child: child)),

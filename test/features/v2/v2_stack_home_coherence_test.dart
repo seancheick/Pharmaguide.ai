@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
@@ -262,6 +262,121 @@ void main() {
     });
 
     testWidgets(
+      'supplement tracking never exposes or displays user-entered dose fields',
+      (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          signedIn: true,
+          stack: [
+            stackEntry(
+              id: 'supplement-1',
+              name: 'Verified Multivitamin',
+              type: 'supplement',
+              dsldId: '278454',
+              dosage: '8 capsules',
+              frequency: 'At bedtime',
+            ),
+          ],
+        );
+
+        expect(find.text('8 capsules', skipOffstage: false), findsNothing);
+        expect(find.text('At bedtime', skipOffstage: false), findsNothing);
+
+        final edit = find.byTooltip(
+          'Edit tracking for Verified Multivitamin',
+          skipOffstage: false,
+        );
+        await tester.ensureVisible(edit);
+        await tester.tap(edit);
+        await tester.pumpAndSettle();
+
+        expect(find.text('TRACKING DETAILS'), findsOneWidget);
+        expect(find.text('Dose (optional)'), findsNothing);
+        expect(find.text('Schedule (optional)'), findsNothing);
+        expect(find.textContaining('verified product label'), findsOneWidget);
+        expect(find.text('Set start date'), findsOneWidget);
+        expect(find.text('No reminder'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'medication tracking keeps dose editable without a fake timing schedule',
+      (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          signedIn: true,
+          stack: [
+            stackEntry(
+              id: 'medication-1',
+              name: 'Metformin',
+              type: 'medication',
+              rxcui: '6809',
+              dosage: '500 mg',
+              frequency: 'Twice daily',
+            ),
+          ],
+        );
+
+        final edit = find.byTooltip(
+          'Edit dose and tracking for Metformin',
+          skipOffstage: false,
+        );
+        await tester.ensureVisible(edit);
+        await tester.tap(edit);
+        await tester.pumpAndSettle();
+
+        expect(find.text('DOSE & TRACKING'), findsOneWidget);
+        expect(find.text('Dose (optional)'), findsOneWidget);
+        expect(find.text('Schedule (optional)'), findsNothing);
+        expect(find.text('500 mg'), findsWidgets);
+        expect(find.text('No reminder'), findsOneWidget);
+      },
+    );
+
+    testWidgets('confirming discard closes a dirty medication tracking sheet', (
+      tester,
+    ) async {
+      await pumpWithStack(
+        tester,
+        const StackV2Screen(showNavBar: false),
+        stack: [
+          stackEntry(
+            id: 'medication-1',
+            name: 'Metformin',
+            type: 'medication',
+            rxcui: '6809',
+            dosage: '500 mg',
+            frequency: 'Twice daily',
+          ),
+        ],
+      );
+
+      final edit = find.byTooltip(
+        'Edit dose and tracking for Metformin',
+        skipOffstage: false,
+      );
+      await tester.ensureVisible(edit);
+      await tester.tap(edit);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '750 mg');
+      tester.testTextInput.hide();
+      await tester.pump();
+      final sheetContext = tester.element(find.text('DOSE & TRACKING'));
+      await Navigator.of(sheetContext).maybePop();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard changes?'), findsOneWidget);
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('DOSE & TRACKING'), findsNothing);
+      expect(find.text('Metformin'), findsOneWidget);
+    });
+
+    testWidgets(
       'Stack v2 surfaces stack-safety errors instead of hiding timing checks',
       (tester) async {
         await pumpWithStack(
@@ -468,7 +583,7 @@ void main() {
       expect(find.text('Saved Magnesium'), findsOneWidget);
       expect(find.text('Clean Lab'), findsOneWidget);
       final heart = tester.widget<Icon>(find.byIcon(Icons.favorite_rounded));
-      expect(heart.color, V2Colors.accent);
+      expect(heart.color, V2Palette.light.accent);
     });
 
     testWidgets(

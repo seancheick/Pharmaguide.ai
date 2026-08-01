@@ -673,7 +673,7 @@ class _Header extends StatelessWidget {
       children: [
         Text(
           'Add a medication you take.',
-          style: V2Typography.displaySm(color: context.v2.fg),
+          style: V2Typography.title(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space12),
         Text(
@@ -699,11 +699,7 @@ class _PrivacyRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          Icons.lock_outline_rounded,
-          size: 14,
-          color: context.v2.fgMuted,
-        ),
+        Icon(Icons.lock_outline_rounded, size: 14, color: context.v2.fgMuted),
         const SizedBox(width: V2Spacing.space8),
         Expanded(
           child: Text(
@@ -989,10 +985,7 @@ class _ClassFallbackTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PGEyebrow(
-                      'Medication classes',
-                      color: context.v2.fgMuted,
-                    ),
+                    PGEyebrow('Medication classes', color: context.v2.fgMuted),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       'Pick a class instead',

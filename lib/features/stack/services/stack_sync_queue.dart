@@ -654,8 +654,6 @@ class StackSyncService {
       'name': row.name,
       'dsld_id': row.dsldId,
       'ingredient_keys': row.ingredientKeys,
-      'dosage': row.dosage,
-      'frequency': row.frequency,
       'added_at': row.addedAt.toIso8601String(),
       'client_updated_at': row.clientUpdatedAt.toIso8601String(),
       'deleted_at': row.deletedAt?.toIso8601String(),

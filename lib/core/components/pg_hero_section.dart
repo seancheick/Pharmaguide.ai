@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -195,9 +195,9 @@ class PGHeroSection extends StatelessWidget {
     final body = Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -217,7 +217,7 @@ class PGHeroSection extends StatelessWidget {
                   children: [
                     Text(
                       productName,
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -256,7 +256,7 @@ class PGHeroSection extends StatelessWidget {
             // dose-driven caution pill (product-level) rides alongside.
             Text(
               'Product quality',
-              style: V2Typography.eyebrow(color: V2Colors.fgMuted),
+              style: V2Typography.eyebrow(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space4),
             if (showCautionCue)
@@ -274,7 +274,7 @@ class PGHeroSection extends StatelessWidget {
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Product quality score unavailable.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ],
           if (bottomBanner != null) ...[
@@ -348,40 +348,40 @@ class _Subtitle extends StatelessWidget {
       spans.add(
         TextSpan(
           text: brand,
-          style: V2Typography.bodyMedium(color: V2Colors.fg),
+          style: V2Typography.bodyMedium(color: context.v2.fg),
         ),
       );
     }
     if (hasServings) {
       if (spans.isNotEmpty) {
-        spans.add(_dotSpan());
+        spans.add(_dotSpan(context));
       }
       spans.add(
         TextSpan(
           text: servings!,
-          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
       );
     }
     if (hasServingCount) {
       if (spans.isNotEmpty) {
-        spans.add(_dotSpan());
+        spans.add(_dotSpan(context));
       }
       spans.add(
         TextSpan(
           text: servingCount!,
-          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
       );
     }
     if (hasDose) {
       if (spans.isNotEmpty) {
-        spans.add(_dotSpan());
+        spans.add(_dotSpan(context));
       }
       spans.add(
         TextSpan(
           text: dose!,
-          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
       );
     }
@@ -393,9 +393,9 @@ class _Subtitle extends StatelessWidget {
     );
   }
 
-  TextSpan _dotSpan() => TextSpan(
+  TextSpan _dotSpan(BuildContext context) => TextSpan(
     text: ' · ',
-    style: V2Typography.bodySm(color: V2Colors.fgSubtle),
+    style: V2Typography.bodySm(color: context.v2.fgSubtle),
   );
 }
 
@@ -491,7 +491,7 @@ class _TrustChip extends StatelessWidget {
     // (gluten free / vegan etc.) stay text-only — those are usually
     // self-declared by the manufacturer, and adding a check there
     // would imply independent verification we can't promise.
-    final tone = isCertification ? V2Colors.accent : V2Colors.safe;
+    final tone = isCertification ? context.v2.accent : context.v2.safe;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -532,9 +532,9 @@ class _HeroCautionPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: V2Colors.cautionTint,
+        color: context.v2.cautionTint,
         border: Border.all(
-          color: V2Colors.caution.withValues(alpha: 0.55),
+          color: context.v2.caution.withValues(alpha: 0.55),
           width: 0.7,
         ),
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
@@ -542,15 +542,15 @@ class _HeroCautionPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.warning_amber_rounded,
             size: 11,
-            color: V2Colors.caution,
+            color: context.v2.caution,
           ),
           const SizedBox(width: 4),
           Text(
             'Use caution',
-            style: V2Typography.caption(color: V2Colors.caution).copyWith(
+            style: V2Typography.caption(color: context.v2.caution).copyWith(
               fontSize: 10,
               fontWeight: FontWeight.w500,
               letterSpacing: -0.05,

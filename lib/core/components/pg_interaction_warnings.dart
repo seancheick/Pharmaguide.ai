@@ -268,7 +268,7 @@ class _PGWarningCardState extends State<PGWarningCard> {
   @override
   Widget build(BuildContext context) {
     final w = widget.warning;
-    final tone = w.severity.tint;
+    final tone = w.severity.tint(context.v2);
 
     return Container(
       decoration: BoxDecoration(
@@ -360,7 +360,7 @@ class _SeverityPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = severity.tint;
+    final color = severity.tint(context.v2);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// Two-state scan-confirmation flash. Sean 2026-05-15: no per-tier
 /// judgement at scan time — the product page is where verdict
@@ -205,12 +206,14 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.25,
-                                  ),
+                                  style:
+                                      V2Typography.bodyXl(
+                                        color: Colors.white,
+                                      ).copyWith(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.25,
+                                      ),
                                 ),
                               ),
                             ],

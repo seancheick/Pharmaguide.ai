@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/settings/v2/delete_account_sheet.dart';
 import 'package:pharmaguide/services/auth/account_deletion_service.dart';
 
@@ -10,6 +12,7 @@ void main() {
     String? confirmation;
     await tester.pumpWidget(
       MaterialApp(
+        theme: V2Theme.light,
         home: Scaffold(
           body: DeleteAccountSheet(
             onDelete: (value) async {
@@ -66,6 +69,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: V2Theme.light,
         home: Scaffold(
           body: DeleteAccountSheet(
             onDelete: (_) async => AccountDeletionResult.remoteFailed,
@@ -95,6 +99,7 @@ void main() {
       var deletedCallbackCalled = false;
       await tester.pumpWidget(
         MaterialApp(
+          theme: V2Theme.light,
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(
@@ -129,4 +134,52 @@ void main() {
       expect(find.textContaining('reinstall the app'), findsOneWidget);
     },
   );
+
+  testWidgets('confirmation field remains visible above the keyboard', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetViewInsets();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: V2Theme.light,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => PGModal.bottomSheet<void>(
+                context: context,
+                builder: (_) => DeleteAccountSheet(
+                  onDelete: (_) async => AccountDeletionResult.deleted,
+                  onDeleted: () {},
+                ),
+              ),
+              child: const Text('Open deletion'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open deletion'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 360);
+    await tester.pumpAndSettle();
+
+    final keyboardTop = tester.view.physicalSize.height - 360;
+    expect(
+      tester.getBottomRight(find.byType(TextField)).dy,
+      lessThanOrEqualTo(keyboardTop),
+    );
+  });
 }

@@ -302,15 +302,15 @@ class StackActions {
     if (entry.type == 'supplement') _triggerSync();
   }
 
-  /// Update the user-entered dose/schedule and append the change to the
+  /// Update the user-controlled tracking fields and append the change to the
   /// canonical Health History transactionally.
   ///
-  /// These are saved notes about how the user takes the item. They do not
-  /// rewrite catalog label amounts or clinical dose calculations.
-  Future<bool> updateSchedule({
+  /// Medication dose is an optional user record. Supplement dosage and
+  /// frequency are catalog-owned: accepting free-text overrides here would
+  /// make the stack disagree with label amounts and safety calculations.
+  Future<bool> updateTracking({
     required String entryId,
-    String? dosage,
-    String? frequency,
+    Value<String?> dosage = const Value.absent(),
     // Sentinel-wrapped so "leave unchanged" is distinguishable from
     // "clear this field" — both are legitimate edits.
     Value<DateTime?> startedAt = const Value.absent(),
@@ -325,8 +325,14 @@ class StackActions {
             .getSingleOrNull();
     if (entry == null || entry.deletedAt != null) return false;
 
-    final nextDosage = _cleanScheduleValue(dosage);
-    final nextFrequency = _cleanScheduleValue(frequency);
+    final isMedication = entry.type == 'medication';
+    final nextDosage = isMedication
+        ? (dosage.present ? _cleanScheduleValue(dosage.value) : entry.dosage)
+        : null;
+    // Medication frequency is captured by the medication-entry flow and is
+    // preserved here. Supplements have no user-authored schedule: clinical
+    // timing remains owned by the reviewed Daily Plan.
+    final nextFrequency = isMedication ? entry.frequency : null;
     final nextStartedAt = startedAt.present ? startedAt.value : entry.startedAt;
     final nextReminder = reminderMinutes.present
         ? reminderMinutes.value
@@ -349,11 +355,14 @@ class StackActions {
       return false;
     }
 
-    // Start dates and reminders are deliberately device-only. Do not advance
-    // the cloud-sync watermark when those are the only fields changing;
-    // otherwise a private local edit looks like an unsynced server mutation.
-    final syncableScheduleChanged =
-        entry.dosage != nextDosage || entry.frequency != nextFrequency;
+    // Every field handled here is deliberately device-only:
+    // - medication dose/frequency are private health details;
+    // - supplement dose/frequency are catalog-owned and only cleared here;
+    // - start dates and reminders are private routine details.
+    //
+    // Never advance the product-state sync watermark for these edits. The
+    // remote supplement stack stores identity only, so marking this row dirty
+    // would create a cloud mutation with no corresponding payload field.
     final changedFields = <String>[
       if (entry.dosage != nextDosage) 'dosage',
       if (entry.frequency != nextFrequency) 'frequency',
@@ -382,9 +391,7 @@ class StackActions {
                   frequency: Value(nextFrequency),
                   startedAt: Value(nextStartedAt),
                   reminderMinutes: Value(nextReminder),
-                  clientUpdatedAt: syncableScheduleChanged
-                      ? Value(now)
-                      : const Value.absent(),
+                  clientUpdatedAt: const Value.absent(),
                 ),
               ),
           HealthEventDraft(
@@ -401,10 +408,7 @@ class StackActions {
           ),
         );
     _invalidate();
-    CrashReportingService().log('stack_update_schedule');
-    if (entry.type == 'supplement' && syncableScheduleChanged) {
-      _triggerSync();
-    }
+    CrashReportingService().log('stack_update_tracking');
     return true;
   }
 

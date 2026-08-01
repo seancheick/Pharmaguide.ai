@@ -185,6 +185,10 @@ ALLOW_SERIF_PATHS=(
   "lib/features/scanner/v2/"
   "lib/features/stack/v2/"
   "lib/features/product_detail/v2/"
+  # These are onboarding-style profile setup flows even though their files
+  # live under the profile feature.
+  "lib/features/profile/v2/profile_setup_v2_screen.dart"
+  "lib/features/profile/v2/profile_wizard_v2_screen.dart"
 )
 hits_serif=""
 for p in "${V2_PATHS[@]}"; do

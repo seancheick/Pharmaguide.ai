@@ -33,8 +33,6 @@ const _userStacksAllowedColumns = <String>{
   'name',
   'dsld_id',
   'ingredient_keys',
-  'dosage',
-  'frequency',
   'added_at',
   'client_updated_at',
   'deleted_at',

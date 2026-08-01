@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_pill.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
@@ -9,6 +10,7 @@ import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings
 void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
+      theme: V2Theme.light,
       home: Scaffold(body: Center(child: child)),
     );
   }

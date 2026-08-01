@@ -44,7 +44,7 @@ class V2Gallery extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('v2 gallery', style: V2Typography.titleSm()),
-        backgroundColor: V2Colors.bg,
+        backgroundColor: context.v2.bg,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
@@ -64,22 +64,22 @@ class V2Gallery extends StatelessWidget {
               const SizedBox(height: V2Spacing.space8),
               Text(
                 'ACTIVE INGREDIENTS',
-                style: V2Typography.eyebrow(color: V2Colors.accent),
+                style: V2Typography.eyebrow(color: context.v2.accent),
               ),
               const SizedBox(height: V2Spacing.space4),
               Text(
                 'ESTABLISHED',
-                style: V2Typography.overline(color: V2Colors.fgMuted),
+                style: V2Typography.overline(color: context.v2.fgMuted),
               ),
             ],
           ),
-          const _Section(
+          _Section(
             title: 'Color',
             children: [
-              _ColorSwatch('bg', V2Colors.bg),
-              _ColorSwatch('surface', V2Colors.surface),
-              _ColorSwatch('accent', V2Colors.accent),
-              _ColorSwatch('accentStrong', V2Colors.accentStrong),
+              _ColorSwatch('bg', context.v2.bg),
+              _ColorSwatch('surface', context.v2.surface),
+              _ColorSwatch('accent', context.v2.accent),
+              _ColorSwatch('accentStrong', context.v2.accentStrong),
             ],
           ),
           const _Section(
@@ -95,7 +95,7 @@ class V2Gallery extends StatelessWidget {
             children: [
               Text(
                 'Uses ScoreTier directly — locked colors + labels + descriptions.',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space16),
               for (final s in const [95, 84, 75, 65, 55, 30])
@@ -104,9 +104,9 @@ class V2Gallery extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(V2Spacing.space16),
                     decoration: BoxDecoration(
-                      color: V2Colors.surface,
+                      color: context.v2.surface,
                       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                      border: Border.all(color: V2Colors.outline),
+                      border: Border.all(color: context.v2.outline),
                     ),
                     child: PGScoreLine(score: s),
                   ),
@@ -119,7 +119,7 @@ class V2Gallery extends StatelessWidget {
               Text(
                 'Canonical ingredients card — active tile, inactive row, '
                 'auto-expand (≤5), hairline rhythm.',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space16),
               const PGIngredientsCard(
@@ -223,7 +223,7 @@ class V2Gallery extends StatelessWidget {
                 'Hero + Personal Fit + Review Before Use, stacked in '
                 'production scroll order. Same data shape, v2 surface + '
                 'typography.',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space16),
               // Hero
@@ -308,7 +308,7 @@ class V2Gallery extends StatelessWidget {
                 'Score Breakdown · Interaction Warnings · Label '
                 'Confidence — the next 3 sliver positions on production '
                 'scroll. Same data shape, v2 surface + typography.',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space16),
               // 1. Score Breakdown — v4 six-pillar native scale
@@ -348,16 +348,16 @@ class V2Gallery extends StatelessWidget {
                     microExplanation: 'Independent testing and brand checks',
                     score: 13,
                     max: 15,
-                    badges: const [
+                    badges: [
                       PGPillarBadge(
                         icon: Icons.verified_outlined,
                         label: 'Third-party tested',
-                        color: V2Colors.safe,
+                        color: context.v2.safe,
                       ),
                       PGPillarBadge(
                         icon: Icons.factory_outlined,
                         label: 'Trusted manufacturer',
-                        color: V2Colors.safe,
+                        color: context.v2.safe,
                       ),
                     ],
                     onTap: () {},
@@ -453,7 +453,7 @@ class V2Gallery extends StatelessWidget {
               Text(
                 'The remaining 11 sliver positions — same data shape '
                 'as production, v2 surface + typography.',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space16),
               // 1. Tradeoffs (Pros / What to consider)
@@ -822,7 +822,7 @@ class _PrototypeLink extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: V2Spacing.space8),
       child: Material(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
           onTap: () => context.go(routePath),
@@ -831,7 +831,7 @@ class _PrototypeLink extends StatelessWidget {
             padding: const EdgeInsets.all(V2Spacing.space16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
             ),
             child: Row(
               children: [
@@ -841,19 +841,19 @@ class _PrototypeLink extends StatelessWidget {
                     children: [
                       Text(
                         label.toUpperCase(),
-                        style: V2Typography.eyebrow(color: V2Colors.accent),
+                        style: V2Typography.eyebrow(color: context.v2.accent),
                       ),
                       const SizedBox(height: V2Spacing.space4),
                       Text(
                         subtitle,
-                        style: V2Typography.body(color: V2Colors.fg),
+                        style: V2Typography.body(color: context.v2.fg),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: V2Colors.fgMuted),
+                Icon(Icons.chevron_right, color: context.v2.fgMuted),
               ],
             ),
           ),
@@ -877,7 +877,7 @@ class _Section extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: V2Typography.eyebrow(color: V2Colors.accent),
+            style: V2Typography.eyebrow(color: context.v2.accent),
           ),
           const SizedBox(height: V2Spacing.space12),
           ...children,
@@ -897,14 +897,14 @@ class _DemoProductImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.accentTint,
+        color: context.v2.accentTint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
-      child: const Icon(
+      child: Icon(
         Icons.medication_outlined,
         size: 40,
-        color: V2Colors.accent,
+        color: context.v2.accent,
       ),
     );
   }
@@ -927,7 +927,7 @@ class _ColorSwatch extends StatelessWidget {
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
             ),
           ),
           const SizedBox(width: V2Spacing.space16),
@@ -950,7 +950,7 @@ class _ShadowChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space16),
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           boxShadow: shadow,
         ),
@@ -1019,7 +1019,7 @@ class _SignOutButtonState extends State<_SignOutButton> {
     return Padding(
       padding: const EdgeInsets.only(bottom: V2Spacing.space8),
       child: Material(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
           onTap: signedIn ? _signOut : null,
@@ -1028,7 +1028,7 @@ class _SignOutButtonState extends State<_SignOutButton> {
             padding: const EdgeInsets.all(V2Spacing.space16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
             ),
             child: Row(
               children: [
@@ -1036,7 +1036,7 @@ class _SignOutButtonState extends State<_SignOutButton> {
                   signedIn
                       ? Icons.logout_rounded
                       : Icons.person_outline_rounded,
-                  color: signedIn ? V2Colors.accent : V2Colors.fgMuted,
+                  color: signedIn ? context.v2.accent : context.v2.fgMuted,
                   size: 20,
                 ),
                 const SizedBox(width: V2Spacing.space12),
@@ -1048,7 +1048,9 @@ class _SignOutButtonState extends State<_SignOutButton> {
                       Text(
                         signedIn ? 'SIGN OUT' : 'NOT SIGNED IN',
                         style: V2Typography.eyebrow(
-                          color: signedIn ? V2Colors.accent : V2Colors.fgMuted,
+                          color: signedIn
+                              ? context.v2.accent
+                              : context.v2.fgMuted,
                         ),
                       ),
                       const SizedBox(height: V2Spacing.space4),
@@ -1056,7 +1058,7 @@ class _SignOutButtonState extends State<_SignOutButton> {
                         signedIn
                             ? _currentEmail!
                             : 'Sign in via the Auth invitation screen.',
-                        style: V2Typography.body(color: V2Colors.fg),
+                        style: V2Typography.body(color: context.v2.fg),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1064,7 +1066,7 @@ class _SignOutButtonState extends State<_SignOutButton> {
                   ),
                 ),
                 if (signedIn)
-                  const Icon(Icons.chevron_right, color: V2Colors.fgMuted),
+                  Icon(Icons.chevron_right, color: context.v2.fgMuted),
               ],
             ),
           ),

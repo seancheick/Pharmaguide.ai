@@ -48,7 +48,7 @@ class PGComparePillarRow extends StatelessWidget {
   });
 
   Widget _side(BuildContext context, double? score, int max) {
-    final tone = PGScoreBreakdownCard.pillarTone(score, max);
+    final tone = PGScoreBreakdownCard.pillarTone(score, max, context.v2);
     final fill = (score == null || max <= 0)
         ? 0.0
         : (score / max).clamp(0.0, 1.0);

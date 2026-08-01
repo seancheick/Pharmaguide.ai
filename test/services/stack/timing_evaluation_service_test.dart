@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/services/stack/timing_evaluation_service.dart';
+import 'package:pharmaguide/services/stack/timing_sequence_resolver.dart';
 
 /// Minimal timing_rules.json for testing — 6 rules covering each rule type.
 final _testTimingRulesJson = {
@@ -740,6 +741,18 @@ void main() {
               (result) => result.product1Name == 'O.N.E. Multivitamin',
             ),
             isTrue,
+          );
+
+          final plan = const TimingSequenceResolver().resolve(results);
+          expect(plan.isEmpty, isTrue);
+          expect(plan.unsatisfied, hasLength(1));
+          expect(
+            plan.unsatisfied.single.advice,
+            'O.N.E. Multivitamin has conflicting timing guidance.',
+          );
+          expect(
+            plan.unsatisfied.single.sourceRuleIds,
+            containsAll(<String>['ala_empty', 'vitamin_a_with_fat']),
           );
         },
       );
