@@ -1917,16 +1917,23 @@ class _ScoreChip extends StatelessWidget {
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
-        // Background keeps the brighter chart token (tinted at 0.12).
-        color: _scoreTone(
-          score,
-          Theme.of(context).brightness,
-        ).withValues(alpha: 0.12),
+        // OPAQUE, not a tint. This chip is positioned over the product
+        // image, so a 12% tint let the label art through and the score's
+        // contrast became whatever the photo happened to be — measured
+        // 4.61:1 on a white label but 1.91:1 on a mid-grey one. An opaque
+        // plate restores a known background, which is the surface the tier
+        // text tokens are actually verified against.
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        // Keeps the plate legible against a same-toned label.
+        border: Border.all(color: context.v2.outline),
       ),
       child: Text(
         '${score.round()}',
-        // Text uses the accessible tier token (>=4.5:1 on the tinted chip).
+        // The canonical quality-tier token from score_tier.dart, so search
+        // and product detail never render a different colour for the same
+        // score. The locked bands (90/80/70/60/50) live in tierForScore;
+        // never reintroduce bands here.
         style: V2Typography.monoData(
           color: tierForScore(score.round()).textColor(
             Theme.of(context).brightness,
@@ -1951,8 +1958,11 @@ class _LimitedDataChip extends StatelessWidget {
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
-        color: context.v2.fgMuted.withValues(alpha: 0.12),
+        // Opaque for the same reason as _ScoreChip: it sits over the
+        // product image.
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        border: Border.all(color: context.v2.outline),
       ),
       child: Text(
         'Limited data',
@@ -1977,8 +1987,11 @@ class _LimitedAssessmentChip extends StatelessWidget {
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
-        color: context.v2.fgMuted.withValues(alpha: 0.12),
+        // Opaque for the same reason as _ScoreChip: it sits over the
+        // product image.
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        border: Border.all(color: context.v2.outline),
       ),
       child: Text(
         '${score.round()} · Limited assessment',
@@ -2267,13 +2280,6 @@ String? _packSizeLabel(ProductsCoreData product) {
     fallbackFormFactor: product.formFactor ?? '',
   );
 }
-
-// Score-chip color uses the canonical quality-tier palette from
-// score_tier.dart so search and product detail never render a different
-// color for the same score. The locked boundaries (90/80/70/60/50) live in
-// tierForScore — this must never reintroduce its own bands.
-Color _scoreTone(double score, Brightness brightness) =>
-    tierForScore(score.round()).color(brightness);
 
 /// Verdict → chip tone. Public + @visibleForTesting so the SAFE-case
 /// regression (SAFE used to fall through to the gray NOT_SCORED fallback)
