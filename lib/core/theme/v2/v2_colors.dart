@@ -49,10 +49,23 @@ abstract final class V2Colors {
   // NEVER brighten these. The website's reds are muted on purpose.
   static const contraindicated = Color(0xFF9F2929);
   static const contraindicatedTint = Color(0x1A9F2929);
-  // These three are minimally darker than the original brand ramp so small
-  // clinical labels clear WCAG AA on the lightest elevated surface. Hue and
-  // saturation stay intact; only lightness moves. The full ramp is locked by
-  // v2_palette_contrast_test.dart.
+  // These three are darker than the original brand ramp so small clinical
+  // labels clear WCAG AA on the lightest elevated surface. Hue and saturation
+  // stay intact (drift <=0.3 degrees / 0.3 points); only lightness moves. The
+  // full ramp is locked by v2_palette_contrast_test.dart.
+  //
+  // `avoid` and `monitor` moved a little — dE 4.9 and 4.1, just past the ~2.3
+  // just-noticeable threshold. `caution` did NOT: #AD7A24 -> #8A611D is
+  // **dE 14.0**, lightness 55.0 -> 44.3. A mid amber became a distinctly
+  // darker olive-amber, and it bought the contrast it needed (3.21:1 ->
+  // 4.71:1 as small text). Legibility wins on a clinical surface, but the
+  // change is plainly visible, so:
+  //
+  //   THE LIGHT-MODE `caution` NO LONGER MATCHES THE WEBSITE.
+  //
+  // That divergence is deliberate and unresolved — either the site follows
+  // this value or someone accepts two ambers. Do not "restore" the old hex
+  // to close the gap; it fails AA and the contrast test will reject it.
   static const avoid = Color(0xFFAA4E2B);
   static const avoidTint = Color(0x1AAA4E2B);
   static const caution = Color(0xFF8A611D);
