@@ -190,11 +190,10 @@ void main() {
       final body = latin1.decode(bytes, allowInvalid: true);
       final requiredTokens = [
         'PharmaGuide',
+        'Medication',
         'Supplement',
-        'Stack',
-        'Report',
+        'Review',
         'Patient-generated',
-        'supplement',
         'summary',
       ];
       final missing = requiredTokens
@@ -677,10 +676,12 @@ void main() {
         generatedAt: DateTime.utc(2026, 5, 28),
       );
 
-      // "Interactions flagged:" and "0" are separate text operators, so the
-      // qualifier token is what proves the count is not left bare.
+      // The counters were removed outright, which satisfies the same intent
+      // more directly: there is no bare zero to misread. The hedge that the
+      // checks did not run must still be present.
       final body = latin1.decode(bytes, allowInvalid: true);
-      expect(body, contains('incomplete'));
+      expect(body, isNot(contains('flagged')));
+      expect(body, contains('all-clear'));
     },
   );
 
@@ -706,7 +707,7 @@ void main() {
 
     final body = latin1.decode(bytes, allowInvalid: true);
     expect(body, contains('all-clear'));
-    expect(body, contains('incomplete'));
+    expect(body, contains('completed'));
     expect(body, isNot(contains('snapshot.')));
   });
 
@@ -821,11 +822,12 @@ void main() {
     );
 
     final body = latin1.decode(bytes, allowInvalid: true);
+    // Provenance is a label/value table, so labels and values are separate
+    // cells. The content hash is deliberately no longer printed.
     expect(body, contains('PROVENANCE'));
-    expect(body, contains('version:'));
+    expect(body, contains('version'));
     expect(body, contains('2026.07.27'));
-    expect(body, contains('hash:'));
-    expect(body, contains('sha256:abc123'));
+    expect(body, isNot(contains('sha256')));
     expect(body, contains('Product'));
     expect(body, contains('catalog'));
     expect(body, contains('2026.07.26.101500'));
@@ -941,10 +943,12 @@ void main() {
     );
 
     final body = latin1.decode(bytes, allowInvalid: true);
+    // Every absent artifact field is named "Unavailable" rather than dropped.
     expect(body, contains('PROVENANCE'));
-    expect(body, contains('Unavailable'));
-    expect(body, contains('clinical'));
-    expect(body, contains('assessment'));
+    expect(
+      RegExp('Unavailable').allMatches(body).length,
+      greaterThanOrEqualTo(3),
+    );
   });
 
   test('prints medication identity limitations for clinician review', () async {
@@ -970,4 +974,1002 @@ void main() {
     expect(body, contains('unresolved'));
     expect(body, contains('incomplete'));
   });
+
+  // Restored: this test and the same-bottle timing test below were
+  // uncommitted working-tree work, not present at HEAD.
+  test(
+    'clinician report ignores legacy supplement dose and schedule overrides',
+    () async {
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: [
+          _stack(
+            id: 'med-1',
+            name: 'Medication',
+            type: 'medication',
+            dosage: 'MEDDOSE777',
+            frequency: 'Daily',
+          ),
+          _stack(
+            id: 'supp-1',
+            name: 'Verified Supplement',
+            type: 'supplement',
+            dosage: 'LEGACYDOSE888',
+            frequency: 'LEGACYSCHEDULE999',
+          ),
+        ],
+        intelligence: const StackIntelligence(
+          tier: StackTier.incomplete,
+          stackSize: 2,
+          issues: [],
+          interactionCount: 0,
+          nutrientWarningCount: 0,
+          hasRecalledIngredient: false,
+          hasContraindicatedInteraction: false,
+          hasBannedIngredient: false,
+        ),
+        safetyReport: const StackSafetyReport(),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 7, 31),
+      );
+
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('MEDDOSE777'));
+      expect(body, isNot(contains('LEGACYDOSE888')));
+      expect(body, isNot(contains('LEGACYSCHEDULE999')));
+    },
+  );
+
+  test('reports same-bottle timing conflicts at product level', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(
+        timingOptimizations: [
+          TimingOptimization(
+            ruleId: 'ala_empty',
+            ingredient1: 'alpha-lipoic acid',
+            ingredient2: 'food',
+            advice: 'Take alpha-lipoic acid on an empty stomach.',
+            ruleType: TimingRuleType.takeOnEmptyStomach,
+            scoreImpact: -1,
+            evidenceLevel: EvidenceLevel.probable,
+            product1Name: 'O.N.E. Multivitamin',
+            product1StackEntryId: 'stack-multi',
+          ),
+          TimingOptimization(
+            ruleId: 'vitamin_a_with_fat',
+            ingredient1: 'vitamin a',
+            ingredient2: 'dietary fat',
+            advice: 'Take vitamin A with a meal containing fat.',
+            ruleType: TimingRuleType.takeWithFood,
+            scoreImpact: -1,
+            evidenceLevel: EvidenceLevel.established,
+            product1Name: 'O.N.E. Multivitamin',
+            product1StackEntryId: 'stack-multi',
+          ),
+        ],
+      ),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 29),
+    );
+
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('O.N.E.'));
+    expect(body, contains('Multivitamin'));
+    expect(body, contains('conflicting'));
+    expect(body, contains('guidance'));
+    // The instructions are now named, but only inside a sentence stating they
+    // cannot both be followed - never as separate schedulable advice.
+    expect(body, contains('followed'));
+  });
+
+  // ===================================================================
+  // Reconciliation honesty.
+  // ===================================================================
+
+  test(
+    'states medications are not entered instead of dropping the section',
+    () async {
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: [_stack(id: 'supp-1', name: 'Vitamin D3', type: 'supplement')],
+        intelligence: _intelligence,
+        safetyReport: const StackSafetyReport(),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 7, 31),
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('MEDICATIONS'));
+      expect(body, contains('Reconciliation'));
+    },
+  );
+
+  test(
+    'flags class-only reconciliation when a drug class has no medication',
+    () async {
+      final ts = DateTime.utc(2026, 7, 31);
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: UserProfile(
+          id: 1,
+          ageBracket: '31-50',
+          sex: 'Male',
+          goals: '[]',
+          conditions: '[]',
+          drugClasses: '["insulin_sulfonylureas"]',
+          allergens: '[]',
+          profileFlags: '[]',
+          createdAt: ts,
+          lastUpdated: ts,
+        ),
+        stack: [_stack(id: 'supp-1', name: 'Chromium', type: 'supplement')],
+        intelligence: _intelligence,
+        safetyReport: const StackSafetyReport(),
+        depletions: const [],
+        generatedAt: ts,
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('class-only'));
+      expect(body, contains('all-clear'));
+    },
+  );
+
+  test(
+    'does not fire the reconciliation banner without a declared class',
+    () async {
+      final ts = DateTime.utc(2026, 7, 31);
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: UserProfile(
+          id: 1,
+          ageBracket: '35-44',
+          sex: 'female',
+          goals: '[]',
+          conditions: '[]',
+          drugClasses: '[]',
+          allergens: '[]',
+          profileFlags: '[]',
+          createdAt: ts,
+          lastUpdated: ts,
+        ),
+        stack: [
+          _stack(
+            id: 'med-1',
+            name: 'Lisinopril',
+            type: 'medication',
+            dosage: '10 mg',
+            frequency: 'daily',
+          ),
+        ],
+        intelligence: _intelligence,
+        safetyReport: const StackSafetyReport(),
+        depletions: const [],
+        generatedAt: ts,
+      );
+      expect(
+        latin1.decode(bytes, allowInvalid: true),
+        isNot(contains('class-only')),
+      );
+    },
+  );
+
+  test(
+    'still requires reconciliation when a saved medication is unrelated',
+    () async {
+      final ts = DateTime.utc(2026, 7, 31);
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: UserProfile(
+          id: 1,
+          ageBracket: '51-70',
+          sex: 'Male',
+          goals: '[]',
+          conditions: '[]',
+          drugClasses: '["ace_inhibitors"]',
+          allergens: '[]',
+          profileFlags: '[]',
+          createdAt: ts,
+          lastUpdated: ts,
+        ),
+        stack: [_aspirin(ts)],
+        intelligence: _intelligence,
+        safetyReport: const StackSafetyReport(),
+        depletions: const [],
+        generatedAt: ts,
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('class-only'));
+      expect(body, contains('all-clear'));
+    },
+  );
+
+  test(
+    'clears reconciliation when a saved medication resolves the class',
+    () async {
+      final ts = DateTime.utc(2026, 7, 31);
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: UserProfile(
+          id: 1,
+          ageBracket: '51-70',
+          sex: 'Male',
+          goals: '[]',
+          conditions: '[]',
+          drugClasses: '["antiplatelets"]',
+          allergens: '[]',
+          profileFlags: '[]',
+          createdAt: ts,
+          lastUpdated: ts,
+        ),
+        stack: [_aspirin(ts)],
+        intelligence: _intelligence,
+        safetyReport: const StackSafetyReport(),
+        depletions: const [],
+        generatedAt: ts,
+      );
+      expect(
+        latin1.decode(bytes, allowInvalid: true),
+        isNot(contains('class-only')),
+      );
+    },
+  );
+
+  test('names the unresolved class when a medication is entered', () async {
+    final ts = DateTime.utc(2026, 7, 31);
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: UserProfile(
+        id: 1,
+        ageBracket: '51-70',
+        sex: 'Male',
+        goals: '[]',
+        conditions: '[]',
+        drugClasses: '["anticoagulants"]',
+        allergens: '[]',
+        profileFlags: '[]',
+        createdAt: ts,
+        lastUpdated: ts,
+      ),
+      stack: [_aspirin(ts)],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: ts,
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('resolves'));
+    expect(body, contains('thinners'));
+  });
+
+  test('states allergies are not entered rather than omitting them', () async {
+    final ts = DateTime.utc(2026, 7, 31);
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: UserProfile(
+        id: 1,
+        ageBracket: '31-50',
+        sex: 'Female',
+        goals: '[]',
+        conditions: '[]',
+        drugClasses: '[]',
+        allergens: '[]',
+        profileFlags: '[]',
+        createdAt: ts,
+        lastUpdated: ts,
+      ),
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: ts,
+    );
+    expect(
+      latin1.decode(bytes, allowInvalid: true),
+      contains('Allergies/intolerances'),
+    );
+  });
+
+  // ===================================================================
+  // Provenance describes artifacts, never the patient's data.
+  // ===================================================================
+
+  test('never labels anything in the report "Complete"', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 31),
+    );
+    expect(
+      latin1.decode(bytes, allowInvalid: true),
+      isNot(contains('Complete')),
+    );
+  });
+
+  test('keeps technical provenance below the clinical content', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: _profile(),
+      stack: [_stack(id: 'supp-1', name: 'Vitamin D3', type: 'supplement')],
+      intelligence: _intelligence,
+      safetyReport: _safetyReport(),
+      depletions: _depletions,
+      generatedAt: DateTime.utc(2026, 7, 31),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(
+      body.indexOf('PROVENANCE'),
+      greaterThan(body.indexOf('SUPPLEMENTS')),
+    );
+    expect(body.indexOf('PROVENANCE'), greaterThan(body.indexOf('QUESTIONS')));
+  });
+
+  test('omits backend-only provenance from the clinician report', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      clinicalDataVersion: '2026.07.30',
+      clinicalDataHash: 'sha256:abc123',
+      productCatalogVersion: '2026.07.29.184200',
+      interactionRulesVersion: '2026.07.28.003',
+      generatedAt: DateTime.utc(2026, 7, 31),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, isNot(contains('sha256')));
+    expect(body, contains('2026.07.29.184200'));
+    expect(body, contains('2026.07.28.003'));
+  });
+
+  test('does not print a stack tier in the clinician report', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 31),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, isNot(contains('Decent')));
+    expect(body, isNot(contains('tier')));
+  });
+
+  test('omits the stack summary counters entirely', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 31),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, isNot(contains('flagged')));
+    expect(body, isNot(contains('SUMMARY')));
+  });
+
+  test('repeats a deterministic report id across pages', () async {
+    final nutrients = List.generate(
+      40,
+      (i) => NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'nutrient_$i',
+          displayName: 'Nutrient $i',
+          totalAmount: (10 + i).toDouble(),
+          unit: 'mg',
+          contributions: const [],
+        ),
+        tier: NutrientTier.adequate,
+        rda: 100,
+        pctOfRda: 50,
+      ),
+    );
+    final generatedAt = DateTime.utc(2026, 7, 31, 21, 22);
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: _profile(),
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: StackSafetyReport(nutrientStatuses: nutrients),
+      depletions: _depletions,
+      generatedAt: generatedAt,
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    final id = ClinicianPdfBuilder.reportIdFor(generatedAt);
+    expect(id, startsWith('PG-'));
+    expect(RegExp(RegExp.escape(id)).allMatches(body).length, greaterThan(1));
+    expect(ClinicianPdfBuilder.reportIdFor(generatedAt), id);
+  });
+
+  // ===================================================================
+  // Nutrient comparators and coverage.
+  // ===================================================================
+
+  test('surfaces a generic-baseline target caveat on nutrient rows', () async {
+    final bytes = await _nutrientReport(
+      const NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'vitamin_c',
+          displayName: 'Vitamin C',
+          totalAmount: 1180,
+          unit: 'mg',
+          contributions: [
+            NutrientContribution(
+              stackEntryId: 'supp-1',
+              productName: 'CBottle',
+              amount: 1180,
+              unit: 'mg',
+            ),
+          ],
+        ),
+        tier: NutrientTier.aboveTypical,
+        rda: 75,
+        ul: 2000,
+        pctOfRda: 1573,
+        pctOfUl: 59,
+        rdaIsBaseline: true,
+      ),
+    );
+    expect(latin1.decode(bytes, allowInvalid: true), contains('baseline'));
+  });
+
+  test('surfaces a non-personalized upper-limit caveat', () async {
+    final bytes = await _nutrientReport(
+      const NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'zinc',
+          displayName: 'Zinc',
+          totalAmount: 25,
+          unit: 'mg',
+          contributions: [
+            NutrientContribution(
+              stackEntryId: 'supp-1',
+              productName: 'ZBottle',
+              amount: 25,
+              unit: 'mg',
+            ),
+          ],
+        ),
+        tier: NutrientTier.aboveTypical,
+        rda: 11,
+        ul: 40,
+        pctOfRda: 227,
+        pctOfUl: 62,
+        ulIsFallback: true,
+      ),
+    );
+    expect(
+      latin1.decode(bytes, allowInvalid: true),
+      contains('non-personalized'),
+    );
+  });
+
+  test('states when an upper-limit comparison is indeterminate', () async {
+    final bytes = await _nutrientReport(
+      const NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'vitamin_a',
+          displayName: 'Vitamin A',
+          totalAmount: 900,
+          unit: 'mcg',
+          contributions: [
+            NutrientContribution(
+              stackEntryId: 'supp-1',
+              productName: 'ABottle',
+              amount: 900,
+              unit: 'mcg',
+            ),
+          ],
+        ),
+        tier: NutrientTier.abundant,
+        rda: 700,
+        ul: 3000,
+        pctOfRda: 128,
+        ulAssessmentIndeterminate: true,
+      ),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('Upper-limit'));
+    expect(body, contains('form'));
+  });
+
+  test(
+    'prints a dose range instead of the max amount at the min percent',
+    () async {
+      final bytes = await _nutrientReport(
+        const NutrientStatus(
+          total: NutrientTotal(
+            canonicalId: 'niacin',
+            displayName: 'Niacin',
+            totalAmount: 9876,
+            minimumTotalAmount: 1234,
+            unit: 'mg',
+            contributions: [
+              NutrientContribution(
+                stackEntryId: 'supp-1',
+                productName: 'RangeBottle',
+                amount: 9876,
+                unit: 'mg',
+              ),
+            ],
+          ),
+          // Tiering is based on the minimum/recommended exposure (12.3%),
+          // while the PDF also shows the maximum exposure (98.8%).
+          tier: NutrientTier.underFifty,
+          rda: 10000,
+          pctOfRda: 12.3,
+          maximumPctOfRda: 98.8,
+        ),
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('1,234'));
+      expect(body, contains('9,876'));
+      expect(body, contains('12.3'));
+      expect(body, contains('98.8'));
+      expect(body, contains('Below'));
+    },
+  );
+
+  test('says not quantified rather than printing a clinical zero', () async {
+    final bytes = await _nutrientReport(
+      const NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'boron',
+          displayName: 'Boron',
+          totalAmount: 0,
+          unit: '',
+          contributions: [],
+          excludedContributions: [
+            ExcludedNutrientContribution(
+              contribution: NutrientContribution(
+                stackEntryId: 'supp-x',
+                productName: 'BlendBottle',
+                amount: 1,
+                unit: 'blend',
+              ),
+              reason: NutrientExclusionReason.unsupportedUnit,
+            ),
+          ],
+        ),
+        tier: NutrientTier.noRda,
+      ),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('quantified'));
+    expect(body, contains('usable'));
+  });
+
+  test(
+    'keeps an unattributed total visible instead of calling it unquantified',
+    () async {
+      final bytes = await _nutrientReport(
+        const NutrientStatus(
+          total: NutrientTotal(
+            canonicalId: 'magnesium',
+            displayName: 'Magnesium',
+            totalAmount: 60,
+            unit: 'mg',
+            contributions: [],
+            excludedContributions: [
+              ExcludedNutrientContribution(
+                contribution: NutrientContribution(
+                  stackEntryId: 'supp-mag',
+                  productName: 'MagBottle',
+                  amount: 400,
+                  unit: 'mg',
+                ),
+                reason: NutrientExclusionReason.compoundFormDuplicate,
+              ),
+            ],
+          ),
+          tier: NutrientTier.underFifty,
+          rda: 400,
+          pctOfRda: 15,
+        ),
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('60'));
+      expect(body, contains('15%'));
+      expect(body, contains('Below'));
+      expect(body, isNot(contains('Adequate')));
+      expect(body, isNot(contains('quantified')));
+    },
+  );
+
+  test('does not label a no-reference substance with RDA semantics', () async {
+    final bytes = await _nutrientReport(
+      const NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'creatine',
+          displayName: 'Creatine',
+          totalAmount: 5000,
+          unit: 'mg',
+          contributions: [
+            NutrientContribution(
+              stackEntryId: 'supp-1',
+              productName: 'CrBottle',
+              amount: 5000,
+              unit: 'mg',
+            ),
+          ],
+        ),
+        tier: NutrientTier.noRda,
+      ),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, isNot(contains('RDA')));
+    expect(body, contains('reference'));
+    expect(body, contains('5,000'));
+  });
+
+  test('states nutrient totals cover supplements only', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: const [],
+      intelligence: _intelligence,
+      safetyReport: _safetyReport(),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 31),
+    );
+    expect(
+      latin1.decode(bytes, allowInvalid: true),
+      contains('supplement-only'),
+    );
+  });
+
+  test('attributes each nutrient total to its source products', () async {
+    final bytes = await _nutrientReport(
+      const NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'chromium',
+          displayName: 'Chromium',
+          totalAmount: 200,
+          unit: 'mcg',
+          contributions: [
+            NutrientContribution(
+              stackEntryId: 'supp-multi',
+              productName: 'O.N.E. Multivitamin',
+              amount: 200,
+              unit: 'mcg',
+            ),
+          ],
+        ),
+        tier: NutrientTier.aboveAdequateNoUl,
+        rda: 35,
+        pctOfRda: 571,
+      ),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('Multivitamin'));
+    expect(body, contains('Sources'));
+  });
+
+  test('flags a supplement that mapped to no nutrient totals', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: [
+        _stack(id: 'supp-mapped', name: 'Vitamin D3', type: 'supplement'),
+        _stack(id: 'supp-unmapped', name: 'Mystery Blend', type: 'supplement'),
+      ],
+      intelligence: _intelligence,
+      safetyReport: _safetyReport(),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 31),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('Mystery'));
+    expect(body, contains('Nothing'));
+  });
+
+  test(
+    'does not accuse a benign duplicate exclusion of being unmapped',
+    () async {
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: [_stack(id: 'supp-mag', name: 'MagBottle', type: 'supplement')],
+        intelligence: _intelligence,
+        safetyReport: const StackSafetyReport(
+          nutrientStatuses: [
+            NutrientStatus(
+              total: NutrientTotal(
+                canonicalId: 'magnesium',
+                displayName: 'Magnesium',
+                totalAmount: 60,
+                unit: 'mg',
+                contributions: [],
+                excludedContributions: [
+                  ExcludedNutrientContribution(
+                    contribution: NutrientContribution(
+                      stackEntryId: 'supp-mag',
+                      productName: 'MagBottle',
+                      amount: 400,
+                      unit: 'mg',
+                    ),
+                    reason: NutrientExclusionReason.compoundFormDuplicate,
+                  ),
+                ],
+              ),
+              tier: NutrientTier.adequate,
+              rda: 400,
+              pctOfRda: 15,
+            ),
+          ],
+        ),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 7, 31),
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('within'));
+      expect(body, isNot(contains('Nothing')));
+    },
+  );
+
+  test('a benign exclusion does not hide an unusable-unit exclusion', () async {
+    final bytes = await const ClinicianPdfBuilder(compress: false).build(
+      profile: null,
+      stack: [_stack(id: 'supp-b', name: 'BothBottle', type: 'supplement')],
+      intelligence: _intelligence,
+      safetyReport: const StackSafetyReport(
+        nutrientStatuses: [
+          NutrientStatus(
+            total: NutrientTotal(
+              canonicalId: 'magnesium',
+              displayName: 'Magnesium',
+              totalAmount: 60,
+              unit: 'mg',
+              contributions: [],
+              excludedContributions: [
+                ExcludedNutrientContribution(
+                  contribution: NutrientContribution(
+                    stackEntryId: 'supp-b',
+                    productName: 'BothBottle',
+                    amount: 400,
+                    unit: 'mg',
+                  ),
+                  reason: NutrientExclusionReason.compoundFormDuplicate,
+                ),
+                ExcludedNutrientContribution(
+                  contribution: NutrientContribution(
+                    stackEntryId: 'supp-b',
+                    productName: 'BothBottle',
+                    amount: 1,
+                    unit: 'blend',
+                  ),
+                  reason: NutrientExclusionReason.unsupportedUnit,
+                ),
+              ],
+            ),
+            tier: NutrientTier.adequate,
+            rda: 400,
+            pctOfRda: 15,
+          ),
+        ],
+      ),
+      depletions: const [],
+      generatedAt: DateTime.utc(2026, 7, 31),
+    );
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('unusable'));
+    expect(body, contains('duplicate'));
+  });
+
+  test(
+    'counts distinct nutrients per supplement, not contribution rows',
+    () async {
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: null,
+        stack: [_stack(id: 'supp-a', name: 'FormBottle', type: 'supplement')],
+        intelligence: _intelligence,
+        safetyReport: const StackSafetyReport(
+          nutrientStatuses: [
+            NutrientStatus(
+              total: NutrientTotal(
+                canonicalId: 'vitamin_a',
+                displayName: 'Vitamin A',
+                totalAmount: 900,
+                unit: 'mcg',
+                contributions: [
+                  NutrientContribution(
+                    stackEntryId: 'supp-a',
+                    productName: 'FormBottle',
+                    ingredientName: 'retinyl palmitate',
+                    amount: 600,
+                    unit: 'mcg',
+                  ),
+                  NutrientContribution(
+                    stackEntryId: 'supp-a',
+                    productName: 'FormBottle',
+                    ingredientName: 'beta-carotene',
+                    amount: 300,
+                    unit: 'mcg',
+                  ),
+                ],
+              ),
+              tier: NutrientTier.abundant,
+              rda: 700,
+              pctOfRda: 128,
+            ),
+          ],
+        ),
+        depletions: const [],
+        generatedAt: DateTime.utc(2026, 7, 31),
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, contains('One'));
+      expect(body, isNot(contains('nutrients')));
+    },
+  );
+
+  // ===================================================================
+  // Timing.
+  // ===================================================================
+
+  test('renders the resolved daily schedule, not just advice lines', () async {
+    final bytes = await _timingReport(const [
+      TimingOptimization(
+        ruleId: 'iron_with_food',
+        ingredient1: 'iron',
+        ingredient2: 'food',
+        advice: 'Take iron with a meal.',
+        ruleType: TimingRuleType.takeWithFood,
+        scoreImpact: -1,
+        evidenceLevel: EvidenceLevel.probable,
+        product1Name: 'AlphaBottle',
+        product1StackEntryId: 'stack-alpha',
+      ),
+    ]);
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('AlphaBottle'));
+    expect(body, contains('breakfast'));
+  });
+
+  test('does not imply simultaneous administration in the schedule', () async {
+    final bytes = await _timingReport(const [
+      TimingOptimization(
+        ruleId: 'iron_with_food',
+        ingredient1: 'iron',
+        ingredient2: 'food',
+        advice: 'Take iron with a meal.',
+        ruleType: TimingRuleType.takeWithFood,
+        scoreImpact: -1,
+        evidenceLevel: EvidenceLevel.probable,
+        product1Name: 'AlphaBottle',
+        product1StackEntryId: 'stack-alpha',
+      ),
+    ]);
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, isNot(contains('Take together')));
+    expect(body, contains('window'));
+  });
+
+  test('explains what a same-product timing conflict actually is', () async {
+    final bytes = await _timingReport(const [
+      TimingOptimization(
+        ruleId: 'ala_empty',
+        ingredient1: 'alpha-lipoic acid',
+        ingredient2: 'food',
+        advice: 'Take alpha-lipoic acid on an empty stomach.',
+        ruleType: TimingRuleType.takeOnEmptyStomach,
+        scoreImpact: -1,
+        evidenceLevel: EvidenceLevel.probable,
+        product1Name: 'O.N.E. Multivitamin',
+        product1StackEntryId: 'stack-multi',
+      ),
+      TimingOptimization(
+        ruleId: 'vitamin_a_with_fat',
+        ingredient1: 'vitamin a',
+        ingredient2: 'dietary fat',
+        advice: 'Take vitamin A with a meal containing fat.',
+        ruleType: TimingRuleType.takeWithFood,
+        scoreImpact: -1,
+        evidenceLevel: EvidenceLevel.established,
+        product1Name: 'O.N.E. Multivitamin',
+        product1StackEntryId: 'stack-multi',
+      ),
+    ]);
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('followed'));
+    expect(body, contains('stomach'));
+    expect(body, contains('meal'));
+  });
+
+  test('never prints an unsatisfiable timing rule as valid advice', () async {
+    final bytes = await _timingReport(const [
+      TimingOptimization(
+        ruleId: 'unplaceable_tod',
+        ingredient1: 'ashwagandha',
+        ingredient2: 'sleep',
+        advice: 'UNPLACEABLEADVICE',
+        ruleType: TimingRuleType.timeOfDay,
+        scoreImpact: -1,
+        evidenceLevel: EvidenceLevel.probable,
+        product1Name: 'SleepBottle',
+        product1StackEntryId: 'supp-sleep',
+      ),
+    ]);
+    final body = latin1.decode(bytes, allowInvalid: true);
+    expect(body, contains('UNPLACEABLEADVICE'));
+    expect(body, contains('reviewed'));
+    expect(body, contains('slot'));
+  });
+
+  test(
+    'does not assert an all-clear while a declared class is unresolved',
+    () async {
+      // The banner says the review is partial, so "No stack warnings in the
+      // current snapshot" directly below it asserts exactly what the banner
+      // denies. An unresolved class means medication checks may not have run.
+      final ts = DateTime.utc(2026, 7, 31);
+      final bytes = await const ClinicianPdfBuilder(compress: false).build(
+        profile: UserProfile(
+          id: 1,
+          ageBracket: '51-70',
+          sex: 'Male',
+          goals: '[]',
+          conditions: '[]',
+          drugClasses: '["insulin_sulfonylureas"]',
+          allergens: '[]',
+          profileFlags: '[]',
+          createdAt: ts,
+          lastUpdated: ts,
+        ),
+        stack: [_aspirin(ts)],
+        intelligence: const StackIntelligence(
+          tier: StackTier.decent,
+          stackSize: 1,
+          issues: [],
+          interactionCount: 0,
+          nutrientWarningCount: 0,
+          hasRecalledIngredient: false,
+          hasContraindicatedInteraction: false,
+          hasBannedIngredient: false,
+        ),
+        safetyReport: const StackSafetyReport(),
+        depletions: const [],
+        generatedAt: ts,
+      );
+      final body = latin1.decode(bytes, allowInvalid: true);
+      expect(body, isNot(contains('snapshot.')));
+      expect(body, contains('all-clear'));
+    },
+  );
+}
+
+UserStacksLocalData _aspirin(DateTime ts) => UserStacksLocalData(
+  id: 'med-asa',
+  type: 'medication',
+  name: 'Aspirin',
+  dsldId: null,
+  rxcui: '1191',
+  ingredientKeys: null,
+  drugClassesCol: '["class:antiplatelet_agents"]',
+  genericRxcui: null,
+  ingredientRxcuisCol: null,
+  dosage: '81 mg',
+  frequency: 'daily',
+  addedAt: ts,
+  clientUpdatedAt: ts,
+  deletedAt: null,
+  syncedAt: null,
+);
+
+Future<Uint8List> _nutrientReport(NutrientStatus status) {
+  return const ClinicianPdfBuilder(compress: false).build(
+    profile: null,
+    stack: const [],
+    intelligence: _intelligence,
+    safetyReport: StackSafetyReport(nutrientStatuses: [status]),
+    depletions: const [],
+    generatedAt: DateTime.utc(2026, 7, 31),
+  );
+}
+
+Future<Uint8List> _timingReport(List<TimingOptimization> timings) {
+  return const ClinicianPdfBuilder(compress: false).build(
+    profile: null,
+    stack: const [],
+    intelligence: _intelligence,
+    safetyReport: StackSafetyReport(timingOptimizations: timings),
+    depletions: const [],
+    generatedAt: DateTime.utc(2026, 7, 31),
+  );
 }
