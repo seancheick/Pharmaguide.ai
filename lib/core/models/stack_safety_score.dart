@@ -32,6 +32,16 @@ enum StackHealthLabel {
   unsafe(label: 'Unsafe', color: Color(0xFFDC2626));
 
   final String label;
+
+  /// Status tone. Rendered ONLY as a 6pt dot plus the 10%/20% tint and
+  /// border of `V2Palette.tintedLabel` — the label text beside it uses the
+  /// palette's own foreground, which already resolves per appearance.
+  ///
+  /// Audited 2026-08-01 against both appearances: no contrast defect, so
+  /// this stays a fixed brand token. Making it appearance-aware would have
+  /// required moving `decent` by 14 points of lightness (amber → brown) to
+  /// chase a 3:1 floor that a decorative dot beside a redundant text label
+  /// does not owe.
   final Color color;
 
   const StackHealthLabel({required this.label, required this.color});

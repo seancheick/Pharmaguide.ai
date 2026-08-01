@@ -129,7 +129,11 @@ void main() {
 
       final scoreText = tester.widget<Text>(find.text('60/100'));
       expect(scoreText.style?.fontSize, greaterThanOrEqualTo(20));
-      expect(scoreText.style?.color, tierForScore(60).textColor);
+      // Harness pumps a bare MaterialApp — default light appearance.
+      expect(
+        scoreText.style?.color,
+        tierForScore(60).textColor(Brightness.light),
+      );
     });
 
     testWidgets('no verdict passed → no cue (backward compatible)', (

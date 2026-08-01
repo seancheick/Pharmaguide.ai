@@ -70,35 +70,68 @@ extension ScoreTierMeta on ScoreTier {
       'Significant concerns around formulation quality, safety, or transparency',
   };
 
-  /// Tier color used for the score dot, tier-label text, and pillar
-  /// bars. Hand-picked to read distinctly across light + dark surfaces:
-  ///   Exceptional → deep green   #059669
-  ///   Excellent   → green        #22A06B
-  ///   Good        → teal         #0EA5A0
-  ///   Fair        → yellow       #CA8A04
-  ///   Low Quality → orange       #EA580C
-  ///   Poor        → red          #DC2626
-  Color get color => switch (this) {
-    ScoreTier.exceptional => const Color(0xFF059669),
-    ScoreTier.excellent => const Color(0xFF22A06B),
-    ScoreTier.good => const Color(0xFF0EA5A0),
-    ScoreTier.fair => const Color(0xFFCA8A04),
-    ScoreTier.lowQuality => const Color(0xFFEA580C),
-    ScoreTier.poor => const Color(0xFFDC2626),
-  };
+  /// Non-text tier token — the score dot, pillar bars, and tint fills.
+  /// Meets the 3:1 non-text floor on every surface of the given appearance.
+  ///
+  /// Both ramps are derived from the locked spec colours by holding hue and
+  /// saturation and moving ONLY lightness, the same method as the severity
+  /// ramp in v2_colors.dart. Dark keeps the spec values unchanged — they
+  /// already clear 3:1 on dark surfaces. Light darkens three tiers that did
+  /// not (excellent 2.85:1, good 2.87:1, fair 2.78:1).
+  ///
+  /// Takes a [Brightness] rather than being a bare getter because these are
+  /// rendered colours: a plain getter can only hold one appearance, which is
+  /// exactly how the whole tier system missed dark mode.
+  Color color(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    return switch (this) {
+      ScoreTier.exceptional => const Color(0xFF059669),
+      ScoreTier.excellent => isDark
+          ? const Color(0xFF22A06B)
+          : const Color(0xFF219B68),
+      ScoreTier.good => isDark
+          ? const Color(0xFF0EA5A0)
+          : const Color(0xFF0D9893),
+      ScoreTier.fair => isDark
+          ? const Color(0xFFCA8A04)
+          : const Color(0xFFB77D04),
+      ScoreTier.lowQuality => const Color(0xFFEA580C),
+      ScoreTier.poor => const Color(0xFFDC2626),
+    };
+  }
 
-  /// Accessible foreground companion for tier-colored text on the app's
-  /// cream/white surfaces. The brighter [color] remains the chart/dot token;
-  /// these darker values preserve the same hue while clearing normal-text
-  /// contrast, so a prominent score does not rely on large-text exceptions.
-  Color get textColor => switch (this) {
-    ScoreTier.exceptional => const Color(0xFF047857),
-    ScoreTier.excellent => const Color(0xFF15803D),
-    ScoreTier.good => const Color(0xFF0F766E),
-    ScoreTier.fair => const Color(0xFFA16207),
-    ScoreTier.lowQuality => const Color(0xFFC2410C),
-    ScoreTier.poor => const Color(0xFFB91C1C),
-  };
+  /// Accessible foreground for tier-colored TEXT — the score number and the
+  /// tier label. Clears 4.5:1 on every surface of the given appearance, so a
+  /// prominent score never leans on the large-text exception.
+  ///
+  /// The dark ramp is the fix for a real defect: these values were authored
+  /// for cream surfaces only ("readable on cream", per the original comment)
+  /// and were rendered verbatim in dark mode, where every tier failed —
+  /// `poor` worst at 2.33:1, below even the 3:1 large-text floor. Three light
+  /// values also missed 4.5:1 and are nudged darker here.
+  Color textColor(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    return switch (this) {
+      ScoreTier.exceptional => isDark
+          ? const Color(0xFF05A074)
+          : const Color(0xFF047857),
+      ScoreTier.excellent => isDark
+          ? const Color(0xFF1BA24D)
+          : const Color(0xFF147C3B),
+      ScoreTier.good => isDark
+          ? const Color(0xFF149D92)
+          : const Color(0xFF0F766E),
+      ScoreTier.fair => isDark
+          ? const Color(0xFFC97A09)
+          : const Color(0xFF9A5E07),
+      ScoreTier.lowQuality => isDark
+          ? const Color(0xFFF15C1E)
+          : const Color(0xFFC0400C),
+      ScoreTier.poor => isDark
+          ? const Color(0xFFE76161)
+          : const Color(0xFFB91C1C),
+    };
+  }
 }
 
 /// Map a score to its tier. Inclusive at the floor — 90 → Exceptional,

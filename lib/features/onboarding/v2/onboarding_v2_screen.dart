@@ -437,12 +437,20 @@ class _ScoreLineDemo extends StatelessWidget {
         Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(color: tier.color, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: tier.color(Theme.of(context).brightness),
+            shape: BoxShape.circle,
+          ),
         ),
         const SizedBox(width: V2Spacing.space8),
         Text('$score/100', style: V2Typography.bodyMedium(color: context.v2.fg)),
         const SizedBox(width: V2Spacing.space8),
-        Text(tier.label, style: V2Typography.bodyMedium(color: tier.textColor)),
+        Text(
+          tier.label,
+          style: V2Typography.bodyMedium(
+            color: tier.textColor(Theme.of(context).brightness),
+          ),
+        ),
       ],
     );
   }

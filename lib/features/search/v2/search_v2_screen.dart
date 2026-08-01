@@ -1918,14 +1918,19 @@ class _ScoreChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         // Background keeps the brighter chart token (tinted at 0.12).
-        color: _scoreTone(score).withValues(alpha: 0.12),
+        color: _scoreTone(
+          score,
+          Theme.of(context).brightness,
+        ).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       child: Text(
         '${score.round()}',
         // Text uses the accessible tier token (>=4.5:1 on the tinted chip).
         style: V2Typography.monoData(
-          color: tierForScore(score.round()).textColor,
+          color: tierForScore(score.round()).textColor(
+            Theme.of(context).brightness,
+          ),
         ),
       ),
     );
@@ -2267,7 +2272,8 @@ String? _packSizeLabel(ProductsCoreData product) {
 // score_tier.dart so search and product detail never render a different
 // color for the same score. The locked boundaries (90/80/70/60/50) live in
 // tierForScore — this must never reintroduce its own bands.
-Color _scoreTone(double score) => tierForScore(score.round()).color;
+Color _scoreTone(double score, Brightness brightness) =>
+    tierForScore(score.round()).color(brightness);
 
 /// Verdict → chip tone. Public + @visibleForTesting so the SAFE-case
 /// regression (SAFE used to fall through to the gray NOT_SCORED fallback)

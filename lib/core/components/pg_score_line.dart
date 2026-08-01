@@ -57,6 +57,7 @@ class PGScoreLine extends StatelessWidget {
     final tier = tierForScore(score);
     // Production displays the score AS-GIVEN even if out of range — keeps
     // a "105/100" UI as a clear data-quality signal. Mirror that.
+    final brightness = Theme.of(context).brightness;
     final displayScore = score;
     final headlineSize = prominent ? 22.0 : (compact ? 14.0 : 18.0);
     final dot = compact ? 8.0 : dotSize;
@@ -73,7 +74,7 @@ class PGScoreLine extends StatelessWidget {
               width: dot,
               height: dot,
               decoration: BoxDecoration(
-                color: tier.color,
+                color: tier.color(brightness),
                 shape: BoxShape.circle,
               ),
             ),
@@ -85,7 +86,9 @@ class PGScoreLine extends StatelessWidget {
               '$displayScore/100',
               style:
                   V2Typography.bodyMedium(
-                    color: prominent ? tier.textColor : context.v2.fg,
+                    color: prominent
+                        ? tier.textColor(brightness)
+                        : context.v2.fg,
                   ).copyWith(
                     fontSize: headlineSize,
                     fontWeight: headlineWeight,
@@ -101,7 +104,7 @@ class PGScoreLine extends StatelessWidget {
               child: Text(
                 tier.label,
                 style: V2Typography.bodyMedium(
-                  color: tier.textColor,
+                  color: tier.textColor(brightness),
                 ).copyWith(fontSize: headlineSize, fontWeight: headlineWeight),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

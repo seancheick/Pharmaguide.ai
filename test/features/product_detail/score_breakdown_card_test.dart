@@ -283,7 +283,8 @@ void main() {
 
       visit(richText.text);
       // Accessible tier text token (>=4.5:1), matching the hero score line.
-      expect(numberColor, tierForScore(64).textColor);
+      // Harness pumps a bare MaterialApp — default light appearance.
+      expect(numberColor, tierForScore(64).textColor(Brightness.light));
     });
 
     testWidgets('shows every exact-zero reason inline without duplicating it', (
