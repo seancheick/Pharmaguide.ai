@@ -24,20 +24,20 @@ abstract final class V2Theme {
     final colorScheme = ColorScheme(
       brightness: brightness,
       primary: accent,
-      onPrimary: isDark ? V2Colors.bgDark : Colors.white,
+      onPrimary: palette.onAccent,
       primaryContainer: accentTint,
       onPrimaryContainer: accent,
       secondary: accent,
-      onSecondary: isDark ? V2Colors.bgDark : Colors.white,
+      onSecondary: palette.onAccent,
       secondaryContainer: accentTint,
       onSecondaryContainer: accent,
       // Resolved per brightness. Previously pinned to the light-mode values,
       // which put `safe` at 2.59:1 and `contraindicated` at 2.38:1 on the dark
       // surface — below even the 3:1 large-text floor.
       tertiary: palette.safe,
-      onTertiary: isDark ? V2Colors.bgDark : Colors.white,
+      onTertiary: palette.onSafe,
       error: palette.contraindicated,
-      onError: isDark ? V2Colors.bgDark : Colors.white,
+      onError: palette.onContraindicated,
       surface: surface,
       onSurface: fg,
       surfaceContainerLowest: bg,
@@ -102,7 +102,7 @@ abstract final class V2Theme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: accent,
-          foregroundColor: isDark ? V2Colors.bgDark : Colors.white,
+          foregroundColor: palette.onAccent,
           textStyle: V2Typography.label(),
           padding: const EdgeInsets.symmetric(
             horizontal: V2Spacing.space24,

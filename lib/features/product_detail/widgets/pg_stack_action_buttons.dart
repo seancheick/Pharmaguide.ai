@@ -273,7 +273,7 @@ class _AddButton extends StatelessWidget {
       onPressed: onTap,
       style: FilledButton.styleFrom(
         backgroundColor: context.v2.accent,
-        foregroundColor: Colors.white,
+        foregroundColor: context.v2.onAccent,
         minimumSize: const Size.fromHeight(52),
       ),
       icon: const Icon(Icons.add_rounded, size: 20),
@@ -295,7 +295,7 @@ class _SeeHigherQualityButton extends StatelessWidget {
       onPressed: onTap,
       style: FilledButton.styleFrom(
         backgroundColor: context.v2.avoid,
-        foregroundColor: Colors.white,
+        foregroundColor: context.v2.onAvoid,
         minimumSize: const Size.fromHeight(52),
       ),
       icon: const Icon(Icons.shield_outlined, size: 20),

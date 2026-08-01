@@ -21,7 +21,9 @@ const _largeTextAndUi = 3.0;
 
 double _channel(int component) {
   final c = component / 255.0;
-  return c <= 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4) as double;
+  return c <= 0.04045
+      ? c / 12.92
+      : math.pow((c + 0.055) / 1.055, 2.4) as double;
 }
 
 /// WCAG relative luminance.
@@ -40,7 +42,6 @@ double contrastRatio(Color a, Color b) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-
 /// Composites a semi-transparent colour over an opaque background.
 ///
 /// Without this, a tinted fill is measured as if it were the bare surface —
@@ -49,12 +50,7 @@ double contrastRatio(Color a, Color b) {
 Color composite(Color fg, Color bg) {
   final a = fg.a;
   int mix(double f, double b) => ((a * f + (1 - a) * b) * 255).round();
-  return Color.fromARGB(
-    255,
-    mix(fg.r, bg.r),
-    mix(fg.g, bg.g),
-    mix(fg.b, bg.b),
-  );
+  return Color.fromARGB(255, mix(fg.r, bg.r), mix(fg.g, bg.g), mix(fg.b, bg.b));
 }
 
 String _hex(Color c) =>
@@ -163,6 +159,33 @@ void main() {
           }
         }
       });
+
+      test('solid-fill foregrounds meet body-text contrast', () {
+        final pairs = <String, ({Color fill, Color foreground})>{
+          'accent': (fill: p.accent, foreground: p.onAccent),
+          'accentStrong': (fill: p.accentStrong, foreground: p.onAccentStrong),
+          'contraindicated': (
+            fill: p.contraindicated,
+            foreground: p.onContraindicated,
+          ),
+          'avoid': (fill: p.avoid, foreground: p.onAvoid),
+          'caution': (fill: p.caution, foreground: p.onCaution),
+          'monitor': (fill: p.monitor, foreground: p.onMonitor),
+          'safe': (fill: p.safe, foreground: p.onSafe),
+        };
+
+        for (final pair in pairs.entries) {
+          final ratio = contrastRatio(pair.value.foreground, pair.value.fill);
+          expect(
+            ratio,
+            greaterThanOrEqualTo(_bodyText),
+            reason:
+                '$mode: ${pair.key} foreground ${_hex(pair.value.foreground)} '
+                'on ${_hex(pair.value.fill)} is '
+                '${ratio.toStringAsFixed(2)}:1.',
+          );
+        }
+      });
     });
   }
 
@@ -227,7 +250,6 @@ void main() {
   // The universal 3:1 severity floor above covers all of these. Raising the
   // light ramp to 4.5:1 is a separate, deliberate palette decision.
   // ---------------------------------------------------------------------------
-
 
   group('severity pill — composited contrast', () {
     // The pill is the highest-stakes surface in the app: it is what a
@@ -345,6 +367,32 @@ void main() {
       final mid = V2Palette.light.lerp(V2Palette.dark, 0.5);
       expect(mid.fg, isNot(V2Palette.light.fg));
       expect(mid.fg, isNot(V2Palette.dark.fg));
+    });
+
+    test('solid foregrounds stay readable throughout appearance changes', () {
+      for (var step = 0; step <= 20; step++) {
+        final t = step / 20;
+        final p = V2Palette.light.lerp(V2Palette.dark, t);
+        final pairs = <String, ({Color fill, Color foreground})>{
+          'accent': (fill: p.accent, foreground: p.onAccent),
+          'accentStrong': (fill: p.accentStrong, foreground: p.onAccentStrong),
+          'contraindicated': (
+            fill: p.contraindicated,
+            foreground: p.onContraindicated,
+          ),
+          'avoid': (fill: p.avoid, foreground: p.onAvoid),
+          'caution': (fill: p.caution, foreground: p.onCaution),
+          'monitor': (fill: p.monitor, foreground: p.onMonitor),
+          'safe': (fill: p.safe, foreground: p.onSafe),
+        };
+        for (final pair in pairs.entries) {
+          expect(
+            contrastRatio(pair.value.foreground, pair.value.fill),
+            greaterThanOrEqualTo(_bodyText),
+            reason: '${pair.key} loses contrast at theme interpolation t=$t',
+          );
+        }
+      }
     });
 
     test('light and dark differ on every semantic token', () {

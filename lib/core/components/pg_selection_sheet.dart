@@ -662,7 +662,7 @@ class _CheckCircle extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: selected
-          ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+          ? Icon(Icons.check_rounded, size: 13, color: context.v2.onAccent)
           : null,
     );
   }

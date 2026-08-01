@@ -108,6 +108,11 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
     PGVerdictKind.attention => context.v2.caution,
   };
 
+  Color get _onTone => switch (widget.kind) {
+    PGVerdictKind.success => context.v2.onSafe,
+    PGVerdictKind.attention => context.v2.onCaution,
+  };
+
   IconData get _icon => switch (widget.kind) {
     PGVerdictKind.success => Icons.check_circle_rounded,
     PGVerdictKind.attention => Icons.warning_amber_rounded,
@@ -176,8 +181,8 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
                         center: const Alignment(0, -0.05),
                         radius: 0.7,
                         colors: [
-                          Colors.white.withValues(alpha: 0.10),
-                          Colors.white.withValues(alpha: 0.0),
+                          _onTone.withValues(alpha: 0.10),
+                          _onTone.withValues(alpha: 0.0),
                         ],
                       ),
                     ),
@@ -193,7 +198,7 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(_icon, color: Colors.white, size: 120),
+                            Icon(_icon, color: _onTone, size: 120),
                             if (widget.caption != null &&
                                 widget.caption!.trim().isNotEmpty) ...[
                               const SizedBox(height: 20),
@@ -206,10 +211,8 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style:
-                                      V2Typography.bodyXl(
-                                        color: Colors.white,
-                                      ).copyWith(
+                                  style: V2Typography.bodyXl(color: _onTone)
+                                      .copyWith(
                                         fontSize: 17,
                                         fontWeight: FontWeight.w500,
                                         height: 1.25,

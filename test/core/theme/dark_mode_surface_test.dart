@@ -178,6 +178,37 @@ void main() {
             'hardcode one appearance:\n${offenders.join('\n')}',
       );
     });
+
+    test('adaptive solid-fill widgets never hardcode a white foreground', () {
+      const adaptiveSolidSurfaces = <String>{
+        'lib/features/home/v2/home_v2_screen.dart',
+        'lib/core/components/pg_pill_button.dart',
+        'lib/core/components/pg_pill_tab_bar.dart',
+        'lib/core/components/pg_type_badge.dart',
+        'lib/core/components/pg_verdict_reveal.dart',
+        'lib/core/components/pg_selection_sheet.dart',
+        'lib/features/product_detail/widgets/pg_stack_action_buttons.dart',
+      };
+      final offenders = <String>[];
+
+      for (final path in adaptiveSolidSurfaces) {
+        final lines = File(path).readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          if (lines[i].contains('Colors.white')) {
+            offenders.add('$path:${i + 1}');
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'Brightness-aware fills require their matching context.v2.on* '
+            'foreground; white fails against dark-mode accent/severity fills:'
+            '\n${offenders.join('\n')}',
+      );
+    });
   });
 
   group('the extension is registered where it matters', () {

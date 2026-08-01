@@ -67,7 +67,7 @@ class _PGPillButtonState extends State<PGPillButton> {
     };
 
     final fg = switch (widget.variant) {
-      PGPillVariant.primary => Colors.white,
+      PGPillVariant.primary => context.v2.onAccent,
       PGPillVariant.secondary || PGPillVariant.ghost => context.v2.accent,
     };
 

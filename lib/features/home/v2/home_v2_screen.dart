@@ -402,16 +402,16 @@ class _ScanCta extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: context.v2.onAccent.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.22),
+                    color: context.v2.onAccent.withValues(alpha: 0.22),
                     width: 0.8,
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.qr_code_scanner_rounded,
-                  color: Colors.white,
+                  color: context.v2.onAccent,
                   size: 28,
                 ),
               ),
@@ -423,7 +423,7 @@ class _ScanCta extends StatelessWidget {
                   children: [
                     Text(
                       'Scan a supplement',
-                      style: V2Typography.titleSm(color: Colors.white),
+                      style: V2Typography.titleSm(color: context.v2.onAccent),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -433,7 +433,7 @@ class _ScanCta extends StatelessWidget {
                       // never wraps under the gradient tile's fixed
                       // 56pt icon + chevron real-estate.
                       style: V2Typography.bodySm(
-                        color: Colors.white.withValues(alpha: 0.82),
+                        color: context.v2.onAccent.withValues(alpha: 0.82),
                       ).copyWith(fontSize: 12),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -445,7 +445,7 @@ class _ScanCta extends StatelessWidget {
               Icon(
                 Icons.arrow_forward_rounded,
                 size: 22,
-                color: Colors.white.withValues(alpha: 0.88),
+                color: context.v2.onAccent.withValues(alpha: 0.88),
               ),
             ],
           ),
@@ -580,7 +580,9 @@ class _StackHealthCard extends ConsumerWidget {
                             children: [
                               Text(
                                 'Stack Health',
-                                style: V2Typography.titleSm(color: context.v2.fg),
+                                style: V2Typography.titleSm(
+                                  color: context.v2.fg,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               // Header subline = supplement/medication
@@ -1236,7 +1238,11 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
               onTap: () => context.go('/dev/v2'),
               child: Padding(
                 padding: const EdgeInsets.all(V2Spacing.space8),
-                child: Icon(Icons.close_rounded, color: context.v2.fg, size: 20),
+                child: Icon(
+                  Icons.close_rounded,
+                  color: context.v2.fg,
+                  size: 20,
+                ),
               ),
             ),
           ),

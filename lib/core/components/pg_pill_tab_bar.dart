@@ -14,7 +14,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 ///
 /// Visual:
 /// - Container is a pill-radius surface with hairline outline
-/// - Selected pill is the inverse: accent fill, white label, soft shadow
+/// - Selected pill is the inverse: accent fill, semantic label, soft shadow
 /// - Smooth 280ms slide on selection change
 /// - Labels render in Geist Sans label style (500 weight, 14pt) so they
 ///   stay readable at small sizes
@@ -129,7 +129,7 @@ class _PillTab extends StatelessWidget {
         duration: V2Motion.fast,
         curve: V2Motion.smooth,
         style: V2Typography.label(
-          color: selected ? Colors.white : context.v2.fgMuted,
+          color: selected ? context.v2.onAccent : context.v2.fgMuted,
         ),
         textAlign: TextAlign.center,
         child: Padding(

@@ -48,6 +48,15 @@ extension PGItemTypeX on PGItemType {
     PGItemType.medication => p.monitorTint,
     PGItemType.bookmark => p.outline,
   };
+
+  /// Foreground paired with [color] when the badge uses a solid fill.
+  Color onColor(V2Palette p) => switch (this) {
+    PGItemType.supplement => p.onAccent,
+    PGItemType.medication => p.onMonitor,
+    // Bookmark uses a neutral foreground as its fill. The resolved surface is
+    // its high-contrast inverse in both modes.
+    PGItemType.bookmark => p.surface,
+  };
 }
 
 /// Tiny pill badge identifying a stack item as supplement / medication /
@@ -77,7 +86,7 @@ class PGTypeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = type.color(context.v2);
     final bg = solid ? color : type.tint(context.v2);
-    final fg = solid ? Colors.white : color;
+    final fg = solid ? type.onColor(context.v2) : color;
 
     return Container(
       padding: const EdgeInsets.symmetric(
