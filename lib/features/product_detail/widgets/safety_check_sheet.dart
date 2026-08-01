@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
@@ -90,12 +90,12 @@ class _SafetyCheckSheet extends ConsumerWidget {
           children: [
             Text(
               'Add to your stack',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               productName,
-              style: V2Typography.body(color: V2Colors.fgMuted),
+              style: V2Typography.body(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space24),
 
@@ -187,19 +187,19 @@ class _VerifyingSafety extends StatelessWidget {
     return _SheetCard(
       child: Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: V2Colors.accent,
+              color: context.v2.accent,
             ),
           ),
           const SizedBox(width: V2Spacing.space12),
           Expanded(
             child: Text(
               'Checking interactions with your stack…',
-              style: V2Typography.bodySm(color: V2Colors.fg),
+              style: V2Typography.bodySm(color: context.v2.fg),
             ),
           ),
         ],
@@ -318,27 +318,27 @@ class _SafetyResults extends StatelessWidget {
                   const SizedBox(height: V2Spacing.space8),
                   Text(
                     'With ${w.agent2Name}',
-                    style: V2Typography.label(color: V2Colors.fg),
+                    style: V2Typography.label(color: context.v2.fg),
                   ),
                   const SizedBox(height: V2Spacing.space4),
                   Text(
                     w.mechanism,
-                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    style: V2Typography.bodySm(color: context.v2.fgMuted),
                   ),
                   if (w.management.isNotEmpty) ...[
                     const SizedBox(height: V2Spacing.space8),
                     Container(
                       padding: const EdgeInsets.all(V2Spacing.space8),
                       decoration: BoxDecoration(
-                        color: V2Colors.accentTint,
+                        color: context.v2.accentTint,
                         borderRadius: BorderRadius.circular(
                           V2Spacing.radiusCard,
                         ),
-                        border: Border.all(color: V2Colors.outline),
+                        border: Border.all(color: context.v2.outline),
                       ),
                       child: Text(
                         w.management,
-                        style: V2Typography.bodySm(color: V2Colors.fg),
+                        style: V2Typography.bodySm(color: context.v2.fg),
                       ),
                     ),
                   ],
@@ -362,9 +362,9 @@ class _SheetCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       child: child,
     );

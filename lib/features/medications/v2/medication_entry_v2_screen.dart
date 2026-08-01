@@ -19,7 +19,7 @@
 //
 // Visual contract:
 //
-// * Cream Scaffold (`V2Colors.bg`), no Material AppBar.
+// * Cream Scaffold (`context.v2.bg`), no Material AppBar.
 // * Top row with a back chip + page eyebrow "Add medication".
 // * Newsreader serif title that explains the difference between
 //   adding a SPECIFIC medication to the stack vs setting
@@ -71,7 +71,6 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_selection_sheet.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -641,9 +640,9 @@ class _TopBar extends StatelessWidget {
             SizedBox(
               width: 40,
               child: IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_ios_new_rounded,
-                  color: V2Colors.fg,
+                  color: context.v2.fg,
                   size: 18,
                 ),
                 onPressed: onBack,
@@ -674,14 +673,14 @@ class _Header extends StatelessWidget {
       children: [
         Text(
           'Add a medication you take.',
-          style: V2Typography.displaySm(color: V2Colors.fg),
+          style: V2Typography.displaySm(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space12),
         Text(
           'PharmaGuide uses this to flag supplement–medication '
           'interactions. To set broader medication classes, edit your '
           'Health Profile.',
-          style: V2Typography.body(color: V2Colors.fgMuted),
+          style: V2Typography.body(color: context.v2.fgMuted),
         ),
       ],
     );
@@ -700,17 +699,17 @@ class _PrivacyRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(
+        Icon(
           Icons.lock_outline_rounded,
           size: 14,
-          color: V2Colors.fgMuted,
+          color: context.v2.fgMuted,
         ),
         const SizedBox(width: V2Spacing.space8),
         Expanded(
           child: Text(
             'Your medication list stays on this device. Used only to '
             'check supplement interactions.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ),
       ],
@@ -745,17 +744,17 @@ class _SearchSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PGEyebrow('Find your medication', color: V2Colors.fgMuted),
+        PGEyebrow('Find your medication', color: context.v2.fgMuted),
         const SizedBox(height: V2Spacing.space12),
         AnimatedContainer(
           duration: V2Motion.fast,
           curve: V2Motion.smooth,
           padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space12),
           decoration: BoxDecoration(
-            color: V2Colors.surface,
+            color: context.v2.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             border: Border.all(
-              color: focused ? V2Colors.accent : V2Colors.outline,
+              color: focused ? context.v2.accent : context.v2.outline,
               width: focused ? 1.5 : 1.0,
             ),
           ),
@@ -764,7 +763,7 @@ class _SearchSection extends StatelessWidget {
               Icon(
                 Icons.search_rounded,
                 size: 18,
-                color: focused ? V2Colors.accent : V2Colors.fgSubtle,
+                color: focused ? context.v2.accent : context.v2.fgSubtle,
               ),
               const SizedBox(width: V2Spacing.space8),
               Expanded(
@@ -781,7 +780,7 @@ class _SearchSection extends StatelessWidget {
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: 'Search your medication',
-                    hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+                    hintStyle: V2Typography.body(color: context.v2.fgSubtle),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -791,8 +790,8 @@ class _SearchSection extends StatelessWidget {
                     isCollapsed: true,
                     isDense: true,
                   ),
-                  style: V2Typography.body(color: V2Colors.fg),
-                  cursorColor: V2Colors.accent,
+                  style: V2Typography.body(color: context.v2.fg),
+                  cursorColor: context.v2.accent,
                   cursorWidth: 1.5,
                   onChanged: onChanged,
                 ),
@@ -801,10 +800,10 @@ class _SearchSection extends StatelessWidget {
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.close_rounded,
                     size: 16,
-                    color: V2Colors.fgSubtle,
+                    color: context.v2.fgSubtle,
                   ),
                   onPressed: onClear,
                   splashRadius: 16,
@@ -816,7 +815,7 @@ class _SearchSection extends StatelessWidget {
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Try "warfarin", "metformin", or "levothyroxine".',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ],
       ],
@@ -912,7 +911,7 @@ class _SuggestionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
         onTap: onTap,
@@ -920,7 +919,7 @@ class _SuggestionRow extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
           ),
           padding: const EdgeInsets.symmetric(
             horizontal: V2Spacing.space16,
@@ -931,10 +930,10 @@ class _SuggestionRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   name,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  style: V2Typography.bodyMedium(color: context.v2.fg),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
+              Icon(Icons.chevron_right_rounded, color: context.v2.fgSubtle),
             ],
           ),
         ),
@@ -951,7 +950,7 @@ class _ClassFallbackTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
         key: const Key('med-entry-class-picker'),
@@ -960,7 +959,7 @@ class _ClassFallbackTile extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
             boxShadow: V2Shadows.sm,
           ),
           padding: const EdgeInsets.fromLTRB(
@@ -975,14 +974,14 @@ class _ClassFallbackTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: V2Colors.accentTint,
+                  color: context.v2.accentTint,
                   borderRadius: BorderRadius.circular(V2Spacing.space8),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(
+                child: Icon(
                   Icons.list_alt_outlined,
                   size: 18,
-                  color: V2Colors.accent,
+                  color: context.v2.accent,
                 ),
               ),
               const SizedBox(width: V2Spacing.space16),
@@ -990,25 +989,25 @@ class _ClassFallbackTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const PGEyebrow(
+                    PGEyebrow(
                       'Medication classes',
-                      color: V2Colors.fgMuted,
+                      color: context.v2.fgMuted,
                     ),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       'Pick a class instead',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                     ),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       'Catches the most common interactions when an '
                       'exact match isn\'t available.',
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      style: V2Typography.caption(color: context.v2.fgMuted),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
+              Icon(Icons.chevron_right_rounded, color: context.v2.fgSubtle),
             ],
           ),
         ),
@@ -1030,9 +1029,9 @@ class _SearchSkeleton extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: V2Spacing.space8),
             child: Container(
               decoration: BoxDecoration(
-                color: V2Colors.surface,
+                color: context.v2.surface,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                border: Border.all(color: V2Colors.outline),
+                border: Border.all(color: context.v2.outline),
               ),
               padding: const EdgeInsets.symmetric(
                 horizontal: V2Spacing.space16,
@@ -1044,7 +1043,7 @@ class _SearchSkeleton extends StatelessWidget {
                     width: 140,
                     height: 14,
                     decoration: BoxDecoration(
-                      color: V2Colors.outline,
+                      color: context.v2.outline,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -1052,8 +1051,8 @@ class _SearchSkeleton extends StatelessWidget {
                   Container(
                     width: 12,
                     height: 12,
-                    decoration: const BoxDecoration(
-                      color: V2Colors.outline,
+                    decoration: BoxDecoration(
+                      color: context.v2.outline,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -1093,9 +1092,9 @@ class _SelectionSummary extends StatelessWidget {
     return Container(
       key: const Key('med-entry-selection-summary'),
       decoration: BoxDecoration(
-        color: V2Colors.accentTint,
+        color: context.v2.accentTint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.accent, width: 1.5),
+        border: Border.all(color: context.v2.accent, width: 1.5),
       ),
       padding: const EdgeInsets.all(V2Spacing.space16),
       child: Column(
@@ -1110,31 +1109,31 @@ class _SelectionSummary extends StatelessWidget {
                 onTap: onChange,
                 child: Text(
                   'Change',
-                  style: V2Typography.label(color: V2Colors.accent),
+                  style: V2Typography.label(color: context.v2.accent),
                 ),
               ),
             ],
           ),
           const SizedBox(height: V2Spacing.space8),
-          Text(name, style: V2Typography.title(color: V2Colors.fg)),
+          Text(name, style: V2Typography.title(color: context.v2.fg)),
           if (resolvingClasses) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Looking up interaction categories…',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ] else if (classes.isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Used to check: ${classes.map(friendlyClassLabel).join(", ")}',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ],
           if (!resolvingClasses && identityCoverageLimited) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
               'We will check this medication, but generic matching may be limited.',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ],
         ],
@@ -1163,9 +1162,9 @@ class _MedicationProfileReviewCard extends StatelessWidget {
     return Container(
       key: const Key('med-entry-profile-review-card'),
       decoration: BoxDecoration(
-        color: V2Colors.cautionTint,
+        color: context.v2.cautionTint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.caution.withValues(alpha: 0.32)),
+        border: Border.all(color: context.v2.caution.withValues(alpha: 0.32)),
       ),
       padding: const EdgeInsets.all(V2Spacing.space16),
       child: Row(
@@ -1175,14 +1174,14 @@ class _MedicationProfileReviewCard extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.space8),
             ),
             alignment: Alignment.center,
-            child: const Icon(
+            child: Icon(
               Icons.assignment_late_outlined,
               size: 18,
-              color: V2Colors.caution,
+              color: context.v2.caution,
             ),
           ),
           const SizedBox(width: V2Spacing.space12),
@@ -1190,7 +1189,7 @@ class _MedicationProfileReviewCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const PGEyebrow('Profile review', color: V2Colors.caution),
+                PGEyebrow('Profile review', color: context.v2.caution),
                 const SizedBox(height: V2Spacing.space8),
                 Text(
                   resolving
@@ -1198,7 +1197,7 @@ class _MedicationProfileReviewCard extends StatelessWidget {
                       : unavailable
                       ? 'Profile review unavailable'
                       : warning?.headline ?? 'Review for your profile',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  style: V2Typography.titleSm(color: context.v2.fg),
                 ),
                 const SizedBox(height: V2Spacing.space8),
                 Text(
@@ -1208,7 +1207,7 @@ class _MedicationProfileReviewCard extends StatelessWidget {
                       ? 'We couldn\'t complete this profile check. This is not '
                             'an all-clear; try again before relying on it.'
                       : warning?.body ?? '',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
                 if (!resolving &&
                     !unavailable &&
@@ -1217,7 +1216,7 @@ class _MedicationProfileReviewCard extends StatelessWidget {
                   const SizedBox(height: V2Spacing.space8),
                   Text(
                     warning.management,
-                    style: V2Typography.caption(color: V2Colors.fgMuted),
+                    style: V2Typography.caption(color: context.v2.fgMuted),
                   ),
                 ],
               ],
@@ -1280,24 +1279,24 @@ class _OptionalSectionState extends State<_OptionalSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PGEyebrow('Optional', color: V2Colors.fgMuted),
+        PGEyebrow('Optional', color: context.v2.fgMuted),
         const SizedBox(height: V2Spacing.space8),
         Text(
           'Add dose or schedule for your own reference.',
-          style: V2Typography.caption(color: V2Colors.fgMuted),
+          style: V2Typography.caption(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space16),
-        Text('Dose', style: V2Typography.label(color: V2Colors.fg)),
+        Text('Dose', style: V2Typography.label(color: context.v2.fg)),
         const SizedBox(height: V2Spacing.space8),
         AnimatedContainer(
           duration: V2Motion.fast,
           curve: V2Motion.smooth,
           padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space12),
           decoration: BoxDecoration(
-            color: V2Colors.surface,
+            color: context.v2.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             border: Border.all(
-              color: doseFocused ? V2Colors.accent : V2Colors.outline,
+              color: doseFocused ? context.v2.accent : context.v2.outline,
               width: doseFocused ? 1.5 : 1.0,
             ),
           ),
@@ -1314,7 +1313,7 @@ class _OptionalSectionState extends State<_OptionalSection> {
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(
               hintText: 'e.g. 5 mg',
-              hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+              hintStyle: V2Typography.body(color: context.v2.fgSubtle),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -1324,13 +1323,13 @@ class _OptionalSectionState extends State<_OptionalSection> {
               isCollapsed: true,
               isDense: true,
             ),
-            style: V2Typography.body(color: V2Colors.fg),
-            cursorColor: V2Colors.accent,
+            style: V2Typography.body(color: context.v2.fg),
+            cursorColor: context.v2.accent,
             cursorWidth: 1.5,
           ),
         ),
         const SizedBox(height: V2Spacing.space24),
-        Text('Schedule', style: V2Typography.label(color: V2Colors.fg)),
+        Text('Schedule', style: V2Typography.label(color: context.v2.fg)),
         const SizedBox(height: V2Spacing.space12),
         Wrap(
           spacing: V2Spacing.space8,
@@ -1372,9 +1371,9 @@ class _StickySaveBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: V2Colors.bg,
-        border: Border(top: BorderSide(color: V2Colors.outline)),
+      decoration: BoxDecoration(
+        color: context.v2.bg,
+        border: Border(top: BorderSide(color: context.v2.outline)),
       ),
       padding: EdgeInsets.fromLTRB(
         V2Spacing.space24,

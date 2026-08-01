@@ -38,7 +38,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/components/pg_ingredients_card.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/blend_grouping.dart';
@@ -363,14 +363,14 @@ class _CanonicalLedgerIngredients extends StatelessWidget {
                 for (var index = 0; index < sections.length; index++) ...[
                   sections[index],
                   if (index != sections.length - 1)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
                         vertical: V2Spacing.space12,
                       ),
                       child: Divider(
                         height: 0.5,
                         thickness: 0.5,
-                        color: V2Colors.outline,
+                        color: context.v2.outline,
                       ),
                     ),
                 ],
@@ -687,14 +687,14 @@ Widget _ingredientEntry({
         child: Text(
           'Forms on label',
           style: V2Typography.caption(
-            color: V2Colors.fgSubtle,
+            color: context.v2.fgSubtle,
           ).copyWith(fontWeight: FontWeight.w500, letterSpacing: 0.4),
         ),
       ),
       for (final component in components)
         _HierarchyChild(child: _LabelChildRow(component: component)),
       if (showBottomDivider)
-        const Divider(height: 0.5, thickness: 0.5, color: V2Colors.outline),
+        Divider(height: 0.5, thickness: 0.5, color: context.v2.outline),
     ],
   );
 }
@@ -777,16 +777,16 @@ class _BlendHeaderRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.layers_outlined,
                   size: 14,
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                 ),
                 const SizedBox(width: V2Spacing.space8),
                 Text(
                   'Proprietary blend',
                   style: V2Typography.caption(
-                    color: V2Colors.fgSubtle,
+                    color: context.v2.fgSubtle,
                   ).copyWith(fontWeight: FontWeight.w500),
                 ),
               ],
@@ -798,7 +798,7 @@ class _BlendHeaderRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     blend.name,
-                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -808,7 +808,7 @@ class _BlendHeaderRow extends StatelessWidget {
                   child: Text(
                     totalLabel,
                     textAlign: TextAlign.end,
-                    style: V2Typography.monoData(color: V2Colors.fgMuted),
+                    style: V2Typography.monoData(color: context.v2.fgMuted),
                   ),
                 ),
               ],
@@ -817,7 +817,7 @@ class _BlendHeaderRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 helperLabel,
-                style: V2Typography.caption(color: V2Colors.fgMuted),
+                style: V2Typography.caption(color: context.v2.fgMuted),
               ),
             ],
           ],
@@ -846,7 +846,7 @@ class _ServingVariantList extends StatelessWidget {
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: V2Colors.surfaceContainerHighest,
+            color: context.v2.surfaceHighest,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Padding(
@@ -857,7 +857,7 @@ class _ServingVariantList extends StatelessWidget {
                 Text(
                   'Serving amounts on label',
                   style: V2Typography.caption(
-                    color: V2Colors.fgMuted,
+                    color: context.v2.fgMuted,
                   ).copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: V2Spacing.space8),
@@ -893,11 +893,11 @@ class _ServingVariantRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (note.isNotEmpty)
-                Text(note, style: V2Typography.bodySm(color: V2Colors.fg)),
+                Text(note, style: V2Typography.bodySm(color: context.v2.fg)),
               if (isCanonical)
                 Text(
                   'Selected serving',
-                  style: V2Typography.caption(color: V2Colors.accent),
+                  style: V2Typography.caption(color: context.v2.accent),
                 ),
             ],
           ),
@@ -908,7 +908,7 @@ class _ServingVariantRow extends StatelessWidget {
             child: Text(
               dose,
               textAlign: TextAlign.end,
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ),
         ],
@@ -926,8 +926,8 @@ class _HierarchyChild extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(left: V2Spacing.space8),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: V2Colors.outline, width: 1)),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: context.v2.outline, width: 1)),
       ),
       child: child,
     );
@@ -969,13 +969,13 @@ class _LabelChildRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
                   if (showForm) ...[
                     const SizedBox(height: 2),
                     Text(
                       form,
-                      style: V2Typography.caption(color: V2Colors.fgMuted),
+                      style: V2Typography.caption(color: context.v2.fgMuted),
                     ),
                   ],
                 ],
@@ -988,7 +988,7 @@ class _LabelChildRow extends StatelessWidget {
                   dose,
                   textAlign: TextAlign.end,
                   style: V2Typography.monoData(
-                    color: V2Colors.fgMuted,
+                    color: context.v2.fgMuted,
                   ).copyWith(fontSize: 12),
                 ),
               ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
@@ -106,7 +106,7 @@ class LabelMismatchAction extends StatelessWidget {
         Text(
           'Send a structured report for review. Reports never change the '
           'catalog automatically.',
-          style: V2Typography.caption(color: V2Colors.fgMuted),
+          style: V2Typography.caption(color: context.v2.fgMuted),
         ),
       ],
     );

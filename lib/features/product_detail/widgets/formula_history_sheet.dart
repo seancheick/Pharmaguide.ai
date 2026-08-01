@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -17,7 +17,7 @@ Future<void> showFormulaHistorySheet(
   );
   return PGModal.bottomSheet<void>(
     context: context,
-    backgroundColor: V2Colors.surface,
+    backgroundColor: context.v2.surface,
     builder: (_) => DraggableScrollableSheet(
       initialChildSize: 0.68,
       minChildSize: 0.42,
@@ -56,7 +56,7 @@ class FormulaHistorySheet extends StatelessWidget {
           child: ExcludeSemantics(
             child: Text(
               'Formula history',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
           ),
         ),
@@ -64,7 +64,7 @@ class FormulaHistorySheet extends StatelessWidget {
         Text(
           'Only source-linked snapshots are shown. Dates appear only when '
           'the source provides them.',
-          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space24),
         if (!model.hasVerifiedHistory)
@@ -92,23 +92,23 @@ class _NoHistoryState extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(V2Spacing.space16),
           decoration: BoxDecoration(
-            color: V2Colors.accentTint,
+            color: context.v2.accentTint,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
+              Icon(
                 Icons.history_rounded,
                 size: 20,
-                color: V2Colors.fgMuted,
+                color: context.v2.fgMuted,
               ),
               const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: Text(
                   'No verified formula history is available for this product.',
-                  style: V2Typography.bodySm(color: V2Colors.fg),
+                  style: V2Typography.bodySm(color: context.v2.fg),
                 ),
               ),
             ],
@@ -131,8 +131,8 @@ class _SnapshotCard extends StatelessWidget {
     final comparisonLabel = isUnchanged
         ? 'Formula unchanged'
         : 'Formula differs from current label';
-    final accent = isUnchanged ? V2Colors.safe : V2Colors.caution;
-    final tint = isUnchanged ? V2Colors.safeTint : V2Colors.cautionTint;
+    final accent = isUnchanged ? context.v2.safe : context.v2.caution;
+    final tint = isUnchanged ? context.v2.safeTint : context.v2.cautionTint;
 
     return Semantics(
       container: true,
@@ -141,16 +141,16 @@ class _SnapshotCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(V2Spacing.space16),
           decoration: BoxDecoration(
-            color: V2Colors.surface,
+            color: context.v2.surface,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Snapshot ${snapshot.snapshotId}',
-                style: V2Typography.label(color: V2Colors.fg),
+                style: V2Typography.label(color: context.v2.fg),
               ),
               const SizedBox(height: V2Spacing.space8),
               Container(
@@ -189,18 +189,18 @@ class _SnapshotCard extends StatelessWidget {
                 Text(
                   'This snapshot has the same formula fingerprint as the '
                   'current label.',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 )
               else if (!snapshot.hasIngredientLevelDetails)
                 Text(
                   'Ingredient-level changes were not provided with this '
                   'snapshot.',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 )
               else if (snapshot.changedRows.isNotEmpty) ...[
                 Text(
                   'Label changes',
-                  style: V2Typography.label(color: V2Colors.fg),
+                  style: V2Typography.label(color: context.v2.fg),
                 ),
                 const SizedBox(height: V2Spacing.space8),
                 for (final summary in snapshot.changedRows)
@@ -208,14 +208,14 @@ class _SnapshotCard extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: V2Spacing.space4),
                     child: Text(
                       '• $summary',
-                      style: V2Typography.bodySm(color: V2Colors.fg),
+                      style: V2Typography.bodySm(color: context.v2.fg),
                     ),
                   ),
               ] else
                 Text(
                   'The source supplied row details, but no row-level '
                   'difference was identifiable.',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
             ],
           ),
@@ -234,7 +234,7 @@ class _MetadataLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: V2Spacing.space4),
-      child: Text(text, style: V2Typography.caption(color: V2Colors.fgMuted)),
+      child: Text(text, style: V2Typography.caption(color: context.v2.fgMuted)),
     );
   }
 }

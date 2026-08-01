@@ -10,7 +10,6 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -308,7 +307,7 @@ class _Headline extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       'Save your stack before\nyour first scan.',
-      style: V2Typography.displayXs(color: V2Colors.fg),
+      style: V2Typography.displayXs(color: context.v2.fg),
       textAlign: TextAlign.center,
     );
   }
@@ -329,7 +328,7 @@ class _Subhead extends StatelessWidget {
         // Stepped down from bodyXl (18pt) → body (16pt) per Sean
         // 2026-05-15 — 18pt felt slightly oversized against the
         // serif headline above.
-        style: V2Typography.body(color: V2Colors.fgMuted),
+        style: V2Typography.body(color: context.v2.fgMuted),
         textAlign: TextAlign.center,
       ),
     );
@@ -416,13 +415,13 @@ class _EarlyAccessBadge extends StatelessWidget {
           vertical: V2Spacing.space4,
         ),
         decoration: BoxDecoration(
-          color: V2Colors.accentTint,
+          color: context.v2.accentTint,
           borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-          border: Border.all(color: V2Colors.accent.withValues(alpha: 0.18)),
+          border: Border.all(color: context.v2.accent.withValues(alpha: 0.18)),
         ),
         child: Text(
           'FREE DURING EARLY ACCESS',
-          style: V2Typography.overline(color: V2Colors.accent),
+          style: V2Typography.overline(color: context.v2.accent),
         ),
       ),
     );
@@ -451,9 +450,9 @@ class _AuthButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isApple = style == _AuthButtonStyle.appleDark;
-    final bg = isApple ? V2Colors.fg : V2Colors.surface;
-    final fg = isApple ? V2Colors.surface : V2Colors.fg;
-    final borderColor = isApple ? Colors.transparent : V2Colors.outline;
+    final bg = isApple ? context.v2.fg : context.v2.surface;
+    final fg = isApple ? context.v2.surface : context.v2.fg;
+    final borderColor = isApple ? Colors.transparent : context.v2.outline;
 
     return Material(
       color: Colors.transparent,
@@ -504,7 +503,7 @@ class _SkipFooter extends StatelessWidget {
             ),
             child: Text(
               'Skip for now',
-              style: V2Typography.label(color: V2Colors.accent),
+              style: V2Typography.label(color: context.v2.accent),
             ),
           ),
         ),
@@ -512,7 +511,7 @@ class _SkipFooter extends StatelessWidget {
         Text(
           "Skip for now if you'd rather try first. Guest mode includes "
           "3 scans per day, with no AI, saved stack, or cloud sync.",
-          style: V2Typography.bodySm(color: V2Colors.fgSubtle),
+          style: V2Typography.bodySm(color: context.v2.fgSubtle),
           textAlign: TextAlign.center,
         ),
       ],
@@ -593,17 +592,17 @@ class _AuthInvitationV2PreviewState extends State<AuthInvitationV2Preview> {
           top: MediaQuery.of(context).padding.top + 8,
           left: 8,
           child: Material(
-            color: V2Colors.surface,
+            color: context.v2.surface,
             shape: const CircleBorder(),
             elevation: 0,
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: () => context.go('/dev/v2'),
-              child: const Padding(
-                padding: EdgeInsets.all(V2Spacing.space8),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space8),
                 child: Icon(
                   Icons.arrow_back_rounded,
-                  color: V2Colors.fg,
+                  color: context.v2.fg,
                   size: 20,
                 ),
               ),

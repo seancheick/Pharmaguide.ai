@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_goal_chip.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -117,14 +117,14 @@ class _BetaFeedbackSheetState extends State<BetaFeedbackSheet> {
           children: [
             Text(
               'Send beta feedback',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'A quick, anonymous note — just the category and how much it '
               'affects you. No health details are attached. To add detail, the '
               'email option keeps it in your own inbox.',
-              style: V2Typography.body(color: V2Colors.fgMuted),
+              style: V2Typography.body(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space24),
             _label('What is it about?'),
@@ -178,7 +178,7 @@ class _BetaFeedbackSheetState extends State<BetaFeedbackSheet> {
   }
 
   Widget _label(String text) =>
-      Text(text, style: V2Typography.bodySm(color: V2Colors.fgMuted));
+      Text(text, style: V2Typography.bodySm(color: context.v2.fgMuted));
 }
 
 /// Builds the support mailto, pre-filling the chosen category/impact in the

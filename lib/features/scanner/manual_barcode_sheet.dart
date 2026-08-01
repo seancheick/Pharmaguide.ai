@@ -9,7 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -71,12 +71,12 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
         children: [
           Text(
             'Enter barcode manually',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Type the UPC, EAN, or barcode number from the product label.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space24),
           TextField(
@@ -90,32 +90,32 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
             decoration: InputDecoration(
               hintText: 'e.g., 123456789012',
               hintStyle: V2Typography.body(
-                color: V2Colors.fgSubtle.withValues(alpha: 0.7),
+                color: context.v2.fgSubtle.withValues(alpha: 0.7),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                borderSide: const BorderSide(color: V2Colors.outline),
+                borderSide: BorderSide(color: context.v2.outline),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                borderSide: const BorderSide(color: V2Colors.accent),
+                borderSide: BorderSide(color: context.v2.accent),
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               ),
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 Icons.dialpad_rounded,
-                color: V2Colors.accent,
+                color: context.v2.accent,
               ),
             ),
-            style: V2Typography.monoData(color: V2Colors.fg),
+            style: V2Typography.monoData(color: context.v2.fg),
             onChanged: _onChanged,
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Most supplement barcodes are 12 or 13 digits.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space24),
           PGPillButton(

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
@@ -61,9 +61,9 @@ class PGStackActionButtons extends ConsumerWidget {
         V2Spacing.space24,
         MediaQuery.of(context).padding.bottom + V2Spacing.space12,
       ),
-      decoration: const BoxDecoration(
-        color: V2Colors.surface,
-        border: Border(top: BorderSide(color: V2Colors.outline)),
+      decoration: BoxDecoration(
+        color: context.v2.surface,
+        border: Border(top: BorderSide(color: context.v2.outline)),
       ),
       child: _primary(context, ref, entryAsync),
     );
@@ -247,16 +247,16 @@ class _LoadingPrimary extends StatelessWidget {
     return Container(
       height: 52,
       decoration: BoxDecoration(
-        color: V2Colors.surfaceContainerHighest,
+        color: context.v2.surfaceHighest,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
       alignment: Alignment.center,
-      child: const SizedBox(
+      child: SizedBox(
         width: 18,
         height: 18,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: V2Colors.accent,
+          color: context.v2.accent,
         ),
       ),
     );
@@ -272,7 +272,7 @@ class _AddButton extends StatelessWidget {
     return FilledButton.icon(
       onPressed: onTap,
       style: FilledButton.styleFrom(
-        backgroundColor: V2Colors.accent,
+        backgroundColor: context.v2.accent,
         foregroundColor: Colors.white,
         minimumSize: const Size.fromHeight(52),
       ),
@@ -294,7 +294,7 @@ class _SeeHigherQualityButton extends StatelessWidget {
     return FilledButton.icon(
       onPressed: onTap,
       style: FilledButton.styleFrom(
-        backgroundColor: V2Colors.avoid,
+        backgroundColor: context.v2.avoid,
         foregroundColor: Colors.white,
         minimumSize: const Size.fromHeight(52),
       ),
@@ -318,30 +318,30 @@ class _InStackPanel extends StatelessWidget {
       height: 52,
       padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.safeTint,
+        color: context.v2.safeTint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
         border: Border.all(
-          color: V2Colors.safe.withValues(alpha: 0.22),
+          color: context.v2.safe.withValues(alpha: 0.22),
           width: 0.8,
         ),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.check_circle_outline_rounded,
             size: 20,
-            color: V2Colors.safe,
+            color: context.v2.safe,
           ),
           const SizedBox(width: V2Spacing.space8),
           Text(
             'In your stack',
-            style: V2Typography.label(color: V2Colors.safe),
+            style: V2Typography.label(color: context.v2.safe),
           ),
           const Spacer(),
           TextButton.icon(
             onPressed: onRemove,
             style: TextButton.styleFrom(
-              foregroundColor: V2Colors.fgMuted,
+              foregroundColor: context.v2.fgMuted,
               padding: const EdgeInsets.symmetric(
                 horizontal: V2Spacing.space12,
                 vertical: V2Spacing.space8,

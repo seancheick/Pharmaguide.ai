@@ -35,7 +35,7 @@ import 'package:pharmaguide/core/components/pg_empty_state.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -326,7 +326,7 @@ class _ProductDetailV2ConnectedState
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: V2Colors.fg),
+            icon: Icon(Icons.arrow_back_rounded, color: context.v2.fg),
             onPressed: () {
               if (context.canPop()) {
                 context.pop();
@@ -954,11 +954,11 @@ class _ProductDetailV2ConnectedState
                       key: const Key('product-data-sources-card'),
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        color: V2Colors.surface,
+                        color: context.v2.surface,
                         borderRadius: BorderRadius.circular(
                           V2Spacing.radiusCard,
                         ),
-                        border: Border.all(color: V2Colors.outline),
+                        border: Border.all(color: context.v2.outline),
                         boxShadow: V2Shadows.sm,
                       ),
                       child: Material(
@@ -979,7 +979,7 @@ class _ProductDetailV2ConnectedState
                             ),
                             title: Text(
                               'Product data & sources',
-                              style: V2Typography.titleSm(color: V2Colors.fg),
+                              style: V2Typography.titleSm(color: context.v2.fg),
                             ),
                             children: [
                               buildLabelMatchSection(
@@ -1047,7 +1047,7 @@ class _ProductDetailV2ConnectedState
       floating: true,
       snap: true,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_rounded, color: V2Colors.fg),
+        icon: Icon(Icons.arrow_back_rounded, color: context.v2.fg),
         // **Sentry fix — 21× `GoError: There is nothing to pop`.**
         // Deep links / scan-flow / push notifications can land users
         // here without anything on the navigation stack. Fall back to
@@ -1071,7 +1071,7 @@ class _ProductDetailV2ConnectedState
         if (_product != null)
           IconButton(
             tooltip: 'Compare',
-            icon: const Icon(Icons.compare_arrows_rounded, color: V2Colors.fg),
+            icon: Icon(Icons.compare_arrows_rounded, color: context.v2.fg),
             onPressed: () =>
                 showComparePickerSheet(context, currentDsldId: widget.dsldId),
           ),
@@ -1083,7 +1083,7 @@ class _ProductDetailV2ConnectedState
                     dimension: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.ios_share_rounded, color: V2Colors.fg),
+                : Icon(Icons.ios_share_rounded, color: context.v2.fg),
             // No haptic — iOS share sheet fires its own present haptic.
             onPressed: _isSharing ? null : _shareProduct,
           ),
@@ -1113,9 +1113,9 @@ class _ProductDetailLoadingState extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(V2Spacing.space12),
             decoration: BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
               boxShadow: V2Shadows.sm,
             ),
             child: const Column(
@@ -1170,9 +1170,9 @@ class _SkeletonCard extends StatelessWidget {
       width: double.infinity,
       constraints: BoxConstraints(minHeight: height),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       padding: const EdgeInsets.all(V2Spacing.space16),
       child: const Column(
@@ -1210,7 +1210,7 @@ class _SkeletonBlock extends StatelessWidget {
           ? const BoxConstraints(minWidth: double.infinity)
           : null,
       decoration: BoxDecoration(
-        color: V2Colors.outline.withValues(alpha: 0.65),
+        color: context.v2.outline.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(radius),
       ),
     );

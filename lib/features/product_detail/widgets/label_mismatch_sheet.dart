@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -245,7 +245,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
             Text(
               'Tell us which catalog details differ from the package in '
               'your hand. Select only what you can verify on the label.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space16),
             const _PrivacyNotice(),
@@ -254,13 +254,13 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
               header: true,
               child: Text(
                 'What doesn’t match?',
-                style: V2Typography.titleSm(color: V2Colors.fg),
+                style: V2Typography.titleSm(color: context.v2.fg),
               ),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               'Select all that apply. No written notes are collected.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space8),
             for (final category in LabelMismatchCategory.values)
@@ -275,7 +275,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
                 visualDensity: VisualDensity.compact,
                 title: Text(
                   _categoryLabel(category),
-                  style: V2Typography.body(color: V2Colors.fg),
+                  style: V2Typography.body(color: context.v2.fg),
                 ),
               ),
             const SizedBox(height: V2Spacing.space24),
@@ -283,14 +283,14 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
               header: true,
               child: Text(
                 'Add label photos (optional)',
-                style: V2Typography.titleSm(color: V2Colors.fg),
+                style: V2Typography.titleSm(color: context.v2.fg),
               ),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               'Choose Camera or Photo library for each label view. '
               'PharmaGuide never opens either automatically.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space12),
             for (final slot in ProductSubmissionPhotoSlot.values) ...[
@@ -321,7 +321,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
                 'I consent to send this account-linked product report, its '
                 'catalog identifiers, selected categories, and selected '
                 'label photos to PharmaGuide for review.',
-                style: V2Typography.bodySm(color: V2Colors.fg),
+                style: V2Typography.bodySm(color: context.v2.fg),
               ),
             ),
             if (_submitting) ...[
@@ -378,7 +378,7 @@ class _SheetHeader extends StatelessWidget {
         Expanded(
           child: Semantics(
             header: true,
-            child: Text(title, style: V2Typography.title(color: V2Colors.fg)),
+            child: Text(title, style: V2Typography.title(color: context.v2.fg)),
           ),
         ),
         IconButton(
@@ -418,10 +418,10 @@ class _SignInGate extends StatelessWidget {
                 icon: const Icon(Icons.close_rounded),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.lock_outline_rounded,
               size: 40,
-              color: V2Colors.accent,
+              color: context.v2.accent,
             ),
             const SizedBox(height: V2Spacing.space16),
             Semantics(
@@ -429,7 +429,7 @@ class _SignInGate extends StatelessWidget {
               child: Text(
                 'Sign in to report a mismatch',
                 textAlign: TextAlign.center,
-                style: V2Typography.title(color: V2Colors.fg),
+                style: V2Typography.title(color: context.v2.fg),
               ),
             ),
             const SizedBox(height: V2Spacing.space8),
@@ -437,7 +437,7 @@ class _SignInGate extends StatelessWidget {
               'Reports are tied to your account so your photos stay private '
               'and reviewers can investigate the correct catalog record.',
               textAlign: TextAlign.center,
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space24),
             SizedBox(
@@ -473,16 +473,16 @@ class _PrivacyNotice extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space12),
         decoration: BoxDecoration(
-          color: V2Colors.accentTint,
+          color: context.v2.accentTint,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
+            Icon(
               Icons.privacy_tip_outlined,
               size: 20,
-              color: V2Colors.accent,
+              color: context.v2.accent,
             ),
             const SizedBox(width: V2Spacing.space12),
             Expanded(
@@ -493,7 +493,7 @@ class _PrivacyNotice extends StatelessWidget {
                 'embedded photo metadata before upload. Your profile, '
                 'medications, conditions, allergies, and stack stay on this '
                 'device.',
-                style: V2Typography.bodySm(color: V2Colors.fg),
+                style: V2Typography.bodySm(color: context.v2.fg),
               ),
             ),
           ],
@@ -527,7 +527,7 @@ class _PhotoSlotCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       ),
       child: Column(
@@ -538,7 +538,7 @@ class _PhotoSlotCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: V2Typography.bodyMedium(color: V2Colors.fg),
+                  style: V2Typography.bodyMedium(color: context.v2.fg),
                 ),
               ),
               if (selected) ...[
@@ -563,15 +563,15 @@ class _PhotoSlotCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: V2Spacing.space8),
-                const Icon(
+                Icon(
                   Icons.check_circle_rounded,
                   size: 18,
-                  color: V2Colors.safe,
+                  color: context.v2.safe,
                 ),
                 const SizedBox(width: V2Spacing.space4),
                 Text(
                   'Photo selected',
-                  style: V2Typography.caption(color: V2Colors.safe),
+                  style: V2Typography.caption(color: context.v2.safe),
                 ),
                 IconButton(
                   key: Key('label-mismatch-photo-${slot.wireValue}-remove'),
@@ -611,7 +611,7 @@ class _PhotoSlotCard extends StatelessWidget {
               label: '$label photo error. $error',
               child: Text(
                 error!,
-                style: V2Typography.caption(color: V2Colors.contraindicated),
+                style: V2Typography.caption(color: context.v2.contraindicated),
               ),
             ),
           ],
@@ -649,7 +649,7 @@ class _PhotoSourceButton extends StatelessWidget {
         label: Text(label),
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 48),
-          foregroundColor: V2Colors.accent,
+          foregroundColor: context.v2.accent,
         ),
       ),
     );
@@ -673,7 +673,7 @@ class _SubmissionProgress extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: V2Typography.bodySm(color: V2Colors.fg)),
+          Text(label, style: V2Typography.bodySm(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space8),
           const LinearProgressIndicator(),
         ],
@@ -709,7 +709,7 @@ class _FailureNotice extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space12),
         decoration: BoxDecoration(
-          color: V2Colors.contraindicatedTint,
+          color: context.v2.contraindicatedTint,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
         child: Column(
@@ -717,7 +717,7 @@ class _FailureNotice extends StatelessWidget {
           children: [
             Text(
               message,
-              style: V2Typography.bodySm(color: V2Colors.contraindicated),
+              style: V2Typography.bodySm(color: context.v2.contraindicated),
             ),
           ],
         ),
@@ -749,22 +749,22 @@ class _SuccessState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.check_circle_outline_rounded,
                 size: 48,
-                color: V2Colors.safe,
+                color: context.v2.safe,
               ),
               const SizedBox(height: V2Spacing.space16),
               Text(
                 'Report sent',
-                style: V2Typography.title(color: V2Colors.fg),
+                style: V2Typography.title(color: context.v2.fg),
               ),
               const SizedBox(height: V2Spacing.space8),
               Text(
                 'Thanks. We’ll review the catalog record. Your report does '
                 'not change the catalog automatically.',
                 textAlign: TextAlign.center,
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space24),
               SizedBox(

@@ -26,7 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -190,9 +190,9 @@ class _BlockedAlternativesEmpty extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space16),
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
           boxShadow: V2Shadows.sm,
         ),
         child: Column(
@@ -200,13 +200,13 @@ class _BlockedAlternativesEmpty extends StatelessWidget {
           children: [
             Text(
               'No comparable alternatives found',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               'We couldn\'t find a similar, higher-quality option in this '
               'catalog.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ],
         ),

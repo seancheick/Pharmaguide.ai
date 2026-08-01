@@ -9,7 +9,7 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_progress_dots.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -200,7 +200,7 @@ class _OnboardingV2ScreenState extends ConsumerState<OnboardingV2Screen> {
                       onTap: _skip,
                       child: Text(
                         'Skip',
-                        style: V2Typography.label(color: V2Colors.fgMuted),
+                        style: V2Typography.label(color: context.v2.fgMuted),
                       ),
                     ),
                 ],
@@ -329,7 +329,7 @@ class _StepShellState extends State<_StepShell>
                   offset: Offset(0, headline.lift),
                   child: Text(
                     widget.headline,
-                    style: V2Typography.displayXs(color: V2Colors.fg),
+                    style: V2Typography.displayXs(color: context.v2.fg),
                   ),
                 ),
               ),
@@ -340,7 +340,7 @@ class _StepShellState extends State<_StepShell>
                   offset: Offset(0, body.lift),
                   child: Text(
                     widget.body,
-                    style: V2Typography.bodyXl(color: V2Colors.fgMuted),
+                    style: V2Typography.bodyXl(color: context.v2.fgMuted),
                   ),
                 ),
               ),
@@ -399,9 +399,9 @@ class _MiniProductPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -411,7 +411,7 @@ class _MiniProductPreview extends StatelessWidget {
           const SizedBox(height: V2Spacing.space4),
           Text(
             'Magnesium Glycinate',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space12),
           // Mirrors production ScoreLine: dot + score + tier label.
@@ -440,7 +440,7 @@ class _ScoreLineDemo extends StatelessWidget {
           decoration: BoxDecoration(color: tier.color, shape: BoxShape.circle),
         ),
         const SizedBox(width: V2Spacing.space8),
-        Text('$score/100', style: V2Typography.bodyMedium(color: V2Colors.fg)),
+        Text('$score/100', style: V2Typography.bodyMedium(color: context.v2.fg)),
         const SizedBox(width: V2Spacing.space8),
         Text(tier.label, style: V2Typography.bodyMedium(color: tier.textColor)),
       ],
@@ -474,24 +474,24 @@ class _AppliesToYouPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PGEyebrow('Applies to you', color: V2Colors.caution),
+          PGEyebrow('Applies to you', color: context.v2.caution),
           const SizedBox(height: V2Spacing.space12),
           Text(
             'May affect your blood-thinner medication.',
-            style: V2Typography.bodyXl(color: V2Colors.fg),
+            style: V2Typography.bodyXl(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Moderate evidence · worth a check',
-            style: V2Typography.caption(color: V2Colors.caution),
+            style: V2Typography.caption(color: context.v2.caution),
           ),
         ],
       ),
@@ -537,7 +537,7 @@ class _GoalsPage extends StatelessWidget {
       footer: selected.isEmpty
           ? Text(
               'You can skip this — we’ll learn as you go.',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             )
           : null,
     );
@@ -571,7 +571,7 @@ class _TrustPage extends StatelessWidget {
         children: [
           Text(
             'Your profile stays on this device.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space12),
           PGPillButton(
@@ -616,10 +616,10 @@ class _TrustRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 88, child: PGEyebrow(eyebrow, color: V2Colors.fgMuted)),
+        SizedBox(width: 88, child: PGEyebrow(eyebrow, color: context.v2.fgMuted)),
         const SizedBox(width: V2Spacing.space12),
         Expanded(
-          child: Text(label, style: V2Typography.body(color: V2Colors.fg)),
+          child: Text(label, style: V2Typography.body(color: context.v2.fg)),
         ),
       ],
     );

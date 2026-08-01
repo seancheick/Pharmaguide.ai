@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/services/sharing/clinician_report_document_provider.dart';
@@ -26,7 +26,7 @@ class ClinicianReportPreviewScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Clinician report',
-          style: V2Typography.titleSm(color: V2Colors.fg),
+          style: V2Typography.titleSm(color: context.v2.fg),
         ),
       ),
       body: switch (document) {
@@ -52,7 +52,7 @@ class _ReportPreview extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          color: V2Colors.surface,
+          color: context.v2.surface,
           padding: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
             V2Spacing.space12,
@@ -62,9 +62,9 @@ class _ReportPreview extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
+              Icon(
                 Icons.lock_outline_rounded,
-                color: V2Colors.accent,
+                color: context.v2.accent,
                 size: 20,
               ),
               const SizedBox(width: V2Spacing.space12),
@@ -72,7 +72,7 @@ class _ReportPreview extends StatelessWidget {
                 child: Text(
                   'Review before sharing. This report contains health '
                   'profile, medication, supplement, and safety information.',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
               ),
             ],
@@ -107,11 +107,11 @@ class _ReportLoading extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(color: V2Colors.accent),
+          CircularProgressIndicator(color: context.v2.accent),
           const SizedBox(height: V2Spacing.space16),
           Text(
             'Preparing your report on this device…',
-            style: V2Typography.body(color: V2Colors.fgMuted),
+            style: V2Typography.body(color: context.v2.fgMuted),
           ),
         ],
       ),
@@ -133,22 +133,22 @@ class _ReportBuildError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline_rounded,
-              color: V2Colors.contraindicated,
+              color: context.v2.contraindicated,
               size: 36,
             ),
             const SizedBox(height: V2Spacing.space16),
             Text(
               'The report could not be prepared.',
               textAlign: TextAlign.center,
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'No partial report was created. Try again in a moment.',
               textAlign: TextAlign.center,
-              style: V2Typography.body(color: V2Colors.fgMuted),
+              style: V2Typography.body(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space24),
             PGPillButton(

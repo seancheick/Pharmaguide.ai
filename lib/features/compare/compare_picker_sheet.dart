@@ -15,7 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -33,7 +33,7 @@ Future<void> showComparePickerSheet(
 }) {
   return PGModal.bottomSheet<void>(
     context: context,
-    backgroundColor: V2Colors.surface,
+    backgroundColor: context.v2.surface,
     builder: (_) => ComparePickerSheet(currentDsldId: currentDsldId),
   );
 }
@@ -55,12 +55,12 @@ class ComparePickerSheet extends ConsumerWidget {
           V2Spacing.space8,
         ),
         child: candidatesAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.all(V2Spacing.space24),
+          loading: () => Padding(
+            padding: const EdgeInsets.all(V2Spacing.space24),
             child: Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.4,
-                color: V2Colors.accent,
+                color: context.v2.accent,
               ),
             ),
           ),
@@ -68,7 +68,7 @@ class ComparePickerSheet extends ConsumerWidget {
             padding: const EdgeInsets.all(V2Spacing.space24),
             child: Text(
               'Couldn\'t load your products right now.',
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ),
           data: (candidates) =>
@@ -97,7 +97,7 @@ class _PickerList extends StatelessWidget {
         child: Text(
           'Nothing to compare with yet — add products to your stack or '
           'scan a few labels first.',
-          style: V2Typography.bodySm(color: V2Colors.fgMuted),
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
       );
     }
@@ -105,12 +105,12 @@ class _PickerList extends StatelessWidget {
     return ListView(
       shrinkWrap: true,
       children: [
-        Text('Compare with', style: V2Typography.titleSm(color: V2Colors.fg)),
+        Text('Compare with', style: V2Typography.titleSm(color: context.v2.fg)),
         const SizedBox(height: V2Spacing.space12),
         if (candidates.stack.isNotEmpty) ...[
           Text(
             'Your stack',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space4),
           for (final c in candidates.stack)
@@ -120,7 +120,7 @@ class _PickerList extends StatelessWidget {
           const SizedBox(height: V2Spacing.space12),
           Text(
             'Recent scans',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space4),
           for (final c in candidates.recentScans)
@@ -151,7 +151,7 @@ class _CandidateRow extends StatelessWidget {
           children: [
             Text(
               candidate.name,
-              style: V2Typography.bodyMedium(color: V2Colors.fg),
+              style: V2Typography.bodyMedium(color: context.v2.fg),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -159,7 +159,7 @@ class _CandidateRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 candidate.brand,
-                style: V2Typography.caption(color: V2Colors.fgMuted),
+                style: V2Typography.caption(color: context.v2.fgMuted),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

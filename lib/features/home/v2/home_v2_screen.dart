@@ -24,7 +24,6 @@ import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -241,7 +240,7 @@ class _SearchLauncher extends StatelessWidget {
       onTap: openSearch,
       child: ExcludeSemantics(
         child: Material(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
           child: InkWell(
             onTap: openSearch,
@@ -253,20 +252,20 @@ class _SearchLauncher extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                border: Border.all(color: V2Colors.outline),
+                border: Border.all(color: context.v2.outline),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.search_rounded,
                     size: 20,
-                    color: V2Colors.fgMuted,
+                    color: context.v2.fgMuted,
                   ),
                   const SizedBox(width: V2Spacing.space12),
                   Expanded(
                     child: Text(
                       'Search supplements',
-                      style: V2Typography.body(color: V2Colors.fgMuted),
+                      style: V2Typography.body(color: context.v2.fgMuted),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -350,16 +349,16 @@ class _HeroGreeting extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(dateLabel, style: V2Typography.eyebrow(color: V2Colors.accent)),
+        Text(dateLabel, style: V2Typography.eyebrow(color: context.v2.accent)),
         const SizedBox(height: V2Spacing.space12),
         Text(
           composeGreeting(nickname: nickname, now: now),
-          style: V2Typography.displayXs(color: V2Colors.fg),
+          style: V2Typography.displayXs(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space4),
         Text(
           'Know what you take.',
-          style: V2Typography.body(color: V2Colors.fgMuted),
+          style: V2Typography.body(color: context.v2.fgMuted),
         ),
       ],
     );
@@ -389,10 +388,10 @@ class _ScanCta extends StatelessWidget {
             V2Spacing.space24,
           ),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [V2Colors.accent, V2Colors.accentStrong],
+              colors: [context.v2.accent, context.v2.accentStrong],
             ),
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             boxShadow: V2Shadows.md,
@@ -549,12 +548,12 @@ class _StackHealthCard extends ConsumerWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                V2Colors.surface,
-                Color.lerp(V2Colors.surface, tone, 0.05)!,
+                context.v2.surface,
+                Color.lerp(context.v2.surface, tone, 0.05)!,
               ],
             ),
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
             boxShadow: V2Shadows.md,
           ),
           clipBehavior: Clip.antiAlias,
@@ -580,7 +579,7 @@ class _StackHealthCard extends ConsumerWidget {
                             children: [
                               Text(
                                 'Stack Health',
-                                style: V2Typography.titleSm(color: V2Colors.fg),
+                                style: V2Typography.titleSm(color: context.v2.fg),
                               ),
                               const SizedBox(height: 2),
                               // Header subline = supplement/medication
@@ -591,7 +590,7 @@ class _StackHealthCard extends ConsumerWidget {
                               Text(
                                 contextLine,
                                 style: V2Typography.bodySm(
-                                  color: V2Colors.fgMuted,
+                                  color: context.v2.fgMuted,
                                 ),
                               ),
                             ],
@@ -681,10 +680,10 @@ class _StackHealthCard extends ConsumerWidget {
                   horizontal: V2Spacing.space24,
                   vertical: V2Spacing.space12,
                 ),
-                decoration: const BoxDecoration(
-                  color: V2Colors.bg,
+                decoration: BoxDecoration(
+                  color: context.v2.bg,
                   border: Border(
-                    top: BorderSide(color: V2Colors.outline, width: 0.5),
+                    top: BorderSide(color: context.v2.outline, width: 0.5),
                   ),
                 ),
                 child: StackHealthMicroMetrics(
@@ -704,13 +703,13 @@ class _StackHealthCard extends ConsumerWidget {
                   children: [
                     Text(
                       'View stack',
-                      style: V2Typography.label(color: V2Colors.accent),
+                      style: V2Typography.label(color: context.v2.accent),
                     ),
                     const SizedBox(width: V2Spacing.space4),
-                    const Icon(
+                    Icon(
                       Icons.arrow_forward_rounded,
                       size: 16,
-                      color: V2Colors.accent,
+                      color: context.v2.accent,
                     ),
                   ],
                 ),
@@ -752,19 +751,19 @@ class StackHealthMicroMetrics extends StatelessWidget {
         _MicroMetric(
           icon: Icons.medication_outlined,
           label: supplementLabel,
-          color: V2Colors.accent,
+          color: context.v2.accent,
         ),
         const SizedBox(width: V2Spacing.space8),
         _MicroMetric(
           icon: Icons.local_pharmacy_outlined,
           label: medicationLabel,
-          color: V2Colors.fgMuted,
+          color: context.v2.fgMuted,
         ),
         const SizedBox(width: V2Spacing.space8),
-        const _MicroMetric(
+        _MicroMetric(
           icon: Icons.check_circle_outline,
           label: 'No conflicts',
-          color: V2Colors.safe,
+          color: context.v2.safe,
         ),
       ],
     );
@@ -798,7 +797,7 @@ class _MicroMetric extends StatelessWidget {
               child: Text(
                 label,
                 style: V2Typography.caption(
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                 ).copyWith(fontWeight: FontWeight.w600),
                 maxLines: 1,
                 softWrap: false,
@@ -844,12 +843,12 @@ class _RecentScansSection extends ConsumerWidget {
                   children: [
                     Text(
                       'Recent scans',
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Your last checked products',
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      style: V2Typography.bodySm(color: context.v2.fgMuted),
                     ),
                   ],
                 ),
@@ -896,12 +895,12 @@ class _RecentScansEmptyState extends StatelessWidget {
             children: [
               Text(
                 'Recent scans',
-                style: V2Typography.titleSm(color: V2Colors.fg),
+                style: V2Typography.titleSm(color: context.v2.fg),
               ),
               const SizedBox(height: 2),
               Text(
                 'Your last checked products',
-                style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
               ),
             ],
           ),
@@ -926,9 +925,9 @@ class _RecentScansEmptyState extends StatelessWidget {
               V2Spacing.space32,
             ),
             decoration: BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
               boxShadow: V2Shadows.md,
             ),
             child: Column(
@@ -937,29 +936,29 @@ class _RecentScansEmptyState extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: V2Colors.accentTint,
+                    color: context.v2.accentTint,
                     borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                     border: Border.all(
-                      color: V2Colors.accent.withValues(alpha: 0.22),
+                      color: context.v2.accent.withValues(alpha: 0.22),
                       width: 0.7,
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.history_rounded,
                     size: 24,
-                    color: V2Colors.accent,
+                    color: context.v2.accent,
                   ),
                 ),
                 const SizedBox(height: V2Spacing.space12),
                 Text(
                   'Nothing scanned yet',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  style: V2Typography.titleSm(color: context.v2.fg),
                 ),
                 const SizedBox(height: V2Spacing.space4),
                 Text(
                   'Your recent scans will appear here.',
                   textAlign: TextAlign.center,
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 PGPillButton(
@@ -1002,7 +1001,7 @@ class _RecentScanCard extends StatelessWidget {
           style: V2Typography.bodyMedium(
             color: unsafe
                 ? VerdictBadge.colorFor(context.v2, scan.verdict!)
-                : V2Colors.fgMuted,
+                : context.v2.fgMuted,
           ).copyWith(fontSize: 14),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -1030,7 +1029,7 @@ class _RecentScanCard extends StatelessWidget {
       width: width,
       height: height,
       child: Material(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         child: InkWell(
           onTap: () => GoRouter.of(context).push('/product/${scan.dsldId}'),
@@ -1039,7 +1038,7 @@ class _RecentScanCard extends StatelessWidget {
             padding: const EdgeInsets.all(V2Spacing.space12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
               boxShadow: V2Shadows.sm,
             ),
             child: Column(
@@ -1055,9 +1054,9 @@ class _RecentScanCard extends StatelessWidget {
                     height: _imageFrameSize,
                     padding: const EdgeInsets.all(V2Spacing.space8),
                     decoration: BoxDecoration(
-                      color: V2Colors.bg,
+                      color: context.v2.bg,
                       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                      border: Border.all(color: V2Colors.outline),
+                      border: Border.all(color: context.v2.outline),
                     ),
                     child: ProductImage(
                       dsldId: scan.dsldId,
@@ -1087,7 +1086,7 @@ class _RecentScanCard extends StatelessWidget {
                       Text(
                         scan.name,
                         style: V2Typography.bodySm(
-                          color: V2Colors.fg,
+                          color: context.v2.fg,
                         ).copyWith(fontWeight: FontWeight.w500),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -1095,14 +1094,14 @@ class _RecentScanCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         scan.brand,
-                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const Spacer(),
                       Text(
                         scan.time,
-                        style: V2Typography.caption(color: V2Colors.fgSubtle),
+                        style: V2Typography.caption(color: context.v2.fgSubtle),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1130,7 +1129,7 @@ class _QuickCheckCta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
         onTap: () => GoRouter.of(context).push(Routes.quickCheck),
@@ -1139,7 +1138,7 @@ class _QuickCheckCta extends StatelessWidget {
           padding: const EdgeInsets.all(V2Spacing.space16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
             boxShadow: V2Shadows.sm,
           ),
           child: Row(
@@ -1148,12 +1147,12 @@ class _QuickCheckCta extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: V2Colors.caution.withValues(alpha: 0.12),
+                  color: context.v2.caution.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.compare_arrows_rounded,
-                  color: V2Colors.caution,
+                  color: context.v2.caution,
                   size: 20,
                 ),
               ),
@@ -1165,17 +1164,17 @@ class _QuickCheckCta extends StatelessWidget {
                   children: [
                     Text(
                       'Safe to take together?',
-                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Check two supplements or medications',
-                      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                      style: V2Typography.bodySm(color: context.v2.fgMuted),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgMuted),
+              Icon(Icons.chevron_right_rounded, color: context.v2.fgMuted),
             ],
           ),
         ),
@@ -1228,15 +1227,15 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
           top: MediaQuery.of(context).padding.top + 8,
           right: 8,
           child: Material(
-            color: V2Colors.surface,
+            color: context.v2.surface,
             shape: const CircleBorder(),
             elevation: 0,
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: () => context.go('/dev/v2'),
-              child: const Padding(
-                padding: EdgeInsets.all(V2Spacing.space8),
-                child: Icon(Icons.close_rounded, color: V2Colors.fg, size: 20),
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space8),
+                child: Icon(Icons.close_rounded, color: context.v2.fg, size: 20),
               ),
             ),
           ),
@@ -1442,7 +1441,7 @@ class _PinnedSearchDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     return ColoredBox(
-      color: V2Colors.bg,
+      color: context.v2.bg,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           V2Spacing.space24,

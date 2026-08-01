@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -45,7 +45,7 @@ class _HealthHistoryScreenState extends ConsumerState<HealthHistoryScreen> {
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Health History',
-          style: V2Typography.titleSm(color: V2Colors.fg),
+          style: V2Typography.titleSm(color: context.v2.fg),
         ),
         actions: [
           IconButton(
@@ -113,8 +113,8 @@ class _HealthHistoryScreenState extends ConsumerState<HealthHistoryScreen> {
             child: events.when(
               data: (items) =>
                   _HistoryList(items: _visible(items), upcoming: _segment == 1),
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: V2Colors.accent),
+              loading: () => Center(
+                child: CircularProgressIndicator(color: context.v2.accent),
               ),
               error: (_, _) => Center(
                 child: Padding(
@@ -123,7 +123,7 @@ class _HealthHistoryScreenState extends ConsumerState<HealthHistoryScreen> {
                     'Health History is unavailable right now. No events were '
                     'deleted.',
                     textAlign: TextAlign.center,
-                    style: V2Typography.body(color: V2Colors.fgMuted),
+                    style: V2Typography.body(color: context.v2.fgMuted),
                   ),
                 ),
               ),
@@ -161,7 +161,7 @@ class _HistoryList extends StatelessWidget {
                 : 'Your health journey will appear here as your stack, '
                       'profile, clinical signals, and saved events change.',
             textAlign: TextAlign.center,
-            style: V2Typography.body(color: V2Colors.fgMuted),
+            style: V2Typography.body(color: context.v2.fgMuted),
           ),
         ),
       );
@@ -192,7 +192,7 @@ class _HistoryList extends StatelessWidget {
                 ),
                 child: Text(
                   group,
-                  style: V2Typography.label(color: V2Colors.fgMuted),
+                  style: V2Typography.label(color: context.v2.fgMuted),
                 ),
               ),
             ],
@@ -213,7 +213,7 @@ class _HistoryEventCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Material(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
@@ -235,13 +235,13 @@ class _HistoryEventCard extends ConsumerWidget {
               Container(
                 width: 38,
                 height: 38,
-                decoration: const BoxDecoration(
-                  color: V2Colors.accentTint,
+                decoration: BoxDecoration(
+                  color: context.v2.accentTint,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   _categoryIcon(item.category),
-                  color: V2Colors.accent,
+                  color: context.v2.accent,
                   size: 20,
                 ),
               ),
@@ -252,7 +252,7 @@ class _HistoryEventCard extends ConsumerWidget {
                   children: [
                     Text(
                       item.event.title,
-                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
                     ),
                     if (item.event.summary?.isNotEmpty ?? false) ...[
                       const SizedBox(height: V2Spacing.space4),
@@ -260,18 +260,18 @@ class _HistoryEventCard extends ConsumerWidget {
                         item.event.summary!,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                        style: V2Typography.bodySm(color: context.v2.fgMuted),
                       ),
                     ],
                     const SizedBox(height: V2Spacing.space8),
                     Text(
                       DateFormat.jm().format(item.event.effectiveAt.toLocal()),
-                      style: V2Typography.caption(color: V2Colors.fgSubtle),
+                      style: V2Typography.caption(color: context.v2.fgSubtle),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
+              Icon(Icons.chevron_right_rounded, color: context.v2.fgSubtle),
             ],
           ),
         ),
@@ -297,27 +297,27 @@ void _showWhy(BuildContext context, HealthHistoryItem item) {
           children: [
             Text(
               item.event.title,
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               DateFormat.yMMMMd().add_jm().format(
                 item.event.effectiveAt.toLocal(),
               ),
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space24),
             Text(
               'Why this changed',
-              style: V2Typography.label(color: V2Colors.accent),
+              style: V2Typography.label(color: context.v2.accent),
             ),
             const SizedBox(height: V2Spacing.space8),
-            Text(item.whyChanged, style: V2Typography.body(color: V2Colors.fg)),
+            Text(item.whyChanged, style: V2Typography.body(color: context.v2.fg)),
             if (item.changedFieldLabels.isNotEmpty) ...[
               const SizedBox(height: V2Spacing.space16),
               Text(
                 'Changed fields',
-                style: V2Typography.label(color: V2Colors.fgMuted),
+                style: V2Typography.label(color: context.v2.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space8),
               Wrap(
@@ -333,7 +333,7 @@ void _showWhy(BuildContext context, HealthHistoryItem item) {
               const SizedBox(height: V2Spacing.space24),
               Text(
                 'Attachments',
-                style: V2Typography.label(color: V2Colors.fgMuted),
+                style: V2Typography.label(color: context.v2.fgMuted),
               ),
               const SizedBox(height: V2Spacing.space8),
               for (final attachment in item.attachments)
@@ -343,7 +343,7 @@ void _showWhy(BuildContext context, HealthHistoryItem item) {
             const SizedBox(height: V2Spacing.space16),
             Text(
               'Stored only on this device.',
-              style: V2Typography.caption(color: V2Colors.fgSubtle),
+              style: V2Typography.caption(color: context.v2.fgSubtle),
             ),
           ],
         ),

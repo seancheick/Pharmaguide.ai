@@ -18,7 +18,7 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
@@ -560,7 +560,7 @@ void showProfileRelevanceCitationsSheet(
               'Citations',
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(color: V2Colors.fg),
+              ).textTheme.titleMedium?.copyWith(color: context.v2.fg),
             ),
             const SizedBox(height: 12),
             for (final url in sourceUrls)
@@ -579,7 +579,7 @@ void showProfileRelevanceCitationsSheet(
                   child: Text(
                     url,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: V2Colors.accent,
+                      color: context.v2.accent,
                       decoration: TextDecoration.underline,
                     ),
                   ),

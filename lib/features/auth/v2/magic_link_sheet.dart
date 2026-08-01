@@ -4,7 +4,7 @@ import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -171,9 +171,9 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
       // stays visible while the user types.
       padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
       child: Container(
-        decoration: const BoxDecoration(
-          color: V2Colors.bg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: context.v2.bg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           boxShadow: V2Shadows.lg,
         ),
         child: SafeArea(
@@ -199,7 +199,7 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: V2Colors.outline,
+                        color: context.v2.outline,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -266,12 +266,12 @@ class _EditBody extends StatelessWidget {
       children: [
         Text(
           'Continue with email',
-          style: V2Typography.titleSm(color: V2Colors.fg),
+          style: V2Typography.titleSm(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space8),
         Text(
           "We'll send you a one-tap sign-in link — no password needed.",
-          style: V2Typography.body(color: V2Colors.fgMuted),
+          style: V2Typography.body(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space24),
         _EmailField(
@@ -286,7 +286,7 @@ class _EditBody extends StatelessWidget {
           const SizedBox(height: V2Spacing.space8),
           Text(
             errorMessage!,
-            style: V2Typography.bodySm(color: V2Colors.caution),
+            style: V2Typography.bodySm(color: context.v2.caution),
           ),
         ],
         const SizedBox(height: V2Spacing.space16),
@@ -321,8 +321,8 @@ class _EmailField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor = hasError
-        ? V2Colors.caution.withValues(alpha: 0.45)
-        : V2Colors.outline;
+        ? context.v2.caution.withValues(alpha: 0.45)
+        : context.v2.outline;
     return TextField(
       controller: controller,
       focusNode: focusNode,
@@ -331,18 +331,18 @@ class _EmailField extends StatelessWidget {
       autocorrect: false,
       enableSuggestions: false,
       textInputAction: TextInputAction.send,
-      style: V2Typography.body(color: V2Colors.fg),
-      cursorColor: V2Colors.accent,
+      style: V2Typography.body(color: context.v2.fg),
+      cursorColor: context.v2.accent,
       onChanged: (_) => onChanged(),
       onSubmitted: onSubmitted,
       decoration: InputDecoration(
         hintText: 'you@email.com',
-        hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+        hintStyle: V2Typography.body(color: context.v2.fgSubtle),
         filled: true,
-        fillColor: V2Colors.surface,
-        prefixIcon: const Icon(
+        fillColor: context.v2.surface,
+        prefixIcon: Icon(
           Icons.mail_outline_rounded,
-          color: V2Colors.fgMuted,
+          color: context.v2.fgMuted,
           size: 20,
         ),
         contentPadding: const EdgeInsets.symmetric(
@@ -360,7 +360,7 @@ class _EmailField extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
           borderSide: BorderSide(
-            color: hasError ? V2Colors.caution : V2Colors.accent,
+            color: hasError ? context.v2.caution : context.v2.accent,
             width: 1.3,
           ),
         ),
@@ -384,16 +384,16 @@ class _SentBody extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: V2Colors.safe.withValues(alpha: 0.12),
+              color: context.v2.safe.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               border: Border.all(
-                color: V2Colors.safe.withValues(alpha: 0.22),
+                color: context.v2.safe.withValues(alpha: 0.22),
                 width: 0.8,
               ),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.mark_email_read_rounded,
-              color: V2Colors.safe,
+              color: context.v2.safe,
               size: 34,
             ),
           ),
@@ -402,14 +402,14 @@ class _SentBody extends StatelessWidget {
         Text(
           'Check your email',
           textAlign: TextAlign.center,
-          style: V2Typography.titleSm(color: V2Colors.fg),
+          style: V2Typography.titleSm(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space8),
         Text(
           'We sent a sign-in link to $email. Tap the link to come back '
           'and finish signing in. It expires in 1 hour.',
           textAlign: TextAlign.center,
-          style: V2Typography.body(color: V2Colors.fgMuted),
+          style: V2Typography.body(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space24),
         PGPillButton(

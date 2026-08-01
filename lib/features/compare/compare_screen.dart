@@ -17,7 +17,7 @@ import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -51,7 +51,7 @@ class CompareScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: V2Colors.fg),
+          icon: Icon(Icons.arrow_back_rounded, color: context.v2.fg),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -60,14 +60,14 @@ class CompareScreen extends ConsumerWidget {
             }
           },
         ),
-        title: Text('Compare', style: V2Typography.titleSm(color: V2Colors.fg)),
+        title: Text('Compare', style: V2Typography.titleSm(color: context.v2.fg)),
         centerTitle: false,
       ),
       body: (entryA.isLoading || entryB.isLoading)
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.4,
-                color: V2Colors.accent,
+                color: context.v2.accent,
               ),
             )
           // A provider ERROR is not the same as a missing product — the
@@ -80,7 +80,7 @@ class CompareScreen extends ConsumerWidget {
                 child: Text(
                   'This comparison couldn\'t load right now.',
                   key: const Key('compare-load-error'),
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -119,7 +119,7 @@ class _CompareBody extends StatelessWidget {
           child: Text(
             'One of these products isn\'t in the verified catalog on '
             'this device.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
             textAlign: TextAlign.center,
           ),
         ),
@@ -179,7 +179,7 @@ class _CompareBody extends StatelessWidget {
           Text(
             'These are different product types — pillar comparisons are '
             'most meaningful within a category.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space12),
         ],
@@ -208,9 +208,9 @@ class _CompareBody extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(V2Spacing.space16),
             decoration: BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
               boxShadow: V2Shadows.sm,
             ),
             child: Column(
@@ -218,12 +218,12 @@ class _CompareBody extends StatelessWidget {
               children: [
                 Text(
                   'Pillar by pillar',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  style: V2Typography.titleSm(color: context.v2.fg),
                 ),
                 const SizedBox(height: V2Spacing.space4),
                 Text(
                   'Six pillars, out of 100 — they add up to each score.',
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 for (var i = 0; i < pillarsA.length; i++) ...[
@@ -243,8 +243,8 @@ class _CompareBody extends StatelessWidget {
                 ],
                 if (delta != null) ...[
                   const SizedBox(height: V2Spacing.space12),
-                  const Divider(
-                    color: V2Colors.outline,
+                  Divider(
+                    color: context.v2.outline,
                     height: 1,
                     thickness: 0.5,
                   ),
@@ -252,7 +252,7 @@ class _CompareBody extends StatelessWidget {
                   Text(
                     delta,
                     key: const Key('compare-delta-callout'),
-                    style: V2Typography.caption(color: V2Colors.fgMuted),
+                    style: V2Typography.caption(color: context.v2.fgMuted),
                   ),
                 ],
               ],
@@ -262,7 +262,7 @@ class _CompareBody extends StatelessWidget {
           Text(
             'Detailed pillar comparison needs a connection.',
             key: const Key('compare-connection-hedge'),
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
         ],
         if (lowCoverage) ...[
@@ -270,7 +270,7 @@ class _CompareBody extends StatelessWidget {
           Text(
             coverageHedge('results may be incomplete'),
             key: const Key('compare-coverage-hedge'),
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ],
       ],
@@ -353,7 +353,7 @@ class _ProductHeader extends StatelessWidget {
         if (brand.isNotEmpty) ...[
           Text(
             brand,
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -361,7 +361,7 @@ class _ProductHeader extends StatelessWidget {
         ],
         Text(
           name,
-          style: V2Typography.bodyMedium(color: V2Colors.fg),
+          style: V2Typography.bodyMedium(color: context.v2.fg),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -369,12 +369,12 @@ class _ProductHeader extends StatelessWidget {
         if (isBlocked)
           Text(
             'Not recommended — see product page',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           )
         else if (isNotScored || score == null)
           Text(
             'Not scored yet',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           )
         else
           PGScoreLine(score: score, compact: true),

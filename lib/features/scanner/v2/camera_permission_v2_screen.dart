@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_halo_background.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -94,7 +93,7 @@ class CameraPermissionV2Screen extends StatelessWidget {
                   Text(
                     headline,
                     textAlign: TextAlign.center,
-                    style: V2Typography.displayXs(color: V2Colors.fg),
+                    style: V2Typography.displayXs(color: context.v2.fg),
                   ),
                   const SizedBox(height: V2Spacing.space12),
                   Padding(
@@ -104,7 +103,7 @@ class CameraPermissionV2Screen extends StatelessWidget {
                     child: Text(
                       body,
                       textAlign: TextAlign.center,
-                      style: V2Typography.body(color: V2Colors.fgMuted),
+                      style: V2Typography.body(color: context.v2.fgMuted),
                     ),
                   ),
                   if (!denied) ...[
@@ -164,10 +163,10 @@ class _IconWellState extends State<_IconWell>
 
   @override
   Widget build(BuildContext context) {
-    final tone = widget.denied ? V2Colors.caution : V2Colors.accent;
+    final tone = widget.denied ? context.v2.caution : context.v2.accent;
     final tint = widget.denied
-        ? V2Colors.caution.withValues(alpha: 0.12)
-        : V2Colors.accentTint;
+        ? context.v2.caution.withValues(alpha: 0.12)
+        : context.v2.accentTint;
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, child) {
@@ -219,17 +218,17 @@ class _BenefitBullets extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: V2Colors.accentTint,
+                  color: context.v2.accentTint,
                   borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, size: 14, color: V2Colors.accent),
+                child: Icon(icon, size: 14, color: context.v2.accent),
               ),
               const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: Text(
                   label,
-                  style: V2Typography.body(color: V2Colors.fg),
+                  style: V2Typography.body(color: context.v2.fg),
                 ),
               ),
             ],
@@ -249,7 +248,7 @@ class _CloseChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       shape: const CircleBorder(),
       elevation: 0,
       child: InkWell(
@@ -261,9 +260,9 @@ class _CloseChip extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
           ),
-          child: const Icon(Icons.close_rounded, color: V2Colors.fg, size: 18),
+          child: Icon(Icons.close_rounded, color: context.v2.fg, size: 18),
         ),
       ),
     );

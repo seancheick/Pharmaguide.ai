@@ -7,7 +7,7 @@
 // permission is granted. If denied, offers "Open Settings" + manual entry.
 
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
@@ -105,24 +105,24 @@ class _CameraPermissionCheckingScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 28,
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.4,
-                    color: V2Colors.accent,
+                    color: context.v2.accent,
                   ),
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 Text(
                   'Checking camera access',
-                  style: V2Typography.titleSm(color: V2Colors.fg),
+                  style: V2Typography.titleSm(color: context.v2.fg),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: V2Spacing.space8),
                 Text(
                   'Preparing the scanner.',
-                  style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                   textAlign: TextAlign.center,
                 ),
               ],

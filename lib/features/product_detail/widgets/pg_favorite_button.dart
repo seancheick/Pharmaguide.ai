@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
@@ -48,7 +48,7 @@ class _PGFavoriteButtonState extends ConsumerState<PGFavoriteButton> {
         tooltip: label,
         icon: Icon(
           isSaved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-          color: isSaved ? V2Colors.accent : V2Colors.fg,
+          color: isSaved ? context.v2.accent : context.v2.fg,
         ),
         onPressed: _isUpdating
             ? null

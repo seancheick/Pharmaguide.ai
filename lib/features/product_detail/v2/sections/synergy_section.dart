@@ -6,7 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -67,9 +67,9 @@ class _SynergySection extends StatelessWidget {
       key: const Key('synergy-section-card'),
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       child: Column(
@@ -77,11 +77,11 @@ class _SynergySection extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.hub_outlined, size: 18, color: V2Colors.accent),
+              Icon(Icons.hub_outlined, size: 18, color: context.v2.accent),
               const SizedBox(width: V2Spacing.space8),
               Text(
                 'Works well with',
-                style: V2Typography.titleSm(color: V2Colors.fg),
+                style: V2Typography.titleSm(color: context.v2.fg),
               ),
             ],
           ),
@@ -110,7 +110,7 @@ class _SynergySection extends StatelessWidget {
                 clusters.length > 1
                     ? '${_clusterName(cluster)} — ${singleMatchCaption(cluster)}'
                     : singleMatchCaption(cluster),
-                style: V2Typography.caption(color: V2Colors.fgMuted),
+                style: V2Typography.caption(color: context.v2.fgMuted),
               ),
             ],
         ],
@@ -140,9 +140,9 @@ class _SynergyChip extends StatelessWidget {
             vertical: V2Spacing.space8,
           ),
           decoration: BoxDecoration(
-            color: V2Colors.accentTint,
+            color: context.v2.accentTint,
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(color: V2Colors.accent.withValues(alpha: 0.22)),
+            border: Border.all(color: context.v2.accent.withValues(alpha: 0.22)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -150,14 +150,14 @@ class _SynergyChip extends StatelessWidget {
               Text(
                 name,
                 style: V2Typography.bodySm(
-                  color: V2Colors.accent,
+                  color: context.v2.accent,
                 ).copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(width: V2Spacing.space8),
-              const Icon(
+              Icon(
                 Icons.info_outline_rounded,
                 size: 13,
-                color: V2Colors.accent,
+                color: context.v2.accent,
               ),
             ],
           ),
@@ -193,7 +193,7 @@ void _showClusterDetail(BuildContext context, Map<String, dynamic> cluster) {
                 Expanded(
                   child: Text(
                     name,
-                    style: V2Typography.titleSm(color: V2Colors.fg),
+                    style: V2Typography.titleSm(color: context.v2.fg),
                   ),
                 ),
                 if (evidenceTier.isNotEmpty) ...[
@@ -204,12 +204,12 @@ void _showClusterDetail(BuildContext context, Map<String, dynamic> cluster) {
                       vertical: V2Spacing.space4,
                     ),
                     decoration: BoxDecoration(
-                      color: V2Colors.accentTint,
+                      color: context.v2.accentTint,
                       borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                     ),
                     child: Text(
                       evidenceTier,
-                      style: V2Typography.overline(color: V2Colors.accent),
+                      style: V2Typography.overline(color: context.v2.accent),
                     ),
                   ),
                 ],
@@ -219,7 +219,7 @@ void _showClusterDetail(BuildContext context, Map<String, dynamic> cluster) {
               const SizedBox(height: V2Spacing.space12),
               Text(
                 explanation,
-                style: V2Typography.bodyMedium(color: V2Colors.fgMuted),
+                style: V2Typography.bodyMedium(color: context.v2.fgMuted),
               ),
             ],
             if (pmids.isNotEmpty) ...[
@@ -227,7 +227,7 @@ void _showClusterDetail(BuildContext context, Map<String, dynamic> cluster) {
               Text(
                 '${pmids.length} published '
                 '${pmids.length == 1 ? "study" : "studies"}',
-                style: V2Typography.label(color: V2Colors.accent),
+                style: V2Typography.label(color: context.v2.accent),
               ),
             ],
           ],

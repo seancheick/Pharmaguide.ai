@@ -12,7 +12,6 @@ import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -773,7 +772,7 @@ class _TopRow extends StatelessWidget {
           onTap: onSkip,
           child: Text(
             'Skip for now',
-            style: V2Typography.label(color: V2Colors.fgMuted),
+            style: V2Typography.label(color: context.v2.fgMuted),
           ),
         ),
       ],
@@ -791,13 +790,13 @@ class _Header extends StatelessWidget {
       children: [
         Text(
           "Tell us what matters\nto you.",
-          style: V2Typography.displaySm(color: V2Colors.fg),
+          style: V2Typography.displaySm(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space12),
         Text(
           'Used only to personalize safety checks on this device. '
           'You can skip this and complete it later.',
-          style: V2Typography.body(color: V2Colors.fgMuted),
+          style: V2Typography.body(color: context.v2.fgMuted),
         ),
       ],
     );
@@ -829,7 +828,7 @@ class _GroupTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
         onTap: onTap,
@@ -839,7 +838,7 @@ class _GroupTile extends StatelessWidget {
           curve: V2Motion.smooth,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
             boxShadow: V2Shadows.sm,
           ),
           padding: const EdgeInsets.fromLTRB(
@@ -855,34 +854,34 @@ class _GroupTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: V2Colors.accentTint,
+                  color: context.v2.accentTint,
                   borderRadius: BorderRadius.circular(V2Spacing.space8),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, size: 18, color: V2Colors.accent),
+                child: Icon(icon, size: 18, color: context.v2.accent),
               ),
               const SizedBox(width: V2Spacing.space16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PGEyebrow(eyebrow, color: V2Colors.fgMuted),
+                    PGEyebrow(eyebrow, color: context.v2.fgMuted),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       title,
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                     ),
                     if (body != null) ...[
                       const SizedBox(height: V2Spacing.space4),
                       Text(
                         body!,
-                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
                       ),
                     ],
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
+              Icon(Icons.chevron_right_rounded, color: context.v2.fgSubtle),
             ],
           ),
         ),
@@ -940,9 +939,9 @@ class _NicknameTileState extends ConsumerState<_NicknameTile> {
     final focused = _focusNode.hasFocus;
     return Container(
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
       padding: const EdgeInsets.fromLTRB(
@@ -958,14 +957,14 @@ class _NicknameTileState extends ConsumerState<_NicknameTile> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: V2Colors.accentTint,
+              color: context.v2.accentTint,
               borderRadius: BorderRadius.circular(V2Spacing.space8),
             ),
             alignment: Alignment.center,
-            child: const Icon(
+            child: Icon(
               Icons.waving_hand_outlined,
               size: 18,
-              color: V2Colors.accent,
+              color: context.v2.accent,
             ),
           ),
           const SizedBox(width: V2Spacing.space16),
@@ -973,7 +972,7 @@ class _NicknameTileState extends ConsumerState<_NicknameTile> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const PGEyebrow('Nickname', color: V2Colors.fgMuted),
+                PGEyebrow('Nickname', color: context.v2.fgMuted),
                 const SizedBox(height: V2Spacing.space4),
                 // Inline editable field. No background fill on the
                 // text itself — the surrounding tile is already
@@ -986,7 +985,7 @@ class _NicknameTileState extends ConsumerState<_NicknameTile> {
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                        color: focused ? V2Colors.accent : V2Colors.outline,
+                        color: focused ? context.v2.accent : context.v2.outline,
                         width: focused ? 1.5 : 1.0,
                       ),
                     ),
@@ -998,7 +997,7 @@ class _NicknameTileState extends ConsumerState<_NicknameTile> {
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
                       hintText: 'What should we call you?',
-                      hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+                      hintStyle: V2Typography.body(color: context.v2.fgSubtle),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -1008,8 +1007,8 @@ class _NicknameTileState extends ConsumerState<_NicknameTile> {
                       isCollapsed: true,
                       isDense: true,
                     ),
-                    style: V2Typography.titleSm(color: V2Colors.fg),
-                    cursorColor: V2Colors.accent,
+                    style: V2Typography.titleSm(color: context.v2.fg),
+                    cursorColor: context.v2.accent,
                     cursorWidth: 1.5,
                     onChanged: (value) =>
                         ref.read(profileProvider.notifier).setNickname(value),
@@ -1018,7 +1017,7 @@ class _NicknameTileState extends ConsumerState<_NicknameTile> {
                 const SizedBox(height: V2Spacing.space8),
                 Text(
                   'Used only to personalize your greeting.',
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
               ],
             ),
@@ -1044,17 +1043,17 @@ class _PrivacyFooter extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.lock_outline_rounded,
             size: 14,
-            color: V2Colors.fgMuted,
+            color: context.v2.fgMuted,
           ),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: Text(
               'Your health information stays on this device. Used only '
               'to personalize safety checks — never to identify you.',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ),
         ],
@@ -1082,9 +1081,9 @@ class _StickySaveBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: V2Colors.bg,
-        border: Border(top: BorderSide(color: V2Colors.outline)),
+      decoration: BoxDecoration(
+        color: context.v2.bg,
+        border: Border(top: BorderSide(color: context.v2.outline)),
       ),
       padding: EdgeInsets.fromLTRB(
         V2Spacing.space24,

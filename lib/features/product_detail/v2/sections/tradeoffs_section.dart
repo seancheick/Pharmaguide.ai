@@ -22,7 +22,7 @@
 //
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_tradeoffs_section.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
@@ -409,7 +409,7 @@ class _SafetySummaryBullet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dotColor = isHighSeverity ? V2Colors.contraindicated : V2Colors.avoid;
+    final dotColor = isHighSeverity ? context.v2.contraindicated : context.v2.avoid;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -425,7 +425,7 @@ class _SafetySummaryBullet extends StatelessWidget {
           child: Text(
             _label(),
             style: V2Typography.bodySm(
-              color: V2Colors.fg,
+              color: context.v2.fg,
             ).copyWith(fontWeight: FontWeight.w600),
           ),
         ),

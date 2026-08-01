@@ -24,7 +24,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -82,13 +82,13 @@ class _NutrientTotalsUnavailable extends StatelessWidget {
         children: [
           Text(
             'Nutrient totals unavailable',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space4),
           Text(
             "We couldn't add up the nutrients in your stack right now. This "
             'is not an all-clear — upper-limit checks did not run.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
         ],
       ),
@@ -113,7 +113,7 @@ class _PartialTotalsNotice extends StatelessWidget {
       child: Text(
         'Some items in your stack could not be included, so these totals are '
         'lower than your full intake.',
-        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+        style: V2Typography.bodySm(color: context.v2.fgMuted),
       ),
     );
   }
@@ -129,9 +129,9 @@ class _PanelShell extends StatelessWidget {
     return Container(
       key: const Key('nutrient-accumulation-card'),
       decoration: BoxDecoration(
-        color: V2Colors.surface,
+        color: context.v2.surface,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: V2Colors.outline),
+        border: Border.all(color: context.v2.outline),
       ),
       child: child,
     );
@@ -212,7 +212,7 @@ class _PanelBodyState extends State<_PanelBody> {
             totalNutrients: widget.statuses.length,
             warningCount: warningCount,
           ),
-          const Divider(height: 1, color: V2Colors.outline),
+          Divider(height: 1, color: context.v2.outline),
           // Ahead of every number: a partial sum must be labeled partial
           // before it is read, not after.
           if (widget.incomplete) ...[
@@ -325,19 +325,19 @@ class _SectionHeading extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
                 ),
                 Text(
                   '$count ${count == 1 ? "nutrient" : "nutrients"}',
-                  style: V2Typography.caption(color: V2Colors.fgMuted),
+                  style: V2Typography.caption(color: context.v2.fgMuted),
                 ),
               ],
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               description,
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ],
         ),
@@ -351,9 +351,9 @@ class _SectionDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: V2Spacing.space4),
-      child: Divider(height: 1, color: V2Colors.outline),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
+      child: Divider(height: 1, color: context.v2.outline),
     );
   }
 }
@@ -396,17 +396,17 @@ class _SectionToggle extends StatelessWidget {
                     child: Text(
                       label,
                       textAlign: TextAlign.center,
-                      style: V2Typography.label(color: V2Colors.accent),
+                      style: V2Typography.label(color: context.v2.accent),
                     ),
                   ),
                   const SizedBox(width: V2Spacing.space4),
                   AnimatedRotation(
                     turns: expanded ? 0.5 : 0,
                     duration: V2Motion.fast,
-                    child: const Icon(
+                    child: Icon(
                       Icons.expand_more_rounded,
                       size: 18,
-                      color: V2Colors.accent,
+                      color: context.v2.accent,
                     ),
                   ),
                 ],
@@ -431,37 +431,37 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.health_and_safety_outlined,
             size: 20,
-            color: V2Colors.fgMuted,
+            color: context.v2.fgMuted,
           ),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: Text(
               'Stack Nutrient Totals',
-              style: V2Typography.bodyMedium(color: V2Colors.fg),
+              style: V2Typography.bodyMedium(color: context.v2.fg),
             ),
           ),
           if (warningCount > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: V2Colors.contraindicatedTint,
+                color: context.v2.contraindicatedTint,
                 borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                 border: Border.all(
-                  color: V2Colors.contraindicated.withValues(alpha: 0.35),
+                  color: context.v2.contraindicated.withValues(alpha: 0.35),
                 ),
               ),
               child: Text(
                 '$warningCount ${warningCount == 1 ? "alert" : "alerts"}',
-                style: V2Typography.overline(color: V2Colors.contraindicated),
+                style: V2Typography.overline(color: context.v2.contraindicated),
               ),
             )
           else
             Text(
               '$totalNutrients tracked',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
         ],
       ),

@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -14,7 +14,7 @@ import 'package:pharmaguide/services/history/user_health_event_service.dart';
 Future<void> showAddHealthEventSheet(BuildContext context, WidgetRef ref) {
   return PGModal.bottomSheet<_AddHealthEventResult>(
     context: context,
-    backgroundColor: V2Colors.surface,
+    backgroundColor: context.v2.surface,
     builder: (_) => const _AddHealthEventSheet(),
   ).then((result) {
     if (result == _AddHealthEventResult.savedWithoutDeviceReminder &&
@@ -72,13 +72,13 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
         children: [
           Text(
             'Add health event',
-            style: V2Typography.titleSm(color: V2Colors.fg),
+            style: V2Typography.titleSm(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Saved only on this device. Lab values and interpretation are '
             'not part of this beta.',
-            style: V2Typography.bodySm(color: V2Colors.fgMuted),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space24),
           DropdownButtonFormField<UserHealthEventKind>(
@@ -165,9 +165,9 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
           const SizedBox(height: V2Spacing.space8),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(
+            leading: Icon(
               Icons.attach_file_rounded,
-              color: V2Colors.accent,
+              color: context.v2.accent,
             ),
             title: Text(
               _selectedAttachment == null
@@ -197,7 +197,7 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
                   ? (value) => setState(() => _remind = value)
                   : null,
             ),
-          const Divider(color: V2Colors.outline),
+          Divider(color: context.v2.outline),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             title: const Text('Add a follow-up date'),
@@ -386,9 +386,9 @@ class _DateRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(
+      leading: Icon(
         Icons.calendar_today_outlined,
-        color: V2Colors.accent,
+        color: context.v2.accent,
       ),
       title: Text(label),
       subtitle: Text(DateFormat.yMMMMd().format(value)),
@@ -408,7 +408,7 @@ class _TimeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.schedule_rounded, color: V2Colors.accent),
+      leading: Icon(Icons.schedule_rounded, color: context.v2.accent),
       title: const Text('Time'),
       subtitle: Text(DateFormat.jm().format(value)),
       trailing: const Icon(Icons.chevron_right_rounded),

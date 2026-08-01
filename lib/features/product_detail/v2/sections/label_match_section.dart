@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -254,9 +254,9 @@ class _LabelRecordCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space16),
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
           boxShadow: V2Shadows.sm,
         ),
         child: Column(
@@ -265,10 +265,10 @@ class _LabelRecordCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
+                Icon(
                   Icons.inventory_2_outlined,
                   size: 20,
-                  color: V2Colors.accent,
+                  color: context.v2.accent,
                 ),
                 const SizedBox(width: V2Spacing.space12),
                 Expanded(
@@ -279,14 +279,14 @@ class _LabelRecordCard extends StatelessWidget {
                         header: true,
                         child: Text(
                           'Catalog record details',
-                          style: V2Typography.titleSm(color: V2Colors.fg),
+                          style: V2Typography.titleSm(color: context.v2.fg),
                         ),
                       ),
                       const SizedBox(height: V2Spacing.space4),
                       Text(
                         'Compare these catalog details with the package in '
                         'your hand.',
-                        style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                        style: V2Typography.bodySm(color: context.v2.fgMuted),
                       ),
                     ],
                   ),
@@ -327,14 +327,14 @@ class _LabelRecordCard extends StatelessWidget {
               const SizedBox(height: V2Spacing.space8),
               Text(
                 'Unavailable in catalog: ${unavailableLabels.join(', ')}.',
-                style: V2Typography.caption(color: V2Colors.fgMuted),
+                style: V2Typography.caption(color: context.v2.fgMuted),
               ),
             ],
             const SizedBox(height: V2Spacing.space8),
             Text(
               'The formula fingerprint identifies the stored label formula; '
               'it does not prove package authenticity.',
-              style: V2Typography.caption(color: V2Colors.fgMuted),
+              style: V2Typography.caption(color: context.v2.fgMuted),
             ),
             if (sourceAction != null && onOpenSourceLabel != null) ...[
               const SizedBox(height: V2Spacing.space8),
@@ -369,7 +369,7 @@ class _LabelRecordCard extends StatelessWidget {
               const SizedBox(height: V2Spacing.space8),
               Text(
                 'No source-linked formula history is available.',
-                style: V2Typography.caption(color: V2Colors.fgMuted),
+                style: V2Typography.caption(color: context.v2.fgMuted),
               ),
             ],
             if (showMismatchAction && reportProduct != null) ...[
@@ -390,7 +390,7 @@ class _LabelRecordCard extends StatelessWidget {
               Text(
                 'Send a structured report for review. Reports never change '
                 'the catalog automatically.',
-                style: V2Typography.caption(color: V2Colors.fgMuted),
+                style: V2Typography.caption(color: context.v2.fgMuted),
               ),
             ],
           ],
@@ -418,10 +418,10 @@ class _MetadataStatus extends StatelessWidget {
         vertical: V2Spacing.space4,
       ),
       decoration: BoxDecoration(
-        color: V2Colors.accentTint,
+        color: context.v2.accentTint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
       ),
-      child: Text(label, style: V2Typography.caption(color: V2Colors.accent)),
+      child: Text(label, style: V2Typography.caption(color: context.v2.accent)),
     );
   }
 }
@@ -443,8 +443,8 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayValue = value ?? 'Unavailable';
     final style = mono
-        ? V2Typography.monoData(color: V2Colors.fg)
-        : V2Typography.bodySm(color: V2Colors.fg);
+        ? V2Typography.monoData(color: context.v2.fg)
+        : V2Typography.bodySm(color: context.v2.fg);
     final valueWidget = selectable && value != null
         ? SelectableText(displayValue, style: style, textAlign: TextAlign.end)
         : Text(displayValue, style: style, textAlign: TextAlign.end);
@@ -458,7 +458,7 @@ class _DetailRow extends StatelessWidget {
             width: 128,
             child: Text(
               label,
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ),
           const SizedBox(width: V2Spacing.space8),
@@ -480,18 +480,18 @@ class _UnavailableLabelRecordCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space16),
         decoration: BoxDecoration(
-          color: V2Colors.surface,
+          color: context.v2.surface,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: V2Colors.outline),
+          border: Border.all(color: context.v2.outline),
           boxShadow: V2Shadows.sm,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
+            Icon(
               Icons.info_outline_rounded,
               size: 20,
-              color: V2Colors.fgMuted,
+              color: context.v2.fgMuted,
             ),
             const SizedBox(width: V2Spacing.space12),
             Expanded(
@@ -502,14 +502,14 @@ class _UnavailableLabelRecordCard extends StatelessWidget {
                     header: true,
                     child: Text(
                       'Catalog record details unavailable',
-                      style: V2Typography.bodyMedium(color: V2Colors.fg),
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
                     ),
                   ),
                   const SizedBox(height: V2Spacing.space4),
                   Text(
                     'This catalog record could not be read. Compare the '
                     'ingredient list with the package before use.',
-                    style: V2Typography.bodySm(color: V2Colors.fgMuted),
+                    style: V2Typography.bodySm(color: context.v2.fgMuted),
                   ),
                 ],
               ),

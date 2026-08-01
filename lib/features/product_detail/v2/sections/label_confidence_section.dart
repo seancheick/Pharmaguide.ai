@@ -25,7 +25,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_label_confidence_card.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -186,29 +186,29 @@ class _CompactNoteRow extends StatelessWidget {
               vertical: V2Spacing.space12,
             ),
             decoration: BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              border: Border.all(color: V2Colors.outline),
+              border: Border.all(color: context.v2.outline),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.event_busy_outlined,
                   size: 18,
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                 ),
                 const SizedBox(width: V2Spacing.space12),
                 Expanded(
                   child: Text(
                     label,
-                    style: V2Typography.bodyMedium(color: V2Colors.fg),
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
                 ),
                 const SizedBox(width: V2Spacing.space8),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
-                  color: V2Colors.fgMuted,
+                  color: context.v2.fgMuted,
                 ),
               ],
             ),
@@ -240,12 +240,12 @@ void _showProductStatusSheet(BuildContext context, String? type) {
           children: [
             Text(
               'About this product status',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space12),
             Text(
               productStatusExplanationBody(type),
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ],
         ),

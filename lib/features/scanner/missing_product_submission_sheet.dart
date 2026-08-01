@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -201,18 +201,18 @@ class _MissingProductSubmissionSheetState
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Help add this product',
-            style: V2Typography.title(color: V2Colors.fg),
+            style: V2Typography.title(color: context.v2.fg),
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
             'UPC ${widget.upc.replaceAll(RegExp(r'[^0-9]'), '')}',
-            style: V2Typography.monoData(color: V2Colors.fgMuted),
+            style: V2Typography.monoData(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space16),
           Container(
             padding: const EdgeInsets.all(V2Spacing.space16),
             decoration: BoxDecoration(
-              color: V2Colors.cautionTint,
+              color: context.v2.cautionTint,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
             ),
             child: Text(
@@ -223,7 +223,7 @@ class _MissingProductSubmissionSheetState
               'device.\n\nPhotograph only the product package. Do not include '
               'pharmacy labels, names, prescription numbers, or other '
               'personal information visible in the photo.',
-              style: V2Typography.bodySm(color: V2Colors.fg),
+              style: V2Typography.bodySm(color: context.v2.fg),
             ),
           ),
           const SizedBox(height: V2Spacing.space24),
@@ -260,7 +260,7 @@ class _MissingProductSubmissionSheetState
             onChanged: _submitting ? null : _setOtherIngredientsAbsent,
             title: Text(
               'No Other Ingredients panel on this label',
-              style: V2Typography.bodySm(color: V2Colors.fg),
+              style: V2Typography.bodySm(color: context.v2.fg),
             ),
           ),
           if (_photoError != null) ...[
@@ -269,7 +269,7 @@ class _MissingProductSubmissionSheetState
               liveRegion: true,
               child: Text(
                 _photoError!,
-                style: V2Typography.bodySm(color: V2Colors.contraindicated),
+                style: V2Typography.bodySm(color: context.v2.contraindicated),
               ),
             ),
           ],
@@ -287,7 +287,7 @@ class _MissingProductSubmissionSheetState
             title: Text(
               'I consent to send my account identifier, this barcode, and '
               'the selected product-label photos to PharmaGuide for review.',
-              style: V2Typography.bodySm(color: V2Colors.fg),
+              style: V2Typography.bodySm(color: context.v2.fg),
             ),
           ),
           if (_failure != null) ...[
@@ -300,7 +300,7 @@ class _MissingProductSubmissionSheetState
                     ? 'Sign in before submitting product photos.'
                     : 'Could not submit this product. Your selected photos '
                           'remain here so you can try again.',
-                style: V2Typography.bodySm(color: V2Colors.contraindicated),
+                style: V2Typography.bodySm(color: context.v2.contraindicated),
               ),
             ),
           ],
@@ -325,7 +325,7 @@ class _MissingProductSubmissionSheetState
             'A reviewer must verify the label before anything can enter the '
             'PharmaGuide catalog.',
             textAlign: TextAlign.center,
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ],
       ),
@@ -352,16 +352,16 @@ class _PhotoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: Text(label, style: V2Typography.body(color: V2Colors.fg)),
+      title: Text(label, style: V2Typography.body(color: context.v2.fg)),
       subtitle: Text(
         added ? 'Photo added' : (required ? 'Required' : 'Optional'),
         style: V2Typography.caption(
-          color: added ? V2Colors.safe : V2Colors.fgMuted,
+          color: added ? context.v2.safe : context.v2.fgMuted,
         ),
       ),
       trailing: Icon(
         added ? Icons.check_circle_outline : Icons.add_a_photo_outlined,
-        color: added ? V2Colors.safe : V2Colors.accent,
+        color: added ? context.v2.safe : context.v2.accent,
       ),
       onTap: enabled ? onTap : null,
     );
@@ -382,18 +382,18 @@ class _SubmissionComplete extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.task_alt_rounded, color: V2Colors.safe, size: 48),
+            Icon(Icons.task_alt_rounded, color: context.v2.safe, size: 48),
             const SizedBox(height: V2Spacing.space16),
             Text(
               'Submitted for review',
-              style: V2Typography.title(color: V2Colors.fg),
+              style: V2Typography.title(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
               'We’ll show the status in Profile. Submission does not add the '
               'product automatically.',
               textAlign: TextAlign.center,
-              style: V2Typography.bodySm(color: V2Colors.fgMuted),
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space24),
             SizedBox(
@@ -433,7 +433,7 @@ class _SubmissionPhotoSourceSheet extends StatelessWidget {
           children: [
             Text(
               'Add product photo',
-              style: V2Typography.titleSm(color: V2Colors.fg),
+              style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space16),
             PGPillButton(

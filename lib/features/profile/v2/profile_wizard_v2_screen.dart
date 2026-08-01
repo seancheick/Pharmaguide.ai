@@ -13,7 +13,6 @@ import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -492,9 +491,9 @@ class _TopRow extends StatelessWidget {
               width: 40,
               child: canGoBack
                   ? IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back_ios_new_rounded,
-                        color: V2Colors.fg,
+                        color: context.v2.fg,
                         size: 18,
                       ),
                       onPressed: onBack,
@@ -512,7 +511,7 @@ class _TopRow extends StatelessWidget {
                 ),
                 child: Text(
                   'Skip for now',
-                  style: V2Typography.label(color: V2Colors.fgMuted),
+                  style: V2Typography.label(color: context.v2.fgMuted),
                 ),
               ),
             ),
@@ -584,17 +583,17 @@ class _NicknameStepState extends ConsumerState<_NicknameStep> {
             helper: widget.helper,
           ),
           const SizedBox(height: V2Spacing.space32),
-          Text('Nickname', style: V2Typography.label(color: V2Colors.fg)),
+          Text('Nickname', style: V2Typography.label(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space8),
           AnimatedContainer(
             duration: V2Motion.fast,
             curve: V2Motion.smooth,
             padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space16),
             decoration: BoxDecoration(
-              color: V2Colors.surface,
+              color: context.v2.surface,
               borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               border: Border.all(
-                color: focused ? V2Colors.accent : V2Colors.outline,
+                color: focused ? context.v2.accent : context.v2.outline,
                 width: focused ? 1.5 : 1.0,
               ),
             ),
@@ -605,7 +604,7 @@ class _NicknameStepState extends ConsumerState<_NicknameStep> {
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                 hintText: 'What should we call you?',
-                hintStyle: V2Typography.body(color: V2Colors.fgSubtle),
+                hintStyle: V2Typography.body(color: context.v2.fgSubtle),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -615,8 +614,8 @@ class _NicknameStepState extends ConsumerState<_NicknameStep> {
                 isCollapsed: true,
                 isDense: true,
               ),
-              style: V2Typography.titleSm(color: V2Colors.fg),
-              cursorColor: V2Colors.accent,
+              style: V2Typography.titleSm(color: context.v2.fg),
+              cursorColor: context.v2.accent,
               cursorWidth: 1.5,
               onChanged: (value) =>
                   ref.read(profileProvider.notifier).setNickname(value),
@@ -625,7 +624,7 @@ class _NicknameStepState extends ConsumerState<_NicknameStep> {
           const SizedBox(height: V2Spacing.space12),
           Text(
             'Used only to personalize your greeting.',
-            style: V2Typography.caption(color: V2Colors.fgMuted),
+            style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ],
       ),
@@ -850,9 +849,9 @@ class _StepIntro extends StatelessWidget {
       children: [
         PGEyebrow(eyebrow),
         const SizedBox(height: V2Spacing.space12),
-        Text(title, style: V2Typography.displaySm(color: V2Colors.fg)),
+        Text(title, style: V2Typography.displaySm(color: context.v2.fg)),
         const SizedBox(height: V2Spacing.space12),
-        Text(helper, style: V2Typography.body(color: V2Colors.fgMuted)),
+        Text(helper, style: V2Typography.body(color: context.v2.fgMuted)),
       ],
     );
   }
@@ -883,7 +882,7 @@ class _WizardTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: V2Colors.surface,
+      color: context.v2.surface,
       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       child: InkWell(
         onTap: onTap,
@@ -891,7 +890,7 @@ class _WizardTile extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-            border: Border.all(color: V2Colors.outline),
+            border: Border.all(color: context.v2.outline),
             boxShadow: V2Shadows.sm,
           ),
           padding: const EdgeInsets.fromLTRB(
@@ -907,34 +906,34 @@ class _WizardTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: V2Colors.accentTint,
+                  color: context.v2.accentTint,
                   borderRadius: BorderRadius.circular(V2Spacing.space8),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, size: 18, color: V2Colors.accent),
+                child: Icon(icon, size: 18, color: context.v2.accent),
               ),
               const SizedBox(width: V2Spacing.space16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PGEyebrow(eyebrow, color: V2Colors.fgMuted),
+                    PGEyebrow(eyebrow, color: context.v2.fgMuted),
                     const SizedBox(height: V2Spacing.space4),
                     Text(
                       title,
-                      style: V2Typography.titleSm(color: V2Colors.fg),
+                      style: V2Typography.titleSm(color: context.v2.fg),
                     ),
                     if (body != null) ...[
                       const SizedBox(height: V2Spacing.space4),
                       Text(
                         body!,
-                        style: V2Typography.caption(color: V2Colors.fgMuted),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
                       ),
                     ],
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: V2Colors.fgSubtle),
+              Icon(Icons.chevron_right_rounded, color: context.v2.fgSubtle),
             ],
           ),
         ),

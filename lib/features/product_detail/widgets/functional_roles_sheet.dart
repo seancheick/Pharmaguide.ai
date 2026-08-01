@@ -15,7 +15,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/data/functional_roles_vocab.dart';
-import 'package:pharmaguide/core/theme/v2/v2_colors.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
@@ -78,7 +78,7 @@ class _FunctionalRolesSheet extends StatelessWidget {
               // sheet header so they have anchor context.
               Text(
                 name.isEmpty ? 'Inactive ingredient' : name,
-                style: V2Typography.titleSm(color: V2Colors.fg),
+                style: V2Typography.titleSm(color: context.v2.fg),
               ),
               const SizedBox(height: V2Spacing.space16),
               if (roles.isEmpty)
@@ -88,12 +88,12 @@ class _FunctionalRolesSheet extends StatelessWidget {
                   future: loadFunctionalRolesVocab(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
-                      return const SizedBox(
+                      return SizedBox(
                         height: 80,
                         child: Center(
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: V2Colors.accent,
+                            color: context.v2.accent,
                           ),
                         ),
                       );
@@ -140,15 +140,15 @@ class _RoleSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(role.name, style: V2Typography.bodyMedium(color: V2Colors.fg)),
+        Text(role.name, style: V2Typography.bodyMedium(color: context.v2.fg)),
         const SizedBox(height: V2Spacing.space8),
         // Notes — verbatim, no paraphrase. Clinician-locked copy.
-        Text(role.notes, style: V2Typography.bodySm(color: V2Colors.fgMuted)),
+        Text(role.notes, style: V2Typography.bodySm(color: context.v2.fgMuted)),
         if (role.examples.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space16),
           Text(
             'Common examples',
-            style: V2Typography.eyebrow(color: V2Colors.fgSubtle),
+            style: V2Typography.eyebrow(color: context.v2.fgSubtle),
           ),
           const SizedBox(height: V2Spacing.space8),
           Wrap(
@@ -162,13 +162,13 @@ class _RoleSection extends StatelessWidget {
                     vertical: V2Spacing.space4,
                   ),
                   decoration: BoxDecoration(
-                    color: V2Colors.accentTint,
+                    color: context.v2.accentTint,
                     borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                    border: Border.all(color: V2Colors.outline),
+                    border: Border.all(color: context.v2.outline),
                   ),
                   child: Text(
                     ex,
-                    style: V2Typography.caption(color: V2Colors.accent),
+                    style: V2Typography.caption(color: context.v2.accent),
                   ),
                 ),
             ],
@@ -178,7 +178,7 @@ class _RoleSection extends StatelessWidget {
           const SizedBox(height: V2Spacing.space16),
           Text(
             'Learn more',
-            style: V2Typography.eyebrow(color: V2Colors.fgSubtle),
+            style: V2Typography.eyebrow(color: context.v2.fgSubtle),
           ),
           const SizedBox(height: V2Spacing.space8),
           for (final ref in role.regulatoryReferences)
@@ -186,7 +186,7 @@ class _RoleSection extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: V2Spacing.space4),
               child: Text(
                 '${ref.jurisdiction} · ${ref.code}',
-                style: V2Typography.caption(color: V2Colors.accent),
+                style: V2Typography.caption(color: context.v2.accent),
               ),
             ),
         ],
@@ -202,7 +202,7 @@ class _GenericFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       'Inactive ingredient — added during manufacturing.',
-      style: V2Typography.bodySm(color: V2Colors.fgMuted),
+      style: V2Typography.bodySm(color: context.v2.fgMuted),
     );
   }
 }
