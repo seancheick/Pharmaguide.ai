@@ -36,7 +36,7 @@ dependencies:
   path_provider: ^2.1.0
   path: ^1.9.0
   # Supabase
-  supabase_flutter: ^2.5.0
+  supabase_flutter: ^2.16.0
   # Apple Sign In (iOS native — Android falls back to web OAuth via Supabase)
   sign_in_with_apple: ^6.1.0
   # Google Sign In (native flow on both platforms; ID token handed to Supabase)
