@@ -2,12 +2,12 @@
   "_metadata": {
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
-    "schema_version": "5.0.0",
-    "last_updated": "2026-06-28",
+    "schema_version": "5.0.1",
+    "last_updated": "2026-08-03",
     "reference_data_contract": {
       "contract_version": "1",
-      "reference_version": "5.0.0-2026-06-28",
-      "semantic_fingerprint": "sha256:31527647197b2a2597c65d3de9c319684fb8febff32f2e8d6ea5c328fee9cb1c"
+      "reference_version": "5.0.1-2026-08-03",
+      "semantic_fingerprint": "sha256:cc246503a3097276216f8201aa03821a307692f66357720ccdd06fbf7d976a66"
     },
     "total_entries": 77,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
@@ -1208,7 +1208,12 @@
     {
       "standard_name": "Niacin",
       "unit": "mg NE",
-      "ul_note": "UL applies to nicotinic acid form only, not niacinamide",
+      "ul_note": "The supplemental-niacin UL applies to both nicotinic acid and nicotinamide (niacinamide); the forms have different toxicity profiles, and medically supervised use is outside the UL scope.",
+      "ul_applies_to_forms": [
+        "nicotinic acid",
+        "nicotinamide (niacinamide)"
+      ],
+      "ul_scope_source": "https://ods.od.nih.gov/factsheets/Niacin-HealthProfessional/",
       "optimal_range": "16-100",
       "highest_ul": 35,
       "warnings": [
