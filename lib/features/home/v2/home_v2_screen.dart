@@ -21,6 +21,7 @@ import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
@@ -1000,20 +1001,24 @@ class _RecentScanCard extends StatelessWidget {
   Widget _scoreSlot(BuildContext context) {
     switch (recentScanScoreDisplayFor(
       score: scan.score,
-      verdict: scan.verdict,
+      productSafetyStatus: scan.productSafetyStatus,
+      qualityAssessmentStatus: scan.qualityAssessmentStatus,
       mappedCoverage: scan.mappedCoverage,
     )) {
       case RecentScanScoreDisplay.tierScore:
         return PGScoreLine(score: scan.score!.round(), compact: true);
       case RecentScanScoreDisplay.verdictLabel:
-        final unsafe = isUnsafeVerdict(scan.verdict);
+        final unsafe = isUnsafeVerdict(scan.productSafetyStatus);
         return Text(
-          recentScanStatusLabel(scan.verdict),
+          recentScanStatusLabel(
+            scan.productSafetyStatus,
+            scan.qualityAssessmentStatus,
+          ),
           // Unsafe verdicts keep their contraindicated color — that is
           // verdict tone, not a score tier. Everything else stays muted.
           style: V2Typography.bodyMedium(
             color: unsafe
-                ? VerdictBadge.colorFor(context.v2, scan.verdict!)
+                ? VerdictBadge.colorFor(context.v2, scan.productSafetyStatus)
                 : context.v2.fgMuted,
           ).copyWith(fontSize: 14),
           maxLines: 1,
@@ -1336,13 +1341,14 @@ typedef RecentScan = ({
   String brand,
   String name,
   double? score,
-  String? verdict,
+  String productSafetyStatus,
+  String qualityAssessmentStatus,
   double? mappedCoverage,
   String time,
 });
 
-/// Map a catalog row to a carousel record. Pure — carries the nullable
-/// score, verdict, and coverage through untouched.
+/// Map a catalog row to a carousel record using independent catalog safety,
+/// assessment-completion, and quality score fields.
 @visibleForTesting
 RecentScan recentScanFromProduct(
   ProductsCoreData product, {
@@ -1356,7 +1362,10 @@ RecentScan recentScanFromProduct(
     brand: product.brandName ?? '',
     name: product.productName,
     score: product.qualityScoreV4100,
-    verdict: product.verdict,
+    productSafetyStatus: catalogProductSafetyStatusId(
+      catalogProductSafetyStatus(product),
+    ),
+    qualityAssessmentStatus: catalogAssessmentStatus(product).name,
     mappedCoverage: product.mappedCoverage,
     time: time,
   );
@@ -1382,12 +1391,15 @@ enum RecentScanScoreDisplay {
 @visibleForTesting
 RecentScanScoreDisplay recentScanScoreDisplayFor({
   required double? score,
-  required String? verdict,
+  required String productSafetyStatus,
+  required String qualityAssessmentStatus,
   required double? mappedCoverage,
 }) {
-  final v = (verdict ?? '').trim().toUpperCase();
-  if (isUnsafeVerdict(v)) return RecentScanScoreDisplay.verdictLabel;
-  if (v == 'NOT_SCORED' || score == null) {
+  if (isUnsafeVerdict(productSafetyStatus)) {
+    return RecentScanScoreDisplay.verdictLabel;
+  }
+  if (qualityAssessmentStatus.trim().toLowerCase() != 'complete' ||
+      score == null) {
     return RecentScanScoreDisplay.verdictLabel;
   }
   if (isLowCoverage(mappedCoverage)) return RecentScanScoreDisplay.limitedData;
@@ -1400,10 +1412,13 @@ RecentScanScoreDisplay recentScanScoreDisplayFor({
 /// verdict paired with a missing score — falls back to "Not scored" so a
 /// score-less card can never imply safety.
 @visibleForTesting
-String recentScanStatusLabel(String? verdict) {
-  final v = (verdict ?? '').trim().toUpperCase();
-  if (isUnsafeVerdict(v) || v == 'NOT_SCORED') {
-    return VerdictBadge.labelFor(v);
+String recentScanStatusLabel(
+  String productSafetyStatus,
+  String qualityAssessmentStatus,
+) {
+  final status = productSafetyStatus.trim().toUpperCase();
+  if (isUnsafeVerdict(status)) {
+    return VerdictBadge.labelFor(status);
   }
   return VerdictBadge.labelFor('NOT_SCORED');
 }

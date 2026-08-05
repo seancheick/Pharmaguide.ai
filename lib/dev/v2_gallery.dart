@@ -363,7 +363,7 @@ class V2Gallery extends StatelessWidget {
                     onTap: () {},
                   ),
                   PGPillar(
-                    label: 'Safety Hygiene',
+                    label: 'Formula & quality checks',
                     microExplanation: 'Clean-label and contaminant risk checks',
                     score: 9.3,
                     max: 10,

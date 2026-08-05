@@ -18,6 +18,7 @@ import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
@@ -165,7 +166,12 @@ class ScanScreen extends ConsumerWidget {
         // critical tactile signal for CONTRAINDICATED / UNSAFE
         // verdicts. Severity tiers always fire even under reduce-
         // motion; success patterns suppress (passes context).
-        unawaited(PGHaptics.forVerdict(product.verdict, context));
+        unawaited(
+          PGHaptics.forVerdict(
+            catalogProductSafetyStatusId(catalogProductSafetyStatus(product)),
+            context,
+          ),
+        );
         await context.push(Routes.productDetail(product.dsldId));
       }
     } on Object {

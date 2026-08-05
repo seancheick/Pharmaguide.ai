@@ -3,7 +3,7 @@
 // v4 (export schema 2.0.0): when the detail blob carries `quality_pillars_v4`,
 // render the SIX v4 pillars sourced from the blob —
 //   Formulation /20 · Dose /20 · Evidence /20 · Transparency /15 ·
-//   Testing & Brand /15 · Safety Hygiene /10
+//   Testing & Brand /15 · Formula & quality checks /10
 // each as score/max + a tap-revealed one-line `reason`. The hero is the v4
 // /100 score (`score_100_equivalent` mirrors `quality_score_v4_100`).
 //
@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/components/pg_trust_receipts_sheet.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
+import 'package:pharmaguide/core/utils/num_parse.dart';
 
 // v4 pillar spec + parsing now live in `core/scoring/v4_pillars.dart`
 // (shared with the Compare surface — single source of truth).
@@ -41,6 +42,7 @@ Widget buildScoreBreakdownSection({
   required double? mappedCoverage,
   Map<String, dynamic>? sectionBreakdown,
   Map<String, dynamic>? qualityPillarsV4,
+  Map<String, dynamic>? qualityScoreCapV4,
 
   /// Optional deep-link callbacks keyed by v4 pillar key (`formulation`,
   /// `dose`, `evidence`, `transparency`, `verification`, `safety_hygiene`).
@@ -56,7 +58,23 @@ Widget buildScoreBreakdownSection({
     return const SizedBox.shrink();
   }
 
-  final pillars = _buildV4Pillars(parsedV4, onPillarTap: onPillarTap);
+  var adjustment = _categoryAdjustment(qualityScoreCapV4);
+  var displayValues = parsedV4;
+  if (adjustment != null) {
+    final restored = _restorePreCapPillars(parsedV4, qualityPillarsV4);
+    final restoredTotal = restored.fold<double>(
+      0,
+      (total, pillar) => total + (pillar.score ?? 0),
+    );
+    final declaredBefore = adjustment.finalScore - adjustment.delta;
+    if ((restoredTotal - declaredBefore).abs() <= 0.05) {
+      displayValues = restored;
+    } else {
+      // Never show arithmetic the shipped pillar evidence cannot reproduce.
+      adjustment = null;
+    }
+  }
+  final pillars = _buildV4Pillars(displayValues, onPillarTap: onPillarTap);
 
   return Builder(
     builder: (context) => PGScoreBreakdownCard(
@@ -64,9 +82,45 @@ Widget buildScoreBreakdownSection({
       // Preserve the source value; the card owns the shared whole-number
       // consumer presentation used by the hero, headline, and total.
       heroScore: heroScore,
+      adjustment: adjustment,
       onHowScoringWorks: () => showTrustReceiptsSheet(context),
     ),
   );
+}
+
+PGScoreAdjustment? _categoryAdjustment(Map<String, dynamic>? cap) {
+  if (cap?['applied'] != true) return null;
+  final before = asFiniteDouble(cap?['score_before_cap']);
+  final after = asFiniteDouble(cap?['score_after_cap']);
+  if (before == null || after == null || before <= after) return null;
+  return PGScoreAdjustment(
+    label: 'Category calibration',
+    delta: after - before,
+    finalScore: after,
+  );
+}
+
+List<V4PillarValue> _restorePreCapPillars(
+  List<V4PillarValue> parsed,
+  Map<String, dynamic>? pillarsBlob,
+) {
+  return parsed
+      .map((pillar) {
+        final rawPillar = pillarsBlob?[pillar.key];
+        final rawComponents = rawPillar is Map ? rawPillar['components'] : null;
+        final scoreBeforeCap = rawComponents is Map
+            ? asFiniteDouble(rawComponents['score_before_public_cap'])
+            : null;
+        return V4PillarValue(
+          key: pillar.key,
+          label: pillar.label,
+          max: pillar.max,
+          score: scoreBeforeCap ?? pillar.score,
+          reason: pillar.reason,
+          facts: pillar.facts,
+        );
+      })
+      .toList(growable: false);
 }
 
 /// Six v4 pillars from the pre-parsed (and 6/6-verified) pillar values.
@@ -84,9 +138,11 @@ List<PGPillar> _buildV4Pillars(
         label: p.label,
         max: p.max,
         score: p.score,
-        reason: p.key == 'evidence'
-            ? _formulaEvidenceReason(p.reason)
-            : p.reason,
+        reason: switch (p.key) {
+          'evidence' => _formulaEvidenceReason(p.reason),
+          'safety_hygiene' => _formulaQualityChecksReason(p.reason),
+          _ => p.reason,
+        },
         facts: p.facts,
         actionLabel: onAction == null ? null : actionLabel,
         onAction: onAction,
@@ -105,4 +161,11 @@ String _formulaEvidenceReason(String? pipelineReason) {
       'strongly supported ingredient.';
   final reason = pipelineReason?.trim() ?? '';
   return reason.isEmpty ? scope : '$scope $reason';
+}
+
+String _formulaQualityChecksReason(String? pipelineReason) {
+  final reason = pipelineReason?.trim() ?? '';
+  return reason.isEmpty
+      ? kFormulaQualityChecksScope
+      : '$kFormulaQualityChecksScope $reason';
 }

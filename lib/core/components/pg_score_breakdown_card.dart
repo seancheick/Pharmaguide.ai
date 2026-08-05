@@ -58,15 +58,29 @@ class PGPillarBadge {
   });
 }
 
+class PGScoreAdjustment {
+  final String label;
+  final double delta;
+  final double finalScore;
+
+  const PGScoreAdjustment({
+    required this.label,
+    required this.delta,
+    required this.finalScore,
+  });
+}
+
 class PGScoreBreakdownCard extends StatefulWidget {
   final List<PGPillar> pillars;
   final num? heroScore;
+  final PGScoreAdjustment? adjustment;
   final VoidCallback? onHowScoringWorks;
 
   const PGScoreBreakdownCard({
     super.key,
     required this.pillars,
     this.heroScore,
+    this.adjustment,
     this.onHowScoringWorks,
   });
 
@@ -80,6 +94,15 @@ class PGScoreBreakdownCard extends StatefulWidget {
   /// Consumer-facing product totals use the same whole-number presentation
   /// as the hero. Pillar rows keep one-decimal precision through [fmtScore].
   static String fmtTotalScore(num value) => value.round().toString();
+
+  static String fmtSignedScore(num value) {
+    final sign = value < 0
+        ? '−'
+        : value > 0
+        ? '+'
+        : '';
+    return '$sign${fmtScore(value.abs())}';
+  }
 
   static Color pillarTone(double? rawScore, num max, V2Palette palette) {
     if (rawScore == null || max <= 0) return palette.fgSubtle;
@@ -166,6 +189,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
   @override
   Widget build(BuildContext context) {
     final sum = _pillarSum;
+    final adjustment = widget.adjustment;
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
@@ -224,7 +248,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
               onToggle: () => _toggle(index),
             ),
           ],
-          if (sum != null) ...[
+          if (sum != null && widget.adjustment == null) ...[
             const SizedBox(height: V2Spacing.space12),
             Divider(color: context.v2.outline, height: 1, thickness: 0.5),
             const SizedBox(height: V2Spacing.space8),
@@ -236,12 +260,60 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
               ),
             ),
           ],
+          if (sum != null && adjustment != null) ...[
+            const SizedBox(height: V2Spacing.space12),
+            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
+            const SizedBox(height: V2Spacing.space8),
+            _ScoreMathRow(
+              label: 'Pillar subtotal',
+              value: '${PGScoreBreakdownCard.fmtTotalScore(sum)}/100',
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            _ScoreMathRow(
+              label: adjustment.label,
+              value: PGScoreBreakdownCard.fmtSignedScore(adjustment.delta),
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
+            const SizedBox(height: V2Spacing.space8),
+            _ScoreMathRow(
+              label: 'Final score',
+              value:
+                  '${PGScoreBreakdownCard.fmtTotalScore(adjustment.finalScore)}/100',
+              emphasized: true,
+            ),
+          ],
           if (widget.onHowScoringWorks != null) ...[
             const SizedBox(height: V2Spacing.space8),
             _HowPGScoreWorksButton(onTap: widget.onHowScoringWorks!),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ScoreMathRow extends StatelessWidget {
+  const _ScoreMathRow({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = emphasized
+        ? V2Typography.bodyMedium(color: context.v2.fg)
+        : V2Typography.bodySm(color: context.v2.fgMuted);
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: style)),
+        Text(value, style: V2Typography.monoData(color: context.v2.fg)),
+      ],
     );
   }
 }

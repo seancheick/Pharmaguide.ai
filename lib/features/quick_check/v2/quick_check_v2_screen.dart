@@ -69,6 +69,7 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -80,13 +81,12 @@ import 'package:pharmaguide/features/quick_check/quick_check_logic.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
 
 /// One selected Quick Check slot reduced to what the self-verdict guard
-/// needs: the display name and the product's own verdict. Medications and
-/// supplements with no verdict carry a null [verdict].
+/// needs: the display name and the product's catalog safety status.
 @visibleForTesting
 class QuickCheckSelection {
   final String name;
-  final String? verdict;
-  const QuickCheckSelection(this.name, this.verdict);
+  final String productSafetyStatus;
+  const QuickCheckSelection(this.name, this.productSafetyStatus);
 }
 
 /// The selected items that are themselves unsafe to use — verdict BLOCKED or
@@ -96,14 +96,14 @@ class QuickCheckSelection {
 /// curated DB has no row for the pair, so the screen raises a self-verdict
 /// banner above the pair result whenever this is non-empty. Null slots and
 /// null/unknown/other verdicts are ignored; matching mirrors
-/// [isUnsafeVerdict] (case/whitespace-insensitive, BLOCKED/UNSAFE only).
+/// the catalog safety contract (BLOCKED/UNSAFE only).
 @visibleForTesting
 List<QuickCheckSelection> unsafeSelfVerdicts(
   List<QuickCheckSelection?> selections,
 ) {
   return [
     for (final s in selections)
-      if (s != null && isUnsafeVerdict(s.verdict)) s,
+      if (s != null && isUnsafeVerdict(s.productSafetyStatus)) s,
   ];
 }
 
@@ -381,9 +381,27 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
     // product verdict, so only supplements can trip this.
     final unsafeSelected = unsafeSelfVerdicts([
       if (_item1 != null)
-        QuickCheckSelection(_item1!.name, _item1!.product?.verdict),
+        QuickCheckSelection(
+          _item1!.name,
+          _item1!.product == null
+              ? catalogProductSafetyStatusId(
+                  CatalogProductSafetyStatus.notAssessed,
+                )
+              : catalogProductSafetyStatusId(
+                  catalogProductSafetyStatus(_item1!.product!),
+                ),
+        ),
       if (_item2 != null)
-        QuickCheckSelection(_item2!.name, _item2!.product?.verdict),
+        QuickCheckSelection(
+          _item2!.name,
+          _item2!.product == null
+              ? catalogProductSafetyStatusId(
+                  CatalogProductSafetyStatus.notAssessed,
+                )
+              : catalogProductSafetyStatusId(
+                  catalogProductSafetyStatus(_item2!.product!),
+                ),
+        ),
     ]);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -459,7 +477,7 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
                     for (final unsafe in unsafeSelected) ...[
                       _SelfVerdictBanner(
                         name: unsafe.name,
-                        verdict: (unsafe.verdict ?? '').trim().toUpperCase(),
+                        verdict: unsafe.productSafetyStatus,
                       ),
                       const SizedBox(height: V2Spacing.space12),
                     ],

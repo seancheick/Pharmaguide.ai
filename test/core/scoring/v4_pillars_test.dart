@@ -24,6 +24,7 @@ void main() {
     expect(hasAllV4Pillars(out), isTrue);
     expect(out.first.key, 'formulation');
     expect(out.last.key, 'safety_hygiene');
+    expect(out.last.label, 'Formula & quality checks');
   });
 
   test('null / empty blob → empty result, hasAllV4Pillars false', () {

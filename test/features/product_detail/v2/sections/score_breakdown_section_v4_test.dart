@@ -33,7 +33,7 @@ const _v4Labels = [
   'Evidence',
   'Transparency',
   'Testing & Brand',
-  'Safety Hygiene',
+  'Formula & quality checks',
 ];
 
 void main() {
@@ -68,6 +68,71 @@ void main() {
     expect(find.text('Ingredient Quality'), findsNothing);
     expect(find.text('Safety & Purity'), findsNothing);
     expect(find.text('Why this scored 95'), findsOneWidget);
+  });
+
+  testWidgets(
+    'category cap renders as an explicit adjustment after pre-cap pillars',
+    (tester) async {
+      final pillars = _v4Pillars();
+      pillars['safety_hygiene'] = {
+        'score': 9.0,
+        'max': 10,
+        'reason': 'No banned additives.',
+        'components': {'score_before_public_cap': 10.0},
+      };
+
+      await tester.pumpWidget(
+        _wrap(
+          buildScoreBreakdownSection(
+            ingredientQuality: null,
+            safetyPurity: null,
+            evidenceResearch: null,
+            brandTrust: null,
+            heroScore: 94,
+            mappedCoverage: 1,
+            qualityPillarsV4: pillars,
+            qualityScoreCapV4: const {
+              'applied': true,
+              'score_before_cap': 95.0,
+              'score_after_cap': 94.0,
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Pillar subtotal'), findsOneWidget);
+      expect(find.text('95/100'), findsOneWidget);
+      expect(find.text('Category calibration'), findsOneWidget);
+      expect(find.text('−1'), findsOneWidget);
+      expect(find.text('Final score'), findsOneWidget);
+      expect(find.text('94/100'), findsOneWidget);
+    },
+  );
+
+  testWidgets('category cap is hidden when pillars cannot reproduce it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        buildScoreBreakdownSection(
+          ingredientQuality: null,
+          safetyPurity: null,
+          evidenceResearch: null,
+          brandTrust: null,
+          heroScore: 94,
+          mappedCoverage: 1,
+          qualityPillarsV4: _v4Pillars(),
+          qualityScoreCapV4: const {
+            'applied': true,
+            'score_before_cap': 99.0,
+            'score_after_cap': 94.0,
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('Category calibration'), findsNothing);
+    expect(find.text('Pillar subtotal'), findsNothing);
   });
 
   testWidgets('no quality_pillars_v4 suppresses the optional score section', (
@@ -573,7 +638,7 @@ void nativeScaleTests() {
 // ---------------------------------------------------------------------------
 // Named pillar actions — evidence and verification render a named action when
 // a real destination callback is wired. Transparency is already represented by
-// the visible label ledger; Formulation, Dose, and Safety Hygiene are explained
+// the visible label ledger; Formulation, Dose, and Formula & quality checks are explained
 // in place and never render an action. Replaces dead/redundant deep links.
 // ---------------------------------------------------------------------------
 

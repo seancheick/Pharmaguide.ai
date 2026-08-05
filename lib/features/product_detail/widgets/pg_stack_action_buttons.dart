@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
-import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -34,8 +34,8 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 class PGStackActionButtons extends ConsumerWidget {
   final String dsldId;
 
-  /// True when the product carries a BLOCKED or UNSAFE verdict —
-  /// caller passes `isUnsafeVerdict(_product?.verdict)`. Drives the
+  /// True when the product carries a blocked or unsafe catalog status.
+  /// Drives the
   /// "See higher-quality options" primary swap.
   final bool isUnsafe;
 
@@ -137,7 +137,7 @@ class PGStackActionButtons extends ConsumerWidget {
     // never sees a "no stack interactions found — safe to add" banner
     // on a banned product. The domain layer ([StackActions.addProduct])
     // will also throw for defense in depth.
-    if (isUnsafeVerdict(product.verdict)) {
+    if (catalogProductIsBlocked(product)) {
       PGToast.show(
         context,
         'This product cannot be added due to safety concerns.',

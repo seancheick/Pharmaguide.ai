@@ -16,6 +16,7 @@ Future<void> _seedProduct(
   CoreDatabase coreDb, {
   String dsldId = _dsldId,
   String verdict = 'GOOD',
+  String? productSafetyStatus,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -26,6 +27,7 @@ Future<void> _seedProduct(
           exportVersion: 'test',
           exportedAt: '2026-04-29T00:00:00Z',
           verdict: Value(verdict),
+          productSafetyStatus: Value(productSafetyStatus),
         ),
       );
 }
@@ -238,6 +240,33 @@ void main() {
         isNotNull,
         reason: '_handleAdd handler should be wired up',
       );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    testWidgets('catalog safety status stops add before safety sheet', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(
+        coreDb,
+        verdict: 'POOR',
+        productSafetyStatus: 'blocked',
+      );
+
+      await tester.pumpWidget(_wrap(coreDb, userDb));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add to my stack'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('This product cannot be added due to safety concerns.'),
+        findsOneWidget,
+      );
+      expect(find.text('Add to stack'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();

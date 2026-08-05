@@ -6,7 +6,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pharmaguide/core/widgets/verdict_badge.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -22,7 +22,7 @@ import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/stack/stack_reminder_scheduler.dart';
 
 /// Thrown when [StackActions.addProduct] is called with a product whose
-/// verdict is BLOCKED or UNSAFE (FLTR-16). Safety-first defense in
+/// catalog safety status is blocked or unsafe (FLTR-16). Safety-first defense in
 /// depth: the product detail UI normally short-circuits via FLTR-10
 /// so a blocked product never reaches the Add button, but the domain
 /// layer rejects it anyway so any future path (deep links, bulk
@@ -95,15 +95,17 @@ class StackActions {
   /// Add a product to the stack. Returns the new entry's id so the caller
   /// can show an undo snackbar that references it.
   ///
-  /// FLTR-16 — rejects BLOCKED/UNSAFE products with
-  /// [StackAddBlockedException]. Callers should check verdict up front
+  /// FLTR-16 — rejects blocked/unsafe products with
+  /// [StackAddBlockedException]. Callers should check catalog safety up front
   /// and show a friendly message; this guard is the last line of
   /// defense.
   Future<String> addProduct(ProductsCoreData product) async {
-    if (isUnsafeVerdict(product.verdict)) {
+    if (catalogProductIsBlocked(product)) {
       throw StackAddBlockedException(
         dsldId: product.dsldId,
-        verdict: product.verdict ?? '',
+        verdict: catalogProductSafetyStatusId(
+          catalogProductSafetyStatus(product),
+        ),
       );
     }
     _requireSignedIn();

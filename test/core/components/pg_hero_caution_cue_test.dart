@@ -20,20 +20,10 @@ import 'package:pharmaguide/core/scoring/score_tier.dart';
 
 void main() {
   group('heroShowsCautionCue — pure decision', () {
-    test('CAUTION verdict + tier score line shows the cue', () {
+    test('catalog caution + tier score line shows the cue', () {
       expect(
         heroShowsCautionCue(
-          verdict: 'CAUTION',
-          scoreDisplay: HeroScoreDisplay.tierScore,
-        ),
-        isTrue,
-      );
-    });
-
-    test('CAUTION is case/whitespace tolerant', () {
-      expect(
-        heroShowsCautionCue(
-          verdict: '  caution ',
+          hasCatalogCaution: true,
           scoreDisplay: HeroScoreDisplay.tierScore,
         ),
         isTrue,
@@ -46,24 +36,21 @@ void main() {
         HeroScoreDisplay.notScored, // unavailable fallback owns it
       ]) {
         expect(
-          heroShowsCautionCue(verdict: 'CAUTION', scoreDisplay: d),
+          heroShowsCautionCue(hasCatalogCaution: true, scoreDisplay: d),
           isFalse,
           reason: 'CAUTION must not add a cue to $d',
         );
       }
     });
 
-    test('non-CAUTION verdicts never show the cue', () {
-      for (final v in const [null, '', 'SAFE', 'POOR', 'NOT_SCORED']) {
-        expect(
-          heroShowsCautionCue(
-            verdict: v,
-            scoreDisplay: HeroScoreDisplay.tierScore,
-          ),
-          isFalse,
-          reason: 'verdict "$v" must not show a caution cue',
-        );
-      }
+    test('no catalog caution never shows the cue', () {
+      expect(
+        heroShowsCautionCue(
+          hasCatalogCaution: false,
+          scoreDisplay: HeroScoreDisplay.tierScore,
+        ),
+        isFalse,
+      );
     });
   });
 
@@ -87,7 +74,7 @@ void main() {
           productName: 'Over-UL Product',
           brandName: 'Test Brand',
           score: 85,
-          verdict: 'CAUTION',
+          hasCatalogCaution: true,
         ),
       );
       // Tier line still renders...
@@ -106,7 +93,6 @@ void main() {
           productName: 'Safe Product',
           brandName: 'Test Brand',
           score: 85,
-          verdict: 'SAFE',
         ),
       );
       expect(find.text('85/100'), findsOneWidget);
@@ -123,7 +109,6 @@ void main() {
           productName: 'Fair Product',
           brandName: 'Test Brand',
           score: 60,
-          verdict: 'SAFE',
         ),
       );
 
@@ -163,7 +148,7 @@ void main() {
           brandName: 'Test Brand',
           score: 85,
           isBlocked: true,
-          verdict: 'CAUTION',
+          hasCatalogCaution: true,
         ),
       );
       // Blocked suppresses the score slot entirely — no tier line, no cue.

@@ -58,6 +58,7 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/presentation/package_identity.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
@@ -859,8 +860,7 @@ List<ProductsCoreData> _selectWorthCheckingProducts(
   bool eligible(ProductsCoreData product) {
     final discontinued = product.discontinuedDate?.trim();
     if (discontinued != null && discontinued.isNotEmpty) return false;
-    final verdict = product.verdict?.trim().toUpperCase();
-    if (verdict == 'BLOCKED' || verdict == 'UNSAFE') return false;
+    if (catalogProductIsBlocked(product)) return false;
     final blockingReason = product.blockingReason?.trim();
     return blockingReason == null || blockingReason.isEmpty;
   }
@@ -1595,17 +1595,15 @@ class _SearchProductListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final score = product.qualityScoreV4100;
+    final safetyStatus = catalogProductSafetyStatus(product);
+    final safetyLabel = searchSafetyStatusLabel(safetyStatus);
     // Verdict/coverage-gated chip decisions (FIX 3) — a low-coverage or
     // blocked product must never surface a confident tier-colored score.
     final scoreChip = searchScoreChipDisplayFor(
       score: score,
-      verdict: product.verdict,
+      isBlocked: catalogProductIsBlocked(product),
       mappedCoverage: product.mappedCoverage,
       v4Confidence: product.v4Confidence,
-    );
-    final showVerdictChip = searchShowsVerdictChip(
-      verdict: product.verdict,
-      mappedCoverage: product.mappedCoverage,
     );
     // Announce the numeric score only when the visual chip shows it —
     // screen-reader users must not hear a score the coverage/verdict
@@ -1686,8 +1684,8 @@ class _SearchProductListTile extends StatelessWidget {
                             _LimitedAssessmentChip(score: score!),
                           if (scoreChip == SearchScoreChipDisplay.limitedData)
                             const _LimitedDataChip(),
-                          if (showVerdictChip)
-                            _VerdictChip(label: product.verdict!),
+                          if (safetyLabel != null)
+                            _VerdictChip(label: safetyLabel),
                           if (product.primaryCategory?.trim().isNotEmpty ==
                               true)
                             _CategoryText(product.primaryCategory!),
@@ -1720,16 +1718,14 @@ class _SearchProductGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final score = product.qualityScoreV4100;
+    final safetyStatus = catalogProductSafetyStatus(product);
+    final safetyLabel = searchSafetyStatusLabel(safetyStatus);
     // Same verdict/coverage chip gating as the list tile (FIX 3).
     final scoreChip = searchScoreChipDisplayFor(
       score: score,
-      verdict: product.verdict,
+      isBlocked: catalogProductIsBlocked(product),
       mappedCoverage: product.mappedCoverage,
       v4Confidence: product.v4Confidence,
-    );
-    final showVerdictChip = searchShowsVerdictChip(
-      verdict: product.verdict,
-      mappedCoverage: product.mappedCoverage,
     );
     final scoreLabel =
         scoreChip == SearchScoreChipDisplay.tierScore ||
@@ -1855,9 +1851,9 @@ class _SearchProductGridTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
-                        if (showVerdictChip) ...[
+                        if (safetyLabel != null) ...[
                           const Spacer(),
-                          _VerdictChip(label: product.verdict!),
+                          _VerdictChip(label: safetyLabel),
                         ],
                       ],
                     ),
@@ -1935,9 +1931,9 @@ class _ScoreChip extends StatelessWidget {
         // score. The locked bands (90/80/70/60/50) live in tierForScore;
         // never reintroduce bands here.
         style: V2Typography.monoData(
-          color: tierForScore(score.round()).textColor(
-            Theme.of(context).brightness,
-          ),
+          color: tierForScore(
+            score.round(),
+          ).textColor(Theme.of(context).brightness),
         ),
       ),
     );
@@ -2251,14 +2247,15 @@ enum _SearchFilter {
         return (p.qualityScoreV4100 ?? 0) >= 80 &&
             !hasLimitedAssessmentConfidence(p.v4Confidence);
       case _SearchFilter.needsReview:
-        final v = (p.verdict ?? '').toUpperCase();
-        return v == 'CAUTION' ||
-            v == 'POOR' ||
-            v == 'MODERATE' ||
-            v == 'REVIEW';
+        final safety = catalogProductSafetyStatus(p);
+        final assessment = catalogAssessmentStatus(p);
+        final tier = p.qualityTier?.trim().toLowerCase();
+        return safety == CatalogProductSafetyStatus.caution ||
+            assessment != CatalogAssessmentStatus.complete ||
+            tier == 'weak' ||
+            tier == 'poor';
       case _SearchFilter.blockedUnsafe:
-        final v = (p.verdict ?? '').toUpperCase();
-        return v == 'BLOCKED' || v == 'UNSAFE';
+        return catalogProductIsBlocked(p);
     }
   }
 }
@@ -2331,11 +2328,14 @@ enum SearchScoreChipDisplay {
 @visibleForTesting
 SearchScoreChipDisplay searchScoreChipDisplayFor({
   required double? score,
-  required String? verdict,
+  String? verdict,
+  bool? isBlocked,
   required double? mappedCoverage,
   String? v4Confidence,
 }) {
-  if (isUnsafeVerdict(verdict)) return SearchScoreChipDisplay.hidden;
+  if (isBlocked ?? isUnsafeVerdict(verdict)) {
+    return SearchScoreChipDisplay.hidden;
+  }
   if (score == null) return SearchScoreChipDisplay.hidden;
   if (isLowCoverage(mappedCoverage)) return SearchScoreChipDisplay.limitedData;
   if (hasLimitedAssessmentConfidence(v4Confidence)) {
@@ -2344,25 +2344,23 @@ SearchScoreChipDisplay searchScoreChipDisplayFor({
   return SearchScoreChipDisplay.tierScore;
 }
 
-/// Whether the verdict chip renders. Under low coverage the positive
-/// (green SAFE-family) verdicts are suppressed — a green "SAFE" chip on a
-/// product whose label mostly failed to map implies confidence the data
-/// can't support. Warning verdicts (CAUTION/POOR/BLOCKED/UNSAFE/...)
-/// always render: under-warning is the bigger clinical risk.
+/// Consumer label for the independent catalog-safety state.
+///
+/// A positive "SAFE" chip is deliberately absent: no catalog finding cannot
+/// be mistaken for personalized medical safety. Quality remains represented
+/// by its numeric score and tier.
 @visibleForTesting
-bool searchShowsVerdictChip({
-  required String? verdict,
-  required double? mappedCoverage,
-}) {
-  final v = (verdict ?? '').trim();
-  if (v.isEmpty) return false;
-  if (!isLowCoverage(mappedCoverage)) return true;
-  switch (v.toUpperCase()) {
-    case 'SAFE':
-    case 'GOOD':
-    case 'RECOMMENDED':
-      return false;
-    default:
-      return true;
+String? searchSafetyStatusLabel(CatalogProductSafetyStatus status) {
+  switch (status) {
+    case CatalogProductSafetyStatus.blocked:
+      return 'Blocked';
+    case CatalogProductSafetyStatus.unsafe:
+      return 'Unsafe';
+    case CatalogProductSafetyStatus.caution:
+      return 'Caution';
+    case CatalogProductSafetyStatus.notAssessed:
+      return 'Not assessed';
+    case CatalogProductSafetyStatus.noKnownCatalogConcern:
+      return null;
   }
 }
