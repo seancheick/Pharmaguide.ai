@@ -14,6 +14,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 
 void main() {
   group('heroScoreDisplayFor — pure render decision', () {
@@ -116,21 +117,21 @@ void main() {
     });
   });
 
-  group('scoreConfidenceLabel — consumer confidence vocabulary', () {
+  group('catalogScoreConfidenceLabel — consumer confidence vocabulary', () {
     test('maps known confidence bands', () {
-      expect(scoreConfidenceLabel('high'), 'High');
-      expect(scoreConfidenceLabel('moderate'), 'Moderate');
-      expect(scoreConfidenceLabel('low'), 'Limited');
-      expect(scoreConfidenceLabel('very_low'), 'Limited');
+      expect(catalogScoreConfidenceLabel('high'), 'High');
+      expect(catalogScoreConfidenceLabel('moderate'), 'Moderate');
+      expect(catalogScoreConfidenceLabel('low'), 'Limited');
+      expect(catalogScoreConfidenceLabel('very_low'), 'Limited');
     });
 
     test('unknown populated bands fail closed to Limited', () {
-      expect(scoreConfidenceLabel('experimental'), 'Limited');
+      expect(catalogScoreConfidenceLabel('experimental'), 'Limited');
     });
 
     test('missing confidence stays absent', () {
-      expect(scoreConfidenceLabel(null), isNull);
-      expect(scoreConfidenceLabel('  '), isNull);
+      expect(catalogScoreConfidenceLabel(null), isNull);
+      expect(catalogScoreConfidenceLabel('  '), isNull);
     });
   });
 

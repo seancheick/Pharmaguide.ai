@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -45,29 +46,6 @@ HeroScoreDisplay heroScoreDisplayFor({
   if (lowCoverage) return HeroScoreDisplay.notScored;
   if (limitedAssessment) return HeroScoreDisplay.limitedScore;
   return HeroScoreDisplay.tierScore;
-}
-
-/// Consumer-facing confidence vocabulary.
-///
-/// Missing data stays absent. Any populated value outside the known contract
-/// fails closed to Limited so a future enum cannot accidentally overstate
-/// confidence in an older app.
-String? scoreConfidenceLabel(String? confidence) {
-  final normalized = confidence?.trim().toLowerCase().replaceAll('-', '_');
-  if (normalized == null || normalized.isEmpty) return null;
-  switch (normalized) {
-    case 'high':
-      return 'High';
-    case 'moderate':
-    case 'medium':
-      return 'Moderate';
-    case 'low':
-    case 'limited':
-    case 'very_low':
-      return 'Limited';
-    default:
-      return 'Limited';
-  }
 }
 
 /// FIX 4 gate: positive trust/cert chips ("Third-Party Tested",
@@ -204,7 +182,7 @@ class PGHeroSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final disableAnimations =
         MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    final parsedConfidenceLabel = scoreConfidenceLabel(scoreConfidence);
+    final parsedConfidenceLabel = catalogScoreConfidenceLabel(scoreConfidence);
     final confidenceLabel = limitedAssessment
         ? 'Limited'
         : parsedConfidenceLabel;
