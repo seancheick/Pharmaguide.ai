@@ -18,6 +18,8 @@ ProductsCoreData _p({
   String? primaryCategory,
   double? qualityScoreV4100,
   String? qualityScoreStatus = 'scored',
+  String? productSafetyStatus,
+  String? qualityAssessmentStatus,
   String? discontinuedDate,
   int hasBannedSubstance = 0,
 }) {
@@ -33,6 +35,8 @@ ProductsCoreData _p({
         ? qualityScoreV4100
         : null,
     qualityScoreStatus: qualityScoreStatus,
+    productSafetyStatus: productSafetyStatus,
+    qualityAssessmentStatus: qualityAssessmentStatus,
     discontinuedDate: discontinuedDate,
     hasBannedSubstance: hasBannedSubstance,
     exportVersion: 'test',
@@ -112,6 +116,36 @@ void main() {
     );
   });
 
+  test('new failed assessment overrides a stale scored field', () {
+    final cur = _p(
+      dsldId: 'CUR',
+      name: 'Omega A',
+      supplementType: 'omega',
+      primaryCategory: 'omega',
+      qualityScoreV4100: 40,
+    );
+    final failed = _p(
+      dsldId: 'FAILED',
+      name: 'Stale Score',
+      supplementType: 'omega',
+      primaryCategory: 'omega',
+      qualityScoreV4100: 95,
+      qualityAssessmentStatus: 'failed',
+    );
+    final valid = _p(
+      dsldId: 'VALID',
+      name: 'Valid Score',
+      supplementType: 'omega',
+      primaryCategory: 'omega',
+      qualityScoreV4100: 90,
+      productSafetyStatus: 'no_known_catalog_concern',
+      qualityAssessmentStatus: 'complete',
+    );
+
+    final out = rankAlternatives(current: cur, candidates: [failed, valid]);
+    expect(out.map((p) => p.dsldId), ['VALID']);
+  });
+
   test('a candidate at or below current effective score is filtered out', () {
     final cur = _p(
       dsldId: 'CUR',
@@ -136,7 +170,7 @@ void main() {
     );
   });
 
-  test('effectiveQualityScore + isSafetySuppressed helpers behave', () {
+  test('effectiveQualityScore + isCatalogScoreSuppressed helpers behave', () {
     final scored = _p(dsldId: 'S', name: 'S', qualityScoreV4100: 70);
     final suppressed = _p(
       dsldId: 'B',
@@ -145,8 +179,8 @@ void main() {
       qualityScoreStatus: 'suppressed_safety',
     );
     expect(effectiveQualityScore(scored), 70);
-    expect(isSafetySuppressed(scored), isFalse);
+    expect(isCatalogScoreSuppressed(scored), isFalse);
     expect(effectiveQualityScore(suppressed), isNull);
-    expect(isSafetySuppressed(suppressed), isTrue);
+    expect(isCatalogScoreSuppressed(suppressed), isTrue);
   });
 }
