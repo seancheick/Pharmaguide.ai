@@ -15,6 +15,68 @@ import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_logic.dart';
 
 void main() {
+  group('QuickCheckItem score contract', () {
+    ProductsCoreData product({
+      double? score = 82,
+      double? coverage = 0.9,
+      String? safetyStatus = 'no_known_catalog_concern',
+      String? assessmentStatus = 'complete',
+      String? scoreStatus = 'scored',
+      String? confidence = 'moderate',
+      String? verdict,
+    }) {
+      return ProductsCoreData(
+        dsldId: 'quick-score',
+        productName: 'Quick Score Product',
+        qualityScoreV4100: score,
+        mappedCoverage: coverage,
+        productSafetyStatus: safetyStatus,
+        qualityAssessmentStatus: assessmentStatus,
+        qualityScoreStatus: scoreStatus,
+        v4Confidence: confidence,
+        verdict: verdict,
+        exportVersion: 'test',
+        exportedAt: '2026-08-05T00:00:00Z',
+      );
+    }
+
+    test('carries a valid score and consumer confidence label', () {
+      final item = QuickCheckItem.supplement(product(confidence: 'low'));
+      expect(item.score, 82);
+      expect(item.scoreConfidenceLabel, 'Limited');
+    });
+
+    test('suppresses scores for blocked and failed products', () {
+      expect(
+        QuickCheckItem.supplement(product(safetyStatus: 'blocked')).score,
+        isNull,
+      );
+      expect(
+        QuickCheckItem.supplement(product(assessmentStatus: 'failed')).score,
+        isNull,
+      );
+    });
+
+    test('suppresses scores with low or unknown coverage', () {
+      expect(QuickCheckItem.supplement(product(coverage: 0.2)).score, isNull);
+      expect(QuickCheckItem.supplement(product(coverage: null)).score, isNull);
+    });
+
+    test('preserves old-catalog score compatibility', () {
+      final item = QuickCheckItem.supplement(
+        product(
+          safetyStatus: null,
+          assessmentStatus: null,
+          scoreStatus: null,
+          confidence: null,
+          verdict: 'SAFE',
+        ),
+      );
+      expect(item.score, 82);
+      expect(item.scoreConfidenceLabel, isNull);
+    });
+  });
+
   group('extractCanonicalIds', () {
     test('null fingerprint returns empty', () {
       expect(extractCanonicalIds(null), isEmpty);

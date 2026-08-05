@@ -7,6 +7,7 @@
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
     as canonical_ids;
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
@@ -29,6 +30,7 @@ class QuickCheckItem {
   final ProductsCoreData? product;
   final String? brandName;
   final int? score;
+  final String? scoreConfidence;
   final String? rxcui;
   final String? genericRxcui;
   final List<String> ingredientRxcuis;
@@ -40,6 +42,7 @@ class QuickCheckItem {
     this.product,
     this.brandName,
     this.score,
+    this.scoreConfidence,
     this.rxcui,
     this.genericRxcui,
     this.ingredientRxcuis = const <String>[],
@@ -47,12 +50,18 @@ class QuickCheckItem {
   });
 
   factory QuickCheckItem.supplement(ProductsCoreData product) {
+    final canShowScore =
+        !catalogProductIsBlocked(product) &&
+        !catalogProductIsNotScored(product) &&
+        !isLowCoverage(product.mappedCoverage) &&
+        product.qualityScoreV4100 != null;
     return QuickCheckItem._(
       type: QuickCheckItemType.supplement,
       name: product.productName,
       product: product,
       brandName: product.brandName,
-      score: product.qualityScoreV4100?.round(),
+      score: canShowScore ? product.qualityScoreV4100!.round() : null,
+      scoreConfidence: canShowScore ? product.v4Confidence : null,
     );
   }
 
@@ -75,6 +84,9 @@ class QuickCheckItem {
 
   bool get isSupplement => type == QuickCheckItemType.supplement;
   bool get isMedication => type == QuickCheckItemType.medication;
+
+  String? get scoreConfidenceLabel =>
+      catalogScoreConfidenceLabel(scoreConfidence);
 
   /// Canonical ingredient ids the interaction DB looks up by. Sourced
   /// via `canonicalIdsForProduct` (the same helper Stack uses) so the
