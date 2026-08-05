@@ -18,13 +18,22 @@ import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 
 void main() {
-  Future<void> pump(WidgetTester tester, ThemeData theme, int score) async {
+  Future<void> pump(
+    WidgetTester tester,
+    ThemeData theme,
+    int score, {
+    String? confidence,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         key: ValueKey(theme.brightness),
         theme: theme,
         home: Scaffold(
-          body: PGScoreLine(score: score, prominent: true),
+          body: PGScoreLine(
+            score: score,
+            prominent: true,
+            confidence: confidence,
+          ),
         ),
       ),
     );
@@ -39,7 +48,10 @@ void main() {
   Color dotColor(WidgetTester tester) {
     final container = tester.widget<Container>(
       find
-          .descendant(of: find.byType(PGScoreLine), matching: find.byType(Container))
+          .descendant(
+            of: find.byType(PGScoreLine),
+            matching: find.byType(Container),
+          )
           .first,
     );
     return (container.decoration! as BoxDecoration).color!;
@@ -76,6 +88,33 @@ void main() {
       await pump(tester, V2Theme.dark, 20);
       final dark = scoreColor(tester, 20);
       expect(light, isNot(dark));
+    });
+
+    testWidgets('moderate confidence is visible without hiding the tier', (
+      tester,
+    ) async {
+      await pump(tester, V2Theme.light, 85, confidence: 'moderate');
+
+      expect(find.text('85/100'), findsOneWidget);
+      expect(find.text('Excellent'), findsOneWidget);
+      expect(find.text('Score confidence: Moderate'), findsOneWidget);
+    });
+
+    testWidgets('limited confidence keeps a neutral number without tier copy', (
+      tester,
+    ) async {
+      await pump(tester, V2Theme.light, 85, confidence: 'low');
+
+      expect(find.text('85/100'), findsOneWidget);
+      expect(find.text('Excellent'), findsNothing);
+      expect(find.text('Score confidence: Limited'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(PGScoreLine),
+          matching: find.byType(Container),
+        ),
+        findsNothing,
+      );
     });
   });
 }
