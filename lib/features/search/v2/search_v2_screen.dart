@@ -1612,6 +1612,7 @@ class _SearchProductListTile extends StatelessWidget {
         scoreChip == SearchScoreChipDisplay.tierScore ||
             scoreChip == SearchScoreChipDisplay.limitedAssessment
         ? ', score ${score!.round()} out of 100'
+              '${_searchConfidenceSemantics(product.v4Confidence)}'
         : '';
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
@@ -1678,10 +1679,16 @@ class _SearchProductListTile extends StatelessWidget {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           if (scoreChip == SearchScoreChipDisplay.tierScore)
-                            _ScoreChip(score: score!),
+                            _ScoreChip(
+                              score: score!,
+                              confidence: product.v4Confidence,
+                            ),
                           if (scoreChip ==
                               SearchScoreChipDisplay.limitedAssessment)
-                            _LimitedAssessmentChip(score: score!),
+                            _LimitedAssessmentChip(
+                              score: score!,
+                              confidence: product.v4Confidence,
+                            ),
                           if (scoreChip == SearchScoreChipDisplay.limitedData)
                             const _LimitedDataChip(),
                           if (safetyLabel != null)
@@ -1731,6 +1738,7 @@ class _SearchProductGridTile extends StatelessWidget {
         scoreChip == SearchScoreChipDisplay.tierScore ||
             scoreChip == SearchScoreChipDisplay.limitedAssessment
         ? ', score ${score!.round()} out of 100'
+              '${_searchConfidenceSemantics(product.v4Confidence)}'
         : '';
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
@@ -1798,11 +1806,15 @@ class _SearchProductGridTile extends StatelessWidget {
                         child: switch (scoreChip) {
                           SearchScoreChipDisplay.tierScore => _ScoreChip(
                             score: score!,
+                            confidence: product.v4Confidence,
                           ),
                           SearchScoreChipDisplay.limitedData =>
                             const _LimitedDataChip(),
                           SearchScoreChipDisplay.limitedAssessment =>
-                            _LimitedAssessmentChip(score: score!),
+                            _LimitedAssessmentChip(
+                              score: score!,
+                              confidence: product.v4Confidence,
+                            ),
                           SearchScoreChipDisplay.hidden =>
                             const SizedBox.shrink(),
                         },
@@ -1902,8 +1914,9 @@ class _SearchProductImage extends StatelessWidget {
 
 class _ScoreChip extends StatelessWidget {
   final double score;
+  final String? confidence;
 
-  const _ScoreChip({required this.score});
+  const _ScoreChip({required this.score, this.confidence});
 
   @override
   Widget build(BuildContext context) {
@@ -1925,7 +1938,7 @@ class _ScoreChip extends StatelessWidget {
         border: Border.all(color: context.v2.outline),
       ),
       child: Text(
-        '${score.round()}',
+        searchScoreChipText(score: score, confidence: confidence),
         // The canonical quality-tier token from score_tier.dart, so search
         // and product detail never render a different colour for the same
         // score. The locked bands (90/80/70/60/50) live in tierForScore;
@@ -1972,8 +1985,9 @@ class _LimitedDataChip extends StatelessWidget {
 
 class _LimitedAssessmentChip extends StatelessWidget {
   final double score;
+  final String? confidence;
 
-  const _LimitedAssessmentChip({required this.score});
+  const _LimitedAssessmentChip({required this.score, this.confidence});
 
   @override
   Widget build(BuildContext context) {
@@ -1990,7 +2004,7 @@ class _LimitedAssessmentChip extends StatelessWidget {
         border: Border.all(color: context.v2.outline),
       ),
       child: Text(
-        '${score.round()} · Limited assessment',
+        searchScoreChipText(score: score, confidence: confidence),
         style: V2Typography.caption(color: context.v2.fgMuted),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -2338,10 +2352,24 @@ SearchScoreChipDisplay searchScoreChipDisplayFor({
   }
   if (score == null) return SearchScoreChipDisplay.hidden;
   if (isLowCoverage(mappedCoverage)) return SearchScoreChipDisplay.limitedData;
-  if (hasLimitedAssessmentConfidence(v4Confidence)) {
+  if (catalogScoreConfidenceLabel(v4Confidence) == 'Limited') {
     return SearchScoreChipDisplay.limitedAssessment;
   }
   return SearchScoreChipDisplay.tierScore;
+}
+
+@visibleForTesting
+String searchScoreChipText({
+  required double score,
+  required String? confidence,
+}) {
+  final label = catalogScoreConfidenceLabel(confidence);
+  return label == null ? '${score.round()}' : '${score.round()} · $label';
+}
+
+String _searchConfidenceSemantics(String? confidence) {
+  final label = catalogScoreConfidenceLabel(confidence);
+  return label == null ? '' : ', ${label.toLowerCase()} score confidence';
 }
 
 /// Consumer label for the independent catalog-safety state.
