@@ -165,6 +165,9 @@ class PGHeroSection extends StatelessWidget {
   /// Pipeline confidence band for a completed product-quality score.
   final String? scoreConfidence;
 
+  /// Up to two plain-language reasons for the confidence band.
+  final List<String> scoreConfidenceDrivers;
+
   /// Banner widget rendered beneath the score line (used for the
   /// production Blocked / Avoid banners). Null skips the slot.
   final Widget? bottomBanner;
@@ -192,6 +195,7 @@ class PGHeroSection extends StatelessWidget {
     this.lowCoverage = false,
     this.limitedAssessment = false,
     this.scoreConfidence,
+    this.scoreConfidenceDrivers = const [],
     this.bottomBanner,
     this.hasCatalogCaution = false,
   });
@@ -308,9 +312,9 @@ class PGHeroSection extends StatelessWidget {
               PGScoreLine(score: score!, prominent: true),
             if (confidenceLabel != null) ...[
               const SizedBox(height: V2Spacing.space4),
-              Text(
-                'Score confidence: $confidenceLabel',
-                style: V2Typography.bodySm(color: context.v2.fgMuted),
+              _ScoreConfidenceSummary(
+                label: confidenceLabel,
+                drivers: scoreConfidenceDrivers,
               ),
             ],
           ] else if (scoreDisplay == HeroScoreDisplay.limitedScore) ...[
@@ -338,9 +342,9 @@ class PGHeroSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: V2Spacing.space4),
-            Text(
-              'Score confidence: ${confidenceLabel ?? 'Limited'}',
-              style: V2Typography.bodySm(color: context.v2.fgMuted),
+            _ScoreConfidenceSummary(
+              label: confidenceLabel ?? 'Limited',
+              drivers: scoreConfidenceDrivers,
             ),
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),
@@ -383,6 +387,39 @@ class PGHeroSection extends StatelessWidget {
         servingCountLabel != null && servingCountLabel!.isNotEmpty;
     final hasDose = dosingSummary != null && dosingSummary!.isNotEmpty;
     return hasBrand || hasServings || hasServingCount || hasDose;
+  }
+}
+
+class _ScoreConfidenceSummary extends StatelessWidget {
+  final String label;
+  final List<String> drivers;
+
+  const _ScoreConfidenceSummary({required this.label, required this.drivers});
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleDrivers = drivers
+        .map((driver) => driver.trim())
+        .where((driver) => driver.isNotEmpty)
+        .take(2)
+        .toList(growable: false);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Score confidence: $label',
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
+        ),
+        if (visibleDrivers.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Why: ${visibleDrivers.join(' · ')}',
+            style: V2Typography.caption(color: context.v2.fgSubtle),
+          ),
+        ],
+      ],
+    );
   }
 }
 

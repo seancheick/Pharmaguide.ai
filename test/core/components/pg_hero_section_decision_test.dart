@@ -213,12 +213,23 @@ void main() {
           score: 85,
           limitedAssessment: true,
           scoreConfidence: 'low',
+          scoreConfidenceDrivers: [
+            'No clinical evidence matched',
+            'Product-level certification not verified',
+          ],
         ),
       );
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Product quality score unavailable.'), findsNothing);
       expect(find.text('Excellent'), findsNothing);
       expect(find.text('Score confidence: Limited'), findsOneWidget);
+      expect(
+        find.text(
+          'Why: No clinical evidence matched · '
+          'Product-level certification not verified',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('trusted score makes its confidence band visible', (
@@ -255,6 +266,24 @@ void main() {
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Excellent'), findsNothing);
       expect(find.text('Score confidence: Limited'), findsOneWidget);
+    });
+
+    testWidgets('confidence drivers stay hidden without a scored result', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const PGHeroSection(
+          imageWidget: SizedBox(),
+          productName: 'Test Product',
+          brandName: 'Test Brand',
+          isNotScored: true,
+          scoreConfidence: 'low',
+          scoreConfidenceDrivers: ['No clinical evidence matched'],
+        ),
+      );
+      expect(find.textContaining('Why:'), findsNothing);
+      expect(find.textContaining('Score confidence:'), findsNothing);
     });
 
     testWidgets('blocked product hides positive trust chips', (tester) async {
