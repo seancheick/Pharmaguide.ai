@@ -22,6 +22,7 @@ Future<void> _seedProduct(
   required double qualityScoreV4100,
   required double score100,
   required String category,
+  String? v4Confidence,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -35,6 +36,7 @@ Future<void> _seedProduct(
           qualityScoreV4100: Value(qualityScoreV4100),
           score100Equivalent: Value(score100),
           qualityScoreStatus: const Value('scored'),
+          v4Confidence: Value(v4Confidence),
           primaryCategory: Value(category),
         ),
       );
@@ -281,6 +283,7 @@ void main() {
         qualityScoreV4100: 70,
         score100: 87,
         category: 'multivitamin',
+        v4Confidence: 'moderate',
       );
       await _seedProduct(
         coreDb,
@@ -298,6 +301,7 @@ void main() {
       // Compact v4 score lines (rounded to 0 decimals).
       expect(find.text('70/100'), findsOneWidget);
       expect(find.text('65/100'), findsOneWidget);
+      expect(find.text('Score confidence: Moderate'), findsOneWidget);
       // Names + brands.
       expect(find.text('Premium Multi'), findsOneWidget);
       expect(find.text('BrandA'), findsOneWidget);

@@ -138,13 +138,15 @@ class BetterAlternativesSection extends ConsumerWidget {
         }
         final alternatives = snapshot.data!;
         final mapped = alternatives
+            .where((p) => p.qualityScoreV4100 != null)
             .map((p) {
-              final score = p.qualityScoreV4100?.round() ?? 0;
+              final score = p.qualityScoreV4100!.round();
               return PGAlternative(
                 dsldId: p.dsldId,
                 name: p.productName,
                 brand: p.brandName ?? '',
                 score: score,
+                scoreConfidence: p.v4Confidence,
                 imageWidget: ProductImage(
                   dsldId: p.dsldId,
                   upc: p.upcSku,
