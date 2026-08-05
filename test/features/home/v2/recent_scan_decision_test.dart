@@ -27,6 +27,7 @@ ProductsCoreData _row({
   double? score,
   String? verdict,
   double? mappedCoverage,
+  String? v4Confidence,
 }) {
   return ProductsCoreData(
     dsldId: 'TEST-1',
@@ -34,6 +35,7 @@ ProductsCoreData _row({
     qualityScoreV4100: score,
     verdict: verdict,
     mappedCoverage: mappedCoverage,
+    v4Confidence: v4Confidence,
     exportVersion: 'test',
     exportedAt: '2026-07-05T00:00:00Z',
   );
@@ -53,13 +55,19 @@ void main() {
 
     test('scored product carries score, verdict and coverage through', () {
       final rec = recentScanFromProduct(
-        _row(score: 82.4, verdict: 'SAFE', mappedCoverage: 0.9),
+        _row(
+          score: 82.4,
+          verdict: 'SAFE',
+          mappedCoverage: 0.9,
+          v4Confidence: 'moderate',
+        ),
         time: '2h ago',
       );
       expect(rec.score, 82.4);
       expect(rec.productSafetyStatus, 'NO_KNOWN_CATALOG_CONCERN');
       expect(rec.qualityAssessmentStatus, 'complete');
       expect(rec.mappedCoverage, 0.9);
+      expect(rec.v4Confidence, 'moderate');
       expect(rec.time, '2h ago');
     });
 
@@ -240,6 +248,7 @@ void main() {
       double? score,
       String? verdict,
       double? mappedCoverage,
+      String? v4Confidence,
     }) async {
       await coreDb
           .into(coreDb.productsCore)
@@ -251,6 +260,7 @@ void main() {
               qualityScoreV4100: drift.Value(score),
               verdict: drift.Value(verdict),
               mappedCoverage: drift.Value(mappedCoverage),
+              v4Confidence: drift.Value(v4Confidence),
               exportVersion: 'test',
               exportedAt: '2026-07-05T00:00:00Z',
             ),
@@ -317,6 +327,21 @@ void main() {
       await pumpHome(tester, coreDb, userDb);
 
       expect(find.text('82/100'), findsOneWidget);
+    });
+
+    testWidgets('scored scan states its confidence', (tester) async {
+      final (coreDb, userDb) = await makeDbs(tester);
+      await seedScan(
+        coreDb,
+        userDb,
+        score: 82,
+        verdict: 'SAFE',
+        mappedCoverage: 0.9,
+        v4Confidence: 'moderate',
+      );
+      await pumpHome(tester, coreDb, userDb);
+
+      expect(find.text('Score confidence: Moderate'), findsOneWidget);
     });
 
     testWidgets('low-coverage scan renders "Limited data" — no tier score', (

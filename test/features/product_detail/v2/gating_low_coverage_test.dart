@@ -125,4 +125,165 @@ void main() {
       expect(productIsNotScored(product), isTrue);
     });
   });
+
+  group('catalog compatibility matrix', () {
+    test('new safety status is authoritative over every legacy verdict', () {
+      final cases =
+          <
+            ({
+              String newStatus,
+              String legacyVerdict,
+              CatalogProductSafetyStatus expected,
+            })
+          >[
+            (
+              newStatus: 'blocked',
+              legacyVerdict: 'SAFE',
+              expected: CatalogProductSafetyStatus.blocked,
+            ),
+            (
+              newStatus: 'unsafe',
+              legacyVerdict: 'SAFE',
+              expected: CatalogProductSafetyStatus.unsafe,
+            ),
+            (
+              newStatus: 'caution',
+              legacyVerdict: 'SAFE',
+              expected: CatalogProductSafetyStatus.caution,
+            ),
+            (
+              newStatus: 'no_known_catalog_concern',
+              legacyVerdict: 'BLOCKED',
+              expected: CatalogProductSafetyStatus.noKnownCatalogConcern,
+            ),
+            (
+              newStatus: 'not_assessed',
+              legacyVerdict: 'SAFE',
+              expected: CatalogProductSafetyStatus.notAssessed,
+            ),
+            (
+              newStatus: 'future_state',
+              legacyVerdict: 'SAFE',
+              expected: CatalogProductSafetyStatus.notAssessed,
+            ),
+          ];
+
+      for (final testCase in cases) {
+        final product = _row(
+          verdict: testCase.legacyVerdict,
+          productSafetyStatus: testCase.newStatus,
+        );
+        expect(
+          catalogProductSafetyStatus(product),
+          testCase.expected,
+          reason: 'new=${testCase.newStatus}, legacy=${testCase.legacyVerdict}',
+        );
+      }
+    });
+
+    test('legacy safety fallback preserves historical meanings', () {
+      final cases = <(String, CatalogProductSafetyStatus)>[
+        ('BLOCKED', CatalogProductSafetyStatus.blocked),
+        ('UNSAFE', CatalogProductSafetyStatus.unsafe),
+        ('CAUTION', CatalogProductSafetyStatus.caution),
+        ('SAFE', CatalogProductSafetyStatus.noKnownCatalogConcern),
+        ('POOR', CatalogProductSafetyStatus.noKnownCatalogConcern),
+        ('NOT_SCORED', CatalogProductSafetyStatus.notAssessed),
+      ];
+
+      for (final (verdict, expected) in cases) {
+        expect(
+          catalogProductSafetyStatus(_row(verdict: verdict)),
+          expected,
+          reason: 'legacy verdict=$verdict',
+        );
+      }
+    });
+
+    test('new quality contradictions fail closed', () {
+      final cases =
+          <
+            ({
+              String? scoreStatus,
+              String? assessmentStatus,
+              double? score,
+              bool expectedNotScored,
+            })
+          >[
+            (
+              scoreStatus: 'scored',
+              assessmentStatus: 'failed',
+              score: 82,
+              expectedNotScored: true,
+            ),
+            (
+              scoreStatus: 'scored',
+              assessmentStatus: 'partial',
+              score: 82,
+              expectedNotScored: true,
+            ),
+            (
+              scoreStatus: 'future_state',
+              assessmentStatus: 'complete',
+              score: 82,
+              expectedNotScored: true,
+            ),
+            (
+              scoreStatus: 'scored',
+              assessmentStatus: 'complete',
+              score: null,
+              expectedNotScored: true,
+            ),
+            (
+              scoreStatus: 'not_scored',
+              assessmentStatus: 'complete',
+              score: 82,
+              expectedNotScored: true,
+            ),
+            (
+              scoreStatus: 'suppressed_safety',
+              assessmentStatus: 'complete',
+              score: null,
+              expectedNotScored: false,
+            ),
+          ];
+
+      for (final testCase in cases) {
+        final product = _row(
+          qualityScoreStatus: testCase.scoreStatus,
+          qualityAssessmentStatus: testCase.assessmentStatus,
+          qualityScore: testCase.score,
+        );
+        expect(
+          catalogProductIsNotScored(product),
+          testCase.expectedNotScored,
+          reason:
+              'score_status=${testCase.scoreStatus}, '
+              'assessment=${testCase.assessmentStatus}, '
+              'score=${testCase.score}',
+        );
+      }
+    });
+
+    test('legacy quality fallback stays additive-schema compatible', () {
+      final cases = <({String verdict, double? score, bool expectedNotScored})>[
+        (verdict: 'NOT_SCORED', score: null, expectedNotScored: true),
+        (verdict: 'SAFE', score: null, expectedNotScored: true),
+        (verdict: 'SAFE', score: 82, expectedNotScored: false),
+        (verdict: 'POOR', score: 39, expectedNotScored: false),
+        (verdict: 'BLOCKED', score: null, expectedNotScored: false),
+        (verdict: 'UNSAFE', score: null, expectedNotScored: false),
+      ];
+
+      for (final testCase in cases) {
+        expect(
+          catalogProductIsNotScored(
+            _row(verdict: testCase.verdict, qualityScore: testCase.score),
+          ),
+          testCase.expectedNotScored,
+          reason: 'legacy verdict=${testCase.verdict}, score=${testCase.score}',
+        );
+      }
+    });
+  });
 }

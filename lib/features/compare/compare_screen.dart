@@ -60,7 +60,10 @@ class CompareScreen extends ConsumerWidget {
             }
           },
         ),
-        title: Text('Compare', style: V2Typography.titleSm(color: context.v2.fg)),
+        title: Text(
+          'Compare',
+          style: V2Typography.titleSm(color: context.v2.fg),
+        ),
         centerTitle: false,
       ),
       body: (entryA.isLoading || entryB.isLoading)
@@ -243,11 +246,7 @@ class _CompareBody extends StatelessWidget {
                 ],
                 if (delta != null) ...[
                   const SizedBox(height: V2Spacing.space12),
-                  Divider(
-                    color: context.v2.outline,
-                    height: 1,
-                    thickness: 0.5,
-                  ),
+                  Divider(color: context.v2.outline, height: 1, thickness: 0.5),
                   const SizedBox(height: V2Spacing.space8),
                   Text(
                     delta,
@@ -377,7 +376,11 @@ class _ProductHeader extends StatelessWidget {
             style: V2Typography.caption(color: context.v2.fgMuted),
           )
         else
-          PGScoreLine(score: score, compact: true),
+          PGScoreLine(
+            score: score,
+            compact: true,
+            confidence: product.v4Confidence,
+          ),
       ],
     );
   }

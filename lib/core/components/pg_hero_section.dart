@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -14,6 +15,10 @@ enum HeroScoreDisplay {
   /// Real scored product with trustworthy coverage → tier-colored
   /// [PGScoreLine].
   tierScore,
+
+  /// A real score with limited confidence. Keep the number available for
+  /// comparison, but suppress the tier adjective and color treatment.
+  limitedScore,
 
   /// A product quality score is unavailable. This is intentionally
   /// consumer-neutral: release diagnostics belong to the catalog gate.
@@ -38,7 +43,8 @@ HeroScoreDisplay heroScoreDisplayFor({
 }) {
   if (isBlocked) return HeroScoreDisplay.none;
   if (isNotScored || score == null) return HeroScoreDisplay.notScored;
-  if (lowCoverage || limitedAssessment) return HeroScoreDisplay.notScored;
+  if (lowCoverage) return HeroScoreDisplay.notScored;
+  if (limitedAssessment) return HeroScoreDisplay.limitedScore;
   return HeroScoreDisplay.tierScore;
 }
 
@@ -58,17 +64,17 @@ bool heroShowsTrustChips({required bool isBlocked, required int tagCount}) =>
 /// green "85/100 Excellent" hero with no caution cue, hiding the CAUTION
 /// entirely.
 ///
-/// The cue only rides ALONGSIDE a real tier line
-/// ([HeroScoreDisplay.tierScore]). BLOCKED (no score slot), NOT_SCORED,
-/// and low-coverage each render their own non-"Excellent" affordance and
-/// are deliberately left untouched. Verdict match is case/whitespace
-/// tolerant; the pipeline ships uppercase `CAUTION`.
+/// The cue only rides alongside a real score. BLOCKED (no score slot),
+/// NOT_SCORED, and low-coverage each render their own non-"Excellent"
+/// affordance and are deliberately left untouched.
 bool heroShowsCautionCue({
   required bool hasCatalogCaution,
   required HeroScoreDisplay scoreDisplay,
 }) {
-  if (scoreDisplay != HeroScoreDisplay.tierScore) return false;
-  return hasCatalogCaution;
+  final showsScore =
+      scoreDisplay == HeroScoreDisplay.tierScore ||
+      scoreDisplay == HeroScoreDisplay.limitedScore;
+  return showsScore && hasCatalogCaution;
 }
 
 /// v2 mirror of `_HeaderSection` in
@@ -134,6 +140,12 @@ class PGHeroSection extends StatelessWidget {
   /// True when v4 confidence is low even though a score is available.
   final bool limitedAssessment;
 
+  /// Pipeline confidence band for a completed product-quality score.
+  final String? scoreConfidence;
+
+  /// Up to two plain-language reasons for the confidence band.
+  final List<String> scoreConfidenceDrivers;
+
   /// Banner widget rendered beneath the score line (used for the
   /// production Blocked / Avoid banners). Null skips the slot.
   final Widget? bottomBanner;
@@ -160,6 +172,8 @@ class PGHeroSection extends StatelessWidget {
     this.isBlocked = false,
     this.lowCoverage = false,
     this.limitedAssessment = false,
+    this.scoreConfidence,
+    this.scoreConfidenceDrivers = const [],
     this.bottomBanner,
     this.hasCatalogCaution = false,
   });
@@ -168,12 +182,16 @@ class PGHeroSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final disableAnimations =
         MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final parsedConfidenceLabel = catalogScoreConfidenceLabel(scoreConfidence);
+    final confidenceLabel = limitedAssessment
+        ? 'Limited'
+        : parsedConfidenceLabel;
     final scoreDisplay = heroScoreDisplayFor(
       score: score,
       isBlocked: isBlocked,
       isNotScored: isNotScored,
       lowCoverage: lowCoverage,
-      limitedAssessment: limitedAssessment,
+      limitedAssessment: confidenceLabel == 'Limited',
     );
     final showTrustChips = heroShowsTrustChips(
       isBlocked: isBlocked,
@@ -270,6 +288,42 @@ class PGHeroSection extends StatelessWidget {
               )
             else
               PGScoreLine(score: score!, prominent: true),
+            if (confidenceLabel != null) ...[
+              const SizedBox(height: V2Spacing.space4),
+              _ScoreConfidenceSummary(
+                label: confidenceLabel,
+                drivers: scoreConfidenceDrivers,
+              ),
+            ],
+          ] else if (scoreDisplay == HeroScoreDisplay.limitedScore) ...[
+            const SizedBox(height: V2Spacing.space12),
+            Text(
+              'Product quality',
+              style: V2Typography.eyebrow(color: context.v2.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  '$score/100',
+                  style: V2Typography.bodyMedium(color: context.v2.fg).copyWith(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                if (showCautionCue) ...[
+                  const SizedBox(width: V2Spacing.space8),
+                  const _HeroCautionPill(),
+                ],
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            _ScoreConfidenceSummary(
+              label: confidenceLabel ?? 'Limited',
+              drivers: scoreConfidenceDrivers,
+            ),
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
@@ -311,6 +365,39 @@ class PGHeroSection extends StatelessWidget {
         servingCountLabel != null && servingCountLabel!.isNotEmpty;
     final hasDose = dosingSummary != null && dosingSummary!.isNotEmpty;
     return hasBrand || hasServings || hasServingCount || hasDose;
+  }
+}
+
+class _ScoreConfidenceSummary extends StatelessWidget {
+  final String label;
+  final List<String> drivers;
+
+  const _ScoreConfidenceSummary({required this.label, required this.drivers});
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleDrivers = drivers
+        .map((driver) => driver.trim())
+        .where((driver) => driver.isNotEmpty)
+        .take(2)
+        .toList(growable: false);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Score confidence: $label',
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
+        ),
+        if (visibleDrivers.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Why: ${visibleDrivers.join(' · ')}',
+            style: V2Typography.caption(color: context.v2.fgSubtle),
+          ),
+        ],
+      ],
+    );
   }
 }
 

@@ -12,6 +12,7 @@ class PGAlternative {
   final String name;
   final String brand;
   final int score;
+  final String? scoreConfidence;
 
   /// Optional 96pt product image widget (caller provides — production
   /// composes ProductImage with Hero tag).
@@ -25,6 +26,7 @@ class PGAlternative {
     required this.name,
     required this.brand,
     required this.score,
+    this.scoreConfidence,
     this.imageWidget,
     this.onTap,
   });
@@ -123,7 +125,11 @@ class _AlternativeCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: V2Spacing.space4),
-                PGScoreLine(score: alt.score, compact: true),
+                PGScoreLine(
+                  score: alt.score,
+                  compact: true,
+                  confidence: alt.scoreConfidence,
+                ),
               ],
             ),
           ),

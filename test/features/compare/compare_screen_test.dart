@@ -50,6 +50,7 @@ ProductsCoreCompanion _product({
   String category = 'multivitamin',
   String? verdict,
   String? blobSha,
+  String? v4Confidence,
 }) {
   return ProductsCoreCompanion.insert(
     dsldId: dsldId,
@@ -59,6 +60,7 @@ ProductsCoreCompanion _product({
     mappedCoverage: drift.Value(coverage),
     primaryCategory: drift.Value(category),
     verdict: drift.Value(verdict),
+    v4Confidence: drift.Value(v4Confidence),
     detailBlobSha256: drift.Value(blobSha),
     exportVersion: 'test',
     exportedAt: '2026-06-01T00:00:00Z',
@@ -149,6 +151,39 @@ void main() {
     // No winner/better language — calm presentation only.
     expect(find.textContaining('better', findRichText: true), findsNothing);
     expect(find.textContaining('winner', findRichText: true), findsNothing);
+
+    await tearDownDbs(tester);
+  });
+
+  testWidgets('shows confidence and neutralizes a limited-confidence score', (
+    tester,
+  ) async {
+    await seed(
+      product: _product(
+        dsldId: 'prod-a',
+        name: 'Alpha',
+        score: 85,
+        v4Confidence: 'moderate',
+      ),
+      blob: _pillarsBlob(),
+    );
+    await seed(
+      product: _product(
+        dsldId: 'prod-b',
+        name: 'Beta',
+        score: 85,
+        v4Confidence: 'low',
+      ),
+      blob: _pillarsBlob(),
+    );
+
+    await pumpCompare(tester);
+
+    expect(find.text('Score confidence: Moderate'), findsOneWidget);
+    expect(find.text('Score confidence: Limited'), findsOneWidget);
+    expect(find.text('85/100'), findsNWidgets(2));
+    // Only the moderate-confidence side retains its tier adjective.
+    expect(find.text('Excellent'), findsOneWidget);
 
     await tearDownDbs(tester);
   });

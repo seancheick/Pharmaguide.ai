@@ -75,6 +75,18 @@ void main() {
       );
     });
 
+    test('unknown populated confidence fails closed to limited', () {
+      expect(
+        searchScoreChipDisplayFor(
+          score: 85,
+          verdict: 'SAFE',
+          mappedCoverage: 0.9,
+          v4Confidence: 'future_band',
+        ),
+        SearchScoreChipDisplay.limitedAssessment,
+      );
+    });
+
     test('unsafe verdict hides the score chip (block indicator wins)', () {
       expect(
         searchScoreChipDisplayFor(
@@ -89,6 +101,18 @@ void main() {
           score: 85,
           verdict: 'BLOCKED',
           mappedCoverage: 0.9,
+        ),
+        SearchScoreChipDisplay.hidden,
+      );
+    });
+
+    test('failed assessment hides a leaked score', () {
+      expect(
+        searchScoreChipDisplayFor(
+          score: 85,
+          isNotScored: true,
+          mappedCoverage: 0.9,
+          v4Confidence: 'high',
         ),
         SearchScoreChipDisplay.hidden,
       );
@@ -136,6 +160,21 @@ void main() {
         ),
         SearchScoreChipDisplay.tierScore,
       );
+    });
+  });
+
+  group('searchScoreChipText', () {
+    test('makes known confidence visible beside the score', () {
+      expect(searchScoreChipText(score: 85, confidence: 'high'), '85 · High');
+      expect(
+        searchScoreChipText(score: 85, confidence: 'moderate'),
+        '85 · Moderate',
+      );
+      expect(searchScoreChipText(score: 85, confidence: 'low'), '85 · Limited');
+    });
+
+    test('missing confidence does not invent a label', () {
+      expect(searchScoreChipText(score: 85, confidence: null), '85');
     });
   });
 

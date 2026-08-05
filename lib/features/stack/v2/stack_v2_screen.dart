@@ -30,6 +30,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
@@ -60,6 +61,26 @@ final _stackProductProvider = FutureProvider.family
       final coreDb = ref.watch(coreDatabaseProvider);
       return coreDb.findById(dsldId);
     });
+
+typedef StackCatalogScoreDisplay = ({int score, String? confidence});
+
+/// Returns a score only when the current catalog row satisfies the public
+/// score contract. Saved stack values are deliberately not accepted here:
+/// they can outlive a safety suppression or a failed reassessment.
+@visibleForTesting
+StackCatalogScoreDisplay? stackCatalogScoreDisplayFor(
+  ProductsCoreData? product,
+) {
+  if (product == null ||
+      catalogProductIsBlocked(product) ||
+      catalogProductIsNotScored(product) ||
+      isLowCoverage(product.mappedCoverage)) {
+    return null;
+  }
+  final score = product.qualityScoreV4100;
+  if (score == null) return null;
+  return (score: score.round(), confidence: product.v4Confidence);
+}
 
 /// v2 Stack screen — production stack surface with three sub-tabs
 /// via [PGSegmentedControl]:
@@ -966,9 +987,9 @@ class _StackItemRow extends ConsumerWidget {
     final displayBrand = brandName == null || brandName.isEmpty
         ? entry.brand
         : brandName;
-    final score = entry.isMedication
+    final scoreDisplay = entry.isMedication
         ? null
-        : entry.score ?? product?.qualityScoreV4100?.round();
+        : stackCatalogScoreDisplayFor(product);
     final itemType = entry.isMedication
         ? PGItemType.medication
         : PGItemType.supplement;
@@ -1072,7 +1093,7 @@ class _StackItemRow extends ConsumerWidget {
                     productName: displayName,
                     brandName: displayBrand ?? '',
                     formFactor: product?.formFactor,
-                    score: score?.toDouble(),
+                    score: scoreDisplay?.score.toDouble(),
                     size: 48,
                     compact: true,
                   ),
@@ -1128,9 +1149,13 @@ class _StackItemRow extends ConsumerWidget {
                           ),
                         ),
                       ],
-                      if (score != null) ...[
+                      if (scoreDisplay != null) ...[
                         const SizedBox(height: V2Spacing.space4),
-                        PGScoreLine(score: score, compact: true),
+                        PGScoreLine(
+                          score: scoreDisplay.score,
+                          compact: true,
+                          confidence: scoreDisplay.confidence,
+                        ),
                       ],
                     ],
                   ),
@@ -2245,8 +2270,7 @@ class _WishlistItemRow extends ConsumerWidget {
         ? product!.productName.trim()
         : 'Saved product';
     final displayBrand = product?.brandName?.trim();
-    final score = product?.qualityScoreV4100?.round();
-    final showScore = score != null && !isLowCoverage(product?.mappedCoverage);
+    final scoreDisplay = stackCatalogScoreDisplayFor(product);
 
     return Dismissible(
       key: ValueKey('wishlist_dismiss_$dsldId'),
@@ -2312,7 +2336,7 @@ class _WishlistItemRow extends ConsumerWidget {
                   productName: displayName,
                   brandName: displayBrand ?? '',
                   formFactor: product?.formFactor,
-                  score: showScore ? score.toDouble() : null,
+                  score: scoreDisplay?.score.toDouble(),
                   size: 48,
                   compact: true,
                 ),
@@ -2337,9 +2361,13 @@ class _WishlistItemRow extends ConsumerWidget {
                           style: V2Typography.bodySm(color: context.v2.fgMuted),
                         ),
                       ],
-                      if (showScore) ...[
+                      if (scoreDisplay != null) ...[
                         const SizedBox(height: V2Spacing.space4),
-                        PGScoreLine(score: score, compact: true),
+                        PGScoreLine(
+                          score: scoreDisplay.score,
+                          compact: true,
+                          confidence: scoreDisplay.confidence,
+                        ),
                       ],
                     ],
                   ),

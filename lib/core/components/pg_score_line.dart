@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -43,6 +44,10 @@ class PGScoreLine extends StatelessWidget {
   /// tier. The adjacent tier label preserves meaning beyond color alone.
   final bool prominent;
 
+  /// Pipeline confidence band. Limited confidence keeps the number but
+  /// suppresses the tier adjective and color; all known bands are stated.
+  final String? confidence;
+
   const PGScoreLine({
     super.key,
     required this.score,
@@ -50,11 +55,14 @@ class PGScoreLine extends StatelessWidget {
     this.dotSize = 10,
     this.compact = false,
     this.prominent = false,
+    this.confidence,
   }) : assert(!compact || !prominent);
 
   @override
   Widget build(BuildContext context) {
     final tier = tierForScore(score);
+    final confidenceLabel = catalogScoreConfidenceLabel(confidence);
+    final limitedConfidence = confidenceLabel == 'Limited';
     // Production displays the score AS-GIVEN even if out of range — keeps
     // a "105/100" UI as a clear data-quality signal. Mirror that.
     final brightness = Theme.of(context).brightness;
@@ -70,15 +78,17 @@ class PGScoreLine extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: dot,
-              height: dot,
-              decoration: BoxDecoration(
-                color: tier.color(brightness),
-                shape: BoxShape.circle,
+            if (!limitedConfidence) ...[
+              Container(
+                width: dot,
+                height: dot,
+                decoration: BoxDecoration(
+                  color: tier.color(brightness),
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-            const SizedBox(width: V2Spacing.space8),
+              const SizedBox(width: V2Spacing.space8),
+            ],
             // Score numeric + tier label kept as separate Text widgets
             // (matches production — `find.text('Exceptional')` matches
             // in widget tests this way).
@@ -87,7 +97,9 @@ class PGScoreLine extends StatelessWidget {
               style:
                   V2Typography.bodyMedium(
                     color: prominent
-                        ? tier.textColor(brightness)
+                        ? limitedConfidence
+                              ? context.v2.fg
+                              : tier.textColor(brightness)
                         : context.v2.fg,
                   ).copyWith(
                     fontSize: headlineSize,
@@ -95,23 +107,35 @@ class PGScoreLine extends StatelessWidget {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
             ),
-            const SizedBox(width: V2Spacing.space8),
+            if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
             // Tier label wraps in Flexible + ellipsis so the row
             // can survive tight column widths (e.g. 130pt slot
             // in Home's Recent-scans carousel). Long labels like
             // "Exceptional" overflow otherwise.
-            Flexible(
-              child: Text(
-                tier.label,
-                style: V2Typography.bodyMedium(
-                  color: tier.textColor(brightness),
-                ).copyWith(fontSize: headlineSize, fontWeight: headlineWeight),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            if (!limitedConfidence)
+              Flexible(
+                child: Text(
+                  tier.label,
+                  style:
+                      V2Typography.bodyMedium(
+                        color: tier.textColor(brightness),
+                      ).copyWith(
+                        fontSize: headlineSize,
+                        fontWeight: headlineWeight,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
           ],
         ),
+        if (confidenceLabel != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Score confidence: $confidenceLabel',
+            style: V2Typography.caption(color: context.v2.fgMuted),
+          ),
+        ],
         if (!compact && !prominent) ...[
           const SizedBox(height: V2Spacing.space4),
           Text(

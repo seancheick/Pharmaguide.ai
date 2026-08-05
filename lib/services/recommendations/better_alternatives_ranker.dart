@@ -31,6 +31,7 @@
 
 import 'dart:convert';
 
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/services/recommendations/audience_classifier.dart';
@@ -305,12 +306,12 @@ String _normalizedProductNameForDedupe(String value) {
 /// agree on ordering.
 double? effectiveQualityScore(ProductsCoreData p) => p.qualityScoreV4100;
 
-/// True when a row is safety-suppressed (status present and not
-/// 'scored' → BLOCKED/UNSAFE/NOT_SCORED).
-bool isSafetySuppressed(ProductsCoreData p) {
-  final s = p.qualityScoreStatus;
-  return s != 'scored';
-}
+/// True when the current or legacy catalog contract does not permit a public
+/// score. Independent safety/assessment fields win over stale legacy values.
+bool isCatalogScoreSuppressed(ProductsCoreData p) =>
+    catalogProductIsBlocked(p) ||
+    catalogProductIsNotScored(p) ||
+    p.qualityScoreStatus?.trim().toLowerCase() == 'suppressed_safety';
 
 /// Hard filters every candidate must pass before audience and tier
 /// checks. These mirror the SQL-side filters in
@@ -339,7 +340,7 @@ bool _passesHardFilters(
   if (disc != null && disc.trim().isNotEmpty) return false;
   // Never recommend a safety-suppressed product (BLOCKED/UNSAFE) — its
   // score is NULL and the product is unsafe.
-  if (isSafetySuppressed(candidate)) return false;
+  if (isCatalogScoreSuppressed(candidate)) return false;
   // Candidate must carry a score so the section can render a value.
   final candScore = effectiveQualityScore(candidate);
   if (candScore == null) return false;
