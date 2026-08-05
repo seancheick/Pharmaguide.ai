@@ -15,6 +15,10 @@ enum HeroScoreDisplay {
   /// [PGScoreLine].
   tierScore,
 
+  /// A real score with limited confidence. Keep the number available for
+  /// comparison, but suppress the tier adjective and color treatment.
+  limitedScore,
+
   /// A product quality score is unavailable. This is intentionally
   /// consumer-neutral: release diagnostics belong to the catalog gate.
   notScored,
@@ -38,8 +42,32 @@ HeroScoreDisplay heroScoreDisplayFor({
 }) {
   if (isBlocked) return HeroScoreDisplay.none;
   if (isNotScored || score == null) return HeroScoreDisplay.notScored;
-  if (lowCoverage || limitedAssessment) return HeroScoreDisplay.notScored;
+  if (lowCoverage) return HeroScoreDisplay.notScored;
+  if (limitedAssessment) return HeroScoreDisplay.limitedScore;
   return HeroScoreDisplay.tierScore;
+}
+
+/// Consumer-facing confidence vocabulary.
+///
+/// Missing data stays absent. Any populated value outside the known contract
+/// fails closed to Limited so a future enum cannot accidentally overstate
+/// confidence in an older app.
+String? scoreConfidenceLabel(String? confidence) {
+  final normalized = confidence?.trim().toLowerCase().replaceAll('-', '_');
+  if (normalized == null || normalized.isEmpty) return null;
+  switch (normalized) {
+    case 'high':
+      return 'High';
+    case 'moderate':
+    case 'medium':
+      return 'Moderate';
+    case 'low':
+    case 'limited':
+    case 'very_low':
+      return 'Limited';
+    default:
+      return 'Limited';
+  }
 }
 
 /// FIX 4 gate: positive trust/cert chips ("Third-Party Tested",
@@ -58,17 +86,17 @@ bool heroShowsTrustChips({required bool isBlocked, required int tagCount}) =>
 /// green "85/100 Excellent" hero with no caution cue, hiding the CAUTION
 /// entirely.
 ///
-/// The cue only rides ALONGSIDE a real tier line
-/// ([HeroScoreDisplay.tierScore]). BLOCKED (no score slot), NOT_SCORED,
-/// and low-coverage each render their own non-"Excellent" affordance and
-/// are deliberately left untouched. Verdict match is case/whitespace
-/// tolerant; the pipeline ships uppercase `CAUTION`.
+/// The cue only rides alongside a real score. BLOCKED (no score slot),
+/// NOT_SCORED, and low-coverage each render their own non-"Excellent"
+/// affordance and are deliberately left untouched.
 bool heroShowsCautionCue({
   required bool hasCatalogCaution,
   required HeroScoreDisplay scoreDisplay,
 }) {
-  if (scoreDisplay != HeroScoreDisplay.tierScore) return false;
-  return hasCatalogCaution;
+  final showsScore =
+      scoreDisplay == HeroScoreDisplay.tierScore ||
+      scoreDisplay == HeroScoreDisplay.limitedScore;
+  return showsScore && hasCatalogCaution;
 }
 
 /// v2 mirror of `_HeaderSection` in
@@ -134,6 +162,9 @@ class PGHeroSection extends StatelessWidget {
   /// True when v4 confidence is low even though a score is available.
   final bool limitedAssessment;
 
+  /// Pipeline confidence band for a completed product-quality score.
+  final String? scoreConfidence;
+
   /// Banner widget rendered beneath the score line (used for the
   /// production Blocked / Avoid banners). Null skips the slot.
   final Widget? bottomBanner;
@@ -160,6 +191,7 @@ class PGHeroSection extends StatelessWidget {
     this.isBlocked = false,
     this.lowCoverage = false,
     this.limitedAssessment = false,
+    this.scoreConfidence,
     this.bottomBanner,
     this.hasCatalogCaution = false,
   });
@@ -168,12 +200,16 @@ class PGHeroSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final disableAnimations =
         MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final parsedConfidenceLabel = scoreConfidenceLabel(scoreConfidence);
+    final confidenceLabel = limitedAssessment
+        ? 'Limited'
+        : parsedConfidenceLabel;
     final scoreDisplay = heroScoreDisplayFor(
       score: score,
       isBlocked: isBlocked,
       isNotScored: isNotScored,
       lowCoverage: lowCoverage,
-      limitedAssessment: limitedAssessment,
+      limitedAssessment: confidenceLabel == 'Limited',
     );
     final showTrustChips = heroShowsTrustChips(
       isBlocked: isBlocked,
@@ -270,6 +306,42 @@ class PGHeroSection extends StatelessWidget {
               )
             else
               PGScoreLine(score: score!, prominent: true),
+            if (confidenceLabel != null) ...[
+              const SizedBox(height: V2Spacing.space4),
+              Text(
+                'Score confidence: $confidenceLabel',
+                style: V2Typography.bodySm(color: context.v2.fgMuted),
+              ),
+            ],
+          ] else if (scoreDisplay == HeroScoreDisplay.limitedScore) ...[
+            const SizedBox(height: V2Spacing.space12),
+            Text(
+              'Product quality',
+              style: V2Typography.eyebrow(color: context.v2.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  '$score/100',
+                  style: V2Typography.bodyMedium(color: context.v2.fg).copyWith(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                if (showCautionCue) ...[
+                  const SizedBox(width: V2Spacing.space8),
+                  const _HeroCautionPill(),
+                ],
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              'Score confidence: ${confidenceLabel ?? 'Limited'}',
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
+            ),
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(

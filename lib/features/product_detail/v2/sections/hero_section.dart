@@ -140,6 +140,7 @@ Widget buildHeroSection({
     // catalog diagnosis belongs to the release gate.
     lowCoverage: productHasLowCoverage(product),
     limitedAssessment: hasLimitedAssessmentConfidence(product?.v4Confidence),
+    scoreConfidence: product?.v4Confidence,
     bottomBanner: bottomBanner,
     hasCatalogCaution:
         product != null &&

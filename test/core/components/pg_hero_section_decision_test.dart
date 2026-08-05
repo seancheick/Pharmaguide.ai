@@ -29,7 +29,7 @@ void main() {
       );
     });
 
-    test('low scoring confidence suppresses the quality verdict', () {
+    test('low scoring confidence retains a neutral score presentation', () {
       expect(
         heroScoreDisplayFor(
           score: 84,
@@ -38,7 +38,7 @@ void main() {
           lowCoverage: false,
           limitedAssessment: true,
         ),
-        HeroScoreDisplay.notScored,
+        HeroScoreDisplay.limitedScore,
       );
     });
 
@@ -116,6 +116,34 @@ void main() {
     });
   });
 
+  group('scoreConfidenceLabel — consumer confidence vocabulary', () {
+    test('maps known confidence bands', () {
+      expect(scoreConfidenceLabel('high'), 'High');
+      expect(scoreConfidenceLabel('moderate'), 'Moderate');
+      expect(scoreConfidenceLabel('low'), 'Limited');
+      expect(scoreConfidenceLabel('very_low'), 'Limited');
+    });
+
+    test('unknown populated bands fail closed to Limited', () {
+      expect(scoreConfidenceLabel('experimental'), 'Limited');
+    });
+
+    test('missing confidence stays absent', () {
+      expect(scoreConfidenceLabel(null), isNull);
+      expect(scoreConfidenceLabel('  '), isNull);
+    });
+  });
+
+  test('catalog caution remains visible on a limited-confidence score', () {
+    expect(
+      heroShowsCautionCue(
+        hasCatalogCaution: true,
+        scoreDisplay: HeroScoreDisplay.limitedScore,
+      ),
+      isTrue,
+    );
+  });
+
   group('heroShowsTrustChips — FIX 4 gate', () {
     test('blocked product never shows positive trust chips', () {
       expect(heroShowsTrustChips(isBlocked: true, tagCount: 3), isFalse);
@@ -173,7 +201,7 @@ void main() {
       expect(find.text('85/100'), findsOneWidget);
     });
 
-    testWidgets('limited assessment hides the score and quality label', (
+    testWidgets('limited assessment retains score without a tier adjective', (
       tester,
     ) async {
       await pump(
@@ -184,11 +212,49 @@ void main() {
           brandName: 'Test Brand',
           score: 85,
           limitedAssessment: true,
+          scoreConfidence: 'low',
         ),
       );
-      expect(find.text('85/100'), findsNothing);
-      expect(find.text('Product quality score unavailable.'), findsOneWidget);
+      expect(find.text('85/100'), findsOneWidget);
+      expect(find.text('Product quality score unavailable.'), findsNothing);
       expect(find.text('Excellent'), findsNothing);
+      expect(find.text('Score confidence: Limited'), findsOneWidget);
+    });
+
+    testWidgets('trusted score makes its confidence band visible', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const PGHeroSection(
+          imageWidget: SizedBox(),
+          productName: 'Test Product',
+          brandName: 'Test Brand',
+          score: 85,
+          scoreConfidence: 'moderate',
+        ),
+      );
+      expect(find.text('85/100'), findsOneWidget);
+      expect(find.text('Excellent'), findsOneWidget);
+      expect(find.text('Score confidence: Moderate'), findsOneWidget);
+    });
+
+    testWidgets('unknown confidence fails closed without hiding the score', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const PGHeroSection(
+          imageWidget: SizedBox(),
+          productName: 'Test Product',
+          brandName: 'Test Brand',
+          score: 85,
+          scoreConfidence: 'future_band',
+        ),
+      );
+      expect(find.text('85/100'), findsOneWidget);
+      expect(find.text('Excellent'), findsNothing);
+      expect(find.text('Score confidence: Limited'), findsOneWidget);
     });
 
     testWidgets('blocked product hides positive trust chips', (tester) async {
