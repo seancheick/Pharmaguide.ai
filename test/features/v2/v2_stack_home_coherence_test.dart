@@ -514,6 +514,12 @@ void main() {
                   qualityScoreV4100: const drift.Value(87),
                   score100Equivalent: const drift.Value(87),
                   qualityScoreStatus: const drift.Value('scored'),
+                  productSafetyStatus: const drift.Value(
+                    'no_known_catalog_concern',
+                  ),
+                  qualityAssessmentStatus: const drift.Value('complete'),
+                  mappedCoverage: const drift.Value(0.9),
+                  v4Confidence: const drift.Value('high'),
                   exportVersion: 'test',
                   exportedAt: '2026-05-18T00:00:00Z',
                 ),
@@ -537,6 +543,10 @@ void main() {
       );
       expect(find.text('Clean Lab', skipOffstage: false), findsOneWidget);
       expect(find.text('87/100', skipOffstage: false), findsOneWidget);
+      expect(
+        find.text('Score confidence: High', skipOffstage: false),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Wishlist asks guests to sign in without reading saved rows', (
