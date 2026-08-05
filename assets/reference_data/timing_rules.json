@@ -2,19 +2,39 @@
   "_metadata": {
     "description": "Supplement timing and absorption interaction rules for optimal nutrient uptake",
     "purpose": "timing_optimization",
-    "schema_version": "5.3.0",
-    "last_updated": "2026-07-30",
-    "total_entries": 32
+    "schema_version": "6.0.0",
+    "last_updated": "2026-08-05",
+    "total_entries": 20,
+    "clinical_review_version": "timing-section-2-adversarial",
+    "runtime_policy": "verified_only",
+    "status_counts": {
+      "verified": 7,
+      "needs_revision": 13,
+      "rejected": 13
+    }
   },
   "timing_rules": [
     {
       "id": "timing_iron_calcium_separate",
       "ingredient1": "iron",
+      "ingredient1_tags": [
+        "iron"
+      ],
       "ingredient2": "calcium",
-      "rule_type": "separate",
+      "ingredient2_tags": [
+        "calcium"
+      ],
+      "timing_relation": {
+        "type": "separate_from",
+        "minimum_hours": 2
+      },
+      "category": "important_separation",
+      "applies_to": "any",
+      "actionability": "recommended",
+      "source_authority": "clinical_study",
+      "review_status": "needs_revision",
       "advice": "Take iron and calcium at least 2 hours apart — calcium significantly reduces iron absorption.",
       "mechanism": "Calcium inhibits both non-heme and heme iron absorption in a dose-dependent manner (significant above 300 mg). The exact mechanism is not fully elucidated — the 1991 Hallberg study found the effect is not solely located in the GI tract and is independent of phytate binding. Clinically, separation by 2+ hours avoids the interaction.",
-      "separation_hours": 2,
       "score_impact": -2,
       "evidence_level": "established",
       "sources": [
@@ -28,53 +48,70 @@
           "label": "Hallberg L et al. — Calcium and iron absorption: mechanism of action and nutritional importance",
           "url": "https://pubmed.ncbi.nlm.nih.gov/1600930/"
         }
+      ],
+      "review_note": "INTERVAL UNSUPPORTED BY CITED SOURCE. Hallberg 1991 (PMID 1984335) and 1992 (PMID 1600930) establish a 50-60% acute reduction in iron absorption at 300-600 mg calcium and locate the effect in the mucosal cell. Neither tests or recommends a 2-hour separation, and neither addresses whether spacing changes iron status over time. Blocked on interval evidence.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "interval_not_supported_by_cited_source"
       ]
     },
     {
       "id": "timing_iron_zinc_separate",
       "ingredient1": "iron",
+      "ingredient1_tags": [
+        "iron"
+      ],
       "ingredient2": "zinc",
-      "rule_type": "separate",
+      "ingredient2_tags": [
+        "zinc"
+      ],
+      "timing_relation": {
+        "type": "separate_from",
+        "minimum_hours": 2
+      },
+      "category": "important_separation",
+      "applies_to": "any",
+      "actionability": "recommended",
+      "source_authority": "systematic_review",
+      "review_status": "needs_revision",
       "advice": "If you take higher-dose iron (about 25 mg or more), space it from zinc by a couple of hours — at those doses on an empty stomach they compete for the same transporter. Taking either with food blunts the effect.",
       "mechanism": "Both iron and zinc are divalent cations absorbed via DMT1; high molar ratios of one suppress the other's uptake in a dose-dependent manner. The competition is meaningful mainly at supplemental iron doses around 25 mg or higher taken fasting; food largely abolishes it.",
-      "separation_hours": 2,
       "score_impact": -2,
-      "evidence_level": "established",
-      "min_dose": { "ingredient": "iron", "mg": 25 },
+      "evidence_level": "probable",
       "sources": [
         {
           "source_type": "pubmed",
           "label": "Kordas K, Stoltzfus RJ — New evidence of iron and zinc interplay at the enterocyte and neural tissues",
           "url": "https://pubmed.ncbi.nlm.nih.gov/15173386/"
         }
-      ]
-    },
-    {
-      "id": "timing_iron_vitamin_c_together",
-      "ingredient1": "iron",
-      "ingredient2": "vitamin c",
-      "rule_type": "take_together",
-      "advice": "Take iron and vitamin C together — vitamin C enhances non-heme iron absorption by 2 to 6 times.",
-      "mechanism": "Ascorbic acid reduces ferric iron (Fe³⁺) to ferrous iron (Fe²⁺), the form transported by DMT1, and forms a soluble chelate that resists inhibition by phytate and tannins.",
-      "separation_hours": null,
-      "score_impact": 1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Hallberg L et al. — The role of vitamin C in iron absorption",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/2507689/"
-        }
+      ],
+      "min_dose": {
+        "tag": "iron",
+        "mg": 25
+      },
+      "review_note": "INTERVAL UNSUPPORTED BY CITED SOURCE. Kordas & Stoltzfus 2004 (PMID 15173386) states 'iron does seem to reduce the absorption of zinc' but establishes no interval, and argues the enterocyte DMT1 is an unlikely site. The 25 mg fasting-iron gate is retained and correct. Blocked on interval evidence.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "interval_not_supported_by_cited_source"
       ]
     },
     {
       "id": "timing_calcium_vitamin_d_together",
       "ingredient1": "calcium",
+      "ingredient1_tags": [
+        "calcium"
+      ],
       "ingredient2": "vitamin d",
-      "rule_type": "take_together",
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "optional",
+      "applies_to": "standalone",
+      "actionability": "informational",
+      "source_authority": "clinical_study",
+      "review_status": "needs_revision",
       "advice": "Take calcium and vitamin D together — vitamin D is required for active calcium absorption in the small intestine.",
       "mechanism": "Vitamin D is essential for efficient calcium absorption. The 2011 IOM Dietary Reference Intakes report confirmed that adequate vitamin D status is required to meet calcium requirements. Taking them together ensures both are bioavailable during the absorption window.",
-      "separation_hours": null,
       "score_impact": 1,
       "evidence_level": "established",
       "sources": [
@@ -83,151 +120,99 @@
           "label": "Ross AC, Manson JE, Abrams SA et al. — The 2011 IOM report on dietary reference intakes for calcium and vitamin D. J Clin Endocrinol Metab. 2011",
           "url": "https://pubmed.ncbi.nlm.nih.gov/21118827/"
         }
-      ]
-    },
-    {
-      "id": "timing_fat_soluble_vitamins_with_food",
-      "ingredient1": "vitamin a",
-      "ingredient2": "dietary fat",
-      "rule_type": "take_with_food",
-      "advice": "Take vitamin A with a meal containing some fat to support absorption.",
-      "mechanism": "Vitamin A is incorporated into mixed micelles formed from bile salts and dietary fatty acids before intestinal absorption.",
-      "separation_hours": null,
-      "score_impact": -1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Vitamin A and Carotenoids Fact Sheet",
-          "url": "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/"
-        }
+      ],
+      "_relation_is_migration_placeholder": true,
+      "review_note": "The cited source (PMID 21118827) is the IOM dietary reference intake report for calcium and vitamin D. It establishes daily intake requirements; it says nothing about swallowing the two together. knowledge/timing-rules-research.md reaches the same conclusion: 'STRONG but STATUS, not same-pill timing'. Pending clinician decision to remove or re-author as adequacy guidance.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "awaiting_clinician_decision"
       ]
     },
     {
       "id": "timing_vitamin_d_with_food",
       "ingredient1": "vitamin d",
-      "ingredient2": "dietary fat",
-      "rule_type": "take_with_food",
-      "advice": "Take vitamin D with your largest or fattiest meal of the day for best absorption.",
-      "mechanism": "Vitamin D3 (cholecalciferol) is a fat-soluble secosteroid; co-ingestion with fat increases micellar solubilization and lymphatic uptake, measurably raising serum 25(OH)D compared to fasted dosing.",
-      "separation_hours": null,
+      "ingredient1_tags": [
+        "vitamin_d"
+      ],
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "optional",
+      "source_authority": "clinical_study",
+      "review_status": "verified",
+      "advice": "Vitamin D is fat-soluble, and taking it with your largest meal may improve absorption - a small study saw blood levels rise by about half.",
+      "mechanism": "Vitamin D is fat-soluble, so co-ingested dietary fat stimulates bile release and mixed-micelle formation that carry it across the intestinal wall. Mulligan and Licata 2010 measured a 56.7% mean rise in serum 25(OH)D after patients moved their usual dose to the largest meal of the day. The study was an uncontrolled cohort of 17 treatment non-responders, so the size of the effect should be read cautiously.",
       "score_impact": -1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "Linus Pauling Institute — Vitamin D",
-          "url": "https://lpi.oregonstate.edu/mic/vitamins/vitamin-D"
-        }
-      ]
-    },
-    {
-      "id": "timing_vitamin_b12_folate_together",
-      "ingredient1": "vitamin b12",
-      "ingredient2": "folate",
-      "rule_type": "take_together",
-      "advice": "Vitamin B12 and folate work synergistically and can be taken together at any time of day.",
-      "mechanism": "Both vitamins are required for the methionine synthase reaction that converts homocysteine to methionine; B12 regenerates tetrahydrofolate from 5-methyltetrahydrofolate, making co-supplementation mutually supportive.",
-      "separation_hours": null,
-      "score_impact": 1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Folate Fact Sheet",
-          "url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
-        }
-      ]
-    },
-    {
-      "id": "timing_magnesium_with_food",
-      "ingredient1": "magnesium",
-      "ingredient2": "food",
-      "rule_type": "take_with_food",
-      "advice": "Take magnesium with food to ease the loose stools or stomach upset it can cause on an empty stomach.",
-      "mechanism": "Unabsorbed magnesium salts are osmotically active in the gut and can cause diarrhea, especially in poorly-absorbed forms (oxide, citrate). Taking magnesium with a meal slows transit and eases this without meaningfully reducing absorption.",
-      "separation_hours": null,
-      "score_impact": 0,
       "evidence_level": "probable",
       "sources": [
         {
-          "source_type": "reference",
-          "label": "NIH ODS — Magnesium Fact Sheet for Health Professionals (forms, absorption, and GI tolerance)",
-          "url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
-        }
-      ]
-    },
-    {
-      "id": "timing_magnesium_evening",
-      "ingredient1": "magnesium",
-      "ingredient2": "sleep",
-      "rule_type": "time_of_day",
-      "daily_plan_eligible": false,
-      "daily_slots": ["with_dinner", "bedtime"],
-      "advice": "If you take magnesium for sleep, evening is a reasonable time — but mainly as a well-tolerated wind-down habit, not a proven sleep aid.",
-      "mechanism": "Magnesium's effect on sleep is modest and seen mainly in people who are low in magnesium or have insomnia, and the evidence is limited and low-certainty. No trial has compared morning versus evening dosing, so taking it at night is a sensible routine rather than a proven timing effect — magnesium is well-tolerated in the evening and pairs naturally with a wind-down routine.",
-      "separation_hours": null,
-      "score_impact": 0,
-      "evidence_level": "possible",
-      "sources": [
-        {
           "source_type": "pubmed",
-          "label": "Arab A, Rafie N, Amani R, Shirani F — The Role of Magnesium in Sleep Health: a Systematic Review of Available Literature (Biol Trace Elem Res 2023)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/35184264/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Mah J, Pitre T — Oral magnesium supplementation for insomnia in older adults: a Systematic Review & Meta-Analysis (BMC Complement Med Ther 2021)",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/33865376/"
+          "label": "Mulligan GB, Licata A - Taking vitamin D with the largest meal improves absorption and results in higher serum levels of 25-hydroxyvitamin D. J Bone Miner Res. 2010",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20200983/"
         }
-      ]
+      ],
+      "canaries": {
+        "positive": [
+          "12016"
+        ],
+        "negative": [
+          "278010"
+        ]
+      }
     },
     {
       "id": "timing_melatonin_before_bed",
       "ingredient1": "melatonin",
-      "ingredient2": "sleep",
-      "rule_type": "time_of_day",
-      "daily_slots": ["bedtime"],
+      "ingredient1_tags": [
+        "melatonin"
+      ],
+      "timing_relation": {
+        "type": "before_event",
+        "event": "intended_sleep",
+        "minimum_minutes": 30,
+        "maximum_minutes": 60
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "recommended",
+      "source_authority": "systematic_review",
+      "review_status": "needs_revision",
       "advice": "Take melatonin 30 to 60 minutes before your target bedtime for best effect on sleep onset.",
       "mechanism": "Exogenous melatonin binds MT1/MT2 receptors in the SCN to reinforce the circadian sleep-wake signal; the 30–60 min window aligns with endogenous dim-light melatonin onset and the descending phase of core body temperature.",
-      "separation_hours": null,
       "score_impact": 0,
       "evidence_level": "established",
       "sources": [
         {
-          "source_type": "reference",
+          "source_type": "pubmed",
           "label": "Arendt J & Skene DJ — Melatonin as a chronobiotic. Sleep Med Rev. 2005",
           "url": "https://pubmed.ncbi.nlm.nih.gov/15649736/"
         }
-      ]
-    },
-    {
-      "id": "timing_iron_empty_stomach",
-      "ingredient1": "iron",
-      "ingredient2": "food",
-      "rule_type": "take_on_empty_stomach",
-      "advice": "Take iron on an empty stomach for maximum absorption — if it causes stomach upset, take it with a small amount of food (but avoid dairy, tea, or coffee).",
-      "mechanism": "Gastric acid in the fasted state reduces Fe³⁺ to the more soluble Fe²⁺ form; food (especially calcium, phytates, and polyphenols) in the GI lumen significantly inhibits non-heme iron uptake.",
-      "separation_hours": null,
-      "score_impact": -1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Iron Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
-        }
+      ],
+      "review_note": "INTERVAL AND AUTHORITY BOTH OVERCLAIMED. Arendt & Skene 2005 (PMID 15649736) supports melatonin as a chronobiotic and says exogenous melatonin is 'most effective around dusk and dawn', but it never states a 30-60 minute pre-sleep window — the number in the advice has no cited source. PubMed also types it as a narrative Review, not a systematic review, so the authority assigned during the first pass was an overclaim. The rule's own source entry additionally typed a pubmed.ncbi.nlm.nih.gov URL as `reference`. Separately, one window cannot cover immediate-release, prolonged-release, phase-shifting and jet-lag use at different doses. Blocked on an interval source and a form/purpose scope.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "citation_not_content_verified"
       ]
     },
     {
       "id": "timing_probiotics_by_formulation",
       "ingredient1": "probiotics",
-      "ingredient2": "food",
-      "rule_type": "take_with_food",
-      "daily_plan_eligible": false,
+      "ingredient1_tags": [
+        "probiotics",
+        "probiotic"
+      ],
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "recommended",
+      "source_authority": "clinical_study",
+      "review_status": "needs_revision",
       "advice": "Probiotic timing depends on formulation. Enteric-coated capsules can be taken any time. For standard probiotics, taking with a small meal may improve survival. Follow manufacturer guidance when available.",
       "mechanism": "The optimal timing for probiotics is debated. Fasted gastric pH is actually lower (more acidic, ~1.5-2.0) than postprandial pH (~3-5 due to food buffering). However, fasted gastric transit is faster, reducing total acid exposure time. Some evidence (Tompkins 2011, PMID 22146689) suggests probiotic survival is better WITH a meal containing fat or oatmeal due to acid buffering. Enteric-coated formulations bypass this concern. Net effect depends on strain, formulation, and meal composition.",
-      "separation_hours": null,
       "score_impact": -1,
       "evidence_level": "possible",
       "sources": [
@@ -236,71 +221,65 @@
           "label": "Tompkins TA et al. — The impact of meals on a probiotic during transit through a model of the human upper gastrointestinal tract",
           "url": "https://pubmed.ncbi.nlm.nih.gov/22146689/"
         }
+      ],
+      "review_note": "Tompkins 2011 (PMID 22146689) is an in vitro digestive-model study, not a clinical one, and supports 'with or just prior to a meal containing some fats'. Identity is also fragmented: the `probiotics` tag reaches 10 products while the catalog carries 60+ distinct `*_probiotic_blend` tags and 695 products flagged is_probiotic. Needs a pipeline-level probiotic identity plus an evidence downgrade.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "canonical_identity_unresolved"
       ]
     },
     {
       "id": "timing_coq10_with_food",
       "ingredient1": "coq10",
-      "ingredient2": "dietary fat",
-      "rule_type": "take_with_food",
-      "advice": "Take CoQ10 with a meal containing fat — it is fat-soluble and absorption increases significantly with dietary lipids.",
+      "ingredient1_tags": [
+        "coq10"
+      ],
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "optional",
+      "source_authority": "reference",
+      "review_status": "verified",
+      "advice": "CoQ10 is fat-soluble and is best absorbed with fat in a meal.",
       "mechanism": "Coenzyme Q10 is highly lipophilic; co-ingestion with fat enhances micellar solubilization in the GI lumen and facilitates chylomicron-mediated absorption into the lymphatic system.",
-      "separation_hours": null,
       "score_impact": -1,
-      "evidence_level": "established",
+      "evidence_level": "probable",
       "sources": [
         {
           "source_type": "reference",
           "label": "Linus Pauling Institute — Coenzyme Q10",
           "url": "https://lpi.oregonstate.edu/mic/dietary-factors/coenzyme-Q10"
         }
-      ]
-    },
-    {
-      "id": "timing_omega3_with_meal",
-      "ingredient1": "omega-3",
-      "ingredient2": "dietary fat",
-      "rule_type": "take_with_food",
-      "advice": "Take omega-3 fish oil with your largest meal of the day — fat in the meal enhances absorption and reduces fishy burps.",
-      "mechanism": "EPA and DHA are long-chain polyunsaturated fatty acids incorporated into chylomicrons during lipid digestion; dietary fat stimulates bile secretion and pancreatic lipase activity, both required for fatty acid emulsification and uptake.",
-      "separation_hours": null,
-      "score_impact": -1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Omega-3 Fatty Acids Fact Sheet",
-          "url": "https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/"
-        }
-      ]
-    },
-    {
-      "id": "timing_curcumin_with_fat_and_pepper",
-      "ingredient1": "turmeric",
-      "ingredient2": "dietary fat",
-      "rule_type": "take_with_food",
-      "advice": "Take turmeric or curcumin with a fatty meal and alongside black pepper (piperine) to dramatically increase absorption.",
-      "mechanism": "Curcumin is hydrophobic with very low oral bioavailability; dietary fat promotes micellar solubilization, while piperine inhibits hepatic and intestinal glucuronidation, together increasing systemic curcumin exposure by up to 2,000%.",
-      "separation_hours": null,
-      "score_impact": -1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "Linus Pauling Institute — Curcumin",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/phytochemicals/curcumin"
-        }
-      ]
+      ],
+      "canaries": {
+        "positive": [
+          "17550"
+        ],
+        "negative": [
+          "278010"
+        ]
+      }
     },
     {
       "id": "timing_psyllium_water_med_spacing",
       "ingredient1": "psyllium",
+      "ingredient1_tags": [
+        "psyllium"
+      ],
       "ingredient2": "medications",
-      "rule_type": "separate",
-      "daily_plan_eligible": false,
+      "timing_relation": {
+        "type": "separate_from_medications",
+        "minimum_hours": 3
+      },
+      "category": "important_separation",
+      "applies_to": "standalone",
+      "actionability": "recommended",
+      "source_authority": "reference",
+      "review_status": "needs_revision",
       "advice": "Mix psyllium with at least 8 oz of liquid, and take other medications at least 3 hours away.",
       "mechanism": "Bulk-forming psyllium absorbs water and swells in the gut. Taking it dry or with too little fluid can cause choking, and the gel can delay absorption of some oral medications.",
-      "separation_hours": 3,
       "score_impact": -1,
       "evidence_level": "established",
       "sources": [
@@ -309,42 +288,66 @@
           "label": "MedlinePlus — Psyllium",
           "url": "https://medlineplus.gov/druginfo/meds/a601104.html"
         }
+      ],
+      "review_note": "MedlinePlus supports spacing psyllium from medicines, and the relation is now honestly modelled as separate_from_medications with no invented second bottle. Held pending clinician sign-off on applying a blanket 3-hour window to every medication rather than per-drug.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "awaiting_clinician_decision"
       ]
     },
     {
       "id": "timing_egcg_iron_separate",
       "ingredient1": "green tea extract",
+      "ingredient1_tags": [
+        "green_tea_extract",
+        "egcg",
+        "green_tea",
+        "green_tea_leaf",
+        "black_tea_leaf",
+        "oolong_tea_leaf"
+      ],
       "ingredient2": "iron",
-      "rule_type": "separate",
-      "advice": "Take green tea (EGCG) and iron at least 2 hours apart — polyphenols in green tea strongly inhibit non-heme iron absorption.",
-      "mechanism": "EGCG and other catechins form insoluble iron-polyphenol complexes in the GI lumen; this chelation prevents DMT1-mediated ferrous iron uptake and can reduce iron absorption by up to 90% at typical tea-drinking doses.",
-      "separation_hours": 2,
+      "ingredient2_tags": [
+        "iron"
+      ],
+      "timing_relation": {
+        "type": "separate_from",
+        "minimum_hours": 1
+      },
+      "category": "important_separation",
+      "applies_to": "any",
+      "actionability": "optional",
+      "source_authority": "clinical_study",
+      "review_status": "needs_revision",
+      "advice": "Green tea can reduce how much iron your body absorbs. Leaving about an hour between them may help - in a trial, tea taken an hour after an iron-rich meal roughly halved the effect rather than removing it.",
+      "mechanism": "Tea polyphenols bind nonheme iron in the gut lumen and form complexes that are not absorbed. Ahmad Fuzi 2017 measured fractional iron absorption of 5.7% with water, 3.6% with tea taken simultaneously, and 5.7% with tea taken one hour after the meal; the inhibitory effect fell from 37.2% to 18.1%. The trial used brewed tea in 12 iron-replete women, so applying it to tea supplements is an extrapolation on form, and the effect is attenuated rather than eliminated by the interval.",
       "score_impact": -2,
-      "evidence_level": "established",
+      "evidence_level": "probable",
       "sources": [
+        {
+          "source_type": "pubmed",
+          "label": "Ahmad Fuzi SF et al - A 1-h time interval between a meal containing iron and consumption of tea attenuates the inhibitory effects on iron absorption. Am J Clin Nutr 2017",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29046302/"
+        },
         {
           "source_type": "pubmed",
           "label": "Zijp IM et al. — Effect of tea and other dietary factors on iron absorption",
           "url": "https://pubmed.ncbi.nlm.nih.gov/11029010/"
         }
-      ]
-    },
-    {
-      "id": "timing_coffee_iron_separate",
-      "ingredient1": "caffeine",
-      "ingredient2": "iron",
-      "rule_type": "separate",
-      "advice": "Avoid taking iron with coffee — tannins in coffee can reduce iron absorption by 40% or more.",
-      "mechanism": "Chlorogenic acid and tannins in coffee bind non-heme iron in the GI lumen forming poorly soluble complexes; the inhibitory effect is dose-dependent and persists for up to one hour after coffee consumption.",
-      "separation_hours": 1,
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Morck TA et al. — Inhibition of food iron absorption by coffee",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/6402915/"
-        }
+      ],
+      "canaries": {
+        "positive": [
+          "229960",
+          "17105"
+        ],
+        "negative": [
+          "180249"
+        ]
+      },
+      "review_note": "FORM EXTRAPOLATION. PMID 29046302 directly tested brewed tea consumed with or one hour after an iron-containing meal in 12 iron-replete women. The catalog identities are tea extracts and leaf supplements, not the brewed beverage/meal exposure studied. Polyphenol content alone does not verify that the same one-hour interval applies to capsules. Suppressed until a form-specific source or a dietary-exposure model supports the instruction.",
+      "reviewed_on": "2026-08-05",
+      "review_blockers": [
+        "form_specific_evidence_missing"
       ]
     },
     {
@@ -354,19 +357,43 @@
         "10582"
       ],
       "ingredient2": "iron",
-      "rule_type": "separate",
-      "advice": "Keep iron supplements at least 4 hours away from thyroid medication — iron markedly reduces thyroid hormone absorption.",
-      "mechanism": "Ferrous iron directly binds levothyroxine in the GI lumen, forming insoluble ferrous-levothyroxine complexes that are not absorbed; this interaction is clinically significant even at standard supplement doses.",
-      "separation_hours": 4,
+      "ingredient2_tags": [
+        "iron"
+      ],
+      "timing_relation": {
+        "type": "separate_from",
+        "minimum_hours": 4
+      },
+      "category": "important_separation",
+      "applies_to": "any",
+      "actionability": "recommended",
+      "source_authority": "fda_label",
+      "review_status": "verified",
+      "advice": "Keep iron supplements at least 4 hours away from levothyroxine — iron can reduce levothyroxine absorption.",
+      "mechanism": "Iron supplements can bind or adsorb levothyroxine in the digestive tract and reduce the amount absorbed. Current Synthroid labeling applies a 4-hour separation to iron supplements.",
       "score_impact": -2,
       "evidence_level": "established",
       "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed - SYNTHROID (levothyroxine sodium) tablets, section 17 Patient Counseling Information: do not take within 4 hours of iron and calcium supplements or antacids",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=1e11ad30-1041-4520-10b0-8f9d30d30fcc"
+        },
         {
           "source_type": "pubmed",
           "label": "Skelin M et al. — Factors Affecting Gastrointestinal Absorption of Levothyroxine: A Review",
           "url": "https://pubmed.ncbi.nlm.nih.gov/28153426/"
         }
-      ]
+      ],
+      "canaries": {
+        "positive": [
+          "17105",
+          "217573"
+        ],
+        "negative": [
+          "180249"
+        ]
+      }
     },
     {
       "id": "timing_thyroid_med_magnesium_separate",
@@ -375,10 +402,20 @@
         "10582"
       ],
       "ingredient2": "magnesium",
-      "rule_type": "separate",
+      "ingredient2_tags": [
+        "magnesium"
+      ],
+      "timing_relation": {
+        "type": "separate_from",
+        "minimum_hours": 4
+      },
+      "category": "important_separation",
+      "applies_to": "any",
+      "actionability": "recommended",
+      "source_authority": "fda_label",
+      "review_status": "needs_revision",
       "advice": "Keep magnesium supplements at least 4 hours away from levothyroxine unless the prescriber gives different instructions.",
       "mechanism": "Magnesium-containing products can reduce levothyroxine absorption. Levothyroxine labeling directs patients to separate medicines known to interfere with absorption by at least 4 hours.",
-      "separation_hours": 4,
       "score_impact": -2,
       "evidence_level": "established",
       "sources": [
@@ -387,16 +424,29 @@
           "label": "DailyMed — Levothyroxine sodium tablets prescribing information",
           "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=3e77de84-6f59-40ac-a1a4-7bfe30387823"
         }
+      ],
+      "review_note": "NOT LABEL-SUPPORTED AS WRITTEN. Verification on 2026-08-01 read the SYNTHROID label (setid 1e11ad30-1041-4520-10b0-8f9d30d30fcc, SPL v1537) and the generic in full: magnesium is never named as a SUPPLEMENT. Every occurrence is either 'magnesium hydroxides' (an antacid) or 'magnesium stearate' (an excipient), and the antacid row in section 7.1 carries no interval at all - it says only 'Monitor patients appropriately.' Section 17 does place antacids inside the 4-hour instruction, so a magnesium-ANTACID rule may be defensible, but a standalone magnesium-supplement rule at 4 hours is not. This rule was briefly promoted on the assumption the label covered it; reading the label removed it. Needs either an antacid-scoped rewrite or a source that addresses magnesium salts.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "citation_not_content_verified"
       ]
     },
     {
       "id": "timing_ala_empty_stomach",
       "ingredient1": "alpha-lipoic acid",
-      "ingredient2": "food",
-      "rule_type": "take_on_empty_stomach",
-      "advice": "Take alpha-lipoic acid on an empty stomach — food reduces its peak plasma concentration.",
-      "mechanism": "ALA is absorbed via active sodium-dependent transporter (SMVT); food in the GI tract slows gastric emptying and competes for transporter capacity, reducing Cmax by approximately 30–40% compared to fasted dosing.",
-      "separation_hours": null,
+      "ingredient1_tags": [
+        "alpha_lipoic_acid"
+      ],
+      "timing_relation": {
+        "type": "empty_stomach"
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "optional",
+      "source_authority": "reference",
+      "review_status": "verified",
+      "advice": "Alpha-lipoic acid is better absorbed on an empty stomach. Taking it with food lowers peak blood levels by roughly 30 percent.",
+      "mechanism": "The cited reference reports that food lowered peak plasma lipoic acid by about 30 percent and total plasma exposure by about 20 percent compared with fasting. It does not establish a specific number of minutes before a meal.",
       "score_impact": -1,
       "evidence_level": "probable",
       "sources": [
@@ -405,16 +455,33 @@
           "label": "Linus Pauling Institute — Lipoic Acid",
           "url": "https://lpi.oregonstate.edu/mic/dietary-factors/lipoic-acid"
         }
-      ]
+      ],
+      "canaries": {
+        "positive": [
+          "17323"
+        ],
+        "negative": [
+          "278010"
+        ]
+      }
     },
     {
       "id": "timing_quercetin_vitamin_c_together",
       "ingredient1": "quercetin",
+      "ingredient1_tags": [
+        "quercetin"
+      ],
       "ingredient2": "vitamin c",
-      "rule_type": "take_together",
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "optional",
+      "applies_to": "standalone",
+      "actionability": "informational",
+      "source_authority": "reference",
+      "review_status": "needs_revision",
       "advice": "Take quercetin and vitamin C together — vitamin C enhances quercetin absorption and both have complementary antioxidant activity.",
       "mechanism": "Ascorbic acid regenerates oxidized quercetin (quercetin semiquinone) back to the active reduced form, extending its antioxidant half-life; vitamin C also improves quercetin solubility in the GI lumen and may upregulate cellular uptake.",
-      "separation_hours": null,
       "score_impact": 1,
       "evidence_level": "probable",
       "sources": [
@@ -423,17 +490,30 @@
           "label": "Linus Pauling Institute — Flavonoids: Quercetin",
           "url": "https://lpi.oregonstate.edu/mic/dietary-factors/phytochemicals/flavonoids#quercetin"
         }
+      ],
+      "_relation_is_migration_placeholder": true,
+      "review_note": "The cited Linus Pauling Institute flavonoid page does not establish that vitamin C enhances quercetin absorption. Mechanism-only co-administration advice. Pending clinician decision.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "awaiting_clinician_decision"
       ]
     },
     {
       "id": "timing_bromelain_timing_by_purpose",
       "ingredient1": "bromelain",
-      "ingredient2": "food",
-      "rule_type": "take_on_empty_stomach",
-      "daily_plan_eligible": false,
+      "ingredient1_tags": [
+        "bromelain"
+      ],
+      "timing_relation": {
+        "type": "empty_stomach"
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "recommended",
+      "source_authority": "clinical_study",
+      "review_status": "needs_revision",
       "advice": "Take bromelain on an empty stomach for systemic anti-inflammatory effects, or with meals if you want it to aid protein digestion.",
       "mechanism": "In the fasted state, bromelain is absorbed intact through intestinal epithelium into systemic circulation to exert anti-inflammatory and fibrinolytic effects; with food, its proteolytic activity is consumed in GI digestion before systemic absorption can occur.",
-      "separation_hours": null,
       "score_impact": 0,
       "evidence_level": "probable",
       "sources": [
@@ -442,34 +522,30 @@
           "label": "Castell JV et al. — Intestinal absorption of undegraded proteins in men: presence of bromelain in plasma after oral intake",
           "url": "https://pubmed.ncbi.nlm.nih.gov/9252520/"
         }
-      ]
-    },
-    {
-      "id": "timing_ashwagandha_with_food",
-      "ingredient1": "ashwagandha",
-      "ingredient2": "food",
-      "rule_type": "take_with_food",
-      "advice": "Take ashwagandha with food to minimize gastrointestinal discomfort — most GI side effects occur when taken on an empty stomach.",
-      "mechanism": "Withanolides and other steroidal lactones in ashwagandha root extract can irritate gastric mucosa in susceptible individuals; food delays gastric emptying, dilutes the extract, and buffers mucosal contact.",
-      "separation_hours": null,
-      "score_impact": 0,
-      "evidence_level": "probable",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NCCIH — Ashwagandha: Usefulness and Safety",
-          "url": "https://www.nccih.nih.gov/health/ashwagandha"
-        }
+      ],
+      "review_note": "Castell 1997 (PMID 9252520) demonstrates that undegraded bromelain reaches plasma after oral dosing. It does not establish the rule's purpose-dependent claim (empty stomach for systemic effect vs with food for digestion). Needs a source that addresses administration timing.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "citation_not_content_verified"
       ]
     },
     {
       "id": "timing_l_theanine_caffeine_together",
       "ingredient1": "l-theanine",
+      "ingredient1_tags": [
+        "l_theanine"
+      ],
       "ingredient2": "caffeine",
-      "rule_type": "take_together",
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "optional",
+      "applies_to": "standalone",
+      "actionability": "informational",
+      "source_authority": "clinical_study",
+      "review_status": "needs_revision",
       "advice": "Take L-theanine and caffeine together for synergistic focus and reduced jitteriness — the combination is well-supported by clinical research.",
       "mechanism": "L-theanine promotes alpha brain wave activity and modulates GABA/glutamate signaling, blunting caffeine's sympathomimetic side effects while preserving and enhancing its pro-attentional effects via adenosine antagonism.",
-      "separation_hours": null,
       "score_impact": 1,
       "evidence_level": "established",
       "sources": [
@@ -478,112 +554,113 @@
           "label": "Owen GN et al. — The combined effects of L-theanine and caffeine on cognitive performance",
           "url": "https://pubmed.ncbi.nlm.nih.gov/18681988/"
         }
+      ],
+      "_relation_is_migration_placeholder": true,
+      "review_note": "Owen 2008 (PMID 18681988) is a real randomized crossover showing L-theanine plus caffeine improves attention-switching. But that is a combination-effect finding, not timing guidance, and it lands in the `optional` category which requires explicit clinician approval before it may render. Pending that approval.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "awaiting_clinician_decision"
       ]
     },
     {
       "id": "timing_vitamin_e_with_food",
       "ingredient1": "vitamin e",
-      "ingredient2": "dietary fat",
-      "rule_type": "take_with_food",
-      "advice": "Take vitamin E with a fat-containing meal — as a fat-soluble vitamin, it requires dietary lipids for proper absorption.",
-      "mechanism": "Alpha-tocopherol is incorporated into mixed micelles in the GI lumen alongside dietary fatty acids and bile salts; micellar solubilization is the rate-limiting step for its lymphatic uptake.",
-      "separation_hours": null,
+      "ingredient1_tags": [
+        "vitamin_e"
+      ],
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "optional",
+      "source_authority": "clinical_study",
+      "review_status": "verified",
+      "advice": "Vitamin E is fat-soluble and the digestive tract needs fat to absorb it, so pairing it with a meal containing some fat is sensible.",
+      "mechanism": "In a randomized four-way crossover study of eight healthy adults, a vitamin E capsule produced higher measured alpha-tocopherol concentrations with higher-fat meals than with a low-fat meal or water. NIH ODS also notes that the digestive tract requires fat to absorb vitamin E.",
       "score_impact": -1,
-      "evidence_level": "established",
+      "evidence_level": "possible",
       "sources": [
         {
           "source_type": "reference",
           "label": "NIH Office of Dietary Supplements — Vitamin E Fact Sheet",
           "url": "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/"
-        }
-      ]
-    },
-    {
-      "id": "timing_vitamin_k_with_food",
-      "ingredient1": "vitamin k",
-      "ingredient2": "dietary fat",
-      "rule_type": "take_with_food",
-      "advice": "Take vitamin K with a meal containing fat — it is fat-soluble and absorption is minimal without dietary lipids.",
-      "mechanism": "Phylloquinone (K1) and menaquinones (K2) are fat-soluble; co-ingestion with fat significantly increases their micellar incorporation and subsequent chylomicron-mediated absorption from the small intestine.",
-      "separation_hours": null,
-      "score_impact": -1,
-      "evidence_level": "established",
-      "sources": [
+        },
         {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Vitamin K Fact Sheet",
-          "url": "https://ods.od.nih.gov/factsheets/VitaminK-HealthProfessional/"
+          "source_type": "pubmed",
+          "label": "Jeanes YM et al. — The absorption of vitamin E is influenced by the amount of fat in a meal and the food matrix",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/15522126/"
         }
-      ]
+      ],
+      "canaries": {
+        "positive": [
+          "17092"
+        ],
+        "negative": [
+          "278010"
+        ]
+      }
     },
     {
       "id": "timing_calcium_iron_thyroid_separate",
       "ingredient1": "calcium",
+      "ingredient1_tags": [
+        "calcium"
+      ],
       "ingredient2": "levothyroxine",
       "ingredient2_rxcuis": [
         "10582"
       ],
-      "rule_type": "separate",
-      "advice": "Take calcium supplements at least 4 hours away from thyroid medication — calcium chelates thyroid hormone and reduces its absorption.",
-      "mechanism": "Calcium carbonate and calcium citrate both form insoluble complexes with levothyroxine in the stomach at physiologic pH; this interaction is well-documented in pharmacokinetic studies and is included in official FDA prescribing information.",
-      "separation_hours": 4,
+      "timing_relation": {
+        "type": "separate_from",
+        "minimum_hours": 4
+      },
+      "category": "important_separation",
+      "applies_to": "any",
+      "actionability": "recommended",
+      "source_authority": "fda_label",
+      "review_status": "verified",
+      "advice": "Keep calcium supplements at least 4 hours away from levothyroxine — calcium can reduce levothyroxine absorption.",
+      "mechanism": "Calcium supplements can reduce levothyroxine absorption. Calcium carbonate did so in a seven-person pharmacokinetic study, and current Synthroid labeling applies a 4-hour separation to calcium supplements.",
       "score_impact": -2,
       "evidence_level": "established",
       "sources": [
+        {
+          "source_type": "fda",
+          "label": "DailyMed - SYNTHROID (levothyroxine sodium) tablets, section 17 Patient Counseling Information: do not take within 4 hours of iron and calcium supplements or antacids",
+          "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=1e11ad30-1041-4520-10b0-8f9d30d30fcc"
+        },
         {
           "source_type": "pubmed",
           "label": "Singh N et al. — The acute effect of calcium carbonate on the intestinal absorption of levothyroxine",
           "url": "https://pubmed.ncbi.nlm.nih.gov/11716045/"
         }
-      ]
-    },
-    {
-      "id": "timing_zinc_with_food",
-      "ingredient1": "zinc",
-      "ingredient2": "food",
-      "rule_type": "take_with_food",
-      "advice": "Take zinc with a small amount of food to prevent nausea — zinc on an empty stomach commonly causes GI upset.",
-      "mechanism": "Zinc salts (sulfate, gluconate, bisglycinate) can irritate the gastric mucosa and trigger nausea via local zinc ion-induced prostaglandin release; a small amount of food buffers this effect without significantly impairing overall zinc bioavailability.",
-      "separation_hours": null,
-      "score_impact": 0,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "NIH Office of Dietary Supplements — Zinc Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
-        }
-      ]
-    },
-    {
-      "id": "timing_thyroid_med_coffee_separate",
-      "ingredient1": "levothyroxine",
-      "ingredient1_rxcuis": [
-        "10582"
       ],
-      "ingredient2": "caffeine",
-      "rule_type": "separate",
-      "advice": "Take levothyroxine at least 60 minutes before coffee — espresso reduces absorption by up to 36%.",
-      "mechanism": "Coffee (especially espresso) reduces levothyroxine absorption by 25-36% when taken concurrently. The mechanism involves altered intestinal motility and pH changes from coffee's chlorogenic acids and other compounds that interfere with T4 dissolution and absorption in the proximal small intestine.",
-      "separation_hours": 1,
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Benvenga S et al. — Altered intestinal absorption of L-thyroxine caused by coffee. Thyroid. 2008",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/18341376/"
-        }
-      ]
+      "canaries": {
+        "positive": [
+          "183946"
+        ],
+        "negative": [
+          "180249"
+        ]
+      }
     },
     {
       "id": "timing_calcium_carbonate_with_food",
       "ingredient1": "calcium carbonate",
-      "ingredient2": "food",
-      "rule_type": "take_with_food",
+      "ingredient1_tags": [
+        "calcium_carbonate"
+      ],
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "recommended",
+      "source_authority": "clinical_study",
+      "review_status": "needs_revision",
       "advice": "Take calcium carbonate with meals — it requires stomach acid to dissolve. Calcium citrate can be taken without food.",
       "mechanism": "Calcium carbonate requires gastric acid to dissolve and release ionized calcium for absorption. In achlorhydric or fasted conditions, dissolution is markedly impaired. Calcium citrate is pre-solubilized and does not require acid, making it suitable for fasting or for patients on acid-suppressing medications (PPIs, H2 blockers).",
-      "separation_hours": null,
       "score_impact": -1,
       "evidence_level": "established",
       "sources": [
@@ -597,6 +674,12 @@
           "label": "NIH ODS — Calcium Fact Sheet for Health Professionals",
           "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
         }
+      ],
+      "review_note": "PIPELINE DEPENDENCY, not a clinical defect. Recker 1985 (PMID 4000241) is strong: calcium carbonate absorption is impaired under fasting conditions in achlorhydria, and 'Administration of calcium carbonate as part of a normal breakfast resulted in completely normal absorption'. But the catalog emits zero `calcium_carbonate` tags, so the rule is unreachable. Blocked on the pipeline emitting a calcium form identity. Valid science must not be rejected for a catalog gap.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "canonical_identity_unresolved",
+        "catalog_identity_missing_upstream"
       ]
     },
     {
@@ -606,10 +689,21 @@
         "10582"
       ],
       "ingredient2": "soy protein",
-      "rule_type": "separate",
+      "ingredient2_tags": [
+        "soybean",
+        "soy_isoflavones"
+      ],
+      "timing_relation": {
+        "type": "separate_from",
+        "minimum_hours": 4
+      },
+      "category": "important_separation",
+      "applies_to": "any",
+      "actionability": "recommended",
+      "source_authority": "systematic_review",
+      "review_status": "needs_revision",
       "advice": "Take levothyroxine at least 4 hours apart from soy protein or soy isoflavone supplements.",
       "mechanism": "Soy protein and soy isoflavones (genistein, daidzein) can reduce levothyroxine absorption and may also inhibit thyroid peroxidase, compounding the effect in hypothyroid patients. The FDA prescribing information for levothyroxine warns about concurrent soy intake.",
-      "separation_hours": 4,
       "score_impact": -2,
       "evidence_level": "established",
       "sources": [
@@ -618,7 +712,50 @@
           "label": "Messina M & Redmond G — Effects of soy protein and soybean isoflavones on thyroid function. Thyroid. 2006",
           "url": "https://pubmed.ncbi.nlm.nih.gov/16571087/"
         }
+      ],
+      "review_note": "IDENTITY FIXED, INTERVAL NOT. The reachability defect is corrected — the rule now names `soybean` and `soy_isoflavones` instead of `soy` and `soy_protein`, which the catalog never emits. Messina & Redmond 2006 (PMID 16571087) supports the interaction: soy foods 'by inhibiting absorption, may increase the dose of thyroid hormone required'. Neither that review nor Skelin 2017 states 4 hours. Also unresolved: whether concentrated isoflavone supplements and soy foods warrant the same instruction. Blocked on the label plus that scope decision.",
+      "reviewed_on": "2026-08-01",
+      "review_blockers": [
+        "interval_not_supported_by_cited_source",
+        "canonical_identity_unresolved"
       ]
+    },
+    {
+      "id": "timing_iron_with_food_gi",
+      "ingredient1": "iron",
+      "ingredient1_tags": [
+        "iron"
+      ],
+      "timing_relation": {
+        "type": "with_food"
+      },
+      "category": "how_to_take",
+      "applies_to": "standalone",
+      "actionability": "optional",
+      "source_authority": "reference",
+      "review_status": "verified",
+      "advice": "Higher-dose iron can cause nausea, constipation or stomach upset. Taking it with food can help minimize this.",
+      "mechanism": "NIH ODS states plainly: 'High-dose iron supplements can also cause gastrointestinal effects, including gastric upset, constipation, nausea, abdominal pain, vomiting, and diarrhea. Taking iron supplements with food can help minimize these adverse effects.' Food can reduce iron absorption, so this is a tolerability tradeoff rather than an absorption optimisation, which is why it is actionability=optional.",
+      "score_impact": 0,
+      "evidence_level": "probable",
+      "sources": [
+        {
+          "source_type": "nih_ods",
+          "label": "NIH ODS - Iron Fact Sheet for Health Professionals: taking iron supplements with food can help minimize gastrointestinal adverse effects",
+          "url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+        }
+      ],
+      "canaries": {
+        "positive": [
+          "17105",
+          "217573"
+        ],
+        "negative": [
+          "278010"
+        ]
+      },
+      "reviewed_on": "2026-08-01",
+      "supersedes": "timing_iron_empty_stomach"
     }
   ]
 }

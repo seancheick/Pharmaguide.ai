@@ -22,7 +22,12 @@ if [[ -z "$latest_successful_build" ]]; then
   if [[ -f "$ipa" ]]; then
     latest_successful_build="$(
       unzip -p "$ipa" Payload/Runner.app/Info.plist |
-        plutil -extract CFBundleVersion raw -o - -
+        python3 -c '
+import plistlib
+import sys
+
+print(plistlib.loads(sys.stdin.buffer.read())["CFBundleVersion"])
+'
     )"
   else
     latest_successful_build=0

@@ -17,6 +17,25 @@ archive="$repo_root/build/ios/archive/Runner.xcarchive"
 export_options="$script_dir/../ios/ExportOptions.plist"
 xcodebuild_bin="${PHARMAGUIDE_XCODEBUILD_BIN:-xcodebuild}"
 
+plist_value() {
+  local key_path="$1"
+  local plist_path="${2:-}"
+  python3 -c '
+import plistlib
+import sys
+
+key_path = sys.argv[1]
+value = (
+    plistlib.load(open(sys.argv[2], "rb"))
+    if len(sys.argv) > 2
+    else plistlib.loads(sys.stdin.buffer.read())
+)
+for key in key_path.split("."):
+    value = value[key]
+print(value)
+' "$key_path" ${plist_path:+"$plist_path"}
+}
+
 PHARMAGUIDE_IOS_IPA_PATH="$ipa" \
   bash "$script_dir/prepare_ios_build_number.sh" "$pubspec"
 
@@ -27,7 +46,7 @@ ipa_build_number() {
   local candidate="$1"
   [[ -f "$candidate" ]] || return 1
   unzip -p "$candidate" Payload/Runner.app/Info.plist |
-    plutil -extract CFBundleVersion raw -o - -
+    plist_value CFBundleVersion
 }
 
 matching_ipa_exists() {
@@ -36,7 +55,9 @@ matching_ipa_exists() {
   [[ "$actual_build" == "$expected_build" ]]
 }
 
-plutil -lint "$export_options" >/dev/null
+python3 -c \
+  'import plistlib, sys; plistlib.load(open(sys.argv[1], "rb"))' \
+  "$export_options"
 
 if ! "$flutter_bin" build ipa "$@" \
   --export-options-plist="$export_options" \
@@ -48,10 +69,7 @@ if ! matching_ipa_exists; then
   archive_info="$archive/Info.plist"
   archive_build=""
   if [[ -f "$archive_info" ]]; then
-    archive_build="$(
-      plutil -extract ApplicationProperties.CFBundleVersion \
-        raw -o - "$archive_info" 2>/dev/null || true
-    )"
+    archive_build="$(plist_value ApplicationProperties.CFBundleVersion "$archive_info" 2>/dev/null || true)"
   fi
 
   if [[ "$archive_build" == "$expected_build" ]]; then
