@@ -1006,7 +1006,11 @@ class _RecentScanCard extends StatelessWidget {
       mappedCoverage: scan.mappedCoverage,
     )) {
       case RecentScanScoreDisplay.tierScore:
-        return PGScoreLine(score: scan.score!.round(), compact: true);
+        return PGScoreLine(
+          score: scan.score!.round(),
+          compact: true,
+          confidence: scan.v4Confidence,
+        );
       case RecentScanScoreDisplay.verdictLabel:
         final unsafe = isUnsafeVerdict(scan.productSafetyStatus);
         return Text(
@@ -1037,7 +1041,7 @@ class _RecentScanCard extends StatelessWidget {
   }
 
   static const double width = 156;
-  static const double height = 224;
+  static const double height = 248;
   static const double _imageFrameSize = V2Spacing.space64 + V2Spacing.space8;
   static const double _imageSize = V2Spacing.space64 - V2Spacing.space8;
 
@@ -1344,6 +1348,7 @@ typedef RecentScan = ({
   String productSafetyStatus,
   String qualityAssessmentStatus,
   double? mappedCoverage,
+  String? v4Confidence,
   String time,
 });
 
@@ -1367,6 +1372,7 @@ RecentScan recentScanFromProduct(
     ),
     qualityAssessmentStatus: catalogAssessmentStatus(product).name,
     mappedCoverage: product.mappedCoverage,
+    v4Confidence: product.v4Confidence,
     time: time,
   );
 }
