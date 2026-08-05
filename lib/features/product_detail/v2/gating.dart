@@ -19,16 +19,15 @@
 // module both screens consume.
 
 import 'package:pharmaguide/core/scoring/coverage.dart';
-import 'package:pharmaguide/core/widgets/verdict_badge.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
-/// Whether the product carries a BLOCKED / UNSAFE verdict.
+/// Whether the catalog safety assessment carries a hard stop.
 ///
-/// Production uses `isUnsafeVerdict(_product?.verdict)` inline; this
-/// helper wraps it so callers don't need to import the verdict widget
-/// just for one bool.
+/// Export-schema 2.2+ reads the independent safety field. The legacy verdict
+/// is used only when an older catalog does not have that field populated.
 bool productIsBlocked(ProductsCoreData? product) =>
-    isUnsafeVerdict(product?.verdict);
+    catalogProductIsBlocked(product);
 
 /// Whether the product is NOT_SCORED — explicitly "we don't have enough
 /// mapped data to score this", distinct from blocked.
@@ -39,14 +38,8 @@ bool productIsBlocked(ProductsCoreData? product) =>
 /// DeepDive; not-scored hides only ScoreBreakdown).
 ///
 /// Verbatim mirror of production's `_isNotScored` method.
-bool productIsNotScored(ProductsCoreData? product) {
-  if (product == null) return false;
-  final verdict = product.verdict ?? '';
-  final score = product.qualityScoreV4100;
-  final isBlocked = isUnsafeVerdict(verdict);
-  return verdict.trim().toUpperCase() == 'NOT_SCORED' ||
-      (score == null && !isBlocked);
-}
+bool productIsNotScored(ProductsCoreData? product) =>
+    catalogProductIsNotScored(product);
 
 /// Whether the product's label coverage is below the 0.3 trust floor
 /// (`isLowCoverage` in core/scoring/coverage.dart — the shared

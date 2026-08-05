@@ -69,7 +69,7 @@ void main() {
       expect(find.text('Evidence'), findsOneWidget);
       expect(find.text('Transparency'), findsOneWidget);
       expect(find.text('Testing & Brand'), findsOneWidget);
-      expect(find.text('Safety Hygiene'), findsOneWidget);
+      expect(find.text('Formula & quality checks'), findsOneWidget);
       expect(find.text('Brand trust'), findsNothing);
     });
 

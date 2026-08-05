@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -8,18 +9,17 @@ import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_pill.dart';
-import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
-/// Looks up the verdict for a single product so the safety sheet can
-/// refuse to show "Safe to add" on a BLOCKED/UNSAFE product even if a
+/// Looks up the independent catalog safety state so the safety sheet can
+/// refuse to show "Safe to add" on a blocked/unsafe product even if a
 /// future caller skips the upstream FLTR-16 UI guard.
-final _sheetProductVerdictProvider = FutureProvider.family
-    .autoDispose<String?, String>((ref, dsldId) async {
+final _sheetProductBlockedProvider = FutureProvider.family
+    .autoDispose<bool, String>((ref, dsldId) async {
       final db = ref.watch(coreDatabaseProvider);
       final product = await db.findById(dsldId);
-      return product?.verdict;
+      return catalogProductIsBlocked(product);
     });
 
 /// Pre-add safety check sheet.
@@ -59,15 +59,15 @@ class _SafetyCheckSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final safetyAsync = ref.watch(safetyCheckForAddProvider(dsldId));
 
-    // FLTR-16 — third-layer defense. If the product's verdict is
-    // BLOCKED/UNSAFE, the sheet must not display a "Safe to add"
+    // FLTR-16 — third-layer defense. If the product's catalog safety
+    // status is blocked/unsafe, the sheet must not display a "Safe to add"
     // banner under any circumstances, even if a direct opener
-    // skipped the [PGStackActionButtons] guard. The verdict loads
+    // skipped the [PGStackActionButtons] guard. The status loads
     // alongside the interaction check; we treat pending verdict as
     // "not yet known, assume safe to render loading" — the check
     // completes in the same frame as the interaction check.
-    final verdictAsync = ref.watch(_sheetProductVerdictProvider(dsldId));
-    final isUnsafe = isUnsafeVerdict(verdictAsync.asData?.value);
+    final blockedAsync = ref.watch(_sheetProductBlockedProvider(dsldId));
+    final isUnsafe = blockedAsync.asData?.value ?? false;
 
     return Padding(
       // `viewInsetsOf.bottom` lifts content above the keyboard when

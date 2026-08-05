@@ -23,12 +23,17 @@ import 'package:pharmaguide/services/connectivity_service.dart';
 /// Minimal product fixture for guard assertions. We never reach the
 /// Drift code path because the guard throws first, so the other
 /// columns are unused.
-ProductsCoreData _product({required String dsldId, required String verdict}) {
+ProductsCoreData _product({
+  required String dsldId,
+  required String verdict,
+  String? productSafetyStatus,
+}) {
   return ProductsCoreData(
     dsldId: dsldId,
     productName: 'Test Product',
     productStatus: 'active',
     verdict: verdict,
+    productSafetyStatus: productSafetyStatus,
     mappedCoverage: 0.0,
     exportVersion: 'test',
     exportedAt: '2026-04-23T00:00:00Z',
@@ -74,6 +79,20 @@ void main() {
     test('lowercase blocked is normalized and still rejected', () async {
       final actions = container.read(stackActionsProvider);
       final product = _product(dsldId: 'DS_LC', verdict: 'blocked');
+
+      expect(
+        () => actions.addProduct(product),
+        throwsA(isA<StackAddBlockedException>()),
+      );
+    });
+
+    test('new safety status blocks even when legacy verdict is POOR', () async {
+      final actions = container.read(stackActionsProvider);
+      final product = _product(
+        dsldId: 'DS_STATUS_BLOCKED',
+        verdict: 'POOR',
+        productSafetyStatus: 'blocked',
+      );
 
       expect(
         () => actions.addProduct(product),

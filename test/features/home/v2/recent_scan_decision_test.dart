@@ -47,7 +47,8 @@ void main() {
         time: 'now',
       );
       expect(rec.score, isNull);
-      expect(rec.verdict, 'BLOCKED');
+      expect(rec.productSafetyStatus, 'BLOCKED');
+      expect(rec.qualityAssessmentStatus, 'partial');
     });
 
     test('scored product carries score, verdict and coverage through', () {
@@ -56,7 +57,8 @@ void main() {
         time: '2h ago',
       );
       expect(rec.score, 82.4);
-      expect(rec.verdict, 'SAFE');
+      expect(rec.productSafetyStatus, 'NO_KNOWN_CATALOG_CONCERN');
+      expect(rec.qualityAssessmentStatus, 'complete');
       expect(rec.mappedCoverage, 0.9);
       expect(rec.time, '2h ago');
     });
@@ -72,7 +74,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: 82,
-          verdict: 'SAFE',
+          productSafetyStatus: 'NO_KNOWN_CATALOG_CONCERN',
+          qualityAssessmentStatus: 'complete',
           mappedCoverage: 0.9,
         ),
         RecentScanScoreDisplay.tierScore,
@@ -83,7 +86,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: null,
-          verdict: 'BLOCKED',
+          productSafetyStatus: 'BLOCKED',
+          qualityAssessmentStatus: 'complete',
           mappedCoverage: 0.9,
         ),
         RecentScanScoreDisplay.verdictLabel,
@@ -94,7 +98,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: 60,
-          verdict: 'UNSAFE',
+          productSafetyStatus: 'UNSAFE',
+          qualityAssessmentStatus: 'complete',
           mappedCoverage: 0.9,
         ),
         RecentScanScoreDisplay.verdictLabel,
@@ -105,7 +110,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: null,
-          verdict: 'NOT_SCORED',
+          productSafetyStatus: 'NO_KNOWN_CATALOG_CONCERN',
+          qualityAssessmentStatus: 'partial',
           mappedCoverage: 0.9,
         ),
         RecentScanScoreDisplay.verdictLabel,
@@ -117,7 +123,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: null,
-          verdict: null,
+          productSafetyStatus: 'NOT_ASSESSED',
+          qualityAssessmentStatus: 'partial',
           mappedCoverage: 0.9,
         ),
         RecentScanScoreDisplay.verdictLabel,
@@ -128,7 +135,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: null,
-          verdict: ' blocked ',
+          productSafetyStatus: ' blocked ',
+          qualityAssessmentStatus: 'complete',
           mappedCoverage: 0.9,
         ),
         RecentScanScoreDisplay.verdictLabel,
@@ -140,7 +148,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: 85,
-          verdict: 'SAFE',
+          productSafetyStatus: 'NO_KNOWN_CATALOG_CONCERN',
+          qualityAssessmentStatus: 'complete',
           mappedCoverage: 0.2,
         ),
         RecentScanScoreDisplay.limitedData,
@@ -151,7 +160,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: 85,
-          verdict: 'SAFE',
+          productSafetyStatus: 'NO_KNOWN_CATALOG_CONCERN',
+          qualityAssessmentStatus: 'complete',
           mappedCoverage: null,
         ),
         RecentScanScoreDisplay.limitedData,
@@ -162,7 +172,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: 85,
-          verdict: 'SAFE',
+          productSafetyStatus: 'NO_KNOWN_CATALOG_CONCERN',
+          qualityAssessmentStatus: 'complete',
           mappedCoverage: 0.3,
         ),
         RecentScanScoreDisplay.tierScore,
@@ -173,7 +184,8 @@ void main() {
       expect(
         recentScanScoreDisplayFor(
           score: null,
-          verdict: 'BLOCKED',
+          productSafetyStatus: 'BLOCKED',
+          qualityAssessmentStatus: 'complete',
           mappedCoverage: 0.1,
         ),
         RecentScanScoreDisplay.verdictLabel,
@@ -183,24 +195,30 @@ void main() {
 
   group('recentScanStatusLabel', () {
     test('BLOCKED renders "Blocked"', () {
-      expect(recentScanStatusLabel('BLOCKED'), 'Blocked');
+      expect(recentScanStatusLabel('BLOCKED', 'complete'), 'Blocked');
     });
 
     test('UNSAFE renders "Unsafe"', () {
-      expect(recentScanStatusLabel('UNSAFE'), 'Unsafe');
+      expect(recentScanStatusLabel('UNSAFE', 'complete'), 'Unsafe');
     });
 
     test('NOT_SCORED renders "Not scored"', () {
-      expect(recentScanStatusLabel('NOT_SCORED'), 'Not scored');
+      expect(
+        recentScanStatusLabel('NO_KNOWN_CATALOG_CONCERN', 'partial'),
+        'Not scored',
+      );
     });
 
     test('null verdict falls back to "Not scored"', () {
-      expect(recentScanStatusLabel(null), 'Not scored');
+      expect(recentScanStatusLabel('NOT_ASSESSED', 'failed'), 'Not scored');
     });
 
     test('inconsistent positive verdict without a score never implies '
         'safety — falls back to "Not scored"', () {
-      expect(recentScanStatusLabel('SAFE'), 'Not scored');
+      expect(
+        recentScanStatusLabel('NO_KNOWN_CATALOG_CONCERN', 'complete'),
+        'Not scored',
+      );
     });
   });
 

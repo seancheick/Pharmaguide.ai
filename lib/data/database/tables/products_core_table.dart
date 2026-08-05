@@ -50,7 +50,7 @@ class ProductsCore extends Table {
   TextColumn get formFactor => text().named('form_factor').nullable()();
   TextColumn get supplementType => text().named('supplement_type').nullable()();
 
-  // Scores — v4 production contract (export schema 2.0.0).
+  // Scores — v4 production contract (export schema 2.2.0).
   TextColumn get scoreDisplay100Equivalent =>
       text().named('score_display_100_equivalent').nullable()();
   // Honest /100 mirror. Mirrors quality_score_v4_100 when scored and is NULL
@@ -62,19 +62,24 @@ class ProductsCore extends Table {
   TextColumn get safetyVerdict => text().named('safety_verdict').nullable()();
   RealColumn get mappedCoverage => real().named('mapped_coverage').nullable()();
 
-  // `quality_score_v4_100` is the canonical shipped
-  // score (NULL when status != 'scored'); `quality_score_status` drives
+  // `quality_score_v4_100` is the whole-number canonical shipped score
+  // (NULL when status != 'scored'); `quality_score_status` drives
   // display/eligibility; `quality_tier` is the Elite…Poor band;
   // `quality_score_suppressed_reason` says why a suppressed score is NULL.
-  // `raw_score_v4_100` is AUDIT-ONLY — never display or rank on it.
   RealColumn get qualityScoreV4100 =>
       real().named('quality_score_v4_100').nullable()();
   TextColumn get qualityScoreStatus =>
       text().named('quality_score_status').nullable()();
+  // Independent catalog states. Neither field includes personalized
+  // medication/condition/allergy logic, and product_safety_status never
+  // derives from the numeric quality score.
+  TextColumn get productSafetyStatus =>
+      text().named('product_safety_status').nullable()();
+  TextColumn get qualityAssessmentStatus =>
+      text().named('quality_assessment_status').nullable()();
   TextColumn get qualityTier => text().named('quality_tier').nullable()();
   TextColumn get qualityScoreSuppressedReason =>
       text().named('quality_score_suppressed_reason').nullable()();
-  RealColumn get rawScoreV4100 => real().named('raw_score_v4_100').nullable()();
   TextColumn get v4Module => text().named('v4_module').nullable()();
   TextColumn get v4Confidence => text().named('v4_confidence').nullable()();
   TextColumn get scoreModelVersion =>

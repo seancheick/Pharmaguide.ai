@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -157,10 +158,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
     // Severity-gated haptics stay on the production path; reveal plays
     // no second haptic (playHaptic: false).
-    unawaited(PGHaptics.forVerdict(product.verdict, context));
+    final safetyStatus = catalogProductSafetyStatusId(
+      catalogProductSafetyStatus(product),
+    );
+    unawaited(PGHaptics.forVerdict(safetyStatus, context));
 
     setState(() {
-      _revealKind = verdictRevealKind(product.verdict);
+      _revealKind = verdictRevealKind(safetyStatus);
       _revealCaption = product.productName.trim().isEmpty
           ? null
           : product.productName.trim();

@@ -743,6 +743,41 @@ void main() {
     );
 
     testWidgets(
+      'connected screen renders the shipped category cap as explicit score math',
+      (tester) async {
+        final pillars = _connectedV4Pillars();
+        pillars['formulation'] = {
+          'score': 12.0,
+          'max': 20,
+          'reason': 'Pipeline formulation reason.',
+          'components': {'score_before_public_cap': 13.0},
+        };
+        await _pumpConnectedScreen(
+          tester,
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': [_activeLedgerRow('Active row', 0)],
+            'quality_pillars_v4': pillars,
+            'quality_score_cap_v4': const {
+              'applied': true,
+              'score_before_cap': 89.0,
+              'score_after_cap': 88.0,
+            },
+          },
+        );
+
+        final adjustment = find.text('Category calibration');
+        await _scrollConnectedTowardBottomUntil(tester, adjustment);
+        expect(find.text('Pillar subtotal'), findsOneWidget);
+        expect(find.text('89/100'), findsOneWidget);
+        expect(adjustment, findsOneWidget);
+        expect(find.text('−1'), findsOneWidget);
+        expect(find.text('Final score'), findsOneWidget);
+        expect(find.text('88/100'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'probiotic label research follows Ingredients and renders only once',
       (tester) async {
         tester.view.physicalSize = const Size(900, 1800);

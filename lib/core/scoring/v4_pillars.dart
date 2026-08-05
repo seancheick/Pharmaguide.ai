@@ -16,8 +16,14 @@ const List<(String, String, int)> kV4PillarSpec = [
   ('evidence', 'Evidence', 20),
   ('transparency', 'Transparency', 15),
   ('verification', 'Testing & Brand', 15),
-  ('safety_hygiene', 'Safety Hygiene', 10),
+  ('safety_hygiene', 'Formula & quality checks', 10),
 ];
+
+const String kFormulaQualityChecksScope =
+    'Reviews catalog-level concerns such as recalls, dose-limit findings, '
+    'additives, and formulation flags. It does not assess whether this '
+    'product is appropriate for your medications, conditions, allergies, '
+    'pregnancy status, or other personal factors.';
 
 /// Named in-page destinations for consumer-useful supporting detail only.
 /// Transparency is already explained by the visible label ledger, so repeating
@@ -85,7 +91,7 @@ class V4PillarValue {
   /// Blob key, e.g. `formulation` / `safety_hygiene`.
   final String key;
 
-  /// Display label, e.g. "Safety Hygiene".
+  /// Display label, e.g. "Formula & quality checks".
   final String label;
 
   /// Pillar max — the blob's `max` when present, else the spec fallback.

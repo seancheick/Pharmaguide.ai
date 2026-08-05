@@ -33,6 +33,11 @@ void main() {
     expect(elite.qualityScoreStatus, 'scored');
     expect(elite.qualityTier, 'Elite');
     expect(elite.scoreModelVersion, 'v4');
+    // This frozen v2.0 fixture predates the additive v2.2 consumer-semantics
+    // fields. The compatibility layer must add them as nullable rather than
+    // rejecting or misclassifying the old catalog.
+    expect(elite.productSafetyStatus, isNull);
+    expect(elite.qualityAssessmentStatus, isNull);
   });
 
   test('safety-suppressed product is findable but carries no number', () async {

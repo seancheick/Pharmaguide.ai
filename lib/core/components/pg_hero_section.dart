@@ -64,11 +64,11 @@ bool heroShowsTrustChips({required bool isBlocked, required int tagCount}) =>
 /// are deliberately left untouched. Verdict match is case/whitespace
 /// tolerant; the pipeline ships uppercase `CAUTION`.
 bool heroShowsCautionCue({
-  required String? verdict,
+  required bool hasCatalogCaution,
   required HeroScoreDisplay scoreDisplay,
 }) {
   if (scoreDisplay != HeroScoreDisplay.tierScore) return false;
-  return verdict?.trim().toUpperCase() == 'CAUTION';
+  return hasCatalogCaution;
 }
 
 /// v2 mirror of `_HeaderSection` in
@@ -138,13 +138,13 @@ class PGHeroSection extends StatelessWidget {
   /// production Blocked / Avoid banners). Null skips the slot.
   final Widget? bottomBanner;
 
-  /// Pipeline verdict string (e.g. `CAUTION`, `SAFE`, `POOR`). When it is
-  /// `CAUTION` — including the dose-driven `DOSE_OVER_UL_*` CAUTION — the
+  /// Whether the independent catalog safety assessment is `caution`. When
+  /// true — including dose-driven `DOSE_OVER_UL_*` caution — the
   /// hero paints a caution cue beside the tier score line so an over-UL
   /// product with a high formulation score does not read as "Excellent".
   /// Null (the default) means no cue; BLOCKED / NOT_SCORED still route
   /// through [isBlocked] / [isNotScored] as before.
-  final String? verdict;
+  final bool hasCatalogCaution;
 
   const PGHeroSection({
     super.key,
@@ -161,7 +161,7 @@ class PGHeroSection extends StatelessWidget {
     this.lowCoverage = false,
     this.limitedAssessment = false,
     this.bottomBanner,
-    this.verdict,
+    this.hasCatalogCaution = false,
   });
 
   @override
@@ -180,7 +180,7 @@ class PGHeroSection extends StatelessWidget {
       tagCount: trustTags.length,
     );
     final showCautionCue = heroShowsCautionCue(
-      verdict: verdict,
+      hasCatalogCaution: hasCatalogCaution,
       scoreDisplay: scoreDisplay,
     );
 

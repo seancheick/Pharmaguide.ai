@@ -23,6 +23,7 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/presentation/package_identity.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/features/product_detail/v2/gating.dart';
@@ -95,12 +96,6 @@ Widget buildHeroSection({
   required bool isNotScored,
   required List<HeroTrustTag> trustTags,
   Widget? bottomBanner,
-  // Pipeline verdict string (`_product?.verdict`). When `CAUTION` — incl.
-  // the dose-driven `DOSE_OVER_UL_*` CAUTION — the hero surfaces a caution
-  // cue beside the tier score. Optional/null-default so callers that have
-  // not wired it yet keep compiling; BLOCKED / NOT_SCORED still route
-  // through [isBlocked] / [isNotScored].
-  String? verdict,
 }) {
   return PGHeroSection(
     imageWidget: ProductImage(
@@ -146,6 +141,9 @@ Widget buildHeroSection({
     lowCoverage: productHasLowCoverage(product),
     limitedAssessment: hasLimitedAssessmentConfidence(product?.v4Confidence),
     bottomBanner: bottomBanner,
-    verdict: verdict,
+    hasCatalogCaution:
+        product != null &&
+        catalogProductSafetyStatus(product) ==
+            CatalogProductSafetyStatus.caution,
   );
 }

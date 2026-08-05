@@ -14,6 +14,7 @@
 //                          the bigger clinical risk).
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 
@@ -24,16 +25,28 @@ void main() {
     });
 
     test('verdict tone matching is case/whitespace-insensitive', () {
-      expect(searchVerdictTone(V2Palette.light, ' safe '), V2Palette.light.safe);
+      expect(
+        searchVerdictTone(V2Palette.light, ' safe '),
+        V2Palette.light.safe,
+      );
     });
 
     test('BLOCKED / UNSAFE stay contraindicated', () {
-      expect(searchVerdictTone(V2Palette.light, 'BLOCKED'), V2Palette.light.contraindicated);
-      expect(searchVerdictTone(V2Palette.light, 'UNSAFE'), V2Palette.light.contraindicated);
+      expect(
+        searchVerdictTone(V2Palette.light, 'BLOCKED'),
+        V2Palette.light.contraindicated,
+      );
+      expect(
+        searchVerdictTone(V2Palette.light, 'UNSAFE'),
+        V2Palette.light.contraindicated,
+      );
     });
 
     test('NOT_SCORED stays on the neutral fallback', () {
-      expect(searchVerdictTone(V2Palette.light, 'NOT_SCORED'), V2Palette.light.fgMuted);
+      expect(
+        searchVerdictTone(V2Palette.light, 'NOT_SCORED'),
+        V2Palette.light.fgMuted,
+      );
     });
   });
 
@@ -126,56 +139,28 @@ void main() {
     });
   });
 
-  group('searchShowsVerdictChip', () {
-    test('positive (green) verdicts are suppressed under low coverage', () {
+  group('searchSafetyStatusLabel', () {
+    test('no catalog concern does not render a SAFE chip', () {
       expect(
-        searchShowsVerdictChip(verdict: 'SAFE', mappedCoverage: 0.1),
-        isFalse,
-      );
-      expect(
-        searchShowsVerdictChip(verdict: 'GOOD', mappedCoverage: null),
-        isFalse,
-      );
-      expect(
-        searchShowsVerdictChip(verdict: 'RECOMMENDED', mappedCoverage: 0.2),
-        isFalse,
+        searchSafetyStatusLabel(
+          CatalogProductSafetyStatus.noKnownCatalogConcern,
+        ),
+        isNull,
       );
     });
 
-    test('positive verdicts render normally with trusted coverage', () {
+    test('actionable and unknown safety states remain visible', () {
       expect(
-        searchShowsVerdictChip(verdict: 'SAFE', mappedCoverage: 0.9),
-        isTrue,
-      );
-    });
-
-    test('warning verdicts always render — even under low coverage', () {
-      expect(
-        searchShowsVerdictChip(verdict: 'CAUTION', mappedCoverage: 0.1),
-        isTrue,
+        searchSafetyStatusLabel(CatalogProductSafetyStatus.caution),
+        'Caution',
       );
       expect(
-        searchShowsVerdictChip(verdict: 'BLOCKED', mappedCoverage: 0.1),
-        isTrue,
+        searchSafetyStatusLabel(CatalogProductSafetyStatus.blocked),
+        'Blocked',
       );
       expect(
-        searchShowsVerdictChip(verdict: 'UNSAFE', mappedCoverage: null),
-        isTrue,
-      );
-      expect(
-        searchShowsVerdictChip(verdict: 'POOR', mappedCoverage: 0.1),
-        isTrue,
-      );
-    });
-
-    test('empty / null verdict renders no chip', () {
-      expect(
-        searchShowsVerdictChip(verdict: null, mappedCoverage: 0.9),
-        isFalse,
-      );
-      expect(
-        searchShowsVerdictChip(verdict: '  ', mappedCoverage: 0.9),
-        isFalse,
+        searchSafetyStatusLabel(CatalogProductSafetyStatus.notAssessed),
+        'Not assessed',
       );
     });
   });

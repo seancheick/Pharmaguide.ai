@@ -39,7 +39,7 @@ const Map<String, String> _pillarDefinitions = {
   'transparency': 'Label clarity — full amounts, no hidden blends.',
   'verification':
       'Third-party testing when available, plus brand and manufacturing signals.',
-  'safety_hygiene': 'Flagged additives and contaminant signals.',
+  'safety_hygiene': kFormulaQualityChecksScope,
 };
 
 /// Opens the Trust Receipts sheet. Counts are read live from

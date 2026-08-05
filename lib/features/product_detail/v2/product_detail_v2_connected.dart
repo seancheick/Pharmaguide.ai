@@ -35,6 +35,7 @@ import 'package:pharmaguide/core/components/pg_empty_state.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -312,10 +313,7 @@ class _ProductDetailV2ConnectedState
   Widget build(BuildContext context) {
     if (_productLoading) {
       return Scaffold(
-        appBar: AppBar(
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-        ),
+        appBar: AppBar(surfaceTintColor: Colors.transparent, elevation: 0),
         body: const _ProductDetailLoadingState(),
       );
     }
@@ -516,7 +514,8 @@ class _ProductDetailV2ConnectedState
     //   evidence            → clinical Evidence section
     //   verification        → Certifications (third-party) section
     // Transparency already has the visible label ledger; Formulation, Dose,
-    // and Safety Hygiene are explained in place. None need another link.
+    // and Formula & quality checks are explained in place. None need another
+    // link.
     // -------------------------------------------------------------
     // Prime fractions approximate each target's position in the page so
     // the lazy SliverList builds it before the keyed ensureVisible lands
@@ -605,7 +604,9 @@ class _ProductDetailV2ConnectedState
     final heroBottomBanner = isBlocked
         ? buildBlockedBannerSection(
             context: context,
-            verdict: _product?.verdict ?? '',
+            verdict: catalogProductSafetyStatusId(
+              catalogProductSafetyStatus(_product!),
+            ),
             blockingReason: _product?.blockingReason ?? '',
             topWarnings: parseTopWarnings(_product),
             bannedSubstanceDetail:
@@ -648,7 +649,6 @@ class _ProductDetailV2ConnectedState
                     score100: score100,
                     isBlocked: isBlocked,
                     isNotScored: isNotScored,
-                    verdict: _product?.verdict,
                     trustTags: trustTags,
                     bottomBanner: heroBottomBanner,
                   ),
@@ -730,7 +730,7 @@ class _ProductDetailV2ConnectedState
                         blobAllergens == null || blobAllergens.isEmpty,
                   )) ...[
                     buildAllergenSummaryBannerSection(
-            context: context,
+                      context: context,
                       allergenSummary: _product?.allergenSummary,
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -816,6 +816,10 @@ class _ProductDetailV2ConnectedState
                       qualityPillarsV4: _blobMap(
                         detailBlob,
                         'quality_pillars_v4',
+                      ),
+                      qualityScoreCapV4: _blobMap(
+                        detailBlob,
+                        'quality_score_cap_v4',
                       ),
                       onPillarTap: onPillarTap,
                     ),
@@ -905,7 +909,7 @@ class _ProductDetailV2ConnectedState
                   if (showDeepDive) ...[
                     ..._sectionWithTrailingGap(
                       buildFormulationSection(
-            context: context,
+                        context: context,
                         formulationDetail: _blobMap(
                           detailBlob,
                           'formulation_detail',

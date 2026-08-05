@@ -34,14 +34,13 @@ void main() {
       expect(out, hasLength(1));
     });
 
-    test('does not flag SAFE/CAUTION/POOR/NOT_SCORED/unknown/null', () {
+    test('does not flag non-blocking catalog safety states', () {
       final out = unsafeSelfVerdicts(const [
-        QuickCheckSelection('a', 'SAFE'),
+        QuickCheckSelection('a', 'NO_KNOWN_CATALOG_CONCERN'),
         QuickCheckSelection('b', 'CAUTION'),
-        QuickCheckSelection('c', 'POOR'),
-        QuickCheckSelection('d', 'NOT_SCORED'),
+        QuickCheckSelection('c', 'NOT_ASSESSED'),
+        QuickCheckSelection('d', 'NOT_ASSESSED'),
         QuickCheckSelection('e', 'WEIRD_FUTURE'),
-        QuickCheckSelection('f', null),
       ]);
       expect(out, isEmpty);
     });

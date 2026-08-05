@@ -139,7 +139,7 @@ void main() {
       'Evidence',
       'Transparency',
       'Testing & Brand',
-      'Safety Hygiene',
+      'Formula & quality checks',
     ]) {
       expect(find.text(label), findsOneWidget);
     }
