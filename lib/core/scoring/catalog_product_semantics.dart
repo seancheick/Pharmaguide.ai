@@ -100,16 +100,37 @@ bool catalogProductIsBlocked(ProductsCoreData? product) {
 
 bool catalogProductIsNotScored(ProductsCoreData? product) {
   if (product == null) return false;
-  switch (product.qualityScoreStatus?.trim().toLowerCase()) {
-    case 'not_scored':
-      return true;
-    case 'scored':
-    case 'suppressed_safety':
-      return false;
+
+  final assessmentStatus = product.qualityAssessmentStatus?.trim();
+  final hasAssessmentStatus = assessmentStatus?.isNotEmpty == true;
+  if (hasAssessmentStatus &&
+      catalogAssessmentStatus(product) != CatalogAssessmentStatus.complete) {
+    // The independent completion state is authoritative. A stale "scored"
+    // field or numeric value must not turn a partial/failed assessment into a
+    // completed one.
+    return true;
   }
 
-  if (product.qualityAssessmentStatus?.trim().isNotEmpty == true) {
-    return catalogAssessmentStatus(product) != CatalogAssessmentStatus.complete;
+  final scoreStatus = product.qualityScoreStatus?.trim().toLowerCase();
+  switch (scoreStatus) {
+    case 'not_scored':
+      return true;
+    case 'suppressed_safety':
+      return false;
+    case 'scored':
+      // A completed public score requires the public numeric value. This
+      // fail-closed check mirrors the release gate for mixed-version caches.
+      return product.qualityScoreV4100 == null;
+  }
+  if (scoreStatus?.isNotEmpty == true) {
+    // Populated but unknown new-contract values are schema drift.
+    return true;
+  }
+
+  if (hasAssessmentStatus) {
+    // A complete assessment without a score-status field can occur during an
+    // additive-schema transition. Keep the numeric value only when present.
+    return product.qualityScoreV4100 == null;
   }
 
   // Legacy verdict and null-score fallback for catalogs older than 2.2.0.
