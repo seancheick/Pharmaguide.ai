@@ -754,6 +754,8 @@ class _SuggestionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final confidenceLabel = item.scoreConfidenceLabel;
+    final limitedConfidence = confidenceLabel == 'Limited';
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -797,12 +799,20 @@ class _SuggestionRow extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: context.v2.accentTint,
+                    color: limitedConfidence
+                        ? context.v2.bg
+                        : context.v2.accentTint,
                     borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                   ),
                   child: Text(
-                    '${item.score}',
-                    style: V2Typography.eyebrow(color: context.v2.accent),
+                    confidenceLabel == null
+                        ? '${item.score}'
+                        : '${item.score} · $confidenceLabel',
+                    style: V2Typography.eyebrow(
+                      color: limitedConfidence
+                          ? context.v2.fgMuted
+                          : context.v2.accent,
+                    ),
                   ),
                 ),
               ],

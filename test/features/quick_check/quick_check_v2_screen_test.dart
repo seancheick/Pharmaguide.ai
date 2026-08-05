@@ -32,7 +32,12 @@ void main() {
             // `canonicalIdsForProduct` reads `key_ingredient_tags`
             // first (Phase 11.11.B canonical resolver unification).
             keyIngredientTags: const drift.Value('["potassium"]'),
-            score100Equivalent: const drift.Value(82),
+            qualityScoreV4100: const drift.Value(82),
+            mappedCoverage: const drift.Value(0.9),
+            productSafetyStatus: const drift.Value('no_known_catalog_concern'),
+            qualityAssessmentStatus: const drift.Value('complete'),
+            qualityScoreStatus: const drift.Value('scored'),
+            v4Confidence: const drift.Value('moderate'),
             exportVersion: 'test',
             exportedAt: '2026-05-17T00:00:00Z',
           ),
@@ -88,6 +93,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
 
+    expect(find.text('82 · Moderate'), findsOneWidget);
     await tester.tap(find.text('Potassium Complex'));
     await tester.pumpAndSettle();
 
