@@ -1602,6 +1602,7 @@ class _SearchProductListTile extends StatelessWidget {
     final scoreChip = searchScoreChipDisplayFor(
       score: score,
       isBlocked: catalogProductIsBlocked(product),
+      isNotScored: catalogProductIsNotScored(product),
       mappedCoverage: product.mappedCoverage,
       v4Confidence: product.v4Confidence,
     );
@@ -1731,6 +1732,7 @@ class _SearchProductGridTile extends StatelessWidget {
     final scoreChip = searchScoreChipDisplayFor(
       score: score,
       isBlocked: catalogProductIsBlocked(product),
+      isNotScored: catalogProductIsNotScored(product),
       mappedCoverage: product.mappedCoverage,
       v4Confidence: product.v4Confidence,
     );
@@ -1888,6 +1890,10 @@ class _SearchProductImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canShowScore =
+        !catalogProductIsBlocked(product) &&
+        !catalogProductIsNotScored(product) &&
+        !isLowCoverage(product.mappedCoverage);
     return Container(
       width: size,
       height: size,
@@ -1904,7 +1910,7 @@ class _SearchProductImage extends StatelessWidget {
         productName: product.productName,
         brandName: product.brandName ?? '',
         formFactor: product.formFactor,
-        score: product.qualityScoreV4100,
+        score: canShowScore ? product.qualityScoreV4100 : null,
         size: size - (V2Spacing.space4 * 2),
         compact: true,
       ),
@@ -2344,10 +2350,11 @@ SearchScoreChipDisplay searchScoreChipDisplayFor({
   required double? score,
   String? verdict,
   bool? isBlocked,
+  bool isNotScored = false,
   required double? mappedCoverage,
   String? v4Confidence,
 }) {
-  if (isBlocked ?? isUnsafeVerdict(verdict)) {
+  if ((isBlocked ?? isUnsafeVerdict(verdict)) || isNotScored) {
     return SearchScoreChipDisplay.hidden;
   }
   if (score == null) return SearchScoreChipDisplay.hidden;

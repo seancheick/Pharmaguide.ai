@@ -106,6 +106,18 @@ void main() {
       );
     });
 
+    test('failed assessment hides a leaked score', () {
+      expect(
+        searchScoreChipDisplayFor(
+          score: 85,
+          isNotScored: true,
+          mappedCoverage: 0.9,
+          v4Confidence: 'high',
+        ),
+        SearchScoreChipDisplay.hidden,
+      );
+    });
+
     test('null score renders no chip — never a fabricated number', () {
       expect(
         searchScoreChipDisplayFor(
