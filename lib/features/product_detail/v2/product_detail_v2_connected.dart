@@ -954,6 +954,7 @@ class _ProductDetailV2ConnectedState
                       isBlocked: isBlocked,
                       isNotScored: isNotScored,
                       score100: score100,
+                      qualityTier: _product?.qualityTier,
                       profileIncomplete:
                           profileRelevanceSummary.profileIncomplete,
                     ),

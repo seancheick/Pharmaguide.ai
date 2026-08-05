@@ -1008,6 +1008,7 @@ class _RecentScanCard extends StatelessWidget {
       case RecentScanScoreDisplay.tierScore:
         return PGScoreLine(
           score: scan.score!.round(),
+          qualityTier: scan.qualityTier,
           compact: true,
           confidence: scan.v4Confidence,
         );
@@ -1345,6 +1346,7 @@ typedef RecentScan = ({
   String brand,
   String name,
   double? score,
+  String? qualityTier,
   String productSafetyStatus,
   String qualityAssessmentStatus,
   double? mappedCoverage,
@@ -1367,6 +1369,7 @@ RecentScan recentScanFromProduct(
     brand: product.brandName ?? '',
     name: product.productName,
     score: product.qualityScoreV4100,
+    qualityTier: product.qualityTier,
     productSafetyStatus: catalogProductSafetyStatusId(
       catalogProductSafetyStatus(product),
     ),

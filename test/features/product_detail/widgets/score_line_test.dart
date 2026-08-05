@@ -1,21 +1,20 @@
 // Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T10.
 //
-// Widget tests for the text-based score line. Verifies tier mapping
-// at 5 representative scores (one per visible tier band — exceptional,
-// excellent, good, fair, low quality, poor — sampled at distinct
-// scores so the rendered Text widgets have unique label matches).
+// Widget tests for the text-based score line. Catalog tests pass the
+// pipeline's authoritative `quality_tier`; fallback tests omit it to
+// cover old cached records.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 
-Future<void> _pump(WidgetTester tester, int score) {
+Future<void> _pump(WidgetTester tester, int score, {String? qualityTier}) {
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: Padding(
           padding: const EdgeInsets.all(20),
-          child: PGScoreLine(score: score),
+          child: PGScoreLine(score: score, qualityTier: qualityTier),
         ),
       ),
     ),
@@ -24,46 +23,55 @@ Future<void> _pump(WidgetTester tester, int score) {
 
 void main() {
   group('PGScoreLine — renders score + tier + description', () {
-    testWidgets('92 → Exceptional (deep green)', (tester) async {
-      await _pump(tester, 92);
-      expect(find.text('92/100'), findsOneWidget);
-      expect(find.text('Exceptional'), findsOneWidget);
+    testWidgets('97 + Elite → Elite (deep green)', (tester) async {
+      await _pump(tester, 97, qualityTier: 'Elite');
+      expect(find.text('97/100'), findsOneWidget);
+      expect(find.text('Elite'), findsOneWidget);
       expect(find.textContaining('High-quality ingredients'), findsOneWidget);
     });
 
-    testWidgets('85 → Excellent', (tester) async {
-      await _pump(tester, 85);
-      expect(find.text('85/100'), findsOneWidget);
+    testWidgets('92 + Excellent → Excellent', (tester) async {
+      await _pump(tester, 92, qualityTier: 'Excellent');
+      expect(find.text('92/100'), findsOneWidget);
       expect(find.text('Excellent'), findsOneWidget);
       expect(find.textContaining('Well-formulated'), findsOneWidget);
     });
 
-    testWidgets('75 → Good (teal)', (tester) async {
-      await _pump(tester, 75);
-      expect(find.text('75/100'), findsOneWidget);
-      expect(find.text('Good'), findsOneWidget);
+    testWidgets('82 + Strong → Strong (teal)', (tester) async {
+      await _pump(tester, 82, qualityTier: 'Strong');
+      expect(find.text('82/100'), findsOneWidget);
+      expect(find.text('Strong'), findsOneWidget);
       expect(find.textContaining('Reliable option'), findsOneWidget);
     });
 
-    testWidgets('65 → Fair', (tester) async {
-      await _pump(tester, 65);
-      expect(find.text('65/100'), findsOneWidget);
-      expect(find.text('Fair'), findsOneWidget);
+    testWidgets('75 + Acceptable → Acceptable', (tester) async {
+      await _pump(tester, 75, qualityTier: 'Acceptable');
+      expect(find.text('75/100'), findsOneWidget);
+      expect(find.text('Acceptable'), findsOneWidget);
       expect(find.textContaining('Adequate formulation'), findsOneWidget);
     });
 
-    testWidgets('55 → Low Quality', (tester) async {
-      await _pump(tester, 55);
-      expect(find.text('55/100'), findsOneWidget);
-      expect(find.text('Low Quality'), findsOneWidget);
+    testWidgets('60 + Weak → Weak', (tester) async {
+      await _pump(tester, 60, qualityTier: 'Weak');
+      expect(find.text('60/100'), findsOneWidget);
+      expect(find.text('Weak'), findsOneWidget);
       expect(find.textContaining('Notable concerns'), findsOneWidget);
     });
 
     testWidgets('30 → Poor (red)', (tester) async {
-      await _pump(tester, 30);
+      await _pump(tester, 30, qualityTier: 'Poor');
       expect(find.text('30/100'), findsOneWidget);
       expect(find.text('Poor'), findsOneWidget);
       expect(find.textContaining('Significant concerns'), findsOneWidget);
+    });
+
+    testWidgets('shipped tier wins when rounded score suggests another band', (
+      tester,
+    ) async {
+      await _pump(tester, 80, qualityTier: 'Acceptable');
+      expect(find.text('80/100'), findsOneWidget);
+      expect(find.text('Acceptable'), findsOneWidget);
+      expect(find.text('Strong'), findsNothing);
     });
   });
 
@@ -74,21 +82,21 @@ void main() {
       expect(find.text('Poor'), findsOneWidget);
     });
 
-    testWidgets('100 → Exceptional, displays 100/100', (tester) async {
+    testWidgets('100 → Elite, displays 100/100', (tester) async {
       await _pump(tester, 100);
       expect(find.text('100/100'), findsOneWidget);
-      expect(find.text('Exceptional'), findsOneWidget);
+      expect(find.text('Elite'), findsOneWidget);
     });
 
     testWidgets('out-of-range high (105) clamps tier but keeps display', (
       tester,
     ) async {
       // Defensive: a future score-overflow bug shouldn't crash the
-      // widget. Tier clamps to Exceptional, score-text shows the raw
+      // widget. Tier clamps to Elite, score-text shows the raw
       // value so a data-quality issue is visible.
       await _pump(tester, 105);
       expect(find.text('105/100'), findsOneWidget);
-      expect(find.text('Exceptional'), findsOneWidget);
+      expect(find.text('Elite'), findsOneWidget);
     });
 
     testWidgets('out-of-range low (-5) clamps tier but keeps display', (
@@ -128,6 +136,7 @@ void main() {
           home: Scaffold(
             body: PGScoreLine(
               score: 92,
+              qualityTier: 'Elite',
               descriptionOverride: 'Custom blurb for this product',
             ),
           ),

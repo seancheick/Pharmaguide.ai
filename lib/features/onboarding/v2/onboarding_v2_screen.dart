@@ -430,7 +430,7 @@ class _ScoreLineDemo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tier = tierForScore(score);
+    final tier = legacyTierForScore(score);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -443,7 +443,10 @@ class _ScoreLineDemo extends StatelessWidget {
           ),
         ),
         const SizedBox(width: V2Spacing.space8),
-        Text('$score/100', style: V2Typography.bodyMedium(color: context.v2.fg)),
+        Text(
+          '$score/100',
+          style: V2Typography.bodyMedium(color: context.v2.fg),
+        ),
         const SizedBox(width: V2Spacing.space8),
         Text(
           tier.label,
@@ -624,7 +627,10 @@ class _TrustRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 88, child: PGEyebrow(eyebrow, color: context.v2.fgMuted)),
+        SizedBox(
+          width: 88,
+          child: PGEyebrow(eyebrow, color: context.v2.fgMuted),
+        ),
         const SizedBox(width: V2Spacing.space12),
         Expanded(
           child: Text(label, style: V2Typography.body(color: context.v2.fg)),

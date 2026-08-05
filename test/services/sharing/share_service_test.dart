@@ -58,7 +58,7 @@ void main() {
       await service.shareProduct(
         productName: 'Daily Multi',
         qualityScore: 90,
-        qualityTier: 'Exceptional',
+        qualityTier: 'Elite',
       );
 
       expect(capturedText, isNot(contains('for your profile')));

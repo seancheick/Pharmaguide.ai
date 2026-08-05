@@ -51,6 +51,7 @@ ProductsCoreCompanion _product({
   String? verdict,
   String? blobSha,
   String? v4Confidence,
+  String? qualityTier,
 }) {
   return ProductsCoreCompanion.insert(
     dsldId: dsldId,
@@ -61,6 +62,7 @@ ProductsCoreCompanion _product({
     primaryCategory: drift.Value(category),
     verdict: drift.Value(verdict),
     v4Confidence: drift.Value(v4Confidence),
+    qualityTier: drift.Value(qualityTier),
     detailBlobSha256: drift.Value(blobSha),
     exportVersion: 'test',
     exportedAt: '2026-06-01T00:00:00Z',
@@ -163,6 +165,7 @@ void main() {
         dsldId: 'prod-a',
         name: 'Alpha',
         score: 85,
+        qualityTier: 'Acceptable',
         v4Confidence: 'moderate',
       ),
       blob: _pillarsBlob(),
@@ -183,7 +186,7 @@ void main() {
     expect(find.text('Score confidence: Limited'), findsOneWidget);
     expect(find.text('85/100'), findsNWidgets(2));
     // Only the moderate-confidence side retains its tier adjective.
-    expect(find.text('Excellent'), findsOneWidget);
+    expect(find.text('Acceptable'), findsOneWidget);
 
     await tearDownDbs(tester);
   });

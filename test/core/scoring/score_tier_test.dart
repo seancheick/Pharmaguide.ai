@@ -32,55 +32,82 @@ String _hex(Color c) =>
     '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
 void main() {
-  group('tierForScore — boundary thresholds', () {
-    test('90/100 boundary — 89 → Excellent, 90 → Exceptional', () {
-      expect(tierForScore(89), ScoreTier.excellent);
-      expect(tierForScore(90), ScoreTier.exceptional);
+  group('legacyTierForScore — pipeline-compatible fallback thresholds', () {
+    test('95/94 boundary — 94 → Excellent, 95 → Elite', () {
+      expect(legacyTierForScore(94), ScoreTier.excellent);
+      expect(legacyTierForScore(95), ScoreTier.elite);
     });
 
-    test('80/79 boundary — 79 → Good, 80 → Excellent', () {
-      expect(tierForScore(79), ScoreTier.good);
-      expect(tierForScore(80), ScoreTier.excellent);
+    test('90/89 boundary — 89 → Strong, 90 → Excellent', () {
+      expect(legacyTierForScore(89), ScoreTier.strong);
+      expect(legacyTierForScore(90), ScoreTier.excellent);
     });
 
-    test('70/69 boundary — 69 → Fair, 70 → Good', () {
-      expect(tierForScore(69), ScoreTier.fair);
-      expect(tierForScore(70), ScoreTier.good);
+    test('80/79 boundary — 79 → Acceptable, 80 → Strong', () {
+      expect(legacyTierForScore(79), ScoreTier.acceptable);
+      expect(legacyTierForScore(80), ScoreTier.strong);
     });
 
-    test('60/59 boundary — 59 → Low Quality, 60 → Fair', () {
-      expect(tierForScore(59), ScoreTier.lowQuality);
-      expect(tierForScore(60), ScoreTier.fair);
+    test('70/69 boundary — 69 → Weak, 70 → Acceptable', () {
+      expect(legacyTierForScore(69), ScoreTier.weak);
+      expect(legacyTierForScore(70), ScoreTier.acceptable);
     });
 
-    test('50/49 boundary — 49 → Poor, 50 → Low Quality', () {
-      expect(tierForScore(49), ScoreTier.poor);
-      expect(tierForScore(50), ScoreTier.lowQuality);
+    test('55/54 boundary — 54 → Poor, 55 → Weak', () {
+      expect(legacyTierForScore(54), ScoreTier.poor);
+      expect(legacyTierForScore(55), ScoreTier.weak);
     });
 
-    test('0/100 ends — 0 → Poor, 100 → Exceptional', () {
-      expect(tierForScore(0), ScoreTier.poor);
-      expect(tierForScore(100), ScoreTier.exceptional);
+    test('0/100 ends — 0 → Poor, 100 → Elite', () {
+      expect(legacyTierForScore(0), ScoreTier.poor);
+      expect(legacyTierForScore(100), ScoreTier.elite);
     });
 
     test('out-of-range clamps gracefully (over/under)', () {
-      // Defensive: if a future score-overflow bug feeds in 105, we
-      // shouldn't fall off the tier system — clamp to the highest
-      // tier. Same for negative inputs → lowest tier.
-      expect(tierForScore(105), ScoreTier.exceptional);
-      expect(tierForScore(999), ScoreTier.exceptional);
-      expect(tierForScore(-1), ScoreTier.poor);
-      expect(tierForScore(-100), ScoreTier.poor);
+      expect(legacyTierForScore(105), ScoreTier.elite);
+      expect(legacyTierForScore(999), ScoreTier.elite);
+      expect(legacyTierForScore(-1), ScoreTier.poor);
+      expect(legacyTierForScore(-100), ScoreTier.poor);
     });
 
     test('mid-range sanity', () {
-      // Quick sanity coverage at the middle of each band.
-      expect(tierForScore(95), ScoreTier.exceptional);
-      expect(tierForScore(85), ScoreTier.excellent);
-      expect(tierForScore(75), ScoreTier.good);
-      expect(tierForScore(65), ScoreTier.fair);
-      expect(tierForScore(55), ScoreTier.lowQuality);
-      expect(tierForScore(25), ScoreTier.poor);
+      expect(legacyTierForScore(97), ScoreTier.elite);
+      expect(legacyTierForScore(92), ScoreTier.excellent);
+      expect(legacyTierForScore(85), ScoreTier.strong);
+      expect(legacyTierForScore(75), ScoreTier.acceptable);
+      expect(legacyTierForScore(60), ScoreTier.weak);
+      expect(legacyTierForScore(25), ScoreTier.poor);
+    });
+  });
+
+  group('catalogTier — shipped tier is authoritative', () {
+    test('catalog value wins when the rounded score suggests another band', () {
+      expect(
+        catalogTier(qualityTier: 'Acceptable', legacyScore: 80),
+        ScoreTier.acceptable,
+      );
+    });
+
+    test('all pipeline labels parse case-insensitively', () {
+      expect(
+        [
+          'elite',
+          'EXCELLENT',
+          'Strong',
+          'acceptable',
+          'Weak',
+          'poor',
+        ].map((label) => catalogTier(qualityTier: label, legacyScore: 0)),
+        ScoreTier.values,
+      );
+    });
+
+    test('missing or unknown catalog values use the named legacy fallback', () {
+      expect(catalogTier(qualityTier: null, legacyScore: 82), ScoreTier.strong);
+      expect(
+        catalogTier(qualityTier: 'future-tier', legacyScore: 82),
+        ScoreTier.strong,
+      );
     });
   });
 
@@ -192,11 +219,11 @@ void main() {
     test('locked label copy matches spec', () {
       // Pin the user-visible labels — any future "let's rename
       // Excellent to Premium" needs to update this test deliberately.
-      expect(ScoreTier.exceptional.label, 'Exceptional');
+      expect(ScoreTier.elite.label, 'Elite');
       expect(ScoreTier.excellent.label, 'Excellent');
-      expect(ScoreTier.good.label, 'Good');
-      expect(ScoreTier.fair.label, 'Fair');
-      expect(ScoreTier.lowQuality.label, 'Low Quality');
+      expect(ScoreTier.strong.label, 'Strong');
+      expect(ScoreTier.acceptable.label, 'Acceptable');
+      expect(ScoreTier.weak.label, 'Weak');
       expect(ScoreTier.poor.label, 'Poor');
     });
 
@@ -204,14 +231,14 @@ void main() {
       // Don't pin the entire string (verbose), just the unique phrase
       // each tier promises. If the wording shifts, this test forces
       // a deliberate change rather than a silent one.
-      expect(
-        ScoreTier.exceptional.description,
-        contains('High-quality ingredients'),
-      );
+      expect(ScoreTier.elite.description, contains('High-quality ingredients'));
       expect(ScoreTier.excellent.description, contains('Well-formulated'));
-      expect(ScoreTier.good.description, contains('Reliable option'));
-      expect(ScoreTier.fair.description, contains('Adequate formulation'));
-      expect(ScoreTier.lowQuality.description, contains('Notable concerns'));
+      expect(ScoreTier.strong.description, contains('Reliable option'));
+      expect(
+        ScoreTier.acceptable.description,
+        contains('Adequate formulation'),
+      );
+      expect(ScoreTier.weak.description, contains('Notable concerns'));
       expect(ScoreTier.poor.description, contains('Significant concerns'));
     });
 
@@ -223,9 +250,9 @@ void main() {
       // moving lightness only, so this must survive the derivation.
       for (final brightness in Brightness.values) {
         for (final tier in [
-          ScoreTier.exceptional,
+          ScoreTier.elite,
           ScoreTier.excellent,
-          ScoreTier.good,
+          ScoreTier.strong,
         ]) {
           final c = tier.color(brightness);
           expect(
@@ -234,7 +261,7 @@ void main() {
             reason: '${tier.name} should be green-dominant in $brightness',
           );
         }
-        for (final tier in [ScoreTier.lowQuality, ScoreTier.poor]) {
+        for (final tier in [ScoreTier.weak, ScoreTier.poor]) {
           final c = tier.color(brightness);
           expect(
             (c.r * 255.0).round() > (c.g * 255.0).round(),

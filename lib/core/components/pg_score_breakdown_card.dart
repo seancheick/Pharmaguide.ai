@@ -219,7 +219,7 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                                 widget.heroScore!,
                               ),
                               style: V2Typography.titleSm(
-                                color: tierForScore(
+                                color: legacyTierForScore(
                                   widget.heroScore!.round(),
                                 ).textColor(Theme.of(context).brightness),
                               ).copyWith(fontWeight: FontWeight.w700),

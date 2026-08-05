@@ -365,8 +365,14 @@ bool _passesHardFilters(
     // sees everywhere else. This avoids a hidden local +3 heuristic and
     // prevents a same-tier 70 → 79 change from being marketed as a new
     // quality class, while still allowing a visible 59 → 60 tier crossing.
-    final currentTier = tierForScore(curScore.round());
-    final candidateTier = tierForScore(candScore.round());
+    final currentTier = catalogTier(
+      qualityTier: current.qualityTier,
+      legacyScore: curScore.round(),
+    );
+    final candidateTier = catalogTier(
+      qualityTier: candidate.qualityTier,
+      legacyScore: candScore.round(),
+    );
     if (candidateTier.index >= currentTier.index) return false;
   }
   // Safety flags — never surface a banned/recalled candidate.

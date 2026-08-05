@@ -220,6 +220,7 @@ Widget buildHeroSection({
         )
         .toList(growable: false),
     score: score100?.round(),
+    qualityTier: product?.qualityTier,
     isNotScored: isNotScored,
     isBlocked: isBlocked,
     // Defensive release guard: an incomplete record must never receive a

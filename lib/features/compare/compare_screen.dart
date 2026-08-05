@@ -378,6 +378,7 @@ class _ProductHeader extends StatelessWidget {
         else
           PGScoreLine(
             score: score,
+            qualityTier: product.qualityTier,
             compact: true,
             confidence: product.v4Confidence,
           ),
