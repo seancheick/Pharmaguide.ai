@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
 const _v4Fixture = 'test/fixtures/db/core_v4.fixture.db';
@@ -80,4 +81,62 @@ void main() {
       expect(pool.map((r) => r.dsldId), isNot(contains('204468')));
     },
   );
+
+  test('new independent fields override a contradictory legacy verdict', () {
+    const safeNewContract = ProductsCoreData(
+      dsldId: 'new-safe',
+      productName: 'New Contract Safe',
+      qualityScoreV4100: 82,
+      qualityScoreStatus: 'scored',
+      productSafetyStatus: 'no_known_catalog_concern',
+      qualityAssessmentStatus: 'complete',
+      verdict: 'BLOCKED',
+      exportVersion: 'test',
+      exportedAt: '2026-08-05T00:00:00Z',
+    );
+    expect(catalogProductIsBlocked(safeNewContract), isFalse);
+    expect(catalogProductIsNotScored(safeNewContract), isFalse);
+
+    const blockedNewContract = ProductsCoreData(
+      dsldId: 'new-blocked',
+      productName: 'New Contract Blocked',
+      qualityScoreV4100: 82,
+      qualityScoreStatus: 'scored',
+      productSafetyStatus: 'blocked',
+      qualityAssessmentStatus: 'complete',
+      verdict: 'SAFE',
+      exportVersion: 'test',
+      exportedAt: '2026-08-05T00:00:00Z',
+    );
+    expect(catalogProductIsBlocked(blockedNewContract), isTrue);
+  });
+
+  test('consumer score surfaces do not read legacy verdict directly', () {
+    const scoreSurfacePaths = [
+      'lib/features/product_detail/v2/product_detail_v2_connected.dart',
+      'lib/features/product_detail/v2/sections/hero_section.dart',
+      'lib/features/product_detail/v2/sections/better_alternatives_section.dart',
+      'lib/features/search/v2/search_v2_screen.dart',
+      'lib/features/compare/compare_screen.dart',
+      'lib/features/home/v2/home_v2_screen.dart',
+      'lib/features/stack/v2/stack_v2_screen.dart',
+      'lib/features/quick_check/quick_check_logic.dart',
+      'lib/features/quick_check/v2/quick_check_v2_screen.dart',
+    ];
+
+    for (final path in scoreSurfacePaths) {
+      final source = File(path).readAsStringSync();
+      final productReads = source.replaceAll(
+        RegExp(r'\bthis\s*\.\s*verdict\b'),
+        '',
+      );
+      expect(
+        RegExp(r'\.\s*verdict\b').hasMatch(productReads),
+        isFalse,
+        reason:
+            '$path must consume independent catalog semantics; '
+            'legacy verdict fallback belongs only in the compatibility adapter',
+      );
+    }
+  });
 }
