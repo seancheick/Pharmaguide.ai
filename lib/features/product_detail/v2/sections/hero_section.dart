@@ -39,6 +39,92 @@ class HeroTrustTag {
   const HeroTrustTag({required this.label, required this.isCertification});
 }
 
+const _confidenceDriverLabels = <String, String>{
+  'no_clinical_evidence_matched': 'No clinical evidence matched',
+  'human_clinical_evidence_absent': 'No human clinical evidence matched',
+  'limited_human_evidence': 'Human clinical evidence is limited',
+  'product_specific_nct_absent':
+      'Product-specific clinical evidence not verified',
+  'sub_clinical_dose_detected': 'Clinical dose relevance is limited',
+  'no_verified_third_party_certification':
+      'Product-level certification not verified',
+  'third_party_verification_unresolved':
+      'Product-level certification not verified',
+  'brand_cert_not_sku_verified': 'Product-level certification not verified',
+  'cert_claimed_only_no_registry_match':
+      'Product-level certification not verified',
+  'cert_match_needs_review': 'Product-level certification not verified',
+  'cert_registry_stale_or_blocked': 'Product-level certification not verified',
+  'cert_brand_mismatch_ignored': 'Product-level certification not verified',
+  'manufacturer_signal_present_no_sku_match':
+      'Product-level certification not verified',
+  'dose_not_disclosed': 'Dose disclosure incomplete',
+  'total_cfu_not_disclosed': 'Dose disclosure incomplete',
+  'epa_or_dha_not_disclosed': 'Dose disclosure incomplete',
+  'sports_active_dose_not_disclosed': 'Dose disclosure incomplete',
+  'sports_primary_dose_not_disclosed': 'Dose disclosure incomplete',
+  'micronutrient_panel_dose_coverage_low': 'Dose disclosure incomplete',
+  'per_strain_cfu_not_disclosed': 'Per-strain dose disclosure incomplete',
+  'dose_window_not_evaluable_by_rda_proxy': 'Dose evidence is indirect',
+  'dose_window_partial_without_rda_reference': 'Dose evidence is indirect',
+  'conservative_blend_anchor_mass': 'Dose evidence is indirect',
+  'active_anchor_mass_evidence': 'Dose evidence is indirect',
+  'botanical_anchor_only_evidence': 'Dose evidence is indirect',
+  'percent_dv_only_dose_evidence': 'Only % Daily Value was available',
+  'enzyme_activity_dose_evidence':
+      'Enzyme activity limits direct dose comparison',
+  'ingredient_identity_confidence_below_80_percent':
+      'Ingredient identity uncertain',
+  'ingredient_identity_confidence_below_95_percent':
+      'Ingredient identity uncertain',
+  'safety_identity_match_needs_review': 'Ingredient identity uncertain',
+  'mapped_coverage_below_95_percent':
+      'Ingredient identity coverage is incomplete',
+  'low_mapped_coverage': 'Ingredient identity coverage is incomplete',
+  'form_factor_inferred': 'Product form inferred',
+  'form_factor_not_disclosed': 'Product form is uncertain',
+  'taxonomy_classification_low_confidence': 'Product category inferred',
+  'high_proprietary_blend_opacity': 'Proprietary blend limits evaluation',
+  'partial_proprietary_blend_opacity': 'Proprietary blend limits evaluation',
+  'label_claim_contradiction': 'Label information is inconsistent',
+  'disease_claim_penalty_present': 'Label claims limit evaluation',
+  'named_strain_not_disclosed': 'Strain identity disclosure incomplete',
+  'low_confidence_omega_breakdown': 'Omega dose breakdown is uncertain',
+  'product_status_not_active': 'Catalog status requires review',
+};
+
+/// Translate the worst-band confidence drivers into at most two stable,
+/// consumer-readable reasons. Positive evidence drivers are intentionally not
+/// repeated; this surface explains uncertainty, not score credit.
+List<String> scoreConfidenceDriverLabels(
+  Map<String, dynamic>? confidenceDetail,
+) {
+  if (confidenceDetail == null) return const [];
+  final band = confidenceDetail['band']?.toString().trim().toLowerCase();
+  if (band == null || band.isEmpty) return const [];
+
+  const sectionOrder = [
+    'label_completeness',
+    'identity',
+    'verification',
+    'evidence',
+  ];
+  final labels = <String>[];
+  for (final sectionName in sectionOrder) {
+    final section = confidenceDetail[sectionName];
+    if (section is! Map) continue;
+    if (section['level']?.toString().trim().toLowerCase() != band) continue;
+    final drivers = section['drivers'];
+    if (drivers is! List) continue;
+    for (final rawDriver in drivers) {
+      final label = _confidenceDriverLabels[rawDriver.toString().trim()];
+      if (label != null && !labels.contains(label)) labels.add(label);
+      if (labels.length == 2) return labels;
+    }
+  }
+  return labels;
+}
+
 /// Build the production tag list from a `ProductsCoreData` row. Reads
 /// the 8 boolean columns production reads in `_buildAllTags()`, in
 /// the same order (certifications first, dietary tags second) so the
@@ -95,6 +181,7 @@ Widget buildHeroSection({
   required bool isBlocked,
   required bool isNotScored,
   required List<HeroTrustTag> trustTags,
+  Map<String, dynamic>? scoreConfidenceDetail,
   Widget? bottomBanner,
 }) {
   return PGHeroSection(
@@ -141,6 +228,7 @@ Widget buildHeroSection({
     lowCoverage: productHasLowCoverage(product),
     limitedAssessment: hasLimitedAssessmentConfidence(product?.v4Confidence),
     scoreConfidence: product?.v4Confidence,
+    scoreConfidenceDrivers: scoreConfidenceDriverLabels(scoreConfidenceDetail),
     bottomBanner: bottomBanner,
     hasCatalogCaution:
         product != null &&

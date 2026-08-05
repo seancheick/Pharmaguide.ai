@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/presentation/package_identity.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
 
 void main() {
   group('hero package identity', () {
@@ -25,6 +26,60 @@ void main() {
           fallbackFormFactor: 'powder',
         ),
         '2.8 oz',
+      );
+    });
+  });
+
+  group('score confidence drivers', () {
+    test('selects consumer labels from sections matching the overall band', () {
+      expect(
+        scoreConfidenceDriverLabels({
+          'band': 'low',
+          'evidence': {
+            'level': 'low',
+            'drivers': ['no_clinical_evidence_matched'],
+          },
+          'verification': {
+            'level': 'moderate',
+            'drivers': ['no_verified_third_party_certification'],
+          },
+        }),
+        ['No clinical evidence matched'],
+      );
+    });
+
+    test('returns at most two distinct dominant moderate drivers', () {
+      expect(
+        scoreConfidenceDriverLabels({
+          'band': 'moderate',
+          'label_completeness': {
+            'level': 'moderate',
+            'drivers': ['dose_not_disclosed'],
+          },
+          'identity': {
+            'level': 'moderate',
+            'drivers': ['form_factor_inferred'],
+          },
+          'verification': {
+            'level': 'moderate',
+            'drivers': ['no_verified_third_party_certification'],
+          },
+        }),
+        ['Dose disclosure incomplete', 'Product form inferred'],
+      );
+    });
+
+    test('malformed or positive-only detail emits no consumer driver', () {
+      expect(scoreConfidenceDriverLabels(null), isEmpty);
+      expect(
+        scoreConfidenceDriverLabels({
+          'band': 'high',
+          'verification': {
+            'level': 'high',
+            'drivers': ['cert_sku_verified'],
+          },
+        }),
+        isEmpty,
       );
     });
   });

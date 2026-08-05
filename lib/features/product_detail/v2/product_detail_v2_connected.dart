@@ -650,6 +650,10 @@ class _ProductDetailV2ConnectedState
                     isBlocked: isBlocked,
                     isNotScored: isNotScored,
                     trustTags: trustTags,
+                    scoreConfidenceDetail: _blobMap(
+                      detailBlob,
+                      'v4_confidence_detail',
+                    ),
                     bottomBanner: heroBottomBanner,
                   ),
                   const SizedBox(height: V2Spacing.space12),
