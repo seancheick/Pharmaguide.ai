@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:printing/printing.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Function shape used to invoke the system share sheet. Production
@@ -59,6 +60,7 @@ class ShareService {
     String? brandName,
     double? qualityScore,
     String? qualityTier,
+    String? scoreConfidence,
     List<String> qualityHighlights = const [],
   }) async {
     final cleanName = productName.trim().isEmpty
@@ -71,6 +73,12 @@ class ShareService {
         ? null
         : 'PharmaGuide quality: ${qualityScore.round()}/100'
               '${tier.isEmpty ? '' : ' · $tier'}';
+    final confidenceLabel = qualityScore == null
+        ? null
+        : catalogScoreConfidenceLabel(scoreConfidence);
+    final confidenceLine = confidenceLabel == null
+        ? null
+        : 'Score confidence: $confidenceLabel';
     final highlights = qualityHighlights
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty)
@@ -81,6 +89,7 @@ class ShareService {
     final text = [
       title,
       if (scoreLine != null) scoreLine,
+      if (confidenceLine != null) confidenceLine,
       if (highlights.isNotEmpty) 'Highlights:\n$highlights',
       'Quality reflects the product itself. Personal fit depends on your profile.',
       'Reviewed in PharmaGuide',

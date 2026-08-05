@@ -18,11 +18,13 @@ void main() {
         brandName: 'Example Labs',
         qualityScore: 88.4,
         qualityTier: 'Excellent',
+        scoreConfidence: 'moderate',
         qualityHighlights: const ['Third-party tested', 'No fillers'],
       );
 
       expect(capturedSubject, 'Magnesium Glycinate — Example Labs');
       expect(capturedText, contains('PharmaGuide quality: 88/100 · Excellent'));
+      expect(capturedText, contains('Score confidence: Moderate'));
       expect(capturedText, contains('- Third-party tested'));
       expect(capturedText, contains('- No fillers'));
       expect(capturedText, contains('Personal fit depends on your profile'));
@@ -36,10 +38,14 @@ void main() {
           shareOverride: (text, {subject}) async => capturedText = text,
         );
 
-        await service.shareProduct(productName: 'Magnesium Glycinate');
+        await service.shareProduct(
+          productName: 'Magnesium Glycinate',
+          scoreConfidence: 'low',
+        );
 
         expect(capturedText, isNotNull);
         expect(capturedText, isNot(contains('PharmaGuide quality:')));
+        expect(capturedText, isNot(contains('Score confidence:')));
       },
     );
 

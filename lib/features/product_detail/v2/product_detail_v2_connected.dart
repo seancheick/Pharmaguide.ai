@@ -221,11 +221,15 @@ class _ProductDetailV2ConnectedState
     if (product == null || _isSharing) return;
     setState(() => _isSharing = true);
     try {
+      final canShareScore =
+          !catalogProductIsBlocked(product) &&
+          !catalogProductIsNotScored(product);
       await ShareService().shareProduct(
         productName: product.productName,
         brandName: product.brandName,
-        qualityScore: product.qualityScoreV4100,
-        qualityTier: product.qualityTier,
+        qualityScore: canShareScore ? product.qualityScoreV4100 : null,
+        qualityTier: canShareScore ? product.qualityTier : null,
+        scoreConfidence: canShareScore ? product.v4Confidence : null,
         qualityHighlights: buildHeroTrustTags(
           product,
         ).map((tag) => tag.label).toList(growable: false),
