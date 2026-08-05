@@ -15,6 +15,7 @@ import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart'
     show PGScoreBreakdownCard;
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
@@ -60,7 +61,10 @@ class CompareScreen extends ConsumerWidget {
             }
           },
         ),
-        title: Text('Compare', style: V2Typography.titleSm(color: context.v2.fg)),
+        title: Text(
+          'Compare',
+          style: V2Typography.titleSm(color: context.v2.fg),
+        ),
         centerTitle: false,
       ),
       body: (entryA.isLoading || entryB.isLoading)
@@ -243,11 +247,7 @@ class _CompareBody extends StatelessWidget {
                 ],
                 if (delta != null) ...[
                   const SizedBox(height: V2Spacing.space12),
-                  Divider(
-                    color: context.v2.outline,
-                    height: 1,
-                    thickness: 0.5,
-                  ),
+                  Divider(color: context.v2.outline, height: 1, thickness: 0.5),
                   const SizedBox(height: V2Spacing.space8),
                   Text(
                     delta,
@@ -346,6 +346,8 @@ class _ProductHeader extends StatelessWidget {
     final brand = product.brandName ?? '';
     final name = product.productName;
     final score = product.qualityScoreV4100?.round();
+    final confidenceLabel = catalogScoreConfidenceLabel(product.v4Confidence);
+    final limitedConfidence = confidenceLabel == 'Limited';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,8 +378,22 @@ class _ProductHeader extends StatelessWidget {
             'Not scored yet',
             style: V2Typography.caption(color: context.v2.fgMuted),
           )
-        else
-          PGScoreLine(score: score, compact: true),
+        else ...[
+          if (limitedConfidence)
+            Text(
+              '$score/100',
+              style: V2Typography.bodyMedium(color: context.v2.fg),
+            )
+          else
+            PGScoreLine(score: score, compact: true),
+          if (confidenceLabel != null) ...[
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              'Score confidence: $confidenceLabel',
+              style: V2Typography.caption(color: context.v2.fgMuted),
+            ),
+          ],
+        ],
       ],
     );
   }
