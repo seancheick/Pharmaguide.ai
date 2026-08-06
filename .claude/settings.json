@@ -1,37 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ollama list:*)",
-      "Bash(sysctl -n hw.memsize)",
-      "Read(//Users/seancheick/PharmaGuide ai/{printf \"%.0f GB\\\\n\", $1/**)",
-      "Bash(ollama show:*)",
-      "Bash(ollama pull:*)",
-      "Bash(export GEMINI_API_KEY=:*)",
-      "Bash(export GROQ_API_KEY=:*)",
-      "Bash(export GOOGLE_API_KEY=:*)",
-      "Bash(export GOOGLE_GENERATIVE_AI_API_KEY=:*)",
-      "Bash(aider --version)",
-      "Bash(npx gemini:*)",
-      "Bash(pip3 install:*)",
-      "Bash(brew install:*)",
-      "Bash(pipx install:*)",
-      "Bash(ollama run:*)",
-      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models:*)",
-      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent:*)",
-      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-latest:generateContent:*)",
-      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent:*)",
-      "Bash(curl -s \"https://api.groq.com/openai/v1/chat/completions:*)",
-      "Bash(python3 -c \"import sys,json:*)",
       "Read(//Users/seancheick/PharmaGuide ai/**)",
-      "WebFetch(domain:docs.continue.dev)",
-      "Bash(opencode --version)",
-      "Bash(cat ~/.config/opencode/skills/*.md)",
-      "WebFetch(domain:opencode.ai)"
+      "Read(//Users/seancheick/Downloads/dsld_clean/**)"
     ],
     "additionalDirectories": [
-      "/Users/seancheick/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings",
-      "/Users/seancheick",
-      "/Users/seancheick/.local/share/opencode"
+      "/Users/seancheick/Downloads/dsld_clean"
     ]
   }
 }
