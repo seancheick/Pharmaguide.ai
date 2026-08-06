@@ -10,6 +10,8 @@ make test         # flutter test
 make check        # analyze + test (CI gate)
 make gen          # dart run build_runner build --delete-conflicting-outputs
 make verify-supabase  # confirm anon key is live
+make verify-bundle    # bundled DB matches Supabase storage (pre-release safety)
+make help         # every target — this list is a subset and drifts
 ```
 
 ## Architecture
@@ -38,6 +40,42 @@ make verify-supabase  # confirm anon key is live
 - **Don't weaken the identity guard to green a test.** Unresolved-identity rows must never drive scoring/evidence; the 2 red UC-II tests in a curated worktree are red *by design*.
 - **Verify live, not from memory.** Parallel sessions and automated `chore(catalog)` commits move HEAD mid-conversation. Re-read the file and re-pull the DB/blob before any claim; cite line numbers from the fresh read.
 - **Focused-green ≠ proof.** Run the broad affected sweep plus the release group. Identity matching keys on unique `source_path`, never raw label text. Read the design doc for exact contract keys.
+
+## Diagnosis Protocol (any "why does the app show X?" question)
+
+A value reaching a widget crossed six layers. Name the one you're reading **before** explaining anything:
+
+```
+pipeline artifact → Supabase (detail blob / OTA catalog) → bundled pharmaguide_core.db
+   → Drift query → Riverpod provider → widget
+                                    ( user_data.db is a separate read-write lane )
+```
+
+1. Name the layer and the file/provider before any claim. "The app shows a false UL warning" is
+   not a diagnosis until you know whether the bad value is in the blob, the DB, the query, or the render.
+2. One live probe on one real product before any narrative — `sqlite3 assets/db/pharmaguide_core.db`
+   for the row, or a widget test for the render. Print the driver field; the first flag is rarely the driver.
+3. Wrong once → re-read the production file, never patch the probe. Parallel Codex sessions and
+   automated `chore(catalog)` commits move HEAD mid-conversation: re-read, don't recall.
+4. **Stale bundled catalog ≠ current pipeline defect.** Before fixing a data bug seen in the app,
+   reproduce it through the current pipeline output. (Learned the hard way — see the 79
+   impossible-%UL warnings that turned out to be stale bundled evidence.)
+5. One brain: if the bad value came from the pipeline, the fix belongs in the pipeline. An app-side
+   correction that overrides a pipeline verdict is a defect even when it makes the screen look right.
+6. Outside-voice claims (Codex, Grok, pasted reviews) are hypotheses — reproduce before agreeing
+   OR refuting. "You're right" needs the same evidence as "you're wrong."
+
+## Definition of Done (any change)
+
+1. Re-read the final diff — not your memory of it.
+2. One adversarial pass on your own work: try to REFUTE it. Null blob, offline, empty stack,
+   unknown verdict, `mapped_coverage < 0.3`, signed-out. Fix what you find before showing it.
+3. Climb the ladder and paste the output — all rungs stay, pick the right one:
+   `flutter analyze` → focused `flutter test test/<area>` → broad affected sweep →
+   `make check` (analyze + full tests, the CI gate) → `make verify-bundle` before a release.
+4. **Rendering, theme, and layout changes need a device or simulator screenshot.** Green widget
+   tests have shipped invisible text more than once; only the device caught it.
+5. "Done" without command output is not done.
 
 ## Knowledge Base
 

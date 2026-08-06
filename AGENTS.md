@@ -51,29 +51,42 @@ Hallucination is not permitted. Do not invent health logic, clinical meaning, co
 - **Database:** Drift ORM (SQLite) — two databases:
   - `pharmaguide_core.db` — read-only product/ingredient data
   - `user_data.db` — read-write user preferences, never uploaded
-- **Backend:** Supabase (sync only, NO health data leaves the device)
+- **Backend:** Supabase — detail blobs, auth, OTA catalog, and signed-in *supplement stack* sync through the audited path only. Profile, medications, allergens, conditions, goals, and FitScore never leave the device.
 - **Tests:** `flutter test`
 - **Lint:** `flutter analyze`
 
 ## Rules (Non-Negotiable)
 
-1. **Read before edit.** Always read a file before changing it.
+**Product safety rules live in `CLAUDE.md` § Safety Rules and § Hard-won rules — that file is
+canonical, and you must read it before touching anything that renders a verdict, a score, a
+warning, or a sync path.** Only the three stable rendering invariants are mirrored below, as a
+tripwire for agents that do not load CLAUDE.md. Everything volatile — what may sync to Supabase,
+what copy voice is allowed, which SSOT owns dose safety — is deliberately NOT restated here:
+this file once said health data never leaves the device, long after audited supplement-stack sync
+shipped, and a contradiction between two rule files is more dangerous than one rule file.
+
+Mirrored invariants (if these ever disagree with CLAUDE.md, CLAUDE.md wins — and fix this file):
+
+- **Severity order is sacred:** contraindicated > avoid > caution > monitor > safe
+- **Never display "safe" when `mapped_coverage < 0.3`**
+- **FitScore is never persisted** — recomputed fresh from the current profile every time
+
+Agent-behavior rules, which are this file's job:
+
+1. **Read before edit.** Always read a file before changing it. Re-read any file a claim depends on — a stale mental model is how wrong-layer fixes happen.
 2. **Minimal diffs.** Change only what the task requires. No drive-by cleanups.
-3. **Max 3 files per task.** If you need more, split the task.
-4. **Verify after every change.** Run `flutter analyze` and relevant `flutter test` commands.
+3. **Keep the blast radius small.** Prefer the fewest files that fully solve the task; if a change fans out widely, say why before making it. (This replaces a hard "max 3 files" cap, which forced real fixes to ship half-done.)
+4. **Verify after every change.** `flutter analyze` plus the relevant `flutter test` — see CLAUDE.md § Definition of Done for which rung to run.
 5. **Never invent health data.** No made-up contraindications, scores, evidence levels, or safety claims.
-6. **Never store health data in Supabase.** All health data stays on-device.
-7. **Severity enum is sacred:** contraindicated > avoid > caution > monitor > safe
-8. **Never display "safe" when mapped_coverage < 0.3**
-9. **FitScore is never persisted** — always computed fresh from current profile.
-10. **Never mark a task done without running verification commands.**
+6. **Never mark a task done without running verification commands** and pasting their output.
 
 ## Workflow
 
 For every task:
 
 ```
-1. PLAN   — Read SPRINT_TRACKER.md. Identify the task. List files to change. Explain why.
+1. PLAN   — Name the files to change and why. (SPRINT_TRACKER.md is 2,900 lines —
+            open it only when the task IS a tracked sprint item, not by default.)
 2. TARGET — Confirm exact files. No new files unless absolutely necessary.
 3. EDIT   — Make the smallest safe change. One concern per edit.
 4. VERIFY — Run flutter analyze + flutter test. Fix any failures.
@@ -91,8 +104,8 @@ For every task:
 
 ## Project Files
 
-- `SPRINT_TRACKER.md` — Source of truth for task execution
-- `CLAUDE.md` — Project rules and architecture details
+- `CLAUDE.md` — **canonical** project safety rules, architecture, and Definition of Done
+- `SPRINT_TRACKER.md` — sprint board (large; read on demand, not per task)
 - `lib/` — App source code
 - `test/` — Test files
 - `assets/` — Static assets
