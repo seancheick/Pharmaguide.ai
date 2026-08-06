@@ -10,7 +10,7 @@ part 'core_database.g.dart';
 /// READ-ONLY database backed by the pre-built `pharmaguide_core.db` file
 /// downloaded from Supabase (or the bundled asset on first launch).
 ///
-/// v4-only reader. The catalog contract is export schema 2.2.0:
+/// v4-only reader. The catalog contract is export schema 2.3.0:
 /// `quality_score_v4_100` is the shipped /100 score and
 /// `quality_score_status` controls score eligibility. Catalog safety and
 /// quality assessment completion are independent nullable fields so older
@@ -157,7 +157,7 @@ class CoreDatabase extends _$CoreDatabase {
       // v2.0.0 (2026-06): v4 /100 scoring contract.
       'quality_score_v4_100 INTEGER',
       'quality_score_status TEXT',
-      // v2.2.0: independent catalog safety and quality-assessment states.
+      // v2.3.0: independent safety/quality states plus typed dose-safety detail.
       'product_safety_status TEXT',
       'quality_assessment_status TEXT',
       'quality_tier TEXT',

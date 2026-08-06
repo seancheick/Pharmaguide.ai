@@ -16,6 +16,7 @@ void main() {
     double? verification,
     double? safetyHygiene,
     double? heroScore,
+    String? qualityTier,
     double? mappedCoverage,
   }) {
     return MaterialApp(
@@ -27,6 +28,7 @@ void main() {
             evidenceResearch: 99,
             brandTrust: 99,
             heroScore: heroScore,
+            qualityTier: qualityTier,
             mappedCoverage: mappedCoverage,
             qualityPillarsV4: _v4Pillars(
               formulation: formulation,
@@ -285,6 +287,33 @@ void main() {
       // Accessible tier text token (>=4.5:1), matching the hero score line.
       // Harness pumps a bare MaterialApp — default light appearance.
       expect(numberColor, legacyTierForScore(64).textColor(Brightness.light));
+    });
+
+    testWidgets('score tint trusts the catalog tier over numeric fallback', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(heroScore: 96, qualityTier: 'Poor'),
+      );
+      final richText = tester.widget<RichText>(
+        find
+            .byWidgetPredicate(
+              (w) =>
+                  w is RichText &&
+                  w.text.toPlainText().startsWith('Why this scored'),
+            )
+            .first,
+      );
+      Color? numberColor;
+      void visit(InlineSpan span) {
+        if (span is TextSpan) {
+          if (span.text == '96') numberColor = span.style?.color;
+          span.children?.forEach(visit);
+        }
+      }
+
+      visit(richText.text);
+      expect(numberColor, ScoreTier.poor.textColor(Brightness.light));
     });
 
     testWidgets('shows every exact-zero reason inline without duplicating it', (
