@@ -1,10 +1,10 @@
 {
-  "checksum": "sha256:7c457891c39a864844bc3634a962224e43c5a049a6bde8787d494fd86aeeec41",
-  "checksum_sha256": "7c457891c39a864844bc3634a962224e43c5a049a6bde8787d494fd86aeeec41",
-  "db_version": "2026.08.04.192856",
+  "checksum": "sha256:6ef4760f5316467991d437471102ca6e9027e08a0db472e0c03efdbf11b232fc",
+  "checksum_sha256": "6ef4760f5316467991d437471102ca6e9027e08a0db472e0c03efdbf11b232fc",
+  "db_version": "2026.08.06.092521",
   "detail_blob_count": 13271,
   "detail_blob_unique_count": 13271,
-  "detail_index_checksum": "sha256:ab812ebed7cbea9205eba41901dcc3641b4bf7200ce4cebc44822442a2fbeb33",
+  "detail_index_checksum": "sha256:dce9e912bd00aa770b8c1f8d7c0d4bfd61bfe8f18229a1da8dd1d920b49f0537",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -64,7 +64,7 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-08-04T19:28:56.193008+00:00",
+  "generated_at": "2026-08-06T09:25:21.218694+00:00",
   "integrity": {
     "contract_failures": 0,
     "contract_quarantine_count": 14,
@@ -76,7 +76,7 @@
     "exported_count": 13271,
     "has_banned_substance": 107,
     "has_recalled_ingredient": 0,
-    "quality_score_config_checksum": "sha256:5886f58cb74fb39be6d950ccb9d8fdd723d1df6ba402dd5c0a6495ec4830a4da",
+    "quality_score_config_checksum": "sha256:2c007207652c776594ca5d44f973aa32e6e0e6f9e758a2bad9974b2be790aa43",
     "scored_input_count": 14193,
     "scored_only_count": 0,
     "skipped_count": 14,
@@ -90,11 +90,11 @@
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
   "product_count": 13271,
-  "quality_score_config_checksum": "sha256:5886f58cb74fb39be6d950ccb9d8fdd723d1df6ba402dd5c0a6495ec4830a4da",
-  "release_staged_at": "2026-08-04T19:29:34Z",
-  "schema_version": "2.1.0",
+  "quality_score_config_checksum": "sha256:2c007207652c776594ca5d44f973aa32e6e0e6f9e758a2bad9974b2be790aa43",
+  "release_staged_at": "2026-08-06T09:25:54Z",
+  "schema_version": "2.3.0",
   "score_model": "v4",
-  "scoring_version": "4.1.0",
+  "scoring_version": "4.2.0",
   "warnings": [],
   "interaction_db_checksum": "ad8547bad04045247c999b75cc3f994d8445efa5f69d3ef2a6c57395b4c0c7e0",
   "interaction_db_version": "1.0.11",
