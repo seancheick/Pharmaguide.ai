@@ -28,6 +28,7 @@ ProductsCoreData _row({
   String? verdict,
   double? mappedCoverage,
   String? v4Confidence,
+  String? qualityTier,
 }) {
   return ProductsCoreData(
     dsldId: 'TEST-1',
@@ -36,6 +37,7 @@ ProductsCoreData _row({
     verdict: verdict,
     mappedCoverage: mappedCoverage,
     v4Confidence: v4Confidence,
+    qualityTier: qualityTier,
     exportVersion: 'test',
     exportedAt: '2026-07-05T00:00:00Z',
   );
@@ -60,6 +62,7 @@ void main() {
           verdict: 'SAFE',
           mappedCoverage: 0.9,
           v4Confidence: 'moderate',
+          qualityTier: 'Strong',
         ),
         time: '2h ago',
       );
@@ -68,6 +71,7 @@ void main() {
       expect(rec.qualityAssessmentStatus, 'complete');
       expect(rec.mappedCoverage, 0.9);
       expect(rec.v4Confidence, 'moderate');
+      expect(rec.qualityTier, 'Strong');
       expect(rec.time, '2h ago');
     });
 

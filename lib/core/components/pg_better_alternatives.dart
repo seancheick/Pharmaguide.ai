@@ -12,6 +12,7 @@ class PGAlternative {
   final String name;
   final String brand;
   final int score;
+  final String? qualityTier;
   final String? scoreConfidence;
 
   /// Optional 96pt product image widget (caller provides — production
@@ -26,6 +27,7 @@ class PGAlternative {
     required this.name,
     required this.brand,
     required this.score,
+    this.qualityTier,
     this.scoreConfidence,
     this.imageWidget,
     this.onTap,
@@ -127,6 +129,7 @@ class _AlternativeCard extends StatelessWidget {
                 const SizedBox(height: V2Spacing.space4),
                 PGScoreLine(
                   score: alt.score,
+                  qualityTier: alt.qualityTier,
                   compact: true,
                   confidence: alt.scoreConfidence,
                 ),

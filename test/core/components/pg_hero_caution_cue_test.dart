@@ -1,11 +1,11 @@
 // FIX (P2) regression lock — a CAUTION verdict must surface at the hero
 // top-line.
 //
-// Before: the hero derived its tier purely from the numeric score
-// (`tierForScore`) and only read the pipeline `verdict` for BLOCKED /
+// Before: the hero derived its tier purely from the numeric score and only
+// read the pipeline `verdict` for BLOCKED /
 // NOT_SCORED. A dose-driven CAUTION (safety signal DOSE_OVER_UL_CAUTION /
 // DOSE_OVER_UL_CRITICAL) on a product with a high formulation score
-// rendered a green "85/100 Excellent" hero with no caution cue.
+// rendered a green quality tier with no caution cue.
 //
 // After: `heroShowsCautionCue` decides (pure) whether a caution pill
 // rides alongside the tier score line. It fires only when the verdict is
@@ -106,7 +106,7 @@ void main() {
         tester,
         const PGHeroSection(
           imageWidget: SizedBox(),
-          productName: 'Fair Product',
+          productName: 'Weak Product',
           brandName: 'Test Brand',
           score: 60,
         ),
@@ -117,7 +117,7 @@ void main() {
       // Harness pumps a bare MaterialApp — default light appearance.
       expect(
         scoreText.style?.color,
-        tierForScore(60).textColor(Brightness.light),
+        legacyTierForScore(60).textColor(Brightness.light),
       );
     });
 

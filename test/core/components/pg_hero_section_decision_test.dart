@@ -222,7 +222,7 @@ void main() {
       );
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Product quality score unavailable.'), findsNothing);
-      expect(find.text('Excellent'), findsNothing);
+      expect(find.text('Strong'), findsNothing);
       expect(find.text('Score confidence: Limited'), findsOneWidget);
       expect(
         find.text(
@@ -247,7 +247,7 @@ void main() {
         ),
       );
       expect(find.text('85/100'), findsOneWidget);
-      expect(find.text('Excellent'), findsOneWidget);
+      expect(find.text('Strong'), findsOneWidget);
       expect(find.text('Score confidence: Moderate'), findsOneWidget);
     });
 

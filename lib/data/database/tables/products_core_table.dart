@@ -50,7 +50,7 @@ class ProductsCore extends Table {
   TextColumn get formFactor => text().named('form_factor').nullable()();
   TextColumn get supplementType => text().named('supplement_type').nullable()();
 
-  // Scores — v4 production contract (export schema 2.2.0).
+  // Scores — v4 production contract (export schema 2.3.0).
   TextColumn get scoreDisplay100Equivalent =>
       text().named('score_display_100_equivalent').nullable()();
   // Honest /100 mirror. Mirrors quality_score_v4_100 when scored and is NULL

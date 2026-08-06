@@ -1,26 +1,8 @@
-// Score-tier model: 0–100 product score → 1 of 6 named tiers.
+// Score-tier model for the catalog's six named quality tiers.
 //
-// Spec: INITIATIVE_PRODUCT_DETAIL_CLEANUP.md, Sprint S2.2, T9
-// (locked tier table 2026-04-29).
-//
-// The tier system replaces the pre-S2.2 score-ring visualization with
-// a compact text-based "● 90/100 Exceptional · description" line. Six
-// tiers with explicit color + label + one-line description so the
-// score is immediately interpretable on the hero card without the user
-// having to learn the percentage scale.
-//
-// Tier table:
-//   90–100  Exceptional  Deep Green  High-quality ingredients, ...
-//   80–89   Excellent    Green       Well-formulated with ...
-//   70–79   Good         Teal        Reliable option with ...
-//   60–69   Fair         Yellow      Adequate formulation with ...
-//   50–59   Low Quality  Orange      Notable concerns — ...
-//   0–49    Poor         Red         Significant concerns ...
-//
-// Boundary semantics: thresholds are inclusive at the floor — 90 is
-// the bottom of Exceptional, 89 is the top of Excellent. Boundary
-// tests at 49/50, 59/60, 69/70, 79/80, 89/90 lock this so a future
-// `>` vs `>=` regression is impossible to silently introduce.
+// The pipeline's `quality_tier` field is authoritative for catalog
+// products. A score-derived mapping remains only as an explicitly named
+// fallback for old or incomplete cached records.
 
 import 'package:flutter/material.dart';
 
@@ -33,22 +15,19 @@ bool hasLimitedAssessmentConfidence(String? value) {
       normalized == 'very_low';
 }
 
-/// 6-tier classification of a 0–100 product score. Values flow through
-/// [tierForScore]; never construct a tier from outside this module.
-enum ScoreTier { exceptional, excellent, good, fair, lowQuality, poor }
+/// The six values emitted by the pipeline's `quality_tier` contract.
+enum ScoreTier { elite, excellent, strong, acceptable, weak, poor }
 
 /// Display + theme metadata per tier — all locked from the spec's
 /// Tier-Description-Color table.
 extension ScoreTierMeta on ScoreTier {
-  /// User-facing label rendered next to the score (e.g. "Exceptional").
-  /// Uses Title Case for "Low Quality" because it reads as a single
-  /// chip; the rest are single words.
+  /// User-facing label rendered next to the score.
   String get label => switch (this) {
-    ScoreTier.exceptional => 'Exceptional',
+    ScoreTier.elite => 'Elite',
     ScoreTier.excellent => 'Excellent',
-    ScoreTier.good => 'Good',
-    ScoreTier.fair => 'Fair',
-    ScoreTier.lowQuality => 'Low Quality',
+    ScoreTier.strong => 'Strong',
+    ScoreTier.acceptable => 'Acceptable',
+    ScoreTier.weak => 'Weak',
     ScoreTier.poor => 'Poor',
   };
 
@@ -56,15 +35,15 @@ extension ScoreTierMeta on ScoreTier {
   /// Sentence-case (no period) so it reads as a label, not a sentence.
   /// Locked copy per the design contract.
   String get description => switch (this) {
-    ScoreTier.exceptional =>
+    ScoreTier.elite =>
       'High-quality ingredients, strong evidence, no major safety concerns',
     ScoreTier.excellent =>
       'Well-formulated with good ingredient quality, solid evidence, clean safety profile',
-    ScoreTier.good =>
+    ScoreTier.strong =>
       'Reliable option with acceptable ingredients and no major red flags',
-    ScoreTier.fair =>
+    ScoreTier.acceptable =>
       'Adequate formulation with some limitations in quality, evidence, or transparency',
-    ScoreTier.lowQuality =>
+    ScoreTier.weak =>
       'Notable concerns — weaker ingredients, limited evidence, or avoidable additives',
     ScoreTier.poor =>
       'Significant concerns around formulation quality, safety, or transparency',
@@ -85,17 +64,14 @@ extension ScoreTierMeta on ScoreTier {
   Color color(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     return switch (this) {
-      ScoreTier.exceptional => const Color(0xFF059669),
-      ScoreTier.excellent => isDark
-          ? const Color(0xFF22A06B)
-          : const Color(0xFF219B68),
-      ScoreTier.good => isDark
-          ? const Color(0xFF0EA5A0)
-          : const Color(0xFF0D9893),
-      ScoreTier.fair => isDark
-          ? const Color(0xFFCA8A04)
-          : const Color(0xFFB77D04),
-      ScoreTier.lowQuality => const Color(0xFFEA580C),
+      ScoreTier.elite => const Color(0xFF059669),
+      ScoreTier.excellent =>
+        isDark ? const Color(0xFF22A06B) : const Color(0xFF219B68),
+      ScoreTier.strong =>
+        isDark ? const Color(0xFF0EA5A0) : const Color(0xFF0D9893),
+      ScoreTier.acceptable =>
+        isDark ? const Color(0xFFCA8A04) : const Color(0xFFB77D04),
+      ScoreTier.weak => const Color(0xFFEA580C),
       ScoreTier.poor => const Color(0xFFDC2626),
     };
   }
@@ -112,37 +88,53 @@ extension ScoreTierMeta on ScoreTier {
   Color textColor(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     return switch (this) {
-      ScoreTier.exceptional => isDark
-          ? const Color(0xFF05A074)
-          : const Color(0xFF047857),
-      ScoreTier.excellent => isDark
-          ? const Color(0xFF1BA24D)
-          : const Color(0xFF147C3B),
-      ScoreTier.good => isDark
-          ? const Color(0xFF149D92)
-          : const Color(0xFF0F766E),
-      ScoreTier.fair => isDark
-          ? const Color(0xFFC97A09)
-          : const Color(0xFF9A5E07),
-      ScoreTier.lowQuality => isDark
-          ? const Color(0xFFF15C1E)
-          : const Color(0xFFC0400C),
-      ScoreTier.poor => isDark
-          ? const Color(0xFFE76161)
-          : const Color(0xFFB91C1C),
+      ScoreTier.elite =>
+        isDark ? const Color(0xFF05A074) : const Color(0xFF047857),
+      ScoreTier.excellent =>
+        isDark ? const Color(0xFF1BA24D) : const Color(0xFF147C3B),
+      ScoreTier.strong =>
+        isDark ? const Color(0xFF149D92) : const Color(0xFF0F766E),
+      ScoreTier.acceptable =>
+        isDark ? const Color(0xFFC97A09) : const Color(0xFF9A5E07),
+      ScoreTier.weak =>
+        isDark ? const Color(0xFFF15C1E) : const Color(0xFFC0400C),
+      ScoreTier.poor =>
+        isDark ? const Color(0xFFE76161) : const Color(0xFFB91C1C),
     };
   }
 }
 
-/// Map a score to its tier. Inclusive at the floor — 90 → Exceptional,
-/// 89 → Excellent. Out-of-range inputs clamp gracefully:
-///   ≥100  → Exceptional   (e.g., over-the-cap score from rounding)
-///   <0    → Poor          (e.g., a defaulted/uninitialized score)
-ScoreTier tierForScore(int score) {
-  if (score >= 90) return ScoreTier.exceptional;
-  if (score >= 80) return ScoreTier.excellent;
-  if (score >= 70) return ScoreTier.good;
-  if (score >= 60) return ScoreTier.fair;
-  if (score >= 50) return ScoreTier.lowQuality;
+ScoreTier? _catalogTierFromLabel(String? value) {
+  return switch ((value ?? '').trim().toLowerCase()) {
+    'elite' => ScoreTier.elite,
+    'excellent' => ScoreTier.excellent,
+    'strong' => ScoreTier.strong,
+    'acceptable' => ScoreTier.acceptable,
+    'weak' => ScoreTier.weak,
+    'poor' => ScoreTier.poor,
+    _ => null,
+  };
+}
+
+/// Resolve a catalog tier, preferring the pipeline's shipped value.
+///
+/// The fallback exists for old cached records that predate `quality_tier`.
+ScoreTier catalogTier({
+  required String? qualityTier,
+  required int legacyScore,
+}) {
+  return _catalogTierFromLabel(qualityTier) ?? legacyTierForScore(legacyScore);
+}
+
+/// Score-derived fallback for old or incomplete records only.
+///
+/// These thresholds mirror the pipeline bands. Out-of-range inputs clamp
+/// naturally to [ScoreTier.elite] or [ScoreTier.poor].
+ScoreTier legacyTierForScore(int score) {
+  if (score >= 95) return ScoreTier.elite;
+  if (score >= 90) return ScoreTier.excellent;
+  if (score >= 80) return ScoreTier.strong;
+  if (score >= 70) return ScoreTier.acceptable;
+  if (score >= 55) return ScoreTier.weak;
   return ScoreTier.poor;
 }

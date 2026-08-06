@@ -122,6 +122,9 @@ class PGHeroSection extends StatelessWidget {
   /// [PGScoreLine] underneath.
   final int? score;
 
+  /// Pipeline-emitted catalog tier for [score].
+  final String? qualityTier;
+
   /// True when no consumer product-quality score is available.
   final bool isNotScored;
 
@@ -168,6 +171,7 @@ class PGHeroSection extends StatelessWidget {
     this.dosingSummary,
     this.trustTags = const [],
     this.score,
+    this.qualityTier,
     this.isNotScored = false,
     this.isBlocked = false,
     this.lowCoverage = false,
@@ -281,13 +285,23 @@ class PGHeroSection extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Flexible(child: PGScoreLine(score: score!, prominent: true)),
+                  Flexible(
+                    child: PGScoreLine(
+                      score: score!,
+                      qualityTier: qualityTier,
+                      prominent: true,
+                    ),
+                  ),
                   const SizedBox(width: V2Spacing.space8),
                   const _HeroCautionPill(),
                 ],
               )
             else
-              PGScoreLine(score: score!, prominent: true),
+              PGScoreLine(
+                score: score!,
+                qualityTier: qualityTier,
+                prominent: true,
+              ),
             if (confidenceLabel != null) ...[
               const SizedBox(height: V2Spacing.space4),
               _ScoreConfidenceSummary(

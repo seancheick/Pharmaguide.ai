@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.08.04",
+    "content_version": "2026.08.06",
     "content_hash": "sha256:ed274d0b7828e3b0d511e56137cb832a417a8148b21cc4545f8d8357851a4651",
     "minimum_runtime_contract": 1,
     "total_entries": 80,

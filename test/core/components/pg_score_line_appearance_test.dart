@@ -59,7 +59,7 @@ void main() {
 
   group('PGScoreLine follows the device appearance', () {
     for (final score in [95, 85, 75, 65, 55, 20]) {
-      final tier = tierForScore(score);
+      final tier = legacyTierForScore(score);
 
       testWidgets('${tier.name} resolves light tokens under V2Theme.light', (
         tester,
@@ -96,7 +96,7 @@ void main() {
       await pump(tester, V2Theme.light, 85, confidence: 'moderate');
 
       expect(find.text('85/100'), findsOneWidget);
-      expect(find.text('Excellent'), findsOneWidget);
+      expect(find.text('Strong'), findsOneWidget);
       expect(find.text('Score confidence: Moderate'), findsOneWidget);
     });
 
@@ -106,7 +106,7 @@ void main() {
       await pump(tester, V2Theme.light, 85, confidence: 'low');
 
       expect(find.text('85/100'), findsOneWidget);
-      expect(find.text('Excellent'), findsNothing);
+      expect(find.text('Strong'), findsNothing);
       expect(find.text('Score confidence: Limited'), findsOneWidget);
       expect(
         find.descendant(

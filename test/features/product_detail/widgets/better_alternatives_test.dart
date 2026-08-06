@@ -111,7 +111,7 @@ void main() {
   tearDown(() => _userDb.close());
 
   group('shouldShowBetterAlternatives — pure logic', () {
-    test('Good-or-better quality stays quiet', () {
+    test('Strong-or-better quality stays quiet', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
@@ -123,7 +123,7 @@ void main() {
       );
     });
 
-    test('Fair quality stays quiet when the profile is complete', () {
+    test('Weak quality stays quiet when the profile is complete', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
@@ -147,24 +147,26 @@ void main() {
       );
     });
 
-    test('Good-tier score + incomplete profile → hidden', () {
+    test('Strong tier + incomplete profile → hidden', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
-          score100: 70,
+          score100: 80,
+          qualityTier: 'Strong',
           profileIncomplete: true,
         ),
         isFalse,
       );
     });
 
-    test('Fair-tier score + incomplete profile → visible', () {
+    test('shipped Acceptable tier + incomplete profile → visible', () {
       expect(
         shouldShowBetterAlternatives(
           isBlocked: false,
           isNotScored: false,
-          score100: 65,
+          score100: 80,
+          qualityTier: 'Acceptable',
           profileIncomplete: true,
         ),
         isTrue,

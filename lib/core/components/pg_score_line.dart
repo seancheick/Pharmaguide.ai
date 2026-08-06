@@ -5,8 +5,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// Same data shape (`ScoreTier` + `tierForScore`), same semantics
-/// (locked color + label + description per tier), same layout (row of
+/// Same layout (row of
 /// dot + `90/100` + tier label, then description line). Only the
 /// typography + spacing tokens shift to v2:
 /// - Geist Sans 500 for `90/100` and tier label (was titleMedium w800/w700)
@@ -20,9 +19,12 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// Use anywhere production uses `ScoreLine` — in the hero card under the
 /// product name, on alternative-product cards, etc.
 class PGScoreLine extends StatelessWidget {
-  /// 0–100 product score. Out-of-range values clamp gracefully via
-  /// [tierForScore]: ≥100 → Exceptional, <0 → Poor.
+  /// 0–100 product score.
   final int score;
+
+  /// Pipeline-emitted catalog tier. This wins over score-derived fallback
+  /// bands so rounding cannot change the product's classification.
+  final String? qualityTier;
 
   /// Optional override for the locked tier description. Almost always
   /// keep null and let `ScoreTierMeta.description` provide the locked
@@ -51,6 +53,7 @@ class PGScoreLine extends StatelessWidget {
   const PGScoreLine({
     super.key,
     required this.score,
+    this.qualityTier,
     this.descriptionOverride,
     this.dotSize = 10,
     this.compact = false,
@@ -60,7 +63,7 @@ class PGScoreLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tier = tierForScore(score);
+    final tier = catalogTier(qualityTier: qualityTier, legacyScore: score);
     final confidenceLabel = catalogScoreConfidenceLabel(confidence);
     final limitedConfidence = confidenceLabel == 'Limited';
     // Production displays the score AS-GIVEN even if out of range — keeps
@@ -90,7 +93,7 @@ class PGScoreLine extends StatelessWidget {
               const SizedBox(width: V2Spacing.space8),
             ],
             // Score numeric + tier label kept as separate Text widgets
-            // (matches production — `find.text('Exceptional')` matches
+            // (matches production — `find.text('Elite')` matches
             // in widget tests this way).
             Text(
               '$displayScore/100',
@@ -111,7 +114,7 @@ class PGScoreLine extends StatelessWidget {
             // Tier label wraps in Flexible + ellipsis so the row
             // can survive tight column widths (e.g. 130pt slot
             // in Home's Recent-scans carousel). Long labels like
-            // "Exceptional" overflow otherwise.
+            // Tier labels can overflow otherwise.
             if (!limitedConfidence)
               Flexible(
                 child: Text(

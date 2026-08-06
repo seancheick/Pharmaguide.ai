@@ -107,4 +107,27 @@ void main() {
     expect(find.textContaining('45 servings'), findsOneWidget);
     expect(find.textContaining('Take 2 softgels daily'), findsOneWidget);
   });
+
+  testWidgets('hero renders the pipeline tier instead of re-banding score', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: PGHeroSection(
+            imageWidget: SizedBox.shrink(),
+            productName: 'Rounded score canary',
+            brandName: 'Test',
+            score: 80,
+            qualityTier: 'Acceptable',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('80/100'), findsOneWidget);
+    expect(find.text('Acceptable'), findsOneWidget);
+    expect(find.text('Strong'), findsNothing);
+  });
 }

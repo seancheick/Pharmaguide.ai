@@ -59,6 +59,25 @@ void main() {
       );
     });
 
+    test('catalog importer accepts typed-safety schema 2.3.0', () {
+      final importer = File(
+        'scripts/import_catalog_artifact.sh',
+      ).readAsStringSync();
+      final supportedSchemas = RegExp(
+        r'APP_SUPPORTED_SCHEMAS=\(([^)]*)\)',
+      ).firstMatch(importer)?.group(1);
+
+      expect(
+        supportedSchemas,
+        contains('"2.3.0"'),
+        reason:
+            'Pipeline schema 2.3.0 emits the product_safety_status and '
+            'quality_assessment_status columns this app already reads, plus '
+            'typed dose-safety detail. Keep the local import gate aligned '
+            'with the catalog runtime compatibility contract.',
+      );
+    });
+
     test(
       'assets/db/pharmaguide_core.db is declared, loadable, and non-trivial',
       () async {

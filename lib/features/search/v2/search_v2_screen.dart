@@ -1682,6 +1682,7 @@ class _SearchProductListTile extends StatelessWidget {
                           if (scoreChip == SearchScoreChipDisplay.tierScore)
                             _ScoreChip(
                               score: score!,
+                              qualityTier: product.qualityTier,
                               confidence: product.v4Confidence,
                             ),
                           if (scoreChip ==
@@ -1808,6 +1809,7 @@ class _SearchProductGridTile extends StatelessWidget {
                         child: switch (scoreChip) {
                           SearchScoreChipDisplay.tierScore => _ScoreChip(
                             score: score!,
+                            qualityTier: product.qualityTier,
                             confidence: product.v4Confidence,
                           ),
                           SearchScoreChipDisplay.limitedData =>
@@ -1920,9 +1922,10 @@ class _SearchProductImage extends StatelessWidget {
 
 class _ScoreChip extends StatelessWidget {
   final double score;
+  final String? qualityTier;
   final String? confidence;
 
-  const _ScoreChip({required this.score, this.confidence});
+  const _ScoreChip({required this.score, this.qualityTier, this.confidence});
 
   @override
   Widget build(BuildContext context) {
@@ -1945,13 +1948,12 @@ class _ScoreChip extends StatelessWidget {
       ),
       child: Text(
         searchScoreChipText(score: score, confidence: confidence),
-        // The canonical quality-tier token from score_tier.dart, so search
-        // and product detail never render a different colour for the same
-        // score. The locked bands (90/80/70/60/50) live in tierForScore;
-        // never reintroduce bands here.
+        // The catalog tier is authoritative; score bands are only a fallback
+        // for old cached rows that predate `quality_tier`.
         style: V2Typography.monoData(
-          color: tierForScore(
-            score.round(),
+          color: catalogTier(
+            qualityTier: qualityTier,
+            legacyScore: score.round(),
           ).textColor(Theme.of(context).brightness),
         ),
       ),

@@ -73,6 +73,7 @@ class PGScoreAdjustment {
 class PGScoreBreakdownCard extends StatefulWidget {
   final List<PGPillar> pillars;
   final num? heroScore;
+  final String? qualityTier;
   final PGScoreAdjustment? adjustment;
   final VoidCallback? onHowScoringWorks;
 
@@ -80,6 +81,7 @@ class PGScoreBreakdownCard extends StatefulWidget {
     super.key,
     required this.pillars,
     this.heroScore,
+    this.qualityTier,
     this.adjustment,
     this.onHowScoringWorks,
   });
@@ -219,8 +221,9 @@ class _PGScoreBreakdownCardState extends State<PGScoreBreakdownCard> {
                                 widget.heroScore!,
                               ),
                               style: V2Typography.titleSm(
-                                color: tierForScore(
-                                  widget.heroScore!.round(),
+                                color: catalogTier(
+                                  qualityTier: widget.qualityTier,
+                                  legacyScore: widget.heroScore!.round(),
                                 ).textColor(Theme.of(context).brightness),
                               ).copyWith(fontWeight: FontWeight.w700),
                             ),

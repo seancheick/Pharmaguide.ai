@@ -39,6 +39,7 @@ Widget buildScoreBreakdownSection({
   required double? evidenceResearch,
   required double? brandTrust,
   required double? heroScore,
+  String? qualityTier,
   required double? mappedCoverage,
   Map<String, dynamic>? sectionBreakdown,
   Map<String, dynamic>? qualityPillarsV4,
@@ -82,6 +83,7 @@ Widget buildScoreBreakdownSection({
       // Preserve the source value; the card owns the shared whole-number
       // consumer presentation used by the hero, headline, and total.
       heroScore: heroScore,
+      qualityTier: qualityTier,
       adjustment: adjustment,
       onHowScoringWorks: () => showTrustReceiptsSheet(context),
     ),

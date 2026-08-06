@@ -9,6 +9,7 @@ ProductsCoreData _product({
   String? assessmentStatus = 'complete',
   String? scoreStatus = 'scored',
   String? confidence = 'moderate',
+  String? qualityTier = 'Strong',
   String? verdict,
 }) {
   return ProductsCoreData(
@@ -20,6 +21,7 @@ ProductsCoreData _product({
     qualityAssessmentStatus: assessmentStatus,
     qualityScoreStatus: scoreStatus,
     v4Confidence: confidence,
+    qualityTier: qualityTier,
     verdict: verdict,
     exportVersion: 'test',
     exportedAt: '2026-08-05T00:00:00Z',
@@ -31,6 +33,7 @@ void main() {
     test('returns the current catalog score and confidence', () {
       expect(stackCatalogScoreDisplayFor(_product()), (
         score: 82,
+        qualityTier: 'Strong',
         confidence: 'moderate',
       ));
     });
@@ -72,7 +75,7 @@ void main() {
             verdict: 'SAFE',
           ),
         ),
-        (score: 82, confidence: null),
+        (score: 82, qualityTier: 'Strong', confidence: null),
       );
     });
 

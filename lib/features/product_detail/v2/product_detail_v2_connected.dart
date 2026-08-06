@@ -816,6 +816,7 @@ class _ProductDetailV2ConnectedState
                       evidenceResearch: _product?.scoreEvidenceResearch,
                       brandTrust: _product?.scoreBrandTrust,
                       heroScore: score100,
+                      qualityTier: _product?.qualityTier,
                       mappedCoverage: mappedCoverage,
                       sectionBreakdown: _blobMap(
                         detailBlob,
@@ -954,6 +955,7 @@ class _ProductDetailV2ConnectedState
                       isBlocked: isBlocked,
                       isNotScored: isNotScored,
                       score100: score100,
+                      qualityTier: _product?.qualityTier,
                       profileIncomplete:
                           profileRelevanceSummary.profileIncomplete,
                     ),

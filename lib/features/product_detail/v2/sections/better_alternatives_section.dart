@@ -6,7 +6,7 @@
 //   • product is blocked → ALWAYS render
 //   • product unscored → hide
 //   • score < 60 → render
-//   • incomplete profile + Fair product → generic quality options
+//   • incomplete profile + Acceptable product → generic quality options
 //
 // Data flow:
 //   1. Check the product-quality gate → SizedBox.shrink if not applicable
@@ -45,15 +45,20 @@ bool shouldShowBetterAlternatives({
   required bool isNotScored,
   required double? score100,
   required bool profileIncomplete,
+  String? qualityTier,
 }) {
   if (isBlocked) return true;
   if (isNotScored || score100 == null) return false;
   if (score100 < _lowQualityThreshold) return true;
   // S4 — incomplete profile: still surface *generic* higher-quality
-  // options for the shared Fair quality tier. Do not invent a local score
+  // options for the shared Acceptable quality tier. Do not invent a local score
   // cutoff or use fit status (either would drift from the score contract).
   if (profileIncomplete) {
-    return tierForScore(score100.round()) == ScoreTier.fair;
+    return catalogTier(
+          qualityTier: qualityTier,
+          legacyScore: score100.round(),
+        ) ==
+        ScoreTier.acceptable;
   }
   return false;
 }
@@ -65,6 +70,7 @@ class BetterAlternativesSection extends ConsumerWidget {
   final bool isBlocked;
   final bool isNotScored;
   final double? score100;
+  final String? qualityTier;
   final bool profileIncomplete;
 
   /// Max alternatives to display (matches PGBetterAlternatives convention).
@@ -77,6 +83,7 @@ class BetterAlternativesSection extends ConsumerWidget {
     required this.isNotScored,
     required this.score100,
     required this.profileIncomplete,
+    this.qualityTier,
     this.maxAlternatives = 3,
   });
 
@@ -107,6 +114,7 @@ class BetterAlternativesSection extends ConsumerWidget {
       isNotScored: isNotScored,
       score100: score100,
       profileIncomplete: profileIncomplete,
+      qualityTier: qualityTier,
     )) {
       return const SizedBox.shrink();
     }
@@ -146,6 +154,7 @@ class BetterAlternativesSection extends ConsumerWidget {
                 name: p.productName,
                 brand: p.brandName ?? '',
                 score: score,
+                qualityTier: p.qualityTier,
                 scoreConfidence: p.v4Confidence,
                 imageWidget: ProductImage(
                   dsldId: p.dsldId,

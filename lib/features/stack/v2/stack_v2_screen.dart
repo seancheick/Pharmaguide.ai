@@ -62,7 +62,11 @@ final _stackProductProvider = FutureProvider.family
       return coreDb.findById(dsldId);
     });
 
-typedef StackCatalogScoreDisplay = ({int score, String? confidence});
+typedef StackCatalogScoreDisplay = ({
+  int score,
+  String? qualityTier,
+  String? confidence,
+});
 
 /// Returns a score only when the current catalog row satisfies the public
 /// score contract. Saved stack values are deliberately not accepted here:
@@ -79,7 +83,11 @@ StackCatalogScoreDisplay? stackCatalogScoreDisplayFor(
   }
   final score = product.qualityScoreV4100;
   if (score == null) return null;
-  return (score: score.round(), confidence: product.v4Confidence);
+  return (
+    score: score.round(),
+    qualityTier: product.qualityTier,
+    confidence: product.v4Confidence,
+  );
 }
 
 /// v2 Stack screen — production stack surface with three sub-tabs
@@ -1153,6 +1161,7 @@ class _StackItemRow extends ConsumerWidget {
                         const SizedBox(height: V2Spacing.space4),
                         PGScoreLine(
                           score: scoreDisplay.score,
+                          qualityTier: scoreDisplay.qualityTier,
                           compact: true,
                           confidence: scoreDisplay.confidence,
                         ),
@@ -2365,6 +2374,7 @@ class _WishlistItemRow extends ConsumerWidget {
                         const SizedBox(height: V2Spacing.space4),
                         PGScoreLine(
                           score: scoreDisplay.score,
+                          qualityTier: scoreDisplay.qualityTier,
                           compact: true,
                           confidence: scoreDisplay.confidence,
                         ),

@@ -31,6 +31,7 @@ ProductsCoreData _product({
   String? supplementType,
   String? primaryCategory,
   double? qualityScoreV4100,
+  String? qualityTier,
   String? qualityScoreStatus = 'scored',
   String? discontinuedDate,
   String? keyIngredientTags,
@@ -61,6 +62,7 @@ ProductsCoreData _product({
     supplementType: supplementType,
     primaryCategory: primaryCategory,
     qualityScoreV4100: qualityScoreV4100,
+    qualityTier: qualityTier,
     score100Equivalent: qualityScoreV4100,
     qualityScoreStatus: qualityScoreStatus,
     discontinuedDate: discontinuedDate,
@@ -631,7 +633,7 @@ void main() {
         name: 'Fish Oil 1200mg',
         supplementType: 'targeted',
         primaryCategory: 'omega-3',
-        qualityScoreV4100: 50, // lower score
+        qualityScoreV4100: 55, // lower score, next shipped fallback tier
         containsOmega3: 1,
         keyIngredientTags: '["fish_oil","epa","dha"]',
       );
@@ -1018,22 +1020,24 @@ void main() {
       );
     });
 
-    test('uses the shared score tier as the meaningful-quality boundary', () {
+    test('uses the shipped tier as the meaningful-quality boundary', () {
       final cur = _product(
         dsldId: 'cur',
         name: 'Multi',
         brand: 'A',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        qualityScoreV4100: 59,
+        qualityScoreV4100: 80,
+        qualityTier: 'Acceptable',
       );
       final nextTier = _product(
         dsldId: 'next-tier',
-        name: 'Multi Fair',
+        name: 'Multi Strong',
         brand: 'B',
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
-        qualityScoreV4100: 60,
+        qualityScoreV4100: 80,
+        qualityTier: 'Strong',
       );
 
       final result = rankAlternatives(current: cur, candidates: [nextTier]);
@@ -1049,6 +1053,7 @@ void main() {
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
         qualityScoreV4100: 70,
+        qualityTier: 'Acceptable',
       );
       final sameTier = _product(
         dsldId: 'same-tier',
@@ -1057,6 +1062,7 @@ void main() {
         supplementType: 'multivitamin',
         primaryCategory: 'multivitamin',
         qualityScoreV4100: 79,
+        qualityTier: 'Acceptable',
       );
 
       final result = rankAlternatives(current: cur, candidates: [sameTier]);
