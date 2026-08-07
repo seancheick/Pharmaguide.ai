@@ -122,8 +122,8 @@ void main() {
         final summary = _summary(fitResult: _fit());
 
         expect(summary.status, ProfileRelevanceStatus.neutral);
-        expect(summary.headline, 'No profile-specific concerns found');
-        expect(summary.body, contains('Based on the profile information'));
+        expect(summary.headline, kNoProfileConcernsHeadline);
+        expect(summary.body, contains('Based on your profile'));
         expect(summary.body, contains('Add goals'));
         expect(summary.rows, isEmpty);
       },
@@ -141,8 +141,8 @@ void main() {
         );
 
         expect(summary.status, ProfileRelevanceStatus.goodMatch);
-        expect(summary.headline, 'No profile-specific concerns found');
-        expect(summary.body, contains('No specific match found'));
+        expect(summary.headline, kNoProfileConcernsHeadline);
+        expect(summary.body, contains('No match for your selected goals'));
       },
     );
 
@@ -339,7 +339,7 @@ void main() {
       await _pump(tester, _summary());
 
       expect(find.text('FOR YOU'), findsOneWidget);
-      expect(find.text('No profile-specific concerns found'), findsOneWidget);
+      expect(find.text(kNoProfileConcernsHeadline), findsOneWidget);
       expect(find.text('Add goals'), findsOneWidget);
     });
 
@@ -599,4 +599,40 @@ void main() {
       expect(row.caption, isNot(startsWith('Informational ·')));
     });
   });
+
+  group('clean-profile copy stays on one line', () {
+    // The card renders the headline at 20px and the body at 14px inside a
+    // ~280pt text column on a 375pt device (card margins, 3pt tone rail, 32pt
+    // padding, 20pt icon, 8pt gap). Geist averages ~0.52em per character, so
+    // these budgets keep each sentence off a second line. The previous copy
+    // orphaned one word ("shared." / "goals.") onto its own line, which is
+    // what made the card look cheap.
+    const columnPt = 280.0;
+    double widthAt(String text, double fontPx) => text.length * fontPx * 0.52;
+
+    test('headline fits one line at 20px', () {
+      expect(widthAt(kNoProfileConcernsHeadline, 20), lessThan(columnPt));
+    });
+
+    test('every body variant fits one line per sentence at 14px', () {
+      final bodies = <String>[
+        _summary(fitResult: _fit()).body ?? '',
+        _summary(
+          fitResult: _fit(state: FitAssessmentState.goodFit),
+          selectedGoalLabels: const ['Sleep'],
+        ).body ?? '',
+      ]..removeWhere((b) => b.isEmpty);
+      expect(bodies, isNotEmpty, reason: 'no body copy produced to check');
+      for (final body in bodies) {
+        for (final line in body.split('\n')) {
+          expect(
+            widthAt(line, 14),
+            lessThan(columnPt),
+            reason: 'wraps and orphans a word: "$line"',
+          );
+        }
+      }
+    });
+  });
+
 }

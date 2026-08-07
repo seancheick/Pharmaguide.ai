@@ -287,7 +287,17 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
           if (widget.footer != null) ...[
             Divider(color: context.v2.outline, height: 1, thickness: 0.5),
             Padding(
-              padding: const EdgeInsets.all(V2Spacing.space16),
+              // Tighter vertically than horizontally: the footer's usual
+              // occupant is a single pill button that is already exactly 44pt
+              // tall (12 + 20 + 12), the iOS/Material touch-target floor. The
+              // button itself cannot shrink, so the surrounding padding is the
+              // only safe place to reclaim height — 77pt -> 61pt.
+              padding: const EdgeInsets.fromLTRB(
+                V2Spacing.space16,
+                V2Spacing.space8,
+                V2Spacing.space16,
+                V2Spacing.space8,
+              ),
               child: widget.footer!,
             ),
           ],

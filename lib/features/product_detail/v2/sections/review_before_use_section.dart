@@ -230,7 +230,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
     FitIncomplete() => ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.neutral,
       tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
-      headline: 'No profile-specific concerns found',
+      headline: kNoProfileConcernsHeadline,
       body: _cleanProfileBody(
         topGoalLabel: null,
         selectedGoalLabels: selectedGoalLabels,
@@ -423,7 +423,7 @@ ProfileRelevanceSummary _cleanProfileSummary({
   return ProfileRelevanceSummary(
     status: status,
     tone: tone,
-    headline: 'No profile-specific concerns found',
+    headline: kNoProfileConcernsHeadline,
     body: _cleanProfileBody(
       topGoalLabel: topGoalLabel,
       selectedGoalLabels: selectedGoalLabels,
@@ -448,20 +448,28 @@ bool _shouldExpandInformationalRows(List<PGReviewRow> rows) {
   });
 }
 
+/// Single source for the clean-profile headline. Kept short on purpose: the
+/// card's eyebrow already reads "FOR YOU", so repeating "profile-specific"
+/// was both redundant and long enough to wrap to two lines at 20px on a 375pt
+/// device, which flattened the hierarchy against the 14px body.
+const String kNoProfileConcernsHeadline = 'No concerns found';
+
 String _cleanProfileBody({
   required String? topGoalLabel,
   required List<String> selectedGoalLabels,
 }) {
-  const scope = 'Based on the profile information you’ve shared.';
+  // Each line must stay under ~38 characters so it renders on ONE line in the
+  // card's ~280pt text column at 14px. The previous copy orphaned a single
+  // word ("shared." / "goals.") onto its own line.
+  const scope = 'Based on your profile.';
   final goal = topGoalLabel?.trim();
   if (goal != null && goal.isNotEmpty) {
     return '$scope\nMatches your goal: $goal.';
   }
   if (selectedGoalLabels.isNotEmpty) {
-    return '$scope\nNo specific match found for your selected goals.';
+    return '$scope\nNo match for your selected goals.';
   }
-  return '$scope\nAdd goals to see whether this product matches what you '
-      'want to improve.';
+  return '$scope\nAdd goals to see if this fits.';
 }
 
 String? _goalPriorityCopy(String? topGoalLabel) {
