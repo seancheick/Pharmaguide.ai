@@ -214,11 +214,17 @@ String? _stringValue(Object? raw) {
 ///   headline = label || reason
 ///   caption  = sanitizeWhyDetail(detail || description)
 ///
-/// **Phase 11.7h.3 — Sean 2026-05-16 language softening:**
-/// Pipeline emits `Harmful additive: ITEM` as a penalty label. Sean's
-/// rule: avoid "harmful" language in user-facing copy; the penalty
-/// column already implies concern. We rewrite at display time only —
-/// pipeline stays unchanged until a future cleanup.
+/// **2026-08-07 — the "future cleanup" the note below anticipated:**
+/// The pipeline now authors `Additive: ITEM` directly (build_final_db.py),
+/// so the copy has one owner instead of being rewritten downstream. This
+/// normalizer stays only to absorb the migration window: a catalog built
+/// before that change still ships `Harmful additive: ITEM`, and the app
+/// updates independently of the catalog. Both forms normalize to
+/// `Additive: ITEM`. Drop the legacy branch once no shipped catalog
+/// carries the old string.
+///
+/// Original note (Sean 2026-05-16): avoid "harmful" language in
+/// user-facing copy; the penalty column already implies concern.
 PGTradeoff _toTradeoff(Map<String, dynamic> entry) {
   final rawHeadline =
       (entry['label']?.toString() ?? entry['reason']?.toString() ?? '').trim();
@@ -232,8 +238,11 @@ PGTradeoff _toTradeoff(Map<String, dynamic> entry) {
   );
 }
 
+/// Matches the current pipeline form (`Additive: X`), the pre-2026-08-07 form
+/// (`Harmful additive: X`) still present in already-built catalogs, and the
+/// `Additive concern: X` string this function used to produce.
 final RegExp _harmfulAdditivePrefix = RegExp(
-  r'^\s*harmful additive[:\s]\s*',
+  r'^\s*(?:harmful\s+)?additive(?:\s+concern)?[:\s]\s*',
   caseSensitive: false,
 );
 
@@ -241,8 +250,8 @@ String _softenAdditiveLanguage(String headline) {
   final match = _harmfulAdditivePrefix.firstMatch(headline);
   if (match == null) return headline;
   final remainder = headline.substring(match.end).trim();
-  if (remainder.isEmpty) return 'Additive concern';
-  return 'Additive concern: $remainder';
+  if (remainder.isEmpty) return 'Additive';
+  return 'Additive: $remainder';
 }
 
 List<PGTradeoff> _collapseAdditiveConcerns(List<PGTradeoff> items) {
@@ -252,8 +261,9 @@ List<PGTradeoff> _collapseAdditiveConcerns(List<PGTradeoff> items) {
 
   for (final item in items) {
     final label = item.headline.trim();
+    // Headlines reach here already normalized by _softenAdditiveLanguage.
     final match = RegExp(
-      r'^\s*additive concern[:\s]\s*',
+      r'^\s*additive[:\s]\s*',
       caseSensitive: false,
     ).firstMatch(label);
     if (match == null) {
@@ -269,7 +279,11 @@ List<PGTradeoff> _collapseAdditiveConcerns(List<PGTradeoff> items) {
 
   if (additiveNames.isEmpty) return items;
   return [
-    PGTradeoff(headline: 'Additive concern: ${additiveNames.join(", ")}'),
+    PGTradeoff(
+      headline: additiveNames.length == 1
+          ? 'Additive: ${additiveNames.first}'
+          : 'Additives: ${additiveNames.join(", ")}',
+    ),
     ...remaining,
   ];
 }

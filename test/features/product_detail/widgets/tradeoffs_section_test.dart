@@ -86,11 +86,50 @@ void main() {
       );
 
       expect(
-        find.text('Additive concern: Sugar syrup, Palm oil'),
+        find.text('Additives: Sugar syrup, Palm oil'),
         findsOneWidget,
       );
       expect(find.text('Harmful additive Sugar syrup'), findsNothing);
       expect(find.text('Harmful additive Palm oil'), findsNothing);
+    });
+
+    testWidgets('new pipeline "Additive:" form renders and collapses', (
+      tester,
+    ) async {
+      // build_final_db now authors "Additive: X" directly (2026-08-07), so the
+      // app must render the new string without depending on the legacy rewrite.
+      await _pump(
+        tester,
+        penalties: [
+          _penalty('Additive: Silicon Dioxide (E551)'),
+          _penalty('Additive: Magnesium Stearate'),
+        ],
+      );
+
+      expect(
+        find.text('Additives: Silicon Dioxide (E551), Magnesium Stearate'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('old and new catalog forms normalize identically', (
+      tester,
+    ) async {
+      // The app ships independently of the catalog, so during the migration
+      // window one build emits "Harmful additive: X" and the next "Additive: X".
+      // Both must reach the same rendered string or the copy flickers per
+      // catalog version.
+      await _pump(
+        tester,
+        penalties: [
+          _penalty('Harmful additive: Silicon Dioxide'),
+          _penalty('Additive: Silicon Dioxide'),
+        ],
+      );
+
+      // Same name from both forms -> deduped to a single singular line.
+      expect(find.text('Additive: Silicon Dioxide'), findsOneWidget);
+      expect(find.textContaining('Harmful'), findsNothing);
     });
 
     testWidgets('collapses per-allergen rows into one line', (tester) async {
@@ -131,7 +170,7 @@ void main() {
       );
 
       expect(
-        find.text('Additive concern: Modified Food Starch, Silicon Dioxide'),
+        find.text('Additives: Modified Food Starch, Silicon Dioxide'),
         findsOneWidget,
       );
     });
@@ -318,7 +357,7 @@ void main() {
       );
 
       expect(
-        find.text('Additive concern: Sugar, Palm, Red 40, Yellow 5, Aspartame'),
+        find.text('Additives: Sugar, Palm, Red 40, Yellow 5, Aspartame'),
         findsOneWidget,
       );
       expect(find.text('Proprietary blend'), findsOneWidget);
