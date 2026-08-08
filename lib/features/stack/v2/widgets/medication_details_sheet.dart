@@ -13,14 +13,22 @@
 //   - RxNorm concepts and group counts live under a collapsed "Technical
 //     details" toggle. They keep their audit value without dominating the
 //     sheet.
-//   - No medication education is rendered unless it ships as reviewed
-//     reference content. Do NOT add a runtime lookup here: which medication a
-//     user takes must never leave the device just to explain what it is.
+//   - Medication education renders ONLY reviewed reference content: the
+//     `group_label` + `commonly_used_for` pair from the bundled drug-class
+//     vocab, which ships clinician-signed (vocab v1.1.0, sign-off recorded in
+//     the asset's `consumer_copy_review` block and asserted by
+//     test/core/drug_class_vocab_drift_test.dart). Both strings render
+//     VERBATIM — never reword them here. Still no runtime lookup: the vocab is
+//     read synchronously from the on-device bundle via VocabRegistry, because
+//     which medication a user takes must never leave the device just to
+//     explain what it is. Both fields are optional in the parser, so an older
+//     bundled asset simply omits the section.
 //   - [reminderLabel] is computed by the caller, which already applies the
 //     notification-deliverability rule — this sheet must not re-derive it.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -89,6 +97,7 @@ class MedicationDetailsSheet extends StatelessWidget {
         .where((value) => value.isNotEmpty)
         .toList();
     final technicalLines = _identityLines(identity, assessment);
+    final education = _education(identity);
 
     return Semantics(
       label: 'Medication details for $name',
@@ -112,6 +121,23 @@ class MedicationDetailsSheet extends StatelessWidget {
                 shrinkWrap: true,
                 children: [
                   _MedicationMatchStatus(name: name, assessment: assessment),
+                  if (education != null) ...[
+                    Divider(
+                      height: V2Spacing.space32,
+                      color: context.v2.outline,
+                    ),
+                    PGEyebrow('Medication group', color: context.v2.fgMuted),
+                    const SizedBox(height: V2Spacing.space4),
+                    Text(
+                      education.label,
+                      style: V2Typography.bodyMedium(color: context.v2.fg),
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      education.sentence,
+                      style: V2Typography.bodySm(color: context.v2.fgMuted),
+                    ),
+                  ],
                   Divider(height: V2Spacing.space32, color: context.v2.outline),
                   PGEyebrow('Your details', color: context.v2.fgMuted),
                   const SizedBox(height: V2Spacing.space4),
@@ -176,6 +202,35 @@ class MedicationDetailsSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Reviewed education for the saved medication, or null when none applies.
+  ///
+  /// A medication can carry several class ids (warfarin is both
+  /// `anticoagulants` and `vitamin_k_antagonists`, which deliberately share
+  /// the "Blood thinners" bucket). The sheet shows the PRIMARY class — the
+  /// first saved id carrying both reviewed fields — rather than stacking
+  /// sentences that would repeat or contradict each other. This is
+  /// orientation copy, not the safety path: interaction checks still consider
+  /// every class id.
+  ///
+  /// Returns null when the registry has not initialized, no id resolves, or
+  /// the resolved entry predates vocab v1.1.0 (either field null). The gate is
+  /// strict on both fields — a label with no sentence, or the reverse, would
+  /// render a half-empty section.
+  static ({String label, String sentence})? _education(
+    MedicationIdentitySnapshot? identity,
+  ) {
+    if (identity == null) return null;
+    for (final id in identity.drugClassIds) {
+      final entry = VocabRegistry.instance.drugClass(id);
+      final label = entry?.groupLabel;
+      final sentence = entry?.commonlyUsedFor;
+      if (label != null && sentence != null) {
+        return (label: label, sentence: sentence);
+      }
+    }
+    return null;
   }
 
   static List<String> _identityLines(
@@ -289,32 +344,42 @@ class _TechnicalDetailsSection extends StatefulWidget {
 class _TechnicalDetailsSectionState extends State<_TechnicalDetailsSection> {
   bool _expanded = false;
 
+  void _toggleExpanded() => setState(() => _expanded = !_expanded);
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: () => setState(() => _expanded = !_expanded),
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Technical details',
-                    style: V2Typography.bodySm(color: context.v2.fg),
+        Semantics(
+          container: true,
+          button: true,
+          expanded: _expanded,
+          label: 'Technical details',
+          onTap: _toggleExpanded,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: _toggleExpanded,
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: V2Spacing.space48),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Technical details',
+                      style: V2Typography.bodySm(color: context.v2.fg),
+                    ),
                   ),
-                ),
-                Icon(
-                  _expanded
-                      ? Icons.expand_less_rounded
-                      : Icons.chevron_right_rounded,
-                  size: 18,
-                  color: context.v2.fgMuted,
-                ),
-              ],
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.chevron_right_rounded,
+                    size: 18,
+                    color: context.v2.fgMuted,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

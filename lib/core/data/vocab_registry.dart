@@ -206,9 +206,11 @@ class VocabRegistry {
   void debugSeed({
     Map<String, VerdictEntry>? verdicts,
     Map<String, SeverityEntry>? severities,
+    Map<String, DrugClassEntry>? drugClasses,
   }) {
     if (verdicts != null) _verdicts = verdicts;
     if (severities != null) _severities = severities;
+    if (drugClasses != null) _drugClasses = drugClasses;
     _initialized = true;
   }
 
