@@ -54,6 +54,16 @@ class PGActiveIngredient {
   /// Bioavailability tier resolved from `bio_score`. Drives the form chip.
   final FormQuality formQuality;
 
+  /// Reviewed consumer explanation of this form, authored in the pipeline's
+  /// ingredient quality map. Null unless the form carries an approved
+  /// `consumer_note` and the row is assessed and scored — the sheet then falls
+  /// back to its generic tier line. Never derived app-side.
+  final String? formNote;
+
+  /// First sentence of [formNote], split in the pipeline so the app makes no
+  /// editorial decision. Null exactly when [formNote] is null.
+  final String? formNotePreview;
+
   /// Dose-related call-out (UL exceedance / below-clinical / not disclosed).
   /// Drives the dose chip.
   final DoseCallOut doseCallOut;
@@ -105,6 +115,8 @@ class PGActiveIngredient {
     this.parentheticalDoseText,
     this.formLabel,
     this.formQuality = FormQuality.unknown,
+    this.formNote,
+    this.formNotePreview,
     this.doseCallOut = DoseCallOut.withinLimits,
     this.isSafetyConcern = false,
     this.isInferredFromLabel = false,

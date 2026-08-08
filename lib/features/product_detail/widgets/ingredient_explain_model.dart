@@ -50,7 +50,19 @@ class IngredientExplain {
 
   /// 1–2 sentence pharmacist-style copy explaining a verified form signal.
   /// Null keeps unassessed/internal states out of the consumer sheet.
+  ///
+  /// Generic per-tier fallback. [formNote] supersedes it when the pipeline
+  /// ships reviewed copy for this specific form.
   final String? formExplanation;
+
+  /// Reviewed, form-specific consumer explanation from the pipeline. Null
+  /// unless the scoring form carries an approved `consumer_note` and the row
+  /// is assessed and scored.
+  final String? formNote;
+
+  /// First sentence of [formNote], split pipeline-side. The sheet shows this
+  /// collapsed and reveals [formNote] on expand — it never splits text itself.
+  final String? formNotePreview;
 
   /// Sentence explaining the dose call-out. Empty for `withinLimits`.
   final String doseExplanation;
@@ -68,6 +80,8 @@ class IngredientExplain {
     required this.doseCallOut,
     required this.formExplanation,
     required this.doseExplanation,
+    this.formNote,
+    this.formNotePreview,
     this.formName,
     this.doseLabel,
     this.parentheticalDoseText,
@@ -107,6 +121,11 @@ IngredientExplain buildIngredientExplain({
           form: presented.formLabel,
         );
 
+  // A note only ever appears beneath a rendered tier heading. The pipeline
+  // gate already rejects a note on a row with no bio_score; this keeps a stale
+  // blob from producing a headless explanation.
+  final formNote = formHeading == null ? null : presented.formNote;
+
   return IngredientExplain(
     title: presented.name,
     formName: presented.formLabel,
@@ -120,6 +139,8 @@ IngredientExplain buildIngredientExplain({
     formHeading: formHeading,
     doseCallOut: presented.doseCallOut,
     formExplanation: formExplanation,
+    formNote: formNote,
+    formNotePreview: formNote == null ? null : presented.formNotePreview,
     doseExplanation: _doseExplanationFor(presented.doseCallOut),
     identityNeedsReview: presented.identityNeedsReview,
     scoreIncluded: presented.scoreIncluded,

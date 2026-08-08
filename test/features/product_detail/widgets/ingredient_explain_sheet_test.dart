@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show SemanticsAction;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,5 +125,169 @@ void main() {
     expect(find.text('Secret Triglyceride Claim'), findsNothing);
     expect(find.text('660 mg'), findsOneWidget);
     expect(find.text('Form unknown'), findsNothing);
+  });
+
+  // --- reviewed form notes ------------------------------------------------
+  //
+  // The pipeline ships `form_note` (+ `form_note_preview`, pre-split) on
+  // display_ingredients[].analysis only when the scoring form carries an
+  // approved consumer_note. The sheet renders it in place of the generic
+  // per-tier line, and must never render it beside a non-assessed row.
+
+  const notePreview = 'The active coenzyme form of B2, also called FMN.';
+  const noteFull =
+      '$notePreview Taken by mouth it is converted back to plain riboflavin '
+      'before your body absorbs it, so it is taken up about as well as '
+      'standard riboflavin.';
+  const genericGood = 'Reasonable absorption profile for most users.';
+
+  Map<String, dynamic> riboflavinRow({
+    String formState = 'assessed',
+    bool scoreIncluded = true,
+    String? identityState,
+    bool withNote = true,
+  }) {
+    return {
+      'label_display_name': 'Riboflavin',
+      'label_display_form': "Riboflavin 5' Phosphate",
+      'form_display_state': formState,
+      'score_included': scoreIncluded,
+      if (identityState != null) 'identity_integrity_state': identityState,
+      // Nested exactly as the canonical ledger emits it.
+      'analysis': {
+        'bio_score': 10,
+        if (withNote) 'form_note': noteFull,
+        if (withNote) 'form_note_preview': notePreview,
+      },
+    };
+  }
+
+  testWidgets('reviewed note replaces the generic tier line', (tester) async {
+    await _pumpAndOpenSheet(tester, riboflavinRow());
+
+    expect(find.text('Good form'), findsOneWidget);
+    expect(find.text(notePreview), findsOneWidget);
+    expect(find.text(genericGood), findsNothing);
+  });
+
+  testWidgets('note collapses to the pipeline preview and expands on More', (
+    tester,
+  ) async {
+    await _pumpAndOpenSheet(tester, riboflavinRow());
+
+    expect(find.text(notePreview), findsOneWidget);
+    expect(find.text(noteFull), findsNothing);
+    expect(find.text('More'), findsOneWidget);
+
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(noteFull), findsOneWidget);
+    expect(find.text('Less'), findsOneWidget);
+
+    await tester.tap(find.text('Less'));
+    await tester.pumpAndSettle();
+    expect(find.text(notePreview), findsOneWidget);
+    expect(find.text(noteFull), findsNothing);
+  });
+
+  testWidgets('More control has a 44 by 44 point touch target', (tester) async {
+    await _pumpAndOpenSheet(tester, riboflavinRow());
+
+    final moreControl = find.ancestor(
+      of: find.text('More'),
+      matching: find.byType(InkWell),
+    );
+    final rect = tester.getRect(moreControl);
+
+    expect(rect.width, greaterThanOrEqualTo(44));
+    expect(rect.height, greaterThanOrEqualTo(44));
+  });
+
+  testWidgets('More control has an accessible action label', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpAndOpenSheet(tester, riboflavinRow());
+
+    final node = tester.getSemantics(find.text('More'));
+    expect(node.label, contains('Show more about Good form'));
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    semantics.dispose();
+  });
+
+  testWidgets('no note falls back to the generic tier line', (tester) async {
+    await _pumpAndOpenSheet(tester, riboflavinRow(withNote: false));
+
+    expect(find.text('Good form'), findsOneWidget);
+    expect(find.text(genericGood), findsOneWidget);
+    expect(find.text('More'), findsNothing);
+  });
+
+  // The state gate, not a null check. A stale or malformed blob can carry a
+  // note on a row the pipeline no longer considers assessed; the sheet must
+  // suppress it rather than explain a form it has not assessed.
+  testWidgets('listed-not-assessed row suppresses a stale note', (
+    tester,
+  ) async {
+    await _pumpAndOpenSheet(
+      tester,
+      riboflavinRow(formState: 'listed_not_assessed'),
+    );
+
+    expect(find.text(notePreview), findsNothing);
+    expect(find.text(noteFull), findsNothing);
+    expect(find.text('More'), findsNothing);
+    expect(find.text('Good form'), findsNothing);
+    // The label's own form text still shows — only the claim is withheld.
+    expect(find.text("Riboflavin 5' Phosphate"), findsOneWidget);
+  });
+
+  testWidgets('identity-review row suppresses a stale note', (tester) async {
+    await _pumpAndOpenSheet(
+      tester,
+      riboflavinRow(
+        formState: 'needs_review',
+        identityState: 'identity_conflict',
+      ),
+    );
+
+    expect(find.text(notePreview), findsNothing);
+    expect(find.text('More'), findsNothing);
+  });
+
+  testWidgets('unscored row suppresses a stale note', (tester) async {
+    await _pumpAndOpenSheet(tester, riboflavinRow(scoreIncluded: false));
+
+    expect(find.text(notePreview), findsNothing);
+    expect(find.text('More'), findsNothing);
+  });
+
+  testWidgets('note without bio_score renders no headless explanation', (
+    tester,
+  ) async {
+    await _pumpAndOpenSheet(tester, const {
+      'label_display_name': 'Riboflavin',
+      'label_display_form': "Riboflavin 5' Phosphate",
+      'form_display_state': 'assessed',
+      'score_included': true,
+      'analysis': {'form_note': noteFull, 'form_note_preview': notePreview},
+    });
+
+    expect(find.text(notePreview), findsNothing);
+    expect(find.text('More'), findsNothing);
+  });
+
+  testWidgets('missing preview falls back to the full note, still expandable',
+      (tester) async {
+    await _pumpAndOpenSheet(tester, const {
+      'label_display_name': 'Riboflavin',
+      'label_display_form': "Riboflavin 5' Phosphate",
+      'form_display_state': 'assessed',
+      'score_included': true,
+      'analysis': {'bio_score': 10, 'form_note': noteFull},
+    });
+
+    expect(find.text(noteFull), findsOneWidget);
+    // Preview == body, so there is nothing left to reveal.
+    expect(find.text('More'), findsNothing);
   });
 }

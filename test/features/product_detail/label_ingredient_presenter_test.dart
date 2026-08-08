@@ -404,4 +404,126 @@ void main() {
       expect(active.doseCallOut, DoseCallOut.low);
     });
   });
+
+  // These pin the presenter's own state gate. The sheet has a second,
+  // independent belt (a note needs a tier heading to sit under), so a widget
+  // test can pass even with this gate removed — assert it directly here.
+  group('form note state gate', () {
+    const note = 'A reviewed sentence. And the rest of the explanation.';
+    const preview = 'A reviewed sentence.';
+
+    Map<String, dynamic> row({
+      required String formState,
+      bool scoreIncluded = true,
+      String? identityState,
+    }) {
+      return {
+        'label_display_name': 'Riboflavin',
+        'label_display_form': "Riboflavin 5' Phosphate",
+        'form_display_state': formState,
+        'score_included': scoreIncluded,
+        if (identityState != null) 'identity_integrity_state': identityState,
+        'analysis': {
+          'bio_score': 10,
+          'form_note': note,
+          'form_note_preview': preview,
+        },
+      };
+    }
+
+    test('assessed and scored row carries the note and its preview', () {
+      final active = presentActiveIngredient(row(formState: 'assessed'));
+
+      expect(active.formNote, note);
+      expect(active.formNotePreview, preview);
+    });
+
+    test('listed-not-assessed row drops the note', () {
+      final active = presentActiveIngredient(
+        row(formState: 'listed_not_assessed'),
+      );
+
+      expect(active.formDisplayState,
+          PGIngredientFormDisplayState.listedNotAssessed);
+      expect(active.formNote, isNull);
+      expect(active.formNotePreview, isNull);
+    });
+
+    test('needs-review row drops the note', () {
+      final active = presentActiveIngredient(
+        row(formState: 'needs_review', identityState: 'identity_conflict'),
+      );
+
+      expect(active.identityNeedsReview, isTrue);
+      expect(active.formNote, isNull);
+    });
+
+    test('unscored row drops the note', () {
+      final active = presentActiveIngredient(
+        row(formState: 'assessed', scoreIncluded: false),
+      );
+
+      expect(active.formNote, isNull);
+    });
+
+    test('reads the note from the top level as well as from analysis', () {
+      final active = presentActiveIngredient(const {
+        'label_display_name': 'Riboflavin',
+        'label_display_form': "Riboflavin 5' Phosphate",
+        'form_display_state': 'assessed',
+        'score_included': true,
+        'bio_score': 10,
+        'form_note': note,
+        'form_note_preview': preview,
+      });
+
+      expect(active.formNote, note);
+      expect(active.formNotePreview, preview);
+    });
+
+    test('preview absent falls back to the full note', () {
+      final active = presentActiveIngredient(const {
+        'label_display_name': 'Riboflavin',
+        'label_display_form': "Riboflavin 5' Phosphate",
+        'form_display_state': 'assessed',
+        'score_included': true,
+        'analysis': {'bio_score': 10, 'form_note': note},
+      });
+
+      expect(active.formNotePreview, note);
+    });
+
+    test('blank note is treated as absent', () {
+      final active = presentActiveIngredient(const {
+        'label_display_name': 'Riboflavin',
+        'label_display_form': "Riboflavin 5' Phosphate",
+        'form_display_state': 'assessed',
+        'score_included': true,
+        'analysis': {'bio_score': 10, 'form_note': '   '},
+      });
+
+      expect(active.formNote, isNull);
+      expect(active.formNotePreview, isNull);
+    });
+
+    test('undisclosed form drops the note even when marked assessed', () {
+      // No label_display_form / display_form_label. A row claiming "assessed"
+      // with no disclosed form is internally inconsistent, so the presenter
+      // routes it to needsReview — and a note describing a form is meaningless
+      // when no form was disclosed.
+      final active = presentActiveIngredient(const {
+        'label_display_name': 'Riboflavin',
+        'form_display_state': 'assessed',
+        'score_included': true,
+        'analysis': {
+          'bio_score': 10,
+          'form_note': note,
+          'form_note_preview': preview,
+        },
+      });
+
+      expect(active.formDisplayState, PGIngredientFormDisplayState.needsReview);
+      expect(active.formNote, isNull);
+    });
+  });
 }

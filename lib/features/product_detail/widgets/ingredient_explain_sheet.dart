@@ -83,12 +83,20 @@ class _SheetBody extends StatelessWidget {
         const SizedBox(height: V2Spacing.space16),
         Divider(color: context.v2.outline, height: 1, thickness: 0.4),
         const SizedBox(height: V2Spacing.space16),
-        if (explain.formHeading != null && explain.formExplanation != null)
+        // Reviewed, form-specific copy when the pipeline ships it; the generic
+        // per-tier line otherwise. Both live in the same block — the note
+        // explains the heading above it rather than competing with it.
+        if (explain.formHeading != null &&
+            (explain.formNote != null || explain.formExplanation != null))
           _Block(
             accent: _formAccent(context.v2, explain.formQuality),
             tint: _formTint(context.v2, explain.formQuality),
             heading: explain.formHeading!,
-            body: explain.formExplanation!,
+            body:
+                explain.formNotePreview ??
+                explain.formNote ??
+                explain.formExplanation!,
+            expandedBody: explain.formNote,
           ),
         if (explain.doseExplanation.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space12),
@@ -150,39 +158,92 @@ class _FactTile extends StatelessWidget {
   }
 }
 
-class _Block extends StatelessWidget {
+class _Block extends StatefulWidget {
   final Color accent;
   final Color tint;
   final String heading;
   final String body;
+
+  /// Longer text revealed by a "More" toggle. When null the block is a plain
+  /// heading + body, exactly as before. Both strings arrive pre-split from the
+  /// pipeline — the sheet never decides where a sentence ends.
+  final String? expandedBody;
 
   const _Block({
     required this.accent,
     required this.tint,
     required this.heading,
     required this.body,
+    this.expandedBody,
   });
 
   @override
+  State<_Block> createState() => _BlockState();
+}
+
+class _BlockState extends State<_Block> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    final style = context.v2.tintedLabel(accent, borderAlpha: 0.18);
+    final style = context.v2.tintedLabel(widget.accent, borderAlpha: 0.18);
+    // Nothing to reveal when the fuller text is absent or adds nothing.
+    final expandable =
+        widget.expandedBody != null && widget.expandedBody != widget.body;
+    final body = expandable && _expanded ? widget.expandedBody! : widget.body;
+
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
       decoration: BoxDecoration(
-        color: tint,
+        color: widget.tint,
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         border: Border.all(color: style.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(heading, style: V2Typography.label(color: style.foreground)),
+          Text(
+            widget.heading,
+            style: V2Typography.label(color: style.foreground),
+          ),
           const SizedBox(height: V2Spacing.space4),
           Text(body, style: V2Typography.bodySm(color: context.v2.fg)),
+          if (expandable) ...[
+            const SizedBox(height: V2Spacing.space4),
+            Semantics(
+              button: true,
+              label: _expanded
+                  ? 'Show less about ${widget.heading}'
+                  : 'Show more about ${widget.heading}',
+              onTap: _toggle,
+              excludeSemantics: true,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _toggle,
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _expanded ? 'Less' : 'More',
+                        style: V2Typography.bodyMedium(
+                          color: context.v2.accent,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  void _toggle() => setState(() => _expanded = !_expanded);
 }
 
 Color _formAccent(V2Palette p, FormQuality q) {

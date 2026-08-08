@@ -77,6 +77,22 @@ PGActiveIngredient presentActiveIngredient(
   final formQuality = formDisplayState == PGIngredientFormDisplayState.assessed
       ? resolveFormQuality(_analysisValue(ingredient, 'bio_score'))
       : FormQuality.unknown;
+
+  // Reviewed consumer copy for the form that supplied the score. Gated on the
+  // row being assessed and scored — never on field presence alone, so a stale
+  // or malformed blob cannot put an explanation beside a row reading
+  // "Form listed · not yet assessed". The needs-review path returns earlier.
+  final showsFormNote =
+      formDisplayState == PGIngredientFormDisplayState.assessed && scoreIncluded;
+  final formNote = showsFormNote
+      ? _trimOrNull(_analysisValue(ingredient, 'form_note'))
+      : null;
+  // Preview always accompanies a note in the export contract; falling back to
+  // the full note keeps a malformed blob readable rather than blank.
+  final formNotePreview = formNote == null
+      ? null
+      : _trimOrNull(_analysisValue(ingredient, 'form_note_preview')) ?? formNote;
+
   final doseIngredient = _withAnalysisSignals(ingredient, const [
     'standard_name',
     'quantity',
@@ -96,6 +112,8 @@ PGActiveIngredient presentActiveIngredient(
     parentheticalDoseText: _trimOrNull(ingredient['parenthetical_dose_text']),
     formLabel: formLabel,
     formQuality: formQuality,
+    formNote: formNote,
+    formNotePreview: formNotePreview,
     doseCallOut: scoreIncluded
         ? resolveDoseCallOut(ingredient: doseIngredient, ulEntry: ulEntry)
         : DoseCallOut.withinLimits,
