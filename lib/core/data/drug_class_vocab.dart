@@ -1,14 +1,16 @@
 // Drug-class vocab loader.
 //
-// Pipeline contract (locked v1.0.0, schema in pipeline repo
+// Pipeline contract (schema source: pipeline repo
 // `scripts/data/drug_class_vocab.json`):
 //
 //   {
-//     "schema_version": "1.0.0",
+//     "schema_version": "1.1.0",
 //     "drug_classes": [
 //       {
 //         "id": "anticoagulants",
 //         "name": "Blood thinners",
+//         "group_label": "Blood thinners",          // v1.1.0, optional
+//         "commonly_used_for": "Commonly used ...", // v1.1.0, optional
 //         "notes": "≤ 200-char user-facing description...",
 //         "examples": ["warfarin", "apixaban", "rivaroxaban", ...],
 //         "rx_status": "rx_only",
@@ -18,11 +20,18 @@
 //     ]
 //   }
 //
-// 21 entries, locked: 13 user_selectable (match `drugClasses` in
-// lib/core/constants/schema_ids.dart) + 8 rule-only (CYP substrates,
-// narrow drug families referenced by interaction rules but not surfaced
-// as profile picks). Migrating gives clinician control of the
-// user-facing drug-class copy and brand examples.
+// Entry counts and the user_selectable/rule-only split live in the JSON
+// `_metadata` — do not hand-copy them here (a previous "21 entries
+// (13 + 8)" note in this comment had silently drifted from the pipeline's
+// 30). The user_selectable subset matches `drugClasses` in
+// lib/core/constants/schema_ids.dart; rule-only classes (CYP substrates,
+// narrow drug families) are referenced by interaction rules and by
+// medication classification, but are not profile picks.
+//
+// v1.1.0 adds two OPTIONAL sheet-facing consumer fields, `group_label`
+// and `commonly_used_for` (clinician-reviewed education for the
+// medication details sheet). Older bundled assets don't carry them; the
+// parser yields null and the sheet omits its education section.
 //
 // Loaded once at first call to `loadDrugClassVocab()`; cached
 // process-lifetime.
@@ -33,6 +42,15 @@ import 'package:flutter/services.dart' show rootBundle;
 class DrugClassEntry {
   final String id;
   final String name;
+
+  /// Clean consumer classification noun for the medication details sheet
+  /// ("Diabetes medications"). Null when the bundled asset predates vocab
+  /// v1.1.0 — the sheet omits its education section then.
+  final String? groupLabel;
+
+  /// One clinician-reviewed sentence ("Commonly used to help ..."). Null
+  /// when the bundled asset predates vocab v1.1.0.
+  final String? commonlyUsedFor;
   final String notes;
   final List<String> examples;
   final String rxStatus;
@@ -41,6 +59,8 @@ class DrugClassEntry {
   const DrugClassEntry({
     required this.id,
     required this.name,
+    this.groupLabel,
+    this.commonlyUsedFor,
     required this.notes,
     required this.examples,
     required this.rxStatus,
@@ -51,6 +71,8 @@ class DrugClassEntry {
     return DrugClassEntry(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
+      groupLabel: _optionalTrimmed(json['group_label']),
+      commonlyUsedFor: _optionalTrimmed(json['commonly_used_for']),
       notes: json['notes']?.toString() ?? '',
       examples:
           (json['examples'] as List?)
@@ -61,6 +83,14 @@ class DrugClassEntry {
       userSelectable: json['user_selectable'] as bool? ?? false,
     );
   }
+}
+
+/// Missing or blank optional strings normalize to null so render gates
+/// stay a simple null check.
+String? _optionalTrimmed(dynamic value) {
+  if (value == null) return null;
+  final s = value.toString().trim();
+  return s.isEmpty ? null : s;
 }
 
 Map<String, DrugClassEntry>? _cache;
