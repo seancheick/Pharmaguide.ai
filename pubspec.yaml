@@ -75,6 +75,8 @@ dependencies:
   uuid: ^4.5.3
   image_picker: ^1.2.3
   flutter_image_compress: ^2.5.0
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.1

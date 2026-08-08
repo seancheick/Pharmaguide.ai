@@ -27,6 +27,9 @@ enum SignalFamily {
   /// absorption is a safety concern, not the optimization advice the other two
   /// timing categories carry.
   timingSeparation,
+
+  /// A human-approved post-purchase regulatory event matched to a product.
+  regulatorySafety,
 }
 
 /// Namespace + version prefix for every signal's canonical identity. Bump the
@@ -101,6 +104,7 @@ String canonicalSignalId({
     case SignalFamily.medicationProfile:
     case SignalFamily.medicationNutrient:
     case SignalFamily.timingSeparation:
+    case SignalFamily.regulatorySafety:
       if (sourceRuleId == null || sourceRuleId.trim().isEmpty) {
         throw ArgumentError('${family.name} signal id requires a sourceRuleId');
       }

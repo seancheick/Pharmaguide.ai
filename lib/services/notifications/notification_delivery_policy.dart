@@ -17,7 +17,7 @@ const currentNotificationProducerAvailability =
     NotificationProducerAvailability(
       stackReminders: true,
       healthHistoryReminders: true,
-      safetyRecallAlerts: false,
+      safetyRecallAlerts: true,
     );
 
 final notificationProducerAvailabilityProvider =

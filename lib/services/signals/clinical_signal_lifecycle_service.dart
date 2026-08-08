@@ -33,6 +33,7 @@ class ClinicalSignalLifecycleService {
     required bool analysisComplete,
     String? ruleVersion,
     String? catalogVersion,
+    Set<String> silentSignalIds = const {},
     DateTime? observedAt,
   }) async {
     final now = (observedAt ?? DateTime.now()).toUtc();
@@ -61,6 +62,13 @@ class ClinicalSignalLifecycleService {
           oldEvent?.eventType == HealthEventTypes.clinicalSignalResolved;
       final snapshot = entry.value;
       if (oldSnapshot == null || wasResolved) {
+        if (oldEvent == null && silentSignalIds.contains(entry.key)) {
+          // A verified feed backfill is available in the app, but it is not a
+          // newly delivered alert. Do not create a retrospective history or
+          // notification event on first install.
+          unchanged++;
+          continue;
+        }
         await _history.append(
           _lifecycleDraft(
             eventType: HealthEventTypes.clinicalSignalAdded,

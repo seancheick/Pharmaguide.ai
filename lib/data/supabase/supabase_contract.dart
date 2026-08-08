@@ -50,6 +50,10 @@ abstract final class SupabaseContract {
   /// User supplement/medication stack — synced between devices.
   static const userStacksTable = 'user_stacks';
 
+  /// Human-approved regulatory-event releases. The app can read only the
+  /// current row; devices never write the feed or its dispatch metadata.
+  static const safetyAlertReleasesTable = 'safety_alert_releases';
+
   /// Product-state identity used by every PostgREST user-stack upsert. The
   /// database enforces this as a full UNIQUE constraint, not a partial index.
   static const userStacksProductConflictTarget = 'user_id,dsld_id';

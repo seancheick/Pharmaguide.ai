@@ -24,6 +24,7 @@ import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dar
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 
 export 'package:pharmaguide/core/models/clinical_signal.dart';
 
@@ -112,6 +113,12 @@ final class CumulativeExposurePayload extends SignalPayload {
 final class DoseThresholdPayload extends SignalPayload {
   final StackDoseThresholdAlert alert;
   const DoseThresholdPayload(this.alert);
+}
+
+final class RegulatorySafetyPayload extends SignalPayload {
+  const RegulatorySafetyPayload(this.alert, {required this.dsldId});
+  final SafetyAlert alert;
+  final String dsldId;
 }
 
 @immutable
@@ -394,6 +401,41 @@ class ClinicalSignal {
       body: body,
       copyId: 'dose_threshold:$ruleId',
       payload: DoseThresholdPayload(alert),
+    );
+  }
+
+  factory ClinicalSignal.fromRegulatorySafety(
+    SafetyAlert alert, {
+    required String dsldId,
+  }) {
+    final canonical = canonicalSignalId(
+      family: SignalFamily.regulatorySafety,
+      sourceRuleId: alert.alertId,
+      subjectIds: [dsldId],
+    );
+    return ClinicalSignal(
+      signalId: deriveSignalId(
+        family: SignalFamily.regulatorySafety,
+        sourceRuleId: alert.alertId,
+        subjectIds: [dsldId],
+      ),
+      signalIdCanonical: canonical,
+      family: SignalFamily.regulatorySafety,
+      sourceRuleId: alert.alertId,
+      subjectIds: _sortedSubjects([dsldId]),
+      clinicalSeverity: alert.disposition == SafetyAlertDisposition.block
+          ? Severity.avoid
+          : Severity.caution,
+      consumerDisposition: alert.disposition == SafetyAlertDisposition.block
+          ? ConsumerDisposition.block
+          : ConsumerDisposition.review,
+      evaluationStatus: EvaluationStatus.applicable,
+      title: alert.headline,
+      body: '${alert.body}\n\n${alert.action}',
+      copyId: '${alert.alertId}:${alert.revision}',
+      sourceUrls: [alert.sourceUrl.toString()],
+      ruleVersion: 'safety_alert:${alert.revision}',
+      payload: RegulatorySafetyPayload(alert, dsldId: dsldId),
     );
   }
 }

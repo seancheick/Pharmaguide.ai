@@ -5,3 +5,9 @@ project_id = "pharmaguide"
 # functions intentionally keep Supabase's default user-JWT verification.
 [functions.cleanup-product-submissions]
 verify_jwt = false
+
+# Invoked only by the pipeline after it atomically promotes an alert release.
+# The function performs its own constant-time release-secret check; an end-user
+# JWT must never be able to trigger bulk notification delivery.
+[functions.dispatch-safety-alert-release]
+verify_jwt = false

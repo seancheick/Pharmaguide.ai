@@ -22,6 +22,7 @@ import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 
 /// Consumer-facing safety signals. Medication–nutrient relationships keep
 /// their dedicated presentation today, so this compatibility entry point uses
@@ -61,6 +62,10 @@ String clinicalSignalKindLabel(ClinicalSignal signal) {
       return 'Medication/nutrient guidance';
     case TimingSeparationPayload():
       return 'Timing guidance';
+    case RegulatorySafetyPayload(:final alert):
+      return alert.eventType == SafetyAlertEventType.ingredientBan
+          ? 'Regulatory ingredient alert'
+          : 'Product recall';
   }
 }
 
@@ -74,7 +79,8 @@ String clinicalSignalContextLabel(ClinicalSignal signal) {
     ).label,
     CumulativeExposurePayload() ||
     DoseThresholdPayload() ||
-    TimingSeparationPayload() => null,
+    TimingSeparationPayload() ||
+    RegulatorySafetyPayload() => null,
   };
   return evidence == null ? kind : '$kind · $evidence';
 }
@@ -88,6 +94,7 @@ List<ClinicalSignal> allClinicalSignalsFrom({
   required StackSafetyReport report,
   List<DepletionMatch> medicationNutrientMatches = const [],
   List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+  List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts = const [],
 }) {
   final entries = <({ClinicalSignal signal, int bucket, int ordinal})>[];
 
@@ -138,6 +145,15 @@ List<ClinicalSignal> allClinicalSignalsFrom({
     entries.add((
       signal: ClinicalSignal.fromDoseThreshold(doseThresholdAlerts[i]),
       bucket: 6,
+      ordinal: i,
+    ));
+  }
+
+  for (var i = 0; i < regulatorySafetyAlerts.length; i++) {
+    final match = regulatorySafetyAlerts[i];
+    entries.add((
+      signal: ClinicalSignal.fromRegulatorySafety(match.alert, dsldId: match.dsldId),
+      bucket: -1,
       ordinal: i,
     ));
   }

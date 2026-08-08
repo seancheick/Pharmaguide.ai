@@ -3,8 +3,10 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as reference_data;
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_lifecycle_service.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 
@@ -22,10 +24,12 @@ final clinicalSignalLifecycleProvider = FutureProvider<SignalLifecycleDiff>((
   final doseThresholdAlerts = await ref.watch(
     stackDoseThresholdAlertsProvider.future,
   );
+  final regulatoryAlerts = await ref.watch(safetyAlertMatchesProvider.future);
   final signals = allClinicalSignalsFrom(
     report: report,
     medicationNutrientMatches: depletionReport.matches,
     doseThresholdAlerts: doseThresholdAlerts,
+    regulatorySafetyAlerts: regulatoryAlerts.matches,
   );
 
   var analysisComplete =
@@ -33,6 +37,7 @@ final clinicalSignalLifecycleProvider = FutureProvider<SignalLifecycleDiff>((
       !report.coverageIncomplete &&
       !doseThresholdAlerts.any((alert) => alert.isIncomplete) &&
       depletionReport.status == MedNutrientLoadStatus.loaded;
+  analysisComplete = analysisComplete && regulatoryAlerts.isComplete;
   String? catalogVersion;
   String? ruleVersion;
 
@@ -80,5 +85,15 @@ final clinicalSignalLifecycleProvider = FutureProvider<SignalLifecycleDiff>((
     analysisComplete: analysisComplete,
     ruleVersion: ruleVersion,
     catalogVersion: catalogVersion,
+    silentSignalIds: {
+      for (final match in regulatoryAlerts.matches)
+        if (regulatoryAlerts.baselineSignalKeys.contains(
+          '${match.alert.alertId}:${match.dsldId}',
+        ))
+          ClinicalSignal.fromRegulatorySafety(
+            match.alert,
+            dsldId: match.dsldId,
+          ).signalId,
+    },
   );
 });
