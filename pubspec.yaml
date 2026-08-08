@@ -95,7 +95,7 @@ dev_dependencies:
   # http + crypto are already in `dependencies` (crypto: ^3.0.3 above), so
   # listing them under dev_dependencies tripped the `unnecessary_dev_dependency`
   # analyzer warning. test/ uses flutter_test.
-  sqlite3: ^2.0.0
+  sqlite3: ^3.5.1
   args: ^2.4.0
 
 flutter_native_splash:
