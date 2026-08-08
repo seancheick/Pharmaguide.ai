@@ -247,8 +247,10 @@ class _SignalPresentation {
         final exceeds = status.tier == NutrientTier.exceedsUl;
         return _SignalPresentation(
           severity: severity,
+          // States the finding rather than naming the concept first, and
+          // parallels the near-limit variant beneath it.
           title: exceeds
-              ? 'Upper limit - ${status.total.displayName}'
+              ? '${status.total.displayName} above upper limit'
               : '${status.total.displayName} is near its upper limit',
           body: exceeds
               ? StackSafetyReport.nutrientUpperLimitSummary(status)

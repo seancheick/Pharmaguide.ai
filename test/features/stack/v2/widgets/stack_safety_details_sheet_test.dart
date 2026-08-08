@@ -140,7 +140,8 @@ void main() {
       expect(find.text('REVIEW 2 SIGNALS'), findsOneWidget);
       expect(find.text('Iron x Calcium'), findsOneWidget);
       expect(find.text('Take them at different meals.'), findsOneWidget);
-      expect(find.text('Upper limit - Vitamin D'), findsOneWidget);
+      // Renamed 2026-08-07 — see the banner test for the rationale.
+      expect(find.text('Vitamin D above upper limit'), findsOneWidget);
       expect(find.textContaining('125 mcg/day'), findsOneWidget);
     });
   });

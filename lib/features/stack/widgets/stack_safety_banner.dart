@@ -177,7 +177,12 @@ class StackSafetyBanner extends StatelessWidget {
         return '$prefix — ${warning.medicationName}';
       case CumulativeExposurePayload(:final status):
         if (status.tier == NutrientTier.exceedsUl) {
-          return 'Upper limit - ${status.total.displayName}';
+          // "Vitamin D above upper limit", not "Upper limit - Vitamin D".
+          // The old form named the concept before the nutrient and left the
+          // user to infer what happened; this states the finding. It also
+          // parallels the near-limit variant below, which already reads
+          // "<nutrient> is near its upper limit".
+          return '${status.total.displayName} above upper limit';
         }
         return '$prefix — ${status.total.displayName}';
       case MedicationNutrientPayload(:final match):

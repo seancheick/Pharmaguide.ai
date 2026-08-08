@@ -306,7 +306,8 @@ void main() {
         find.byType(PGSeverityBanner),
       );
       expect(banner.tone, PGBannerTone.caution);
-      expect(banner.title, 'Upper limit - Vitamin D');
+      // Renamed 2026-08-07: state the finding, don't name the concept first.
+      expect(banner.title, 'Vitamin D above upper limit');
       expect(banner.body, contains('125 mcg/day'));
       expect(banner.body, contains('125% of the 100 mcg upper limit'));
       expect(banner.body, contains('O.N.E. (50 mcg/day)'));
