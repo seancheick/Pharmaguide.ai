@@ -17,16 +17,32 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 29 entries (16 user_selectable + 13 rule-only)', () {
+    test('schema lock + 30 entries (16 user_selectable + 14 rule-only)', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
-      expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 29);
+      // v1.1.0 (2026-08-08): adds vitamin_k_antagonists (rule-only, 13 -> 14)
+      // and the sheet-facing group_label + commonly_used_for fields.
+      expect(md['schema_version'], '1.1.0');
+      expect(md['total_entries'], 30);
       expect(md['user_selectable_count'], 16);
-      expect(md['rule_only_count'], 13);
+      expect(md['rule_only_count'], 14);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
+    });
+
+    test('sheet-facing consumer copy carries clinician sign-off', () {
+      // group_label and commonly_used_for render VERBATIM in the medication
+      // details sheet, so an asset whose copy was never signed off must not
+      // ship. This is the app-side half of the pipeline's review gate.
+      final raw = file.readAsStringSync();
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final md = decoded['_metadata'] as Map<String, dynamic>;
+      final review = md['consumer_copy_review'] as Map<String, dynamic>;
+
+      expect(review['status'], 'approved');
+      expect(review['fields'], containsAll(['group_label', 'commonly_used_for']));
+      expect((review['reviewer'] as String).trim(), isNotEmpty);
     });
 
     test(
@@ -118,7 +134,17 @@ void main() {
           .cast<Map<String, dynamic>>();
 
       for (final d in entries) {
-        for (final f in {'id', 'name', 'notes', 'rx_status'}) {
+        // group_label + commonly_used_for are v1.1.0 sheet-facing copy. The
+        // parser tolerates their absence (null -> section omitted), so only
+        // this asset-level check catches a repin that silently drops them.
+        for (final f in {
+          'id',
+          'name',
+          'notes',
+          'rx_status',
+          'group_label',
+          'commonly_used_for',
+        }) {
           expect(d[f], isA<String>(), reason: '${d['id']}: $f not string');
           expect(
             (d[f] as String).trim().isNotEmpty,
@@ -126,6 +152,11 @@ void main() {
             reason: '${d['id']}: $f empty',
           );
         }
+        expect(
+          (d['commonly_used_for'] as String).length,
+          lessThanOrEqualTo(200),
+          reason: '${d['id']}: commonly_used_for >200 chars',
+        );
         expect(
           d['examples'],
           isA<List<dynamic>>(),

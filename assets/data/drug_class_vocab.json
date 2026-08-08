@@ -1,11 +1,11 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 29 drug-class identifiers referenced by interaction_rules.drug_class_rules. Splits into two tiers: 16 USER-SELECTABLE classes shown in onboarding/profile and 13 RULE-ONLY classes used by interaction rules but not surfaced as profile picks.",
-    "schema_version": "1.0.0",
-    "last_updated": "2026-07-03",
-    "total_entries": 29,
+    "description": "Controlled vocabulary for the 30 drug-class identifiers referenced by interaction_rules.drug_class_rules. Splits into two tiers: 16 USER-SELECTABLE classes shown in onboarding/profile and 14 RULE-ONLY classes used by interaction rules but not surfaced as profile picks. v1.1.0 adds sheet-facing consumer-education fields (group_label, commonly_used_for) for the app's medication details sheet.",
+    "schema_version": "1.1.0",
+    "last_updated": "2026-08-08",
+    "total_entries": 30,
     "user_selectable_count": 16,
-    "rule_only_count": 13,
+    "rule_only_count": 14,
     "status": "LOCKED \u2014 labels migrated from schema_ids.dart 2026-04-30",
     "purpose": "Single source of truth for drug-class labels, brand examples, and prescription/OTC indicator. Drives drug-interaction warnings (e.g. anticoagulants + vitamin E high-dose \u2192 caution).",
     "alignment": "Pipeline source: scripts/data/ingredient_interaction_rules.json `drug_class_rules[].drug_class_id`, scripts/data/clinical_risk_taxonomy.json `drug_classes`. Flutter consumer (user-selectable subset): lib/core/constants/schema_ids.dart `drugClasses` + `drugClassLabels`.",
@@ -15,7 +15,19 @@
       "notes": "\u2264200-char plain-English description shown in tap-to-learn modal.",
       "examples": "Common brand or generic medication names users might recognize on labels.",
       "rx_status": "Prescription / OTC indicator. One of: rx_only | otc | mixed.",
-      "user_selectable": "Whether this class appears in onboarding profile picker. False classes are referenced only by interaction rules (CYP substrates, narrow families)."
+      "user_selectable": "Whether this class appears in onboarding profile picker. False classes are referenced only by interaction rules (CYP substrates, narrow families).",
+      "group_label": "Sheet-facing consumer bucket noun (e.g. 'Diabetes medications') shown as the classification label in the medication details sheet. Deliberately NOT unique: related classes share a bucket (anticoagulants/doacs/vitamin_k_antagonists are all 'Blood thinners').",
+      "commonly_used_for": "One plain sentence of consumer education for the medication details sheet, <=200 chars. Phrasing contract: starts 'Commonly used', never 'treats' (off-label reality, e.g. amitriptyline for migraine). Ships to the app verbatim after clinician sign-off."
+    },
+    "consumer_copy_review": {
+      "fields": ["group_label", "commonly_used_for"],
+      "status": "approved",
+      "reviewer": "Dr Pham",
+      "authored": "2026-08-08",
+      "approved": "2026-08-08",
+      "review_outcome": "Round 1 (2026-08-08): 16 approved as authored, 14 approved_with_wording_change, 0 requires_revision. The 14 wording changes were applied and the packet regenerated; approval is against that revised copy.",
+      "review_sources": "MedlinePlus consumer monographs; FDA Established Pharmacologic Class labels",
+      "note": "APPROVED — these strings render verbatim in the medication details sheet. Any later edit to group_label or commonly_used_for invalidates this sign-off: reset status to pending_clinician_review and regenerate the packet (scripts/audits/drug_class_consumer_copy_v1_1/regenerate_packet.py) before repinning the Flutter asset again."
     },
     "char_limit_notes": 200
   },
@@ -23,6 +35,8 @@
     {
       "id": "anticoagulants",
       "name": "Blood thinners",
+      "group_label": "Blood thinners",
+      "commonly_used_for": "Commonly used to help prevent harmful blood clots, such as with atrial fibrillation or after a previous clot.",
       "notes": "Reduce blood clotting. Many supplements (vitamin E high-dose, fish oil, ginkgo, garlic, turmeric) further inhibit clotting and increase bleeding risk.",
       "examples": [
         "warfarin (Coumadin)",
@@ -37,6 +51,8 @@
     {
       "id": "antiplatelets",
       "name": "Antiplatelet medication",
+      "group_label": "Blood thinners",
+      "commonly_used_for": "Commonly used to help prevent heart attack and stroke by keeping platelets from clumping into clots.",
       "notes": "Block platelet aggregation. Combining with bleeding-risk supplements (vitamin E, fish oil, ginkgo) compounds the effect.",
       "examples": [
         "aspirin (low-dose daily)",
@@ -50,6 +66,8 @@
     {
       "id": "nsaids",
       "name": "NSAIDs (Ibuprofen, Aspirin regularly)",
+      "group_label": "Pain and inflammation relievers",
+      "commonly_used_for": "Commonly used to help relieve pain, fever, and inflammation.",
       "notes": "Non-steroidal anti-inflammatories. Stack-with-supplement risks include GI bleeding (with fish oil, ginkgo) and reduced kidney function (with high-dose vitamin C).",
       "examples": [
         "ibuprofen (Advil, Motrin)",
@@ -63,6 +81,8 @@
     {
       "id": "antihypertensives",
       "name": "Blood pressure medication",
+      "group_label": "Blood pressure medications",
+      "commonly_used_for": "Commonly used to help lower high blood pressure and reduce strain on the heart and blood vessels.",
       "notes": "Lower blood pressure. Some supplements (licorice, ephedra, high-dose caffeine) raise BP and counteract treatment; others (potassium, magnesium) compound effect.",
       "examples": [
         "lisinopril",
@@ -77,6 +97,8 @@
     {
       "id": "hypoglycemics_high_risk",
       "name": "Insulin or sulfonylureas (can cause low blood sugar)",
+      "group_label": "Diabetes medications",
+      "commonly_used_for": "Commonly used to help manage blood sugar in diabetes; insulin is used in type 1 and type 2 diabetes, while sulfonylureas are used in type 2 diabetes.",
       "notes": "These medications push blood sugar down regardless of current glucose level, creating real hypoglycemia risk when combined with glucose-lowering supplements.",
       "examples": [
         "insulin (all types)",
@@ -92,6 +114,8 @@
     {
       "id": "hypoglycemics_lower_risk",
       "name": "Metformin, Ozempic, etc. (rarely cause low blood sugar)",
+      "group_label": "Diabetes medications",
+      "commonly_used_for": "Commonly used to help manage blood sugar in type 2 diabetes; some are also used for weight management.",
       "notes": "These medications work via glucose-dependent mechanisms and rarely cause hypoglycemia alone. Lower interaction risk with glucose-lowering supplements.",
       "examples": [
         "metformin (Glucophage)",
@@ -108,6 +132,8 @@
     {
       "id": "hypoglycemics_unknown",
       "name": "Not sure / other diabetes medication",
+      "group_label": "Diabetes medications",
+      "commonly_used_for": "Commonly used to help manage blood sugar in diabetes.",
       "notes": "You selected diabetes medication but haven't specified which type. Tap to refine \u2014 your warnings will be more accurate.",
       "examples": [
         "Please select Insulin/Sulfonylureas or Metformin/GLP-1 RAs above"
@@ -118,6 +144,8 @@
     {
       "id": "thyroid_medications",
       "name": "Thyroid medication",
+      "group_label": "Thyroid hormone medications",
+      "commonly_used_for": "Commonly used to replace thyroid hormone when the body does not make enough.",
       "notes": "Replace or modulate thyroid hormone. Iodine, kelp, soy isoflavones, and biotin can alter levels or assay results \u2014 separate by 4 hours from levothyroxine.",
       "examples": [
         "levothyroxine (Synthroid, Levoxyl)",
@@ -131,6 +159,8 @@
     {
       "id": "sedatives",
       "name": "Sedatives / Sleep medication",
+      "group_label": "Sleep and anxiety medications",
+      "commonly_used_for": "Commonly used to help with sleep or to ease anxiety.",
       "notes": "Promote sleep or reduce anxiety. Combining with supplemental melatonin, valerian, kava, or 5-HTP compounds CNS depression.",
       "examples": [
         "zolpidem (Ambien)",
@@ -145,6 +175,8 @@
     {
       "id": "immunosuppressants",
       "name": "Immunosuppressants",
+      "group_label": "Immune-suppressing medications",
+      "commonly_used_for": "Commonly used to help calm an overactive immune system, such as after an organ transplant or in autoimmune conditions.",
       "notes": "Suppress immune response after transplant or for autoimmune disease. Echinacea, astragalus, and other immune-stimulating herbs may counteract effect.",
       "examples": [
         "tacrolimus",
@@ -159,6 +191,8 @@
     {
       "id": "statins",
       "name": "Statins / Cholesterol medication",
+      "group_label": "Cholesterol medications",
+      "commonly_used_for": "Commonly used to help lower cholesterol and reduce the risk of heart attack and stroke.",
       "notes": "Lower LDL cholesterol via HMG-CoA reductase. Red yeast rice contains natural lovastatin and shouldn't combine; CoQ10 is often co-prescribed.",
       "examples": [
         "atorvastatin (Lipitor)",
@@ -172,6 +206,8 @@
     {
       "id": "antidepressants_ssri_snri",
       "name": "Antidepressants (SSRIs/SNRIs)",
+      "group_label": "Antidepressants",
+      "commonly_used_for": "Commonly used to help manage depression and anxiety; some are also used for nerve pain or other conditions.",
       "notes": "Increase serotonin (and sometimes norepinephrine) signaling. Combining with St. John's wort, 5-HTP, SAMe, or tryptophan risks serotonin syndrome.",
       "examples": [
         "sertraline (Zoloft)",
@@ -186,6 +222,8 @@
     {
       "id": "maois",
       "name": "MAOIs",
+      "group_label": "Antidepressants",
+      "commonly_used_for": "Commonly used for depression in selected situations; some MAO inhibitors are also used for Parkinson's disease.",
       "notes": "Monoamine oxidase inhibitors. Strict dietary restrictions (avoid tyramine-rich foods + supplements); many supplements are contraindicated or risky.",
       "examples": [
         "phenelzine (Nardil)",
@@ -199,6 +237,8 @@
     {
       "id": "serotonergic_medications",
       "name": "Other serotonergic medication",
+      "group_label": "Serotonin-affecting medications",
+      "commonly_used_for": "Commonly used for different purposes, including depression, pain, migraine, and certain infections; these medicines share clinically relevant effects on serotonin.",
       "notes": "Other serotonin-affecting medicines such as linezolid, tricyclics, triptans, tramadol, buspirone, or meperidine. 5-HTP/SAMe can add serotonin risk.",
       "examples": [
         "linezolid (Zyvox)",
@@ -213,6 +253,8 @@
     {
       "id": "cardiac_glycosides",
       "name": "Digoxin / Heart rhythm medication",
+      "group_label": "Heart medications",
+      "commonly_used_for": "Commonly used to help control heart rate in atrial fibrillation and to improve symptoms in some people with heart failure.",
       "notes": "Affect heart muscle contractility and rhythm. Hawthorn, licorice, and grapefruit-related compounds can alter levels.",
       "examples": [
         "digoxin (Lanoxin)",
@@ -224,6 +266,8 @@
     {
       "id": "anticholinergics",
       "name": "Anticholinergic medication",
+      "group_label": "Anticholinergic medications",
+      "commonly_used_for": "Commonly used for conditions such as allergies, overactive bladder, motion sickness, or sleep problems; these medicines share anticholinergic effects.",
       "notes": "Block acetylcholine at muscarinic receptors. Combining with anticholinergic herbs (jimsonweed, belladonna) compounds dry mouth, constipation, confusion.",
       "examples": [
         "diphenhydramine (Benadryl)",
@@ -237,6 +281,8 @@
     {
       "id": "anticonvulsants",
       "name": "Anti-seizure medication",
+      "group_label": "Seizure medications",
+      "commonly_used_for": "Commonly used to help prevent seizures, and also for nerve pain, migraine prevention, or mood stabilization.",
       "notes": "Used for epilepsy and some pain/mood conditions. Several supplements alter levels via CYP induction or affect seizure threshold.",
       "examples": [
         "levetiracetam (Keppra)",
@@ -251,6 +297,8 @@
     {
       "id": "antiarrhythmics",
       "name": "Antiarrhythmic medication",
+      "group_label": "Heart rhythm medications",
+      "commonly_used_for": "Commonly used to help keep the heart in a steady rhythm.",
       "notes": "Stabilize heart rhythm. Several have narrow therapeutic windows and interact with grapefruit-related compounds, hawthorn, or motherwort.",
       "examples": [
         "amiodarone",
@@ -264,6 +312,8 @@
     {
       "id": "calcium_channel_blockers",
       "name": "Calcium channel blockers",
+      "group_label": "Blood pressure medications",
+      "commonly_used_for": "Commonly used to help lower blood pressure or relieve chest pain (angina); some also help control heart rate.",
       "notes": "Lower blood pressure and treat angina by blocking calcium influx. Grapefruit-related compounds raise levels of dihydropyridines.",
       "examples": [
         "amlodipine",
@@ -277,6 +327,8 @@
     {
       "id": "thiazide_diuretics",
       "name": "Thiazide diuretics",
+      "group_label": "Blood pressure medications",
+      "commonly_used_for": "Commonly used to help lower blood pressure by moving extra salt and water out of the body.",
       "notes": "Increase urine output and lower blood pressure. Cause potassium and magnesium loss; supplements that further deplete or supplement these need monitoring.",
       "examples": [
         "hydrochlorothiazide (HCTZ)",
@@ -289,6 +341,8 @@
     {
       "id": "lithium",
       "name": "Lithium",
+      "group_label": "Mood stabilizers",
+      "commonly_used_for": "Commonly used to help stabilize mood in bipolar disorder.",
       "notes": "Mood stabilizer with a narrow therapeutic window. Caffeine, salt intake, NSAIDs, and dehydration affect blood levels.",
       "examples": [
         "lithium carbonate (Lithobid, Eskalith)"
@@ -299,6 +353,8 @@
     {
       "id": "oral_contraceptives",
       "name": "Oral contraceptives",
+      "group_label": "Birth control pills",
+      "commonly_used_for": "Commonly used to prevent pregnancy, and sometimes to help with acne or irregular periods.",
       "notes": "Combination or progestin-only birth control pills. St. John's wort and some CYP-inducing supplements can reduce contraceptive efficacy.",
       "examples": [
         "estradiol-containing combo pills",
@@ -311,6 +367,8 @@
     {
       "id": "cyp2d6_substrates",
       "name": "CYP2D6-substrate drugs",
+      "group_label": "Medications processed by the CYP2D6 enzyme",
+      "commonly_used_for": "Commonly used for many different conditions, from pain to blood pressure to mood; these medicines are all affected by how the CYP2D6 enzyme processes them.",
       "notes": "Drugs metabolized by CYP2D6 enzyme. Several supplements (St. John's wort, goldenseal) inhibit or induce this enzyme and alter drug levels.",
       "examples": [
         "codeine",
@@ -325,6 +383,8 @@
     {
       "id": "cyp3a4_substrates",
       "name": "CYP3A4-substrate drugs",
+      "group_label": "Medications processed by the CYP3A4 enzyme",
+      "commonly_used_for": "Commonly used for many different conditions, from cholesterol to blood pressure to sleep; these medicines are all affected by CYP3A4 metabolism.",
       "notes": "Drugs metabolized by CYP3A4 enzyme. Grapefruit, St. John's wort, and many botanicals interact via this pathway and alter drug levels.",
       "examples": [
         "statins (most)",
@@ -338,6 +398,8 @@
     {
       "id": "doacs",
       "name": "DOAC blood thinners",
+      "group_label": "Blood thinners",
+      "commonly_used_for": "Commonly used to help prevent stroke and blood clots, such as with atrial fibrillation or after a previous clot.",
       "notes": "Apixaban, rivaroxaban, dabigatran, or edoxaban; used for precise supplement interaction gates.",
       "examples": [
         "Eliquis",
@@ -351,6 +413,8 @@
     {
       "id": "potassium_sparing_diuretics",
       "name": "Potassium-sparing diuretics",
+      "group_label": "Potassium-sparing medications",
+      "commonly_used_for": "Commonly used for conditions such as high blood pressure, heart failure, kidney disease, or certain hormone-related conditions; these medicines tend to preserve or raise potassium.",
       "notes": "Spironolactone, eplerenone, finerenone, amiloride, or triamterene; potassium can accumulate.",
       "examples": [
         "spironolactone",
@@ -365,6 +429,8 @@
     {
       "id": "tetracycline_antibiotics",
       "name": "Tetracycline antibiotics",
+      "group_label": "Antibiotics",
+      "commonly_used_for": "Commonly used for certain bacterial infections, including tick-borne infections, and for conditions such as acne.",
       "notes": "Doxycycline, tetracycline, minocycline, and related antibiotics; minerals reduce absorption.",
       "examples": [
         "doxycycline",
@@ -378,6 +444,8 @@
     {
       "id": "beta_blockers",
       "name": "Beta blockers",
+      "group_label": "Heart and blood pressure medications",
+      "commonly_used_for": "Commonly used to help slow the heart rate and lower blood pressure, and sometimes for migraine prevention or anxiety.",
       "notes": "Nadolol and related beta blockers; green tea extract has specific nadolol evidence.",
       "examples": [
         "nadolol",
@@ -391,12 +459,28 @@
     {
       "id": "fluoroquinolones",
       "name": "Fluoroquinolone antibiotics",
+      "group_label": "Antibiotics",
+      "commonly_used_for": "Commonly used for certain bacterial infections, including some urinary and respiratory infections.",
       "notes": "Ciprofloxacin, levofloxacin, moxifloxacin, or ofloxacin; minerals reduce absorption.",
       "examples": [
         "ciprofloxacin",
         "levofloxacin",
         "moxifloxacin",
         "ofloxacin"
+      ],
+      "rx_status": "rx_only",
+      "user_selectable": false
+    },
+    {
+      "id": "vitamin_k_antagonists",
+      "name": "Warfarin-type blood thinners",
+      "group_label": "Blood thinners",
+      "commonly_used_for": "Commonly used to help prevent blood clots, such as with atrial fibrillation, mechanical heart valves, or after a previous clot.",
+      "notes": "Warfarin and similar vitamin-K antagonists; vitamin K intake changes can destabilize INR, unlike DOACs.",
+      "examples": [
+        "warfarin (Coumadin)",
+        "acenocoumarol",
+        "phenprocoumon"
       ],
       "rx_status": "rx_only",
       "user_selectable": false
