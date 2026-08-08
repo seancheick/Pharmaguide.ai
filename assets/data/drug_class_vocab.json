@@ -6,13 +6,13 @@
     "total_entries": 30,
     "user_selectable_count": 16,
     "rule_only_count": 14,
-    "status": "LOCKED \u2014 labels migrated from schema_ids.dart 2026-04-30",
-    "purpose": "Single source of truth for drug-class labels, brand examples, and prescription/OTC indicator. Drives drug-interaction warnings (e.g. anticoagulants + vitamin E high-dose \u2192 caution).",
+    "status": "LOCKED — labels migrated from schema_ids.dart 2026-04-30",
+    "purpose": "Single source of truth for drug-class labels, brand examples, and prescription/OTC indicator. Drives drug-interaction warnings (e.g. anticoagulants + vitamin E high-dose → caution).",
     "alignment": "Pipeline source: scripts/data/ingredient_interaction_rules.json `drug_class_rules[].drug_class_id`, scripts/data/clinical_risk_taxonomy.json `drug_classes`. Flutter consumer (user-selectable subset): lib/core/constants/schema_ids.dart `drugClasses` + `drugClassLabels`.",
     "field_contract": {
       "id": "Stable snake_case identifier shared with the user profile and interaction rules.",
       "name": "User-facing label shown in onboarding and the profile screen (for user_selectable=true entries only).",
-      "notes": "\u2264200-char plain-English description shown in tap-to-learn modal.",
+      "notes": "≤200-char plain-English description shown in tap-to-learn modal.",
       "examples": "Common brand or generic medication names users might recognize on labels.",
       "rx_status": "Prescription / OTC indicator. One of: rx_only | otc | mixed.",
       "user_selectable": "Whether this class appears in onboarding profile picker. False classes are referenced only by interaction rules (CYP substrates, narrow families).",
@@ -134,7 +134,7 @@
       "name": "Not sure / other diabetes medication",
       "group_label": "Diabetes medications",
       "commonly_used_for": "Commonly used to help manage blood sugar in diabetes.",
-      "notes": "You selected diabetes medication but haven't specified which type. Tap to refine \u2014 your warnings will be more accurate.",
+      "notes": "You selected diabetes medication but haven't specified which type. Tap to refine — your warnings will be more accurate.",
       "examples": [
         "Please select Insulin/Sulfonylureas or Metformin/GLP-1 RAs above"
       ],
@@ -146,7 +146,7 @@
       "name": "Thyroid medication",
       "group_label": "Thyroid hormone medications",
       "commonly_used_for": "Commonly used to replace thyroid hormone when the body does not make enough.",
-      "notes": "Replace or modulate thyroid hormone. Iodine, kelp, soy isoflavones, and biotin can alter levels or assay results \u2014 separate by 4 hours from levothyroxine.",
+      "notes": "Replace or modulate thyroid hormone. Iodine, kelp, soy isoflavones, and biotin can alter levels or assay results — separate by 4 hours from levothyroxine.",
       "examples": [
         "levothyroxine (Synthroid, Levoxyl)",
         "liothyronine (Cytomel)",
@@ -176,7 +176,7 @@
       "id": "immunosuppressants",
       "name": "Immunosuppressants",
       "group_label": "Immune-suppressing medications",
-      "commonly_used_for": "Commonly used to help calm an overactive immune system, such as after an organ transplant or in autoimmune conditions.",
+      "commonly_used_for": "Commonly used to reduce immune-system activity, such as to prevent organ transplant rejection or manage autoimmune conditions.",
       "notes": "Suppress immune response after transplant or for autoimmune disease. Echinacea, astragalus, and other immune-stimulating herbs may counteract effect.",
       "examples": [
         "tacrolimus",
