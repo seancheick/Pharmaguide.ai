@@ -42,6 +42,7 @@ import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connect
 import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
+import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
 import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
@@ -1043,7 +1044,7 @@ class _AuthCallbackScreenState extends State<_AuthCallbackScreen> {
   }
 }
 
-class PharmaGuideApp extends StatelessWidget {
+class PharmaGuideApp extends ConsumerWidget {
   final bool catalogAvailable;
   final String? catalogUnavailableReason;
   final VoidCallback? onRetryCatalogLoad;
@@ -1058,14 +1059,19 @@ class PharmaGuideApp extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appPreferencesController = ref.watch(
+      appPreferencesControllerProvider,
+    );
+
     return MaterialApp.router(
       title: 'PharmaGuide',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
       theme: V2Theme.light,
       darkTheme: V2Theme.dark,
-      themeMode: ThemeMode.system,
+      // AppThemePreference.system still resolves to ThemeMode.system.
+      themeMode: appPreferencesController.preferences.theme.themeMode,
       routerConfig: _buildRouter(
         catalogAvailable: catalogAvailable,
         hasSeenOnboarding: hasSeenOnboarding,

@@ -22,6 +22,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
+import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
@@ -30,6 +31,7 @@ import 'package:pharmaguide/services/catalog_swap.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
+import 'package:pharmaguide/services/settings/app_preferences.dart';
 
 /// SharedPreferences key for the most recently activated catalog
 /// version. Persisting this means a relaunch with the same remote
@@ -149,14 +151,31 @@ Future<void> _runApp() async {
 
   final hasSeenOnboarding = await OnboardingPrefs.hasSeen();
 
-  runApp(
-    PharmaGuideBootstrap(
-      userDb: userDb,
-      interactionDb: interactionDb,
-      supabaseReady: supabaseReady,
-      hasSeenOnboarding: hasSeenOnboarding,
-    ),
+  final appPreferencesStore = SharedPreferencesAsyncAppPreferencesStore(
+    SharedPreferencesAsync(),
   );
+  final appPreferencesRepository = AppPreferencesRepository(
+    appPreferencesStore,
+  );
+  final appPreferencesController = AppPreferencesController(
+    repository: appPreferencesRepository,
+    initialPreferences: await appPreferencesRepository.load(),
+  );
+
+  try {
+    runApp(
+      PharmaGuideBootstrap(
+        userDb: userDb,
+        interactionDb: interactionDb,
+        supabaseReady: supabaseReady,
+        hasSeenOnboarding: hasSeenOnboarding,
+        appPreferencesController: appPreferencesController,
+      ),
+    );
+  } on Object {
+    appPreferencesController.dispose();
+    rethrow;
+  }
 }
 
 class PharmaGuideBootstrap extends StatefulWidget {
@@ -164,6 +183,7 @@ class PharmaGuideBootstrap extends StatefulWidget {
   final InteractionDatabase? interactionDb;
   final bool supabaseReady;
   final bool hasSeenOnboarding;
+  final AppPreferencesController appPreferencesController;
 
   const PharmaGuideBootstrap({
     super.key,
@@ -171,6 +191,7 @@ class PharmaGuideBootstrap extends StatefulWidget {
     required this.interactionDb,
     required this.supabaseReady,
     required this.hasSeenOnboarding,
+    required this.appPreferencesController,
   });
 
   @override
@@ -223,6 +244,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     unawaited(_coreDb?.close());
     unawaited(widget.interactionDb?.close());
     unawaited(widget.userDb.close());
+    widget.appPreferencesController.dispose();
     super.dispose();
   }
 
@@ -527,8 +549,8 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         debugShowCheckedModeBanner: false,
         theme: V2Theme.light,
         darkTheme: V2Theme.dark,
-        // Explicit: the bootstrap screen follows the device appearance too.
-        themeMode: ThemeMode.system,
+        // AppThemePreference.system still resolves to ThemeMode.system.
+        themeMode: widget.appPreferencesController.preferences.theme.themeMode,
         home: const _BootstrapLoadingScreen(),
       );
     }
@@ -536,6 +558,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     return ProviderScope(
       key: ValueKey(_scopeVersion),
       overrides: [
+        appPreferencesControllerProvider.overrideWith(
+          (_) => widget.appPreferencesController,
+          disposeNotifier: false,
+        ),
         userDatabaseProvider.overrideWithValue(widget.userDb),
         if (_coreDb != null) coreDatabaseProvider.overrideWithValue(_coreDb!),
         if (widget.interactionDb != null)
