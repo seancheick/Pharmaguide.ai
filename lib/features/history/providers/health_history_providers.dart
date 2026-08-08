@@ -7,6 +7,8 @@ import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/services/history/health_attachment_store.dart';
 import 'package:pharmaguide/services/history/user_health_event_service.dart';
 import 'package:pharmaguide/services/history/local_health_reminder_service.dart';
+import 'package:pharmaguide/services/notifications/notification_authorization_service.dart';
+import 'package:pharmaguide/services/notifications/notification_delivery_policy.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_lifecycle_service.dart';
 
 enum HealthHistoryCategory { signal, stack, care, profile, note }
@@ -199,8 +201,35 @@ final healthReminderSchedulerProvider = Provider<HealthReminderScheduler>((
 /// log. No notification-specific health database exists.
 final healthReminderSyncProvider =
     FutureProvider.autoDispose<HealthReminderSyncResult>((ref) async {
+      final policy = ref.watch(notificationDeliveryPolicyProvider);
+      final scheduler = ref.watch(healthReminderSchedulerProvider);
+      switch (policy.actionFor(NotificationCategory.healthHistoryReminders)) {
+        case NotificationDeliveryAction.cancel:
+          final cancelled = await scheduler.cancelOwned();
+          return HealthReminderSyncResult(
+            scheduled: 0,
+            cancelled: cancelled,
+            permissionGranted:
+                policy.authorizationStatus ==
+                NotificationAuthorizationStatus.allowed,
+            deliveryEnabled: false,
+          );
+        case NotificationDeliveryAction.preserve:
+          return HealthReminderSyncResult(
+            scheduled: 0,
+            cancelled: 0,
+            permissionGranted:
+                policy.authorizationStatus ==
+                NotificationAuthorizationStatus.allowed,
+            deliveryEnabled: false,
+          );
+        case NotificationDeliveryAction.schedule:
+          break;
+      }
+
       final items = await ref.watch(healthHistoryUpcomingProvider.future);
-      return ref
-          .watch(healthReminderSchedulerProvider)
-          .sync(items.map((item) => item.event).toList(growable: false));
+      return scheduler.sync(
+        items.map((item) => item.event).toList(growable: false),
+        permissionAlreadyGranted: true,
+      );
     });

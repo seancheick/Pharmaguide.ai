@@ -7,12 +7,16 @@ class StackReminderSyncResult {
     required this.cancelled,
     required this.permissionGranted,
     required this.omittedDueToLimit,
+    this.deliveryEnabled = true,
   });
 
   final int scheduled;
   final int cancelled;
   final bool permissionGranted;
   final int omittedDueToLimit;
+  final bool deliveryEnabled;
+
+  bool get deliverable => permissionGranted && deliveryEnabled;
 }
 
 /// Platform boundary, mirrored from the Health History reminder service so
@@ -57,7 +61,10 @@ class StackReminderScheduler {
   /// and the cap is reported rather than silently applied.
   static const maxScheduled = 12;
 
-  Future<StackReminderSyncResult> sync(List<StackReminder> reminders) async {
+  Future<StackReminderSyncResult> sync(
+    List<StackReminder> reminders, {
+    bool permissionAlreadyGranted = false,
+  }) async {
     await client.initialize();
 
     final desired = <int, StackReminder>{};
@@ -99,7 +106,8 @@ class StackReminderScheduler {
       );
     }
 
-    final granted = await client.requestPermission();
+    final granted =
+        permissionAlreadyGranted || await client.requestPermission();
     if (!granted) {
       // The saved reminder stays in the database. Only the OS projection is
       // absent, so granting permission later restores it with no data loss.
@@ -124,6 +132,18 @@ class StackReminderScheduler {
       permissionGranted: true,
       omittedDueToLimit: ordered.length - desired.length,
     );
+  }
+
+  Future<int> cancelOwned() async {
+    await client.initialize();
+    final pending = await client.pendingIds();
+    var cancelled = 0;
+    for (final id in pending) {
+      if (!isOwned(id)) continue;
+      await client.cancel(id);
+      cancelled++;
+    }
+    return cancelled;
   }
 
   /// Stable per-entry id so re-syncing replaces rather than duplicates.

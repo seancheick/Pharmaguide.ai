@@ -3,6 +3,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/services/notifications/local_notification_timezone.dart';
+import 'package:pharmaguide/services/notifications/notification_authorization_service.dart';
+import 'package:pharmaguide/services/notifications/notification_delivery_policy.dart';
 import 'package:pharmaguide/services/stack/stack_reminder_scheduler.dart';
 import 'package:timezone/timezone.dart' as timezone;
 
@@ -18,6 +20,34 @@ final stackReminderSchedulerProvider = Provider<StackReminderScheduler>((ref) {
 
 final stackReminderSyncProvider =
     FutureProvider.autoDispose<StackReminderSyncResult>((ref) async {
+      final policy = ref.watch(notificationDeliveryPolicyProvider);
+      final scheduler = ref.watch(stackReminderSchedulerProvider);
+      switch (policy.actionFor(NotificationCategory.stackReminders)) {
+        case NotificationDeliveryAction.cancel:
+          final cancelled = await scheduler.cancelOwned();
+          return StackReminderSyncResult(
+            scheduled: 0,
+            cancelled: cancelled,
+            permissionGranted:
+                policy.authorizationStatus ==
+                NotificationAuthorizationStatus.allowed,
+            omittedDueToLimit: 0,
+            deliveryEnabled: false,
+          );
+        case NotificationDeliveryAction.preserve:
+          return StackReminderSyncResult(
+            scheduled: 0,
+            cancelled: 0,
+            permissionGranted:
+                policy.authorizationStatus ==
+                NotificationAuthorizationStatus.allowed,
+            omittedDueToLimit: 0,
+            deliveryEnabled: false,
+          );
+        case NotificationDeliveryAction.schedule:
+          break;
+      }
+
       final stack = await ref.watch(activeStackProvider.future);
       final reminders = <StackReminder>[
         for (final entry in stack)
@@ -27,7 +57,7 @@ final stackReminderSyncProvider =
               minutesAfterMidnight: entry.reminderMinutes!,
             ),
       ];
-      return ref.watch(stackReminderSchedulerProvider).sync(reminders);
+      return scheduler.sync(reminders, permissionAlreadyGranted: true);
     });
 
 /// Whether the OS will actually deliver the reminders the user saved.
@@ -43,7 +73,7 @@ final stackReminderSyncProvider =
 final stackRemindersDeliverableProvider = Provider.autoDispose<bool>((ref) {
   return ref
       .watch(stackReminderSyncProvider)
-      .maybeWhen(data: (result) => result.permissionGranted, orElse: () => true);
+      .maybeWhen(data: (result) => result.deliverable, orElse: () => true);
 });
 
 /// Reminders the user saved that exceed the platform scheduling cap.

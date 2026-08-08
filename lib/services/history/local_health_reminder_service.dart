@@ -13,17 +13,24 @@ class HealthReminderSyncResult {
     required this.scheduled,
     required this.cancelled,
     required this.permissionGranted,
+    this.deliveryEnabled = true,
   });
 
   final int scheduled;
   final int cancelled;
   final bool permissionGranted;
+  final bool deliveryEnabled;
+
+  bool get deliverable => permissionGranted && deliveryEnabled;
 }
 
 abstract interface class HealthReminderScheduler {
   Future<HealthReminderSyncResult> sync(
-    List<HealthHistoryEvent> upcomingEvents,
-  );
+    List<HealthHistoryEvent> upcomingEvents, {
+    bool permissionAlreadyGranted = false,
+  });
+
+  Future<int> cancelOwned();
 }
 
 abstract interface class HealthReminderNotificationClient {
@@ -57,8 +64,9 @@ class LocalHealthReminderService implements HealthReminderScheduler {
 
   @override
   Future<HealthReminderSyncResult> sync(
-    List<HealthHistoryEvent> upcomingEvents,
-  ) async {
+    List<HealthHistoryEvent> upcomingEvents, {
+    bool permissionAlreadyGranted = false,
+  }) async {
     await _client.initialize();
     final now = _clock().toUtc();
     final desired =
@@ -95,7 +103,8 @@ class LocalHealthReminderService implements HealthReminderScheduler {
       );
     }
 
-    final permissionGranted = await _client.requestPermission();
+    final permissionGranted =
+        permissionAlreadyGranted || await _client.requestPermission();
     if (!permissionGranted) {
       return HealthReminderSyncResult(
         scheduled: 0,
@@ -116,6 +125,19 @@ class LocalHealthReminderService implements HealthReminderScheduler {
       cancelled: cancelled,
       permissionGranted: true,
     );
+  }
+
+  @override
+  Future<int> cancelOwned() async {
+    await _client.initialize();
+    final pending = await _client.pendingIds();
+    var cancelled = 0;
+    for (final id in pending) {
+      if (!_isOwned(id)) continue;
+      await _client.cancel(id);
+      cancelled++;
+    }
+    return cancelled;
   }
 
   static int _notificationId(HealthHistoryEvent event) {

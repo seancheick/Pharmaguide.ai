@@ -14,6 +14,7 @@ class _FakeClient implements StackReminderNotificationClient {
   final cancelled = <int>[];
   bool permissionGranted = true;
   var initialized = false;
+  var permissionRequestCount = 0;
 
   @override
   Future<void> initialize() async => initialized = true;
@@ -22,7 +23,10 @@ class _FakeClient implements StackReminderNotificationClient {
   Future<Set<int>> pendingIds() async => pending;
 
   @override
-  Future<bool> requestPermission() async => permissionGranted;
+  Future<bool> requestPermission() async {
+    permissionRequestCount++;
+    return permissionGranted;
+  }
 
   @override
   Future<void> scheduleDaily({
@@ -82,6 +86,40 @@ void main() {
     expect(client.cancelled, isEmpty);
     expect(StackReminderScheduler.isOwned(healthId), isFalse);
   });
+
+  test(
+    'cancelOwned cancels only stack reminder ids and reports count',
+    () async {
+      final first = StackReminderScheduler.notificationIdFor('entry-1');
+      final second = StackReminderScheduler.notificationIdFor('entry-2');
+      const healthHistoryId = 900000001;
+      final client = _FakeClient()
+        ..pending.addAll({first, second, healthHistoryId, 42});
+
+      final cancelled = await StackReminderScheduler(
+        client: client,
+      ).cancelOwned();
+
+      expect(cancelled, 2);
+      expect(client.cancelled, containsAll(<int>[first, second]));
+      expect(client.cancelled, isNot(contains(healthHistoryId)));
+      expect(client.cancelled, isNot(contains(42)));
+    },
+  );
+
+  test(
+    'confirmed policy path schedules without requesting permission',
+    () async {
+      final client = _FakeClient();
+
+      final result = await StackReminderScheduler(client: client).sync([
+        (stackEntryId: 'entry-1', minutesAfterMidnight: 8 * 60),
+      ], permissionAlreadyGranted: true);
+
+      expect(result.scheduled, 1);
+      expect(client.permissionRequestCount, 0);
+    },
+  );
 
   test('the two id ranges do not overlap', () {
     for (final entryId in ['a', 'entry-1', 'x' * 40, '']) {

@@ -67,6 +67,59 @@ void main() {
     expect(client.scheduled, isEmpty);
     expect(await repository.getTimeline(), hasLength(1));
   });
+
+  test(
+    'cancelOwned cancels only Health History ids and reports count',
+    () async {
+      const first = 900000001;
+      const second = 989999999;
+      const stackId = 990000001;
+      final client = _FakeNotificationClient()
+        ..pending.addAll({first, second, stackId, 42});
+      final service = LocalHealthReminderService(client: client);
+
+      final cancelled = await service.cancelOwned();
+
+      expect(cancelled, 2);
+      expect(client.cancelled, containsAll(<int>[first, second]));
+      expect(client.cancelled, isNot(contains(stackId)));
+      expect(client.cancelled, isNot(contains(42)));
+    },
+  );
+
+  test(
+    'confirmed policy path schedules without requesting permission',
+    () async {
+      final database = UserDatabase.memory();
+      addTearDown(database.close);
+      final repository = HealthEventRepository(database);
+      await repository.append(
+        HealthEventDraft(
+          eventType: HealthEventTypes.reminderScheduled,
+          source: HealthEventSource.user,
+          subjectType: 'reminder',
+          subjectId: 'follow-up-1',
+          state: HealthEventState.scheduled,
+          title: 'Follow up',
+          effectiveAt: DateTime.utc(2026, 8, 5),
+          reminderAt: DateTime.utc(2026, 8, 5),
+        ),
+      );
+      final client = _FakeNotificationClient();
+      final service = LocalHealthReminderService(
+        client: client,
+        clock: () => DateTime.utc(2026, 7, 30),
+      );
+
+      final result = await service.sync(
+        await repository.getTimeline(),
+        permissionAlreadyGranted: true,
+      );
+
+      expect(result.scheduled, 1);
+      expect(client.permissionRequestCount, 0);
+    },
+  );
 }
 
 class _FakeNotificationClient implements HealthReminderNotificationClient {
@@ -74,6 +127,7 @@ class _FakeNotificationClient implements HealthReminderNotificationClient {
   final cancelled = <int>[];
   final scheduled = <(int, DateTime)>[];
   bool permissionGranted = true;
+  var permissionRequestCount = 0;
 
   @override
   Future<void> initialize() async {}
@@ -82,7 +136,10 @@ class _FakeNotificationClient implements HealthReminderNotificationClient {
   Future<Set<int>> pendingIds() async => pending;
 
   @override
-  Future<bool> requestPermission() async => permissionGranted;
+  Future<bool> requestPermission() async {
+    permissionRequestCount++;
+    return permissionGranted;
+  }
 
   @override
   Future<void> schedule({required int id, required DateTime at}) async {
