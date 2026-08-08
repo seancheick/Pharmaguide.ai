@@ -123,8 +123,15 @@ class PGFormulationSection extends StatelessWidget {
           ],
           if (demotedEnhancers.isNotEmpty) ...[
             const SizedBox(height: V2Spacing.space12),
+            // Was "Listed but not credited" (changed 2026-08-07). These rows are
+            // absorption aids — BioPerine at 5 mg is there to help you absorb
+            // the active, not to act as a second active. The old wording read
+            // as an accusation: a user could reasonably take it to mean the
+            // ingredient is filler, or that the brand is padding the label.
+            // Name what the ingredient DOES; the fact that it earns no
+            // formulation credit follows from it not being an active.
             Text(
-              'Listed but not credited',
+              'Absorption support',
               style: V2Typography.caption(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space4),
@@ -135,6 +142,11 @@ class PGFormulationSection extends StatelessWidget {
                 for (final d in demotedEnhancers)
                   _IngredientPill(label: d, color: context.v2.fgSubtle),
               ],
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              'Included to aid absorption — not scored as a primary active.',
+              style: V2Typography.caption(color: context.v2.fgSubtle),
             ),
           ],
         ],

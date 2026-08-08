@@ -302,13 +302,23 @@ class PGHeroSection extends StatelessWidget {
                 qualityTier: qualityTier,
                 prominent: true,
               ),
-            if (confidenceLabel != null) ...[
-              const SizedBox(height: V2Spacing.space4),
-              _ScoreConfidenceSummary(
-                label: confidenceLabel,
-                drivers: scoreConfidenceDrivers,
-              ),
-            ],
+            // Score confidence is deliberately NOT rendered here (2026-08-07).
+            // Measured on the shipped catalog: moderate 57.8%, low 42.0%,
+            // high 0.1% — 18 products out of 13,271. A field that reads
+            // "Moderate" on more than half the catalog tells a user nothing
+            // about the bottle in their hand.
+            //
+            // The cause is structural, not cosmetic: the band is the WORST of
+            // four sections, and one of them is verification, whose driver is
+            // "no verified third-party certification" — an industry-wide fact,
+            // not a property of this product. It also double-counts, since the
+            // same fact already costs points in the Verification pillar.
+            //
+            // Confidence should mean "we had enough of the label to score
+            // this", and we only ship products we could score — so most should
+            // read high. Until it does, showing it is worse than not.
+            // The v4_confidence_detail object stays in the data model for QA,
+            // ranking, audits and calibration.
           ] else if (scoreDisplay == HeroScoreDisplay.limitedScore) ...[
             const SizedBox(height: V2Spacing.space12),
             Text(
@@ -333,11 +343,12 @@ class PGHeroSection extends StatelessWidget {
                 ],
               ],
             ),
-            const SizedBox(height: V2Spacing.space4),
-            _ScoreConfidenceSummary(
-              label: confidenceLabel ?? 'Limited',
-              drivers: scoreConfidenceDrivers,
-            ),
+            // Same removal as the full-score branch above. NOTE: this branch
+            // still renders a reduced 22px score for the 42% of the catalog
+            // whose confidence is "low" — that degraded presentation is now
+            // unexplained, and whether it should survive at all is the open
+            // question, not something to decide as a side effect of dropping
+            // the badge.
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
@@ -379,39 +390,6 @@ class PGHeroSection extends StatelessWidget {
         servingCountLabel != null && servingCountLabel!.isNotEmpty;
     final hasDose = dosingSummary != null && dosingSummary!.isNotEmpty;
     return hasBrand || hasServings || hasServingCount || hasDose;
-  }
-}
-
-class _ScoreConfidenceSummary extends StatelessWidget {
-  final String label;
-  final List<String> drivers;
-
-  const _ScoreConfidenceSummary({required this.label, required this.drivers});
-
-  @override
-  Widget build(BuildContext context) {
-    final visibleDrivers = drivers
-        .map((driver) => driver.trim())
-        .where((driver) => driver.isNotEmpty)
-        .take(2)
-        .toList(growable: false);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Score confidence: $label',
-          style: V2Typography.bodySm(color: context.v2.fgMuted),
-        ),
-        if (visibleDrivers.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(
-            'Why: ${visibleDrivers.join(' · ')}',
-            style: V2Typography.caption(color: context.v2.fgSubtle),
-          ),
-        ],
-      ],
-    );
   }
 }
 

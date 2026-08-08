@@ -44,8 +44,17 @@ void main() {
       expect(find.text('Formulation'), findsOneWidget);
       expect(find.text('Capsule'), findsOneWidget);
       expect(find.text('STANDARD'), findsOneWidget);
-      expect(find.text('Listed but not credited'), findsOneWidget);
+      // "Absorption support", not "Listed but not credited" (2026-08-07).
+      // BioPerine at 5 mg is there to help you absorb the active, not as a
+      // second active. The old wording read as an accusation — filler, or a
+      // padded label — when the engine is describing a role, not a defect.
+      expect(find.text('Absorption support'), findsOneWidget);
       expect(find.text('BioPerine 5.0 mg'), findsOneWidget);
+      expect(
+        find.text('Included to aid absorption — not scored as a primary active.'),
+        findsOneWidget,
+      );
+      expect(find.text('Listed but not credited'), findsNothing);
     });
 
     testWidgets('multiple demoted aids render as separate chips', (

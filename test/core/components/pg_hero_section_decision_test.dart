@@ -223,17 +223,15 @@ void main() {
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Product quality score unavailable.'), findsNothing);
       expect(find.text('Strong'), findsNothing);
-      expect(find.text('Score confidence: Limited'), findsOneWidget);
-      expect(
-        find.text(
-          'Why: No clinical evidence matched · '
-          'Product-level certification not verified',
-        ),
-        findsOneWidget,
-      );
+      // Confidence is deliberately not rendered in the hero (2026-08-07):
+      // moderate 57.8% / low 42.0% / high 0.1% on the shipped catalog, so the
+      // band told a user nothing about the bottle in their hand. The score and
+      // the tier suppression both still work without it.
+      expect(find.textContaining('Score confidence'), findsNothing);
+      expect(find.textContaining('Why:'), findsNothing);
     });
 
-    testWidgets('trusted score makes its confidence band visible', (
+    testWidgets('trusted score renders no confidence band', (
       tester,
     ) async {
       await pump(
@@ -248,10 +246,11 @@ void main() {
       );
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Strong'), findsOneWidget);
-      expect(find.text('Score confidence: Moderate'), findsOneWidget);
+      // See the limited-assessment case above — the band is not a hero field.
+      expect(find.textContaining('Score confidence'), findsNothing);
     });
 
-    testWidgets('unknown confidence fails closed without hiding the score', (
+    testWidgets('unknown confidence still fails closed on the tier adjective', (
       tester,
     ) async {
       await pump(
@@ -266,7 +265,9 @@ void main() {
       );
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Excellent'), findsNothing);
-      expect(find.text('Score confidence: Limited'), findsOneWidget);
+      // Unknown bands must STILL fail closed on the tier adjective — that
+      // gating is independent of whether the band itself is displayed.
+      expect(find.textContaining('Score confidence'), findsNothing);
     });
 
     testWidgets('confidence drivers stay hidden without a scored result', (
