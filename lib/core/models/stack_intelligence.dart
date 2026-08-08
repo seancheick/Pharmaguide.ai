@@ -1,5 +1,31 @@
+import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
-import 'package:pharmaguide/core/models/stack_safety_score.dart';
+
+/// User-facing Stack Health vocabulary. This is intentionally colocated with
+/// [StackTier], the single tier engine, rather than the internal numeric score.
+enum StackHealthLabel {
+  optimized(label: 'Optimized', color: Color(0xFF0F9D7A)),
+  solid(label: 'Solid', color: Color(0xFF22C55E)),
+  decent(label: 'Decent', color: Color(0xFFF59E0B)),
+  concerning(label: 'Concerning', color: Color(0xFFF97316)),
+  unsafe(label: 'Unsafe', color: Color(0xFFDC2626));
+
+  final String label;
+
+  /// Status tone. Rendered ONLY as a 6pt dot plus the 10%/20% tint and
+  /// border of `V2Palette.tintedLabel` — the label text beside it uses the
+  /// palette's own foreground, which already resolves per appearance.
+  ///
+  /// Audited 2026-08-01 against both appearances: no contrast defect, so
+  /// this stays a fixed brand token. Making it appearance-aware would have
+  /// required moving `decent` by 14 points of lightness (amber → brown) to
+  /// chase a 3:1 floor that a decorative dot beside a redundant text label
+  /// does not owe. (Comment carried over verbatim when the enum moved here
+  /// from `stack_safety_score.dart` under ADR-006.)
+  final Color color;
+
+  const StackHealthLabel({required this.label, required this.color});
+}
 
 /// Diagnostic tier verdict for a user's stack.
 ///
@@ -76,7 +102,7 @@ class StackIntelligence {
   ///   - banned / recalled / contraindicated                         → unsafe
   ///   - avoid-level interaction OR ≥2 nutrient warnings             → concerning
   ///   - caution-level OR exactly 1 nutrient warning                 → decent
-  ///   - `missingData` flag on an otherwise-clean stack              → decent
+  ///   - `missingData` with no actionable finding                    → incomplete
   ///   - clean stack, no quality score                               → decent
   ///   - monitor-only clean stack caps `optimized` at `solid`
   ///   - clean stack, qualityScore ≥ 85                              → optimized
@@ -110,7 +136,10 @@ class StackIntelligence {
       return StackTier.decent;
     }
 
-    if (missingData || qualityScore == null) return StackTier.decent;
+    // Missing information intentionally outranks monitor-only and score-band
+    // labels, but never hides the actionable gates above.
+    if (missingData) return StackTier.incomplete;
+    if (qualityScore == null) return StackTier.decent;
     if (qualityScore >= 85) {
       return monitorInteractionCount > 0
           ? StackTier.solid

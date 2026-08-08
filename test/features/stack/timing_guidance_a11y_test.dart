@@ -183,7 +183,7 @@ void main() {
       // The row changes colour when due; the sentence is what makes that
       // change perceivable without colour vision.
       expect(
-        find.bySemanticsLabel('Tracked here for about 3 years'),
+        find.bySemanticsLabel(RegExp('Tracked here for about 3 years')),
         findsOneWidget,
       );
     });

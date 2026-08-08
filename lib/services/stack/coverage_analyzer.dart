@@ -26,6 +26,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -354,11 +355,22 @@ class CoverageAnalyzer {
     // choline; those gaps belong here, where separate companion products
     // can satisfy them.
     // -------------------------------------------------------------------
-    final priorityGaps = _priorityGapsForGoals(
-      goals: goals,
-      products: products,
-      coverageIncomplete: effectiveIncomplete,
-    );
+    final medicationOwnedNutrients = depletions
+        .where((dep) => !_isCoverageRelevant(dep))
+        .map((dep) => canonicalizeIngredientName(dep.nutrientCanonicalId))
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final priorityGaps =
+        _priorityGapsForGoals(
+              goals: goals,
+              products: products,
+              coverageIncomplete: effectiveIncomplete,
+            )
+            .where((gap) {
+              final nutrientId = canonicalizeIngredientName(gap.nutrientId);
+              return !medicationOwnedNutrients.contains(nutrientId);
+            })
+            .toList(growable: false);
 
     // -------------------------------------------------------------------
     // UNDERDOSED — RDA-tracked nutrients below 50% of RDA, plus
@@ -380,9 +392,10 @@ class CoverageAnalyzer {
       // never produces "About 0%" or "About 50%".
       final displayPct = pct?.round().clamp(1, 49);
       final detail = displayPct == null
-          ? 'Present in your stack, but below the typical daily target.'
-          : 'About $displayPct% of the typical daily target across '
-                'your stack.';
+          ? 'Present in your supplements, but the amount could not be '
+                'compared reliably. Food and drinks are not included.'
+          : 'Supplements provide about $displayPct% of the daily reference '
+                'amount. Food and drinks are not included.';
       underdosedByName[name.toLowerCase()] = UnderdosedNutrient(
         nutrientName: name,
         detail: detail,

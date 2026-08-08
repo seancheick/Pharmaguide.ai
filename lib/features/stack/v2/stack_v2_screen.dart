@@ -9,9 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/components/pg_product_thumbnail.dart';
-import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
-import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/components/pg_type_badge.dart';
@@ -35,6 +34,7 @@ import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
+import 'package:pharmaguide/features/stack/v2/widgets/medication_details_sheet.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart'
     show MedNutrientLoadStatus;
@@ -666,11 +666,11 @@ class _StackTabState extends ConsumerState<_StackTab> {
               const SizedBox(height: V2Spacing.space12),
             ...stackSection('Your supplements', supplements),
           ],
-          // Timing + depletion advice, then the broader coverage review
+          // Timing + medication/nutrient guidance, then goal support
           // at the bottom. Each slot collapses when nothing applies.
           const _TimingGuidanceSlot(),
           const _DepletionSlot(),
-          const _CoverageSlot(),
+          const _GoalSupportSlot(),
         ],
       ),
     );
@@ -709,38 +709,18 @@ class _StackSummaryCard extends ConsumerWidget {
         ? 1
         : 0;
 
-    final reportAsync = ref.watch(stackSafetyReportProvider);
-    final synergyAsync = ref.watch(synergyReportProvider);
-    final recallAsync = ref.watch(recalledIngredientsReportProvider);
-    final doseAlertsAsync = ref.watch(stackDoseThresholdAlertsProvider);
-    final intelligence =
-        (reportAsync.hasValue &&
-            synergyAsync.hasValue &&
-            recallAsync.hasValue &&
-            doseAlertsAsync.hasValue)
-        ? const StackIntelligenceEngine().diagnoseFromReports(
-            stackSize: stack.length,
-            safetyReport: reportAsync.value!,
-            recalledReport: recallAsync.value!,
-            synergyReport: synergyAsync.value!,
-            doseThresholdAlerts: doseAlertsAsync.value!,
-          )
-        : null;
+    final healthSnapshotAsync = ref.watch(stackHealthSnapshotProvider);
+    final healthSnapshot = healthSnapshotAsync.asData?.value;
+    final intelligence = healthSnapshot?.intelligence;
     final status = intelligence?.tier.healthLabel;
-    final isAnalyzing =
-        reportAsync.isLoading ||
-        synergyAsync.isLoading ||
-        recallAsync.isLoading ||
-        doseAlertsAsync.isLoading;
+    final isAnalyzing = healthSnapshotAsync.isLoading;
     // A safety subsystem that ERRORED must never fall through to the
     // reassuring green "No data yet" — an unknown result is not a clear
     // one. When any provider errors and none is still loading, the
     // fallback hedges with a neutral (non-green) tone + label.
-    final hasError =
-        reportAsync.hasError ||
-        synergyAsync.hasError ||
-        recallAsync.hasError ||
-        doseAlertsAsync.hasError;
+    final hasError = healthSnapshotAsync.hasError;
+    final needsMoreInfo =
+        stack.isNotEmpty && intelligence?.tier == StackTier.incomplete;
     // Tone/label: real status color when the intelligence engine produced a
     // verdict; otherwise a pure fallback (green while analyzing / empty,
     // neutral hedge on error).
@@ -748,19 +728,21 @@ class _StackSummaryCard extends ConsumerWidget {
       palette: context.v2,
       isAnalyzing: isAnalyzing,
       hasError: hasError,
+      needsMoreInfo: needsMoreInfo,
     );
     final Color tone = status?.color ?? fallback.tone;
     final statusTone = context.v2.tintedLabel(tone);
     final statusLabel = status?.label ?? fallback.label;
-    final insightLine = intelligence == null
+    final reviewSignals = healthSnapshot?.reviewSignals ?? const [];
+    final canReviewSignals = reviewSignals.isNotEmpty;
+    final insightLine = canReviewSignals
+        ? describeSafetySignalReview(reviewSignals.length)
+        : intelligence == null
         ? stackHealthFallbackSummary(
             isAnalyzing: isAnalyzing,
             hasError: hasError,
           )
         : describeStackSummary(intelligence);
-    final reviewReport = reportAsync.asData?.value;
-    final canReviewSignals =
-        reviewReport != null && orderedSignalsFrom(reviewReport).isNotEmpty;
 
     final card = Container(
       decoration: BoxDecoration(
@@ -853,11 +835,12 @@ class _StackSummaryCard extends ConsumerWidget {
     if (!canReviewSignals) return card;
     return Semantics(
       button: true,
-      label: 'Review stack safety signals',
+      label:
+          '${describeSafetySignalReview(reviewSignals.length)}. View details',
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => showStackSafetyDetailsSheet(context, reviewReport),
+          onTap: () => showStackSafetyDetailsSheet(context, healthSnapshot!),
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: card,
         ),
@@ -1045,14 +1028,19 @@ class _StackItemRow extends ConsumerWidget {
           onTap: () {
             if (entry.isMedication) {
               unawaited(
-                PGModal.bottomSheet<void>(
-                  context: context,
-                  builder: (_) => _MedicationDetailsSheet(
-                    name: displayName,
-                    dosage: entry.dosage,
-                    frequency: entry.frequency,
-                    identity: entry.medicationIdentity,
-                    assessment: entry.medicationIdentityAssessment,
+                showMedicationDetailsSheet(
+                  context,
+                  name: displayName,
+                  dosage: entry.dosage,
+                  frequency: entry.frequency,
+                  reminderLabel: reminderLabel,
+                  identity: entry.medicationIdentity,
+                  assessment: entry.medicationIdentityAssessment,
+                  onEditTracking: () => _showEditStackTrackingSheet(
+                    context,
+                    ref,
+                    entry: entry,
+                    displayName: displayName,
                   ),
                 ),
               );
@@ -1545,228 +1533,6 @@ class _EditStackTrackingSheetState extends State<_EditStackTrackingSheet> {
   }
 }
 
-class _MedicationDetailsSheet extends StatelessWidget {
-  final String name;
-  final String? dosage;
-  final String? frequency;
-  final MedicationIdentitySnapshot? identity;
-  final MedicationIdentityAssessment? assessment;
-
-  const _MedicationDetailsSheet({
-    required this.name,
-    required this.dosage,
-    required this.frequency,
-    required this.identity,
-    required this.assessment,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final schedule = [
-      dosage,
-      frequency,
-    ].whereType<String>().where((value) => value.trim().isNotEmpty).join(' · ');
-    return Semantics(
-      label: 'Medication details for $name',
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          V2Spacing.space24,
-          V2Spacing.space8,
-          V2Spacing.space24,
-          V2Spacing.space24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PGEyebrow('Medication details', color: context.v2.fgMuted),
-            const SizedBox(height: V2Spacing.space8),
-            Text(name, style: V2Typography.title(color: context.v2.fg)),
-            const SizedBox(height: V2Spacing.space16),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  _MedicationMatchStatus(assessment: assessment),
-                  Divider(height: V2Spacing.space32, color: context.v2.outline),
-                  PGEyebrow('Saved schedule', color: context.v2.fgMuted),
-                  const SizedBox(height: V2Spacing.space8),
-                  Text(
-                    schedule.isEmpty
-                        ? 'No dose or schedule saved for this entry.'
-                        : schedule,
-                    style: V2Typography.bodyMedium(color: context.v2.fg),
-                  ),
-                  if (_identityLines(identity, assessment).isNotEmpty) ...[
-                    Divider(
-                      height: V2Spacing.space32,
-                      color: context.v2.outline,
-                    ),
-                    PGEyebrow('Recorded identity', color: context.v2.fgMuted),
-                    const SizedBox(height: V2Spacing.space8),
-                    for (final line in _identityLines(identity, assessment))
-                      _MedicationDetailLine(text: line),
-                  ],
-                  Divider(height: V2Spacing.space32, color: context.v2.outline),
-                  PGEyebrow('About this entry', color: context.v2.fgMuted),
-                  const SizedBox(height: V2Spacing.space8),
-                  Text(
-                    'PharmaGuide uses this saved identity to check supplement '
-                    'interactions and reviewed medication–nutrient '
-                    'relationships. This is not a medication monograph and '
-                    'does not provide prescribing, side-effect, or dosing '
-                    'advice.',
-                    style: V2Typography.bodySm(color: context.v2.fgMuted),
-                  ),
-                  const SizedBox(height: V2Spacing.space12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.lock_outline_rounded,
-                        size: 16,
-                        color: context.v2.fgMuted,
-                      ),
-                      const SizedBox(width: V2Spacing.space8),
-                      Expanded(
-                        child: Text(
-                          'Medication entries stay on this device.',
-                          style: V2Typography.caption(
-                            color: context.v2.fgMuted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static List<String> _identityLines(
-    MedicationIdentitySnapshot? identity,
-    MedicationIdentityAssessment? assessment,
-  ) {
-    if (identity == null) return const [];
-    return [
-      if (identity.rxcui != null) 'RxNorm concept ${identity.rxcui}',
-      if (identity.genericRxcui != null)
-        'Generic ingredient concept ${identity.genericRxcui}',
-      if (identity.ingredientRxcuis.isNotEmpty)
-        '${identity.ingredientRxcuis.length} ingredient '
-            '${identity.ingredientRxcuis.length == 1 ? 'concept' : 'concepts'}',
-      if (identity.drugClassIds.isNotEmpty)
-        '${identity.drugClassIds.length} saved medication-group '
-            '${identity.drugClassIds.length == 1 ? 'identifier' : 'identifiers'}',
-      if (assessment != null && assessment.curatedClassIds.isNotEmpty)
-        '${assessment.curatedClassIds.length} reviewed interaction '
-            '${assessment.curatedClassIds.length == 1 ? 'group' : 'groups'}',
-    ];
-  }
-}
-
-class _MedicationMatchStatus extends StatelessWidget {
-  const _MedicationMatchStatus({required this.assessment});
-
-  final MedicationIdentityAssessment? assessment;
-
-  @override
-  Widget build(BuildContext context) {
-    final status = assessment?.status ?? MedicationIdentityStatus.unresolved;
-    final (label, body, icon, color) = switch (status) {
-      MedicationIdentityStatus.complete => (
-        'Matched for interaction checks',
-        'RxNorm ingredient identity and reviewed interaction coverage are '
-            'available for matching.',
-        Icons.verified_outlined,
-        context.v2.safe,
-      ),
-      MedicationIdentityStatus.partial => (
-        'Partially matched',
-        'Some reviewed checks are available, but other medication-specific '
-            'checks may be unavailable.',
-        Icons.info_outline_rounded,
-        context.v2.caution,
-      ),
-      MedicationIdentityStatus.classOnly => (
-        'Medication-group matching available',
-        'A reviewed medication-group match is available; product-specific '
-            'checks may be limited.',
-        Icons.info_outline_rounded,
-        context.v2.caution,
-      ),
-      MedicationIdentityStatus.exactOnly => (
-        'Identity saved; coverage limited',
-        'The RxNorm identity is saved, but no reviewed direct or medication-'
-            'group coverage was found. Interaction checks may be incomplete.',
-        Icons.info_outline_rounded,
-        context.v2.caution,
-      ),
-      MedicationIdentityStatus.unresolved => (
-        'Matching incomplete',
-        'Reviewed interaction coverage could not be confirmed for this entry, '
-            'so medication checks may be incomplete.',
-        Icons.error_outline_rounded,
-        context.v2.caution,
-      ),
-    };
-
-    return Semantics(
-      label: '$label. $body',
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: V2Spacing.space12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                PGEyebrow(label, color: color),
-                const SizedBox(height: V2Spacing.space4),
-                Text(
-                  body,
-                  style: V2Typography.bodySm(color: context.v2.fgMuted),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MedicationDetailLine extends StatelessWidget {
-  const _MedicationDetailLine({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: V2Spacing.space8),
-      child: Row(
-        children: [
-          Icon(
-            Icons.check_circle_outline_rounded,
-            size: 16,
-            color: context.v2.fgMuted,
-          ),
-          const SizedBox(width: V2Spacing.space8),
-          Expanded(
-            child: Text(text, style: V2Typography.bodySm(color: context.v2.fg)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _V2StackEmptyPanel extends StatelessWidget {
   final IconData icon;
   final String eyebrow;
@@ -1960,12 +1726,13 @@ class _NutrientsTab extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Daily nutrient coverage',
+                  'Supplement nutrient totals',
                   style: V2Typography.titleSm(color: context.v2.fg),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Totals across your stack vs. RDA / UL benchmarks.',
+                  'From your supplements only · compared with RDA/AI and '
+                  'upper limits',
                   style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
               ],
@@ -2578,18 +2345,18 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(stackSafetyReportProvider);
-    return reportAsync.when(
-      data: (report) {
-        // `isEmpty` counts findings only — it says nothing about whether the
-        // checks ran. Guarding on it skipped the hedge StackSafetyBanner
-        // already knows how to draw, so a stack whose timing or interaction
-        // pass threw showed no banner at all: indistinguishable from a clean
-        // result. `hasNothingToReport` is the guard that accounts for both.
-        if (report.hasNothingToReport) return const SizedBox.shrink();
+    final snapshotAsync = ref.watch(stackHealthSnapshotProvider);
+    return snapshotAsync.when(
+      data: (snapshot) {
+        if (snapshot.reviewSignals.isEmpty &&
+            !snapshot.intelligence.analysisIncomplete) {
+          return const SizedBox.shrink();
+        }
         return StackSafetyBanner(
-          report: report,
-          onTap: () => showStackSafetyDetailsSheet(context, report),
+          snapshot: snapshot,
+          onTap: snapshot.reviewSignals.isEmpty
+              ? null
+              : () => showStackSafetyDetailsSheet(context, snapshot),
           margin: const EdgeInsets.fromLTRB(
             V2Spacing.space24,
             V2Spacing.space12,
@@ -2680,12 +2447,11 @@ class _TimingGuidanceSlot extends ConsumerWidget {
   }
 }
 
-/// Coverage ("is my stack working?") slot — broader goal/nutrient gap
-/// analysis shown after the user's concrete stack items and timing advice.
+/// Goal-support slot shown after the user's concrete stack items and timing.
 /// Hidden while loading or when the stack is empty; errors render an explicit
 /// unavailable state. The no-goals invitation links to profile setup.
-class _CoverageSlot extends ConsumerWidget {
-  const _CoverageSlot();
+class _GoalSupportSlot extends ConsumerWidget {
+  const _GoalSupportSlot();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2693,7 +2459,7 @@ class _CoverageSlot extends ConsumerWidget {
     return reportAsync.when(
       data: (report) {
         if (report.isEmpty) return const SizedBox.shrink();
-        return StackCoverageCard(
+        return StackGoalSupportCard(
           report: report,
           onAddGoals: () => GoRouter.of(context).push(Routes.profileSetup),
           margin: const EdgeInsets.fromLTRB(
@@ -2706,10 +2472,8 @@ class _CoverageSlot extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const _SafetyUnavailableBanner(
-        title: "Couldn't check stack coverage",
-        body:
-            'Coverage data is unavailable right now. This is not an '
-            'all-clear; check back in a moment.',
+        title: "Couldn't check goal support",
+        body: 'Goal-support data is unavailable right now. Try again shortly.',
       ),
     );
   }

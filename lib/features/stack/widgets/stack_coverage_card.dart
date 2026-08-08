@@ -1,19 +1,12 @@
-// StackCoverageCard — "is my stack working?" gap-analysis card for the
-// v2 Stack screen. Renders a [CoverageReport] (built by
-// coverageReportProvider) as three expandable buckets:
-//
-//   Supported   — goals the stack serves, with the products serving them.
-//   Priority    — goal-specific nutrients missing from the stack.
-//   Underdosed  — nutrients present but below an adequate dose.
-//   Unaddressed — goals nothing supports + depletions nothing replenishes.
+// StackGoalSupportCard — goal support for the v2 Stack screen. Nutrient totals
+// and reference comparisons live exclusively on the Nutrients tab.
 //
 // Like [StackSafetyBanner], the widget is pure — no Riverpod hooks, no
 // I/O. Tests drive it directly with synthetic reports. The provider
 // wiring lives in the stack screen's coverage slot.
 //
-// Voice contract: calm-advisory only. No imperatives, no product
-// recommendations — nutrient/ingredient classes only, with the
-// "worth a conversation with your doctor" pattern on depletion gaps.
+// Medication-related nutrient guidance is intentionally absent here; the
+// Medication & nutrients card owns that interpretation.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
@@ -25,8 +18,8 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/services/stack/coverage_analyzer.dart';
 
-class StackCoverageCard extends StatelessWidget {
-  const StackCoverageCard({
+class StackGoalSupportCard extends StatelessWidget {
+  const StackGoalSupportCard({
     super.key,
     required this.report,
     this.onAddGoals,
@@ -47,123 +40,78 @@ class StackCoverageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Empty stack → no card at all.
-    if (report.isEmpty) return const SizedBox.shrink();
+    if (report.isEmpty || report.goalsOptedOut) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: margin,
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: context.v2.surface,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: context.v2.outline),
-          boxShadow: V2Shadows.sm,
-        ),
-        padding: const EdgeInsets.all(V2Spacing.space16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const PGEyebrow('Coverage'),
-            const SizedBox(height: V2Spacing.space8),
-            Text(
-              'Is your stack working?',
-              style: V2Typography.titleSm(color: context.v2.fg),
-            ),
-            const SizedBox(height: V2Spacing.space12),
-            // Goals invitation renders ALONGSIDE the goal-independent
-            // sections (not instead of them) — depletion/underdosed gaps
-            // exist regardless of goals. Users who explicitly opted out
-            // of goals (GOAL_NONE) are not nagged.
-            if (!report.hasGoals && !report.goalsOptedOut) ...[
-              _noGoalsInvitation(context),
-              const SizedBox(height: V2Spacing.space12),
-            ],
-            if (report.hasGoals) ...[
-              _CoverageSection(
-                key: const Key('coverage-supported'),
-                title: 'Supported',
-                count: report.supported.length,
-                tone: context.v2.safe,
-                emptyLine:
-                    'None of your goals are currently matched by products '
-                    'in your stack.',
-                rows: [
-                  for (final g in report.supported)
-                    _CoverageRow(
-                      title: g.goalLabel,
-                      detail: _supportedDetail(g),
+      child: _CoveragePanel(
+        key: const Key('goal-support-card'),
+        eyebrow: 'Goals',
+        title: 'Is your stack supporting your goals?',
+        child: report.hasGoals
+            ? Column(
+                children: [
+                  _CoverageSection(
+                    key: const Key('coverage-supported'),
+                    title: 'Supported',
+                    count: report.supported.length,
+                    tone: context.v2.safe,
+                    emptyLine:
+                        'No products currently meet the evidence criteria for '
+                        'your goals.',
+                    rows: [
+                      for (final g in report.supported)
+                        _CoverageRow(
+                          title: g.goalLabel,
+                          detail: _supportedDetail(g),
+                        ),
+                    ],
+                  ),
+                  const Divider(height: 1),
+                  _CoverageSection(
+                    key: const Key('coverage-partial'),
+                    title: 'Partially supported',
+                    count: report.partiallySupported.length,
+                    tone: context.v2.monitor,
+                    emptyLine: 'No goals are partially supported.',
+                    rows: [
+                      for (final g in report.partiallySupported)
+                        _CoverageRow(
+                          title: g.goalLabel,
+                          detail: _partialDetail(g),
+                        ),
+                    ],
+                  ),
+                  const Divider(height: 1),
+                  _CoverageSection(
+                    key: const Key('coverage-not-supported'),
+                    title: 'Not currently supported',
+                    count: report.unaddressedGoals.length,
+                    tone: context.v2.caution,
+                    emptyLine: 'All of your goals have some support.',
+                    rows: [
+                      for (final g in report.unaddressedGoals)
+                        _CoverageRow(
+                          title: g.goalLabel,
+                          detail:
+                              'No current product meets the evidence criteria '
+                              'for this goal.',
+                        ),
+                    ],
+                  ),
+                  if (report.coverageIncomplete) ...[
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      coverageHedge('goal support may be incomplete'),
+                      key: const Key('coverage-hedge-line'),
+                      style: V2Typography.caption(color: context.v2.fgSubtle),
                     ),
+                  ],
                 ],
-              ),
-              const SizedBox(height: V2Spacing.space8),
-              // Present-but-underdosed goals: the right ingredient is in the
-              // stack, just below its effective dose for this goal. The honest
-              // middle state between Supported and Unaddressed.
-              _CoverageSection(
-                key: const Key('coverage-partial'),
-                title: 'Partially supported',
-                count: report.partiallySupported.length,
-                tone: context.v2.monitor,
-                emptyLine:
-                    'No goals are partly covered — matched goals are either '
-                    'fully supported or not yet addressed.',
-                rows: [
-                  for (final g in report.partiallySupported)
-                    _CoverageRow(title: g.goalLabel, detail: _partialDetail(g)),
-                ],
-              ),
-              const SizedBox(height: V2Spacing.space8),
-            ],
-            _CoverageSection(
-              key: const Key('coverage-priority-gaps'),
-              title: 'Priority gaps',
-              count: report.priorityGaps.length,
-              tone: context.v2.accent,
-              emptyLine: 'No priority nutrient gaps detected in your stack.',
-              rows: [
-                for (final gap in report.priorityGaps)
-                  _CoverageRow(title: gap.nutrientName, detail: gap.detail),
-              ],
-            ),
-            const SizedBox(height: V2Spacing.space8),
-            _CoverageSection(
-              key: const Key('coverage-underdosed'),
-              title: 'Underdosed',
-              count: report.underdosed.length,
-              tone: context.v2.monitor,
-              emptyLine: 'No below-target doses detected in your stack.',
-              rows: [
-                for (final n in report.underdosed)
-                  _CoverageRow(title: n.nutrientName, detail: n.detail),
-              ],
-            ),
-            const SizedBox(height: V2Spacing.space8),
-            _CoverageSection(
-              key: const Key('coverage-unaddressed'),
-              title: 'Unaddressed',
-              count: report.unaddressedCount,
-              tone: context.v2.caution,
-              emptyLine:
-                  'Every goal and known nutrient gap has something in '
-                  'your stack working on it.',
-              rows: [
-                for (final g in report.unaddressedGoals)
-                  _CoverageRow(title: g.goalLabel, detail: g.message),
-                for (final d in report.unreplenishedDepletions)
-                  _CoverageRow(title: d.nutrientName, detail: d.message),
-              ],
-            ),
-            if (report.coverageIncomplete) ...[
-              const SizedBox(height: V2Spacing.space12),
-              Text(
-                coverageHedge('coverage may be incomplete'),
-                key: const Key('coverage-hedge-line'),
-                style: V2Typography.caption(color: context.v2.fgSubtle),
-              ),
-            ],
-          ],
-        ),
+              )
+            : _noGoalsInvitation(context),
       ),
     );
   }
@@ -172,7 +120,7 @@ class StackCoverageCard extends StatelessWidget {
   /// analysis, just a pointer to the profile.
   Widget _noGoalsInvitation(BuildContext context) {
     final text = Text(
-      'Add goals to your profile to see what your stack covers.',
+      'Add goals to see which products support them.',
       key: const Key('coverage-no-goals'),
       style: V2Typography.bodySm(color: context.v2.fgMuted),
     );
@@ -209,16 +157,52 @@ class StackCoverageCard extends StatelessWidget {
   static String _supportedDetail(SupportedGoal g) {
     final names = g.productNames;
     if (names.length == 1) {
-      return 'Covered by ${names.first}.';
+      return 'Supported by ${names.first}.';
     }
-    return 'Covered by ${names.length} products: ${names.join(", ")}.';
+    return 'Supported by ${names.length} products: ${names.join(", ")}.';
   }
 
   static String _partialDetail(SupportedGoal g) {
     final names = g.productNames;
     final who = names.length == 1 ? names.first : '${names.length} products';
-    return 'Present via $who, but likely below an effective dose for '
-        'this goal.';
+    return '$who is present, but support may be limited at this amount.';
+  }
+}
+
+class _CoveragePanel extends StatelessWidget {
+  const _CoveragePanel({
+    super.key,
+    required this.eyebrow,
+    required this.title,
+    required this.child,
+  });
+
+  final String eyebrow;
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.v2.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: context.v2.outline),
+        boxShadow: V2Shadows.sm,
+      ),
+      padding: const EdgeInsets.all(V2Spacing.space16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PGEyebrow(eyebrow),
+          const SizedBox(height: V2Spacing.space8),
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
+          const SizedBox(height: V2Spacing.space8),
+          child,
+        ],
+      ),
+    );
   }
 }
 
@@ -243,8 +227,7 @@ class _CoverageSection extends StatefulWidget {
   final Color tone;
 
   /// Calm one-liner rendered inside the expanded body when [rows] is
-  /// empty — sections never disappear, so the user always sees all
-  /// three buckets and learns the model.
+  /// empty — sections stay visible so the taxonomy remains predictable.
   final String emptyLine;
 
   final List<_CoverageRow> rows;
@@ -254,110 +237,109 @@ class _CoverageSection extends StatefulWidget {
 }
 
 class _CoverageSectionState extends State<_CoverageSection> {
-  bool _expanded = false;
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.count > 0;
+  }
+
+  @override
+  void didUpdateWidget(covariant _CoverageSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.count == 0 && widget.count > 0) _expanded = true;
+    if (oldWidget.count > 0 && widget.count == 0) _expanded = false;
+  }
 
   @override
   Widget build(BuildContext context) {
     final countStyle = context.v2.tintedLabel(widget.tone);
-    return Container(
-      decoration: BoxDecoration(
-        color: context.v2.bg,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: context.v2.outline),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: V2Spacing.space12,
-                vertical: V2Spacing.space12,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: widget.tone,
-                      shape: BoxShape.circle,
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: V2Spacing.space12),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: widget.tone,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(width: V2Spacing.space8),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: V2Typography.bodyMedium(color: context.v2.fg),
-                    ),
+                ),
+                const SizedBox(width: V2Spacing.space8),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: V2Spacing.space8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: countStyle.fill,
-                      borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-                    ),
-                    child: Text(
-                      '${widget.count}',
-                      style: V2Typography.caption(color: countStyle.foreground),
-                    ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: V2Spacing.space8,
+                    vertical: 2,
                   ),
-                  const SizedBox(width: V2Spacing.space8),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: V2Motion.base,
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: context.v2.fgMuted,
-                    ),
+                  decoration: BoxDecoration(
+                    color: countStyle.fill,
+                    borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                   ),
-                ],
-              ),
+                  child: Text(
+                    '${widget.count}',
+                    style: V2Typography.caption(color: countStyle.foreground),
+                  ),
+                ),
+                const SizedBox(width: V2Spacing.space8),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: V2Motion.base,
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: context.v2.fgMuted,
+                  ),
+                ),
+              ],
             ),
           ),
-          // AnimatedSize + conditional child (not AnimatedCrossFade) so
-          // collapsed rows are truly absent from the tree — keeps
-          // semantics/finders honest and avoids laying out hidden text.
-          AnimatedSize(
-            duration: V2Motion.base,
-            curve: V2Motion.emphasized,
-            alignment: Alignment.topCenter,
-            child: !_expanded
-                ? const SizedBox(width: double.infinity)
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      V2Spacing.space12,
-                      0,
-                      V2Spacing.space12,
-                      V2Spacing.space12,
-                    ),
-                    child: widget.rows.isEmpty
-                        ? Text(
-                            widget.emptyLine,
-                            style: V2Typography.caption(
-                              color: context.v2.fgMuted,
-                            ),
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              for (var i = 0; i < widget.rows.length; i++) ...[
-                                if (i > 0)
-                                  const SizedBox(height: V2Spacing.space8),
-                                widget.rows[i],
-                              ],
-                            ],
-                          ),
+        ),
+        AnimatedSize(
+          duration: V2Motion.base,
+          curve: V2Motion.emphasized,
+          alignment: Alignment.topCenter,
+          child: !_expanded
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(
+                    left: V2Spacing.space16,
+                    right: V2Spacing.space4,
+                    bottom: V2Spacing.space12,
                   ),
-          ),
-        ],
-      ),
+                  child: widget.rows.isEmpty
+                      ? Text(
+                          widget.emptyLine,
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var i = 0; i < widget.rows.length; i++) ...[
+                              if (i > 0)
+                                const SizedBox(height: V2Spacing.space8),
+                              widget.rows[i],
+                            ],
+                          ],
+                        ),
+                ),
+        ),
+      ],
     );
   }
 }

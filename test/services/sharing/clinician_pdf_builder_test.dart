@@ -796,7 +796,7 @@ void main() {
       );
 
       final body = latin1.decode(bytes, allowInvalid: true);
-      expect(body, contains('Associated'));
+      expect(body, contains('Medication/nutrient'));
       expect(body, contains('Evidence:'));
       expect(body, contains('Established'));
       expect(body, contains('Mechanism:'));

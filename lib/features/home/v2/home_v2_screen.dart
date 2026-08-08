@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
@@ -18,7 +19,6 @@ import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/components/pg_transparency_footer.dart';
-import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_score_line.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
@@ -114,10 +114,8 @@ class HomeV2Screen extends ConsumerWidget {
           sliver: SliverToBoxAdapter(child: _ScanCta()),
         ),
 
-        // 4. Stack Health — reads StackIntelligenceEngine for the
-        // real tier verdict; identical source-of-truth to the Stack
-        // tab summary card so the user sees one verdict across both
-        // surfaces.
+        // 4. Stack Health — reads the same StackHealthSnapshot provider as the
+        // Stack tab, hero warning, and details sheet.
         const SliverPadding(
           padding: EdgeInsets.fromLTRB(
             V2Spacing.space24,
@@ -494,45 +492,30 @@ class _StackHealthCard extends ConsumerWidget {
 
     // Real intelligence tier — identical wire-up to Stack v2's
     // _StackSummaryCard so the user sees one verdict everywhere.
-    final reportAsync = ref.watch(stackSafetyReportProvider);
-    final synergyAsync = ref.watch(synergyReportProvider);
-    final recallAsync = ref.watch(recalledIngredientsReportProvider);
-    final doseAlertsAsync = ref.watch(stackDoseThresholdAlertsProvider);
-    final intelligence =
-        (reportAsync.hasValue &&
-            synergyAsync.hasValue &&
-            recallAsync.hasValue &&
-            doseAlertsAsync.hasValue)
-        ? const StackIntelligenceEngine().diagnoseFromReports(
-            stackSize: stack.length,
-            safetyReport: reportAsync.value!,
-            recalledReport: recallAsync.value!,
-            synergyReport: synergyAsync.value!,
-            doseThresholdAlerts: doseAlertsAsync.value!,
-          )
-        : null;
+    final healthSnapshotAsync = ref.watch(stackHealthSnapshotProvider);
+    final healthSnapshot = healthSnapshotAsync.asData?.value;
+    final intelligence = healthSnapshot?.intelligence;
     final status = intelligence?.tier.healthLabel;
-    final isAnalyzing =
-        reportAsync.isLoading ||
-        synergyAsync.isLoading ||
-        recallAsync.isLoading ||
-        doseAlertsAsync.isLoading;
-    final hasError =
-        reportAsync.hasError ||
-        synergyAsync.hasError ||
-        recallAsync.hasError ||
-        doseAlertsAsync.hasError;
+    final isAnalyzing = healthSnapshotAsync.isLoading;
+    final hasError = healthSnapshotAsync.hasError;
+    final needsMoreInfo =
+        hasRealData && intelligence?.tier == StackTier.incomplete;
     final fallback = stackHealthFallbackDisplay(
       palette: context.v2,
       isAnalyzing: isAnalyzing,
       hasError: hasError,
+      needsMoreInfo: needsMoreInfo,
     );
     final Color tone = status?.color ?? fallback.tone;
     final statusTone = context.v2.tintedLabel(tone);
     final insightTone = context.v2.tintedLabel(tone, fillAlpha: 0.08);
     final statusLabel = status?.label ?? fallback.label;
+    final reviewSignals = healthSnapshot?.reviewSignals ?? const [];
+    final safetySignalCount = reviewSignals.length;
     final insightLine = hasRealData
-        ? intelligence == null
+        ? reviewSignals.isNotEmpty
+              ? describeSafetySignalReview(safetySignalCount)
+              : intelligence == null
               ? stackHealthFallbackSummary(
                   isAnalyzing: isAnalyzing,
                   hasError: hasError,
@@ -703,6 +686,9 @@ class _StackHealthCard extends ConsumerWidget {
                 child: StackHealthMicroMetrics(
                   supplementCount: supplementLabel,
                   medicationCount: medicationLabel,
+                  safetySignalCount: safetySignalCount,
+                  safetyCheckIncomplete:
+                      hasError || (intelligence?.analysisIncomplete ?? false),
                 ),
               ),
               // CTA footer.
@@ -745,11 +731,15 @@ class _StackHealthCard extends ConsumerWidget {
 class StackHealthMicroMetrics extends StatelessWidget {
   final int supplementCount;
   final int medicationCount;
+  final int safetySignalCount;
+  final bool safetyCheckIncomplete;
 
   const StackHealthMicroMetrics({
     super.key,
     required this.supplementCount,
     required this.medicationCount,
+    this.safetySignalCount = 0,
+    this.safetyCheckIncomplete = false,
   });
 
   @override
@@ -758,6 +748,19 @@ class StackHealthMicroMetrics extends StatelessWidget {
         '$supplementCount ${supplementCount == 1 ? 'Supplement' : 'Supplements'}';
     final medicationLabel =
         '$medicationCount ${medicationCount == 1 ? 'Medication' : 'Medications'}';
+    final safetyLabel = safetySignalCount > 0
+        ? '$safetySignalCount ${safetySignalCount == 1 ? 'Signal' : 'Signals'}'
+        : safetyCheckIncomplete
+        ? 'Check incomplete'
+        : 'No signals';
+    final safetyIcon = safetySignalCount > 0
+        ? Icons.warning_amber_rounded
+        : safetyCheckIncomplete
+        ? Icons.info_outline_rounded
+        : Icons.check_circle_outline;
+    final safetyColor = safetySignalCount > 0 || safetyCheckIncomplete
+        ? context.v2.monitor
+        : context.v2.safe;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -774,11 +777,7 @@ class StackHealthMicroMetrics extends StatelessWidget {
           color: context.v2.fgMuted,
         ),
         const SizedBox(width: V2Spacing.space8),
-        _MicroMetric(
-          icon: Icons.check_circle_outline,
-          label: 'No conflicts',
-          color: context.v2.safe,
-        ),
+        _MicroMetric(icon: safetyIcon, label: safetyLabel, color: safetyColor),
       ],
     );
   }

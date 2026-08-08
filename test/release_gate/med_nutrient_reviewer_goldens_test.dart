@@ -70,14 +70,23 @@ void main() {
     final warfarin = matches.singleWhere(
       (match) => match.depletionId == 'DEP_ANTICOAGULANTS_VITAMINK',
     );
-    expect(metformin.recommendation, contains('4–5 years'));
+    expect(metformin.recommendation, isNot(contains('4–5 years')));
+    expect(metformin.recommendation, contains('symptoms of deficiency'));
+    expect(metformin.watchThresholdDays, isNull);
     expect(
       warfarin.recommendation,
       contains('Keep vitamin K intake reasonably consistent'),
     );
     await _pumpCard(tester, PGDepletionCard(depletions: matches));
-    expect(find.text('Vitamin B12'), findsOneWidget);
-    expect(find.text('Vitamin K'), findsOneWidget);
+    expect(
+      find.text('Long-term metformin can lower vitamin B12'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Warfarin is sensitive to vitamin K changes'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('comparison amount'), findsNothing);
     expect(find.textContaining('Metformin'), findsWidgets);
     expect(find.textContaining('Warfarin'), findsWidgets);
 

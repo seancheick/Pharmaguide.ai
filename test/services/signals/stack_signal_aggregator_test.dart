@@ -3,6 +3,8 @@
 // now that StackSafetyReport.orderedWarnings is gone: disposition-first ranking,
 // warn-worthy-only nutrients, suppress exclusion, and the food-advisory fix.
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pharmaguide/core/constants/severity.dart';
@@ -12,6 +14,7 @@ import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
 InteractionResult _ix({
@@ -149,6 +152,101 @@ void main() {
     expect(signals.single.family, SignalFamily.medicationNutrient);
     expect(signals.single.consumerDisposition, ConsumerDisposition.goodToKnow);
     expect(signals.single.signalId, isNotEmpty);
+  });
+
+  test('interaction and medication/nutrient guidance keep distinct labels', () {
+    final signals = allClinicalSignalsFrom(
+      report: StackSafetyReport(
+        medicationInteractions: [
+          _ix(id: 'WARFARIN_E', a1: 'Warfarin', a2: 'Vitamin E'),
+        ],
+      ),
+      medicationNutrientMatches: [
+        const DepletionMatch(
+          depletionId: 'WARFARIN_VITAMIN_K',
+          drugDisplayName: 'Warfarin',
+          drugClassId: 'class:anticoagulants',
+          nutrientName: 'Vitamin K',
+          nutrientCanonicalId: 'vitamin_k',
+          depletionType: 'functional_antagonism',
+          severity: 'significant',
+          mechanism: 'Consistency matters.',
+          recommendation: 'Keep intake consistent.',
+          sourceUrls: [],
+          coverageLevel: CoverageLevel.none,
+        ),
+      ],
+    );
+
+    expect(clinicalSignalKindLabel(signals[0]), 'Supplement interaction');
+    expect(clinicalSignalKindLabel(signals[1]), 'Medication/nutrient guidance');
+  });
+
+  test('mixed report includes dose thresholds in the shared ordering', () {
+    final signals = orderedSignalsFrom(
+      StackSafetyReport(
+        medicationInteractions: [_ix(id: 'med')],
+        nutrientStatuses: [_nut()],
+      ),
+      doseThresholdAlerts: const [
+        StackDoseThresholdAlert(
+          conditionId: 'pregnancy',
+          canonicalId: 'caffeine',
+          displayName: 'Caffeine',
+          totalValue: 240,
+          unit: 'mg',
+          thresholdValue: 200,
+          thresholdUnit: 'mg',
+          contributions: [],
+        ),
+      ],
+    );
+
+    expect(signals, hasLength(3));
+    expect(
+      signals.map((signal) => signal.family),
+      containsAll([
+        SignalFamily.pairwiseInteraction,
+        SignalFamily.cumulativeExposure,
+        SignalFamily.doseThreshold,
+      ]),
+    );
+  });
+
+  test('unknown authored dose disposition fails visible, never suppressed', () {
+    final signals = orderedSignalsFrom(
+      const StackSafetyReport(),
+      doseThresholdAlerts: const [
+        StackDoseThresholdAlert(
+          conditionId: 'pregnancy',
+          canonicalId: 'caffeine',
+          displayName: 'Caffeine',
+          totalValue: 240,
+          unit: 'mg',
+          thresholdValue: 200,
+          thresholdUnit: 'mg',
+          contributions: [],
+          consumerDisposition: 'not_a_real_disposition',
+        ),
+      ],
+    );
+
+    expect(signals, hasLength(1));
+    expect(
+      signals.single.consumerDisposition,
+      ConsumerDisposition.review,
+      reason:
+          'the alert already counts toward the tier, so it must stay visible '
+          'in the review universe',
+    );
+  });
+
+  test('lifecycle persistence consumes the same dose-threshold signals', () {
+    final source = File(
+      'lib/features/history/providers/clinical_signal_lifecycle_provider.dart',
+    ).readAsStringSync();
+    expect(source, contains('stackDoseThresholdAlertsProvider'));
+    expect(source, contains('doseThresholdAlerts: doseThresholdAlerts'));
   });
 
   test('only warn-worthy nutrients are included', () {

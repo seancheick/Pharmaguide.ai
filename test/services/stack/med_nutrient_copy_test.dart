@@ -1,8 +1,8 @@
 // Safety-copy contract for the Medication & Nutrient Monitor (B1.1, PM-locked
 // 2026-07-23). Copy is generated from explicit relationship_type × supply_state
 // templates — never one interpolated universal sentence. It must stay factual:
-// no "covered"/"adequate"/replacement claims, always "comparison amount" (not
-// "reference amount"), amounts carry "per day", and it never implies a measured
+// no "covered"/"adequate"/replacement claims, no internal comparison-threshold
+// language, amounts carry a per-day basis, and it never implies a measured
 // deficiency or physiological sufficiency.
 
 import 'package:flutter_test/flutter_test.dart';
@@ -84,7 +84,7 @@ void main() {
       _assertNoBannedWords(c);
     });
 
-    test('below comparison — amount + comparison, both per day', () {
+    test('detected amount uses plain per-day supply copy', () {
       final c = copy(
         MedNutrientSupplyState.sourceDetectedBelowComparison,
         detected: 50,
@@ -92,23 +92,13 @@ void main() {
         comp: 100,
         compUnit: 'mcg',
       );
-      expect(
-        c,
-        contains('Your current stack contains 50 mcg of Vitamin B12 per day'),
-      );
-      expect(
-        c,
-        contains(
-          'comparison amount used for this medication-related consideration '
-          'is 100 mcg per day',
-        ),
-      );
-      expect(c, contains('does not confirm your Vitamin B12 status'));
-      expect(c, isNot(contains('reference amount')));
+      expect(c, contains('Your stack provides 50 mcg/day of Vitamin B12'));
+      expect(c, contains('does not confirm your blood level'));
+      expect(c, isNot(contains('comparison amount')));
       _assertNoBannedWords(c);
     });
 
-    test('meets comparison — no sufficiency claim', () {
+    test('threshold state never becomes a sufficiency claim', () {
       final c = copy(
         MedNutrientSupplyState.meetsComparisonAmount,
         detected: 250,
@@ -116,11 +106,8 @@ void main() {
         comp: 100,
         compUnit: 'mcg',
       );
-      expect(
-        c,
-        contains('Your current stack contains 250 mcg of Vitamin B12 per day'),
-      );
-      expect(c, contains('This meets the comparison amount'));
+      expect(c, contains('Your stack provides 250 mcg/day of Vitamin B12'));
+      expect(c, isNot(contains('comparison amount')));
       expect(
         c,
         contains('does not confirm your blood level or nutrient status'),
@@ -130,7 +117,7 @@ void main() {
 
     test('amount unknown', () {
       final c = copy(MedNutrientSupplyState.sourceAmountUnknown);
-      expect(c, contains('includes a source of Vitamin B12'));
+      expect(c, contains('Your stack includes Vitamin B12'));
       expect(c, contains('daily amount could not be determined'));
       _assertNoBannedWords(c);
     });

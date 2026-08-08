@@ -293,16 +293,19 @@ void main() {
     // dead — declared, never read — but they were a standing invitation to
     // render clinically-meaningful colour that cannot follow the device
     // appearance, which is exactly how ScoreTier shipped unreadable in dark
-    // mode. Removed 2026-08-01; colour for these concepts comes from
-    // V2Palette's severity slots, which resolve per appearance.
+    // mode. The Color fields were removed 2026-08-01; colour for these
+    // concepts comes from V2Palette's severity slots, which resolve per
+    // appearance. RiskTier itself was deleted 2026-08-08 (ADR-006: the
+    // internal score no longer exposes a second tier API), so only Severity
+    // remains under guard.
     //
-    // StackHealthLabel deliberately keeps its fixed token: audited, no
-    // contrast defect, and it renders only as a 6pt dot beside a redundant
-    // text label. The reasoning is documented on the field itself.
-    test('Severity and RiskTier declare no Color field', () {
+    // StackHealthLabel (now in `stack_intelligence.dart`, beside the tier
+    // engine) deliberately keeps its fixed token: audited, no contrast
+    // defect, and it renders only as a 6pt dot beside a redundant text
+    // label. The reasoning is documented on the field itself.
+    test('Severity declares no Color field', () {
       const guarded = <String, String>{
         'lib/core/constants/severity.dart': 'Severity',
-        'lib/core/models/stack_safety_score.dart': 'RiskTier',
       };
       final offenders = <String>[];
 

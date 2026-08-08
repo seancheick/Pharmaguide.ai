@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.08.07",
-    "content_hash": "sha256:ed274d0b7828e3b0d511e56137cb832a417a8148b21cc4545f8d8357851a4651",
+    "content_version": "2026.08.08",
+    "content_hash": "sha256:1b073eb185d25020b21d076ebdd2570e9afad1e53a6ecfd419de4a317608150a",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -424,7 +424,7 @@
       "severity": "significant",
       "mechanism": "Metformin can reduce vitamin B12 absorption through a multifactorial process. Reduced calcium-dependent uptake of the intrinsic-factor–B12 complex in the ileum is one proposed mechanism, but it is not the only established explanation.",
       "clinical_impact": "The chance of low vitamin B12 rises with higher metformin dose, longer treatment, and other B12 risk factors. Deficiency can cause anemia or neuropathy, which can be mistaken for diabetic neuropathy.",
-      "recommendation": "Periodic vitamin B12 assessment should be considered during long-term metformin therapy, especially after about 4–5 years, at higher doses, with other B12 risk factors, or with anemia or neuropathy. Treat a confirmed deficiency using a clinician-directed regimen; do not stop metformin on your own.",
+      "recommendation": "Consider periodic vitamin B12 assessment during long-term metformin use, especially with higher doses, symptoms of deficiency, or other B12 risk factors. Treat confirmed deficiency with clinician guidance; do not stop metformin on your own.",
       "onset_timeline": "years",
       "evidence_level": "established",
       "monitoring_note": "Consider periodic vitamin B12 assessment in people taking metformin, particularly with anemia, neuropathy symptoms, higher doses, longer treatment duration, or other deficiency risk factors. Methylmalonic acid is a sensitive functional marker for early deficiency.",
@@ -471,13 +471,7 @@
       "b1_evidence_auditor": "openai_codex_ai_clinical_audit",
       "b1_clinical_approval_status": "approved_for_controlled_beta",
       "b1_clinical_approver": "PharmaGuide Clinical Team",
-      "b1_clinical_approved_at": "2026-07-27",
-      "watch_threshold_days": 1460,
-      "watch_basis": "Matches this entry’s own reviewed recommendation (\"especially after about 4–5 years\") and de Jager 2010 (PMID 20488910, on this entry), a 4.3-year randomised placebo-controlled trial in which metformin raised the absolute risk of B12 deficiency by 7.2 percentage points (NNH 13.8 per 4.3 years). Threshold set at the lower bound of the authored window, 4 years. NOTE FOR REVIEW: Ting 2006 (PMID 17030830, NOT currently on this entry) reports an adjusted OR of 2.39 at >=3 years; if the team wants the earlier trigger, add that source first and reduce this to 1095.",
-      "watch_review_status": "proposed",
-      "watch_proposed_by": "claude_research_draft",
-      "watch_proposed_at": "2026-07-30",
-      "watch_approver": null
+      "b1_clinical_approved_at": "2026-07-27"
     },
     {
       "id": "DEP_METFORMIN_FOLATE",
@@ -2456,7 +2450,7 @@
         }
       ],
       "alert_headline": "Warfarin is sensitive to vitamin K changes",
-      "alert_body": "Warfarin blocks vitamin K recycling as part of its intended action; sudden diet or supplement changes can shift the INR within days.",
+      "alert_body": "Keep vitamin K intake consistent. Sudden diet or supplement changes can affect how strongly warfarin works.",
       "acknowledgement_note": "A reasonably consistent vitamin K intake supports steadier warfarin control.",
       "monitoring_tip_short": "Consider keeping your vitamin K intake steady day to day; discuss changes with your prescriber.",
       "citation_review_status": "verified",

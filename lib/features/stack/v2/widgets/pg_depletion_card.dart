@@ -3,8 +3,8 @@
 // States what the user's stack SUPPLIES for medication-related nutrient
 // relationships — it never authors a coverage verdict ("covered"/"adequate")
 // and never implies a measured deficiency or physiological sufficiency. Copy is
-// generated from explicit relationship_type × supply_state templates
-// (medNutrientBodyCopy); the relationship kind is surfaced per row
+// combines factual stack-supply copy with clinician-reviewed artifact context;
+// the relationship kind is surfaced per row
 // (medNutrientRelationshipLabel) so a functional antagonism or monitoring note
 // is never presented as a depletion. Affirmation copy (acknowledgement_note)
 // is no longer rendered.
@@ -59,19 +59,17 @@ class PGDepletionCard extends StatelessWidget {
                   color: context.v2.monitor,
                 ),
                 const SizedBox(width: V2Spacing.space8),
-                PGEyebrow('Medication & nutrients', color: context.v2.monitor),
+                PGEyebrow('Personalized review', color: context.v2.monitor),
               ],
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
-              'Nutrients to monitor',
+              'Medication & nutrients',
               style: V2Typography.titleSm(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
-              'Some medications are associated with changes in nutrient '
-              'status or function. Your supplement stack shows intake—'
-              'not your blood level or nutrient status.',
+              "Supplement amounts don't show blood nutrient levels.",
               style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space12),
@@ -191,16 +189,11 @@ class _DepletionRow extends StatelessWidget {
     return 'Tracked here for about $years years';
   }
 
-  String _bodyCopy() {
+  String _summaryCopy() {
     final d = dep;
-    num? compAmt;
-    String? compUnit;
-    if (d.adequacyThresholdMcg != null) {
-      compAmt = d.adequacyThresholdMcg;
-      compUnit = 'mcg';
-    } else if (d.adequacyThresholdMg != null) {
-      compAmt = d.adequacyThresholdMg;
-      compUnit = 'mg';
+    final reviewed = d.alertBody?.trim() ?? '';
+    if (d.depletionType == 'functional_antagonism' && reviewed.isNotEmpty) {
+      return reviewed;
     }
     return medNutrientBodyCopy(
       relationshipType: d.depletionType,
@@ -212,19 +205,7 @@ class _DepletionRow extends StatelessWidget {
       ),
       detectedAmount: d.detectedAmount,
       detectedUnit: d.detectedUnit,
-      comparisonAmount: compAmt,
-      comparisonUnit: compUnit,
     );
-  }
-
-  String? _onsetCue() {
-    final onset = dep.onsetTimeline?.toLowerCase();
-    return switch (onset) {
-      'years' => 'long-term',
-      'months' => 'with regular use',
-      'weeks' => 'over weeks',
-      _ => null,
-    };
   }
 
   bool _hasExpandableDetail() {
@@ -244,152 +225,132 @@ class _DepletionRow extends StatelessWidget {
     );
   }
 
+  String _affordanceLabel() => dep.depletionType == 'functional_antagonism'
+      ? 'Why this matters'
+      : 'What to monitor';
+
   @override
   Widget build(BuildContext context) {
     final d = dep;
     final nutrientTitle = d.nutrientName.isEmpty
         ? 'This nutrient'
         : d.nutrientName;
-    final subject = d.drugDisplayName.isEmpty
-        ? 'your medication'
-        : d.drugDisplayName;
-    final onset = _onsetCue();
-    final subjectLine = onset == null ? subject : '$subject • $onset';
+    final reviewedHeadline = d.alertHeadline?.trim() ?? '';
+    final rowTitle = reviewedHeadline.isEmpty
+        ? nutrientTitle
+        : reviewedHeadline;
+    final hasDetails = _hasExpandableDetail();
+    final affordance = _affordanceLabel();
+    final semanticsParts = <String>[
+      rowTitle,
+      medNutrientRelationshipLabel(d.depletionType),
+      _summaryCopy(),
+      if (_isDue) _trackedForLine(),
+      if (hasDetails) affordance,
+    ];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: V2Spacing.space8),
-      child: Container(
-        padding: const EdgeInsets.all(V2Spacing.space12),
-        decoration: BoxDecoration(
+      child: Semantics(
+        button: hasDetails,
+        excludeSemantics: true,
+        label: semanticsParts.join('. '),
+        child: Material(
           color: context.v2.bg,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: context.v2.outline),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 18,
-                  color: context.v2.monitor,
-                ),
-                const SizedBox(width: V2Spacing.space8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      PGEyebrow(
-                        medNutrientRelationshipLabel(d.depletionType),
-                        color: context.v2.fgMuted,
-                      ),
-                      const SizedBox(height: V2Spacing.space4),
-                      Text(
-                        nutrientTitle,
-                        style: V2Typography.bodyMedium(color: context.v2.fg),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subjectLine,
-                        style: V2Typography.caption(color: context.v2.fgMuted),
-                      ),
-                      const SizedBox(height: V2Spacing.space8),
-                      Text(
-                        _bodyCopy(),
-                        style: V2Typography.bodySm(color: context.v2.fg),
-                      ),
-                      if (_isDue) ...[
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            side: BorderSide(color: context.v2.outline),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: hasDetails ? () => _showDetails(context) : null,
+            child: Padding(
+              padding: const EdgeInsets.all(V2Spacing.space12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: context.v2.monitor,
+                  ),
+                  const SizedBox(width: V2Spacing.space8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PGEyebrow(
+                          medNutrientRelationshipLabel(d.depletionType),
+                          color: context.v2.fgMuted,
+                        ),
+                        const SizedBox(height: V2Spacing.space4),
+                        Text(
+                          rowTitle,
+                          style: V2Typography.bodyMedium(color: context.v2.fg),
+                        ),
                         const SizedBox(height: V2Spacing.space8),
-                        Semantics(
-                          // The clock icon is decorative; the sentence carries
-                          // the meaning, so emphasis is never colour-only.
-                          label: _trackedForLine(),
-                          excludeSemantics: true,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.schedule_rounded,
-                                size: 14,
-                                color: context.v2.monitor,
-                              ),
-                              const SizedBox(width: V2Spacing.space4),
-                              Expanded(
-                                child: Text(
-                                  _trackedForLine(),
-                                  style: V2Typography.caption(
-                                    color: context.v2.monitor,
+                        Text(
+                          _summaryCopy(),
+                          style: V2Typography.bodySm(color: context.v2.fg),
+                        ),
+                        if (_isDue) ...[
+                          const SizedBox(height: V2Spacing.space8),
+                          Semantics(
+                            // The clock icon is decorative; the sentence carries
+                            // the meaning, so emphasis is never colour-only.
+                            label: _trackedForLine(),
+                            excludeSemantics: true,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.schedule_rounded,
+                                  size: 14,
+                                  color: context.v2.monitor,
+                                ),
+                                const SizedBox(width: V2Spacing.space4),
+                                Expanded(
+                                  child: Text(
+                                    _trackedForLine(),
+                                    style: V2Typography.caption(
+                                      color: context.v2.monitor,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                      if (d.monitoringTipShort != null &&
-                          d.monitoringTipShort!.isNotEmpty) ...[
-                        const SizedBox(height: V2Spacing.space8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.lightbulb_outline_rounded,
-                              size: 14,
-                              color: _isDue
-                                  ? context.v2.monitor
-                                  : context.v2.fgMuted,
-                            ),
-                            const SizedBox(width: V2Spacing.space4),
-                            Expanded(
-                              child: Text(
-                                d.monitoringTipShort!,
-                                style: V2Typography.caption(
-                                  color: _isDue
-                                      ? context.v2.fg
-                                      : context.v2.fgMuted,
+                        ],
+                        if (hasDetails) ...[
+                          const SizedBox(height: V2Spacing.space8),
+                          SizedBox(
+                            height: 44,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  affordance,
+                                  style: V2Typography.label(
+                                    color: context.v2.accent,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: V2Spacing.space4),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 18,
+                                  color: context.v2.accent,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (_hasExpandableDetail()) ...[
-              const SizedBox(height: V2Spacing.space8),
-              Semantics(
-                button: true,
-                label: 'Why $nutrientTitle may be affected by $subject',
-                child: InkWell(
-                  onTap: () => _showDetails(context),
-                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                  child: SizedBox(
-                    height: 44,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Why this happens',
-                          style: V2Typography.label(color: context.v2.accent),
-                        ),
-                        const SizedBox(width: V2Spacing.space4),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 18,
-                          color: context.v2.accent,
-                        ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
     );
@@ -406,9 +367,10 @@ class _MedicationNutrientDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final drug = dep.drugDisplayName.trim().isEmpty
+    final rawDrug = dep.drugDisplayName.trim();
+    final drug = rawDrug.isEmpty
         ? 'Your medication'
-        : dep.drugDisplayName;
+        : rawDrug.split(' (').first.trim();
     final nutrient = dep.nutrientName.trim().isEmpty
         ? 'This nutrient'
         : dep.nutrientName;
@@ -432,13 +394,8 @@ class _MedicationNutrientDetailsSheet extends StatelessWidget {
             ),
             const SizedBox(height: V2Spacing.space8),
             Text(
-              'Medication & nutrient details',
+              '$drug & $nutrient',
               style: V2Typography.titleSm(color: context.v2.fg),
-            ),
-            const SizedBox(height: V2Spacing.space4),
-            Text(
-              '$drug · $nutrient',
-              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space16),
             Flexible(
@@ -475,19 +432,22 @@ class _DetailSection extends StatelessWidget {
             _labelled(context, 'What can happen', d.clinicalImpact!),
             const SizedBox(height: V2Spacing.space8),
           ],
-          if (d.foodSourcesShort != null && d.foodSourcesShort!.isNotEmpty) ...[
-            _labelled(context, 'From food', d.foodSourcesShort!),
-            const SizedBox(height: V2Spacing.space8),
-          ],
-          if (d.mechanism.isNotEmpty) ...[
-            _labelled(context, 'Why', d.mechanism),
+          if ((d.alertBody?.trim().isNotEmpty ?? false) ||
+              d.mechanism.isNotEmpty) ...[
+            _labelled(
+              context,
+              'Why',
+              d.alertBody?.trim().isNotEmpty ?? false
+                  ? d.alertBody!.trim()
+                  : d.mechanism,
+            ),
             const SizedBox(height: V2Spacing.space8),
           ],
           if (d.recommendation.isNotEmpty) ...[
-            _labelled(context, 'Clinical guidance', d.recommendation),
+            _labelled(context, 'What to do', d.recommendation),
             const SizedBox(height: V2Spacing.space8),
           ],
-          if (d.sourceUrls.isNotEmpty) _SourcesRow(urls: d.sourceUrls),
+          if (d.sourceUrls.isNotEmpty) _SourcesRow(dep: d),
         ],
       ),
     );
@@ -506,50 +466,60 @@ class _DetailSection extends StatelessWidget {
 }
 
 class _SourcesRow extends StatelessWidget {
-  final List<String> urls;
-  const _SourcesRow({required this.urls});
+  final DepletionMatch dep;
+  const _SourcesRow({required this.dep});
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: V2Spacing.space8,
-      runSpacing: V2Spacing.space8,
-      children: urls.take(3).map((url) {
-        return InkWell(
-          onTap: () {
-            final uri = Uri.tryParse(url);
-            if (uri == null) return;
-            unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
-          },
-          borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: V2Spacing.space12,
-              vertical: V2Spacing.space4,
-            ),
-            decoration: BoxDecoration(
-              color: context.v2.surface,
-              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-              border: Border.all(color: context.v2.outline),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.open_in_new_rounded,
-                  size: 11,
-                  color: context.v2.fgMuted,
+    final sources = dep.sources.isNotEmpty
+        ? dep.sources
+        : [
+            for (final url in dep.sourceUrls)
+              DepletionSource(sourceType: '', label: 'Source', url: url),
+          ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PGEyebrow('Sources', color: context.v2.fgMuted),
+        const SizedBox(height: V2Spacing.space8),
+        for (final source in sources.take(3)) ...[
+          InkWell(
+            onTap: () {
+              final uri = Uri.tryParse(source.url);
+              if (uri == null) return;
+              unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
+            },
+            borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: V2Spacing.space12,
+                  vertical: V2Spacing.space4,
                 ),
-                const SizedBox(width: V2Spacing.space4),
-                Text(
-                  'Source',
-                  style: V2Typography.caption(color: context.v2.fgMuted),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.open_in_new_rounded,
+                      size: 11,
+                      color: context.v2.fgMuted,
+                    ),
+                    const SizedBox(width: V2Spacing.space4),
+                    Expanded(
+                      child: Text(
+                        source.label,
+                        style: V2Typography.caption(color: context.v2.fgMuted),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        );
-      }).toList(),
+          if (source != sources.take(3).last)
+            const SizedBox(height: V2Spacing.space4),
+        ],
+      ],
     );
   }
 }

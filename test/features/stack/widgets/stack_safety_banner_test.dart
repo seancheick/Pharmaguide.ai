@@ -13,7 +13,10 @@ import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 void main() {
   Future<void> pumpBanner(
@@ -21,10 +24,16 @@ void main() {
     required StackSafetyReport report,
     VoidCallback? onTap,
   }) async {
+    final snapshot = const StackIntelligenceEngine().summarizeFromReports(
+      stackSize: 1,
+      safetyReport: report,
+      recalledReport: RecalledIngredientsReport.empty(),
+      synergyReport: SynergyReport.empty(),
+    );
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StackSafetyBanner(report: report, onTap: onTap),
+          body: StackSafetyBanner(snapshot: snapshot, onTap: onTap),
         ),
       ),
     );
@@ -416,6 +425,16 @@ void main() {
     );
     await pumpBanner(tester, report: report, onTap: () => tapCount++);
 
+    final banner = tester.widget<PGSeverityBanner>(
+      find.byType(PGSeverityBanner),
+    );
+    expect(banner.title, 'Warfarin × Fish Oil');
+    expect(
+      banner.body,
+      'Supplement interaction · Strong Evidence · '
+      '1 safety signal to review',
+    );
+    expect(banner.body, isNot(contains('Monitor INR')));
     expect(find.text('View details'), findsOneWidget);
     await tester.tap(find.text('View details'));
     await tester.pump();

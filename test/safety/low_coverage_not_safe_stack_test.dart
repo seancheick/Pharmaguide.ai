@@ -17,7 +17,10 @@ import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_logic.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
+import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/synergy_result.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart'
     as gate;
 
@@ -62,9 +65,15 @@ class _Boom {
 void main() {
   group('StackSafetyBanner — low coverage hedge', () {
     Future<void> pump(WidgetTester tester, StackSafetyReport report) {
+      final snapshot = const StackIntelligenceEngine().summarizeFromReports(
+        stackSize: 1,
+        safetyReport: report,
+        recalledReport: RecalledIngredientsReport.empty(),
+        synergyReport: SynergyReport.empty(),
+      );
       return tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: StackSafetyBanner(report: report)),
+          home: Scaffold(body: StackSafetyBanner(snapshot: snapshot)),
         ),
       );
     }
@@ -90,7 +99,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, const StackSafetyReport(checksIncomplete: true));
-      expect(find.text("Interactions couldn't be checked"), findsOneWidget);
+      expect(find.text('More info needed'), findsOneWidget);
       expect(find.textContaining('results may be incomplete'), findsOneWidget);
     });
 
@@ -117,7 +126,7 @@ void main() {
         checksIncomplete: true,
       );
       await pump(tester, report);
-      expect(find.text("Interactions couldn't be checked"), findsOneWidget);
+      expect(find.text('More info needed'), findsOneWidget);
       expect(find.textContaining('Safe —'), findsNothing);
     });
 

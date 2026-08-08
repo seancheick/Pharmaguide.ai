@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
-import 'package:pharmaguide/core/models/stack_safety_score.dart';
 import 'package:pharmaguide/core/models/synergy_result.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 
@@ -28,7 +27,6 @@ void main() {
     test('empty stack scores 100', () {
       final result = scorer.compute(issues: []);
       expect(result.score, 100);
-      expect(result.riskTier, RiskTier.excellent);
     });
 
     test('caution issue reduces score', () {
@@ -40,7 +38,6 @@ void main() {
     test('contraindicated caps at 25', () {
       final result = scorer.compute(issues: [_issue(Severity.contraindicated)]);
       expect(result.score, 25);
-      expect(result.riskTier, RiskTier.highRisk);
     });
 
     test('avoid caps at 50', () {

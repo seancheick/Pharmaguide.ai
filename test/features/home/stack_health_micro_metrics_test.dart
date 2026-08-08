@@ -56,7 +56,7 @@ void main() {
     await pumpMetrics(tester, supplements: 2);
 
     expect(tester.takeException(), isNull);
-    for (final label in ['2 Supplements', '0 Medications', 'No conflicts']) {
+    for (final label in ['2 Supplements', '0 Medications', 'No signals']) {
       expect(find.text(label), findsOneWidget);
       expectOneLineMetricText(tester, label);
     }
@@ -67,7 +67,7 @@ void main() {
 
     expect(find.text('3 Supplements'), findsOneWidget);
     expect(find.text('1 Medication'), findsOneWidget);
-    expect(find.text('No conflicts'), findsOneWidget);
+    expect(find.text('No signals'), findsOneWidget);
   });
 
   testWidgets('metric labels share the same visual row', (tester) async {
@@ -75,7 +75,7 @@ void main() {
 
     final supplementCenter = tester.getCenter(find.text('2 Supplements')).dy;
     final medicationCenter = tester.getCenter(find.text('0 Medications')).dy;
-    final conflictCenter = tester.getCenter(find.text('No conflicts')).dy;
+    final conflictCenter = tester.getCenter(find.text('No signals')).dy;
 
     expect((supplementCenter - medicationCenter).abs(), lessThan(1));
     expect((supplementCenter - conflictCenter).abs(), lessThan(1));
@@ -90,5 +90,27 @@ void main() {
     expect(tester.takeException(), isNull);
     expectOneLineMetricText(tester, '0 Supplements');
     expectOneLineMetricText(tester, '0 Medications');
+  });
+
+  testWidgets('shows the shared safety-signal noun when findings exist', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: cardContentWidth,
+            child: StackHealthMicroMetrics(
+              supplementCount: 4,
+              medicationCount: 2,
+              safetySignalCount: 3,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('3 Signals'), findsOneWidget);
+    expect(find.text('No signals'), findsNothing);
   });
 }

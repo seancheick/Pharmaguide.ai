@@ -16,15 +16,67 @@
 // orderedWarnings / List<Object> path has been removed.
 
 import 'package:pharmaguide/core/models/interaction_result.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
 /// Consumer-facing safety signals. Medication–nutrient relationships keep
 /// their dedicated presentation today, so this compatibility entry point uses
 /// the same canonical aggregator with no relationship rows supplied.
-List<ClinicalSignal> orderedSignalsFrom(StackSafetyReport report) {
-  return allClinicalSignalsFrom(report: report);
+List<ClinicalSignal> orderedSignalsFrom(
+  StackSafetyReport report, {
+  List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+}) {
+  return allClinicalSignalsFrom(
+    report: report,
+    doseThresholdAlerts: doseThresholdAlerts,
+  );
+}
+
+/// Shared consumer taxonomy for every Stack safety-signal presentation.
+/// Keeping this beside the typed aggregator prevents the hero and detail sheet
+/// from describing the same finding with different nouns.
+String clinicalSignalKindLabel(ClinicalSignal signal) {
+  switch (signal.payload) {
+    case InteractionPayload(:final result):
+      if (result.isFoodAdvisoryNote) return 'Food/medication guidance';
+      return switch (result.type) {
+        InteractionType.drugSupplement => 'Supplement interaction',
+        InteractionType.supplementSupplement => 'Supplement interaction',
+        InteractionType.drugDrug => 'Medication interaction',
+        InteractionType.conditionSupplement => 'Health-context guidance',
+      };
+    case MedicationProfilePayload():
+      return 'Medication guidance';
+    case CumulativeExposurePayload(:final status):
+      return status.tier == NutrientTier.exceedsUl
+          ? 'Nutrient upper limit'
+          : 'Nutrient total';
+    case DoseThresholdPayload():
+      return 'Dose-threshold guidance';
+    case MedicationNutrientPayload():
+      return 'Medication/nutrient guidance';
+    case TimingSeparationPayload():
+      return 'Timing guidance';
+  }
+}
+
+String clinicalSignalContextLabel(ClinicalSignal signal) {
+  final kind = clinicalSignalKindLabel(signal);
+  final evidence = switch (signal.payload) {
+    InteractionPayload(:final result) => result.evidenceLevel.label,
+    MedicationProfilePayload(:final warning) => warning.evidenceLevel.label,
+    MedicationNutrientPayload(:final match) => EvidenceLevel.fromString(
+      match.evidenceLevel,
+    ).label,
+    CumulativeExposurePayload() ||
+    DoseThresholdPayload() ||
+    TimingSeparationPayload() => null,
+  };
+  return evidence == null ? kind : '$kind · $evidence';
 }
 
 /// Complete typed signal set used by lifecycle persistence and reporting.
@@ -35,6 +87,7 @@ List<ClinicalSignal> orderedSignalsFrom(StackSafetyReport report) {
 List<ClinicalSignal> allClinicalSignalsFrom({
   required StackSafetyReport report,
   List<DepletionMatch> medicationNutrientMatches = const [],
+  List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
 }) {
   final entries = <({ClinicalSignal signal, int bucket, int ordinal})>[];
 
@@ -76,6 +129,14 @@ List<ClinicalSignal> allClinicalSignalsFrom({
   for (var i = 0; i < medicationNutrientMatches.length; i++) {
     entries.add((
       signal: ClinicalSignal.fromDepletion(medicationNutrientMatches[i]),
+      bucket: 7,
+      ordinal: i,
+    ));
+  }
+
+  for (var i = 0; i < doseThresholdAlerts.length; i++) {
+    entries.add((
+      signal: ClinicalSignal.fromDoseThreshold(doseThresholdAlerts[i]),
       bucket: 6,
       ordinal: i,
     ));

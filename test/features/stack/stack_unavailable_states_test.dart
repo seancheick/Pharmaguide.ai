@@ -6,51 +6,63 @@
 //
 // low_coverage_not_safe_stack_test.dart already pumps StackSafetyBanner
 // directly and passes — the widget was never the bug. The slot returned before
-// the widget could run, so that test is green while the path is dead. The guard
-// is now `StackSafetyReport.hasNothingToReport`, exercised here on real report
-// instances and pinned to the slot's source below, so a regression in either
-// half fails.
+// the widget could run, so that test is green while the path is dead. The
+// guard is now the shared snapshot's `analysisIncomplete` — which covers
+// every incomplete flag (checks, coverage, recalls, dose sums) — exercised
+// here through the real engine and pinned to the slot's source below, so a
+// regression in either half fails.
 
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
+import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_reminder_scheduler.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 void main() {
   group('an incomplete check never reads as a clean stack', () {
-    test('a clean, complete report stays silent', () {
-      const report = StackSafetyReport();
-      expect(report.isEmpty, isTrue);
-      expect(report.hasNothingToReport, isTrue);
+    StackIntelligence diagnose(StackSafetyReport report) =>
+        const StackIntelligenceEngine().diagnoseFromReports(
+          stackSize: 1,
+          safetyReport: report,
+          recalledReport: RecalledIngredientsReport.empty(),
+          synergyReport: SynergyReport.empty(),
+        );
+
+    test('a clean, complete report has nothing to hedge', () {
+      final intelligence = diagnose(const StackSafetyReport());
+      expect(intelligence.analysisIncomplete, isFalse);
+      expect(intelligence.tier, isNot(StackTier.incomplete));
     });
 
-    test('an empty report with failed checks must still render', () {
-      const report = StackSafetyReport(checksIncomplete: true);
-      expect(
-        report.isEmpty,
-        isTrue,
-        reason: 'isEmpty counts findings only — this is why it was the wrong '
-            'guard',
+    test('an empty report with failed checks must still hedge', () {
+      final intelligence = diagnose(
+        const StackSafetyReport(checksIncomplete: true),
       );
       expect(
-        report.hasNothingToReport,
-        isFalse,
+        intelligence.analysisIncomplete,
+        isTrue,
         reason:
             'a timing or interaction pass that threw must not vanish into a '
             'blank screen',
       );
+      expect(intelligence.tier, StackTier.incomplete);
     });
 
-    test('an empty report with incomplete coverage must still render', () {
-      const report = StackSafetyReport(coverageIncomplete: true);
-      expect(report.isEmpty, isTrue);
-      expect(report.hasNothingToReport, isFalse);
+    test('an empty report with incomplete coverage must still hedge', () {
+      final intelligence = diagnose(
+        const StackSafetyReport(coverageIncomplete: true),
+      );
+      expect(intelligence.analysisIncomplete, isTrue);
+      expect(intelligence.tier, StackTier.incomplete);
     });
 
-    test('the stack banner slot guards on hasNothingToReport', () {
+    test('the stack banner slot only hides on complete, signal-free analysis', () {
       final source = File(
         'lib/features/stack/v2/stack_v2_screen.dart',
       ).readAsStringSync();
@@ -58,10 +70,19 @@ void main() {
       expect(start, isNonNegative, reason: 'the slot was renamed');
       final slot = source.substring(start, source.indexOf('\nclass ', start));
 
-      expect(slot, contains('if (report.hasNothingToReport) return'));
-      // The old guard is what made the hedge unreachable. Scoped to this slot:
-      // _CoverageSlot guards a different report type on its own isEmpty.
+      expect(slot, contains('stackHealthSnapshotProvider'));
+      expect(
+        slot,
+        contains('!snapshot.intelligence.analysisIncomplete'),
+        reason:
+            'the shrink guard must account for every incomplete-analysis flag '
+            '(checks, coverage, recalls, dose sums), not findings alone',
+      );
+      // Naive findings-only guards are what made the hedge unreachable.
+      // Scoped to this slot: _GoalSupportSlot guards a different report type
+      // on its own isEmpty.
       expect(slot, isNot(contains('if (report.isEmpty) return')));
+      expect(slot, isNot(contains('hasNothingToReport')));
     });
   });
 

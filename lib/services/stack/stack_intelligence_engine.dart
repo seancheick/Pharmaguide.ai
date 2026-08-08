@@ -24,9 +24,58 @@ import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/stack_safety_scorer.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
 
+/// One shared Stack Health interpretation for every consumer surface.
+///
+/// [intelligence] owns the tier and clinical diagnosis. [reviewSignals] owns
+/// the user-facing finding count and ordering, including non-interaction
+/// findings such as nutrient upper-limit signals.
+@immutable
+class StackHealthSnapshot {
+  final StackIntelligence intelligence;
+  final List<ClinicalSignal> reviewSignals;
+  final bool checksIncomplete;
+  final bool coverageIncomplete;
+
+  const StackHealthSnapshot({
+    required this.intelligence,
+    required this.reviewSignals,
+    required this.checksIncomplete,
+    required this.coverageIncomplete,
+  });
+}
+
 @immutable
 class StackIntelligenceEngine {
   const StackIntelligenceEngine();
+
+  /// Builds the single presentation-neutral Stack Health snapshot used by
+  /// Home and the Stack tab. Callers format the same count with the shared
+  /// consumer copy helper; they do not reconstruct interaction-only totals.
+  StackHealthSnapshot summarizeFromReports({
+    required int stackSize,
+    required StackSafetyReport safetyReport,
+    required RecalledIngredientsReport recalledReport,
+    required SynergyReport synergyReport,
+    List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+  }) {
+    return StackHealthSnapshot(
+      intelligence: diagnoseFromReports(
+        stackSize: stackSize,
+        safetyReport: safetyReport,
+        recalledReport: recalledReport,
+        synergyReport: synergyReport,
+        doseThresholdAlerts: doseThresholdAlerts,
+      ),
+      reviewSignals: List<ClinicalSignal>.unmodifiable(
+        orderedSignalsFrom(
+          safetyReport,
+          doseThresholdAlerts: doseThresholdAlerts,
+        ),
+      ),
+      checksIncomplete: safetyReport.checksIncomplete,
+      coverageIncomplete: safetyReport.coverageIncomplete,
+    );
+  }
 
   /// Compose the full stack-health verdict from the shared report types.
   ///
@@ -158,7 +207,10 @@ class StackIntelligenceEngine {
     // excluded upstream. The engine READS the envelope's ordering and each
     // payload's authored severity/copy — it never re-derives severity,
     // disposition, or medical conclusions.
-    for (final signal in orderedSignalsFrom(safetyReport)) {
+    for (final signal in orderedSignalsFrom(
+      safetyReport,
+      doseThresholdAlerts: doseThresholdAlerts,
+    )) {
       switch (signal.payload) {
         case InteractionPayload(:final result):
           out.add(
@@ -187,6 +239,13 @@ class StackIntelligenceEngine {
                   : warning!,
             ),
           );
+        case DoseThresholdPayload():
+          out.add(
+            StackIssue(
+              severity: signal.clinicalSeverity,
+              headline: signal.body,
+            ),
+          );
         case MedicationNutrientPayload():
           // Depletions are not part of the safety report's aggregation.
           continue;
@@ -196,31 +255,7 @@ class StackIntelligenceEngine {
       }
     }
 
-    for (final alert in doseThresholdAlerts) {
-      out.add(
-        StackIssue(
-          severity: Severity.fromString(alert.clinicalSeverity),
-          headline: alert.isIncomplete
-              ? 'Cumulative ${alert.displayName} could not be fully evaluated; '
-                    'known subtotal is ${_formatDose(alert.totalValue)} '
-                    '${alert.unit} across your stack (threshold '
-                    '${_formatDose(alert.thresholdValue)} '
-                    '${alert.thresholdUnit}).'
-              : 'Cumulative ${alert.displayName} is '
-                    '${_formatDose(alert.totalValue)} ${alert.unit} across '
-                    'your stack (threshold '
-                    '${_formatDose(alert.thresholdValue)} '
-                    '${alert.thresholdUnit}).',
-        ),
-      );
-    }
-
     return out;
-  }
-
-  String _formatDose(double value) {
-    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
-    return value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
   }
 
   String _medicationProfileIssueHeadline(MedicationProfileWarning warning) {

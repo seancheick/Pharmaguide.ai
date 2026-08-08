@@ -5,6 +5,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
+import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
@@ -140,8 +141,8 @@ void main() {
       );
 
       expect(intelligence.analysisIncomplete, isTrue);
-      expect(intelligence.tier, StackTier.decent);
-      expect(describeStackSummary(intelligence), contains('not an all-clear'));
+      expect(intelligence.tier, StackTier.incomplete);
+      expect(describeStackSummary(intelligence), contains('more information'));
     });
 
     test('empty stack → tier=incomplete, no issues, all flags false', () {
@@ -550,9 +551,17 @@ void main() {
         'lib/features/stack/v2/stack_v2_screen.dart',
       ]) {
         final source = File(path).readAsStringSync();
-        expect(source, contains('diagnoseFromReports('), reason: path);
+        expect(source, contains('stackHealthSnapshotProvider'), reason: path);
+        expect(source, isNot(contains('summarizeFromReports(')), reason: path);
+        expect(source, isNot(contains('orderedSignalsFrom(')), reason: path);
         expect(source, isNot(contains('StackSafetyScorer().compute')));
       }
+
+      final provider = File(
+        'lib/features/stack/providers/stack_safety_providers.dart',
+      ).readAsStringSync();
+      expect(provider, contains('stackHealthSnapshotProvider'));
+      expect(provider, contains('summarizeFromReports('));
 
       final shareButton = File(
         'lib/features/stack/widgets/share_clinician_report_button.dart',
@@ -576,11 +585,85 @@ void main() {
     });
 
     test(
+      'shared Stack Health snapshot counts interactions and nutrient signals',
+      () {
+        final report = StackSafetyReport(
+          stackInteractions: [
+            _interaction(id: 'one', severity: Severity.caution),
+            _interaction(id: 'two', severity: Severity.monitor),
+          ],
+          nutrientStatuses: [
+            const NutrientStatus(
+              total: NutrientTotal(
+                canonicalId: 'vitamin_d',
+                displayName: 'Vitamin D',
+                totalAmount: 125,
+                unit: 'mcg',
+                contributions: [],
+              ),
+              tier: NutrientTier.exceedsUl,
+              ul: 100,
+              pctOfUl: 125,
+            ),
+          ],
+        );
+
+        final snapshot = engine.summarizeFromReports(
+          stackSize: 2,
+          safetyReport: report,
+          recalledReport: emptyRecall,
+          synergyReport: emptySynergy,
+        );
+
+        expect(snapshot.reviewSignals, hasLength(3));
+        expect(snapshot.intelligence.interactionCount, 2);
+        expect(snapshot.intelligence.nutrientWarningCount, 1);
+      },
+    );
+
+    test('shared Stack Health snapshot includes a dose-threshold signal', () {
+      final snapshot = engine.summarizeFromReports(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        doseThresholdAlerts: [_doseAlert()],
+      );
+
+      expect(snapshot.reviewSignals, hasLength(1));
+      final signal = snapshot.reviewSignals.single;
+      expect(signal.family.name, 'doseThreshold');
+      expect(signal.payload.runtimeType.toString(), 'DoseThresholdPayload');
+      expect(signal.evaluationStatus, EvaluationStatus.aboveThreshold);
+      expect(
+        signal.signalIdCanonical,
+        'pg_signal:v1:doseThreshold:condition:pregnancy:'
+        'caffeine:>=:200:mg',
+      );
+      expect(snapshot.intelligence.nutrientWarningCount, 1);
+    });
+
+    test('incomplete dose threshold maps to amount-unknown evaluation', () {
+      final snapshot = engine.summarizeFromReports(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        doseThresholdAlerts: [_doseAlert(isIncomplete: true)],
+      );
+
+      expect(snapshot.reviewSignals, hasLength(1));
+      expect(
+        snapshot.reviewSignals.single.evaluationStatus,
+        EvaluationStatus.amountUnknown,
+      );
+    });
+
+    test(
       'stack-health surfaces pass cumulative dose alerts into diagnosis',
       () {
         for (final path in const [
-          'lib/features/home/v2/home_v2_screen.dart',
-          'lib/features/stack/v2/stack_v2_screen.dart',
+          'lib/features/stack/providers/stack_safety_providers.dart',
           'lib/services/sharing/clinician_report_document_provider.dart',
         ]) {
           final source = File(path).readAsStringSync();

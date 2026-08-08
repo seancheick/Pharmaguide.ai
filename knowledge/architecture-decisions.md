@@ -116,3 +116,26 @@
 - [ ] Verify Supp.ai license terms for commercial use
 - [ ] Build validation script that cross-references Supp.ai entries against PubMed
 - [ ] Define minimum confidence threshold for auto-approval vs. manual review
+
+---
+
+## ADR-006: Stack Health Uses One Tier and Signal Snapshot
+
+**Date:** 2026-08-08
+**Status:** ACCEPTED
+**Supersedes:** The user-facing Stack Safety Score portions of ADR-004. FitScore and Stack Health remain separate concepts.
+**Context:** A numeric, score-derived label and independently assembled UI finding lists allowed the Home card, Stack summary, warning banner, and details sheet to disagree. Incomplete evaluations could also receive a graded "Decent" label, while profile-specific cumulative dose alerts affected the tier without appearing in the review count.
+
+**Decision:**
+- `StackIntelligence.deriveTier` is the only Stack Health tier engine. The internal numeric score may rank otherwise-clean complete stacks, but is never rendered or converted to a second verdict.
+- Tier precedence is Unsafe (banned/recalled/contraindicated), Concerning (avoid or at least two UL-proximity warnings), Decent (caution or one UL-proximity warning), More info needed (materially incomplete with no actionable gate), then Solid/Optimized.
+- Incomplete intentionally overrides monitor-only and score-band labels. Known monitor signals remain visible in the review list.
+- One `StackHealthSnapshot` owns the tier, ordered review signals, count, and completeness state consumed by every Stack Health surface.
+- Dose-threshold alerts are typed clinical signals. Their identity includes target type/id, canonical ingredient, comparator, normalized threshold, and unit.
+
+**Consequences:**
+- Avoid remains Concerning; this ADR does not silently change clinical policy.
+- Two UL-proximity warnings remain Concerning.
+- Home, Stack, the hero warning, and the details sheet use the same signal count and noun.
+- “Optimized” means no identified concerns under the checks that completed; it does not mean an ideal or universally safe supplement stack.
+- Score-derived `RiskTier` and `healthLabel` APIs are removed to prevent a second classification path from returning.

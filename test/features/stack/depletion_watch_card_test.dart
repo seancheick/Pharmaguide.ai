@@ -58,10 +58,12 @@ void main() {
     await _pump(tester);
 
     expect(find.textContaining('Tracked here'), findsNothing);
-    // The monitoring tip still renders exactly as before.
+    // Detailed monitoring guidance belongs to the focused sheet, not the
+    // concise summary row.
+    expect(find.text('What to monitor'), findsOneWidget);
     expect(
       find.text('Consider discussing B12 testing at your next visit.'),
-      findsOneWidget,
+      findsNothing,
     );
   });
 

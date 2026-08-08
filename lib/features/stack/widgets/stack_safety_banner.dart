@@ -2,11 +2,9 @@
 // safety signal the M1 nutrient engine and the M4 curated interaction
 // checker produce for the user's current stack.
 //
-// Input: a [StackSafetyReport] already built by the stack-scoring layer
-// (spec §8.3). The banner is intentionally pure — no Riverpod hooks, no
-// I/O, no async. Rows are driven from [orderedSignalsFrom] (the typed
-// clinical-signal aggregation), so tone, title, and body all come from the
-// SAME headline signal — the disposition-first top of the list.
+// Input: the shared [StackHealthSnapshot]. The banner is intentionally pure —
+// no Riverpod hooks, I/O, async work, or independent signal reconstruction.
+// Tone, title, body, and count all come from the SAME ordered signal list.
 //
 // Visual behavior:
 //   - no signals            → hidden (SizedBox.shrink) so an all-clear stack
@@ -18,30 +16,31 @@
 //   - a "+N more" suffix summarizes the remaining signals.
 //
 // Suppress-disposition signals (e.g. a safe interaction) are excluded upstream
-// by orderedSignalsFrom, so a safe-only stack collapses to the hedge/hidden
+// by the shared snapshot, so a safe-only stack collapses to the hedge/hidden
 // path rather than a success banner — never a false all-clear.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
+import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 
 class StackSafetyBanner extends StatelessWidget {
   const StackSafetyBanner({
     super.key,
-    required this.report,
+    required this.snapshot,
     this.onTap,
     this.margin = EdgeInsets.zero,
   });
 
-  /// Safety report driving the banner. Build once per stack mutation
-  /// and pass in — the widget is pure w.r.t. [report].
-  final StackSafetyReport report;
+  /// Shared Stack Health interpretation. The widget never rebuilds findings.
+  final StackHealthSnapshot snapshot;
 
   /// Optional tap handler. When supplied the banner shows a "View
   /// details" action that opens the caller's target (usually the
@@ -56,13 +55,14 @@ class StackSafetyBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final signals = orderedSignalsFrom(report);
+    final signals = snapshot.reviewSignals;
+    final analysisIncomplete = snapshot.intelligence.analysisIncomplete;
 
     // No renderable signal. Never imply "all clear" when a check or coverage
     // gap means we may not have seen everything.
     if (signals.isEmpty) {
-      if (report.checksIncomplete) return _checksIncompleteBanner();
-      if (report.coverageIncomplete) return _coverageHedgeBanner();
+      if (snapshot.coverageIncomplete) return _coverageHedgeBanner();
+      if (analysisIncomplete) return _checksIncompleteBanner();
       return const SizedBox.shrink();
     }
 
@@ -73,22 +73,25 @@ class StackSafetyBanner extends StatelessWidget {
     // A success-toned summary is only honest when every label was analyzed and
     // every check finished. (In practice the headline is never `safe`, since
     // suppress signals are excluded — this guards odd upstream data.)
-    if (report.coverageIncomplete && tone == PGBannerTone.success) {
-      return _coverageHedgeBanner();
-    }
-    if (report.checksIncomplete && tone == PGBannerTone.success) {
+    if (analysisIncomplete && tone == PGBannerTone.success) {
       return _checksIncompleteBanner();
     }
 
     return PGSeverityBanner(
       key: const Key('stack-safety-banner'),
       tone: tone,
-      title: _titleFor(headline, worst),
-      body: _bodyWithCompleteness(
-        _bodyFor(signals, headline),
-        checksIncomplete: report.checksIncomplete,
-        coverageIncomplete: report.coverageIncomplete,
-      ),
+      title: onTap == null ? _titleFor(headline, worst) : _subjectFor(headline),
+      body: onTap == null
+          ? _bodyWithCompleteness(
+              _bodyFor(signals, headline),
+              checksIncomplete: snapshot.checksIncomplete,
+              coverageIncomplete: snapshot.coverageIncomplete,
+            )
+          : _conciseReviewBody(
+              headline,
+              signalCount: signals.length,
+              analysisIncomplete: analysisIncomplete,
+            ),
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,
@@ -109,6 +112,39 @@ class StackSafetyBanner extends StatelessWidget {
         'results may be incomplete.';
     final value = body?.trim() ?? '';
     return value.isEmpty ? hedge : '$value $hedge';
+  }
+
+  static String _conciseReviewBody(
+    ClinicalSignal headline, {
+    required int signalCount,
+    required bool analysisIncomplete,
+  }) {
+    final base =
+        '${clinicalSignalContextLabel(headline)} · '
+        '${describeSafetySignalReview(signalCount)}';
+    if (!analysisIncomplete) return base;
+    return '$base · Results may be incomplete';
+  }
+
+  static String _subjectFor(ClinicalSignal signal) {
+    switch (signal.payload) {
+      case InteractionPayload(:final result):
+        return '${result.agent1Name} × ${result.agent2Name}';
+      case MedicationProfilePayload(:final warning):
+        return warning.headline.trim().isEmpty
+            ? warning.medicationName
+            : warning.headline;
+      case CumulativeExposurePayload(:final status):
+        return status.tier == NutrientTier.exceedsUl
+            ? '${status.total.displayName} above upper limit'
+            : '${status.total.displayName} near its upper limit';
+      case DoseThresholdPayload(:final alert):
+        return '${alert.displayName} dose threshold';
+      case MedicationNutrientPayload(:final match):
+        return '${match.drugDisplayName} & ${match.nutrientName}';
+      case TimingSeparationPayload(:final optimization):
+        return optimization.product1Name ?? optimization.ingredient1;
+    }
   }
 
   /// Caution-toned hedge rendered when at least one stack product has a
@@ -132,9 +168,9 @@ class StackSafetyBanner extends StatelessWidget {
     return PGSeverityBanner(
       key: const Key('stack-safety-banner'),
       tone: PGBannerTone.caution,
-      title: "Interactions couldn't be checked",
+      title: 'More info needed',
       body:
-          'One or more stack safety checks could not finish — results may be '
+          'Some stack safety checks could not finish, so results may be '
           'incomplete.',
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
@@ -185,6 +221,8 @@ class StackSafetyBanner extends StatelessWidget {
           return '${status.total.displayName} above upper limit';
         }
         return '$prefix — ${status.total.displayName}';
+      case DoseThresholdPayload(:final alert):
+        return '${alert.displayName} dose threshold';
       case MedicationNutrientPayload(:final match):
         // Not in the banner's data source today (depletions come from a
         // separate provider); reserved for when they are folded in.
@@ -222,6 +260,8 @@ class StackSafetyBanner extends StatelessWidget {
             : '$base · ${warning.evidenceLevel.label}';
       case CumulativeExposurePayload(:final status):
         primary = _nutrientHint(status);
+      case DoseThresholdPayload():
+        primary = headline.body;
       case MedicationNutrientPayload(:final match):
         primary = match.clinicalImpact ?? match.mechanism;
       case TimingSeparationPayload(:final optimization):

@@ -164,12 +164,9 @@ void main() {
   });
 
   group('searchScoreChipText', () {
-    test('makes known confidence visible beside the score', () {
-      expect(searchScoreChipText(score: 85, confidence: 'high'), '85 · High');
-      expect(
-        searchScoreChipText(score: 85, confidence: 'moderate'),
-        '85 · Moderate',
-      );
+    test('shows only a limited-assessment cue beside the score', () {
+      expect(searchScoreChipText(score: 85, confidence: 'high'), '85');
+      expect(searchScoreChipText(score: 85, confidence: 'moderate'), '85');
       expect(searchScoreChipText(score: 85, confidence: 'low'), '85 · Limited');
     });
 

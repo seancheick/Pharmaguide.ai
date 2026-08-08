@@ -11,7 +11,10 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/stack_safety_details_sheet.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 InteractionResult _ix({
   required String id,
@@ -89,12 +92,19 @@ StackSafetyReport _report() => StackSafetyReport(
   nutrientStatuses: [_nut()],
 );
 
-Future<void> _pump(WidgetTester tester, StackSafetyReport report) =>
-    tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: StackSafetyDetailsSheet(report: report)),
-      ),
-    );
+Future<void> _pump(WidgetTester tester, StackSafetyReport report) {
+  final snapshot = const StackIntelligenceEngine().summarizeFromReports(
+    stackSize: 1,
+    safetyReport: report,
+    recalledReport: RecalledIngredientsReport.empty(),
+    synergyReport: SynergyReport.empty(),
+  );
+  return tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(body: StackSafetyDetailsSheet(snapshot: snapshot)),
+    ),
+  );
+}
 
 void main() {
   group('details sheet — rendered row text preserved (characterization)', () {
@@ -137,9 +147,14 @@ void main() {
       );
       await _pump(tester, report);
 
-      expect(find.text('REVIEW 2 SIGNALS'), findsOneWidget);
-      expect(find.text('Iron x Calcium'), findsOneWidget);
+      expect(find.text('2 SAFETY SIGNALS TO REVIEW'), findsOneWidget);
+      expect(find.text('Iron × Calcium'), findsOneWidget);
       expect(find.text('Take them at different meals.'), findsOneWidget);
+      expect(
+        find.text('SUPPLEMENT INTERACTION · STRONG EVIDENCE'),
+        findsOneWidget,
+      );
+      expect(find.text('NUTRIENT UPPER LIMIT'), findsOneWidget);
       // Renamed 2026-08-07 — see the banner test for the rationale.
       expect(find.text('Vitamin D above upper limit'), findsOneWidget);
       expect(find.textContaining('125 mcg/day'), findsOneWidget);
@@ -158,9 +173,9 @@ void main() {
       await _pump(tester, _report());
       final needsY = tester.getTopLeft(find.text('NEEDS ATTENTION')).dy;
       final goodY = tester.getTopLeft(find.text('GOOD TO KNOW')).dy;
-      final warfarinY = tester.getTopLeft(find.text('Warfarin x Aspirin')).dy;
+      final warfarinY = tester.getTopLeft(find.text('Warfarin × Aspirin')).dy;
       final advisoryY = tester
-          .getTopLeft(find.text('Grapefruit x Atorvastatin'))
+          .getTopLeft(find.text('Grapefruit × Atorvastatin'))
           .dy;
 
       expect(needsY, lessThan(goodY), reason: 'Needs attention comes first');
@@ -199,8 +214,8 @@ void main() {
           ],
         ),
       );
-      expect(find.text('Neutral x Pair'), findsNothing);
-      expect(find.text('Iron x Calcium'), findsOneWidget);
+      expect(find.text('Neutral × Pair'), findsNothing);
+      expect(find.text('Iron × Calcium'), findsOneWidget);
     });
 
     testWidgets('incomplete checks show a SEPARATE Check status notice', (
@@ -223,7 +238,7 @@ void main() {
       expect(find.text('CHECK STATUS'), findsOneWidget);
       expect(find.textContaining('not an all-clear'), findsOneWidget);
       // The known concern still renders — the two are not mixed.
-      expect(find.text('Iron x Calcium'), findsOneWidget);
+      expect(find.text('Iron × Calcium'), findsOneWidget);
     });
 
     testWidgets('no Check status notice when checks are complete', (

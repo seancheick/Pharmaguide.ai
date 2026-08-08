@@ -34,7 +34,11 @@ Map<String, dynamic> _metforminB12Fixture({
         'onset_timeline': 'years',
         'evidence_level': 'established',
         'sources': [
-          {'source_type': 'reference', 'url': 'https://example.test/nih-b12'},
+          {
+            'source_type': 'reference',
+            'label': 'NIH ODS',
+            'url': 'https://example.test/nih-b12',
+          },
         ],
         if (adequacyMcg != null) 'adequacy_threshold_mcg': adequacyMcg,
         if (authoredCopy != null) ...authoredCopy,
@@ -184,6 +188,23 @@ void main() {
     });
   });
 
+  group('DepletionChecker — source metadata', () {
+    const metformin = (name: 'Metformin', drugClassId: null);
+
+    test('preserves source labels and types instead of flattening to URLs', () {
+      final out = checker.check(
+        medications: const [metformin],
+        depletionsData: _metforminB12Fixture(),
+      );
+
+      expect(out.single.sources, hasLength(1));
+      expect(out.single.sources.single.label, 'NIH ODS');
+      expect(out.single.sources.single.sourceType, 'reference');
+      expect(out.single.sources.single.url, 'https://example.test/nih-b12');
+      expect(out.single.sourceUrls, ['https://example.test/nih-b12']);
+    });
+  });
+
   group('DepletionChecker — canonical subject validation (B1.1)', () {
     // A signal's subjects are the drug/condition + the nutrient canonical id.
     // A matched entry missing the nutrient canonical id would emit a signal
@@ -254,23 +275,23 @@ void main() {
     test('maps each relationship type to consumer language', () {
       expect(
         medNutrientRelationshipLabel('depletion'),
-        'Associated nutrient to monitor',
+        'Medication/nutrient guidance',
       );
       expect(
         medNutrientRelationshipLabel('condition_related'),
-        'Condition-related nutrient consideration',
+        'Condition/nutrient guidance',
       );
       expect(
         medNutrientRelationshipLabel('functional_antagonism'),
-        'May affect nutrient function',
+        'Medication/nutrient guidance',
       );
       expect(
         medNutrientRelationshipLabel('monitoring_stability'),
-        'Monitoring consideration',
+        'Medication/nutrient guidance',
       );
       expect(
         medNutrientRelationshipLabel('supplement_interaction'),
-        'Supplement consideration',
+        'Supplement interaction',
       );
     });
 
@@ -299,7 +320,7 @@ void main() {
     test('is case/whitespace tolerant', () {
       expect(
         medNutrientRelationshipLabel('  Depletion '),
-        'Associated nutrient to monitor',
+        'Medication/nutrient guidance',
       );
     });
   });

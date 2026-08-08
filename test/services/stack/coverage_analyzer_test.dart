@@ -429,6 +429,41 @@ void main() {
       );
     });
 
+    test('medication interaction owns vitamin K guidance for warfarin', () {
+      final report = analyzer.analyze(
+        goals: const [],
+        products: [
+          product(
+            'Adult Multi',
+            const {},
+            productRole: 'adult_multi_standard',
+            adultMultiCoverage: [
+              anchor(
+                'vitamin_k',
+                'Vitamin K',
+                'below_target',
+                amount: 30,
+                target: 120,
+                unit: 'mcg',
+              ),
+            ],
+          ),
+        ],
+        depletions: [
+          depletion(
+            drug: 'Warfarin',
+            nutrient: 'Vitamin K',
+            type: 'functional_antagonism',
+          ),
+        ],
+      );
+
+      expect(
+        report.priorityGaps.map((gap) => gap.nutrientId),
+        isNot(contains('vitamin_k')),
+      );
+    });
+
     test('separate adult anchor product satisfies adult multi gap', () {
       final report = analyzer.analyze(
         goals: const [],
@@ -559,7 +594,8 @@ void main() {
       expect(row.source, UnderdosedSource.rda);
       expect(
         row.detail,
-        'About 42% of the typical daily target across your stack.',
+        'Supplements provide about 42% of the daily reference amount. '
+        'Food and drinks are not included.',
       );
     });
 
@@ -600,7 +636,8 @@ void main() {
       );
       expect(
         report.underdosed.single.detail,
-        'Present in your stack, but below the typical daily target.',
+        'Present in your supplements, but the amount could not be compared '
+        'reliably. Food and drinks are not included.',
       );
     });
 
@@ -631,11 +668,17 @@ void main() {
       final details = report.underdosed.map((u) => u.detail).toList();
       expect(
         details,
-        contains('About 1% of the typical daily target across your stack.'),
+        contains(
+          'Supplements provide about 1% of the daily reference amount. '
+          'Food and drinks are not included.',
+        ),
       );
       expect(
         details,
-        contains('About 49% of the typical daily target across your stack.'),
+        contains(
+          'Supplements provide about 49% of the daily reference amount. '
+          'Food and drinks are not included.',
+        ),
       );
     });
 

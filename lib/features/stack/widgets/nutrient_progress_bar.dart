@@ -362,6 +362,9 @@ class _WarningChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final divider = text.indexOf(' — ');
+    final headline = divider < 0 ? text : text.substring(0, divider);
+    final detail = divider < 0 ? null : text.substring(divider + 3);
     final style = context.v2.tintedLabel(
       color,
       fillAlpha: 0.08,
@@ -371,15 +374,31 @@ class _WarningChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: style.fill,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         border: Border.all(color: style.border),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.warning_amber_rounded, size: 14, color: color),
           const SizedBox(width: V2Spacing.space8),
-          Flexible(child: Text(text, style: _captionStyle(style.foreground))),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  headline,
+                  style: _captionStyle(
+                    style.foreground,
+                  ).copyWith(fontWeight: FontWeight.w600),
+                ),
+                if (detail != null && detail.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(detail, style: _captionStyle(style.foreground)),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

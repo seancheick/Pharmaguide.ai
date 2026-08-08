@@ -333,7 +333,7 @@ void main() {
       expect(find.text('82/100'), findsOneWidget);
     });
 
-    testWidgets('scored scan states its confidence', (tester) async {
+    testWidgets('scored scan omits routine confidence', (tester) async {
       final (coreDb, userDb) = await makeDbs(tester);
       await seedScan(
         coreDb,
@@ -345,7 +345,7 @@ void main() {
       );
       await pumpHome(tester, coreDb, userDb);
 
-      expect(find.text('Score confidence: Moderate'), findsOneWidget);
+      expect(find.textContaining('Score confidence:'), findsNothing);
     });
 
     testWidgets('low-coverage scan renders "Limited data" — no tier score', (

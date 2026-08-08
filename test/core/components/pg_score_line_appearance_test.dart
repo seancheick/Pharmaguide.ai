@@ -90,14 +90,14 @@ void main() {
       expect(light, isNot(dark));
     });
 
-    testWidgets('moderate confidence is visible without hiding the tier', (
+    testWidgets('moderate confidence keeps the tier without extra copy', (
       tester,
     ) async {
       await pump(tester, V2Theme.light, 85, confidence: 'moderate');
 
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Strong'), findsOneWidget);
-      expect(find.text('Score confidence: Moderate'), findsOneWidget);
+      expect(find.textContaining('Score confidence:'), findsNothing);
     });
 
     testWidgets('limited confidence keeps a neutral number without tier copy', (

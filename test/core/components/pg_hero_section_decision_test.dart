@@ -118,9 +118,10 @@ void main() {
   });
 
   group('catalogScoreConfidenceLabel — consumer confidence vocabulary', () {
-    test('maps known confidence bands', () {
-      expect(catalogScoreConfidenceLabel('high'), 'High');
-      expect(catalogScoreConfidenceLabel('moderate'), 'Moderate');
+    test('suppresses routine bands and keeps limited assessments visible', () {
+      expect(catalogScoreConfidenceLabel('high'), isNull);
+      expect(catalogScoreConfidenceLabel('moderate'), isNull);
+      expect(catalogScoreConfidenceLabel('medium'), isNull);
       expect(catalogScoreConfidenceLabel('low'), 'Limited');
       expect(catalogScoreConfidenceLabel('very_low'), 'Limited');
     });
@@ -223,17 +224,12 @@ void main() {
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Product quality score unavailable.'), findsNothing);
       expect(find.text('Strong'), findsNothing);
-      // Confidence is deliberately not rendered in the hero (2026-08-07):
-      // moderate 57.8% / low 42.0% / high 0.1% on the shipped catalog, so the
-      // band told a user nothing about the bottle in their hand. The score and
-      // the tier suppression both still work without it.
+      expect(find.text('Limited assessment'), findsOneWidget);
       expect(find.textContaining('Score confidence'), findsNothing);
       expect(find.textContaining('Why:'), findsNothing);
     });
 
-    testWidgets('trusted score renders no confidence band', (
-      tester,
-    ) async {
+    testWidgets('trusted score renders no confidence band', (tester) async {
       await pump(
         tester,
         const PGHeroSection(

@@ -54,11 +54,8 @@ class StackSafetyScorer {
     // Empty stack = perfect score
     if (issues.isEmpty && synergies.isEmpty) score = 100;
 
-    final riskTier = RiskTier.fromScore(score);
-
     return StackSafetyScore(
       score: score,
-      riskTier: riskTier,
       issues: issues,
       synergies: synergies,
       optimizations: optimizations,

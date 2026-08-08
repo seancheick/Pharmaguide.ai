@@ -17,6 +17,13 @@ DepletionMatch _dep({
   num? detectedAmount,
   String? detectedUnit,
   num? adequacyMcg,
+  String? alertHeadline,
+  String? alertBody,
+  String? monitoringTip,
+  String clinicalImpact = 'Low status can cause symptoms.',
+  String mechanism = 'Detailed mechanism.',
+  String recommendation = 'Discuss monitoring with your clinician.',
+  List<DepletionSource> sources = const [],
 }) => DepletionMatch(
   depletionId: id,
   drugDisplayName: drug,
@@ -25,8 +32,13 @@ DepletionMatch _dep({
   nutrientCanonicalId: nutrient.toLowerCase(),
   depletionType: type,
   severity: 'significant',
-  mechanism: 'mech',
-  recommendation: 'rec',
+  mechanism: mechanism,
+  recommendation: recommendation,
+  clinicalImpact: clinicalImpact,
+  sources: sources,
+  alertHeadline: alertHeadline,
+  alertBody: alertBody,
+  monitoringTipShort: monitoringTip,
   detectedAmount: detectedAmount,
   detectedUnit: detectedUnit,
   adequacyThresholdMcg: adequacyMcg,
@@ -51,7 +63,7 @@ void main() {
     await _pump(tester, [
       _dep(type: 'depletion', nutrient: 'Vitamin B12', drug: 'Metformin'),
     ]);
-    expect(find.textContaining('Nutrients to monitor'), findsOneWidget);
+    expect(find.text('Medication & nutrients'), findsOneWidget);
     expect(find.textContaining('covered'), findsNothing);
     expect(find.textContaining('already taking'), findsNothing);
   });
@@ -62,17 +74,14 @@ void main() {
     await _pump(tester, [
       _dep(type: 'depletion', nutrient: 'Vitamin B12', drug: 'Metformin'),
     ]);
-    expect(
-      find.textContaining('ASSOCIATED NUTRIENT TO MONITOR'),
-      findsOneWidget,
-    );
+    expect(find.text('MEDICATION/NUTRIENT GUIDANCE'), findsOneWidget);
     expect(
       find.textContaining('No Vitamin B12 source detected'),
       findsOneWidget,
     );
   });
 
-  testWidgets('meets-comparison row makes no sufficiency/covered claim', (
+  testWidgets('metformin row uses plain supply copy and reviewed guidance', (
     tester,
   ) async {
     await _pump(tester, [
@@ -84,51 +93,96 @@ void main() {
         detectedAmount: 250,
         detectedUnit: 'mcg',
         adequacyMcg: 100,
+        alertHeadline: 'Long-term metformin can lower vitamin B12',
+        alertBody:
+            'With long-term use, the chance of low B12 rises with higher '
+            'doses and other B12 factors.',
+        monitoringTip:
+            'Consider B12 testing with long-term use, symptoms, or other '
+            'risk factors.',
       ),
     ]);
     expect(
-      find.textContaining('contains 250 mcg of Vitamin B12 per day'),
+      find.text('Long-term metformin can lower vitamin B12'),
       findsOneWidget,
     );
     expect(
-      find.textContaining('This meets the comparison amount'),
+      find.textContaining('provides 250 mcg/day of Vitamin B12'),
       findsOneWidget,
     );
+    expect(
+      find.textContaining('does not confirm your blood level'),
+      findsOneWidget,
+    );
+    expect(find.text('What to monitor'), findsOneWidget);
+    expect(find.textContaining('comparison amount'), findsNothing);
     expect(find.textContaining('covered'), findsNothing);
     expect(find.textContaining('adequate'), findsNothing);
   });
 
-  testWidgets('functional antagonism is not framed as depletion', (
+  testWidgets('warfarin row is an interaction using reviewed consistency copy', (
     tester,
   ) async {
     await _pump(tester, [
       _dep(
         type: 'functional_antagonism',
-        nutrient: 'Magnesium',
-        drug: 'Furosemide',
+        nutrient: 'Vitamin K',
+        drug: 'Warfarin',
+        alertHeadline: 'Warfarin is sensitive to vitamin K changes',
+        alertBody:
+            'Keep vitamin K intake consistent. Sudden diet or supplement '
+            'changes can affect how strongly warfarin works.',
+        monitoringTip:
+            'Keep vitamin K intake steady day to day; discuss changes with '
+            'your prescriber.',
       ),
     ]);
     expect(
-      find.textContaining('may affect how the body uses Magnesium'),
+      find.text('Warfarin is sensitive to vitamin K changes'),
       findsOneWidget,
     );
-    expect(find.textContaining('MAY AFFECT NUTRIENT FUNCTION'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Sudden diet or supplement changes can affect how strongly warfarin works',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('MEDICATION/NUTRIENT GUIDANCE'), findsOneWidget);
+    expect(find.text('Why this matters'), findsOneWidget);
+    expect(find.textContaining('keep intake steady'), findsNothing);
+    expect(find.textContaining('may affect how the body uses'), findsNothing);
   });
 
-  testWidgets('opens long relationship detail in a scrollable bottom sheet', (
+  testWidgets('the full relationship card opens its focused detail sheet', (
     tester,
   ) async {
     await _pump(tester, [
-      _dep(type: 'depletion', nutrient: 'Vitamin B12', drug: 'Metformin'),
+      _dep(
+        type: 'depletion',
+        nutrient: 'Vitamin B12',
+        drug: 'Metformin (type 2 diabetes medication)',
+        alertHeadline: 'Long-term metformin can lower vitamin B12',
+        sources: const [
+          DepletionSource(
+            sourceType: 'reference',
+            label: 'MHRA',
+            url: 'https://www.gov.uk/example',
+          ),
+        ],
+      ),
     ]);
 
-    await tester.tap(find.text('Why this happens'));
+    await tester.tap(find.text('Long-term metformin can lower vitamin B12'));
     await tester.pumpAndSettle();
 
     expect(find.byType(BottomSheet), findsOneWidget);
-    expect(find.text('Medication & nutrient details'), findsOneWidget);
+    expect(find.text('Metformin & Vitamin B12'), findsOneWidget);
     expect(find.byType(Scrollable), findsWidgets);
-    expect(find.text('CLINICAL GUIDANCE', skipOffstage: false), findsOneWidget);
+    expect(find.text('WHAT CAN HAPPEN', skipOffstage: false), findsOneWidget);
+    expect(find.text('WHY', skipOffstage: false), findsOneWidget);
+    expect(find.text('WHAT TO DO', skipOffstage: false), findsOneWidget);
+    expect(find.text('MHRA', skipOffstage: false), findsOneWidget);
+    expect(find.text('FROM FOOD', skipOffstage: false), findsNothing);
   });
 
   testWidgets('detail sheet survives small screens with large text', (
@@ -147,8 +201,8 @@ void main() {
     await _pump(tester, [
       _dep(type: 'depletion', nutrient: 'Vitamin B12', drug: 'Metformin'),
     ]);
-    await tester.ensureVisible(find.text('Why this happens'));
-    await tester.tap(find.text('Why this happens'));
+    await tester.ensureVisible(find.text('Vitamin B12'));
+    await tester.tap(find.text('Vitamin B12'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);

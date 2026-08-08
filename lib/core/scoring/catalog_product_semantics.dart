@@ -13,20 +13,19 @@ enum CatalogProductSafetyStatus {
 /// Completion state for the catalog assessment.
 enum CatalogAssessmentStatus { complete, partial, failed }
 
-/// Consumer-facing confidence vocabulary for every quality-score surface.
+/// Consumer-facing limited-assessment cue for every quality-score surface.
 ///
-/// Missing data stays absent. Any populated value outside the known contract
-/// fails closed to Limited so a future enum cannot accidentally overstate
+/// Routine internal bands stay out of the consumer UI. Low and unknown bands
+/// fail closed to Limited so a future enum cannot accidentally overstate
 /// confidence in an older app.
 String? catalogScoreConfidenceLabel(String? confidence) {
   final normalized = confidence?.trim().toLowerCase().replaceAll('-', '_');
   if (normalized == null || normalized.isEmpty) return null;
   switch (normalized) {
     case 'high':
-      return 'High';
     case 'moderate':
     case 'medium':
-      return 'Moderate';
+      return null;
     case 'low':
     case 'limited':
     case 'very_low':

@@ -20,6 +20,7 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
+import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
@@ -29,6 +30,7 @@ import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dar
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
@@ -1050,6 +1052,32 @@ final recalledIngredientsReportProvider =
         incomplete: incomplete,
       );
     });
+
+/// The single Stack Health presentation snapshot consumed by Home, Stack,
+/// the hero warning, and the details sheet. Any dependency failure is carried
+/// by this provider as one unavailable state rather than allowing surfaces to
+/// assemble different subsets independently.
+final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
+  ref,
+) async {
+  final stack = await ref.watch(activeStackProvider.future);
+  final safetyReport = await ref.watch(stackSafetyReportProvider.future);
+  final recalledReport = await ref.watch(
+    recalledIngredientsReportProvider.future,
+  );
+  final synergyReport = await ref.watch(synergyReportProvider.future);
+  final doseThresholdAlerts = await ref.watch(
+    stackDoseThresholdAlertsProvider.future,
+  );
+
+  return const StackIntelligenceEngine().summarizeFromReports(
+    stackSize: stack.length,
+    safetyReport: safetyReport,
+    recalledReport: recalledReport,
+    synergyReport: synergyReport,
+    doseThresholdAlerts: doseThresholdAlerts,
+  );
+});
 
 /// Depletion checker — matches medications against known nutrient
 /// depletions and highlights which ones the user's supplement stack

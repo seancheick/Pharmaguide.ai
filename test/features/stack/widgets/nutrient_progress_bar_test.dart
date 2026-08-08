@@ -17,17 +17,26 @@ void main() {
   group('NutrientProgressBar.tierColorFor', () {
     test('every tier maps to a non-null color', () {
       for (final tier in NutrientTier.values) {
-        expect(NutrientProgressBar.tierColorFor(V2Palette.light, tier), isNotNull);
+        expect(
+          NutrientProgressBar.tierColorFor(V2Palette.light, tier),
+          isNotNull,
+        );
       }
     });
 
     test('only exceedsUl is red and only approachingUl is amber', () {
       expect(
-        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.exceedsUl),
+        NutrientProgressBar.tierColorFor(
+          V2Palette.light,
+          NutrientTier.exceedsUl,
+        ),
         V2Palette.light.contraindicated,
       );
       expect(
-        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.approachingUl),
+        NutrientProgressBar.tierColorFor(
+          V2Palette.light,
+          NutrientTier.approachingUl,
+        ),
         V2Palette.light.caution,
       );
     });
@@ -37,25 +46,71 @@ void main() {
       // the RDA are not a hazard while there is headroom to the limit. Only the
       // UL story (approaching/exceeds) escalates color.
       expect(
-        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.aboveTypical),
+        NutrientProgressBar.tierColorFor(
+          V2Palette.light,
+          NutrientTier.aboveTypical,
+        ),
         V2Palette.light.safe,
       );
       expect(
-        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.abundant),
+        NutrientProgressBar.tierColorFor(
+          V2Palette.light,
+          NutrientTier.abundant,
+        ),
         V2Palette.light.safe,
       );
       expect(
-        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.adequate),
+        NutrientProgressBar.tierColorFor(
+          V2Palette.light,
+          NutrientTier.adequate,
+        ),
         V2Palette.light.safe,
       );
       expect(
-        NutrientProgressBar.tierColorFor(V2Palette.light, NutrientTier.aboveAdequateNoUl),
+        NutrientProgressBar.tierColorFor(
+          V2Palette.light,
+          NutrientTier.aboveAdequateNoUl,
+        ),
         V2Palette.light.safe,
       );
     });
   });
 
   group('NutrientProgressBar widget rendering', () {
+    testWidgets('upper-limit warning separates takeaway from explanation', (
+      tester,
+    ) async {
+      const status = NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'vitamin_d',
+          displayName: 'Vitamin D',
+          totalAmount: 125,
+          unit: 'mcg',
+          contributions: [],
+        ),
+        tier: NutrientTier.exceedsUl,
+        warning:
+            'Above the upper limit — Sustained excessive vitamin D intake can '
+            'increase the risk of hypercalcemia and kidney complications.',
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: NutrientProgressBar(status: status)),
+        ),
+      );
+
+      expect(find.text('Above the upper limit'), findsOneWidget);
+      expect(
+        find.text(
+          'Sustained excessive vitamin D intake can increase the risk of '
+          'hypercalcemia and kidney complications.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text(status.warning!), findsNothing);
+    });
+
     testWidgets('renders display name, amount, and target/UL subtitle', (
       tester,
     ) async {

@@ -673,6 +673,8 @@ class ClinicianPdfBuilder {
                 ? StackSafetyReport.nutrientUpperLimitSummary(status)
                 : warning!.trim(),
           );
+        case DoseThresholdPayload():
+          headlines.add(signal.body.trim());
         case MedicationNutrientPayload():
           break;
         case TimingSeparationPayload():
@@ -711,6 +713,10 @@ class ClinicianPdfBuilder {
           detail.add(_line(theme, 'Clinical context: ${warning.body.trim()}'));
         }
       case CumulativeExposurePayload():
+        if (signal.body.trim().isNotEmpty) {
+          detail.add(_line(theme, 'Clinical context: ${signal.body.trim()}'));
+        }
+      case DoseThresholdPayload():
         if (signal.body.trim().isNotEmpty) {
           detail.add(_line(theme, 'Clinical context: ${signal.body.trim()}'));
         }

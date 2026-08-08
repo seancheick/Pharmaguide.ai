@@ -4,37 +4,39 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 
 /// Opens the unified stack-safety review. Timing stays in its own sheet,
 /// because timing guidance is optimization advice rather than a safety signal.
 Future<void> showStackSafetyDetailsSheet(
   BuildContext context,
-  StackSafetyReport report,
+  StackHealthSnapshot snapshot,
 ) {
   return PGModal.bottomSheet<void>(
     context: context,
-    builder: (_) => StackSafetyDetailsSheet(report: report),
+    builder: (_) => StackSafetyDetailsSheet(snapshot: snapshot),
   );
 }
 
-/// Rows are driven from [orderedSignalsFrom] — the typed clinical-signal
-/// aggregation — grouped by consumer disposition (Needs attention = block /
+/// Rows are driven directly from [StackHealthSnapshot.reviewSignals], grouped
+/// by consumer disposition (Needs attention = block /
 /// review; Good to know = good_to_know; suppress is excluded upstream). Check
 /// completeness is a SEPARATE concern (report flags), never mixed in with
 /// clinical findings, so "couldn't check" never reads as "we found a concern".
 class StackSafetyDetailsSheet extends StatelessWidget {
-  const StackSafetyDetailsSheet({super.key, required this.report});
+  const StackSafetyDetailsSheet({super.key, required this.snapshot});
 
-  final StackSafetyReport report;
+  final StackHealthSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
-    final signals = orderedSignalsFrom(report);
+    final signals = snapshot.reviewSignals;
     final needsAttention = signals
         .where(
           (s) =>
@@ -45,11 +47,10 @@ class StackSafetyDetailsSheet extends StatelessWidget {
     final goodToKnow = signals
         .where((s) => s.consumerDisposition == ConsumerDisposition.goodToKnow)
         .toList();
-    final checkIncomplete =
-        report.checksIncomplete || report.coverageIncomplete;
+    final checkIncomplete = snapshot.intelligence.analysisIncomplete;
 
     return Semantics(
-      label: 'Stack safety signals',
+      label: describeSafetySignalReview(signals.length),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           V2Spacing.space24,
@@ -62,7 +63,7 @@ class StackSafetyDetailsSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             PGEyebrow(
-              'Review ${signals.length} signals',
+              describeSafetySignalReview(signals.length),
               color: context.v2.caution,
             ),
             const SizedBox(height: V2Spacing.space8),
@@ -72,7 +73,7 @@ class StackSafetyDetailsSheet extends StatelessWidget {
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
-              'Review supplement totals and interactions found in your stack.',
+              'Review the safety signals found in your stack.',
               style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space16),
@@ -94,7 +95,11 @@ class StackSafetyDetailsSheet extends StatelessWidget {
     );
   }
 
-  List<Widget> _section(BuildContext context, String heading, List<ClinicalSignal> signals) {
+  List<Widget> _section(
+    BuildContext context,
+    String heading,
+    List<ClinicalSignal> signals,
+  ) {
     return [
       Padding(
         padding: const EdgeInsets.only(bottom: V2Spacing.space8),
@@ -163,12 +168,18 @@ class _SafetySignalRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(model.icon, color: _colorFor(context.v2, model.severity), size: 20),
+          Icon(
+            model.icon,
+            color: _colorFor(context.v2, model.severity),
+            size: 20,
+          ),
           const SizedBox(width: V2Spacing.space12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                PGEyebrow(model.contextLabel, color: context.v2.fgMuted),
+                const SizedBox(height: V2Spacing.space4),
                 Text(
                   model.title,
                   style: V2Typography.label(color: context.v2.fg),
@@ -213,15 +224,18 @@ class _SignalPresentation {
     required this.title,
     required this.body,
     required this.icon,
+    required this.contextLabel,
   });
 
   final Severity severity;
   final String title;
   final String body;
   final IconData icon;
+  final String contextLabel;
 
   static _SignalPresentation from(ClinicalSignal signal) {
     final severity = signal.clinicalSeverity;
+    final contextLabel = clinicalSignalContextLabel(signal);
     switch (signal.payload) {
       case InteractionPayload(:final result):
         final body = result.management.trim().isNotEmpty
@@ -229,9 +243,10 @@ class _SignalPresentation {
             : result.mechanism;
         return _SignalPresentation(
           severity: severity,
-          title: '${result.agent1Name} x ${result.agent2Name}',
+          title: '${result.agent1Name} × ${result.agent2Name}',
           body: body.trim().isEmpty ? result.evidenceLevel.label : body,
           icon: Icons.warning_amber_rounded,
+          contextLabel: contextLabel,
         );
       case MedicationProfilePayload(:final warning):
         final body = warning.body.trim().isNotEmpty
@@ -242,6 +257,7 @@ class _SignalPresentation {
           title: warning.medicationName,
           body: body.trim().isEmpty ? warning.headline : body,
           icon: Icons.medical_information_outlined,
+          contextLabel: contextLabel,
         );
       case CumulativeExposurePayload(:final status):
         final exceeds = status.tier == NutrientTier.exceedsUl;
@@ -256,6 +272,15 @@ class _SignalPresentation {
               ? StackSafetyReport.nutrientUpperLimitSummary(status)
               : '${status.total.displayName} is nearing its upper limit across your stack.',
           icon: Icons.health_and_safety_outlined,
+          contextLabel: contextLabel,
+        );
+      case DoseThresholdPayload(:final alert):
+        return _SignalPresentation(
+          severity: severity,
+          title: '${alert.displayName} dose threshold',
+          body: signal.body,
+          icon: Icons.speed_rounded,
+          contextLabel: contextLabel,
         );
       case MedicationNutrientPayload(:final match):
         // Not in this sheet's data source today (depletions come from a separate
@@ -265,6 +290,7 @@ class _SignalPresentation {
           title: '${match.drugDisplayName} - ${match.nutrientName}',
           body: match.clinicalImpact ?? match.mechanism,
           icon: Icons.medical_information_outlined,
+          contextLabel: contextLabel,
         );
       case TimingSeparationPayload(:final optimization):
         // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart.
@@ -273,6 +299,7 @@ class _SignalPresentation {
           title: optimization.product1Name ?? optimization.ingredient1,
           body: optimization.advice,
           icon: Icons.schedule_rounded,
+          contextLabel: contextLabel,
         );
     }
   }

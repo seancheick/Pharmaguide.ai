@@ -10,12 +10,16 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
   required V2Palette palette,
   required bool isAnalyzing,
   required bool hasError,
+  bool needsMoreInfo = false,
 }) {
   if (isAnalyzing) {
     return (tone: palette.safe, label: 'Analyzing');
   }
   if (hasError) {
     return (tone: palette.fgMuted, label: "Couldn't check");
+  }
+  if (needsMoreInfo) {
+    return (tone: palette.fgMuted, label: 'More info needed');
   }
   return (tone: palette.safe, label: 'No data yet');
 }

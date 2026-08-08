@@ -295,6 +295,7 @@ class StackDoseSummer {
           unit: thresholdUnit,
           thresholdValue: representative.thresholdValue,
           thresholdUnit: thresholdUnit,
+          comparator: representative.comparator,
           contributions: List.unmodifiable(contributions),
           clinicalSeverity: representative.clinicalSeverity,
           consumerDisposition: representative.consumerDispositionIfMet,
@@ -370,6 +371,7 @@ class StackDoseSummer {
             unit: normalizedThresholdUnit,
             thresholdValue: rule.thresholdValue,
             thresholdUnit: normalizedThresholdUnit,
+            comparator: rule.comparator,
             contributions: dose.contributions,
             isIncomplete: isIncomplete,
           ),
@@ -817,6 +819,7 @@ class StackDoseThresholdAlert {
     required this.unit,
     required this.thresholdValue,
     required this.thresholdUnit,
+    this.comparator = '>=',
     required this.contributions,
     this.isIncomplete = false,
     this.clinicalSeverity = 'caution',
@@ -831,6 +834,7 @@ class StackDoseThresholdAlert {
   final String unit;
   final double thresholdValue;
   final String thresholdUnit;
+  final String comparator;
   final List<StackDoseContribution> contributions;
 
   /// True when the known comparable subtotal omitted at least one source row

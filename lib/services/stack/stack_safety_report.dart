@@ -96,14 +96,11 @@ class StackSafetyReport {
       medicationProfileWarnings.isEmpty &&
       categoryWarnings.isEmpty;
 
-  /// True when there is genuinely nothing to tell the user.
-  ///
-  /// [isEmpty] counts findings only, so using it alone as a render guard turns
-  /// a check that never ran into a blank, clean-looking screen. A surface may
-  /// only stay silent when nothing fired AND every check completed — otherwise
-  /// it must render the hedge.
-  bool get hasNothingToReport =>
-      isEmpty && !checksIncomplete && !coverageIncomplete;
+  // NOTE: the old `hasNothingToReport` render guard was removed with the
+  // StackHealthSnapshot migration (ADR-006). Surfaces must hedge on the
+  // snapshot's `analysisIncomplete`, which also covers recall and dose-sum
+  // gaps this report never sees. [isEmpty] counts findings only and must
+  // never be a render guard on its own.
 
   /// True when timing advice is available.
   bool get hasTimingAdvice => timingOptimizations.isNotEmpty;

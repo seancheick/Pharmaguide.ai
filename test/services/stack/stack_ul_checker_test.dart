@@ -639,6 +639,19 @@ void main() {
   });
 
   group('StackUlChecker — warning strings', () {
+    test('vitamin D excess uses calm, clinically precise shared copy', () {
+      final results = checker.check(
+        _totals([_total('vitamin_d3', 'Vitamin D3', 5000, 'IU')]),
+        ageBracket: '19-30',
+        sex: 'Male',
+      );
+      expect(
+        results.first.warning,
+        'Above the upper limit — Sustained excessive vitamin D intake can '
+        'increase the risk of hypercalcemia and kidney complications.',
+      );
+    });
+
     test('zinc excess warns copper depletion with chronic-dose action', () {
       final results = checker.check(
         _totals([_total('zinc', 'Zinc', 60, 'mg')]),
@@ -680,7 +693,7 @@ void main() {
       expect(results.first.tier, NutrientTier.exceedsUl);
       // Generic fallback is the safe answer when we can't map the
       // canonical id to a specific mechanism.
-      expect(results.first.warning, contains('Upper Limit'));
+      expect(results.first.warning, contains('upper limit'));
     });
   });
 

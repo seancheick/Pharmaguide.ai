@@ -19,14 +19,19 @@ final clinicalSignalLifecycleProvider = FutureProvider<SignalLifecycleDiff>((
 ) async {
   final report = await ref.watch(stackSafetyReportProvider.future);
   final depletionReport = await ref.watch(depletionReportProvider.future);
+  final doseThresholdAlerts = await ref.watch(
+    stackDoseThresholdAlertsProvider.future,
+  );
   final signals = allClinicalSignalsFrom(
     report: report,
     medicationNutrientMatches: depletionReport.matches,
+    doseThresholdAlerts: doseThresholdAlerts,
   );
 
   var analysisComplete =
       !report.checksIncomplete &&
       !report.coverageIncomplete &&
+      !doseThresholdAlerts.any((alert) => alert.isIncomplete) &&
       depletionReport.status == MedNutrientLoadStatus.loaded;
   String? catalogVersion;
   String? ruleVersion;

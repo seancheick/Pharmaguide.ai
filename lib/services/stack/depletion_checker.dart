@@ -34,6 +34,21 @@ enum CoverageLevel {
       this == CoverageLevel.adequate || this == CoverageLevel.partial;
 }
 
+/// One cited source from the reviewed medication–nutrient artifact. Keeping
+/// the authored label and type prevents the UI from degrading every citation
+/// into an indistinguishable "Source" link.
+class DepletionSource {
+  final String sourceType;
+  final String label;
+  final String url;
+
+  const DepletionSource({
+    required this.sourceType,
+    required this.label,
+    required this.url,
+  });
+}
+
 /// A matched medication-nutrient note for a user's medication.
 class DepletionMatch {
   final String depletionId;
@@ -61,7 +76,13 @@ class DepletionMatch {
   /// expandable detail; not rendered as the primary body copy.
   final String recommendation;
 
-  final List<String> sourceUrls;
+  final List<DepletionSource> sources;
+  final List<String> _legacySourceUrls;
+
+  /// URL-only compatibility view for older callers and report exporters.
+  List<String> get sourceUrls => sources.isNotEmpty
+      ? sources.map((source) => source.url).toList(growable: false)
+      : _legacySourceUrls;
 
   /// Pipeline v5.0 `onset_timeline` (e.g., "years", "months"). Null on
   /// older data. Used by the UI to set calming expectations.
@@ -157,7 +178,8 @@ class DepletionMatch {
     this.evidenceLevel = 'ungraded',
     required this.mechanism,
     required this.recommendation,
-    this.sourceUrls = const [],
+    this.sources = const [],
+    List<String> sourceUrls = const [],
     this.onsetTimeline,
     this.watchThresholdDays,
     this.watchBasis,
@@ -173,7 +195,7 @@ class DepletionMatch {
     this.detectedUnit,
     this.citationReviewStatus = 'unverified',
     this.coverageLevel = CoverageLevel.none,
-  });
+  }) : _legacySourceUrls = sourceUrls;
 }
 
 /// Consumer-facing label for a medication–nutrient relationship. Keeps each
@@ -183,15 +205,15 @@ class DepletionMatch {
 String medNutrientRelationshipLabel(String depletionType) {
   switch (depletionType.trim().toLowerCase()) {
     case 'depletion':
-      return 'Associated nutrient to monitor';
+      return 'Medication/nutrient guidance';
     case 'condition_related':
-      return 'Condition-related nutrient consideration';
+      return 'Condition/nutrient guidance';
     case 'functional_antagonism':
-      return 'May affect nutrient function';
+      return 'Medication/nutrient guidance';
     case 'monitoring_stability':
-      return 'Monitoring consideration';
+      return 'Medication/nutrient guidance';
     case 'supplement_interaction':
-      return 'Supplement consideration';
+      return 'Supplement interaction';
     default:
       return 'Nutrient consideration';
   }
@@ -231,10 +253,9 @@ String _fmtAmt(num n) => n == n.roundToDouble() ? n.round().toString() : '$n';
 /// Factual body copy for one medication–nutrient row, selected from an explicit
 /// relationship_type × supply_state template — never one interpolated universal
 /// sentence (PM-locked, B1.1). Stays factual: no "covered"/"adequate"/
-/// replacement claims, always "comparison amount" (not "reference amount"),
-/// amounts carry "per day", never implies a measured deficiency or physiological
-/// sufficiency. [subject] is the drug (depletion / antagonism / monitoring /
-/// interaction) or the condition (condition_related).
+/// replacement claims. Amounts carry a per-day basis and never imply a measured
+/// deficiency or physiological sufficiency. Clinician-reviewed context is
+/// preferred when supplied; [subject] is the drug or condition.
 String medNutrientBodyCopy({
   required String relationshipType,
   required String nutrient,
@@ -242,6 +263,7 @@ String medNutrientBodyCopy({
   MedNutrientSupplyState? supplyState,
   num? detectedAmount,
   String? detectedUnit,
+  String? reviewedContext,
   num? comparisonAmount,
   String? comparisonUnit,
 }) {
@@ -253,16 +275,20 @@ String medNutrientBodyCopy({
       (detectedAmount != null && (detectedUnit ?? '').isNotEmpty)
       ? '${_fmtAmt(detectedAmount)} ${detectedUnit!.trim()}'
       : '';
+  final reviewed = reviewedContext?.trim() ?? '';
 
   switch (type) {
     case 'functional_antagonism':
+      if (reviewed.isNotEmpty) return reviewed;
       return '$subj may affect how the body uses $n. This does not confirm '
           'that your $n level is low. Ask your clinician whether monitoring '
           'is appropriate for you.';
     case 'monitoring_stability':
+      if (reviewed.isNotEmpty) return reviewed;
       return 'Monitoring $n may be relevant while taking $subj. Ask your '
           'clinician whether testing or follow-up is appropriate.';
     case 'supplement_interaction':
+      if (reviewed.isNotEmpty) return reviewed;
       return '$n may interact with $subj. Review the interaction details and '
           'discuss timing or use with your clinician or pharmacist.';
     case 'condition_related':
@@ -277,7 +303,8 @@ String medNutrientBodyCopy({
           'Your current stack contains $amountPhrase of $n per day.',
         _ => 'Your current stack includes a source of $n.',
       };
-      return '$lead $supply Supplement intake does not confirm your blood '
+      final context = reviewed.isEmpty ? lead : reviewed;
+      return '$supply $context Supplement intake does not confirm your blood '
           'level or nutrient status.';
     case 'depletion':
     default:
@@ -296,30 +323,23 @@ String medNutrientBodyCopy({
       }
       switch (state) {
         case MedNutrientSupplyState.noDetectedSource:
-          return 'No $n source detected in your current stack. $subj use has '
-              'been associated with lower $n status in some people. Consider '
-              'asking your clinician whether monitoring is appropriate.';
+          final context = reviewed.isEmpty
+              ? '$subj use has been associated with lower $n status in some '
+                    'people. Consider asking your clinician whether monitoring '
+                    'is appropriate.'
+              : reviewed;
+          return 'No $n source detected in your current stack. $context';
         case MedNutrientSupplyState.sourceDetectedBelowComparison:
-          final comp =
-              (comparisonAmount != null && (comparisonUnit ?? '').isNotEmpty)
-              ? '${_fmtAmt(comparisonAmount)} ${comparisonUnit!.trim()}'
-              : null;
-          final compSentence = comp != null
-              ? 'The comparison amount used for this medication-related '
-                    'consideration is $comp per day. '
-              : '';
-          return 'Your current stack contains $amountPhrase of $n per day. '
-              '${compSentence}Supplement intake does not confirm your $n '
-              'status.';
         case MedNutrientSupplyState.meetsComparisonAmount:
-          return 'Your current stack contains $amountPhrase of $n per day. '
-              'This meets the comparison amount used for this '
-              'medication-related consideration. Supplement intake does not '
-              'confirm your blood level or nutrient status.';
+          final context = reviewed.isEmpty ? '' : ' $reviewed';
+          return 'Your stack provides $amountPhrase/day of $n.$context '
+              'Supplement intake does not confirm your blood level or '
+              'nutrient status.';
         case MedNutrientSupplyState.sourceAmountUnknown:
-          return 'Your current stack includes a source of $n, but the daily '
-              'amount could not be determined. Supplement intake does not '
-              'confirm your $n status.';
+          final context = reviewed.isEmpty ? '' : ' $reviewed';
+          return 'Your stack includes $n, but the daily amount could not be '
+              'determined.$context Supplement intake does not confirm your '
+              'blood level or nutrient status.';
       }
   }
 }
@@ -701,11 +721,11 @@ class DepletionChecker {
         continue;
       }
 
-      final sourceUrls =
+      final sources =
           (dep['sources'] as List?)
               ?.whereType<Map<String, dynamic>>()
-              .map((s) => s['url']?.toString() ?? '')
-              .where((u) => u.isNotEmpty)
+              .map(_parseSource)
+              .whereType<DepletionSource>()
               .toList() ??
           const [];
 
@@ -737,7 +757,7 @@ class DepletionChecker {
           evidenceLevel: dep['evidence_level']?.toString() ?? 'ungraded',
           mechanism: dep['mechanism']?.toString() ?? '',
           recommendation: dep['recommendation']?.toString() ?? '',
-          sourceUrls: sourceUrls,
+          sources: sources,
           onsetTimeline: dep['onset_timeline']?.toString(),
           watchThresholdDays: watchThresholdDays,
           watchBasis: watchBasis,
@@ -853,6 +873,19 @@ class DepletionChecker {
     if (v is num) return v;
     if (v is String) return num.tryParse(v);
     return null;
+  }
+
+  static DepletionSource? _parseSource(Map<String, dynamic> source) {
+    final url = source['url']?.toString().trim() ?? '';
+    if (url.isEmpty) return null;
+    final sourceType = source['source_type']?.toString().trim() ?? '';
+    final authoredLabel = source['label']?.toString().trim() ?? '';
+    final label = authoredLabel.isNotEmpty
+        ? authoredLabel
+        : sourceType.isNotEmpty
+        ? sourceType.replaceAll('_', ' ')
+        : 'Source';
+    return DepletionSource(sourceType: sourceType, label: label, url: url);
   }
 
   /// Parse the optional curated watch threshold, fail-closed.

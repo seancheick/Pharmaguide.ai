@@ -8,15 +8,20 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/v2/stack_v2_screen.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/stack/recalled_ingredient_result.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
 
@@ -62,6 +67,8 @@ void main() {
     bool signedIn = false,
     bool stackSafetyFails = false,
     bool coverageFails = false,
+    StackSafetyReport safetyReport = const StackSafetyReport(),
+    List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
   }) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
@@ -88,7 +95,7 @@ void main() {
             if (stackSafetyFails) {
               throw StateError('stack safety unavailable');
             }
-            return const StackSafetyReport();
+            return safetyReport;
           }),
           if (coverageFails)
             coverageReportProvider.overrideWith(
@@ -99,6 +106,9 @@ void main() {
           ),
           recalledIngredientsReportProvider.overrideWith(
             (ref) async => RecalledIngredientsReport.empty(),
+          ),
+          stackDoseThresholdAlertsProvider.overrideWith(
+            (ref) async => doseThresholdAlerts,
           ),
           profileProvider.overrideWith((ref) => ProfileNotifier()),
         ],
@@ -168,6 +178,212 @@ void main() {
   }
 
   group('v2 stack/home coherence', () {
+    testWidgets(
+      'incomplete non-empty stack uses a neutral More info needed state',
+      (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          stack: [
+            stackEntry(
+              id: 'supp-1',
+              name: 'Partially mapped supplement',
+              type: 'supplement',
+              dsldId: '12345',
+            ),
+          ],
+          safetyReport: const StackSafetyReport(checksIncomplete: true),
+        );
+
+      expect(
+        find.text('More info needed', skipOffstage: false),
+        findsNWidgets(2),
+        reason: 'the summary and hero share the same neutral state',
+      );
+        expect(find.text('Decent', skipOffstage: false), findsNothing);
+        expect(find.text('No data yet', skipOffstage: false), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'dose-alert-only stack shares one tappable signal across summary, hero, and sheet',
+      (tester) async {
+        const alert = StackDoseThresholdAlert(
+          conditionId: 'pregnancy',
+          canonicalId: 'caffeine',
+          displayName: 'Caffeine',
+          totalValue: 240,
+          unit: 'mg',
+          thresholdValue: 200,
+          thresholdUnit: 'mg',
+          contributions: [],
+        );
+
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          stack: [
+            stackEntry(
+              id: 'supp-1',
+              name: 'Caffeine',
+              type: 'supplement',
+              dsldId: '12345',
+            ),
+          ],
+          doseThresholdAlerts: const [alert],
+        );
+
+        expect(
+          find.text('1 safety signal to review', skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(find.text('Caffeine', skipOffstage: false), findsWidgets);
+        expect(find.text('View details', skipOffstage: false), findsOneWidget);
+
+        await tester.tap(find.text('Stack Health'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('1 SAFETY SIGNAL TO REVIEW'), findsOneWidget);
+        expect(find.text('DOSE-THRESHOLD GUIDANCE'), findsOneWidget);
+        expect(find.textContaining('threshold 200 mg'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Home Stack Health uses the complete safety-signal count', (
+      tester,
+    ) async {
+      InteractionResult interaction(String id, String nutrient) {
+        return InteractionResult(
+          id: id,
+          type: InteractionType.drugSupplement,
+          severity: Severity.caution,
+          evidenceLevel: EvidenceLevel.established,
+          agent1Name: 'Warfarin',
+          agent2Name: nutrient,
+          mechanism: 'Mechanism',
+          management: 'Review with your clinician.',
+          doseDependant: false,
+          doseThreshold: null,
+          sourceUrls: const [],
+          source: InteractionSource.pipeline,
+        );
+      }
+
+      final report = StackSafetyReport(
+        medicationInteractions: [
+          interaction('warfarin-e', 'Vitamin E'),
+          interaction('warfarin-other', 'Another supplement'),
+        ],
+        nutrientStatuses: [
+          const NutrientStatus(
+            total: NutrientTotal(
+              canonicalId: 'vitamin_d',
+              displayName: 'Vitamin D',
+              totalAmount: 125,
+              unit: 'mcg',
+              contributions: [],
+            ),
+            tier: NutrientTier.exceedsUl,
+            ul: 100,
+            pctOfUl: 125,
+          ),
+        ],
+      );
+
+      await pumpWithStack(
+        tester,
+        const HomeV2Screen(showNavBar: false),
+        stack: [
+          stackEntry(
+            id: 'supp-1',
+            name: 'Vitamin E',
+            type: 'supplement',
+            dsldId: '12345',
+          ),
+        ],
+        safetyReport: report,
+      );
+
+      expect(find.text('3 safety signals to review'), findsOneWidget);
+      expect(find.text('3 Signals'), findsOneWidget);
+      expect(find.textContaining('2 interactions'), findsNothing);
+      expect(find.text('No conflicts'), findsNothing);
+    });
+
+    testWidgets('Stack Health summary and sheet use one safety-signal count', (
+      tester,
+    ) async {
+      InteractionResult interaction(String id, String nutrient) {
+        return InteractionResult(
+          id: id,
+          type: InteractionType.drugSupplement,
+          severity: Severity.caution,
+          evidenceLevel: EvidenceLevel.established,
+          agent1Name: 'Warfarin',
+          agent2Name: nutrient,
+          mechanism: 'Mechanism',
+          management: 'Review with your clinician.',
+          doseDependant: false,
+          doseThreshold: null,
+          sourceUrls: const [],
+          source: InteractionSource.pipeline,
+        );
+      }
+
+      final report = StackSafetyReport(
+        medicationInteractions: [
+          interaction('warfarin-e', 'Vitamin E'),
+          interaction('warfarin-other', 'Another supplement'),
+        ],
+        nutrientStatuses: [
+          const NutrientStatus(
+            total: NutrientTotal(
+              canonicalId: 'vitamin_d',
+              displayName: 'Vitamin D',
+              totalAmount: 125,
+              unit: 'mcg',
+              contributions: [],
+            ),
+            tier: NutrientTier.exceedsUl,
+            ul: 100,
+            pctOfUl: 125,
+          ),
+        ],
+      );
+
+      await pumpWithStack(
+        tester,
+        const StackV2Screen(showNavBar: false),
+        stack: [
+          stackEntry(
+            id: 'supp-1',
+            name: 'Vitamin E',
+            type: 'supplement',
+            dsldId: '12345',
+          ),
+        ],
+        safetyReport: report,
+      );
+
+      expect(
+        find.text('3 safety signals to review', skipOffstage: false),
+        findsOneWidget,
+        reason: 'Stack Health uses the complete typed finding count',
+      );
+      expect(
+        find.text('Warfarin × Vitamin E', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('2 interactions', skipOffstage: false),
+        findsNothing,
+      );
+
+      await tester.tap(find.text('Stack Health'));
+      await tester.pumpAndSettle();
+      expect(find.text('3 SAFETY SIGNALS TO REVIEW'), findsOneWidget);
+    });
+
     testWidgets('Stack v2 never shows fixture counts after empty stack loads', (
       tester,
     ) async {
@@ -186,6 +402,14 @@ void main() {
       await tester.tap(find.text('Nutrients'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Supplement nutrient totals'), findsOneWidget);
+      expect(
+        find.text(
+          'From your supplements only · compared with RDA/AI and upper limits',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Daily nutrient coverage'), findsNothing);
       expect(find.text('No nutrient totals yet'), findsOneWidget);
       expect(find.text('Vitamin A'), findsNothing);
       expect(find.text('120% of UL'), findsNothing);
@@ -425,11 +649,11 @@ void main() {
         );
 
         expect(
-          find.text("Couldn't check stack coverage", skipOffstage: false),
+          find.text("Couldn't check goal support", skipOffstage: false),
           findsOneWidget,
         );
         expect(
-          find.textContaining('not an all-clear', skipOffstage: false),
+          find.textContaining('Try again shortly', skipOffstage: false),
           findsOneWidget,
         );
       },
@@ -482,14 +706,19 @@ void main() {
           find.textContaining('medication checks may be incomplete'),
           findsOneWidget,
         );
-        expect(find.text('SAVED SCHEDULE'), findsOneWidget);
+        expect(find.text('YOUR DETAILS'), findsOneWidget);
         expect(find.text('500 mg · Twice daily'), findsWidgets);
+        // RxNorm identity stays collapsed until Technical details is opened.
+        expect(find.textContaining('RxNorm concept 1161611'), findsNothing);
+        await tester.tap(find.text('Technical details'));
+        await tester.pump();
         expect(find.textContaining('RxNorm concept 1161611'), findsOneWidget);
         expect(find.byType(Scrollable), findsWidgets);
         expect(
-          find.textContaining('not a medication monograph'),
+          find.textContaining("doesn't provide prescribing"),
           findsOneWidget,
         );
+        expect(find.text('Saved only on this device.'), findsOneWidget);
         expect(
           find.text("Medications don't have a detail page yet."),
           findsNothing,
@@ -544,8 +773,8 @@ void main() {
       expect(find.text('Clean Lab', skipOffstage: false), findsOneWidget);
       expect(find.text('87/100', skipOffstage: false), findsOneWidget);
       expect(
-        find.text('Score confidence: High', skipOffstage: false),
-        findsOneWidget,
+        find.textContaining('Score confidence:', skipOffstage: false),
+        findsNothing,
       );
     });
 

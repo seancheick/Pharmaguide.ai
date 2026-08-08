@@ -18,9 +18,11 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/clinical_signal.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
+import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
 export 'package:pharmaguide/core/models/clinical_signal.dart';
@@ -105,6 +107,11 @@ final class MedicationNutrientPayload extends SignalPayload {
 final class CumulativeExposurePayload extends SignalPayload {
   final NutrientStatus status;
   const CumulativeExposurePayload(this.status);
+}
+
+final class DoseThresholdPayload extends SignalPayload {
+  final StackDoseThresholdAlert alert;
+  const DoseThresholdPayload(this.alert);
 }
 
 @immutable
@@ -338,6 +345,57 @@ class ClinicalSignal {
       payload: CumulativeExposurePayload(n),
     );
   }
+
+  factory ClinicalSignal.fromDoseThreshold(StackDoseThresholdAlert alert) {
+    final normalizedThresholdUnit = normalizeDoseUnit(alert.thresholdUnit);
+    final comparator = alert.comparator.trim();
+    final ruleId =
+        '${alert.targetType}:${alert.conditionId}:'
+        '${alert.canonicalId}:$comparator:'
+        '${_formatDose(alert.thresholdValue)}:$normalizedThresholdUnit';
+    final canonical = canonicalSignalId(
+      family: SignalFamily.doseThreshold,
+      nutrientId: alert.canonicalId,
+      targetType: alert.targetType,
+      targetId: alert.conditionId,
+      comparator: comparator,
+      thresholdValue: alert.thresholdValue,
+      thresholdUnit: normalizedThresholdUnit,
+    );
+    final body = alert.isIncomplete
+        ? 'Cumulative ${alert.displayName} could not be fully evaluated; '
+              'known subtotal is ${_formatDose(alert.totalValue)} '
+              '${alert.unit} across your stack (threshold '
+              '${_formatDose(alert.thresholdValue)} ${alert.thresholdUnit}).'
+        : 'Cumulative ${alert.displayName} is '
+              '${_formatDose(alert.totalValue)} ${alert.unit} across your '
+              'stack (threshold ${_formatDose(alert.thresholdValue)} '
+              '${alert.thresholdUnit}).';
+    return ClinicalSignal(
+      signalId: deriveSignalId(
+        family: SignalFamily.doseThreshold,
+        nutrientId: alert.canonicalId,
+        targetType: alert.targetType,
+        targetId: alert.conditionId,
+        comparator: comparator,
+        thresholdValue: alert.thresholdValue,
+        thresholdUnit: normalizedThresholdUnit,
+      ),
+      signalIdCanonical: canonical,
+      family: SignalFamily.doseThreshold,
+      sourceRuleId: ruleId,
+      subjectIds: _sortedSubjects([alert.conditionId, alert.canonicalId]),
+      clinicalSeverity: Severity.fromString(alert.clinicalSeverity),
+      consumerDisposition: _doseDisposition(alert.consumerDisposition),
+      evaluationStatus: alert.isIncomplete
+          ? EvaluationStatus.amountUnknown
+          : EvaluationStatus.aboveThreshold,
+      title: '${alert.displayName} dose threshold',
+      body: body,
+      copyId: 'dose_threshold:$ruleId',
+      payload: DoseThresholdPayload(alert),
+    );
+  }
 }
 
 List<String> _sortedSubjects(List<String> xs) =>
@@ -354,3 +412,24 @@ ConsumerDisposition _dispositionForSeverity(Severity s) => switch (s) {
   Severity.informational => ConsumerDisposition.goodToKnow,
   Severity.safe => ConsumerDisposition.suppress,
 };
+
+ConsumerDisposition _doseDisposition(String value) =>
+    switch (value.trim().toLowerCase()) {
+      'block' => ConsumerDisposition.block,
+      'review' => ConsumerDisposition.review,
+      'good_to_know' || 'goodtoknow' => ConsumerDisposition.goodToKnow,
+      'suppress' => ConsumerDisposition.suppress,
+      // Unknown authored values fail VISIBLE. The alert already counts toward
+      // the tier via nutrientWarningCount, so suppressing it here would
+      // desynchronize the review count from the verdict — the exact bug class
+      // the shared snapshot (ADR-006) exists to prevent.
+      _ => ConsumerDisposition.review,
+    };
+
+String _formatDose(double value) {
+  if (value == value.truncateToDouble()) return value.toInt().toString();
+  return value
+      .toStringAsFixed(2)
+      .replaceFirst(RegExp(r'0+$'), '')
+      .replaceFirst(RegExp(r'\.$'), '');
+}

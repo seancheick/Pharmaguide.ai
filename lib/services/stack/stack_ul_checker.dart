@@ -429,12 +429,12 @@ class StackUlChecker {
     final specific = _specificWarnings[key];
     if (specific != null) {
       return tier == NutrientTier.exceedsUl
-          ? 'Exceeds Upper Limit — $specific'
-          : 'Approaching Upper Limit — $specific';
+          ? 'Above the upper limit — $specific'
+          : 'Approaching the upper limit — $specific';
     }
     return tier == NutrientTier.exceedsUl
-        ? 'Exceeds Upper Limit — review with healthcare provider'
-        : 'Approaching Upper Limit — consider reducing dose';
+        ? 'Above the upper limit — review with a healthcare provider'
+        : 'Approaching the upper limit — consider reviewing the total dose';
   }
 
   static const Map<String, String> _specificWarnings = {
@@ -447,8 +447,12 @@ class StackUlChecker {
         'risk of copper depletion over time; consider a lower dose or taking copper alongside',
     'iron': 'risk of GI toxicity and oxidative stress',
     'vitamin_a': 'risk of hepatotoxicity and teratogenicity',
-    'vitamin_d': 'risk of hypercalcemia and kidney damage',
-    'vitamin_d3': 'risk of hypercalcemia and kidney damage',
+    'vitamin_d':
+        'Sustained excessive vitamin D intake can increase the risk of '
+        'hypercalcemia and kidney complications.',
+    'vitamin_d3':
+        'Sustained excessive vitamin D intake can increase the risk of '
+        'hypercalcemia and kidney complications.',
     'vitamin_b6': 'risk of sensory neuropathy with chronic use',
     'vitamin_b3': 'risk of flushing and hepatotoxicity',
     'niacin': 'risk of flushing and hepatotoxicity',

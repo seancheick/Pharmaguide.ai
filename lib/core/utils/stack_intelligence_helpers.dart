@@ -1,5 +1,14 @@
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 
+/// Shared consumer noun and count for the Stack safety summary, warning card,
+/// and detail sheet. Every caller supplies the length of the same typed signal
+/// collection so nutrient-limit findings are never omitted as "not an
+/// interaction".
+String describeSafetySignalReview(int count) {
+  if (count <= 0) return 'No safety signals to review';
+  return '$count safety ${count == 1 ? 'signal' : 'signals'} to review';
+}
+
 /// Shared one-line insight describing the user's stack health.
 ///
 /// Identical copy across surfaces — the Home Stack-Health card and
@@ -61,10 +70,16 @@ String describeStackSummary(StackIntelligence? intelligence) {
             'all-clear.';
       }
       return 'Some concerns are worth reviewing.';
+    // Solid and Optimized are only reachable when the analysis completed
+    // (missingData routes to `incomplete` first), so scoping the claim to
+    // "the checks PharmaGuide completed" is always truthful here.
     case StackTier.solid:
+      return 'No major safety issues found. Minor items may be worth '
+          'monitoring.';
     case StackTier.optimized:
-      return 'No major safety issues detected right now.';
+      return 'No significant issues found in the checks PharmaGuide '
+          'completed.';
     case StackTier.incomplete:
-      return 'Add more information to diagnose this stack.';
+      return 'Some checks need more information before this stack can be rated.';
   }
 }

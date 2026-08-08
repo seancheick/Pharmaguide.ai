@@ -93,7 +93,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
 
-    expect(find.text('82 · Moderate'), findsOneWidget);
+    expect(find.text('82'), findsOneWidget);
     await tester.tap(find.text('Potassium Complex'));
     await tester.pumpAndSettle();
 

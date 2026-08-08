@@ -24,7 +24,7 @@ void main() {
 
       expect(capturedSubject, 'Magnesium Glycinate — Example Labs');
       expect(capturedText, contains('PharmaGuide quality: 88/100 · Excellent'));
-      expect(capturedText, contains('Score confidence: Moderate'));
+      expect(capturedText, isNot(contains('Score confidence:')));
       expect(capturedText, contains('- Third-party tested'));
       expect(capturedText, contains('- No fillers'));
       expect(capturedText, contains('Personal fit depends on your profile'));

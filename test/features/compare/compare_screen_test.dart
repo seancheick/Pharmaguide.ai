@@ -157,7 +157,7 @@ void main() {
     await tearDownDbs(tester);
   });
 
-  testWidgets('shows confidence and neutralizes a limited-confidence score', (
+  testWidgets('shows only limited confidence and neutralizes that score', (
     tester,
   ) async {
     await seed(
@@ -182,7 +182,7 @@ void main() {
 
     await pumpCompare(tester);
 
-    expect(find.text('Score confidence: Moderate'), findsOneWidget);
+    expect(find.text('Score confidence: Moderate'), findsNothing);
     expect(find.text('Score confidence: Limited'), findsOneWidget);
     expect(find.text('85/100'), findsNWidgets(2));
     // Only the moderate-confidence side retains its tier adjective.

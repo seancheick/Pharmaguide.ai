@@ -18,6 +18,9 @@ enum SignalFamily {
   /// NutrientStatus — a nutrient's cumulative stack exposure vs its UL.
   cumulativeExposure,
 
+  /// StackDoseThresholdAlert — a profile-specific cumulative dose rule.
+  doseThreshold,
+
   /// TimingOptimization — a verified `important_separation` rule.
   ///
   /// Only this timing category becomes a signal. Losing levothyroxine
@@ -47,11 +50,19 @@ String normalizeSignalSubject(String s) => s.trim().toLowerCase();
 ///   - cumulativeExposure:
 ///       namespace : family : nutrientId   — deliberately NOT the products, so
 ///     the signal survives products being added to / removed from the stack.
+///   - doseThreshold:
+///       namespace : family : target type/id : nutrient : comparator :
+///       normalized threshold/unit.
 String canonicalSignalId({
   required SignalFamily family,
   String? sourceRuleId,
   List<String> subjectIds = const [],
   String? nutrientId,
+  String? targetType,
+  String? targetId,
+  String? comparator,
+  double? thresholdValue,
+  String? thresholdUnit,
 }) {
   switch (family) {
     case SignalFamily.cumulativeExposure:
@@ -62,6 +73,30 @@ String canonicalSignalId({
       }
       return '$signalIdNamespace:${family.name}:'
           '${normalizeSignalSubject(nutrientId)}';
+    case SignalFamily.doseThreshold:
+      if (targetType == null ||
+          targetType.trim().isEmpty ||
+          targetId == null ||
+          targetId.trim().isEmpty ||
+          nutrientId == null ||
+          nutrientId.trim().isEmpty ||
+          comparator == null ||
+          comparator.trim().isEmpty ||
+          thresholdValue == null ||
+          thresholdUnit == null ||
+          thresholdUnit.trim().isEmpty) {
+        throw ArgumentError(
+          'doseThreshold signal id requires target, nutrient, comparator, '
+          'threshold, and unit',
+        );
+      }
+      return '$signalIdNamespace:${family.name}:'
+          '${normalizeSignalSubject(targetType)}:'
+          '${normalizeSignalSubject(targetId)}:'
+          '${normalizeSignalSubject(nutrientId)}:'
+          '${comparator.trim()}:'
+          '${_canonicalNumber(thresholdValue)}:'
+          '${normalizeSignalSubject(thresholdUnit)}';
     case SignalFamily.pairwiseInteraction:
     case SignalFamily.medicationProfile:
     case SignalFamily.medicationNutrient:
@@ -88,12 +123,27 @@ String deriveSignalId({
   String? sourceRuleId,
   List<String> subjectIds = const [],
   String? nutrientId,
+  String? targetType,
+  String? targetId,
+  String? comparator,
+  double? thresholdValue,
+  String? thresholdUnit,
 }) {
   final canonical = canonicalSignalId(
     family: family,
     sourceRuleId: sourceRuleId,
     subjectIds: subjectIds,
     nutrientId: nutrientId,
+    targetType: targetType,
+    targetId: targetId,
+    comparator: comparator,
+    thresholdValue: thresholdValue,
+    thresholdUnit: thresholdUnit,
   );
   return sha256.convert(utf8.encode(canonical)).toString();
+}
+
+String _canonicalNumber(double value) {
+  if (value == value.truncateToDouble()) return value.toInt().toString();
+  return value.toString();
 }

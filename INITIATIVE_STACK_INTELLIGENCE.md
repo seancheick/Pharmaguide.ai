@@ -44,12 +44,12 @@ This initiative replaces the score-headline architecture with a diagnostic syste
 
 | Outcome | How we'll measure it |
 |---|---|
-| Stack Health surfaces a tier verdict + actionable issues, not a score | `home_stack_health.dart` renders tier label as headline; 0–100 number relegated to secondary signal |
+| Stack Health surfaces a tier verdict + actionable issues, not a score | Stack Health UI renders a tier label and shared signal list; the internal 0–100 value is never rendered |
 | Banned/recalled ingredients always trigger an "Unsafe" headline regardless of other quality signals | Unit tests assert `unsafe` tier in every gate-trigger scenario |
 | Users can share a clinician-ready stack summary in 2 taps | Markdown report → system share sheet; manually verified on real device |
 | TestFlight/Play users receive catalog updates without reinstalling the app | OTA bundle download on launch; validation-gated activation in-session; rollback on failure |
 | Affiliate program ready to plug in once V1.2 ships, **without** Amazon PA-API exposure | Impact Radius approved + retailer enrollments live; no PA-API code in repo |
-| Every change respects the AGENTS.md "max 3 files / surgical diff" rule | Each task delivers a single PR with ≤3 files |
+| Every change respects the AGENTS.md surgical-diff rule | Each task uses the smallest atomic blast radius that fully fixes the root cause |
 
 ---
 
@@ -70,7 +70,7 @@ This initiative replaces the score-headline architecture with a diagnostic syste
 | **Profile + stack stay on device** | No health data flows to Supabase. Privacy is a real differentiator. |
 | **Pipeline ships per-product signals; Flutter composes** | Every stack-level computation runs on the phone. |
 | **Tier vocabulary: optimized / solid / decent / concerning / unsafe (+ incomplete fallback)** | No A/B/C/D/F. No 0–100 headline. |
-| **AGENTS.md compliance: ≤3 files per task, surgical diffs** | Sprint tasks below honor this. |
+| **AGENTS.md compliance: surgical, atomic diffs** | Touch the fewest files that fully solve the task; do not split a root fix merely to meet a file count. |
 | **Hard safety gates override every other signal** | A banned ingredient is never averaged away by quality. |
 | **No invented clinical thresholds** | No "covered/under-dosed/missing" verdicts unless reference data has clinician-authored thresholds. Use neutral language ("no matched ingredients found", "below typical study doses"). |
 | **No Amazon PA-API integration** | PA-API deprecates 2026-05-15. Skip Amazon entirely until Creators API requirements stabilize. Use Impact Radius (iHerb/Vitacost/Swanson) as the commerce backbone. |
@@ -81,8 +81,8 @@ This initiative replaces the score-headline architecture with a diagnostic syste
 ## User-facing stack tiers (locked)
 
 ```
-Optimized   → ideal stack
-Solid       → good, minor attention items
+Optimized   → no identified concerns under the checks that completed
+Solid       → no major concerns; monitor-level context may be present
 Decent      → some concerns worth reviewing
 Concerning  → review needed (avoid-level interactions, near-UL, etc.)
 Unsafe      → hard stop (banned/recalled, contraindicated)
@@ -91,7 +91,7 @@ Unsafe      → hard stop (banned/recalled, contraindicated)
 Internal-only fallback state (rendered as neutral "more info needed" copy, never as a graded label):
 
 ```
-Incomplete  → stack data too thin to diagnose
+Incomplete  → More info needed; known monitor signals remain visible
 ```
 
 ---
@@ -184,7 +184,7 @@ Incomplete  → stack data too thin to diagnose
 
 # Track B — V1.1 Stack Intelligence (3–5 dev days)
 
-**Goal:** Replace single-number headline with diagnostic tier + issue list. AGENTS.md-compliant: each task ≤3 files.
+**Goal:** Replace the single-number headline with a diagnostic tier and issue list, using the smallest atomic diff that fully preserves one source of truth.
 
 **Definition of Done (sprint-level):**
 - `StackIntelligence` model exists and is the single output of the engine
@@ -528,7 +528,7 @@ Track A ──┐
 
 Track decisions here as they come up. Resolve in line, then mark resolved.
 
-- `[ ]` (decision-1) Should the `incomplete` tier copy say "More info needed" or "Stack incomplete — add ingredients"? UX tone needs a call.
+- `[x]` (decision-1) Use the neutral label "More info needed." It overrides monitor-only and score-band labels when evaluation is materially incomplete, but never hides caution, avoid, contraindicated, banned, or recalled findings. Resolved 2026-08-08 by ADR-006.
 - `[ ]` (decision-2) For C3 (share button placement), top-right action vs bottom CTA? Defer to UX review during C3.
 - `[ ]` (decision-3) Per-retailer affiliate disclosure language for E9 — Impact retailers don't all require the same wording. Audit each retailer's TOS before E9 ships.
 - `[-]` (decision-4) When (if ever) to add Amazon Creators API. Re-evaluate Q3 2026.
@@ -556,6 +556,7 @@ When all 8 boxes ticked → close out + archive.
 
 Append a one-line entry per meaningful change.
 
+- **2026-08-08** — Resolved decision-1 via ADR-006. Stack Health now uses one shared snapshot and signal count across Home, Stack, hero, and details; materially incomplete clean/monitor-only stacks render neutral "More info needed"; dose-threshold alerts join the typed signal universe; the internal numeric score no longer exposes a second tier API. Replaced stale "ideal stack" and max-three-files language.
 - **2026-04-28** — Initiative created. Tracks A–E defined. Locked architectural principles, tier vocabulary, Amazon PA-API skip decision, hard "do not" rules.
 - **2026-04-28** — A1 + A2 verified (`analyze` clean, 597 tests pass after pruning stale "category chips" test). A4 confirmed already shipped in Sprint 27.18. A6 unit tests green; real-device pass still owed.
 - **2026-04-28** — Track B B1 + B2 + B3 landed in a single session. New `StackIntelligence` model (18 tests) + `StackIntelligenceEngine` facade (9 tests) + home headline rewire. Full suite 624/624. AGENTS.md ≤3-files rule honored per task. Goldens/real-device pass for B3 still owed.

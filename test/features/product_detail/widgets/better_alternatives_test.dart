@@ -303,7 +303,7 @@ void main() {
       // Compact v4 score lines (rounded to 0 decimals).
       expect(find.text('70/100'), findsOneWidget);
       expect(find.text('65/100'), findsOneWidget);
-      expect(find.text('Score confidence: Moderate'), findsOneWidget);
+      expect(find.textContaining('Score confidence:'), findsNothing);
       // Names + brands.
       expect(find.text('Premium Multi'), findsOneWidget);
       expect(find.text('BrandA'), findsOneWidget);
