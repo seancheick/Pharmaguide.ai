@@ -6,7 +6,11 @@ import 'package:pharmaguide/features/history/health_history_screen.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/settings/v2/delete_account_sheet.dart';
+import 'package:pharmaguide/features/settings/v2/notification_settings_sheet.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
+import 'package:pharmaguide/features/settings/v2/theme_settings_sheet.dart';
+import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
+import 'package:pharmaguide/features/settings/providers/notification_settings_provider.dart';
 import 'package:pharmaguide/features/settings/v2/product_submission_status_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
@@ -41,6 +45,10 @@ class SettingsV2Connected extends ConsumerWidget {
     final profile = ref.watch(profileProvider);
     final stackAsync = ref.watch(activeStackProvider);
     final scanCountAsync = ref.watch(_scanCountProvider);
+    final preferences = ref.watch(appPreferencesControllerProvider).preferences;
+    final notificationSettings = ref.watch(
+      notificationSettingsControllerProvider,
+    );
 
     final authMode = ref.watch(authStateProvider);
     final user = _safeCurrentUser();
@@ -84,6 +92,20 @@ class SettingsV2Connected extends ConsumerWidget {
               ),
             )
           : null,
+      themeCaption: themePreferenceLabel(preferences.theme),
+      notificationCaption: notificationSettingsCaption(
+        notificationSettings.status,
+        preferences.notifications,
+        isLoading: notificationSettings.isLoading,
+      ),
+      onOpenThemeSettings: () => PGModal.bottomSheet<void>(
+        context: context,
+        builder: (_) => const ThemeSettingsSheet(),
+      ),
+      onOpenNotificationSettings: () => PGModal.bottomSheet<void>(
+        context: context,
+        builder: (_) => const NotificationSettingsSheet(),
+      ),
       onDeleteAccount: signedIn ? () => _openDeleteAccount(context, ref) : null,
     );
   }

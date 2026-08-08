@@ -8,6 +8,8 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
+import 'package:pharmaguide/features/settings/providers/notification_settings_provider.dart';
+import 'package:pharmaguide/services/notifications/notification_authorization_service.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -183,6 +185,9 @@ void main() {
       overrides: [
         userDatabaseProvider.overrideWithValue(userDb),
         authStateProvider.overrideWith((ref) => authState),
+        notificationAuthorizationServiceProvider.overrideWithValue(
+          const _AllowedNotificationService(),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -316,4 +321,19 @@ void main() {
 
     expect(find.textContaining('TestFlight builds'), findsOneWidget);
   });
+}
+
+class _AllowedNotificationService implements NotificationAuthorizationService {
+  const _AllowedNotificationService();
+
+  @override
+  Future<NotificationAuthorizationStatus> readStatus() async =>
+      NotificationAuthorizationStatus.allowed;
+
+  @override
+  Future<NotificationAuthorizationStatus> requestPermission() async =>
+      NotificationAuthorizationStatus.allowed;
+
+  @override
+  Future<void> openNotificationSettings() async {}
 }

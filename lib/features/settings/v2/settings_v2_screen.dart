@@ -42,6 +42,10 @@ class SettingsV2Screen extends StatelessWidget {
   final VoidCallback? onOpenClinicianReport;
   final VoidCallback? onOpenProductSubmissions;
   final VoidCallback? onDeleteAccount;
+  final String themeCaption;
+  final String notificationCaption;
+  final VoidCallback? onOpenThemeSettings;
+  final VoidCallback? onOpenNotificationSettings;
 
   const SettingsV2Screen({
     super.key,
@@ -57,6 +61,10 @@ class SettingsV2Screen extends StatelessWidget {
     this.onOpenClinicianReport,
     this.onOpenProductSubmissions,
     this.onDeleteAccount,
+    this.themeCaption = 'System',
+    this.notificationCaption = 'Not enabled',
+    this.onOpenThemeSettings,
+    this.onOpenNotificationSettings,
   });
 
   @override
@@ -175,29 +183,14 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.palette_outlined,
                   title: 'Theme',
-                  caption: 'System',
-                  onTap: () => _showSettingSheet(
-                    context,
-                    title: 'Theme',
-                    body:
-                        'PharmaGuide follows your device appearance. '
-                        'The app now uses the v2 theme system across '
-                        'production screens.',
-                  ),
+                  caption: themeCaption,
+                  onTap: onOpenThemeSettings,
                 ),
                 PGSettingsTile(
                   icon: Icons.notifications_outlined,
                   title: 'Notifications',
-                  caption: 'Private Health History reminders',
-                  onTap: () => _showSettingSheet(
-                    context,
-                    title: 'Notifications',
-                    body:
-                        'When you enable a reminder for an appointment, test, '
-                        'or follow-up, PharmaGuide schedules it on this device. '
-                        'Lock-screen copy stays generic and contains no health '
-                        'details.',
-                  ),
+                  caption: notificationCaption,
+                  onTap: onOpenNotificationSettings,
                 ),
                 PGSettingsTile(
                   icon: Icons.accessibility_new_rounded,
