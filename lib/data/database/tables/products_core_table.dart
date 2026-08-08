@@ -15,9 +15,16 @@ import 'package:drift/drift.dart';
 ///   Powers the refill-reminder feature. `net_contents_quantity` is the
 ///   physical unit count in the bottle (e.g. 60 for a 60-capsule bottle);
 ///   `net_contents_unit` is the verbatim label unit ("Capsule(s)", "mL",
-///   "Gram(s)", etc.). Compute days_until_empty =
-///     net_contents_quantity / (servingSizes[0].maxQuantity *
-///                              servingSizes[0].maxDailyServings)
+///   "Gram(s)", etc.). days_until_empty divides net_contents_quantity by the
+///   amount consumed per day.
+///
+///   Do NOT derive the daily serving count from `servingSizes[0]`. A product
+///   can declare several serving rows (e.g. a 5 mL child serving and a 10 mL
+///   adult serving), and element zero is the child row on those — DSLD 317115
+///   would report a 1-3/day child regimen instead of its 1-4/day adult one.
+///   The pipeline resolves this once, in scripts/serving_frequency.py, using
+///   the highest-quantity (adult) row; consume the value it publishes rather
+///   than re-deriving it here.
 ///
 /// v1.3.2 added (2026-04): calories_per_serving
 ///   Hybrid nutrition surface: calories is the highest-value user filter
