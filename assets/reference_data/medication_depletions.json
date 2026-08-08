@@ -2,7 +2,7 @@
   "_metadata": {
     "schema_version": "5.4.0",
     "content_version": "2026.08.08",
-    "content_hash": "sha256:1b073eb185d25020b21d076ebdd2570e9afad1e53a6ecfd419de4a317608150a",
+    "content_hash": "sha256:365502ccbdc944c78a07ac2af45b05f58a0bef0635fa4456215045a718fc218e",
     "minimum_runtime_contract": 1,
     "total_entries": 80,
     "generated_by": "build_medication_depletions_artifact"
@@ -424,7 +424,7 @@
       "severity": "significant",
       "mechanism": "Metformin can reduce vitamin B12 absorption through a multifactorial process. Reduced calcium-dependent uptake of the intrinsic-factor–B12 complex in the ileum is one proposed mechanism, but it is not the only established explanation.",
       "clinical_impact": "The chance of low vitamin B12 rises with higher metformin dose, longer treatment, and other B12 risk factors. Deficiency can cause anemia or neuropathy, which can be mistaken for diabetic neuropathy.",
-      "recommendation": "Consider periodic vitamin B12 assessment during long-term metformin use, especially with higher doses, symptoms of deficiency, or other B12 risk factors. Treat confirmed deficiency with clinician guidance; do not stop metformin on your own.",
+      "recommendation": "Periodic vitamin B12 assessment should be considered during long-term metformin therapy, especially after about 4–5 years, at higher doses, with other B12 risk factors, or with anemia or neuropathy. Treat a confirmed deficiency using a clinician-directed regimen; do not stop metformin on your own.",
       "onset_timeline": "years",
       "evidence_level": "established",
       "monitoring_note": "Consider periodic vitamin B12 assessment in people taking metformin, particularly with anemia, neuropathy symptoms, higher doses, longer treatment duration, or other deficiency risk factors. Methylmalonic acid is a sensitive functional marker for early deficiency.",
@@ -2450,7 +2450,7 @@
         }
       ],
       "alert_headline": "Warfarin is sensitive to vitamin K changes",
-      "alert_body": "Keep vitamin K intake consistent. Sudden diet or supplement changes can affect how strongly warfarin works.",
+      "alert_body": "Warfarin blocks vitamin K recycling as part of its intended action; sudden diet or supplement changes can shift the INR within days.",
       "acknowledgement_note": "A reasonably consistent vitamin K intake supports steadier warfarin control.",
       "monitoring_tip_short": "Consider keeping your vitamin K intake steady day to day; discuss changes with your prescriber.",
       "citation_review_status": "verified",
