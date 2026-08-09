@@ -48,11 +48,8 @@ class IngredientExplain {
   /// Dose call-out — drives the dose block heading.
   final DoseCallOut doseCallOut;
 
-  /// 1–2 sentence pharmacist-style copy explaining a verified form signal.
-  /// Null keeps unassessed/internal states out of the consumer sheet.
-  ///
-  /// Generic per-tier fallback. [formNote] supersedes it when the pipeline
-  /// ships reviewed copy for this specific form.
+  /// Explanation for a material non-quality form status, such as a missing
+  /// disclosure. Assessed forms never receive app-authored fallback copy.
   final String? formExplanation;
 
   /// Reviewed, form-specific consumer explanation from the pipeline. Null
@@ -113,13 +110,9 @@ IngredientExplain buildIngredientExplain({
       (presented.formQuality == FormQuality.unknown
           ? null
           : formBlockHeading(presented.formQuality));
-  final formExplanation = formHeading == null
+  final formExplanation = formStatusLabel == null
       ? null
-      : _formExplanationForPresentation(
-          formStatusLabel: formStatusLabel,
-          quality: presented.formQuality,
-          form: presented.formLabel,
-        );
+      : _formExplanationForStatus(formStatusLabel);
 
   // A note only ever appears beneath a rendered tier heading. The pipeline
   // gate already rejects a note on a row with no bio_score; this keeps a stale
@@ -147,11 +140,7 @@ IngredientExplain buildIngredientExplain({
   );
 }
 
-String _formExplanationForPresentation({
-  required String? formStatusLabel,
-  required FormQuality quality,
-  required String? form,
-}) {
+String _formExplanationForStatus(String formStatusLabel) {
   switch (formStatusLabel) {
     case 'Form not disclosed':
       return 'The label does not disclose a molecular or delivery form, so '
@@ -160,45 +149,7 @@ String _formExplanationForPresentation({
       return 'The label lists this form, but our form reference has not '
           'assessed it yet. No form-quality rating is shown.';
     default:
-      if (quality == FormQuality.unknown) {
-        return 'A form-quality rating does not apply to this label row.';
-      }
-      return _formExplanationFor(quality, form);
-  }
-}
-
-String _formExplanationFor(FormQuality q, String? form) {
-  // Prefer form-specific copy when we have a known chelated/methylated form.
-  final f = form?.toLowerCase() ?? '';
-  switch (q) {
-    case FormQuality.excellent:
-      if (f.contains('glycinate') || f.contains('bisglycinate')) {
-        return 'Glycinate is a chelated form, often gentler on the stomach '
-            'and well absorbed.';
-      }
-      if (f.contains('methylcobalamin') ||
-          f.contains('methyl') && f.contains('folate')) {
-        return 'A methylated active form, typically efficient at reaching '
-            'the bloodstream.';
-      }
-      if (f.contains('mk-7') || f.contains('mk7')) {
-        return 'MK-7 is a long-acting form of vitamin K2 with strong '
-            'absorption and tissue retention.';
-      }
-      return 'Bioavailable form — typically well absorbed.';
-    case FormQuality.good:
-      return 'Reasonable absorption profile for most users.';
-    case FormQuality.fair:
-      return 'Fair absorption — varies by individual.';
-    case FormQuality.poor:
-      if (f.contains('oxide')) {
-        return 'Oxide form is widely used but typically less efficiently '
-            'absorbed than chelated alternatives.';
-      }
-      return 'Lower-absorption form — widely used but less efficient than '
-          'chelated alternatives.';
-    case FormQuality.unknown:
-      return 'We do not have absorption data for this form.';
+      return 'A form-quality rating does not apply to this label row.';
   }
 }
 

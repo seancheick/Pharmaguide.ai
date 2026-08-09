@@ -83,9 +83,9 @@ class _SheetBody extends StatelessWidget {
         const SizedBox(height: V2Spacing.space16),
         Divider(color: context.v2.outline, height: 1, thickness: 0.4),
         const SizedBox(height: V2Spacing.space16),
-        // Reviewed, form-specific copy when the pipeline ships it; the generic
-        // per-tier line otherwise. Both live in the same block — the note
-        // explains the heading above it rather than competing with it.
+        // Assessed forms render only reviewed, form-specific pipeline copy.
+        // formExplanation is reserved for material non-quality states such as
+        // a missing disclosure; it is never a tier-based fallback.
         if (explain.formHeading != null &&
             (explain.formNote != null || explain.formExplanation != null))
           _Block(

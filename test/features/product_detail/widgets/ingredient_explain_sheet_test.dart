@@ -46,8 +46,12 @@ void main() {
       'form_display_state': 'assessed',
       'exact_dose_text': '665 mcg DFE',
       'parenthetical_dose_text': '400 mcg folic acid',
-      'bio_score': 14,
       'score_included': true,
+      'analysis': {
+        'bio_score': 14,
+        'form_note': 'Folic acid is the synthetic folate compound.',
+        'form_note_preview': 'Folic acid is the synthetic folate compound.',
+      },
     });
 
     expect(find.text('Excellent form'), findsOneWidget);
@@ -131,8 +135,8 @@ void main() {
   //
   // The pipeline ships `form_note` (+ `form_note_preview`, pre-split) on
   // display_ingredients[].analysis only when the scoring form carries an
-  // approved consumer_note. The sheet renders it in place of the generic
-  // per-tier line, and must never render it beside a non-assessed row.
+  // approved consumer_note. The sheet renders that reviewed copy and never
+  // substitutes a generic per-tier line beside an assessed form.
 
   const notePreview = 'The active coenzyme form of B2, also called FMN.';
   const noteFull =
@@ -214,11 +218,11 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('no note falls back to the generic tier line', (tester) async {
+  testWidgets('no note renders no generic education block', (tester) async {
     await _pumpAndOpenSheet(tester, riboflavinRow(withNote: false));
 
-    expect(find.text('Good form'), findsOneWidget);
-    expect(find.text(genericGood), findsOneWidget);
+    expect(find.text('Good form'), findsNothing);
+    expect(find.text(genericGood), findsNothing);
     expect(find.text('More'), findsNothing);
   });
 
@@ -276,8 +280,9 @@ void main() {
     expect(find.text('More'), findsNothing);
   });
 
-  testWidgets('missing preview falls back to the full note, still expandable',
-      (tester) async {
+  testWidgets('missing preview falls back to the full note, still expandable', (
+    tester,
+  ) async {
     await _pumpAndOpenSheet(tester, const {
       'label_display_name': 'Riboflavin',
       'label_display_form': "Riboflavin 5' Phosphate",

@@ -56,8 +56,8 @@ class PGActiveIngredient {
 
   /// Reviewed consumer explanation of this form, authored in the pipeline's
   /// ingredient quality map. Null unless the form carries an approved
-  /// `consumer_note` and the row is assessed and scored — the sheet then falls
-  /// back to its generic tier line. Never derived app-side.
+  /// `consumer_note` and the row is assessed and scored. Never derived or
+  /// replaced with generic copy app-side.
   final String? formNote;
 
   /// First sentence of [formNote], split in the pipeline so the app makes no

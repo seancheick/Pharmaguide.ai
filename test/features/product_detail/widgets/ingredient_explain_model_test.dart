@@ -275,21 +275,24 @@ void main() {
       expect(out.formName, isNull);
     });
 
-    test('form="bisglycinate" + bio_score=14 → excellent + glycinate copy', () {
-      final out = buildIngredientExplain(
-        ingredient: const {
-          'standard_name': 'magnesium',
-          'display_form_label': 'bisglycinate',
-          'form_status': 'known',
-          'bio_score': 14,
-        },
-      );
-      expect(out.formQuality, FormQuality.excellent);
-      expect(out.formExplanation, contains('Glycinate'));
-      expect(out.formExplanation, contains('chelated'));
-    });
+    test(
+      'assessed bisglycinate without a reviewed note has no filler copy',
+      () {
+        final out = buildIngredientExplain(
+          ingredient: const {
+            'standard_name': 'magnesium',
+            'display_form_label': 'bisglycinate',
+            'form_status': 'known',
+            'bio_score': 14,
+          },
+        );
+        expect(out.formQuality, FormQuality.excellent);
+        expect(out.formExplanation, isNull);
+        expect(out.formNote, isNull);
+      },
+    );
 
-    test('form="oxide" + bio_score=2 → poor + oxide copy', () {
+    test('assessed oxide without a reviewed note has no filler copy', () {
       final out = buildIngredientExplain(
         ingredient: const {
           'standard_name': 'magnesium',
@@ -299,7 +302,8 @@ void main() {
         },
       );
       expect(out.formQuality, FormQuality.poor);
-      expect(out.formExplanation, contains('Oxide'));
+      expect(out.formExplanation, isNull);
+      expect(out.formNote, isNull);
     });
 
     test('exceeds UL → high dose explanation', () {
