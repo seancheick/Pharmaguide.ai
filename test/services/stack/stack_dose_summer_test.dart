@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -96,8 +97,8 @@ void main() {
 
       expect(rules, hasLength(1));
       expect(rules.single.comparator, '>');
-      expect(rules.single.clinicalSeverity, 'caution');
-      expect(rules.single.consumerDispositionIfMet, 'review');
+      expect(rules.single.clinicalSeverity, Severity.caution);
+      expect(rules.single.consumerDispositionIfMet, ConsumerDisposition.review);
       expect(rules.single.normalizedDailyAmount, 2000);
       expect(rules.single.normalizedDailyUnit, 'IU');
       expect(rules.single.sourceStackEntryId, 'stack-a');
@@ -137,8 +138,8 @@ void main() {
           thresholdValue: 4000,
           thresholdUnit: 'IU',
           comparator: '>',
-          clinicalSeverity: 'caution',
-          consumerDispositionIfMet: 'review',
+          clinicalSeverity: Severity.caution,
+          consumerDispositionIfMet: ConsumerDisposition.review,
           normalizedDailyAmount: 2000,
           normalizedDailyUnit: 'IU',
           sourceStackEntryId: 'a',
@@ -151,8 +152,8 @@ void main() {
           thresholdValue: 4000,
           thresholdUnit: 'IU',
           comparator: '>',
-          clinicalSeverity: 'caution',
-          consumerDispositionIfMet: 'review',
+          clinicalSeverity: Severity.caution,
+          consumerDispositionIfMet: ConsumerDisposition.review,
           normalizedDailyAmount: 2500,
           normalizedDailyUnit: 'IU',
           sourceStackEntryId: 'b',
@@ -168,8 +169,48 @@ void main() {
       expect(alerts, hasLength(1));
       expect(alerts.single.totalValue, 4500);
       expect(alerts.single.unit, 'iu');
-      expect(alerts.single.clinicalSeverity, 'caution');
-      expect(alerts.single.consumerDisposition, 'review');
+      expect(alerts.single.clinicalSeverity, Severity.caution);
+      expect(alerts.single.consumerDisposition, ConsumerDisposition.review);
+      expect(alerts.single.contributions, hasLength(2));
+    });
+
+    test('mixed catalog policies still aggregate one rule conservatively', () {
+      const rules = [
+        StackDoseThresholdRule(
+          conditionId: 'pregnancy',
+          canonicalId: 'caffeine',
+          thresholdValue: 200,
+          thresholdUnit: 'mg',
+          clinicalSeverity: Severity.caution,
+          consumerDispositionIfMet: ConsumerDisposition.review,
+          normalizedDailyAmount: 120,
+          normalizedDailyUnit: 'mg',
+          sourceStackEntryId: 'a',
+          sourceProductName: 'Caffeine A',
+        ),
+        StackDoseThresholdRule(
+          conditionId: 'pregnancy',
+          canonicalId: 'caffeine',
+          thresholdValue: 200,
+          thresholdUnit: 'mg',
+          clinicalSeverity: Severity.avoid,
+          consumerDispositionIfMet: ConsumerDisposition.block,
+          normalizedDailyAmount: 120,
+          normalizedDailyUnit: 'mg',
+          sourceStackEntryId: 'b',
+          sourceProductName: 'Caffeine B',
+        ),
+      ];
+
+      final alerts = const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+        userConditions: const ['pregnancy'],
+        thresholdRules: rules,
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.totalValue, 240);
+      expect(alerts.single.clinicalSeverity, Severity.avoid);
+      expect(alerts.single.consumerDisposition, ConsumerDisposition.block);
       expect(alerts.single.contributions, hasLength(2));
     });
 
@@ -225,6 +266,79 @@ void main() {
         expect(alerts, isEmpty);
       },
     );
+
+    test('unknown normalized disposition fails visible as review', () {
+      final rules = stackDoseThresholdRulesFromWarnings([
+        const InteractionWarning(
+          severity: Severity.caution,
+          evidenceLevel: EvidenceLevel.established,
+          title: 'Caffeine / pregnancy',
+          mechanism: 'Dose-aware fixture.',
+          management: 'Review cumulative dose.',
+          conditionIds: ['pregnancy'],
+          ingredientName: 'Caffeine',
+          ingredientCanonicalId: 'caffeine',
+          doseDecision: DoseDecision(
+            evaluatedDailyAmount: 240,
+            evaluatedUnit: 'mg',
+            decisionRule: DoseDecisionRule(
+              comparator: '>=',
+              threshold: 200,
+              thresholdUnit: 'mg',
+              consumerDispositionIfMet: 'future_pipeline_value',
+            ),
+          ),
+        ),
+      ]);
+
+      final alerts = const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+        userConditions: const ['pregnancy'],
+        thresholdRules: rules,
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.consumerDisposition, ConsumerDisposition.review);
+    });
+
+    test('normalized good-to-know disposition remains visible', () {
+      const rule = StackDoseThresholdRule(
+        conditionId: 'pregnancy',
+        canonicalId: 'caffeine',
+        thresholdValue: 200,
+        thresholdUnit: 'mg',
+        consumerDispositionIfMet: ConsumerDisposition.goodToKnow,
+        normalizedDailyAmount: 240,
+        normalizedDailyUnit: 'mg',
+      );
+
+      final alerts = const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+        userConditions: const ['pregnancy'],
+        thresholdRules: const [rule],
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.consumerDisposition, ConsumerDisposition.goodToKnow);
+    });
+
+    test('unknown normalized comparator fails visible as incomplete', () {
+      const rule = StackDoseThresholdRule(
+        conditionId: 'pregnancy',
+        canonicalId: 'caffeine',
+        thresholdValue: 200,
+        thresholdUnit: 'mg',
+        comparator: 'future_comparator',
+        normalizedDailyAmount: 240,
+        normalizedDailyUnit: 'mg',
+      );
+
+      final alerts = const StackDoseSummer().thresholdAlertsFromNormalizedRules(
+        userConditions: const ['pregnancy'],
+        thresholdRules: const [rule],
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.isIncomplete, isTrue);
+    });
 
     test('sums the same ingredient across products', () {
       final totals = const StackDoseSummer().sum([
@@ -354,6 +468,134 @@ void main() {
       expect(alerts.single.isIncomplete, isTrue);
       expect(alerts.single.totalValue, 160);
       expect(alerts.single.thresholdValue, 200);
+    });
+
+    test('legacy stack comparison honors strict greater-than comparator', () {
+      const summer = StackDoseSummer();
+      final totals = summer.sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Vitamin D',
+          ingredients: [
+            {'standard_name': 'Vitamin D', 'quantity': 4000, 'unit': 'IU'},
+          ],
+        ),
+      ]);
+
+      final alerts = summer.thresholdAlerts(
+        totals: totals,
+        userConditions: const ['heart_disease'],
+        thresholdRules: const [
+          StackDoseThresholdRule(
+            conditionId: 'heart_disease',
+            canonicalId: 'vitamin_d',
+            thresholdValue: 4000,
+            thresholdUnit: 'IU',
+            comparator: '>',
+          ),
+        ],
+      );
+
+      expect(alerts, isEmpty);
+    });
+
+    test('unknown legacy comparator fails visible as incomplete', () {
+      const summer = StackDoseSummer();
+      final totals = summer.sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Caffeine',
+          ingredients: [
+            {'standard_name': 'Caffeine', 'quantity': 240, 'unit': 'mg'},
+          ],
+        ),
+      ]);
+
+      final alerts = summer.thresholdAlerts(
+        totals: totals,
+        userConditions: const ['pregnancy'],
+        thresholdRules: const [
+          StackDoseThresholdRule(
+            conditionId: 'pregnancy',
+            canonicalId: 'caffeine',
+            thresholdValue: 200,
+            thresholdUnit: 'mg',
+            comparator: 'future_comparator',
+          ),
+        ],
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.isIncomplete, isTrue);
+    });
+
+    test('legacy alerts preserve authored severity and disposition', () {
+      const summer = StackDoseSummer();
+      final totals = summer.sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Caffeine',
+          ingredients: [
+            {'standard_name': 'Caffeine', 'quantity': 240, 'unit': 'mg'},
+          ],
+        ),
+      ]);
+
+      final alerts = summer.thresholdAlerts(
+        totals: totals,
+        userConditions: const ['pregnancy'],
+        thresholdRules: const [
+          StackDoseThresholdRule(
+            conditionId: 'pregnancy',
+            canonicalId: 'caffeine',
+            thresholdValue: 200,
+            thresholdUnit: 'mg',
+            clinicalSeverity: Severity.avoid,
+            consumerDispositionIfMet: ConsumerDisposition.block,
+          ),
+        ],
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.clinicalSeverity, Severity.avoid);
+      expect(alerts.single.consumerDisposition, ConsumerDisposition.block);
+    });
+
+    test('legacy alerts evaluate active medication classes', () {
+      const summer = StackDoseSummer();
+      final totals = summer.sum([
+        const StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Niacin',
+          ingredients: [
+            {
+              'standard_name': 'Niacin',
+              'canonical_id': 'vitamin_b3_niacin',
+              'quantity': 1100,
+              'unit': 'mg',
+            },
+          ],
+        ),
+      ]);
+
+      final alerts = summer.thresholdAlerts(
+        totals: totals,
+        userConditions: const [],
+        userDrugClasses: const ['statins'],
+        thresholdRules: const [
+          StackDoseThresholdRule(
+            conditionId: 'statins',
+            targetType: 'drug_class',
+            canonicalId: 'vitamin_b3_niacin',
+            thresholdValue: 1000,
+            thresholdUnit: 'mg',
+          ),
+        ],
+      );
+
+      expect(alerts, hasLength(1));
+      expect(alerts.single.targetType, 'drug_class');
+      expect(alerts.single.conditionId, 'statins');
     });
 
     test('does not convert unsupported units like IU into mass units', () {

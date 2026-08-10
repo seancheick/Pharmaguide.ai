@@ -645,14 +645,15 @@ class _StackHealthCard extends ConsumerWidget {
                       child: Row(
                         children: [
                           Icon(
-                            // Icon mirrors intelligence severity: warning
-                            // when the stack tier flags issues, check
-                            // when the stack is solid/optimized.
-                            (status?.label.contains('Unsafe') ?? false) ||
-                                    (status?.label.contains('Concerning') ??
-                                        false)
-                                ? Icons.warning_amber_rounded
-                                : Icons.check_circle_outline,
+                            switch (intelligence?.tier) {
+                              StackTier.unsafe ||
+                              StackTier.concerning ||
+                              StackTier.decent => Icons.warning_amber_rounded,
+                              StackTier.solid ||
+                              StackTier.optimized => Icons.check_circle_outline,
+                              StackTier.incomplete ||
+                              null => Icons.info_outline_rounded,
+                            },
                             size: 14,
                             color: tone,
                           ),

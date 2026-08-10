@@ -14,6 +14,7 @@
 
 import 'package:flutter/foundation.dart';
 
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/clinical_signal.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
@@ -27,23 +28,7 @@ import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 
 export 'package:pharmaguide/core/models/clinical_signal.dart';
-
-/// How a signal should be PLACED for the consumer — separate from
-/// [ClinicalSignal.clinicalSeverity], which drives safety ranking. Authored
-/// dispositions (Workstream B) will override these adapter fallbacks.
-enum ConsumerDisposition { block, review, goodToKnow, suppress }
-
-extension ConsumerDispositionRank on ConsumerDisposition {
-  /// Higher = more prominent. Primary selection ranks by this BEFORE clinical
-  /// severity, so a good_to_know food advisory never displaces a review concern,
-  /// and a medication–nutrient monitor never overrides an interaction caution.
-  int get rank => switch (this) {
-    ConsumerDisposition.block => 3,
-    ConsumerDisposition.review => 2,
-    ConsumerDisposition.goodToKnow => 1,
-    ConsumerDisposition.suppress => 0,
-  };
-}
+export 'package:pharmaguide/core/constants/consumer_disposition.dart';
 
 /// Whether / how the underlying rule was actually evaluated. Lets the lifecycle
 /// layer represent "the check could not complete" ([checkFailed]) separately
@@ -392,8 +377,8 @@ class ClinicalSignal {
       family: SignalFamily.doseThreshold,
       sourceRuleId: ruleId,
       subjectIds: _sortedSubjects([alert.conditionId, alert.canonicalId]),
-      clinicalSeverity: Severity.fromString(alert.clinicalSeverity),
-      consumerDisposition: _doseDisposition(alert.consumerDisposition),
+      clinicalSeverity: alert.clinicalSeverity,
+      consumerDisposition: alert.consumerDisposition,
       evaluationStatus: alert.isIncomplete
           ? EvaluationStatus.amountUnknown
           : EvaluationStatus.aboveThreshold,
@@ -454,19 +439,6 @@ ConsumerDisposition _dispositionForSeverity(Severity s) => switch (s) {
   Severity.informational => ConsumerDisposition.goodToKnow,
   Severity.safe => ConsumerDisposition.suppress,
 };
-
-ConsumerDisposition _doseDisposition(String value) =>
-    switch (value.trim().toLowerCase()) {
-      'block' => ConsumerDisposition.block,
-      'review' => ConsumerDisposition.review,
-      'good_to_know' || 'goodtoknow' => ConsumerDisposition.goodToKnow,
-      'suppress' => ConsumerDisposition.suppress,
-      // Unknown authored values fail VISIBLE. The alert already counts toward
-      // the tier via nutrientWarningCount, so suppressing it here would
-      // desynchronize the review count from the verdict — the exact bug class
-      // the shared snapshot (ADR-006) exists to prevent.
-      _ => ConsumerDisposition.review,
-    };
 
 String _formatDose(double value) {
   if (value == value.truncateToDouble()) return value.toInt().toString();

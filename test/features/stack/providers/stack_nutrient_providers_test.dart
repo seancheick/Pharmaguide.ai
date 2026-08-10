@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -242,7 +244,165 @@ void main() {
         expect(alerts, hasLength(1));
         expect(alerts.single.totalValue, 4500);
         expect(alerts.single.unit, 'iu');
-        expect(alerts.single.consumerDisposition, 'review');
+        expect(alerts.single.consumerDisposition, ConsumerDisposition.review);
+      },
+    );
+
+    test(
+      'mixed cache generations keep both normalized and legacy alerts',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
+        await userDb.saveProfile(
+          const ProfileState(
+            ageBracket: '19-30',
+            sex: 'Female',
+            conditions: ['heart_disease', 'pregnancy'],
+          ).toCompanion(),
+        );
+
+        await _seedProduct(coreDb, dsldId: 'FRESH_VITD', name: 'Vitamin D');
+        await _seedStack(userDb, dsldId: 'FRESH_VITD', name: 'Vitamin D');
+        await userDb.cacheDetail(
+          'FRESH_VITD',
+          jsonEncode({
+            'warnings': [
+              _compactThresholdWarning(
+                targetId: 'heart_disease',
+                ingredientName: 'Vitamin D',
+                ingredientCanonicalId: 'vitamin_d',
+                evaluatedAmount: 4500,
+                threshold: 4000,
+                unit: 'IU',
+                comparator: '>',
+              ),
+            ],
+          }),
+          null,
+        );
+
+        await _seedProduct(coreDb, dsldId: 'LEGACY_CAFF', name: 'Caffeine');
+        await _seedStack(userDb, dsldId: 'LEGACY_CAFF', name: 'Caffeine');
+        await userDb.cacheDetail(
+          'LEGACY_CAFF',
+          jsonEncode({
+            'ingredients': [
+              {
+                'name': 'Caffeine',
+                'standard_name': 'Caffeine',
+                'quantity': 240,
+                'unit': 'mg',
+              },
+            ],
+            'warnings': [_thresholdWarning('pregnancy', 'Caffeine', 200)],
+          }),
+          null,
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final alerts = await container.read(
+          stackDoseThresholdAlertsProvider.future,
+        );
+
+        expect(alerts, hasLength(2));
+        expect(
+          alerts.map((alert) => alert.canonicalId),
+          containsAll(const ['vitamin_d', 'caffeine']),
+        );
+      },
+    );
+
+    test(
+      'mixed cache duplicate keeps the more protective authored policy',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await userDb.close();
+        });
+        await userDb.saveProfile(
+          const ProfileState(
+            ageBracket: '19-30',
+            sex: 'Female',
+            conditions: ['pregnancy'],
+          ).toCompanion(),
+        );
+
+        await _seedProduct(coreDb, dsldId: 'FRESH_CAFF', name: 'Caffeine A');
+        await _seedStack(userDb, dsldId: 'FRESH_CAFF', name: 'Caffeine A');
+        await userDb.cacheDetail(
+          'FRESH_CAFF',
+          jsonEncode({
+            'ingredients': [
+              {
+                'name': 'Caffeine',
+                'standard_name': 'Caffeine',
+                'quantity': 240,
+                'unit': 'mg',
+              },
+            ],
+            'warnings': [
+              _compactThresholdWarning(
+                targetId: 'pregnancy',
+                ingredientName: 'Caffeine',
+                ingredientCanonicalId: 'caffeine',
+                evaluatedAmount: 240,
+                threshold: 200,
+                unit: 'mg',
+                comparator: '>=',
+                severity: 'avoid',
+                dispositionIfMet: 'block',
+              ),
+            ],
+          }),
+          null,
+        );
+
+        await _seedProduct(coreDb, dsldId: 'LEGACY_CAFF', name: 'Caffeine B');
+        await _seedStack(userDb, dsldId: 'LEGACY_CAFF', name: 'Caffeine B');
+        await userDb.cacheDetail(
+          'LEGACY_CAFF',
+          jsonEncode({
+            'ingredients': [
+              {
+                'name': 'Caffeine',
+                'standard_name': 'Caffeine',
+                'quantity': 10,
+                'unit': 'mg',
+              },
+            ],
+            'warnings': [_thresholdWarning('pregnancy', 'Caffeine', 200)],
+          }),
+          null,
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final alerts = await container.read(
+          stackDoseThresholdAlertsProvider.future,
+        );
+
+        expect(alerts, hasLength(1));
+        expect(alerts.single.clinicalSeverity, Severity.avoid);
+        expect(alerts.single.consumerDisposition, ConsumerDisposition.block);
       },
     );
 
@@ -323,9 +483,11 @@ Map<String, Object?> _compactThresholdWarning({
   required double threshold,
   required String unit,
   required String comparator,
+  String severity = 'caution',
+  String dispositionIfMet = 'review',
 }) {
   return {
-    'severity': 'caution',
+    'severity': severity,
     'evidence_level': 'established',
     'title': '$ingredientName / $targetId',
     'detail': 'Dose-aware fixture.',
@@ -335,7 +497,7 @@ Map<String, Object?> _compactThresholdWarning({
     'ingredient_name': ingredientName,
     'ingredient_canonical_id': ingredientCanonicalId,
     'dose_decision': {
-      'clinical_severity': 'caution',
+      'clinical_severity': severity,
       'evaluation_status': 'below_threshold',
       'consumer_disposition': 'suppress',
       'evaluated_daily_amount': evaluatedAmount,
@@ -347,7 +509,7 @@ Map<String, Object?> _compactThresholdWarning({
         'comparator': comparator,
         'threshold': threshold,
         'threshold_unit': unit,
-        'consumer_disposition_if_met': 'review',
+        'consumer_disposition_if_met': dispositionIfMet,
         'consumer_disposition_if_not_met': 'suppress',
       },
     },

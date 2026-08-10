@@ -10,6 +10,7 @@
 // The dose extraction helper stays here because product health facts and stack
 // aggregation still need a conservative canonical dose map from detail blobs.
 
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
@@ -33,7 +34,8 @@ List<InteractionWarning> applyConsumerDispositionGate(
       .where((warning) {
         final decision = warning.doseDecision;
         if (decision == null) return true;
-        return decision.consumerDisposition?.trim().toLowerCase() != 'suppress';
+        return consumerDispositionFromWire(decision.consumerDisposition) !=
+            ConsumerDisposition.suppress;
       })
       .toList(growable: false);
 }

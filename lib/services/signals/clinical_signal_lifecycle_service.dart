@@ -249,7 +249,7 @@ class _SignalSnapshot {
       'source_rule_id': signal.sourceRuleId,
       'subject_ids': List<String>.from(signal.subjectIds),
       'clinical_severity': signal.clinicalSeverity.name,
-      'consumer_disposition': signal.consumerDisposition.name,
+      'consumer_disposition': signal.consumerDisposition.wireValue,
       'evaluation_status': signal.evaluationStatus.name,
       'title': signal.title,
       'body': signal.body,

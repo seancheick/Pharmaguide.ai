@@ -17,6 +17,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -239,28 +240,79 @@ final stackDoseThresholdAlertsProvider =
       if (thresholdRules.isEmpty) return const <StackDoseThresholdAlert>[];
 
       const summer = StackDoseSummer();
-      final hasNormalizedRules = thresholdRules.any(
-        (rule) =>
-            rule.normalizedDailyAmount != null &&
-            rule.normalizedDailyUnit?.isNotEmpty == true,
-      );
-      if (hasNormalizedRules) {
-        return summer.thresholdAlertsFromNormalizedRules(
-          userConditions: profile.conditions,
-          userDrugClasses: activeDrugClasses,
-          thresholdRules: thresholdRules,
+      final normalizedRules = thresholdRules
+          .where(
+            (rule) =>
+                rule.normalizedDailyAmount != null &&
+                rule.normalizedDailyUnit?.isNotEmpty == true,
+          )
+          .toList(growable: false);
+      final legacyRules = thresholdRules
+          .where(
+            (rule) =>
+                rule.normalizedDailyAmount == null ||
+                rule.normalizedDailyUnit?.isNotEmpty != true,
+          )
+          .toList(growable: false);
+      final alerts = <StackDoseThresholdAlert>[
+        if (normalizedRules.isNotEmpty)
+          ...summer.thresholdAlertsFromNormalizedRules(
+            userConditions: profile.conditions,
+            userDrugClasses: activeDrugClasses,
+            thresholdRules: normalizedRules,
+          ),
+        if (legacyRules.isNotEmpty && items.isNotEmpty)
+          ...summer.thresholdAlerts(
+            totals: summer.sum(items),
+            userConditions: profile.conditions,
+            userDrugClasses: activeDrugClasses,
+            thresholdRules: legacyRules,
+          ),
+      ];
+      if (alerts.length < 2) return alerts;
+
+      // A mixed cache can contain the same rule in both generations. Keep one
+      // signal identity, preferring the evaluation with the most contributing
+      // rows instead of double-counting it in Stack Health.
+      final byIdentity = <String, StackDoseThresholdAlert>{};
+      for (final alert in alerts) {
+        final key =
+            '${alert.targetType}|${alert.conditionId}|${alert.canonicalId}|'
+            '${alert.comparator}|${alert.thresholdValue}|${alert.thresholdUnit}';
+        final existing = byIdentity[key];
+        if (existing == null) {
+          byIdentity[key] = alert;
+          continue;
+        }
+
+        final basis = alert.contributions.length > existing.contributions.length
+            ? alert
+            : existing;
+        final clinicalSeverity =
+            alert.clinicalSeverity.weight > existing.clinicalSeverity.weight
+            ? alert.clinicalSeverity
+            : existing.clinicalSeverity;
+        final consumerDisposition =
+            alert.consumerDisposition.rank > existing.consumerDisposition.rank
+            ? alert.consumerDisposition
+            : existing.consumerDisposition;
+        byIdentity[key] = StackDoseThresholdAlert(
+          conditionId: basis.conditionId,
+          targetType: basis.targetType,
+          canonicalId: basis.canonicalId,
+          displayName: basis.displayName,
+          totalValue: basis.totalValue,
+          unit: basis.unit,
+          thresholdValue: basis.thresholdValue,
+          thresholdUnit: basis.thresholdUnit,
+          comparator: basis.comparator,
+          contributions: basis.contributions,
+          isIncomplete: existing.isIncomplete || alert.isIncomplete,
+          clinicalSeverity: clinicalSeverity,
+          consumerDisposition: consumerDisposition,
         );
       }
-
-      // Compatibility for a cached pre-contract catalog. Fresh catalogs use
-      // only the normalized path above; this branch can be removed after the
-      // catalog cache rollover window.
-      if (items.isEmpty) return const <StackDoseThresholdAlert>[];
-      return summer.thresholdAlerts(
-        totals: summer.sum(items),
-        userConditions: profile.conditions,
-        thresholdRules: thresholdRules,
-      );
+      return byIdentity.values.toList(growable: false);
     });
 
 String? _rdaGroupForProfile(String? sex, List<String> conditions) {

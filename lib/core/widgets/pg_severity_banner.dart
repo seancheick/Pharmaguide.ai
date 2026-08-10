@@ -57,21 +57,31 @@ class PGSeverityBanner extends StatelessWidget {
     this.margin = EdgeInsets.zero,
   });
 
+  /// Accent colour for [tone]. Exposed so sibling surfaces that lay out their
+  /// own body — the stack safety overview card renders rows, not a title/body
+  /// pair — still tint from ONE tone→colour map instead of a private copy.
+  static Color accentFor(V2Palette p, PGBannerTone tone) => switch (tone) {
+    PGBannerTone.info => p.accent,
+    PGBannerTone.caution => p.caution,
+    PGBannerTone.danger => p.contraindicated,
+    PGBannerTone.success => p.safe,
+    PGBannerTone.neutral => p.fgMuted,
+  };
+
+  /// Severity wash opacity. Shared for the same reason as [accentFor].
+  static double washAlpha({required bool isDark}) => isDark ? 0.14 : 0.06;
+
   // Takes the palette rather than a BuildContext: this helper needs
   // colours, not the element tree.
   ({Color accent, IconData icon}) _style(V2Palette p) {
-    switch (tone) {
-      case PGBannerTone.info:
-        return (accent: p.accent, icon: Icons.info_outline_rounded);
-      case PGBannerTone.caution:
-        return (accent: p.caution, icon: Icons.warning_amber_rounded);
-      case PGBannerTone.danger:
-        return (accent: p.contraindicated, icon: Icons.block_rounded);
-      case PGBannerTone.success:
-        return (accent: p.safe, icon: Icons.check_circle_outline_rounded);
-      case PGBannerTone.neutral:
-        return (accent: p.fgMuted, icon: Icons.help_outline_rounded);
-    }
+    final icon = switch (tone) {
+      PGBannerTone.info => Icons.info_outline_rounded,
+      PGBannerTone.caution => Icons.warning_amber_rounded,
+      PGBannerTone.danger => Icons.block_rounded,
+      PGBannerTone.success => Icons.check_circle_outline_rounded,
+      PGBannerTone.neutral => Icons.help_outline_rounded,
+    };
+    return (accent: accentFor(p, tone), icon: icon);
   }
 
   @override
@@ -79,7 +89,7 @@ class PGSeverityBanner extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = context.v2;
     final style = _style(palette);
-    final tint = style.accent.withValues(alpha: isDark ? 0.14 : 0.06);
+    final tint = style.accent.withValues(alpha: washAlpha(isDark: isDark));
 
     // These were `const`, so they could not react to brightness even in
     // principle — the banner stayed a bright card on a dark screen.

@@ -11,20 +11,33 @@
 //                              doesn't push the product list down — UNLESS a
 //                              check/coverage flag is set, in which case we
 //                              hedge instead of implying "all clear".
-//   - headline = block/avoid → red danger banner.
-//   - caution / monitor     → amber caution banner.
-//   - a "+N more" suffix summarizes the remaining signals.
+//   - headline = block/avoid → red danger tone.
+//   - caution / monitor     → amber caution tone.
+//   - interactive (onTap)   → a compact overview card that PREVIEWS every
+//                              finding, not just the headline (see below).
+//   - non-interactive       → single-headline banner with a "+N more" suffix.
+//
+// Why the interactive form previews the whole set: the Stack Health header
+// counts the stack ("3 safety signals to review") while a headline-only card
+// spotlights one pair, so the screen read as "there is one issue" until the
+// user opened the sheet. Summary and detail must not contradict each other.
+// Consequently the stack-wide count lives in the header and the action label
+// only — never fused onto one finding's metadata line — and the long clinical
+// copy stays in the sheet.
 //
 // Suppress-disposition signals (e.g. a safe interaction) are excluded upstream
 // by the shared snapshot, so a safe-only stack collapses to the hedge/hidden
 // path rather than a success banner — never a false all-clear.
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
-import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
+import 'package:pharmaguide/features/stack/widgets/clinical_signal_visuals.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -42,10 +55,11 @@ class StackSafetyBanner extends StatelessWidget {
   /// Shared Stack Health interpretation. The widget never rebuilds findings.
   final StackHealthSnapshot snapshot;
 
-  /// Optional tap handler. When supplied the banner shows a "View
-  /// details" action that opens the caller's target (usually the
-  /// stack-safety detail screen). Omit to render a non-interactive
-  /// summary — useful on screens where the banner is purely an alert.
+  /// Optional tap handler. When supplied the banner becomes the multi-signal
+  /// overview card, whose "Review all N" action opens the caller's target
+  /// (usually the stack-safety detail sheet). Omit to render a
+  /// non-interactive single-headline summary — useful on screens where the
+  /// banner is purely an alert and there is nothing to open.
   final VoidCallback? onTap;
 
   /// Outer margin for the banner. Matches the [PGSeverityBanner]
@@ -77,23 +91,25 @@ class StackSafetyBanner extends StatelessWidget {
       return _checksIncompleteBanner();
     }
 
+    if (onTap case final openSheet?) {
+      return _SignalOverviewCard(
+        signals: signals,
+        tone: tone,
+        analysisIncomplete: analysisIncomplete,
+        onTap: openSheet,
+        margin: margin,
+      );
+    }
+
     return PGSeverityBanner(
       key: const Key('stack-safety-banner'),
       tone: tone,
-      title: onTap == null ? _titleFor(headline, worst) : _subjectFor(headline),
-      body: onTap == null
-          ? _bodyWithCompleteness(
-              _bodyFor(signals, headline),
-              checksIncomplete: snapshot.checksIncomplete,
-              coverageIncomplete: snapshot.coverageIncomplete,
-            )
-          : _conciseReviewBody(
-              headline,
-              signalCount: signals.length,
-              analysisIncomplete: analysisIncomplete,
-            ),
-      actionLabel: onTap == null ? null : 'View details',
-      onAction: onTap,
+      title: _titleFor(headline, worst),
+      body: _bodyWithCompleteness(
+        _bodyFor(signals, headline),
+        checksIncomplete: snapshot.checksIncomplete,
+        coverageIncomplete: snapshot.coverageIncomplete,
+      ),
       margin: margin,
     );
   }
@@ -114,18 +130,6 @@ class StackSafetyBanner extends StatelessWidget {
     return value.isEmpty ? hedge : '$value $hedge';
   }
 
-  static String _conciseReviewBody(
-    ClinicalSignal headline, {
-    required int signalCount,
-    required bool analysisIncomplete,
-  }) {
-    final base =
-        '${clinicalSignalContextLabel(headline)} · '
-        '${describeSafetySignalReview(signalCount)}';
-    if (!analysisIncomplete) return base;
-    return '$base · Results may be incomplete';
-  }
-
   static String _subjectFor(ClinicalSignal signal) {
     switch (signal.payload) {
       case InteractionPayload(:final result):
@@ -140,6 +144,8 @@ class StackSafetyBanner extends StatelessWidget {
             : '${status.total.displayName} near its upper limit';
       case DoseThresholdPayload(:final alert):
         return '${alert.displayName} dose threshold';
+      case RegulatorySafetyPayload(:final alert):
+        return alert.headline;
       case MedicationNutrientPayload(:final match):
         return '${match.drugDisplayName} & ${match.nutrientName}';
       case TimingSeparationPayload(:final optimization):
@@ -223,6 +229,8 @@ class StackSafetyBanner extends StatelessWidget {
         return '$prefix — ${status.total.displayName}';
       case DoseThresholdPayload(:final alert):
         return '${alert.displayName} dose threshold';
+      case RegulatorySafetyPayload(:final alert):
+        return alert.headline;
       case MedicationNutrientPayload(:final match):
         // Not in the banner's data source today (depletions come from a
         // separate provider); reserved for when they are folded in.
@@ -262,6 +270,8 @@ class StackSafetyBanner extends StatelessWidget {
         primary = _nutrientHint(status);
       case DoseThresholdPayload():
         primary = headline.body;
+      case RegulatorySafetyPayload():
+        primary = headline.body;
       case MedicationNutrientPayload(:final match):
         primary = match.clinicalImpact ?? match.mechanism;
       case TimingSeparationPayload(:final optimization):
@@ -297,6 +307,214 @@ class StackSafetyBanner extends StatelessWidget {
       case NutrientTier.noRda:
         return name;
     }
+  }
+}
+
+/// Compact overview of the findings behind the Stack Health count.
+///
+/// Previews up to [_maxPreviewRows] findings — each with its OWN metadata
+/// line — and defers every paragraph of clinical copy to the detail sheet.
+/// Three rules keep the preview honest:
+///
+///   1. The stack-wide count appears only in the action label ("Review all 3"),
+///      never welded onto a single finding's metadata. Mixing the two is what
+///      made the old headline card read as one issue out of three.
+///   2. Every previewed row belongs to the group named by the eyebrow, so a
+///      "Good to know" food note is never listed under "Needs attention".
+///      Signals arrive disposition-ranked, so the leading run is that group.
+///   3. Truncation is stated ("+2 more"), never silent.
+class _SignalOverviewCard extends StatelessWidget {
+  const _SignalOverviewCard({
+    required this.signals,
+    required this.tone,
+    required this.analysisIncomplete,
+    required this.onTap,
+    required this.margin,
+  });
+
+  /// Enough to prove the summary is plural without turning the Stack screen
+  /// into a second copy of the sheet.
+  static const int _maxPreviewRows = 3;
+
+  final List<ClinicalSignal> signals;
+  final PGBannerTone tone;
+  final bool analysisIncomplete;
+  final VoidCallback onTap;
+  final EdgeInsetsGeometry margin;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.v2;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = PGSeverityBanner.accentFor(palette, tone);
+
+    final leadRequiresReview = signals.first.consumerDisposition.requiresReview;
+    final group = signals
+        .takeWhile(
+          (s) => s.consumerDisposition.requiresReview == leadRequiresReview,
+        )
+        .toList(growable: false);
+    final preview = group.take(_maxPreviewRows).toList(growable: false);
+    final hidden = signals.length - preview.length;
+
+    return Container(
+      key: const Key('stack-safety-banner'),
+      margin: margin,
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: palette.outline, width: 0.8),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // Severity wash + left accent strip: same chrome as PGSeverityBanner
+          // so this card stays in the family it replaced.
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    accent.withValues(
+                      alpha: PGSeverityBanner.washAlpha(isDark: isDark),
+                    ),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.5],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Container(width: 3, color: accent),
+          ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  V2Spacing.space16 + 3,
+                  V2Spacing.space12,
+                  V2Spacing.space16,
+                  V2Spacing.space12,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PGEyebrow(
+                      leadRequiresReview ? 'Needs attention' : 'Good to know',
+                      color: accent,
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                    for (var i = 0; i < preview.length; i++) ...[
+                      if (i > 0) const SizedBox(height: V2Spacing.space12),
+                      _SignalPreviewRow(signal: preview[i]),
+                    ],
+                    if (hidden > 0) ...[
+                      const SizedBox(height: V2Spacing.space8),
+                      Text(
+                        '+$hidden more',
+                        style: V2Typography.bodySm(color: palette.fgMuted),
+                      ),
+                    ],
+                    // Completeness is a separate concern from the findings —
+                    // an unfinished check must never read as an all-clear, and
+                    // must never be mistaken for one of the listed concerns.
+                    // `analysisIncomplete` covers label coverage as well as
+                    // checks, so the copy names both causes.
+                    if (analysisIncomplete) ...[
+                      const SizedBox(height: V2Spacing.space8),
+                      Text(
+                        'Some checks or product labels could not be fully '
+                        'analyzed, so results may be incomplete.',
+                        style: V2Typography.bodySm(color: palette.fgMuted),
+                      ),
+                    ],
+                    const SizedBox(height: V2Spacing.space12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _actionLabel(signals.length),
+                          style: V2Typography.label(color: palette.fg),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: palette.fg,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "Review all 3" carries the total so the card never shows three rows while
+  /// implying three is all there is. "Review all 1" would be nonsense, so the
+  /// single-finding case keeps the plain label.
+  static String _actionLabel(int total) =>
+      total == 1 ? 'Review details' : 'Review all $total';
+}
+
+/// One previewed finding: subject line plus its own kind/evidence metadata.
+/// Icon and colour come from the shared vocabulary the detail sheet uses, so a
+/// row cannot change appearance between the preview and the sheet it opens.
+class _SignalPreviewRow extends StatelessWidget {
+  const _SignalPreviewRow({required this.signal});
+
+  final ClinicalSignal signal;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.v2;
+    final subject = StackSafetyBanner._subjectFor(signal);
+    final metadata = clinicalSignalContextLabel(signal);
+    return Semantics(
+      // Severity is carried by icon colour alone, which is lost to a screen
+      // reader; state it. excludeSemantics stops the same row being read twice.
+      label: '${signal.clinicalSeverity.label}: $subject. $metadata',
+      excludeSemantics: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            clinicalSignalIcon(signal),
+            size: 18,
+            color: clinicalSignalSeverityColor(
+              palette,
+              signal.clinicalSeverity,
+            ),
+          ),
+          const SizedBox(width: V2Spacing.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(subject, style: V2Typography.label(color: palette.fg)),
+                const SizedBox(height: 2),
+                Text(
+                  metadata,
+                  style: V2Typography.caption(color: palette.fgMuted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

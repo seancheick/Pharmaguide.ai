@@ -41,7 +41,10 @@ void main() {
       final review = md['consumer_copy_review'] as Map<String, dynamic>;
 
       expect(review['status'], 'approved');
-      expect(review['fields'], containsAll(['group_label', 'commonly_used_for']));
+      expect(
+        review['fields'],
+        containsAll(['group_label', 'commonly_used_for']),
+      );
       expect((review['reviewer'] as String).trim(), isNotEmpty);
     });
 

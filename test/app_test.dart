@@ -6,6 +6,8 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/features/settings/providers/notification_settings_provider.dart';
+import 'package:pharmaguide/services/notifications/notification_authorization_service.dart';
 
 void main() {
   // DBs are created and closed inside each test body (not via setUp/tearDown).
@@ -17,6 +19,9 @@ void main() {
       overrides: [
         coreDatabaseProvider.overrideWithValue(coreDb),
         userDatabaseProvider.overrideWithValue(userDb),
+        notificationAuthorizationServiceProvider.overrideWithValue(
+          const _AllowedNotificationService(),
+        ),
       ],
       // hasSeenOnboarding: true so splash ?next=/ → home shell.
       child: const PharmaGuideApp(hasSeenOnboarding: true),
@@ -203,4 +208,19 @@ void main() {
     await coreDb.close();
     await userDb.close();
   });
+}
+
+class _AllowedNotificationService implements NotificationAuthorizationService {
+  const _AllowedNotificationService();
+
+  @override
+  Future<NotificationAuthorizationStatus> readStatus() async =>
+      NotificationAuthorizationStatus.allowed;
+
+  @override
+  Future<NotificationAuthorizationStatus> requestPermission() async =>
+      NotificationAuthorizationStatus.allowed;
+
+  @override
+  Future<void> openNotificationSettings() async {}
 }

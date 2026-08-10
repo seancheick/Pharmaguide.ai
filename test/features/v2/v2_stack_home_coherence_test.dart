@@ -195,11 +195,11 @@ void main() {
           safetyReport: const StackSafetyReport(checksIncomplete: true),
         );
 
-      expect(
-        find.text('More info needed', skipOffstage: false),
-        findsNWidgets(2),
-        reason: 'the summary and hero share the same neutral state',
-      );
+        expect(
+          find.text('More info needed', skipOffstage: false),
+          findsNWidgets(2),
+          reason: 'the summary and hero share the same neutral state',
+        );
         expect(find.text('Decent', skipOffstage: false), findsNothing);
         expect(find.text('No data yet', skipOffstage: false), findsNothing);
       },
@@ -238,7 +238,10 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('Caffeine', skipOffstage: false), findsWidgets);
-        expect(find.text('View details', skipOffstage: false), findsOneWidget);
+        expect(
+          find.text('Review details', skipOffstage: false),
+          findsOneWidget,
+        );
 
         await tester.tap(find.text('Stack Health'));
         await tester.pumpAndSettle();
@@ -308,6 +311,92 @@ void main() {
       expect(find.text('3 Signals'), findsOneWidget);
       expect(find.textContaining('2 interactions'), findsNothing);
       expect(find.text('No conflicts'), findsNothing);
+    });
+
+    testWidgets('Home uses a neutral icon when more information is needed', (
+      tester,
+    ) async {
+      await pumpWithStack(
+        tester,
+        const HomeV2Screen(showNavBar: false),
+        stack: [
+          stackEntry(
+            id: 'supp-1',
+            name: 'Partially mapped supplement',
+            type: 'supplement',
+            dsldId: '12345',
+          ),
+        ],
+        safetyReport: const StackSafetyReport(checksIncomplete: true),
+      );
+
+      final insightRow = find.ancestor(
+        of: find.text(
+          'Some checks need more information before this stack can be rated.',
+          skipOffstage: false,
+        ),
+        matching: find.byType(Row, skipOffstage: false),
+      );
+      expect(
+        find.descendant(
+          of: insightRow,
+          matching: find.byIcon(
+            Icons.info_outline_rounded,
+            skipOffstage: false,
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Home uses a review icon for a Decent stack', (tester) async {
+      const report = StackSafetyReport(
+        medicationInteractions: [
+          InteractionResult(
+            id: 'warfarin-e',
+            type: InteractionType.drugSupplement,
+            severity: Severity.caution,
+            evidenceLevel: EvidenceLevel.established,
+            agent1Name: 'Warfarin',
+            agent2Name: 'Vitamin E',
+            mechanism: 'Mechanism',
+            management: 'Review with your clinician.',
+            doseDependant: false,
+            doseThreshold: null,
+            sourceUrls: [],
+            source: InteractionSource.pipeline,
+          ),
+        ],
+      );
+
+      await pumpWithStack(
+        tester,
+        const HomeV2Screen(showNavBar: false),
+        stack: [
+          stackEntry(
+            id: 'supp-1',
+            name: 'Vitamin E',
+            type: 'supplement',
+            dsldId: '12345',
+          ),
+        ],
+        safetyReport: report,
+      );
+
+      final insightRow = find.ancestor(
+        of: find.text('1 safety signal to review', skipOffstage: false),
+        matching: find.byType(Row, skipOffstage: false),
+      );
+      expect(
+        find.descendant(
+          of: insightRow,
+          matching: find.byIcon(
+            Icons.warning_amber_rounded,
+            skipOffstage: false,
+          ),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Stack Health summary and sheet use one safety-signal count', (

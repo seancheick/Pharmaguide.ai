@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
@@ -59,12 +61,12 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
             thresholdValue: decisionThreshold,
             thresholdUnit: decisionUnit,
             comparator: decisionComparator,
-            clinicalSeverity:
-                decision.clinicalSeverity ?? warning.severity.name,
-            consumerDispositionIfMet:
-                decisionRule?.consumerDispositionIfMet ?? 'review',
-            consumerDispositionIfNotMet:
-                decisionRule?.consumerDispositionIfNotMet ?? 'suppress',
+            clinicalSeverity: Severity.fromString(
+              decision.clinicalSeverity ?? warning.severity.name,
+            ),
+            consumerDispositionIfMet: consumerDispositionFromWire(
+              decisionRule?.consumerDispositionIfMet,
+            ),
             normalizedDailyAmount: decision.evaluatedDailyAmount,
             normalizedDailyUnit: decision.evaluatedUnit,
             sourceStackEntryId: stackEntryId,
@@ -107,7 +109,7 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
             thresholdValue: thresholdValue,
             thresholdUnit: thresholdUnit,
             comparator: rawThreshold['comparator']?.toString().trim() ?? '>=',
-            clinicalSeverity: warning.severity.name,
+            clinicalSeverity: warning.severity,
             sourceStackEntryId: stackEntryId,
             sourceProductName: productName,
           ),
@@ -249,13 +251,25 @@ class StackDoseSummer {
       final unit = normalizeDoseUnit(rule.thresholdUnit);
       final key =
           '${rule.targetType}|$targetId|${rule.canonicalId}|${rule.thresholdValue}|'
-          '$unit|${rule.comparator}|${rule.consumerDispositionIfMet}';
+          '$unit|${rule.comparator}';
       grouped.putIfAbsent(key, () => []).add(rule);
     }
 
     final alerts = <StackDoseThresholdAlert>[];
     for (final rules in grouped.values) {
       final representative = rules.first;
+      final clinicalSeverity = rules.fold<Severity>(
+        representative.clinicalSeverity,
+        (current, rule) => rule.clinicalSeverity.weight > current.weight
+            ? rule.clinicalSeverity
+            : current,
+      );
+      final consumerDisposition = rules.fold<ConsumerDisposition>(
+        representative.consumerDispositionIfMet,
+        (current, rule) => rule.consumerDispositionIfMet.rank > current.rank
+            ? rule.consumerDispositionIfMet
+            : current,
+      );
       final thresholdUnit = normalizeDoseUnit(representative.thresholdUnit);
       var total = 0.0;
       final contributions = <StackDoseContribution>[];
@@ -273,16 +287,15 @@ class StackDoseSummer {
           ),
         );
       }
+      final comparatorKnown = _isKnownComparator(representative.comparator);
       if (contributions.isEmpty ||
-          !_compareDose(
-            total,
-            representative.comparator,
-            representative.thresholdValue,
-          ) ||
-          !const {
-            'review',
-            'block',
-          }.contains(representative.consumerDispositionIfMet)) {
+          (comparatorKnown &&
+              !_compareDose(
+                total,
+                representative.comparator,
+                representative.thresholdValue,
+              )) ||
+          !consumerDisposition.isVisible) {
         continue;
       }
       alerts.add(
@@ -297,8 +310,9 @@ class StackDoseSummer {
           thresholdUnit: thresholdUnit,
           comparator: representative.comparator,
           contributions: List.unmodifiable(contributions),
-          clinicalSeverity: representative.clinicalSeverity,
-          consumerDisposition: representative.consumerDispositionIfMet,
+          isIncomplete: !comparatorKnown,
+          clinicalSeverity: clinicalSeverity,
+          consumerDisposition: consumerDisposition,
         ),
       );
     }
@@ -316,67 +330,81 @@ class StackDoseSummer {
     };
   }
 
+  bool _isKnownComparator(String comparator) =>
+      const {'>', '>=', '<', '<=', '=='}.contains(comparator.trim());
+
   List<StackDoseThresholdAlert> thresholdAlerts({
     required Map<String, StackDoseTotal> totals,
     required Iterable<String> userConditions,
+    Iterable<String> userDrugClasses = const <String>[],
     required Iterable<StackDoseThresholdRule> thresholdRules,
   }) {
     final alerts = <StackDoseThresholdAlert>[];
     final seen = <String>{};
-    final rulesByCondition = <String, List<StackDoseThresholdRule>>{};
+    final activeConditions = userConditions
+        .map((value) => value.trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final activeDrugClasses = userDrugClasses
+        .map((value) => value.trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+
     for (final rule in thresholdRules) {
-      final conditionId = rule.conditionId.trim().toLowerCase();
-      if (conditionId.isEmpty) continue;
-      rulesByCondition.putIfAbsent(conditionId, () => []).add(rule);
-    }
+      final targetId = rule.conditionId.trim().toLowerCase();
+      if (targetId.isEmpty) continue;
+      final targetIsActive = rule.targetType == 'drug_class'
+          ? activeDrugClasses.contains(targetId)
+          : activeConditions.contains(targetId);
+      if (!targetIsActive || !rule.consumerDispositionIfMet.isVisible) continue;
 
-    for (final rawCondition in userConditions) {
-      final conditionId = rawCondition.trim().toLowerCase();
-      if (conditionId.isEmpty) continue;
-
-      final rules = rulesByCondition[conditionId];
-      if (rules == null) continue;
-
-      for (final rule in rules) {
-        final dose = _thresholdTotalFor(rule.canonicalId, totals);
-        if (dose == null || dose.totalValue <= 0 || dose.unit.isEmpty) {
-          continue;
-        }
-
-        final normalizedThresholdUnit = normalizeDoseUnit(rule.thresholdUnit);
-        final totalInThresholdUnit = _amountInThresholdUnit(
-          canonicalId: dose.canonicalId,
-          amount: dose.totalValue,
-          from: dose.unit,
-          to: normalizedThresholdUnit,
-        );
-        if (totalInThresholdUnit == null) continue;
-        final isIncomplete = dose.hasExcludedContributions;
-        if (totalInThresholdUnit < rule.thresholdValue && !isIncomplete) {
-          continue;
-        }
-
-        final marker = '$conditionId:${dose.canonicalId}';
-        if (!seen.add(marker)) continue;
-
-        alerts.add(
-          StackDoseThresholdAlert(
-            conditionId: conditionId,
-            canonicalId: dose.canonicalId,
-            displayName:
-                _thresholdDoseDisplayNames[dose.canonicalId] ??
-                rule.displayName ??
-                dose.displayName,
-            totalValue: totalInThresholdUnit,
-            unit: normalizedThresholdUnit,
-            thresholdValue: rule.thresholdValue,
-            thresholdUnit: normalizedThresholdUnit,
-            comparator: rule.comparator,
-            contributions: dose.contributions,
-            isIncomplete: isIncomplete,
-          ),
-        );
+      final dose = _thresholdTotalFor(rule.canonicalId, totals);
+      if (dose == null || dose.totalValue <= 0 || dose.unit.isEmpty) {
+        continue;
       }
+
+      final normalizedThresholdUnit = normalizeDoseUnit(rule.thresholdUnit);
+      final totalInThresholdUnit = _amountInThresholdUnit(
+        canonicalId: dose.canonicalId,
+        amount: dose.totalValue,
+        from: dose.unit,
+        to: normalizedThresholdUnit,
+      );
+      if (totalInThresholdUnit == null) continue;
+      final isIncomplete =
+          dose.hasExcludedContributions || !_isKnownComparator(rule.comparator);
+      if (!isIncomplete &&
+          !_compareDose(
+            totalInThresholdUnit,
+            rule.comparator,
+            rule.thresholdValue,
+          )) {
+        continue;
+      }
+
+      final marker = '${rule.targetType}:$targetId:${dose.canonicalId}';
+      if (!seen.add(marker)) continue;
+
+      alerts.add(
+        StackDoseThresholdAlert(
+          conditionId: targetId,
+          targetType: rule.targetType,
+          canonicalId: dose.canonicalId,
+          displayName:
+              _thresholdDoseDisplayNames[dose.canonicalId] ??
+              rule.displayName ??
+              dose.displayName,
+          totalValue: totalInThresholdUnit,
+          unit: normalizedThresholdUnit,
+          thresholdValue: rule.thresholdValue,
+          thresholdUnit: normalizedThresholdUnit,
+          comparator: rule.comparator,
+          contributions: dose.contributions,
+          isIncomplete: isIncomplete,
+          clinicalSeverity: rule.clinicalSeverity,
+          consumerDisposition: rule.consumerDispositionIfMet,
+        ),
+      );
     }
 
     return alerts;
@@ -725,9 +753,8 @@ class StackDoseThresholdRule {
     required this.thresholdValue,
     required this.thresholdUnit,
     this.comparator = '>=',
-    this.clinicalSeverity = 'caution',
-    this.consumerDispositionIfMet = 'review',
-    this.consumerDispositionIfNotMet = 'suppress',
+    this.clinicalSeverity = Severity.caution,
+    this.consumerDispositionIfMet = ConsumerDisposition.review,
     this.normalizedDailyAmount,
     this.normalizedDailyUnit,
     this.sourceStackEntryId = '',
@@ -744,9 +771,8 @@ class StackDoseThresholdRule {
   final double thresholdValue;
   final String thresholdUnit;
   final String comparator;
-  final String clinicalSeverity;
-  final String consumerDispositionIfMet;
-  final String consumerDispositionIfNotMet;
+  final Severity clinicalSeverity;
+  final ConsumerDisposition consumerDispositionIfMet;
   final double? normalizedDailyAmount;
   final String? normalizedDailyUnit;
   final String sourceStackEntryId;
@@ -822,8 +848,8 @@ class StackDoseThresholdAlert {
     this.comparator = '>=',
     required this.contributions,
     this.isIncomplete = false,
-    this.clinicalSeverity = 'caution',
-    this.consumerDisposition = 'review',
+    this.clinicalSeverity = Severity.caution,
+    this.consumerDisposition = ConsumerDisposition.review,
   });
 
   final String conditionId;
@@ -842,8 +868,8 @@ class StackDoseThresholdAlert {
   /// surfaced so the stack does not look cleared by an undercount, but callers
   /// should use hedge copy rather than claiming the threshold was proven.
   final bool isIncomplete;
-  final String clinicalSeverity;
-  final String consumerDisposition;
+  final Severity clinicalSeverity;
+  final ConsumerDisposition consumerDisposition;
 }
 
 enum StackDoseThresholdComparison { below, atOrAbove, unavailable }

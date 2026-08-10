@@ -8,7 +8,10 @@ import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_lifecycle_service.dart';
 
-ClinicalSignal _signal({String mechanism = 'May increase bleeding risk.'}) {
+ClinicalSignal _signal({
+  String mechanism = 'May increase bleeding risk.',
+  bool foodAdvisory = false,
+}) {
   return ClinicalSignal.fromInteraction(
     InteractionResult(
       id: 'RULE_WARFARIN_GINKGO',
@@ -19,10 +22,12 @@ ClinicalSignal _signal({String mechanism = 'May increase bleeding risk.'}) {
       agent2Name: 'Ginkgo',
       mechanism: mechanism,
       management: 'Discuss with your anticoagulation clinician.',
+      alertStyle: foodAdvisory ? 'food_advisory_note' : null,
       doseDependant: false,
       doseThreshold: null,
       sourceUrls: const ['https://pubmed.ncbi.nlm.nih.gov/12345678/'],
       source: InteractionSource.pipeline,
+      curatedSeverity: foodAdvisory ? Severity.avoid : null,
     ),
   );
 }
@@ -109,6 +114,22 @@ void main() {
     final latest = await history.getLatestClinicalSignalLifecycleEvents();
     expect(latest.values.single.state, HealthEventState.occurred.name);
   });
+
+  test(
+    'persists the canonical wire spelling for consumer disposition',
+    () async {
+      await lifecycle.reconcile(
+        currentSignals: [_signal(foodAdvisory: true)],
+        analysisComplete: true,
+        observedAt: now,
+      );
+
+      final event = (await history.getTimeline()).single;
+      final snapshot =
+          jsonDecode(event.currentValueJson!) as Map<String, dynamic>;
+      expect(snapshot['consumer_disposition'], 'good_to_know');
+    },
+  );
 
   test('resolution records an explicit version-change reason', () async {
     await lifecycle.reconcile(

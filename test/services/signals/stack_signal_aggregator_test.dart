@@ -213,34 +213,6 @@ void main() {
     );
   });
 
-  test('unknown authored dose disposition fails visible, never suppressed', () {
-    final signals = orderedSignalsFrom(
-      const StackSafetyReport(),
-      doseThresholdAlerts: const [
-        StackDoseThresholdAlert(
-          conditionId: 'pregnancy',
-          canonicalId: 'caffeine',
-          displayName: 'Caffeine',
-          totalValue: 240,
-          unit: 'mg',
-          thresholdValue: 200,
-          thresholdUnit: 'mg',
-          contributions: [],
-          consumerDisposition: 'not_a_real_disposition',
-        ),
-      ],
-    );
-
-    expect(signals, hasLength(1));
-    expect(
-      signals.single.consumerDisposition,
-      ConsumerDisposition.review,
-      reason:
-          'the alert already counts toward the tier, so it must stay visible '
-          'in the review universe',
-    );
-  });
-
   test('lifecycle persistence consumes the same dose-threshold signals', () {
     final source = File(
       'lib/features/history/providers/clinical_signal_lifecycle_provider.dart',

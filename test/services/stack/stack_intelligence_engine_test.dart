@@ -108,6 +108,8 @@ StackDoseThresholdAlert _doseAlert({
   String unit = 'mg',
   double thresholdValue = 200,
   bool isIncomplete = false,
+  Severity clinicalSeverity = Severity.caution,
+  ConsumerDisposition consumerDisposition = ConsumerDisposition.review,
 }) {
   return StackDoseThresholdAlert(
     conditionId: conditionId,
@@ -119,6 +121,8 @@ StackDoseThresholdAlert _doseAlert({
     thresholdUnit: unit,
     contributions: const [],
     isIncomplete: isIncomplete,
+    clinicalSeverity: clinicalSeverity,
+    consumerDisposition: consumerDisposition,
   );
 }
 
@@ -353,6 +357,53 @@ void main() {
       expect(intelligence.issues.single.severity, Severity.caution);
       expect(intelligence.issues.single.headline, contains('Caffeine'));
       expect(intelligence.issues.single.headline, contains('240 mg'));
+    });
+
+    test('avoid dose threshold makes the stack concerning', () {
+      final intelligence = engine.diagnose(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+        doseThresholdAlerts: [_doseAlert(clinicalSeverity: Severity.avoid)],
+      );
+
+      expect(intelligence.tier, StackTier.concerning);
+    });
+
+    test('contraindicated dose threshold makes the stack unsafe', () {
+      final intelligence = engine.diagnose(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+        doseThresholdAlerts: [
+          _doseAlert(
+            clinicalSeverity: Severity.contraindicated,
+            consumerDisposition: ConsumerDisposition.block,
+          ),
+        ],
+      );
+
+      expect(intelligence.tier, StackTier.unsafe);
+    });
+
+    test('good-to-know dose threshold does not lower a clean tier', () {
+      final intelligence = engine.diagnose(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: emptyRecall,
+        synergyReport: emptySynergy,
+        qualityScore: 95,
+        doseThresholdAlerts: [
+          _doseAlert(consumerDisposition: ConsumerDisposition.goodToKnow),
+        ],
+      );
+
+      expect(intelligence.tier, StackTier.optimized);
+      expect(intelligence.nutrientWarningCount, 0);
     });
 
     test('clean stack with qualityScore 75 → solid', () {

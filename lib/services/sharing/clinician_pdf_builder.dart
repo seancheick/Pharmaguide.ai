@@ -675,6 +675,8 @@ class ClinicianPdfBuilder {
           );
         case DoseThresholdPayload():
           headlines.add(signal.body.trim());
+        case RegulatorySafetyPayload():
+          headlines.add(signal.body.trim());
         case MedicationNutrientPayload():
           break;
         case TimingSeparationPayload():
@@ -719,6 +721,10 @@ class ClinicianPdfBuilder {
       case DoseThresholdPayload():
         if (signal.body.trim().isNotEmpty) {
           detail.add(_line(theme, 'Clinical context: ${signal.body.trim()}'));
+        }
+      case RegulatorySafetyPayload():
+        if (signal.body.trim().isNotEmpty) {
+          detail.add(_line(theme, 'Regulatory update: ${signal.body.trim()}'));
         }
       case MedicationNutrientPayload():
         // Medication-nutrient matches are rendered in their dedicated section.

@@ -146,17 +146,28 @@ class StackIntelligenceEngine {
             .where((warning) => warning.severity == s)
             .length;
 
-    final contraindicatedCount = countBy(Severity.contraindicated);
-    final avoidCount = countBy(Severity.avoid);
-    final cautionCount = countBy(Severity.caution);
-    final monitorCount = countBy(Severity.monitor);
+    final reviewDoseAlerts = doseThresholdAlerts
+        .where((alert) => alert.consumerDisposition.requiresReview)
+        .toList(growable: false);
+    int doseCountBy(Severity severity) => reviewDoseAlerts
+        .where((alert) => alert.clinicalSeverity == severity)
+        .length;
+
+    final contraindicatedCount =
+        countBy(Severity.contraindicated) +
+        doseCountBy(Severity.contraindicated);
+    final avoidCount = countBy(Severity.avoid) + doseCountBy(Severity.avoid);
+    final cautionCount =
+        countBy(Severity.caution) + doseCountBy(Severity.caution);
+    final monitorCount =
+        countBy(Severity.monitor) + doseCountBy(Severity.monitor);
     final hasContraindicatedInteraction = contraindicatedCount > 0;
     final interactionCount =
         contraindicatedCount + avoidCount + cautionCount + monitorCount;
 
     final nutrientWarningCount =
         safetyReport.nutrientStatuses.where((n) => n.shouldWarn).length +
-        doseThresholdAlerts.length;
+        reviewDoseAlerts.length;
 
     final tier = StackIntelligence.deriveTier(
       stackSize: stackSize,
@@ -251,6 +262,10 @@ class StackIntelligenceEngine {
           continue;
         case TimingSeparationPayload():
           // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart.
+          continue;
+        case RegulatorySafetyPayload():
+          // Regulatory safety alerts are not part of Stack Health until the
+          // regulatory producer is passed into this engine.
           continue;
       }
     }

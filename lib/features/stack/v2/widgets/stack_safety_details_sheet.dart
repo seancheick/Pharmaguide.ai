@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/features/stack/widgets/clinical_signal_visuals.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -169,8 +170,8 @@ class _SafetySignalRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            model.icon,
-            color: _colorFor(context.v2, model.severity),
+            clinicalSignalIcon(signal),
+            color: clinicalSignalSeverityColor(context.v2, model.severity),
             size: 20,
           ),
           const SizedBox(width: V2Spacing.space12),
@@ -198,21 +199,6 @@ class _SafetySignalRow extends StatelessWidget {
       ),
     );
   }
-
-  static Color _colorFor(V2Palette p, Severity severity) {
-    switch (severity) {
-      case Severity.contraindicated:
-      case Severity.avoid:
-        return p.contraindicated;
-      case Severity.caution:
-      case Severity.monitor:
-        return p.caution;
-      case Severity.informational:
-        return p.accent;
-      case Severity.safe:
-        return p.safe;
-    }
-  }
 }
 
 /// Row presentation. Text is sourced from the typed payload so it stays BYTE-FOR-
@@ -223,14 +209,12 @@ class _SignalPresentation {
     required this.severity,
     required this.title,
     required this.body,
-    required this.icon,
     required this.contextLabel,
   });
 
   final Severity severity;
   final String title;
   final String body;
-  final IconData icon;
   final String contextLabel;
 
   static _SignalPresentation from(ClinicalSignal signal) {
@@ -245,7 +229,6 @@ class _SignalPresentation {
           severity: severity,
           title: '${result.agent1Name} × ${result.agent2Name}',
           body: body.trim().isEmpty ? result.evidenceLevel.label : body,
-          icon: Icons.warning_amber_rounded,
           contextLabel: contextLabel,
         );
       case MedicationProfilePayload(:final warning):
@@ -256,7 +239,6 @@ class _SignalPresentation {
           severity: severity,
           title: warning.medicationName,
           body: body.trim().isEmpty ? warning.headline : body,
-          icon: Icons.medical_information_outlined,
           contextLabel: contextLabel,
         );
       case CumulativeExposurePayload(:final status):
@@ -271,7 +253,6 @@ class _SignalPresentation {
           body: exceeds
               ? StackSafetyReport.nutrientUpperLimitSummary(status)
               : '${status.total.displayName} is nearing its upper limit across your stack.',
-          icon: Icons.health_and_safety_outlined,
           contextLabel: contextLabel,
         );
       case DoseThresholdPayload(:final alert):
@@ -279,7 +260,13 @@ class _SignalPresentation {
           severity: severity,
           title: '${alert.displayName} dose threshold',
           body: signal.body,
-          icon: Icons.speed_rounded,
+          contextLabel: contextLabel,
+        );
+      case RegulatorySafetyPayload(:final alert):
+        return _SignalPresentation(
+          severity: severity,
+          title: alert.headline,
+          body: signal.body,
           contextLabel: contextLabel,
         );
       case MedicationNutrientPayload(:final match):
@@ -289,7 +276,6 @@ class _SignalPresentation {
           severity: severity,
           title: '${match.drugDisplayName} - ${match.nutrientName}',
           body: match.clinicalImpact ?? match.mechanism,
-          icon: Icons.medical_information_outlined,
           contextLabel: contextLabel,
         );
       case TimingSeparationPayload(:final optimization):
@@ -298,7 +284,6 @@ class _SignalPresentation {
           severity: severity,
           title: optimization.product1Name ?? optimization.ingredient1,
           body: optimization.advice,
-          icon: Icons.schedule_rounded,
           contextLabel: contextLabel,
         );
     }

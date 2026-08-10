@@ -416,29 +416,152 @@ void main() {
     expect(find.text('View details'), findsNothing);
   });
 
-  testWidgets('onTap supplied → "View details" action appears and fires', (
-    tester,
-  ) async {
+  // ---------------------------------------------------------------------------
+  // Interactive overview card. A headline-only card beneath a header counting
+  // three findings reads as "there is one issue" — these tests pin the fix.
+  // ---------------------------------------------------------------------------
+
+  testWidgets('onTap supplied → single signal shows a "Review details" action '
+      'that fires', (tester) async {
     var tapCount = 0;
     final report = StackSafetyReport(
       medicationInteractions: [makeInteraction(severity: Severity.avoid)],
     );
     await pumpBanner(tester, report: report, onTap: () => tapCount++);
 
-    final banner = tester.widget<PGSeverityBanner>(
-      find.byType(PGSeverityBanner),
-    );
-    expect(banner.title, 'Warfarin × Fish Oil');
+    // No PGSeverityBanner: the interactive form lays out its own rows.
+    expect(find.byType(PGSeverityBanner), findsNothing);
+    expect(find.byKey(const Key('stack-safety-banner')), findsOneWidget);
+    expect(find.text('Warfarin × Fish Oil'), findsOneWidget);
     expect(
-      banner.body,
-      'Supplement interaction · Strong Evidence · '
-      '1 safety signal to review',
+      find.text('Supplement interaction · Strong Evidence'),
+      findsOneWidget,
     );
-    expect(banner.body, isNot(contains('Monitor INR')));
-    expect(find.text('View details'), findsOneWidget);
-    await tester.tap(find.text('View details'));
+    // Long clinical copy stays in the sheet.
+    expect(find.textContaining('Monitor INR'), findsNothing);
+    // "Review all 1" would be nonsense.
+    expect(find.text('Review details'), findsOneWidget);
+
+    await tester.tap(find.text('Review details'));
     await tester.pump();
     expect(tapCount, 1);
+  });
+
+  testWidgets(
+    'interactive card previews EVERY finding, not just the headline',
+    (tester) async {
+      final report = StackSafetyReport(
+        medicationInteractions: [
+          makeInteraction(
+            id: 'warfarin',
+            severity: Severity.avoid,
+            agent1: 'Warfarin',
+            agent2: 'O.N.E. Multivitamin',
+          ),
+          makeInteraction(
+            id: 'metformin',
+            severity: Severity.avoid,
+            agent1: 'Metformin',
+            agent2: 'O.N.E. Multivitamin',
+          ),
+        ],
+        nutrientStatuses: [
+          makeNutrientStatus(
+            tier: NutrientTier.exceedsUl,
+            ul: 4000,
+            pctOfUl: 125,
+          ),
+        ],
+      );
+      await pumpBanner(tester, report: report, onTap: () {});
+
+      expect(find.text('Warfarin × O.N.E. Multivitamin'), findsOneWidget);
+      expect(find.text('Metformin × O.N.E. Multivitamin'), findsOneWidget);
+      expect(find.text('Vitamin D above upper limit'), findsOneWidget);
+      // Each finding carries its OWN metadata…
+      expect(
+        find.text('Supplement interaction · Strong Evidence'),
+        findsNWidgets(2),
+      );
+      expect(find.text('Nutrient upper limit'), findsOneWidget);
+      // …and the stack-wide count lives only in the action, never fused onto a
+      // single finding's metadata line (that mismatch is what this card fixes).
+      expect(find.textContaining('3 safety signals to review'), findsNothing);
+      expect(find.text('Review all 3'), findsOneWidget);
+    },
+  );
+
+  testWidgets('preview beyond three findings states the truncation', (
+    tester,
+  ) async {
+    final report = StackSafetyReport(
+      medicationInteractions: [
+        for (var i = 0; i < 5; i++)
+          makeInteraction(
+            id: 'i$i',
+            severity: Severity.avoid,
+            agent1: 'Drug$i',
+            agent2: 'Supplement$i',
+          ),
+      ],
+    );
+    await pumpBanner(tester, report: report, onTap: () {});
+
+    expect(find.text('Drug0 × Supplement0'), findsOneWidget);
+    expect(find.text('Drug2 × Supplement2'), findsOneWidget);
+    expect(find.text('Drug3 × Supplement3'), findsNothing);
+    expect(find.text('+2 more'), findsOneWidget);
+    expect(find.text('Review all 5'), findsOneWidget);
+  });
+
+  testWidgets('a good_to_know note is never listed under "Needs attention"', (
+    tester,
+  ) async {
+    final report = StackSafetyReport(
+      medicationInteractions: [
+        makeInteraction(
+          id: 'fa',
+          severity: Severity.informational,
+          curated: Severity.avoid,
+          agent1: 'Grapefruit',
+          agent2: 'Atorvastatin',
+          alertStyle: 'food_advisory_note',
+        ),
+      ],
+      stackInteractions: [
+        makeInteraction(
+          id: 'concern',
+          severity: Severity.caution,
+          agent1: 'Iron',
+          agent2: 'Calcium',
+        ),
+      ],
+    );
+    await pumpBanner(tester, report: report, onTap: () {});
+
+    expect(find.text('NEEDS ATTENTION'), findsOneWidget);
+    expect(find.text('Iron × Calcium'), findsOneWidget);
+    // The advisory is a real signal — counted and reachable — but it belongs to
+    // the other group, so it is deferred to the sheet rather than mislabelled.
+    expect(find.text('Grapefruit × Atorvastatin'), findsNothing);
+    expect(find.text('+1 more'), findsOneWidget);
+    expect(find.text('Review all 2'), findsOneWidget);
+  });
+
+  testWidgets('interactive card keeps the incomplete-analysis hedge', (
+    tester,
+  ) async {
+    final report = StackSafetyReport(
+      medicationInteractions: [makeInteraction(severity: Severity.avoid)],
+      checksIncomplete: true,
+    );
+    await pumpBanner(tester, report: report, onTap: () {});
+
+    expect(
+      find.textContaining('results may be incomplete'),
+      findsOneWidget,
+      reason: 'an unfinished check must never read as an exhaustive list',
+    );
   });
 
   testWidgets('falls back to mechanism when management is empty', (
