@@ -10,6 +10,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pharmaguide/features/stack/v2/widgets/pg_depletion_card.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 
+import '../support/app_fonts.dart';
+
 Future<void> _pumpCard(
   WidgetTester tester,
   Widget child, {
@@ -35,7 +37,15 @@ Future<void> _pumpCard(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // No network in tests. Left explicit: with the fonts registered below, this
+  // is now a guard against accidental fetching rather than the reason text
+  // rendered as boxes.
   GoogleFonts.config.allowRuntimeFetching = false;
+  // Register the real Geist faces so these reviewer screenshots show readable
+  // clinical copy. Without it the glyphs are placeholder boxes whose presence
+  // depends on test order, which is how the two masters below ended up
+  // captured in different font states.
+  setUpAll(loadAppFonts);
 
   testWidgets('reviewer screenshot: verified consumer presentation', (
     tester,
