@@ -22,19 +22,28 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Families the v2 type scale resolves to → the TTF that satisfies each.
+/// Families the v2 type scale resolves to → the font file that satisfies each.
 ///
 /// Verified by probing V2Typography: `GoogleFonts.geist` at w400/w500 resolves
 /// to `Geist_regular`/`Geist_500`, and `GoogleFonts.geistMono` at w500 to
 /// `GeistMono_500`. The bare `Geist`/`GeistMono` entries cover the
 /// `fontFamilyFallback` GoogleFonts attaches to every style, and the
 /// `ThemeData(fontFamily: 'Geist')` the golden harness sets.
+///
+/// The two roots are deliberate. Geist is a real app asset. MaterialIcons is
+/// vendored under `test/fonts/` instead, because `uses-material-design: true`
+/// already bundles it into every app build — a copy in `assets/fonts/` would
+/// ship a second 1.6 MB of the same font to users for no runtime benefit.
+/// These files are read with `File`, not `rootBundle`, so a test-only location
+/// needs no pubspec asset entry. Upstream: the Flutter SDK's
+/// `bin/cache/artifacts/material_fonts/`; its license is vendored alongside it.
 const _goldenFontFiles = <String, String>{
   'Geist_regular': 'assets/fonts/Geist-Regular.ttf',
   'Geist_500': 'assets/fonts/Geist-Medium.ttf',
   'Geist': 'assets/fonts/Geist-Regular.ttf',
   'GeistMono_500': 'assets/fonts/GeistMono-Medium.ttf',
   'GeistMono': 'assets/fonts/GeistMono-Medium.ttf',
+  'MaterialIcons': 'test/fonts/MaterialIcons-Regular.otf',
 };
 
 /// Registers the bundled app fonts with the test engine.
@@ -49,12 +58,10 @@ const _goldenFontFiles = <String, String>{
 /// golden renders it. A new golden that does must ship the Newsreader TTF and
 /// add it here rather than quietly accept box glyphs.
 ///
-/// Material icon glyphs are also still placeholder squares. Deliberately left
-/// alone: MaterialIcons-Regular.otf lives in the Flutter SDK, not this repo, so
-/// loading it would key the goldens to an SDK path and reintroduce exactly the
-/// machine dependence this helper removes. Icons render as consistent squares
-/// on every machine, which is stable — just not pretty. Ship the .otf in
-/// `assets/fonts/` if a reviewer screenshot ever needs real icons.
+/// Material icons DO render, from the copy vendored at `test/fonts/`. Reading
+/// them out of the Flutter SDK at test time would have keyed the goldens to an
+/// SDK path and reintroduced the machine dependence this helper exists to
+/// remove; a committed file is pinned for every machine and CI runner.
 Future<void> loadAppFonts() async {
   for (final entry in _goldenFontFiles.entries) {
     final file = File(entry.value);
