@@ -34,8 +34,17 @@ import 'package:flutter_test/flutter_test.dart';
 // Repinned 2026-07-30 for the bounded Clinical Team delta response: exact
 // levothyroxine/calcium and orlistat/vitamin-A copy plus the requested
 // acid-suppression/iron and SSRI/sodium evidence revisions.
+// Repinned 2026-08-09 to complete the batch-01 repin. dsld_clean 0546d8b3
+// ("land batch-01 watch-block removal, park copy softening") removed the
+// proposed metformin/B12 watch_threshold block and PARKED the consumer-copy
+// softening, so the clinician-pinned "4–5 years" recommendation ships exactly.
+// That commit deferred this app-side half until the batch-01 release; the
+// catalog bundle in c2b5e68 shipped the new artifact first, leaving this pin
+// as the stale half of the contract. The pipeline pins the same value in
+// scripts/tests/test_medication_depletions_artifact.py (verified green), so
+// both halves now agree again.
 const _pinnedContentHash =
-    'sha256:1b073eb185d25020b21d076ebdd2570e9afad1e53a6ecfd419de4a317608150a';
+    'sha256:365502ccbdc944c78a07ac2af45b05f58a0bef0635fa4456215045a718fc218e';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {
