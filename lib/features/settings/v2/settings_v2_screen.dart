@@ -371,12 +371,16 @@ void _showPrivacyDashboard(BuildContext context) {
     builder: (_) => const _SettingsInfoSheet(
       title: 'Privacy dashboard',
       body:
-          'PharmaGuide keeps your health profile, stack, medications, '
-          'and scan history on this device. Supabase is used for account '
-          'and sync plumbing only; health data is not uploaded.',
+          'When you sign in, PharmaGuide syncs the supplements in your stack '
+          '— their product identity, ingredients, and added, removed, or '
+          'updated state — to your account. Your health profile, medication '
+          'list, scan history, and supplement dosage and schedule stay on '
+          'this device.',
       bullets: [
         'Health profile: on device',
-        'Supplement stack: on device',
+        'Supplement stack: product identity, ingredients, and state sync '
+            'when signed in',
+        'Supplement dosage and schedule: on device',
         'Medication list: on device',
         'Recent scans: on device',
         'Account email: Supabase auth',

@@ -79,7 +79,7 @@ run-v2pd-ios: hydrate-interaction-db ## v2 product detail on iOS simulator
 
 .PHONY: build-ipa-v2pd
 build-ipa-v2pd: hydrate-interaction-db ## Build TestFlight IPA with v2 product detail enabled
-	@bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES) \
+	@PHARMAGUIDE_IOS_DISTRIBUTION=testflight bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES) \
 		--dart-define=USE_V2_PRODUCT_DETAIL=true
 
 # ─── Phase 11.7L.B staged route swap — ProfileSetup v2 ────────────────────────
@@ -115,7 +115,7 @@ run-v2all: hydrate-interaction-db ## Run with ALL v2 toggles enabled (PD + Profi
 
 .PHONY: build-ipa-v2all
 build-ipa-v2all: hydrate-interaction-db ## Build TestFlight IPA with ALL v2 toggles on
-	@bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES) \
+	@PHARMAGUIDE_IOS_DISTRIBUTION=testflight bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES) \
 		--dart-define=USE_V2_PRODUCT_DETAIL=true \
 		--dart-define=USE_V2_PROFILE_SETUP=true \
 		--dart-define=USE_V2_MEDICATION_ENTRY=true \

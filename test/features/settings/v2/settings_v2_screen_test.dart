@@ -269,6 +269,43 @@ void main() {
     expect(find.text('Account email: Supabase auth'), findsOneWidget);
   });
 
+  testWidgets('privacy dashboard discloses signed-in supplement sync', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+    await tester.scrollUntilVisible(
+      find.text('Privacy dashboard'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Privacy dashboard'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'When you sign in, PharmaGuide syncs the supplements in your stack '
+        '— their product identity, ingredients, and added, removed, or '
+        'updated state — to your account. Your health profile, medication '
+        'list, scan history, and supplement dosage and schedule stay on '
+        'this device.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Supplement stack: product identity, ingredients, and state sync '
+        'when signed in',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Supplement dosage and schedule: on device'),
+      findsOneWidget,
+    );
+    expect(find.text('Medication list: on device'), findsOneWidget);
+  });
+
   testWidgets('about legal and support rows open release-safe destinations', (
     tester,
   ) async {

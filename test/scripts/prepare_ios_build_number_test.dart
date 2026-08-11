@@ -120,7 +120,7 @@ void main() {
       expect(result.exitCode, isNot(0));
       expect(
         result.stderr,
-        contains('no App Store IPA matching reserved build +14'),
+        contains('no App Store IPA matching reserved version 1.0.0+14'),
       );
       expect(pubspec.readAsStringSync(), contains('version: 1.0.0+14'));
     },
@@ -153,4 +153,37 @@ cp "$PHARMAGUIDE_FAKE_IPA_SOURCE" "$PHARMAGUIDE_IOS_BUILD_ROOT/build/ios/ipa/pha
     expect(result.exitCode, 0, reason: '${result.stderr}');
     expect(pubspec.readAsStringSync(), contains('version: 1.0.0+14'));
   });
+
+  test(
+    'derives TestFlight Sentry identifiers from the reserved iOS build',
+    () async {
+      final flutterArgs = File('${tempDir.path}/flutter-args.txt');
+      final fakeFlutter = createExecutable('flutter', r'''
+#!/bin/bash
+printf '%s\n' "$@" > "$PHARMAGUIDE_FAKE_FLUTTER_ARGS"
+exit 0
+''');
+
+      final result = await Process.run(
+        'bash',
+        ['scripts/build_ios_release.sh', fakeFlutter.path],
+        environment: {
+          ...Platform.environment,
+          'PHARMAGUIDE_IOS_BUILD_ROOT': tempDir.path,
+          'PHARMAGUIDE_IOS_DISTRIBUTION': 'testflight',
+          'PHARMAGUIDE_LATEST_IPA_BUILD': '14',
+          'PHARMAGUIDE_FAKE_FLUTTER_ARGS': flutterArgs.path,
+        },
+      );
+
+      expect(result.exitCode, isNot(0));
+      expect(pubspec.readAsStringSync(), contains('version: 1.0.0+15'));
+      final args = flutterArgs.readAsStringSync();
+      expect(args, contains('--dart-define=SENTRY_ENVIRONMENT=testflight'));
+      expect(
+        args,
+        contains('--dart-define=SENTRY_RELEASE=com.pharmaguide.app@1.0.0+15'),
+      );
+    },
+  );
 }
