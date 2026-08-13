@@ -15,6 +15,24 @@ void main() {
   // Minimal fixture matching the real reference data contract.
   final rdaFixture = {
     '_metadata': {'schema_version': '5.0.0'},
+    'consumer_ul_warnings': {
+      'vitamin_d3': {'message': 'Too much can cause kidney problems.'},
+      'zinc': {
+        'message':
+            'Long-term excessive zinc can reduce copper absorption and lead to copper deficiency.',
+      },
+      'magnesium': {
+        'message': 'Too much supplemental magnesium can cause diarrhea.',
+      },
+      'iron': {'message': 'High doses can cause stomach problems.'},
+      'vitamin_a': {
+        'message': 'Too much preformed vitamin A can harm the liver.',
+      },
+      'folate': {
+        'message': 'Too much folic acid can hide a vitamin B12 deficiency.',
+      },
+      'niacin': {'message': 'Too much supplemental niacin can cause flushing.'},
+    },
     'nutrient_recommendations': [
       {
         'id': 'vitamin_d3',
@@ -225,6 +243,183 @@ void main() {
     expect(statuses['vitamin_k']!.maximumPctOfRda, closeTo(325, 0.1));
   });
 
+  test('counts known non-folic folate without applying the folic-acid UL', () {
+    const aggregator = StackNutrientAggregator();
+    final totals = aggregator.aggregate([
+      const StackItemNutrients(
+        stackEntryId: 'methylfolate',
+        productName: 'Methylfolate supplement',
+        ingredients: [
+          {
+            'canonical_id': 'folate',
+            'name': 'Folate',
+            'per_day_min': 5000,
+            'per_day_max': 5000,
+            'converted_unit': 'mcg DFE',
+            'skip_ul_check': true,
+            'skip_ul_reason': 'non_folic_acid_folate_ul_basis',
+          },
+        ],
+      ),
+    ]);
+
+    final total = totals['folate']!;
+    expect(total.totalAmount, 5000, reason: 'disclosed intake stays counted');
+
+    final status = checker
+        .check(totals, ageBracket: '19-30', sex: 'Female')
+        .single;
+    expect(status.pctOfRda, closeTo(1250, 0.1));
+    expect(status.pctOfUl, isNull);
+    expect(status.shouldWarn, isFalse);
+    expect(
+      status.ulAssessmentIndeterminate,
+      isFalse,
+      reason: 'a known outside-scope form is not missing label data',
+    );
+  });
+
+  test(
+    'counts unknown-form vitamin E without guessing its synthetic UL share',
+    () {
+      const localChecker = StackUlChecker(
+        rdaData: {
+          'consumer_ul_warnings': {
+            'vitamin_e': {
+              'message': 'High supplemental doses can increase bleeding.',
+            },
+          },
+          'nutrient_recommendations': [
+            {
+              'id': 'vitamin_e',
+              'standard_name': 'Vitamin E',
+              'unit': 'mg alpha-tocopherol',
+              'data': [
+                {
+                  'group': 'Female',
+                  'age_range': '19-30',
+                  'rda_ai': 15,
+                  'ul': 1000,
+                },
+              ],
+            },
+          ],
+        },
+      );
+      const aggregator = StackNutrientAggregator();
+      final totals = aggregator.aggregate([
+        const StackItemNutrients(
+          stackEntryId: 'e',
+          productName: 'Mixed tocopherols',
+          ingredients: [
+            {
+              'canonical_id': 'vitamin_e',
+              'name': 'Vitamin E',
+              'per_day_min': 1005,
+              'per_day_max': 1005,
+              'converted_unit': 'mg alpha-tocopherol',
+              'skip_ul_check': true,
+              'skip_ul_reason': 'unknown_vitamin_form',
+            },
+          ],
+        ),
+      ]);
+
+      final status = localChecker
+          .check(totals, ageBracket: '19-30', sex: 'Female')
+          .single;
+      expect(status.total.totalAmount, 1005);
+      expect(status.pctOfUl, isNull);
+      expect(status.shouldWarn, isFalse);
+      expect(status.ulAssessmentIndeterminate, isTrue);
+    },
+  );
+
+  test('still aggregates UL-eligible folic-acid exposure across products', () {
+    const aggregator = StackNutrientAggregator();
+    final totals = aggregator.aggregate([
+      const StackItemNutrients(
+        stackEntryId: 'one',
+        productName: 'Folic acid one',
+        ingredients: [
+          {
+            'canonical_id': 'folate',
+            'name': 'Folic Acid',
+            'per_day_min': 900,
+            'per_day_max': 900,
+            'converted_unit': 'mcg DFE',
+            'ul_gate_eligible': true,
+          },
+        ],
+      ),
+      const StackItemNutrients(
+        stackEntryId: 'two',
+        productName: 'Folic acid two',
+        ingredients: [
+          {
+            'canonical_id': 'folate',
+            'name': 'Folic Acid',
+            'per_day_min': 900,
+            'per_day_max': 900,
+            'converted_unit': 'mcg DFE',
+            'ul_gate_eligible': true,
+          },
+        ],
+      ),
+    ]);
+
+    final status = checker
+        .check(totals, ageBracket: '19-30', sex: 'Female')
+        .single;
+    expect(status.total.totalAmount, 1800);
+    expect(status.pctOfUl, closeTo(108, 0.1));
+    expect(status.tier, NutrientTier.exceedsUl);
+  });
+
+  test('folate label total and UL-scoped child are not double counted', () {
+    const aggregator = StackNutrientAggregator();
+    final totals = aggregator.aggregate([
+      const StackItemNutrients(
+        stackEntryId: 'multi',
+        productName: 'One Daily Multivitamin',
+        ingredients: [
+          {
+            'canonical_id': 'folate',
+            'name': 'Folate',
+            'per_day_min': 1360,
+            'per_day_max': 1360,
+            'converted_unit': 'mcg DFE',
+            'skip_ul_check': true,
+            'skip_ul_reason': 'unknown_folate_form_lineage',
+            'source_label_key': 'folate-total',
+          },
+          {
+            'canonical_id': 'folate',
+            'name': 'Folic Acid',
+            'per_day_min': 680,
+            'per_day_max': 680,
+            'converted_unit': 'mcg DFE',
+            'dose_role': 'ul_scoped_component',
+            'parent_label_key': 'folate-total',
+            'ul_gate_eligible': true,
+          },
+        ],
+      ),
+    ]);
+
+    final status = checker
+        .check(totals, ageBracket: '19-30', sex: 'Female')
+        .single;
+    expect(
+      status.total.totalAmount,
+      1360,
+      reason: 'the label total appears once',
+    );
+    expect(status.pctOfUl, closeTo(40.8, 0.1));
+    expect(status.tier, NutrientTier.aboveTypical);
+    expect(status.ulAssessmentIndeterminate, isTrue);
+  });
+
   group('StackUlChecker — tier classification', () {
     test('noRda tier when nutrient is not in reference data', () {
       final totals = _totals([_total('unknownium', 'Unknownium', 500, 'mg')]);
@@ -284,7 +479,7 @@ void main() {
       final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
       expect(results.first.tier, NutrientTier.exceedsUl);
       expect(results.first.pctOfUl, closeTo(130.0, 0.1));
-      expect(results.first.warning, contains('copper depletion'));
+      expect(results.first.warning, contains('copper deficiency'));
       expect(results.first.shouldWarn, isTrue);
     });
 
@@ -381,7 +576,7 @@ void main() {
         expect(results.first.rdaIsBaseline, isTrue);
         expect(results.first.ul, 34);
         expect(results.first.tier, NutrientTier.exceedsUl);
-        expect(results.first.warning, contains('copper depletion'));
+        expect(results.first.warning, contains('copper deficiency'));
       },
     );
 
@@ -647,39 +842,38 @@ void main() {
       );
       expect(
         results.first.warning,
-        'Above the upper limit — Sustained excessive vitamin D intake can '
-        'increase the risk of hypercalcemia and kidney complications.',
+        'Above the upper limit — Too much can cause kidney problems.',
       );
     });
 
-    test('zinc excess warns copper depletion with chronic-dose action', () {
-      final results = checker.check(
-        _totals([_total('zinc', 'Zinc', 60, 'mg')]),
-        ageBracket: '19-30',
-        sex: 'Male',
-      );
-      final warning = results.first.warning;
-      expect(warning, contains('copper depletion'));
-      // Cumulative-dose framing (IOM Zn UL 40 mg/d; PMID 18525032), not a
-      // "space apart" timing tip, plus actionable guidance.
-      expect(warning, contains('over time'));
-      expect(warning, contains('copper alongside'));
-    });
+    test(
+      'zinc excess explains the chronic copper effect in plain language',
+      () {
+        final results = checker.check(
+          _totals([_total('zinc', 'Zinc', 60, 'mg')]),
+          ageBracket: '19-30',
+          sex: 'Male',
+        );
+        final warning = results.first.warning;
+        expect(warning, contains('copper deficiency'));
+        expect(warning, contains('Long-term'));
+        expect(warning, isNot(contains('copper alongside')));
+      },
+    );
 
-    test('iron excess produces GI/oxidative warning', () {
+    test('iron excess uses plain-language stomach-effect copy', () {
       final results = checker.check(
         _totals([_total('iron', 'Iron', 50, 'mg')]),
         ageBracket: '19-30',
         sex: 'Male',
       );
-      expect(results.first.warning, contains('GI toxicity'));
+      expect(results.first.warning, contains('stomach problems'));
     });
 
-    test('unknown canonical id with UL breach still produces a warning', () {
-      // Canonical id is deliberately off-schema so the specific
-      // warning map misses. The RDA lookup still succeeds via the
-      // standard_name fuzzy match, so the tier is correct, and the
-      // warning falls back to the safe generic message.
+    test('fuzzy nutrient lookup still selects the authored warning', () {
+      // The total's id is deliberately off-schema. Once the reference entry
+      // resolves by its display name, that entry's authored copy still owns
+      // the message; the checker never invents a generic fallback.
       final totals = _totals([
         const NutrientTotal(
           canonicalId: 'not_specific',
@@ -691,9 +885,7 @@ void main() {
       ]);
       final results = checker.check(totals, ageBracket: '19-30', sex: 'Male');
       expect(results.first.tier, NutrientTier.exceedsUl);
-      // Generic fallback is the safe answer when we can't map the
-      // canonical id to a specific mechanism.
-      expect(results.first.warning, contains('upper limit'));
+      expect(results.first.warning, contains('kidney problems'));
     });
   });
 

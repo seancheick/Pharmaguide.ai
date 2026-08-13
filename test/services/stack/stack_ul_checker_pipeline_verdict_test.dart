@@ -242,6 +242,12 @@ NutrientTotal _total(String id, double amt, String unit) => NutrientTotal(
 );
 
 const _rda = {
+  'consumer_ul_warnings': {
+    'magnesium': {
+      'message':
+          'Too much supplemental magnesium can cause diarrhea, nausea, and cramping.',
+    },
+  },
   'nutrient_recommendations': [
     {
       'id': 'magnesium',

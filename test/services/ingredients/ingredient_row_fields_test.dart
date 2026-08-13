@@ -63,6 +63,7 @@ void main() {
       expect(isUsableDoseRow({'is_proprietary_blend': true}), isFalse);
       expect(isUsableDoseRow({'is_parent_total': true}), isFalse);
       expect(isUsableDoseRow({'dose_role': 'form_component'}), isFalse);
+      expect(isUsableDoseRow({'dose_role': 'ul_scoped_component'}), isFalse);
       expect(isUsableDoseRow({'is_active': false}), isFalse);
       expect(isUsableDoseRow({'is_label_descriptor': true}), isFalse);
     });

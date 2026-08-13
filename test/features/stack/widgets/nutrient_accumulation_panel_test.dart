@@ -183,6 +183,7 @@ void main() {
     expect(find.text('Zinc'), findsOneWidget);
     expect(find.textContaining('copper depletion'), findsOneWidget);
     expect(find.byKey(const Key('warn-zinc')), findsOneWidget);
+    expect(find.textContaining('Warnings stay visible'), findsNothing);
   });
 
   testWidgets('multiple warnings render with plural label', (tester) async {

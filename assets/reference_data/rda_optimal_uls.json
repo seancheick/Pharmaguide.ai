@@ -2,12 +2,12 @@
   "_metadata": {
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
-    "schema_version": "5.0.1",
-    "last_updated": "2026-08-03",
+    "schema_version": "5.1.0",
+    "last_updated": "2026-08-13",
     "reference_data_contract": {
       "contract_version": "1",
-      "reference_version": "5.0.1-2026-08-03",
-      "semantic_fingerprint": "sha256:cc246503a3097276216f8201aa03821a307692f66357720ccdd06fbf7d976a66"
+      "reference_version": "5.1.0-2026-08-13",
+      "semantic_fingerprint": "sha256:54ca9b175448c56966d48998b4c3fcd4dc3f7d5f7bd94819cfc33153b699b2f1"
     },
     "total_entries": 77,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
@@ -28,6 +28,92 @@
     "units_verified": true,
     "notes": "All values are US RDA/AI and UL. Optimal ranges based on clinical research for therapeutic supplementation. Conditionally essential nutrients flagged for special populations. Potassium/Sodium updated per 2019 NASEM report.",
     "flutter_top_level_key": "nutrient_recommendations"
+  },
+  "consumer_ul_warnings": {
+    "vitamin_a": {
+      "message": "Too much preformed vitamin A over time can harm the liver. During pregnancy, it can cause birth defects.",
+      "source_url": "https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/"
+    },
+    "vitamin_c": {
+      "message": "High intakes can cause diarrhea, nausea, and stomach cramps.",
+      "source_url": "https://ods.od.nih.gov/factsheets/VitaminC-HealthProfessional/"
+    },
+    "vitamin_d": {
+      "message": "Too much over time can raise blood calcium and increase the risk of kidney problems.",
+      "source_url": "https://ods.od.nih.gov/factsheets/VitaminD-HealthProfessional/"
+    },
+    "vitamin_e": {
+      "message": "High supplemental doses can increase the risk of bleeding.",
+      "source_url": "https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/"
+    },
+    "niacin": {
+      "message": "Too much supplemental niacin can cause flushing, nausea, or liver problems; effects depend on the form.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Niacin-HealthProfessional/"
+    },
+    "vitamin_b6": {
+      "message": "Long-term excessive intake can cause nerve damage, numbness, or loss of coordination.",
+      "source_url": "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
+    },
+    "folate": {
+      "message": "Too much folic acid can hide a vitamin B12 deficiency and delay treatment.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Folate-HealthProfessional/"
+    },
+    "choline": {
+      "message": "Too much can cause nausea, heavy sweating, low blood pressure, or a fishy body odor.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Choline-HealthProfessional/"
+    },
+    "calcium": {
+      "message": "Excessive intake can cause constipation or nausea and may increase the risk of kidney stones.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
+    },
+    "magnesium": {
+      "message": "Too much supplemental magnesium can cause diarrhea, nausea, and stomach cramps.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/"
+    },
+    "iron": {
+      "message": "High supplemental doses can cause nausea, constipation, stomach pain, vomiting, or diarrhea.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Iron-HealthProfessional/"
+    },
+    "zinc": {
+      "message": "Long-term excessive zinc can reduce copper absorption and lead to copper deficiency.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Zinc-HealthProfessional/"
+    },
+    "copper": {
+      "message": "Too much copper over time can cause stomach symptoms and damage the liver.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Copper-HealthProfessional/"
+    },
+    "selenium": {
+      "message": "Too much over time can cause hair loss, brittle nails, nausea, and nervous-system symptoms.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Selenium-HealthProfessional/"
+    },
+    "iodine": {
+      "message": "Too much can disrupt thyroid function, especially in people with thyroid conditions.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Iodine-HealthProfessional/"
+    },
+    "manganese": {
+      "message": "Long-term excessive intake may affect the nervous system and movement.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Manganese-HealthProfessional/"
+    },
+    "molybdenum": {
+      "message": "Very high intake can cause joint pain and gout-like symptoms.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Molybdenum-HealthProfessional/"
+    },
+    "phosphorus": {
+      "message": "Very high intake can disrupt calcium balance; extreme doses can harm the kidneys.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Phosphorus-HealthProfessional/"
+    },
+    "chloride": {
+      "message": "Too much chloride, usually from salt, can raise blood pressure in some people.",
+      "source_url": "https://nap.nationalacademies.org/read/10925/chapter/2"
+    },
+    "fluoride": {
+      "message": "Too much over time can stain developing teeth and, at very high intakes, weaken bones.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Fluoride-HealthProfessional/"
+    },
+    "boron": {
+      "message": "Too much can cause nausea, vomiting, diarrhea, rash, or headache.",
+      "source_url": "https://ods.od.nih.gov/factsheets/Boron-HealthProfessional/"
+    }
   },
   "nutrient_recommendations": [
     {

@@ -30,13 +30,15 @@ import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 
 void main() {
   late StackUlChecker checker;
+  late Map<String, dynamic> rdaData;
 
   setUpAll(() {
     // flutter test runs with cwd = project root.
     final raw = File(
       'assets/reference_data/rda_optimal_uls.json',
     ).readAsStringSync();
-    checker = StackUlChecker(rdaData: jsonDecode(raw) as Map<String, dynamic>);
+    rdaData = jsonDecode(raw) as Map<String, dynamic>;
+    checker = StackUlChecker(rdaData: rdaData);
   });
 
   Map<String, NutrientTotal> magnesiumStack(double mg) => {
@@ -163,5 +165,87 @@ void main() {
         expect(results.single.tier, NutrientTier.exceedsUl);
       }
     });
+  });
+
+  test('every established UL has concise, plain-language consumer copy', () {
+    final copy = (rdaData['consumer_ul_warnings'] as Map?)
+        ?.cast<String, dynamic>();
+    expect(
+      copy,
+      isNotNull,
+      reason: 'consumer UL copy must ship with the reference data',
+    );
+
+    final entries = (rdaData['nutrient_recommendations'] as List)
+        .cast<Map<String, dynamic>>();
+    final establishedIds = entries
+        .where((entry) {
+          if (entry['nutrient_class'] == 'floor') return false;
+          final groups = (entry['data'] as List?) ?? const [];
+          return groups
+              .whereType<Map<String, dynamic>>()
+              .any((group) => group['ul'] != null);
+        })
+        .map((entry) => entry['id'] as String)
+        .toSet();
+
+    expect(copy!.keys.toSet(), containsAll(establishedIds));
+    for (final id in establishedIds) {
+      final record = copy[id];
+      expect(
+        record,
+        isA<Map<String, dynamic>>(),
+        reason: '$id needs an authored copy record',
+      );
+      final message = (record as Map<String, dynamic>)['message']
+              ?.toString()
+              .trim() ??
+          '';
+      expect(
+        message.length,
+        inInclusiveRange(25, 140),
+        reason: '$id copy length',
+      );
+      expect(
+        message.toLowerCase(),
+        isNot(
+          anyOf(
+            contains('hepatotoxic'),
+            contains('teratogenic'),
+            contains('neurotoxic'),
+            contains('oxidative stress'),
+            contains('selenosis'),
+          ),
+        ),
+        reason: '$id must use consumer language',
+      );
+    }
+
+    final vitaminD = entries.firstWhere((entry) => entry['id'] == 'vitamin_d');
+    final adultUl =
+        ((vitaminD['data'] as List).cast<Map<String, dynamic>>().firstWhere(
+                  (row) =>
+                      row['group'] == 'Female' && row['age_range'] == '19-30',
+                )['ul']
+                as num)
+            .toDouble();
+    final status = checker
+        .check(
+          {
+            'vitamin_d': NutrientTotal(
+              canonicalId: 'vitamin_d',
+              displayName: 'Vitamin D',
+              totalAmount: adultUl * 1.1,
+              unit: vitaminD['unit'] as String,
+              contributions: const [],
+            ),
+          },
+          ageBracket: '19-30',
+          sex: 'Female',
+        )
+        .single;
+    final vitaminDCopy =
+        (copy['vitamin_d'] as Map<String, dynamic>)['message'] as String;
+    expect(status.warning, endsWith(vitaminDCopy));
   });
 }

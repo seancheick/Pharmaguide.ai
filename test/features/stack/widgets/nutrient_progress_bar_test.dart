@@ -336,7 +336,7 @@ void main() {
       expect(find.text('125% target'), findsOneWidget);
       expect(
         find.text(
-          'UL not calculated: the label does not provide enough form detail.',
+          'Safety limit not shown because the label does not identify the form.',
         ),
         findsOneWidget,
       );

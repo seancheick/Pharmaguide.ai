@@ -139,8 +139,8 @@ class NutrientProgressBar extends StatelessWidget {
               if (status.ulAssessmentIndeterminate) ...[
                 const SizedBox(height: V2Spacing.space4),
                 Text(
-                  'UL not calculated: the label does not provide enough '
-                  'form detail.',
+                  'Safety limit not shown because the label does not '
+                  'identify the form.',
                   style: _captionStyle(context.v2.fgMuted),
                 ),
               ],

@@ -70,7 +70,8 @@ class StackNutrientAggregator {
       // per-product rules (elemental vs compound dedup) before summing.
       final parsedRows = <_ParsedRow>[];
       for (final row in item.ingredients) {
-        if (!isUsableDoseRow(row)) continue;
+        final isUlScopedComponent = row['dose_role'] == 'ul_scoped_component';
+        if (!isUlScopedComponent && !isUsableDoseRow(row)) continue;
 
         final canonical = readCanonicalId(row);
         if (canonical == null || canonical.isEmpty) continue;
@@ -122,6 +123,7 @@ class StackNutrientAggregator {
         final unit = parsed.unit;
         final displayName = parsed.displayName;
         final ingredientName = parsed.ingredientName;
+        final isUlScopedComponent = row['dose_role'] == 'ul_scoped_component';
         final exclusionReason = compoundDuplicates.contains(parsed)
             ? NutrientExclusionReason.compoundFormDuplicate
             : legacyDeclaredTotalDuplicates.contains(parsed)
@@ -146,6 +148,27 @@ class StackNutrientAggregator {
           minimumAmount: parsed.adequacyAmount,
           unit: unit,
         );
+
+        // Intake and UL exposure are deliberately separate. The label total
+        // always owns the amount shown to the user; a form-specific child can
+        // own only the UL comparison without becoming a second intake dose.
+        if (_hasUlExposureContract(row)) {
+          total.hasUlExposureContract = true;
+        }
+        final canContributeToUl =
+            isUlScopedComponent || exclusionReason == null;
+        if (canContributeToUl && isUlEvaluationEligible(row)) {
+          total.addUlComparableAmount(amount, unit);
+        } else if (canContributeToUl && _isUnresolvedUlContribution(row)) {
+          total.hasUnresolvedUlContribution = true;
+        }
+
+        if (isUlScopedComponent) {
+          // This child is still represented in the label hierarchy. It is not
+          // an excluded or missing amount; it simply has a different job in
+          // the stack calculation.
+          continue;
+        }
 
         if (exclusionReason != null) {
           total.excludedContributions.add(
@@ -223,9 +246,39 @@ class StackNutrientAggregator {
           contributions: List.unmodifiable(value.contributions),
           hasUnitConflict: value.hasUnitConflict,
           excludedContributions: List.unmodifiable(value.excludedContributions),
+          ulComparableTotalAmount: value.ulComparableTotalAmount,
+          ulComparableUnit: value.ulComparableUnit,
+          hasUlExposureContract: value.hasUlExposureContract,
+          hasUnresolvedUlContribution:
+              value.hasUnresolvedUlContribution && !value.hasCompleteUlCoverage,
         ),
       ),
     );
+  }
+
+  static bool _hasUlExposureContract(Map<String, dynamic> row) =>
+      row.containsKey('skip_ul_check') ||
+      row.containsKey('ul_gate_eligible') ||
+      row.containsKey('ul_assessment_status') ||
+      row.containsKey('dose_role');
+
+  static bool _isUnresolvedUlContribution(Map<String, dynamic> row) {
+    if (isUlEvaluationEligible(row)) return false;
+    final status = row['ul_assessment_status']?.toString().trim().toLowerCase();
+    if (status == 'indeterminate') return true;
+    if (status == 'not_applicable') return false;
+
+    final reason = (row['skip_ul_reason'] ?? row['ul_gate_ineligible_reason'])
+        ?.toString()
+        .trim()
+        .toLowerCase();
+    return !const {
+      'compound_duplicate_row',
+      'compound_mass_not_elemental',
+      'form_component_of_declared_total',
+      'non_folic_acid_folate_ul_basis',
+      'outside_ul_scope',
+    }.contains(reason);
   }
 
   /// Extract the pipeline's own per-nutrient UL verdicts from the raw rows,
@@ -524,7 +577,40 @@ class _MutableTotal {
   bool hasAuthoredDisplayName;
   double totalAmount = 0.0;
   double minimumTotalAmount = 0.0;
+  double? ulComparableTotalAmount;
+  String? ulComparableUnit;
+  bool hasUlExposureContract = false;
+  bool hasUnresolvedUlContribution = false;
   bool hasUnitConflict = false;
   final List<NutrientContribution> contributions = [];
   final List<ExcludedNutrientContribution> excludedContributions = [];
+
+  void addUlComparableAmount(double amount, String unit) {
+    if (unit.isEmpty) {
+      hasUnresolvedUlContribution = true;
+      return;
+    }
+    final targetUnit = ulComparableUnit;
+    if (targetUnit == null || targetUnit.isEmpty) {
+      ulComparableUnit = unit;
+      ulComparableTotalAmount = amount;
+      return;
+    }
+    final converted = amountInMass(amount, from: unit, to: targetUnit);
+    if (converted == null) {
+      hasUnresolvedUlContribution = true;
+      return;
+    }
+    ulComparableTotalAmount = (ulComparableTotalAmount ?? 0) + converted;
+  }
+
+  bool get hasCompleteUlCoverage {
+    final amount = ulComparableTotalAmount;
+    final ulUnit = ulComparableUnit;
+    if (amount == null || ulUnit == null || unit.isEmpty) return false;
+    final converted = amountInMass(amount, from: ulUnit, to: unit);
+    if (converted == null) return false;
+    final tolerance = totalAmount.abs() * 0.025 + 0.001;
+    return (converted - totalAmount).abs() <= tolerance;
+  }
 }

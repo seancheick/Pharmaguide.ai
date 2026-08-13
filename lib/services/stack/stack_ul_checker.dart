@@ -136,11 +136,19 @@ class StackUlChecker {
       actualUnit: total.unit,
       expectedUnit: expectedUnit,
     );
-    final safetyAmountInReferenceUnit = _amountInReferenceUnit(
-      total.totalAmount,
-      actualUnit: total.unit,
-      expectedUnit: expectedUnit,
-    );
+    final safetyAmount = total.hasUlExposureContract
+        ? total.ulComparableTotalAmount
+        : total.totalAmount;
+    final safetyUnit = total.hasUlExposureContract
+        ? (total.ulComparableUnit ?? '')
+        : total.unit;
+    final safetyAmountInReferenceUnit = safetyAmount == null
+        ? null
+        : _amountInReferenceUnit(
+            safetyAmount,
+            actualUnit: safetyUnit,
+            expectedUnit: expectedUnit,
+          );
     if (adequacyAmountInReferenceUnit == null &&
         safetyAmountInReferenceUnit == null) {
       return NutrientStatus(total: total, tier: NutrientTier.noRda);
@@ -206,7 +214,9 @@ class StackUlChecker {
       ulIsFallback: ulLookup.isFallback,
       ulAssessmentIndeterminate:
           ul != null &&
-          safetyAmountInReferenceUnit == null &&
+          (total.hasUnresolvedUlContribution ||
+              (!total.hasUlExposureContract &&
+                  safetyAmountInReferenceUnit == null)) &&
           (verdict == null || !verdict.isDefinitive),
     );
   }
@@ -424,47 +434,18 @@ class StackUlChecker {
   /// Nutrient-specific warning strings. These map to known toxicity
   /// pathways and are shown verbatim in the UI. Extend carefully —
   /// each message here has medical implications.
-  String _warningFor(String canonicalId, NutrientTier tier) {
+  String? _warningFor(String canonicalId, NutrientTier tier) {
     final key = canonicalId.toLowerCase();
-    final specific = _specificWarnings[key];
-    if (specific != null) {
-      return tier == NutrientTier.exceedsUl
-          ? 'Above the upper limit — $specific'
-          : 'Approaching the upper limit — $specific';
-    }
+    final warnings = rdaData['consumer_ul_warnings'];
+    if (warnings is! Map) return null;
+    final record = warnings[key] ?? warnings[_rdaAliases[key]];
+    if (record is! Map) return null;
+    final specific = record['message']?.toString().trim();
+    if (specific == null || specific.isEmpty) return null;
     return tier == NutrientTier.exceedsUl
-        ? 'Above the upper limit — review with a healthcare provider'
-        : 'Approaching the upper limit — consider reviewing the total dose';
+        ? 'Above the upper limit — $specific'
+        : 'Approaching the upper limit — $specific';
   }
-
-  static const Map<String, String> _specificWarnings = {
-    // Chronic cumulative-dose risk, not a timing-separation one: sustained
-    // high-dose zinc depletes copper (intestinal metallothionein sequestration);
-    // the IOM Tolerable Upper Intake Level for zinc is 40 mg/d. PMID 18525032
-    // documents zinc-induced copper deficiency causing neurologic disease.
-    // See knowledge/timing-rules-research.md §1.
-    'zinc':
-        'risk of copper depletion over time; consider a lower dose or taking copper alongside',
-    'iron': 'risk of GI toxicity and oxidative stress',
-    'vitamin_a': 'risk of hepatotoxicity and teratogenicity',
-    'vitamin_d':
-        'Sustained excessive vitamin D intake can increase the risk of '
-        'hypercalcemia and kidney complications.',
-    'vitamin_d3':
-        'Sustained excessive vitamin D intake can increase the risk of '
-        'hypercalcemia and kidney complications.',
-    'vitamin_b6': 'risk of sensory neuropathy with chronic use',
-    'vitamin_b3': 'risk of flushing and hepatotoxicity',
-    'niacin': 'risk of flushing and hepatotoxicity',
-    'folate': 'may mask vitamin B12 deficiency',
-    'folic_acid': 'may mask vitamin B12 deficiency',
-    'calcium': 'risk of kidney stones and cardiovascular events',
-    'magnesium': 'risk of diarrhea and electrolyte imbalance',
-    'selenium': 'risk of selenosis and hair/nail loss',
-    'copper': 'risk of hepatotoxicity',
-    'manganese': 'risk of neurotoxicity with chronic exposure',
-    'iodine': 'risk of thyroid dysfunction',
-  };
 
   static const Map<String, String> _rdaAliases = {
     'vitamin_b1_thiamine': 'thiamin',

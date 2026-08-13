@@ -223,8 +223,7 @@ class _PanelBodyState extends State<_PanelBody> {
             _SectionHeading(
               title: 'Safety limits',
               description:
-                  'These nutrients have an established upper limit (UL). '
-                  'Warnings stay visible.',
+                  'These nutrients have an established upper limit (UL).',
               count: safetyLimits.length,
             ),
             for (final status in safetyLimits)

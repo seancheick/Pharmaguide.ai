@@ -131,6 +131,10 @@ class NutrientTotal {
     required this.contributions,
     this.hasUnitConflict = false,
     this.excludedContributions = const [],
+    this.ulComparableTotalAmount,
+    this.ulComparableUnit,
+    this.hasUlExposureContract = false,
+    this.hasUnresolvedUlContribution = false,
   });
 
   final String canonicalId;
@@ -146,6 +150,23 @@ class NutrientTotal {
   final List<NutrientContribution> contributions;
   final bool hasUnitConflict;
   final List<ExcludedNutrientContribution> excludedContributions;
+
+  /// Portion of [totalAmount] that the pipeline has authorized for comparison
+  /// with this nutrient's UL. Form-specific limits can cover less than the
+  /// total label amount (preformed Vitamin A, synthetic folate, and synthetic
+  /// Vitamin E are common examples).
+  final double? ulComparableTotalAmount;
+  final String? ulComparableUnit;
+
+  /// True when the total came through the pipeline's explicit UL-eligibility
+  /// contract. Legacy hand-built totals leave this false and retain the old
+  /// total-vs-UL behavior for compatibility.
+  final bool hasUlExposureContract;
+
+  /// At least one disclosed contribution could not be assigned honestly to
+  /// the UL-comparable or outside-scope portion. The intake remains counted,
+  /// but a quiet indeterminate state replaces a guessed safety conclusion.
+  final bool hasUnresolvedUlContribution;
 
   bool get hasExcludedContributions => excludedContributions.isNotEmpty;
 
