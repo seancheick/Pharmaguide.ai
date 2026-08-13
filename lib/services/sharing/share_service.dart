@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:typed_data';
+import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,6 +12,35 @@ import 'package:share_plus/share_plus.dart';
 typedef ShareInvocation = Future<void> Function(String text, {String? subject});
 typedef PdfShareInvocation =
     Future<bool> Function(List<int> bytes, {required String filename});
+
+/// Mints the public link for a shared product, or returns `null` when no link
+/// could be created. Injected so tests can exercise both outcomes without a
+/// network.
+typedef ShareLinkMinter = Future<String?> Function(Map<String, Object?> payload);
+
+/// Base URL of the website that hosts `/api/share` and `/s/{code}`.
+///
+/// Overridable via `--dart-define=PHARMAGUIDE_WEB_URL=…` so a staging build
+/// mints staging links instead of writing test rows into production.
+const String _webBaseUrl = String.fromEnvironment(
+  'PHARMAGUIDE_WEB_URL',
+  defaultValue: 'https://pharmaguide.io',
+);
+
+/// Shared secret for `POST /api/share`, injected via
+/// `--dart-define=PHARMAGUIDE_SHARE_KEY=…`.
+///
+/// Empty by default, and the website treats an empty expectation as "no gate",
+/// so builds without it keep working. This is not strong authentication — a
+/// secret inside an app binary is extractable — it just stops someone who
+/// noticed a share URL from minting pharmaguide.io pages with `curl`.
+const String _shareApiKey = String.fromEnvironment('PHARMAGUIDE_SHARE_KEY');
+
+/// The share sheet cannot open until the text is final, so this timeout is
+/// felt directly as a delay between the tap and the sheet. Three seconds is
+/// the ceiling for that to still read as responsive on a weak mobile
+/// connection; past it we give up and share the text alone.
+const Duration _mintTimeout = Duration(seconds: 3);
 
 /// Allowlisted supplement fields that are safe for the non-clinical share
 /// flow. Medication, profile, warning, score, and condition data have no place
@@ -30,13 +61,49 @@ class ShareService {
   /// [SharePlus] path runs.
   final ShareInvocation? _shareOverride;
   final PdfShareInvocation? _pdfShareOverride;
+  final ShareLinkMinter? _linkMinterOverride;
 
-  ShareService({this._shareOverride, this._pdfShareOverride});
+  ShareService({
+    this._shareOverride,
+    this._pdfShareOverride,
+    this._linkMinterOverride,
+  });
 
   Future<void> _share(String text, {String? subject}) {
     final override = _shareOverride;
     if (override != null) return override(text, subject: subject);
     return SharePlus.instance.share(ShareParams(text: text, subject: subject));
+  }
+
+  /// POST the allowlisted payload to the website and return the public URL.
+  ///
+  /// Every failure path returns `null` rather than throwing. Sharing is a
+  /// gesture already in flight: if the link cannot be minted, the right
+  /// outcome is the text-only share that shipped before links existed, not an
+  /// error dialog over a share sheet the user is waiting on.
+  Future<String?> _mintShareLink(Map<String, Object?> payload) async {
+    final override = _linkMinterOverride;
+    if (override != null) return override(payload);
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_webBaseUrl/api/share'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (_shareApiKey.isNotEmpty) 'x-pharmaguide-key': _shareApiKey,
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(_mintTimeout);
+      if (response.statusCode != 201) return null;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return null;
+      final url = decoded['url'];
+      return url is String && url.isNotEmpty ? url : null;
+    } on Exception {
+      return null;
+    }
   }
 
   /// Returns `true` only when the platform confirms that the PDF was shared.
@@ -55,6 +122,16 @@ class ShareService {
 
   /// Share a product-quality summary. Profile results are deliberately absent:
   /// the recipient has a different health context and must run their own check.
+  ///
+  /// When [dsldId] is supplied the service also mints a public link and appends
+  /// it, so the recipient gets a page instead of a wall of text. Callers that
+  /// omit it — or a mint that fails — fall back to the text-only share.
+  ///
+  /// [catalogVersion] is optional and currently unset by the product-detail
+  /// call site: the only accessor for it is an async network fetch, which is
+  /// not worth blocking a share gesture on. The landing page dates every
+  /// snapshot regardless, so the version is a refinement rather than the
+  /// mechanism that keeps a stale score honest.
   Future<void> shareProduct({
     required String productName,
     String? brandName,
@@ -62,6 +139,8 @@ class ShareService {
     String? qualityTier,
     String? scoreConfidence,
     List<String> qualityHighlights = const [],
+    String? dsldId,
+    String? catalogVersion,
   }) async {
     final cleanName = productName.trim().isEmpty
         ? 'Supplement'
@@ -79,12 +158,30 @@ class ShareService {
     final confidenceLine = confidenceLabel == null
         ? null
         : 'Score confidence: $confidenceLabel';
-    final highlights = qualityHighlights
+    final cleanHighlights = qualityHighlights
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty)
         .take(3)
-        .map((value) => '- $value')
-        .join('\n');
+        .toList(growable: false);
+    final highlights = cleanHighlights.map((value) => '- $value').join('\n');
+
+    // The link is minted before the sheet opens because the text must be final
+    // by then. A null result is the normal offline/slow-network path.
+    final shareUrl = dsldId == null || dsldId.trim().isEmpty
+        ? null
+        : await _mintShareLink({
+            'dsldId': dsldId.trim(),
+            'productName': cleanName,
+            if (cleanBrand.isNotEmpty) 'brandName': cleanBrand,
+            // Score and tier travel as a pair. `scoreLine` above already
+            // encodes that a null score means no tier is shown, and the
+            // website rejects a half-populated pair outright.
+            'qualityScore': qualityScore?.round(),
+            'qualityTier': qualityScore == null ? null : qualityTier,
+            'confidence': confidenceLabel,
+            'highlights': cleanHighlights,
+            if (catalogVersion != null) 'catalogVersion': catalogVersion,
+          });
 
     final text = [
       title,
@@ -92,6 +189,7 @@ class ShareService {
       if (confidenceLine != null) confidenceLine,
       if (highlights.isNotEmpty) 'Highlights:\n$highlights',
       'Quality reflects the product itself. Personal fit depends on your profile.',
+      if (shareUrl != null) shareUrl,
       'Reviewed in PharmaGuide',
     ].join('\n\n');
 

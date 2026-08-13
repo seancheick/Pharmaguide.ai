@@ -36,6 +36,7 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -221,18 +222,41 @@ class _ProductDetailV2ConnectedState
     if (product == null || _isSharing) return;
     setState(() => _isSharing = true);
     try {
-      final canShareScore =
-          !catalogProductIsBlocked(product) &&
-          !catalogProductIsNotScored(product);
+      final isBlocked = catalogProductIsBlocked(product);
+      final canShareScore = !isBlocked && !catalogProductIsNotScored(product);
+      // Trust tags are gated on `isBlocked`, NOT on `canShareScore`.
+      //
+      // The two guards protect different things. A not-scored product still
+      // has truthful label facts — "Organic", "Third-Party Tested" come off
+      // the label and stay true whether or not scoring completed, so sharing
+      // them is fine. A blocked product is different: it carries a banned
+      // substance, and a share that says "Third-Party Tested · Organic" with
+      // no score attached reads as a recommendation of a product we refuse to
+      // score. Positive decoration never rides along with a block.
       await ShareService().shareProduct(
         productName: product.productName,
         brandName: product.brandName,
         qualityScore: canShareScore ? product.qualityScoreV4100 : null,
-        qualityTier: canShareScore ? product.qualityTier : null,
+        // Resolved through catalogTier(), not read raw off the column. The
+        // pipeline's quality_tier wins when present, and old cached records
+        // that predate that field fall back to the score-derived tier — the
+        // same resolution the hero already renders. Sending the raw column
+        // would make a legacy record post a score with a null tier, which the
+        // website rejects as a half-populated pair, silently costing that
+        // share its link.
+        qualityTier: canShareScore && product.qualityScoreV4100 != null
+            ? catalogTier(
+                qualityTier: product.qualityTier,
+                legacyScore: product.qualityScoreV4100!.round(),
+              ).label
+            : null,
         scoreConfidence: canShareScore ? product.v4Confidence : null,
-        qualityHighlights: buildHeroTrustTags(
-          product,
-        ).map((tag) => tag.label).toList(growable: false),
+        qualityHighlights: isBlocked
+            ? const []
+            : buildHeroTrustTags(
+                product,
+              ).map((tag) => tag.label).toList(growable: false),
+        dsldId: widget.dsldId,
       );
     } on Exception {
       if (!mounted) return;
