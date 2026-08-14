@@ -49,6 +49,23 @@ void main() {
       },
     );
 
+    test('shareProduct preserves a catalog block in fallback text', () async {
+      String? capturedText;
+      final service = ShareService(
+        shareOverride: (text, {subject}) async => capturedText = text,
+      );
+
+      await service.shareProduct(
+        productName: 'Blocked Product',
+        isCatalogBlocked: true,
+        qualityHighlights: const ['Third-Party Tested'],
+      );
+
+      expect(capturedText, contains('Blocked from quality scoring'));
+      expect(capturedText, isNot(contains('Third-Party Tested')));
+      expect(capturedText, isNot(contains('PharmaGuide quality:')));
+    });
+
     test('shareProduct never includes a sender profile verdict', () async {
       String? capturedText;
       final service = ShareService(
@@ -69,11 +86,13 @@ void main() {
       String? capturedText;
       final service = ShareService(
         shareOverride: (text, {subject}) async => capturedText = text,
-        linkMinterOverride: (payload) async => 'https://pharmaguide.io/s/tc7ebgwy',
+        linkMinterOverride: (payload) async =>
+            'https://pharmaguide.io/s/tc7ebgwy',
       );
 
       await service.shareProduct(
         dsldId: '1038',
+        catalogVersion: '2026.08.13.204005',
         productName: 'Magnesium Glycinate',
         qualityScore: 92,
         qualityTier: 'excellent',
@@ -97,6 +116,7 @@ void main() {
 
       await service.shareProduct(
         dsldId: '1038',
+        catalogVersion: '2026.08.13.204005',
         productName: 'Magnesium Glycinate',
         qualityScore: 92,
         qualityTier: 'excellent',
@@ -106,7 +126,7 @@ void main() {
       expect(capturedText, isNot(contains('http')));
     });
 
-    test('shareProduct skips minting entirely without a dsldId', () async {
+    test('shareProduct skips minting without catalog identity', () async {
       var minterCalled = false;
       final service = ShareService(
         shareOverride: (text, {subject}) async {},
@@ -119,9 +139,16 @@ void main() {
       await service.shareProduct(productName: 'Magnesium Glycinate');
 
       expect(minterCalled, isFalse);
+
+      await service.shareProduct(
+        dsldId: '1038',
+        productName: 'Magnesium Glycinate',
+      );
+
+      expect(minterCalled, isFalse);
     });
 
-    test('minted payload carries no profile or personal data', () async {
+    test('minted payload carries only immutable catalog identity', () async {
       Map<String, Object?>? capturedPayload;
       final service = ShareService(
         shareOverride: (text, {subject}) async {},
@@ -133,6 +160,7 @@ void main() {
 
       await service.shareProduct(
         dsldId: '1038',
+        catalogVersion: '2026.08.13.204005',
         productName: 'Magnesium Glycinate',
         brandName: 'Example Labs',
         qualityScore: 92,
@@ -141,76 +169,30 @@ void main() {
         qualityHighlights: const ['Third-Party Tested', 'Organic'],
       );
 
-      // Allowlist assertion, not a denylist: anything not named here must not
-      // be leaving the device, and a new key added upstream fails this test
-      // rather than silently shipping.
-      expect(
-        capturedPayload!.keys.toSet(),
-        {
-          'dsldId',
-          'productName',
-          'brandName',
-          'qualityScore',
-          'qualityTier',
-          'confidence',
-          'highlights',
-        },
-      );
-      expect(capturedPayload!['qualityScore'], 92);
-      expect(capturedPayload!['confidence'], 'Limited');
-      expect(capturedPayload!['highlights'], ['Third-Party Tested', 'Organic']);
+      // The website resolves every public field from the pipeline-published
+      // release artifact. A new key added here fails closed in this test so
+      // client-authored scores, names, statuses, or claims cannot return.
+      expect(capturedPayload, {
+        'dsldId': '1038',
+        'catalogVersion': '2026.08.13.204005',
+      });
     });
 
-    test('minted payload never sends a tier without its score', () async {
-      Map<String, Object?>? capturedPayload;
+    test('shareProduct caps text highlights at three', () async {
+      String? capturedText;
       final service = ShareService(
-        shareOverride: (text, {subject}) async {},
-        linkMinterOverride: (payload) async {
-          capturedPayload = payload;
-          return null;
-        },
-      );
-
-      // A blocked product: the call site nulls the score but a stale tier
-      // string could still arrive. The pair must break together, or the
-      // website would be asked to render a verdict with nothing behind it.
-      await service.shareProduct(
-        dsldId: '9',
-        productName: 'Blocked Thing',
-        qualityScore: null,
-        qualityTier: 'excellent',
-      );
-
-      expect(capturedPayload!['qualityScore'], isNull);
-      expect(capturedPayload!['qualityTier'], isNull);
-    });
-
-    test('minted payload caps highlights at three', () async {
-      Map<String, Object?>? capturedPayload;
-      final service = ShareService(
-        shareOverride: (text, {subject}) async {},
-        linkMinterOverride: (payload) async {
-          capturedPayload = payload;
-          return null;
-        },
+        shareOverride: (text, {subject}) async => capturedText = text,
       );
 
       await service.shareProduct(
-        dsldId: '1038',
         productName: 'Magnesium Glycinate',
-        qualityHighlights: const [
-          'Third-Party Tested',
-          'Organic',
-          'Non-GMO',
-          'Vegan',
-        ],
+        qualityHighlights: const ['One', 'Two', 'Three', 'Four'],
       );
 
-      expect(capturedPayload!['highlights'], [
-        'Third-Party Tested',
-        'Organic',
-        'Non-GMO',
-      ]);
+      expect(capturedText, contains('- One'));
+      expect(capturedText, contains('- Two'));
+      expect(capturedText, contains('- Three'));
+      expect(capturedText, isNot(contains('- Four')));
     });
   });
 

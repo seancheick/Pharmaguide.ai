@@ -222,6 +222,15 @@ class _ProductDetailV2ConnectedState
     if (product == null || _isSharing) return;
     setState(() => _isSharing = true);
     try {
+      String? catalogVersion;
+      try {
+        // This reads the active SQLite manifest locally. If an old or damaged
+        // catalog lacks the stamp, ShareService deliberately falls back to a
+        // text-only share instead of minting an undated public result.
+        catalogVersion = await ref.read(coreDatabaseProvider).readDbVersion();
+      } on Exception {
+        catalogVersion = null;
+      }
       final isBlocked = catalogProductIsBlocked(product);
       final canShareScore = !isBlocked && !catalogProductIsNotScored(product);
       // Trust tags are gated on `isBlocked`, NOT on `canShareScore`.
@@ -251,12 +260,14 @@ class _ProductDetailV2ConnectedState
               ).label
             : null,
         scoreConfidence: canShareScore ? product.v4Confidence : null,
+        isCatalogBlocked: isBlocked,
         qualityHighlights: isBlocked
             ? const []
             : buildHeroTrustTags(
                 product,
               ).map((tag) => tag.label).toList(growable: false),
         dsldId: widget.dsldId,
+        catalogVersion: catalogVersion,
       );
     } on Exception {
       if (!mounted) return;

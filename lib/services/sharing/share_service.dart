@@ -16,7 +16,8 @@ typedef PdfShareInvocation =
 /// Mints the public link for a shared product, or returns `null` when no link
 /// could be created. Injected so tests can exercise both outcomes without a
 /// network.
-typedef ShareLinkMinter = Future<String?> Function(Map<String, Object?> payload);
+typedef ShareLinkMinter =
+    Future<String?> Function(Map<String, Object?> payload);
 
 /// Base URL of the website that hosts `/api/share` and `/s/{code}`.
 ///
@@ -26,15 +27,6 @@ const String _webBaseUrl = String.fromEnvironment(
   'PHARMAGUIDE_WEB_URL',
   defaultValue: 'https://pharmaguide.io',
 );
-
-/// Shared secret for `POST /api/share`, injected via
-/// `--dart-define=PHARMAGUIDE_SHARE_KEY=…`.
-///
-/// Empty by default, and the website treats an empty expectation as "no gate",
-/// so builds without it keep working. This is not strong authentication — a
-/// secret inside an app binary is extractable — it just stops someone who
-/// noticed a share URL from minting pharmaguide.io pages with `curl`.
-const String _shareApiKey = String.fromEnvironment('PHARMAGUIDE_SHARE_KEY');
 
 /// The share sheet cannot open until the text is final, so this timeout is
 /// felt directly as a delay between the tap and the sheet. Three seconds is
@@ -89,10 +81,7 @@ class ShareService {
       final response = await http
           .post(
             Uri.parse('$_webBaseUrl/api/share'),
-            headers: {
-              'Content-Type': 'application/json',
-              if (_shareApiKey.isNotEmpty) 'x-pharmaguide-key': _shareApiKey,
-            },
+            headers: {'Content-Type': 'application/json'},
             body: jsonEncode(payload),
           )
           .timeout(_mintTimeout);
@@ -127,11 +116,10 @@ class ShareService {
   /// it, so the recipient gets a page instead of a wall of text. Callers that
   /// omit it — or a mint that fails — fall back to the text-only share.
   ///
-  /// [catalogVersion] is optional and currently unset by the product-detail
-  /// call site: the only accessor for it is an async network fetch, which is
-  /// not worth blocking a share gesture on. The landing page dates every
-  /// snapshot regardless, so the version is a refinement rather than the
-  /// mechanism that keeps a stale score honest.
+  /// A public link is minted only when both [dsldId] and [catalogVersion] are
+  /// present. The website resolves the product name, score, disposition, and
+  /// trust tags from that immutable pipeline release; none of those trusted
+  /// fields are accepted from this client.
   Future<void> shareProduct({
     required String productName,
     String? brandName,
@@ -139,6 +127,7 @@ class ShareService {
     String? qualityTier,
     String? scoreConfidence,
     List<String> qualityHighlights = const [],
+    bool isCatalogBlocked = false,
     String? dsldId,
     String? catalogVersion,
   }) async {
@@ -148,43 +137,39 @@ class ShareService {
     final cleanBrand = brandName?.trim() ?? '';
     final title = cleanBrand.isEmpty ? cleanName : '$cleanName — $cleanBrand';
     final tier = qualityTier?.trim() ?? '';
-    final scoreLine = qualityScore == null
+    final scoreLine = qualityScore == null || isCatalogBlocked
         ? null
         : 'PharmaGuide quality: ${qualityScore.round()}/100'
               '${tier.isEmpty ? '' : ' · $tier'}';
-    final confidenceLabel = qualityScore == null
+    final confidenceLabel = qualityScore == null || isCatalogBlocked
         ? null
         : catalogScoreConfidenceLabel(scoreConfidence);
     final confidenceLine = confidenceLabel == null
         ? null
         : 'Score confidence: $confidenceLabel';
-    final cleanHighlights = qualityHighlights
-        .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
-        .take(3)
-        .toList(growable: false);
+    final cleanHighlights = isCatalogBlocked
+        ? const <String>[]
+        : qualityHighlights
+              .map((value) => value.trim())
+              .where((value) => value.isNotEmpty)
+              .take(3)
+              .toList(growable: false);
     final highlights = cleanHighlights.map((value) => '- $value').join('\n');
 
     // The link is minted before the sheet opens because the text must be final
     // by then. A null result is the normal offline/slow-network path.
-    final shareUrl = dsldId == null || dsldId.trim().isEmpty
+    final cleanDsldId = dsldId?.trim() ?? '';
+    final cleanCatalogVersion = catalogVersion?.trim() ?? '';
+    final shareUrl = cleanDsldId.isEmpty || cleanCatalogVersion.isEmpty
         ? null
         : await _mintShareLink({
-            'dsldId': dsldId.trim(),
-            'productName': cleanName,
-            if (cleanBrand.isNotEmpty) 'brandName': cleanBrand,
-            // Score and tier travel as a pair. `scoreLine` above already
-            // encodes that a null score means no tier is shown, and the
-            // website rejects a half-populated pair outright.
-            'qualityScore': qualityScore?.round(),
-            'qualityTier': qualityScore == null ? null : qualityTier,
-            'confidence': confidenceLabel,
-            'highlights': cleanHighlights,
-            if (catalogVersion != null) 'catalogVersion': catalogVersion,
+            'dsldId': cleanDsldId,
+            'catalogVersion': cleanCatalogVersion,
           });
 
     final text = [
       title,
+      if (isCatalogBlocked) 'Blocked from quality scoring in PharmaGuide',
       if (scoreLine != null) scoreLine,
       if (confidenceLine != null) confidenceLine,
       if (highlights.isNotEmpty) 'Highlights:\n$highlights',
