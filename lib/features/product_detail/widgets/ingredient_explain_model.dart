@@ -61,6 +61,10 @@ class IngredientExplain {
   /// collapsed and reveals [formNote] on expand — it never splits text itself.
   final String? formNotePreview;
 
+  /// Pipeline-reviewed evidence tier and sources for this form rating.
+  final String? formEvidenceLevel;
+  final List<PGFormEvidenceSource> formEvidenceSources;
+
   /// Sentence explaining the dose call-out. Empty for `withinLimits`.
   final String doseExplanation;
 
@@ -79,6 +83,8 @@ class IngredientExplain {
     required this.doseExplanation,
     this.formNote,
     this.formNotePreview,
+    this.formEvidenceLevel,
+    this.formEvidenceSources = const [],
     this.formName,
     this.doseLabel,
     this.parentheticalDoseText,
@@ -134,6 +140,10 @@ IngredientExplain buildIngredientExplain({
     formExplanation: formExplanation,
     formNote: formNote,
     formNotePreview: formNote == null ? null : presented.formNotePreview,
+    formEvidenceLevel: formNote == null ? null : presented.formEvidenceLevel,
+    formEvidenceSources: formNote == null
+        ? const []
+        : presented.formEvidenceSources,
     doseExplanation: _doseExplanationFor(presented.doseCallOut),
     identityNeedsReview: presented.identityNeedsReview,
     scoreIncluded: presented.scoreIncluded,

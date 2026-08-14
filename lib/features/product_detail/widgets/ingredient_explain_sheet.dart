@@ -1,11 +1,18 @@
 // v2 modal bottom sheet that explains a single active ingredient.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+typedef OpenFormEvidenceSource =
+    Future<void> Function(PGFormEvidenceSource source);
 
 /// Opens the explain sheet for [ingredient]. Returns when the sheet is
 /// dismissed.
@@ -13,6 +20,7 @@ Future<void> showIngredientExplainSheet(
   BuildContext context, {
   required Map<String, dynamic> ingredient,
   Map<String, dynamic>? ulEntry,
+  OpenFormEvidenceSource? openEvidenceSource,
 }) {
   final explain = buildIngredientExplain(
     ingredient: ingredient,
@@ -20,14 +28,24 @@ Future<void> showIngredientExplainSheet(
   );
   return PGModal.bottomSheet<void>(
     context: context,
-    builder: (_) => _Sheet(explain: explain),
+    builder: (_) => _Sheet(
+      explain: explain,
+      openEvidenceSource: openEvidenceSource ?? _openEvidenceSource,
+    ),
   );
+}
+
+Future<void> _openEvidenceSource(PGFormEvidenceSource source) async {
+  final uri = Uri.tryParse(source.url);
+  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return;
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
 class _Sheet extends StatelessWidget {
   final IngredientExplain explain;
+  final OpenFormEvidenceSource openEvidenceSource;
 
-  const _Sheet({required this.explain});
+  const _Sheet({required this.explain, required this.openEvidenceSource});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +55,11 @@ class _Sheet extends StatelessWidget {
       maxChildSize: 0.85,
       expand: false,
       builder: (_, scrollController) {
-        return _SheetBody(explain: explain, scrollController: scrollController);
+        return _SheetBody(
+          explain: explain,
+          scrollController: scrollController,
+          openEvidenceSource: openEvidenceSource,
+        );
       },
     );
   }
@@ -46,8 +68,13 @@ class _Sheet extends StatelessWidget {
 class _SheetBody extends StatelessWidget {
   final IngredientExplain explain;
   final ScrollController scrollController;
+  final OpenFormEvidenceSource openEvidenceSource;
 
-  const _SheetBody({required this.explain, required this.scrollController});
+  const _SheetBody({
+    required this.explain,
+    required this.scrollController,
+    required this.openEvidenceSource,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -98,6 +125,14 @@ class _SheetBody extends StatelessWidget {
                 explain.formExplanation!,
             expandedBody: explain.formNote,
           ),
+        if (explain.formEvidenceSources.isNotEmpty) ...[
+          const SizedBox(height: V2Spacing.space12),
+          _FormEvidenceSources(
+            level: explain.formEvidenceLevel!,
+            sources: explain.formEvidenceSources,
+            onOpen: openEvidenceSource,
+          ),
+        ],
         if (explain.doseExplanation.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space12),
           _Block(
@@ -120,6 +155,119 @@ class _SheetBody extends StatelessWidget {
     final parenthetical = explain.parentheticalDoseText;
     if (parenthetical == null) return explain.doseLabel!;
     return '${explain.doseLabel!} ($parenthetical)';
+  }
+}
+
+class _FormEvidenceSources extends StatelessWidget {
+  const _FormEvidenceSources({
+    required this.level,
+    required this.sources,
+    required this.onOpen,
+  });
+
+  final String level;
+  final List<PGFormEvidenceSource> sources;
+  final OpenFormEvidenceSource onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final supportLabel = switch (level) {
+      'strong' => 'Strong supporting evidence',
+      _ => 'Moderate supporting evidence',
+    };
+    return Container(
+      padding: const EdgeInsets.all(V2Spacing.space12),
+      decoration: BoxDecoration(
+        color: context.v2.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: context.v2.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Sources for this form rating',
+            style: V2Typography.label(color: context.v2.fg),
+          ),
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            supportLabel,
+            style: V2Typography.caption(color: context.v2.fgMuted),
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          for (var index = 0; index < sources.length; index++) ...[
+            _FormEvidenceSourceRow(source: sources[index], onOpen: onOpen),
+            if (index != sources.length - 1)
+              Divider(color: context.v2.outline, height: 1, thickness: 0.4),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FormEvidenceSourceRow extends StatelessWidget {
+  const _FormEvidenceSourceRow({required this.source, required this.onOpen});
+
+  final PGFormEvidenceSource source;
+  final OpenFormEvidenceSource onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final sourceLabel = source.pmid == null
+        ? source.authority
+        : 'PMID ${source.pmid}';
+    return Semantics(
+      button: true,
+      label: 'Open source: ${source.title}',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => unawaited(onOpen(source)),
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.menu_book_outlined,
+                    size: 18,
+                    color: context.v2.accent,
+                  ),
+                  const SizedBox(width: V2Spacing.space8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          source.title,
+                          style: V2Typography.bodySm(color: context.v2.fg),
+                        ),
+                        const SizedBox(height: V2Spacing.space4),
+                        Text(
+                          sourceLabel,
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: V2Spacing.space8),
+                  Icon(
+                    Icons.open_in_new_rounded,
+                    size: 18,
+                    color: context.v2.fgMuted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

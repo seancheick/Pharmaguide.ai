@@ -83,7 +83,8 @@ PGActiveIngredient presentActiveIngredient(
   // or malformed blob cannot put an explanation beside a row reading
   // "Form listed · not yet assessed". The needs-review path returns earlier.
   final showsFormNote =
-      formDisplayState == PGIngredientFormDisplayState.assessed && scoreIncluded;
+      formDisplayState == PGIngredientFormDisplayState.assessed &&
+      scoreIncluded;
   final formNote = showsFormNote
       ? _trimOrNull(_analysisValue(ingredient, 'form_note'))
       : null;
@@ -91,7 +92,19 @@ PGActiveIngredient presentActiveIngredient(
   // the full note keeps a malformed blob readable rather than blank.
   final formNotePreview = formNote == null
       ? null
-      : _trimOrNull(_analysisValue(ingredient, 'form_note_preview')) ?? formNote;
+      : _trimOrNull(_analysisValue(ingredient, 'form_note_preview')) ??
+            formNote;
+  final formEvidence = showsFormNote
+      ? _readStringMap(_analysisValue(ingredient, 'form_evidence'))
+      : const <String, dynamic>{};
+  final rawFormEvidenceLevel = _trimOrNull(formEvidence['evidence_level']);
+  final formEvidenceSources = _parseFormEvidenceSources(formEvidence);
+  final formEvidenceLevel =
+      formEvidenceSources.isNotEmpty &&
+          (rawFormEvidenceLevel == 'strong' ||
+              rawFormEvidenceLevel == 'moderate')
+      ? rawFormEvidenceLevel
+      : null;
 
   final doseIngredient = _withAnalysisSignals(ingredient, const [
     'standard_name',
@@ -114,6 +127,10 @@ PGActiveIngredient presentActiveIngredient(
     formQuality: formQuality,
     formNote: formNote,
     formNotePreview: formNotePreview,
+    formEvidenceLevel: formEvidenceLevel,
+    formEvidenceSources: formEvidenceLevel == null
+        ? const []
+        : formEvidenceSources,
     doseCallOut: scoreIncluded
         ? resolveDoseCallOut(ingredient: doseIngredient, ulEntry: ulEntry)
         : DoseCallOut.withinLimits,
@@ -131,6 +148,52 @@ PGActiveIngredient presentActiveIngredient(
     scoreIncluded: scoreIncluded,
     displayDisposition: displayDisposition,
   );
+}
+
+List<PGFormEvidenceSource> _parseFormEvidenceSources(
+  Map<String, dynamic> evidence,
+) {
+  final references = evidence['references_structured'];
+  if (references is! List) return const [];
+
+  final seen = <String>{};
+  final sources = <PGFormEvidenceSource>[];
+  for (final value in references) {
+    final reference = _readStringMap(value);
+    final type = _trimOrNull(reference['type']);
+    if (type != 'pubmed' && type != 'authoritative_guidance') continue;
+
+    final title = _trimOrNull(reference['title']);
+    final authority = _trimOrNull(reference['authority']);
+    final url = _trimOrNull(reference['url']);
+    if (title == null || authority == null || url == null) continue;
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) continue;
+
+    final rawPmid = _trimOrNull(reference['pmid']);
+    final pmid = rawPmid != null && RegExp(r'^\d+$').hasMatch(rawPmid)
+        ? rawPmid
+        : null;
+    if (type == 'pubmed' && pmid == null) continue;
+
+    final identity = pmid == null ? url : 'pmid:$pmid';
+    if (!seen.add(identity)) continue;
+    sources.add(
+      PGFormEvidenceSource(
+        title: title,
+        authority: authority,
+        url: url,
+        pmid: pmid,
+      ),
+    );
+  }
+  return List.unmodifiable(sources);
+}
+
+Map<String, dynamic> _readStringMap(Object? value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return const {};
 }
 
 Object? _analysisValue(Map<String, dynamic> ingredient, String key) {

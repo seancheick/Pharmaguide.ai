@@ -25,6 +25,23 @@ extension PGIngredientFormDisplayStatePresentation
   };
 }
 
+/// One pipeline-reviewed source supporting an active ingredient's form rating.
+/// The app renders this identity verbatim and never derives clinical meaning
+/// from it.
+class PGFormEvidenceSource {
+  final String title;
+  final String authority;
+  final String url;
+  final String? pmid;
+
+  const PGFormEvidenceSource({
+    required this.title,
+    required this.authority,
+    required this.url,
+    this.pmid,
+  });
+}
+
 /// Typed input for [PGActiveIngredientTile].
 ///
 /// In production, callers build this from the raw pipeline map at the
@@ -63,6 +80,13 @@ class PGActiveIngredient {
   /// First sentence of [formNote], split in the pipeline so the app makes no
   /// editorial decision. Null exactly when [formNote] is null.
   final String? formNotePreview;
+
+  /// Pipeline-reviewed support tier for this exact form rating.
+  final String? formEvidenceLevel;
+
+  /// Verified references supplied with [formEvidenceLevel]. Empty when the
+  /// form is unassessed, unscored, or has no approved evidence payload.
+  final List<PGFormEvidenceSource> formEvidenceSources;
 
   /// Dose-related call-out (UL exceedance / below-clinical / not disclosed).
   /// Drives the dose chip.
@@ -117,6 +141,8 @@ class PGActiveIngredient {
     this.formQuality = FormQuality.unknown,
     this.formNote,
     this.formNotePreview,
+    this.formEvidenceLevel,
+    this.formEvidenceSources = const [],
     this.doseCallOut = DoseCallOut.withinLimits,
     this.isSafetyConcern = false,
     this.isInferredFromLabel = false,

@@ -174,6 +174,67 @@ void main() {
     expect(find.text(genericGood), findsNothing);
   });
 
+  testWidgets('form-rating sources are explicit, readable, and tappable', (
+    tester,
+  ) async {
+    final opened = <String>[];
+    final ingredient = riboflavinRow();
+    final analysis = Map<String, dynamic>.from(
+      ingredient['analysis'] as Map<String, dynamic>,
+    );
+    analysis['bio_score'] = 14;
+    analysis['form_evidence'] = {
+      'evidence_level': 'moderate',
+      'references_structured': [
+        {
+          'type': 'pubmed',
+          'authority': 'NCBI PubMed',
+          'pmid': '8604671',
+          'title': 'Intestinal absorption of vitamin B2 compounds.',
+          'url': 'https://pubmed.ncbi.nlm.nih.gov/8604671/',
+        },
+      ],
+    };
+    ingredient['analysis'] = analysis;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showIngredientExplainSheet(
+                context,
+                ingredient: ingredient,
+                openEvidenceSource: (source) async => opened.add(source.url),
+              ),
+              child: const Text('Open ingredient'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open ingredient'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -240));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sources for this form rating'), findsOneWidget);
+    expect(find.text('Moderate supporting evidence'), findsOneWidget);
+    expect(
+      find.text('Intestinal absorption of vitamin B2 compounds.'),
+      findsOneWidget,
+    );
+    expect(find.text('PMID 8604671'), findsOneWidget);
+
+    final sourceTitle = find.text(
+      'Intestinal absorption of vitamin B2 compounds.',
+    );
+    await tester.tap(sourceTitle);
+    await tester.pump();
+
+    expect(opened, ['https://pubmed.ncbi.nlm.nih.gov/8604671/']);
+  });
+
   testWidgets('note collapses to the pipeline preview and expands on More', (
     tester,
   ) async {
