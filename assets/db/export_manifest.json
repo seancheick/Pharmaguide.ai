@@ -1,10 +1,10 @@
 {
-  "checksum": "sha256:f95bdc0253dfccabe263eca13f9d0f070b230cb314d3d1bb24767695425fdb5c",
-  "checksum_sha256": "f95bdc0253dfccabe263eca13f9d0f070b230cb314d3d1bb24767695425fdb5c",
-  "db_version": "2026.08.19.035832",
+  "checksum": "sha256:f5a85348cbebed85faf56f733b35468fe66e1bb35e9ed6de45bc1838a1cf341b",
+  "checksum_sha256": "f5a85348cbebed85faf56f733b35468fe66e1bb35e9ed6de45bc1838a1cf341b",
+  "db_version": "2026.08.19.201500",
   "detail_blob_count": 13271,
   "detail_blob_unique_count": 13271,
-  "detail_index_checksum": "sha256:9da8e4bb0850999fe7bdcdd8e0efbd117cff87cf2847546a0d90fc247c4580e3",
+  "detail_index_checksum": "sha256:70bdec6d161bb13643521097c58d569a38b09051555f0db1cf8466ef7fc9cb2a",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -64,7 +64,7 @@
       "error": "review_queue: NOT_SCORED verdict \u2014 mapping/dosage gate failed upstream; product cannot ship without a coherent score (Batch 3 data integrity gate)."
     }
   ],
-  "generated_at": "2026-08-19T03:58:32.032864+00:00",
+  "generated_at": "2026-08-19T20:15:00.917951+00:00",
   "integrity": {
     "contract_failures": 0,
     "contract_quarantine_count": 14,
@@ -91,7 +91,7 @@
   "pipeline_version": "3.4.0",
   "product_count": 13271,
   "quality_score_config_checksum": "sha256:2c007207652c776594ca5d44f973aa32e6e0e6f9e758a2bad9974b2be790aa43",
-  "release_staged_at": "2026-08-19T03:59:21Z",
+  "release_staged_at": "2026-08-19T20:15:55Z",
   "schema_version": "2.3.0",
   "score_model": "v4",
   "scoring_version": "4.2.0",
