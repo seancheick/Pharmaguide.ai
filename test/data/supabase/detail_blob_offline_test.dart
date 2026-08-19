@@ -11,7 +11,10 @@
 // wasted retries go away. Hash-verification failures — a tampered/stale-object
 // signal — must keep reporting as errors.
 
+import 'dart:io' show SocketException;
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -26,13 +29,21 @@ void main() {
     });
 
     test('a wrapped socket failure is classified offline', () {
+      const e = DetailBlobUnavailableException(
+        'fetch or decoding failed',
+        SocketException('Network is unreachable'),
+      );
+      expect(e.isOffline, isTrue);
+    });
+
+    test('a wrapped HTTP client transport failure is classified offline', () {
       final e = DetailBlobUnavailableException(
         'fetch or decoding failed',
-        const SocketExceptionStub(),
+        http.ClientException(
+          'ClientException with SocketException: Failed host lookup',
+        ),
       );
-      // The stub is not a real SocketException, so this asserts the negative
-      // case: only genuine network types count.
-      expect(e.isOffline, isFalse);
+      expect(e.isOffline, isTrue);
     });
 
     test('hash-verification failure is NOT offline and still reports', () {
@@ -48,6 +59,86 @@ void main() {
       );
       expect(e.isOffline, isFalse);
     });
+  });
+
+  group('detail blob retry classification', () {
+    test('public access denial fails over without retrying', () {
+      expect(
+        detailBlobPublicFetchShouldRetry(const PublicFetchDeniedException(403)),
+        isFalse,
+      );
+    });
+
+    test('transport failures fail fast', () {
+      expect(
+        detailBlobPublicFetchShouldRetry(
+          const SocketException('Network is unreachable'),
+        ),
+        isFalse,
+      );
+      expect(
+        detailBlobPublicFetchShouldRetry(
+          http.ClientException(
+            'ClientException with SocketException: Failed host lookup',
+          ),
+        ),
+        isFalse,
+      );
+    });
+
+    test('generic client/protocol failures remain retryable', () {
+      expect(
+        detailBlobPublicFetchShouldRetry(
+          http.ClientException('connection closed before full header'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('rate limits and server responses remain retryable', () {
+      expect(
+        detailBlobPublicFetchShouldRetry(
+          const DetailBlobHttpStatusException(429),
+        ),
+        isTrue,
+      );
+      expect(
+        detailBlobPublicFetchShouldRetry(
+          const DetailBlobHttpStatusException(503),
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  test('known-offline fetch does not construct a network client', () async {
+    var clientFactoryCalls = 0;
+    final service = DetailBlobService(
+      isOffline: () => true,
+      httpClientFactory: () {
+        clientFactoryCalls++;
+        return http.Client();
+      },
+    );
+    CrashReportingService().clearBuffersForTest();
+
+    await expectLater(
+      service.fetchDetailBlobByHash(List.filled(64, 'a').join()),
+      throwsA(
+        isA<DetailBlobUnavailableException>().having(
+          (error) => error.isOffline,
+          'isOffline',
+          isTrue,
+        ),
+      ),
+    );
+
+    expect(clientFactoryCalls, 0);
+    expect(CrashReportingService().recordedErrors, isEmpty);
+    expect(
+      CrashReportingService().breadcrumbs.map((entry) => entry.message),
+      contains(contains('while offline')),
+    );
   });
 
   group('beforeSend drops the offline detail-blob short circuit', () {
@@ -108,14 +199,13 @@ void main() {
     // Nine issues (PHARMAGUIDE-1P..1Y) reached the dashboard from ONE debug
     // simulator session on build 12. `debugAssertIsValid` cannot run in a
     // release build, so none of these can occur in production.
-    SentryEvent? scrub(String value) =>
-        CrashReportingService.scrubEventForTest(
-          SentryEvent(
-            environment: 'development',
-            exceptions: [SentryException(type: 'AssertionError', value: value)],
-          ),
-          Hint(),
-        );
+    SentryEvent? scrub(String value) => CrashReportingService.scrubEventForTest(
+      SentryEvent(
+        environment: 'development',
+        exceptions: [SentryException(type: 'AssertionError', value: value)],
+      ),
+      Hint(),
+    );
 
     const cases = <String>[
       "'package:flutter/src/rendering/box.dart': Failed assertion: line 2251 "
@@ -145,9 +235,4 @@ void main() {
       expect(result, isNotNull);
     });
   });
-}
-
-/// Not a real SocketException — used to assert the negative case.
-class SocketExceptionStub {
-  const SocketExceptionStub();
 }

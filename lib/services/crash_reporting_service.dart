@@ -425,7 +425,7 @@ class CrashReportingService {
     'No route to host',
     // DetailBlobService's known-offline short circuit. Must stay in sync with
     // DetailBlobUnavailableException.offlineReason; pinned by
-    // test/services/crash_reporting_offline_filter_test.dart.
+    // test/data/supabase/detail_blob_offline_test.dart.
     'device offline',
   ];
 

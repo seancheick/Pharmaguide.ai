@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show SocketException;
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
@@ -28,6 +27,22 @@ class PublicFetchDeniedException implements Exception {
       '(HTTP $statusCode)';
 }
 
+/// A public detail-blob request reached Supabase but returned a retryable
+/// HTTP response (for example 429 or 5xx).
+///
+/// This must remain distinct from [http.ClientException]: transport failures
+/// are expected when a device drops offline and should fail quietly, while a
+/// server response is operationally meaningful, retryable, and reportable.
+class DetailBlobHttpStatusException implements Exception {
+  final int statusCode;
+  const DetailBlobHttpStatusException(this.statusCode);
+
+  @override
+  String toString() =>
+      'DetailBlobHttpStatusException: detail blob fetch failed '
+      '(HTTP $statusCode)';
+}
+
 /// A product declares a detail blob, but the app could not obtain and verify
 /// it. This is deliberately distinct from a product that declares no blob.
 class DetailBlobUnavailableException implements Exception {
@@ -35,8 +50,8 @@ class DetailBlobUnavailableException implements Exception {
 
   /// Reason used when the device has no usable network at all. Kept as a
   /// named constant because `beforeSend` in CrashReportingService matches
-  /// it to drop expected-offline noise; `test/detail_blob_offline_test.dart`
-  /// pins the two together.
+  /// it to drop expected-offline noise;
+  /// `test/data/supabase/detail_blob_offline_test.dart` pins the two together.
   static const offlineReason = 'device offline';
 
   final String reason;
@@ -56,10 +71,20 @@ class DetailBlobUnavailableException implements Exception {
 
 /// True when [cause] means the request never reached the network.
 ///
-/// Deliberately excludes [TimeoutException]: a timeout can indicate a slow
-/// or degraded CDN, which IS worth reporting.
+/// Deliberately excludes [TimeoutException] and generic client/protocol
+/// failures: those can indicate a slow or degraded CDN and are worth retrying
+/// and reporting. The shared crash-reporting classifier keeps the definition
+/// of a true offline failure in one place.
 bool detailBlobCauseIsNetworkFailure(Object? cause) =>
-    cause is SocketException || cause is http.ClientException;
+    cause != null &&
+    cause is! TimeoutException &&
+    CrashReportingService.isTransientNetworkError(cause);
+
+/// Retry public fetches only when another attempt can plausibly help.
+@visibleForTesting
+bool detailBlobPublicFetchShouldRetry(Object error) =>
+    error is! PublicFetchDeniedException &&
+    !detailBlobCauseIsNetworkFailure(error);
 
 /// Fetches detail blobs from Supabase Storage on demand.
 ///
@@ -180,9 +205,7 @@ class DetailBlobService {
         // A denied public fetch will never succeed on retry; neither will a
         // socket failure on a device whose connectivity stream has not yet
         // flipped to offline. Both fail fast.
-        retryIf: (e) =>
-            e is! PublicFetchDeniedException &&
-            !detailBlobCauseIsNetworkFailure(e),
+        retryIf: detailBlobPublicFetchShouldRetry,
       );
     } on PublicFetchDeniedException catch (e) {
       // Expected until the dashboard makes shared/details/ public — fall
@@ -198,21 +221,25 @@ class DetailBlobService {
       );
       SpanStatus status = const SpanStatus.ok();
       try {
-        final bytes = await retryWithBackoff(() async {
-          try {
-            final downloaded = await supabase.storage
-                .from(SupabaseContract.storageBucket)
-                .download(path);
-            status = const SpanStatus.ok();
-            span?.setData('http.response.body.size', downloaded.length);
-            span?.throwable = null;
-            return downloaded;
-          } on Object catch (error) {
-            status = _spanStatusForError(error);
-            span?.throwable = error;
-            rethrow;
-          }
-        }, timeout: _fetchTimeout);
+        final bytes = await retryWithBackoff(
+          () async {
+            try {
+              final downloaded = await supabase.storage
+                  .from(SupabaseContract.storageBucket)
+                  .download(path);
+              status = const SpanStatus.ok();
+              span?.setData('http.response.body.size', downloaded.length);
+              span?.throwable = null;
+              return downloaded;
+            } on Object catch (error) {
+              status = _spanStatusForError(error);
+              span?.throwable = error;
+              rethrow;
+            }
+          },
+          timeout: _fetchTimeout,
+          retryIf: (error) => !detailBlobCauseIsNetworkFailure(error),
+        );
         return bytes;
       } finally {
         _finishDependencySpan(span, status);
@@ -244,9 +271,7 @@ class DetailBlobService {
       }
       if (response.statusCode != 200) {
         // 5xx / 429 etc. — retryable.
-        throw http.ClientException(
-          'detail blob fetch failed: HTTP ${response.statusCode}',
-        );
+        throw DetailBlobHttpStatusException(response.statusCode);
       }
       return response.bodyBytes;
     } on Object catch (error) {
@@ -303,6 +328,9 @@ void _finishDependencySpan(ISentrySpan? span, SpanStatus status) {
 SpanStatus _spanStatusForError(Object error, {SpanStatus? fallback}) {
   if (error is TimeoutException) return const SpanStatus.deadlineExceeded();
   if (error is PublicFetchDeniedException) {
+    return SpanStatus.fromHttpStatusCode(error.statusCode);
+  }
+  if (error is DetailBlobHttpStatusException) {
     return SpanStatus.fromHttpStatusCode(error.statusCode);
   }
   return fallback == const SpanStatus.ok()
