@@ -384,6 +384,14 @@ class CrashReportingService {
     "'!semantics.parentDataDirty'", // 444× — debug semantics pass
     'A RenderFlex overflowed by', // 77× — debug overflow guide
     'SliverGeometry is not valid', // 5×/5× — debug sliver validator
+    // Layout asserts stripped from release builds. Nine issues (build 12,
+    // one debug simulator session) reached the dashboard before these were
+    // listed; `debugAssertIsValid` cannot run in a release build.
+    'RenderBox was not laid out', // 'hasSize' assert family
+    "'hasSize'",
+    "'!childSemantics.renderObject._needsLayout'",
+    'BoxConstraints forces an infinite height',
+    'BoxConstraints forces an infinite width',
   ];
 
   /// Offline is a normal state for this offline-first app. Pure
@@ -415,6 +423,10 @@ class CrashReportingService {
     'Network is unreachable',
     'nodename nor servname provided',
     'No route to host',
+    // DetailBlobService's known-offline short circuit. Must stay in sync with
+    // DetailBlobUnavailableException.offlineReason; pinned by
+    // test/services/crash_reporting_offline_filter_test.dart.
+    'device offline',
   ];
 
   static const List<String> _networkExceptionTypes = [
@@ -422,6 +434,12 @@ class CrashReportingService {
     'SocketException',
     'ClientException',
     'AuthRetryableFetchException',
+    // The detail-blob path WRAPS the underlying socket failure, so the raw
+    // SocketException text is no longer visible on the event. Listing the
+    // wrapper lets the offline short circuit be matched; it still requires an
+    // offline message fragment, so hash-verification and decode failures —
+    // which are real defects — continue to report.
+    'DetailBlobUnavailableException',
   ];
 
   /// True when [error] is a transient network-availability failure

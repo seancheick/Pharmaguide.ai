@@ -17,6 +17,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
+import 'package:pharmaguide/services/connectivity_service.dart';
 
 /// 24-hour cache TTL for detail blobs.
 const Duration kDetailBlobCacheTtl = Duration(hours: 24);
@@ -45,7 +46,16 @@ bool cachedDetailIsServable({
 
 /// App-wide detail-blob service provider. Overridable in tests.
 final detailBlobServiceProvider = Provider<DetailBlobService>((ref) {
-  return DetailBlobService();
+  // Inject connectivity so a known-offline device skips the network entirely
+  // instead of burning the retry budget and emitting error spans.
+  // `ref.read` inside the closure keeps ConnectivityService lazy: it is only
+  // constructed when a fetch actually runs, so provider-graph tests that never
+  // fetch do not need a platform binding.
+  return DetailBlobService(
+    isOffline: () =>
+        ref.read(connectivityServiceProvider).current ==
+        ConnectionStatus.offline,
+  );
 });
 
 /// Async detail-blob fetcher keyed by dsldId.

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show SocketException;
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
@@ -32,12 +33,33 @@ class PublicFetchDeniedException implements Exception {
 class DetailBlobUnavailableException implements Exception {
   const DetailBlobUnavailableException(this.reason, [this.cause]);
 
+  /// Reason used when the device has no usable network at all. Kept as a
+  /// named constant because `beforeSend` in CrashReportingService matches
+  /// it to drop expected-offline noise; `test/detail_blob_offline_test.dart`
+  /// pins the two together.
+  static const offlineReason = 'device offline';
+
   final String reason;
   final Object? cause;
+
+  /// True when this failure is "the device has no network", not a defect.
+  ///
+  /// Offline is an expected state. The caller still surfaces an explicit
+  /// unavailable state — a failed clinical fetch must never read as "this
+  /// product has no warnings" — but it is not reported to Sentry as an error.
+  bool get isOffline =>
+      reason == offlineReason || detailBlobCauseIsNetworkFailure(cause);
 
   @override
   String toString() => 'DetailBlobUnavailableException: $reason';
 }
+
+/// True when [cause] means the request never reached the network.
+///
+/// Deliberately excludes [TimeoutException]: a timeout can indicate a slow
+/// or degraded CDN, which IS worth reporting.
+bool detailBlobCauseIsNetworkFailure(Object? cause) =>
+    cause is SocketException || cause is http.ClientException;
 
 /// Fetches detail blobs from Supabase Storage on demand.
 ///
@@ -51,10 +73,20 @@ class DetailBlobUnavailableException implements Exception {
 /// The product's `detail_blob_sha256` column in `products_core` provides
 /// the hash. Callers must pass the SHA-256 hash, not the dsld_id.
 class DetailBlobService {
-  DetailBlobService({http.Client Function()? httpClientFactory})
+  DetailBlobService({http.Client Function()? httpClientFactory, this.isOffline})
     : _httpClientFactory = httpClientFactory ?? http.Client.new;
 
   final http.Client Function() _httpClientFactory;
+
+  /// Optional predicate: when the device is known-offline we skip the network
+  /// entirely rather than burning the retry budget. Mirrors the guard already
+  /// used by StackSyncQueue.
+  ///
+  /// A plain predicate rather than a ConnectivityService reference: it keeps
+  /// this data-layer class free of a platform-channel-backed service, so unit
+  /// tests can drive it without a Flutter binding. Null means "unknown" and
+  /// the fetch proceeds — failing open, never suppressing a real fetch.
+  final bool Function()? isOffline;
 
   static const _fetchTimeout = Duration(seconds: 10);
 
@@ -92,26 +124,38 @@ class DetailBlobService {
         'detail payload is not a JSON object',
       );
     } on DetailBlobUnavailableException catch (error, stackTrace) {
-      CrashReportingService().recordError(
-        error,
-        stackTrace,
-        fatal: false,
-        hint: 'detail_blob:unavailable',
-      );
+      _reportUnavailable(error, stackTrace);
       rethrow;
     } on Object catch (error, stackTrace) {
       final unavailable = DetailBlobUnavailableException(
         'fetch or decoding failed',
         error,
       );
-      CrashReportingService().recordError(
-        unavailable,
-        stackTrace,
-        fatal: false,
-        hint: 'detail_blob:unavailable',
-      );
+      _reportUnavailable(unavailable, stackTrace);
       throw unavailable;
     }
+  }
+
+  /// Offline is an expected state, not a defect: breadcrumb only, so the
+  /// Sentry issue list stays a list of real bugs. Every other failure —
+  /// including hash-verification failure, which is a tampered/stale-object
+  /// signal — is still reported as an error.
+  void _reportUnavailable(
+    DetailBlobUnavailableException error,
+    StackTrace stackTrace,
+  ) {
+    if (error.isOffline) {
+      CrashReportingService().log(
+        'detail blob unavailable while offline — surfacing unavailable state',
+      );
+      return;
+    }
+    CrashReportingService().recordError(
+      error,
+      stackTrace,
+      fatal: false,
+      hint: 'detail_blob:unavailable',
+    );
   }
 
   /// Public CDN fetch (retried, 10s per-attempt timeout) with authed
@@ -121,11 +165,24 @@ class DetailBlobService {
   /// Returns the RAW bytes — the caller verifies the SHA-256 against the
   /// content-addressed hash before decoding, on BOTH paths.
   Future<Uint8List> _fetchBlobBytes(String path) async {
+    // Known-offline: fail immediately. Retrying a socket that cannot open
+    // costs the user ~3-5s of spinner and emits one error span per attempt,
+    // for an outcome we already know.
+    if (isOffline?.call() ?? false) {
+      throw const DetailBlobUnavailableException(
+        DetailBlobUnavailableException.offlineReason,
+      );
+    }
     try {
       return await retryWithBackoff(
         () => _publicGet(path),
         timeout: _fetchTimeout,
-        retryIf: (e) => e is! PublicFetchDeniedException,
+        // A denied public fetch will never succeed on retry; neither will a
+        // socket failure on a device whose connectivity stream has not yet
+        // flipped to offline. Both fail fast.
+        retryIf: (e) =>
+            e is! PublicFetchDeniedException &&
+            !detailBlobCauseIsNetworkFailure(e),
       );
     } on PublicFetchDeniedException catch (e) {
       // Expected until the dashboard makes shared/details/ public — fall
