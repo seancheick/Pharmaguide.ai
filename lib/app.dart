@@ -20,6 +20,7 @@ import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
 // Phase 11.11 hygiene (2026-05-17): legacy v1 widget imports removed
@@ -35,6 +36,7 @@ import 'package:pharmaguide/features/profile/v2/profile_wizard_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/features/compare/compare_screen.dart';
@@ -139,13 +141,24 @@ class ScanScreen extends ConsumerWidget {
         return;
       }
 
-      final product = await ref.read(coreDatabaseProvider).findByUpc(barcode);
+      final resolution = await ref
+          .read(coreDatabaseProvider)
+          .resolveByUpc(barcode);
       if (!context.mounted) return;
 
-      if (product == null) {
+      if (resolution is UpcNotFound) {
         _showManualLookupNotFound(context, ref, barcode);
         return;
       }
+      final product = switch (resolution) {
+        UpcUnique(:final product) => product,
+        UpcAmbiguous(:final candidates) => await showProductVersionPickerSheet(
+          context,
+          candidates: candidates,
+        ),
+        UpcNotFound() => null,
+      };
+      if (!context.mounted || product == null) return;
 
       await ref
           .read(userDatabaseProvider)

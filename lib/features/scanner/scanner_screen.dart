@@ -21,6 +21,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
@@ -111,11 +112,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     try {
       final db = ref.read(coreDatabaseProvider);
-      final product = await db.findByUpc(upc);
+      final resolution = await db.resolveByUpc(upc);
 
       if (!mounted) return;
 
       setState(() => _isLookingUp = false);
+
+      final product = switch (resolution) {
+        UpcUnique(:final product) => product,
+        UpcAmbiguous(:final candidates) => await showProductVersionPickerSheet(
+          context,
+          candidates: candidates,
+        ),
+        UpcNotFound() => null,
+      };
+      if (!mounted) return;
 
       if (product != null) {
         CrashReportingService().setScanResult('found');
@@ -134,9 +145,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         // to-refresh; no external invalidation needed after the v1
         // home screen retirement.
         await _showVerdictFlashAndNavigate(product);
-      } else {
+      } else if (resolution is UpcNotFound) {
         CrashReportingService().setScanResult('not_found');
         _showProductNotFound(upc);
+      } else {
+        setState(() => _hasScanned = false);
       }
       // Bare catch is intentional: DB layer can throw Error subtypes
       // (e.g. StateError on corrupt data). Letting an Error propagate

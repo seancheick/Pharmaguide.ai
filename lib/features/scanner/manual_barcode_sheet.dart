@@ -1,7 +1,7 @@
 // Manual barcode entry bottom sheet — lets the user type a UPC/EAN
 // barcode number and look up the product from the on-device catalog.
 //
-// Reuses the same `findByUpc()` lookup as the camera scanner. The
+// Reuses the same typed UPC resolver as the camera scanner. The
 // caller is responsible for handling the result (navigate to product
 // detail or show not-found flow) via the [onProductFound] and
 // [onProductNotFound] callbacks.
@@ -103,10 +103,7 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
               ),
-              prefixIcon: Icon(
-                Icons.dialpad_rounded,
-                color: context.v2.accent,
-              ),
+              prefixIcon: Icon(Icons.dialpad_rounded, color: context.v2.accent),
             ),
             style: V2Typography.monoData(color: context.v2.fg),
             onChanged: _onChanged,

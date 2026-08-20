@@ -7,6 +7,27 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 part 'core_database.g.dart';
 
+sealed class UpcResolution {
+  const UpcResolution();
+}
+
+final class UpcNotFound extends UpcResolution {
+  const UpcNotFound();
+}
+
+final class UpcUnique extends UpcResolution {
+  const UpcUnique(this.product);
+
+  final ProductsCoreData product;
+}
+
+final class UpcAmbiguous extends UpcResolution {
+  UpcAmbiguous(List<ProductsCoreData> candidates)
+    : candidates = List.unmodifiable(candidates);
+
+  final List<ProductsCoreData> candidates;
+}
+
 /// READ-ONLY database backed by the pre-built `pharmaguide_core.db` file
 /// downloaded from Supabase (or the bundled asset on first launch).
 ///
@@ -33,7 +54,7 @@ class CoreDatabase extends _$CoreDatabase {
   /// SQL expression that normalizes a stored UPC to digits-only form.
   ///
   /// IMPORTANT: this exact string is used BOTH in the expression index
-  /// created by [_ensureAppIndexes] AND in the [findByUpc] WHERE clause.
+  /// created by [_ensureAppIndexes] AND in the [findAllByUpc] WHERE clause.
   /// SQLite only uses an expression index when the query expression matches
   /// the index expression character-for-character — keep them identical.
   static const String upcNormalizeSql =
@@ -74,7 +95,7 @@ class CoreDatabase extends _$CoreDatabase {
   /// degrades performance, it must never block catalog open.
   Future<void> _ensureAppIndexes() async {
     const statements = [
-      // findByUpc: the REPLACE(...) normalization wrapper defeats the
+      // findAllByUpc: the REPLACE(...) normalization wrapper defeats the
       // plain idx_core_upc index (verified SCAN via EXPLAIN QUERY PLAN).
       // This expression index restores SEARCH — the expression matches
       // [upcNormalizeSql] exactly.
@@ -301,23 +322,11 @@ class CoreDatabase extends _$CoreDatabase {
   ///   3. Uses `REPLACE(upc_sku, ' ', '')` in SQL so the stored spaces
   ///      don't prevent the match.
   ///
-  /// Ordering when multiple products share a UPC (private-label duplicates)
-  /// is SAFETY-FIRST — under-warning is the costlier error and a scan can't
-  /// tell which physical bottle was in the user's hand:
-  ///   1. Suppressed/blocked twins first — `quality_score_status != 'scored'`
-  ///      (NULL counts as suppressed) OR verdict BLOCKED/UNSAFE. A blocked
-  ///      twin has a NULL score, so the previous "highest score" ordering
-  ///      always masked it behind a scored duplicate; here it WINS the tie so
-  ///      the detail screen can surface the block.
-  ///   2. Active products next.
-  ///   3. Highest v4 score last.
-  ///
-  /// A barcode scan must still RESOLVE a safety-suppressed product (so the
-  /// detail screen can show why it's blocked) — this lookup does not filter
-  /// on score status; it only orders ties.
-  Future<ProductsCoreData?> findByUpc(String upc) async {
+  /// Returns every matching catalog identity. A score, verdict, or warning is
+  /// never used to decide which physical bottle the user scanned.
+  Future<List<ProductsCoreData>> findAllByUpc(String upc) async {
     final digits = upc.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return null;
+    if (digits.isEmpty) return const [];
 
     // Build candidate list — dedup to avoid running the query twice
     // for a 12-digit UPC that doesn't need adjustment.
@@ -329,30 +338,30 @@ class CoreDatabase extends _$CoreDatabase {
       candidates.add('0$digits'); // EAN-13 variant
     }
 
+    final matches = <String, ProductsCoreData>{};
     for (final candidate in candidates) {
       // Uses [upcNormalizeSql] so the WHERE expression matches the
       // idx_core_upc_normalized expression index exactly (SEARCH, not SCAN).
-      final row = await customSelect(
+      final rows = await customSelect(
         'SELECT * FROM products_core '
         'WHERE $upcNormalizeSql = ? '
-        // Safety-first tie-break: a suppressed/blocked twin must WIN so the
-        // detail screen can show the block, not lose to a scored duplicate.
-        "ORDER BY ("
-        "           (quality_score_status IS NULL "
-        "              OR quality_score_status != 'scored') "
-        "           OR UPPER(COALESCE(verdict, '')) IN ('BLOCKED', 'UNSAFE') "
-        "         ) DESC, "
-        "         (product_status = 'active') DESC, "
-        "         COALESCE(quality_score_v4_100, 0) DESC "
-        "LIMIT 1",
+        'ORDER BY dsld_id',
         variables: [Variable.withString(candidate)],
         readsFrom: {productsCore},
-      ).getSingleOrNull();
-      if (row != null) {
-        return productsCore.map(row.data);
+      ).get();
+      for (final row in rows) {
+        final product = productsCore.map(row.data);
+        matches[product.dsldId] = product;
       }
     }
-    return null;
+    return List.unmodifiable(matches.values);
+  }
+
+  Future<UpcResolution> resolveByUpc(String upc) async {
+    final candidates = await findAllByUpc(upc);
+    if (candidates.isEmpty) return const UpcNotFound();
+    if (candidates.length == 1) return UpcUnique(candidates.single);
+    return UpcAmbiguous(candidates);
   }
 
   /// Find a single product by its DSLD ID (primary key).

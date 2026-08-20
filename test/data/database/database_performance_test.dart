@@ -38,7 +38,7 @@ void main() {
       expect(names, contains('idx_core_cat_score'));
     });
 
-    test('findByUpc query plan uses the normalized expression index', () async {
+    test('UPC query plan uses the normalized expression index', () async {
       final plan = await db
           .customSelect(
             'EXPLAIN QUERY PLAN SELECT * FROM products_core '
@@ -52,15 +52,16 @@ void main() {
     });
 
     test(
-      'findByUpc matches stored UPC with spaces against scanned digits',
+      'resolveByUpc matches stored UPC with spaces against scanned digits',
       () async {
         await db.customStatement(
           "INSERT INTO products_core "
           "(dsld_id, product_name, upc_sku, export_version, exported_at) "
           "VALUES ('d1', 'Test Product', '0 50428 38139 7', '2.0.0', '2026-01-01')",
         );
-        final hit = await db.findByUpc('050428381397');
-        expect(hit?.dsldId, 'd1');
+        final result = await db.resolveByUpc('050428381397');
+        expect(result, isA<UpcUnique>());
+        expect((result as UpcUnique).product.dsldId, 'd1');
       },
     );
   });
