@@ -227,8 +227,10 @@ Widget buildHeroSection({
     // positive quality verdict. Consumer copy stays neutral; the underlying
     // catalog diagnosis belongs to the release gate.
     lowCoverage: productHasLowCoverage(product),
-    limitedAssessment: hasLimitedAssessmentConfidence(product?.v4Confidence),
-    scoreConfidence: product?.v4Confidence,
+    limitedAssessment: hasLimitedAssessmentConfidence(
+      product?.qualityScoreConfidence,
+    ),
+    scoreConfidence: product?.qualityScoreConfidence,
     scoreConfidenceDrivers: scoreConfidenceDriverLabels(scoreConfidenceDetail),
     bottomBanner: bottomBanner,
     hasCatalogCaution:

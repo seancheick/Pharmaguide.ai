@@ -37,7 +37,7 @@ void main() {
             productSafetyStatus: const drift.Value('no_known_catalog_concern'),
             qualityAssessmentStatus: const drift.Value('complete'),
             qualityScoreStatus: const drift.Value('scored'),
-            v4Confidence: const drift.Value('moderate'),
+            qualityScoreConfidence: const drift.Value('moderate'),
             exportVersion: 'test',
             exportedAt: '2026-05-17T00:00:00Z',
           ),

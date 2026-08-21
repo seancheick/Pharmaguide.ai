@@ -31,7 +31,7 @@ final class UpcAmbiguous extends UpcResolution {
 /// READ-ONLY database backed by the pre-built `pharmaguide_core.db` file
 /// downloaded from Supabase (or the bundled asset on first launch).
 ///
-/// v4-only reader. The catalog contract is export schema 2.3.0:
+/// v4-only reader. The current catalog contract is export schema 2.4.0:
 /// `quality_score_v4_100` is the shipped /100 score and
 /// `quality_score_status` controls score eligibility. Catalog safety and
 /// quality assessment completion are independent nullable fields so older
@@ -184,6 +184,12 @@ class CoreDatabase extends _$CoreDatabase {
       'quality_tier TEXT',
       'quality_score_suppressed_reason TEXT',
       'v4_module TEXT',
+      // 2.4 canonical split: score confidence is never a gate state; route
+      // confidence and score-unavailable reason have their own columns.
+      'quality_score_confidence TEXT',
+      'score_unavailable_reason TEXT',
+      'route_confidence TEXT',
+      // Read only at this migration boundary, never through Drift.
       'v4_confidence TEXT',
       'score_model_version TEXT',
     ];
@@ -207,6 +213,27 @@ class CoreDatabase extends _$CoreDatabase {
           e,
           st,
           hint: 'core_db:compat_column_failed',
+        );
+      }
+    }
+
+    // Schema 2.3 stored score confidence in v4_confidence, including one
+    // invalid gate-state value. Copy only the three score-confidence bands;
+    // blocked/unavailable state is represented by score_unavailable_reason.
+    try {
+      await customStatement(
+        'UPDATE products_core '
+        'SET quality_score_confidence = LOWER(TRIM(v4_confidence)) '
+        'WHERE quality_score_confidence IS NULL '
+        "AND LOWER(TRIM(v4_confidence)) IN ('high', 'moderate', 'low')",
+      );
+    } on Exception catch (e, st) {
+      final message = e.toString().toLowerCase();
+      if (!message.contains('no such column')) {
+        CrashReportingService().recordError(
+          e,
+          st,
+          hint: 'core_db:confidence_alias_backfill_failed',
         );
       }
     }

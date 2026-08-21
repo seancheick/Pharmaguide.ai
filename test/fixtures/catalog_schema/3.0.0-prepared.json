@@ -1,0 +1,21 @@
+{
+  "schema_version": "3.0.0",
+  "core": {
+    "product_status": "discontinued",
+    "quality_score_confidence": "low",
+    "score_unavailable_reason": null,
+    "route_confidence": "medium"
+  },
+  "detail_blob": {
+    "product_status_detail": {
+      "type": "discontinued",
+      "date": "2025-01-02",
+      "display": "Discontinued · 2025-01-02"
+    },
+    "synergy_detail": {
+      "clusters": [
+        {"cluster_id": "focus_stack"}
+      ]
+    }
+  }
+}

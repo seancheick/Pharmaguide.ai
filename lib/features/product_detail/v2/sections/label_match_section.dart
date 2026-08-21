@@ -3,9 +3,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
-import 'package:pharmaguide/features/product_detail/formula_history_model.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
-import 'package:pharmaguide/features/product_detail/widgets/formula_history_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
@@ -44,7 +42,6 @@ Widget buildLabelMatchSection({
   required Object? labelRecord,
   String? dsldId,
   String? upc,
-  List<Map<String, dynamic>>? currentLabelRows,
   OpenSourceLabel? onOpenSourceLabel,
   OpenLabelMismatchReport? onReportMismatch,
   // When false, the card omits its inline "Doesn't match your bottle?" action —
@@ -55,16 +52,10 @@ Widget buildLabelMatchSection({
   final record = _LabelRecord.tryParse(labelRecord);
   if (record == null) return const _UnavailableLabelRecordCard();
   final rawRecord = labelRecord as Map<String, dynamic>;
-  final historyModel = FormulaHistoryModel.fromLabelRecord(
-    rawRecord,
-    currentLabelRows: currentLabelRows,
-  );
 
   return _LabelRecordCard(
     record: record,
     rawRecord: rawRecord,
-    currentLabelRows: currentLabelRows,
-    hasFormulaHistory: historyModel.hasVerifiedHistory,
     dsldId: _nonEmpty(dsldId),
     upc: _nonEmpty(upc),
     onOpenSourceLabel: onOpenSourceLabel,
@@ -93,23 +84,17 @@ class _LabelRecord {
 
     final statusesRaw = raw['field_statuses'];
     final issuesRaw = raw['metadata_issues'];
-    final historyRaw = raw['formula_history'];
-    final historyStatus = _nonEmpty(raw['history_status']);
     final metadataStatus = _nonEmpty(raw['metadata_status']);
     if (statusesRaw is! Map<String, dynamic> ||
         issuesRaw is! List ||
-        historyRaw is! List ||
-        historyRaw.any((entry) => entry is! Map<String, dynamic>) ||
-        historyStatus == null ||
         metadataStatus == null) {
       return null;
     }
-    if (!const {'available', 'unavailable'}.contains(historyStatus) ||
-        !const {
-          'available',
-          'partial',
-          'unavailable',
-        }.contains(metadataStatus)) {
+    if (!const {
+      'available',
+      'partial',
+      'unavailable',
+    }.contains(metadataStatus)) {
       return null;
     }
 
@@ -143,8 +128,6 @@ class _LabelRecord {
         ? 'unavailable'
         : 'partial';
     if (metadataStatus != expectedMetadataStatus) return null;
-    if ((historyStatus == 'available') != historyRaw.isNotEmpty) return null;
-
     final fingerprint = fields['formula_fingerprint'];
     if (fingerprint != null &&
         !RegExp(r'^[0-9a-f]{64}$').hasMatch(fingerprint)) {
@@ -180,8 +163,6 @@ class _LabelRecord {
 class _LabelRecordCard extends StatelessWidget {
   final _LabelRecord record;
   final Map<String, dynamic> rawRecord;
-  final List<Map<String, dynamic>>? currentLabelRows;
-  final bool hasFormulaHistory;
   final String? dsldId;
   final String? upc;
   final OpenSourceLabel? onOpenSourceLabel;
@@ -191,8 +172,6 @@ class _LabelRecordCard extends StatelessWidget {
   const _LabelRecordCard({
     required this.record,
     required this.rawRecord,
-    required this.currentLabelRows,
-    required this.hasFormulaHistory,
     required this.dsldId,
     required this.upc,
     required this.onOpenSourceLabel,
@@ -209,11 +188,6 @@ class _LabelRecordCard extends StatelessWidget {
       await onOpenSourceLabel!(record.sourceUri!);
     }
 
-    Future<void> openFormulaHistory() => showFormulaHistorySheet(
-      context,
-      labelRecord: rawRecord,
-      currentLabelRows: currentLabelRows,
-    );
     final reportProduct = labelMismatchMetadataFrom(
       rawRecord,
       dsldId: dsldId,
@@ -349,27 +323,6 @@ class _LabelRecordCard extends StatelessWidget {
                   icon: const Icon(Icons.open_in_new_rounded, size: 18),
                   label: Text(sourceAction),
                 ),
-              ),
-            ],
-            if (hasFormulaHistory) ...[
-              const SizedBox(height: V2Spacing.space4),
-              Semantics(
-                button: true,
-                label: 'View formula history',
-                onTap: openFormulaHistory,
-                excludeSemantics: true,
-                child: TextButton.icon(
-                  key: const Key('formula-history-action'),
-                  onPressed: openFormulaHistory,
-                  icon: const Icon(Icons.history_rounded, size: 18),
-                  label: const Text('View formula history'),
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: V2Spacing.space8),
-              Text(
-                'No source-linked formula history is available.',
-                style: V2Typography.caption(color: context.v2.fgMuted),
               ),
             ],
             if (showMismatchAction && reportProduct != null) ...[

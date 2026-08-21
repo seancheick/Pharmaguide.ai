@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.3.0",
+  "core": {
+    "product_status": "discontinued",
+    "v4_confidence": "moderate"
+  },
+  "detail_blob": {
+    "product_status": {
+      "type": "discontinued",
+      "date": "2025-01-02",
+      "display": "Discontinued · 2025-01-02"
+    },
+    "synergy_detail": {
+      "clusters": [
+        {"id": "sleep_stack"}
+      ]
+    }
+  }
+}

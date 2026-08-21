@@ -260,10 +260,7 @@ void main() {
       expect(find.textContaining('View source label'), findsNothing);
     });
 
-    testWidgets('opens only defensible source-linked formula history', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
+    testWidgets('ignores unproduced formula-history payloads', (tester) async {
       await tester.pumpWidget(
         _harness(
           labelRecord: _record(
@@ -282,28 +279,9 @@ void main() {
         ),
       );
 
-      final action = find.bySemanticsLabel('View formula history');
-      expect(action, findsOneWidget);
-      tester.semantics.tap(find.semantics.byLabel('View formula history'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Formula history'), findsOneWidget);
-      expect(find.text('Snapshot older-source-snapshot'), findsOneWidget);
-      semantics.dispose();
-    });
-
-    testWidgets('states when source-linked formula history is unavailable', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _harness(labelRecord: _record(), upc: '050428381397'),
-      );
-
-      expect(
-        find.text('No source-linked formula history is available.'),
-        findsOneWidget,
-      );
       expect(find.bySemanticsLabel('View formula history'), findsNothing);
+      expect(find.textContaining('formula history'), findsNothing);
+      expect(find.text('Catalog record details'), findsOneWidget);
     });
   });
 }

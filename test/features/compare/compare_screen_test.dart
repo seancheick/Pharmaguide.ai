@@ -50,7 +50,7 @@ ProductsCoreCompanion _product({
   String category = 'multivitamin',
   String? verdict,
   String? blobSha,
-  String? v4Confidence,
+  String? scoreConfidence,
   String? qualityTier,
 }) {
   return ProductsCoreCompanion.insert(
@@ -61,7 +61,7 @@ ProductsCoreCompanion _product({
     mappedCoverage: drift.Value(coverage),
     primaryCategory: drift.Value(category),
     verdict: drift.Value(verdict),
-    v4Confidence: drift.Value(v4Confidence),
+    qualityScoreConfidence: drift.Value(scoreConfidence),
     qualityTier: drift.Value(qualityTier),
     detailBlobSha256: drift.Value(blobSha),
     exportVersion: 'test',
@@ -166,7 +166,7 @@ void main() {
         name: 'Alpha',
         score: 85,
         qualityTier: 'Acceptable',
-        v4Confidence: 'moderate',
+        scoreConfidence: 'moderate',
       ),
       blob: _pillarsBlob(),
     );
@@ -175,7 +175,7 @@ void main() {
         dsldId: 'prod-b',
         name: 'Beta',
         score: 85,
-        v4Confidence: 'low',
+        scoreConfidence: 'low',
       ),
       blob: _pillarsBlob(),
     );

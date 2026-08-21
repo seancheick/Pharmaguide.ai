@@ -837,7 +837,7 @@ void main() {
                   ),
                   qualityAssessmentStatus: const drift.Value('complete'),
                   mappedCoverage: const drift.Value(0.9),
-                  v4Confidence: const drift.Value('high'),
+                  qualityScoreConfidence: const drift.Value('high'),
                   exportVersion: 'test',
                   exportedAt: '2026-05-18T00:00:00Z',
                 ),

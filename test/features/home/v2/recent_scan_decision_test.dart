@@ -27,7 +27,7 @@ ProductsCoreData _row({
   double? score,
   String? verdict,
   double? mappedCoverage,
-  String? v4Confidence,
+  String? scoreConfidence,
   String? qualityTier,
 }) {
   return ProductsCoreData(
@@ -36,7 +36,7 @@ ProductsCoreData _row({
     qualityScoreV4100: score,
     verdict: verdict,
     mappedCoverage: mappedCoverage,
-    v4Confidence: v4Confidence,
+    qualityScoreConfidence: scoreConfidence,
     qualityTier: qualityTier,
     exportVersion: 'test',
     exportedAt: '2026-07-05T00:00:00Z',
@@ -61,7 +61,7 @@ void main() {
           score: 82.4,
           verdict: 'SAFE',
           mappedCoverage: 0.9,
-          v4Confidence: 'moderate',
+          scoreConfidence: 'moderate',
           qualityTier: 'Strong',
         ),
         time: '2h ago',
@@ -70,7 +70,7 @@ void main() {
       expect(rec.productSafetyStatus, 'NO_KNOWN_CATALOG_CONCERN');
       expect(rec.qualityAssessmentStatus, 'complete');
       expect(rec.mappedCoverage, 0.9);
-      expect(rec.v4Confidence, 'moderate');
+      expect(rec.scoreConfidence, 'moderate');
       expect(rec.qualityTier, 'Strong');
       expect(rec.time, '2h ago');
     });
@@ -252,7 +252,7 @@ void main() {
       double? score,
       String? verdict,
       double? mappedCoverage,
-      String? v4Confidence,
+      String? scoreConfidence,
     }) async {
       await coreDb
           .into(coreDb.productsCore)
@@ -264,7 +264,7 @@ void main() {
               qualityScoreV4100: drift.Value(score),
               verdict: drift.Value(verdict),
               mappedCoverage: drift.Value(mappedCoverage),
-              v4Confidence: drift.Value(v4Confidence),
+              qualityScoreConfidence: drift.Value(scoreConfidence),
               exportVersion: 'test',
               exportedAt: '2026-07-05T00:00:00Z',
             ),
@@ -341,7 +341,7 @@ void main() {
         score: 82,
         verdict: 'SAFE',
         mappedCoverage: 0.9,
-        v4Confidence: 'moderate',
+        scoreConfidence: 'moderate',
       );
       await pumpHome(tester, coreDb, userDb);
 

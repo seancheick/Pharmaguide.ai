@@ -1,4 +1,5 @@
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/data/database/catalog_schema_bridge.dart';
 import 'package:pharmaguide/services/health/dose_safety.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
@@ -145,7 +146,7 @@ class ProductHealthFacts {
 
   static List<InteractionWarning> _extractWarnings(Map<String, dynamic> blob) {
     final rows = <Map<String, dynamic>>[];
-    final hasStructuredProductStatus = blob['product_status'] is Map;
+    final hasStructuredProductStatus = catalogProductStatusDetail(blob) != null;
 
     for (final key in const ['warnings', 'warnings_profile_gated']) {
       rows.addAll(
@@ -196,7 +197,11 @@ class ProductHealthFacts {
       if (clusters is List) {
         return clusters
             .whereType<Map<Object?, Object?>>()
-            .map((cluster) => cluster['cluster_id']?.toString().trim() ?? '')
+            .map(
+              (cluster) =>
+                  catalogSynergyClusterId(Map<String, dynamic>.from(cluster)) ??
+                  '',
+            )
             .where((id) => id.isNotEmpty)
             .toSet()
             .toList(growable: false);

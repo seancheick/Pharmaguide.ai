@@ -155,7 +155,7 @@ class BetterAlternativesSection extends ConsumerWidget {
                 brand: p.brandName ?? '',
                 score: score,
                 qualityTier: p.qualityTier,
-                scoreConfidence: p.v4Confidence,
+                scoreConfidence: p.qualityScoreConfidence,
                 imageWidget: ProductImage(
                   dsldId: p.dsldId,
                   upc: p.upcSku,

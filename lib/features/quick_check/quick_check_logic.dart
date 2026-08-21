@@ -61,7 +61,7 @@ class QuickCheckItem {
       product: product,
       brandName: product.brandName,
       score: canShowScore ? product.qualityScoreV4100!.round() : null,
-      scoreConfidence: canShowScore ? product.v4Confidence : null,
+      scoreConfidence: canShowScore ? product.qualityScoreConfidence : null,
     );
   }
 

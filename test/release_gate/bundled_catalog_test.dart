@@ -78,6 +78,23 @@ void main() {
       );
     });
 
+    test('catalog importer accepts additive bridge schema 2.4.0', () {
+      final importer = File(
+        'scripts/import_catalog_artifact.sh',
+      ).readAsStringSync();
+      final supportedSchemas = RegExp(
+        r'APP_SUPPORTED_SCHEMAS=\(([^)]*)\)',
+      ).firstMatch(importer)?.group(1);
+
+      expect(
+        supportedSchemas,
+        contains('"2.4.0"'),
+        reason:
+            'Schema 2.4.0 adds canonical score confidence, route confidence, '
+            'and product-status detail while retaining one-release aliases.',
+      );
+    });
+
     test(
       'assets/db/pharmaguide_core.db is declared, loadable, and non-trivial',
       () async {

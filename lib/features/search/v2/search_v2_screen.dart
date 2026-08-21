@@ -1604,7 +1604,7 @@ class _SearchProductListTile extends StatelessWidget {
       isBlocked: catalogProductIsBlocked(product),
       isNotScored: catalogProductIsNotScored(product),
       mappedCoverage: product.mappedCoverage,
-      v4Confidence: product.v4Confidence,
+      scoreConfidence: product.qualityScoreConfidence,
     );
     // Announce the numeric score only when the visual chip shows it —
     // screen-reader users must not hear a score the coverage/verdict
@@ -1613,7 +1613,7 @@ class _SearchProductListTile extends StatelessWidget {
         scoreChip == SearchScoreChipDisplay.tierScore ||
             scoreChip == SearchScoreChipDisplay.limitedAssessment
         ? ', score ${score!.round()} out of 100'
-              '${_searchConfidenceSemantics(product.v4Confidence)}'
+              '${_searchConfidenceSemantics(product.qualityScoreConfidence)}'
         : '';
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
@@ -1683,13 +1683,13 @@ class _SearchProductListTile extends StatelessWidget {
                             _ScoreChip(
                               score: score!,
                               qualityTier: product.qualityTier,
-                              confidence: product.v4Confidence,
+                              confidence: product.qualityScoreConfidence,
                             ),
                           if (scoreChip ==
                               SearchScoreChipDisplay.limitedAssessment)
                             _LimitedAssessmentChip(
                               score: score!,
-                              confidence: product.v4Confidence,
+                              confidence: product.qualityScoreConfidence,
                             ),
                           if (scoreChip == SearchScoreChipDisplay.limitedData)
                             const _LimitedDataChip(),
@@ -1735,13 +1735,13 @@ class _SearchProductGridTile extends StatelessWidget {
       isBlocked: catalogProductIsBlocked(product),
       isNotScored: catalogProductIsNotScored(product),
       mappedCoverage: product.mappedCoverage,
-      v4Confidence: product.v4Confidence,
+      scoreConfidence: product.qualityScoreConfidence,
     );
     final scoreLabel =
         scoreChip == SearchScoreChipDisplay.tierScore ||
             scoreChip == SearchScoreChipDisplay.limitedAssessment
         ? ', score ${score!.round()} out of 100'
-              '${_searchConfidenceSemantics(product.v4Confidence)}'
+              '${_searchConfidenceSemantics(product.qualityScoreConfidence)}'
         : '';
     final brandLabel = product.brandName?.trim().isNotEmpty == true
         ? ' by ${product.brandName}'
@@ -1810,14 +1810,14 @@ class _SearchProductGridTile extends StatelessWidget {
                           SearchScoreChipDisplay.tierScore => _ScoreChip(
                             score: score!,
                             qualityTier: product.qualityTier,
-                            confidence: product.v4Confidence,
+                            confidence: product.qualityScoreConfidence,
                           ),
                           SearchScoreChipDisplay.limitedData =>
                             const _LimitedDataChip(),
                           SearchScoreChipDisplay.limitedAssessment =>
                             _LimitedAssessmentChip(
                               score: score!,
-                              confidence: product.v4Confidence,
+                              confidence: product.qualityScoreConfidence,
                             ),
                           SearchScoreChipDisplay.hidden =>
                             const SizedBox.shrink(),
@@ -2267,7 +2267,7 @@ enum _SearchFilter {
         return true;
       case _SearchFilter.highQuality:
         return (p.qualityScoreV4100 ?? 0) >= 80 &&
-            !hasLimitedAssessmentConfidence(p.v4Confidence);
+            !hasLimitedAssessmentConfidence(p.qualityScoreConfidence);
       case _SearchFilter.needsReview:
         final safety = catalogProductSafetyStatus(p);
         final assessment = catalogAssessmentStatus(p);
@@ -2354,14 +2354,14 @@ SearchScoreChipDisplay searchScoreChipDisplayFor({
   bool? isBlocked,
   bool isNotScored = false,
   required double? mappedCoverage,
-  String? v4Confidence,
+  String? scoreConfidence,
 }) {
   if ((isBlocked ?? isUnsafeVerdict(verdict)) || isNotScored) {
     return SearchScoreChipDisplay.hidden;
   }
   if (score == null) return SearchScoreChipDisplay.hidden;
   if (isLowCoverage(mappedCoverage)) return SearchScoreChipDisplay.limitedData;
-  if (catalogScoreConfidenceLabel(v4Confidence) == 'Limited') {
+  if (catalogScoreConfidenceLabel(scoreConfidence) == 'Limited') {
     return SearchScoreChipDisplay.limitedAssessment;
   }
   return SearchScoreChipDisplay.tierScore;

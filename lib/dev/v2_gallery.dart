@@ -7,7 +7,6 @@ import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/core/components/pg_certification_section.dart';
 import 'package:pharmaguide/core/components/pg_evidence_section.dart';
 import 'package:pharmaguide/core/components/pg_formulation_section.dart';
-import 'package:pharmaguide/core/components/pg_heavy_metal_warning.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_data.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
@@ -580,16 +579,7 @@ class V2Gallery extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: V2Spacing.space12),
-              // 6. Heavy metal risk
-              PGHeavyMetalWarning(
-                metals: const ['Mercury (trace)', 'Lead (trace)'],
-                note:
-                    'Within FDA action limits. Concentrations '
-                    'detected during IFOS testing.',
-                onTap: () {},
-              ),
-              const SizedBox(height: V2Spacing.space12),
-              // 7. Formulation
+              // 6. Formulation
               const PGFormulationSection(
                 form: 'Triglyceride softgel',
                 formTierLabel: 'Premium',
@@ -614,23 +604,9 @@ class V2Gallery extends StatelessWidget {
                   PGStrain(
                     name: 'L. acidophilus LA-5',
                     cfuLabel: '5 billion CFU',
-                    supportLevel: 'high',
-                    indication: 'Digestive support',
-                    researchStatus: PGProbioticResearchStatus.exactStrain,
-                    sourceUrls: ['https://pubmed.ncbi.nlm.nih.gov/'],
                   ),
-                  PGStrain(
-                    name: 'B. lactis BB-12',
-                    cfuLabel: '4 billion CFU',
-                    supportLevel: 'moderate',
-                    indication: 'Regularity',
-                    researchStatus: PGProbioticResearchStatus.formulaOnly,
-                  ),
-                  PGStrain(
-                    name: 'S. thermophilus',
-                    cfuLabel: '3 billion CFU',
-                    researchStatus: PGProbioticResearchStatus.none,
-                  ),
+                  PGStrain(name: 'B. lactis BB-12', cfuLabel: '4 billion CFU'),
+                  PGStrain(name: 'S. thermophilus', cfuLabel: '3 billion CFU'),
                 ],
               ),
               const SizedBox(height: V2Spacing.space12),

@@ -22,7 +22,7 @@ Future<void> _seedProduct(
   required double qualityScoreV4100,
   required double score100,
   required String category,
-  String? v4Confidence,
+  String? scoreConfidence,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -36,7 +36,7 @@ Future<void> _seedProduct(
           qualityScoreV4100: Value(qualityScoreV4100),
           score100Equivalent: Value(score100),
           qualityScoreStatus: const Value('scored'),
-          v4Confidence: Value(v4Confidence),
+          qualityScoreConfidence: Value(scoreConfidence),
           primaryCategory: Value(category),
         ),
       );
@@ -285,7 +285,7 @@ void main() {
         qualityScoreV4100: 70,
         score100: 87,
         category: 'multivitamin',
-        v4Confidence: 'moderate',
+        scoreConfidence: 'moderate',
       );
       await _seedProduct(
         coreDb,

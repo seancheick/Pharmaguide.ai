@@ -20,7 +20,7 @@ ProductsCoreData _product({
     productSafetyStatus: productSafetyStatus,
     qualityAssessmentStatus: assessmentStatus,
     qualityScoreStatus: scoreStatus,
-    v4Confidence: confidence,
+    qualityScoreConfidence: confidence,
     qualityTier: qualityTier,
     verdict: verdict,
     exportVersion: 'test',

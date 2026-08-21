@@ -321,4 +321,19 @@ void main() {
       },
     );
   });
+
+  test('core product status suppresses legacy status warning aliases', () {
+    final result = parseBlobWarnings({
+      'warnings': [
+        {
+          'type': 'status',
+          'severity': 'info',
+          'title': 'Discontinued',
+          'detail': 'Legacy duplicate status copy.',
+        },
+      ],
+    }, productStatus: 'active');
+
+    expect(result, isEmpty);
+  });
 }

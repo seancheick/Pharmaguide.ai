@@ -1010,7 +1010,7 @@ class _RecentScanCard extends StatelessWidget {
           score: scan.score!.round(),
           qualityTier: scan.qualityTier,
           compact: true,
-          confidence: scan.v4Confidence,
+          confidence: scan.scoreConfidence,
         );
       case RecentScanScoreDisplay.verdictLabel:
         final unsafe = isUnsafeVerdict(scan.productSafetyStatus);
@@ -1350,7 +1350,7 @@ typedef RecentScan = ({
   String productSafetyStatus,
   String qualityAssessmentStatus,
   double? mappedCoverage,
-  String? v4Confidence,
+  String? scoreConfidence,
   String time,
 });
 
@@ -1375,7 +1375,7 @@ RecentScan recentScanFromProduct(
     ),
     qualityAssessmentStatus: catalogAssessmentStatus(product).name,
     mappedCoverage: product.mappedCoverage,
-    v4Confidence: product.v4Confidence,
+    scoreConfidence: product.qualityScoreConfidence,
     time: time,
   );
 }

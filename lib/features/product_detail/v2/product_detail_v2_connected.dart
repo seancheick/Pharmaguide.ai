@@ -63,7 +63,6 @@ import 'package:pharmaguide/features/product_detail/v2/sections/blocked_banner_s
 import 'package:pharmaguide/features/product_detail/v2/sections/certifications_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/formulation_section.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/heavy_metal_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
@@ -259,7 +258,7 @@ class _ProductDetailV2ConnectedState
                 legacyScore: product.qualityScoreV4100!.round(),
               ).label
             : null,
-        scoreConfidence: canShareScore ? product.v4Confidence : null,
+        scoreConfidence: canShareScore ? product.qualityScoreConfidence : null,
         isCatalogBlocked: isBlocked,
         qualityHighlights: isBlocked
             ? const []
@@ -459,6 +458,7 @@ class _ProductDetailV2ConnectedState
         userProfileFlagsAsync.asData?.value ?? const <String>{};
     final guardedWarnings = composeGuardedWarnings(
       detailBlob: detailBlob,
+      productStatus: _product?.productStatus,
       personalizedWarnings: personalizedWarnings,
       userConditions: userConditionsSet,
       userDrugClasses: userDrugClassesSet,
@@ -466,7 +466,7 @@ class _ProductDetailV2ConnectedState
     );
     final profileBenefitWarnings = InteractionWarning.dedupe([
       ...personalizedWarnings,
-      ...parseBlobWarnings(detailBlob),
+      ...parseBlobWarnings(detailBlob, productStatus: _product?.productStatus),
     ]).where((w) => w.direction == 'beneficial').toList(growable: false);
     final profileBenefitNotes = profileBenefitWarnings
         .where(
@@ -828,15 +828,13 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 6.1 Probiotic label + research ------------
+                  // ---- 6.1 Probiotic label details ---------------
                   // Keep label-specific context beside the ingredient
-                  // ledger it explains. Research matching is informational
-                  // and remains independent from the scoring core.
+                  // ledger it explains. No clinical-strain badge is shown
+                  // until an authoritative producer exists.
                   if (showDeepDive) ...[
                     buildProbioticSection(
                       probioticDetail: _blobMap(detailBlob, 'probiotic_detail'),
-                      onTapSources: (urls) =>
-                          showProfileRelevanceCitationsSheet(context, urls),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -937,18 +935,6 @@ class _ProductDetailV2ConnectedState
                     ),
                   ],
 
-                  // ---- 12. HeavyMetal (WIRED, 11.7e) ---------------
-                  if (showDeepDive) ...[
-                    ..._sectionWithTrailingGap(
-                      buildHeavyMetalSection(
-                        heavyMetalDetail: _blobMap(
-                          detailBlob,
-                          'heavy_metal_detail',
-                        ),
-                      ),
-                    ),
-                  ],
-
                   // ---- 13. Formulation (WIRED, 11.7e) --------------
                   if (showDeepDive) ...[
                     ..._sectionWithTrailingGap(
@@ -1037,8 +1023,6 @@ class _ProductDetailV2ConnectedState
                               buildLabelMatchSection(
                                 labelRecord: detailBlob?['label_record'],
                                 upc: _product?.upcSku,
-                                currentLabelRows:
-                                    ingredientSources.displayIngredients,
                                 onOpenSourceLabel: (uri) async {
                                   await launchUrl(
                                     uri,

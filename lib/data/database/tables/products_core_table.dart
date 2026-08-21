@@ -1,7 +1,11 @@
 import 'package:drift/drift.dart';
 
-/// Products core table — 97 typed Drift columns. The bundled DB ships 102;
-/// the 5 intentionally-undeclared columns are:
+/// Products core table — exact generated app projection for export schema 2.4.
+/// Server/reporting columns and compatibility aliases remain in SQLite but are
+/// deliberately absent from Drift. The projection is generated from the
+/// pipeline's `scripts/core_export_model.py` and enforced by a release test.
+///
+/// Intentionally undeclared examples include:
 ///   - `ingredients_text` (v1.6.x, 2026-05-12) — indexed by `products_fts`
 ///     for ingredient-name search; read via raw SQL in core_database.dart
 ///     so the `.g.dart` doesn't need build_runner regen alongside pipeline
@@ -57,7 +61,7 @@ class ProductsCore extends Table {
   TextColumn get formFactor => text().named('form_factor').nullable()();
   TextColumn get supplementType => text().named('supplement_type').nullable()();
 
-  // Scores — v4 production contract (export schema 2.3.0).
+  // Scores — v4 production contract (export schema 2.4.0).
   TextColumn get scoreDisplay100Equivalent =>
       text().named('score_display_100_equivalent').nullable()();
   // Honest /100 mirror. Mirrors quality_score_v4_100 when scored and is NULL
@@ -88,7 +92,12 @@ class ProductsCore extends Table {
   TextColumn get qualityScoreSuppressedReason =>
       text().named('quality_score_suppressed_reason').nullable()();
   TextColumn get v4Module => text().named('v4_module').nullable()();
-  TextColumn get v4Confidence => text().named('v4_confidence').nullable()();
+  TextColumn get qualityScoreConfidence =>
+      text().named('quality_score_confidence').nullable()();
+  TextColumn get scoreUnavailableReason =>
+      text().named('score_unavailable_reason').nullable()();
+  TextColumn get routeConfidence =>
+      text().named('route_confidence').nullable()();
   TextColumn get scoreModelVersion =>
       text().named('score_model_version').nullable()();
 

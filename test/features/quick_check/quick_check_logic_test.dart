@@ -33,7 +33,7 @@ void main() {
         productSafetyStatus: safetyStatus,
         qualityAssessmentStatus: assessmentStatus,
         qualityScoreStatus: scoreStatus,
-        v4Confidence: confidence,
+        qualityScoreConfidence: confidence,
         verdict: verdict,
         exportVersion: 'test',
         exportedAt: '2026-08-05T00:00:00Z',

@@ -380,7 +380,7 @@ class _ProductHeader extends StatelessWidget {
             score: score,
             qualityTier: product.qualityTier,
             compact: true,
-            confidence: product.v4Confidence,
+            confidence: product.qualityScoreConfidence,
           ),
       ],
     );

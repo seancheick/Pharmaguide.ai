@@ -86,7 +86,7 @@ StackCatalogScoreDisplay? stackCatalogScoreDisplayFor(
   return (
     score: score.round(),
     qualityTier: product.qualityTier,
-    confidence: product.v4Confidence,
+    confidence: product.qualityScoreConfidence,
   );
 }
 

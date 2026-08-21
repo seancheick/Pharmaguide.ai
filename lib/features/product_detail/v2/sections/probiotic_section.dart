@@ -5,8 +5,8 @@
 // Reads:
 //   probiotic_detail.total_cfu_label / total_billion_count
 //   probiotic_detail.probiotic_blends[].strains[]
-//   probiotic_detail.clinical_strains[] — per-strain detail with
-//     cfu_per_day + evidence_level + is_inactivated
+//   probiotic_detail.clinical_strains[] — label-linked per-strain CFU and
+//     inactivation detail only; research/badge fields are deliberately ignored
 //   probiotic_detail.has_survivability_coating + survivability_reason
 //   probiotic_detail.prebiotic_present
 //
@@ -18,10 +18,7 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 
 /// Build the Probiotic section. Returns `SizedBox.shrink()` when the
 /// blob is null or contains no probiotic signals.
-Widget buildProbioticSection({
-  required Map<String, dynamic>? probioticDetail,
-  void Function(List<String> sourceUrls)? onTapSources,
-}) {
+Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
   if (probioticDetail == null) return const SizedBox.shrink();
 
   final probioticBlends = probioticDetail.safeMapList('probiotic_blends');
@@ -42,8 +39,8 @@ Widget buildProbioticSection({
     totalCfuLabel = _formatCfuCount(billionCount.toDouble() * 1e9);
   }
 
-  // Strains — prefer clinical_strains[] for richer per-strain data,
-  // fall back to flattened probiotic_blends[].strains[].
+  // Strains — use the label-linked clinical_strains rows only for CFU and
+  // inactivation facts; research claims remain hidden until authoritative.
   final clinicalStrains = probioticDetail.safeMapList('clinical_strains');
   final strainNames = <String>[];
   final clinicalByName = <String, Map<String, dynamic>>{};
@@ -85,17 +82,14 @@ Widget buildProbioticSection({
     return const SizedBox.shrink();
   }
 
-  // Build PGStrain list — clinical-strain enrichment when available.
+  // Build label-only rows. Evidence status and source URLs are intentionally
+  // not projected into UI models.
   final strains = strainNames
       .map((name) {
         final cs = clinicalByName[name];
         return PGStrain(
           name: name,
           cfuLabel: cs == null ? '' : _formatStrainCfu(cs['cfu_per_day']),
-          supportLevel: cs?.safeString('clinical_support_level') ?? '',
-          indication: cs?.safeString('indication_primary') ?? '',
-          researchStatus: _researchStatus(cs),
-          sourceUrls: cs?.safeStringList('source_urls') ?? const [],
           isInactivated: cs?['is_inactivated'] == true,
         );
       })
@@ -126,19 +120,7 @@ Widget buildProbioticSection({
     prebioticPresent: prebioticPresent,
     hasPostbioticStrains: hasPostbioticStrains,
     strains: strains,
-    onTapSources: onTapSources,
   );
-}
-
-PGProbioticResearchStatus _researchStatus(Map<String, dynamic>? row) {
-  if (row == null) return PGProbioticResearchStatus.none;
-  if (row.safeBool('is_blocked')) return PGProbioticResearchStatus.none;
-  return switch (row.safeString('research_match_status').trim().toLowerCase()) {
-    'exact_strain' => PGProbioticResearchStatus.exactStrain,
-    'formula_only' => PGProbioticResearchStatus.formulaOnly,
-    'species_level' => PGProbioticResearchStatus.speciesLevel,
-    _ => PGProbioticResearchStatus.none,
-  };
 }
 
 bool _isGenericContainerEcho({

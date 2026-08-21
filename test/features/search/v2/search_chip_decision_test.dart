@@ -57,7 +57,7 @@ void main() {
           score: 85,
           verdict: 'SAFE',
           mappedCoverage: 0.9,
-          v4Confidence: 'high',
+          scoreConfidence: 'high',
         ),
         SearchScoreChipDisplay.tierScore,
       );
@@ -69,7 +69,7 @@ void main() {
           score: 85,
           verdict: 'SAFE',
           mappedCoverage: 0.9,
-          v4Confidence: 'low',
+          scoreConfidence: 'low',
         ),
         SearchScoreChipDisplay.limitedAssessment,
       );
@@ -81,7 +81,7 @@ void main() {
           score: 85,
           verdict: 'SAFE',
           mappedCoverage: 0.9,
-          v4Confidence: 'future_band',
+          scoreConfidence: 'future_band',
         ),
         SearchScoreChipDisplay.limitedAssessment,
       );
@@ -112,7 +112,7 @@ void main() {
           score: 85,
           isNotScored: true,
           mappedCoverage: 0.9,
-          v4Confidence: 'high',
+          scoreConfidence: 'high',
         ),
         SearchScoreChipDisplay.hidden,
       );
