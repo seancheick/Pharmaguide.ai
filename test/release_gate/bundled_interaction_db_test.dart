@@ -98,6 +98,18 @@ void main() {
           reason: 'bundled interaction manifest is missing required key: $key',
         );
       }
+      if (manifest['schema_version'].toString().startsWith('2.')) {
+        for (final key in const [
+          'profile_warning_rules_count',
+          'profile_warning_rules_version',
+        ]) {
+          expect(
+            manifest.containsKey(key),
+            isTrue,
+            reason: 'schema-2 interaction manifest is missing $key',
+          );
+        }
+      }
 
       // Sanity: checksum is "sha256:" prefix + 64 hex chars.
       final checksum = manifest['checksum'] as String;
@@ -128,10 +140,30 @@ void main() {
         expect(await materialized.exists(), isTrue);
         expect(
           await materialized.length(),
-          equals(bundled.lengthInBytes),
+          greaterThanOrEqualTo(bundled.lengthInBytes),
           reason:
-              'The materialized interaction DB must contain every byte '
-              'from the bundled asset.',
+              'The local DB must contain the complete bundled asset. A '
+              'schema-1 compatibility copy may grow when the app creates '
+              'the empty schema-2 warning-rule table.',
+        );
+        final marker =
+            json.decode(
+                  await File(
+                    '${materialized.path}.bundle_marker.json',
+                  ).readAsString(),
+                )
+                as Map<String, dynamic>;
+        final manifest =
+            json.decode(
+                  await rootBundle.loadString(
+                    'assets/db/interaction_db_manifest.json',
+                  ),
+                )
+                as Map<String, dynamic>;
+        expect(
+          marker['checksum_sha256'],
+          (manifest['checksum'] as String).replaceFirst('sha256:', ''),
+          reason: 'the local copy marker must fingerprint the bundled bytes',
         );
       } finally {
         await db.close();
@@ -173,6 +205,20 @@ void main() {
                 '(${manifest['total_interactions']}) and embedded SQLite '
                 'interaction_db_metadata (${meta.totalInteractions})',
           );
+          if (meta.schemaVersion.startsWith('2.')) {
+            expect(
+              await db.countProfileWarningRules(),
+              meta.profileWarningRulesCount,
+            );
+            expect(
+              meta.profileWarningRulesCount,
+              manifest['profile_warning_rules_count'],
+            );
+            expect(
+              meta.profileWarningRulesVersion,
+              manifest['profile_warning_rules_version'],
+            );
+          }
 
           // The bundle must contain at least one live (non-tombstoned)
           // row. Zero would mean every curated draft was tombstoned —

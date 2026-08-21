@@ -518,6 +518,63 @@ void main() {
       });
     });
 
+    test(
+      'resolved schema 3 rule warning follows the schema 2.4 warning path',
+      () {
+        final resolvedRule = InteractionWarning.fromJson(const {
+          'type': 'interaction',
+          'severity': 'caution',
+          'title': 'Magnesium / diabetes',
+          'detail': 'Magnesium may affect glucose control.',
+          'action': 'Monitor glucose with your clinician.',
+          'condition_ids': ['diabetes'],
+          'drug_class_ids': <String>[],
+          'ingredient_name': 'Magnesium',
+          'ingredient_canonical_id': 'magnesium',
+          'direction': 'harmful',
+          'materiality': 'presence',
+          'display_mode_default': 'suppress',
+        });
+        final schema2 = composeGuardedWarnings(
+          detailBlob: const {
+            'warnings': [
+              {
+                'type': 'interaction',
+                'severity': 'caution',
+                'title': 'Magnesium / diabetes',
+                'detail': 'Magnesium may affect glucose control.',
+                'action': 'Monitor glucose with your clinician.',
+                'condition_ids': ['diabetes'],
+                'drug_class_ids': <String>[],
+                'ingredient_name': 'Magnesium',
+                'ingredient_canonical_id': 'magnesium',
+                'direction': 'harmful',
+                'materiality': 'presence',
+                'display_mode_default': 'suppress',
+              },
+            ],
+          },
+          personalizedWarnings: const [],
+          userConditions: const {'diabetes'},
+          userDrugClasses: const {},
+          userProfileFlags: const {},
+        );
+        final schema3 = composeGuardedWarnings(
+          detailBlob: const {'warnings': <Map<String, dynamic>>[]},
+          personalizedWarnings: const [],
+          resolvedRuleWarnings: [resolvedRule],
+          userConditions: const {'diabetes'},
+          userDrugClasses: const {},
+          userProfileFlags: const {},
+        );
+
+        expect(schema3, hasLength(1));
+        expect(schema3.single.displayHeadline, schema2.single.displayHeadline);
+        expect(schema3.single.displayBody, schema2.single.displayBody);
+        expect(schema3.single.severity, schema2.single.severity);
+      },
+    );
+
     test('dose-evaluated duplicate outranks generic higher severity', () {
       final evaluated = _w(
         headline: 'Vitamin B6 / lactation',

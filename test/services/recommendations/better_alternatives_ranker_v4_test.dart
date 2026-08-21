@@ -29,11 +29,6 @@ ProductsCoreData _p({
     supplementType: supplementType,
     primaryCategory: primaryCategory,
     qualityScoreV4100: qualityScoreV4100,
-    // Mirror the pipeline invariant: score_100_equivalent mirrors the v4
-    // score when scored, and is NULL when suppressed.
-    score100Equivalent: qualityScoreStatus == 'scored'
-        ? qualityScoreV4100
-        : null,
     qualityScoreStatus: qualityScoreStatus,
     productSafetyStatus: productSafetyStatus,
     qualityAssessmentStatus: qualityAssessmentStatus,

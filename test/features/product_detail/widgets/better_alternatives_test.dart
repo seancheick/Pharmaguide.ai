@@ -20,7 +20,6 @@ Future<void> _seedProduct(
   required String productName,
   required String? brandName,
   required double qualityScoreV4100,
-  required double score100,
   required String category,
   String? scoreConfidence,
 }) async {
@@ -34,7 +33,6 @@ Future<void> _seedProduct(
           exportedAt: '2026-04-29T00:00:00Z',
           brandName: Value(brandName),
           qualityScoreV4100: Value(qualityScoreV4100),
-          score100Equivalent: Value(score100),
           qualityScoreStatus: const Value('scored'),
           qualityScoreConfidence: Value(scoreConfidence),
           primaryCategory: Value(category),
@@ -51,7 +49,6 @@ Future<void> _seedCurrent(
   CoreDatabase coreDb, {
   String dsldId = 'cur',
   double qualityScoreV4100 = 40,
-  double score100 = 50,
   String category = 'multivitamin',
 }) => _seedProduct(
   coreDb,
@@ -59,7 +56,6 @@ Future<void> _seedCurrent(
   productName: 'Current Test Product',
   brandName: 'CurrentBrand',
   qualityScoreV4100: qualityScoreV4100,
-  score100: score100,
   category: category,
 );
 
@@ -254,7 +250,6 @@ void main() {
           productName: 'Premium Multi',
           brandName: 'BrandA',
           qualityScoreV4100: 70,
-          score100: 87,
           category: 'multivitamin',
         );
 
@@ -283,7 +278,6 @@ void main() {
         productName: 'Premium Multi',
         brandName: 'BrandA',
         qualityScoreV4100: 70,
-        score100: 87,
         category: 'multivitamin',
         scoreConfidence: 'moderate',
       );
@@ -293,7 +287,6 @@ void main() {
         productName: 'Daily Wellness',
         brandName: 'BrandB',
         qualityScoreV4100: 65,
-        score100: 81,
         category: 'multivitamin',
       );
 
@@ -332,7 +325,6 @@ void main() {
           productName: 'Alt $i',
           brandName: 'Brand$i',
           qualityScoreV4100: 70 - i.toDouble(),
-          score100: 87 - i.toDouble(),
           category: 'multivitamin',
         );
       }
@@ -363,7 +355,6 @@ void main() {
         productName: 'Premium Multi',
         brandName: 'BrandA',
         qualityScoreV4100: 70,
-        score100: 87,
         category: 'multivitamin',
       );
 

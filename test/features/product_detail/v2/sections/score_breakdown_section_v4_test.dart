@@ -46,12 +46,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         buildScoreBreakdownSection(
-          ingredientQuality: 99,
-          safetyPurity: 99,
-          evidenceResearch: 99,
-          brandTrust: 99,
           heroScore: 95,
-          mappedCoverage: 0.9,
           qualityPillarsV4: _v4Pillars(),
         ),
       ),
@@ -84,12 +79,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           buildScoreBreakdownSection(
-            ingredientQuality: null,
-            safetyPurity: null,
-            evidenceResearch: null,
-            brandTrust: null,
             heroScore: 94,
-            mappedCoverage: 1,
             qualityPillarsV4: pillars,
             qualityScoreCapV4: const {
               'applied': true,
@@ -115,12 +105,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         buildScoreBreakdownSection(
-          ingredientQuality: null,
-          safetyPurity: null,
-          evidenceResearch: null,
-          brandTrust: null,
           heroScore: 94,
-          mappedCoverage: 1,
           qualityPillarsV4: _v4Pillars(),
           qualityScoreCapV4: const {
             'applied': true,
@@ -139,17 +124,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _wrap(
-        buildScoreBreakdownSection(
-          ingredientQuality: 20,
-          safetyPurity: 28,
-          evidenceResearch: 15,
-          brandTrust: 4,
-          heroScore: 80,
-          mappedCoverage: 0.5,
-          qualityPillarsV4: null,
-        ),
-      ),
+      _wrap(buildScoreBreakdownSection(heroScore: 80, qualityPillarsV4: null)),
     );
 
     expect(find.byType(PGScoreBreakdownCard), findsNothing);
@@ -170,12 +145,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         buildScoreBreakdownSection(
-          ingredientQuality: 20,
-          safetyPurity: 28,
-          evidenceResearch: 15,
-          brandTrust: 4,
           heroScore: 70,
-          mappedCoverage: null,
           qualityPillarsV4: const {'garbage': 'not a pillar map'},
         ),
       ),
@@ -194,15 +164,7 @@ void main() {
 
     await tester.pumpWidget(
       _wrap(
-        buildScoreBreakdownSection(
-          ingredientQuality: 20,
-          safetyPurity: 28,
-          evidenceResearch: 15,
-          brandTrust: 4,
-          heroScore: 98.1,
-          mappedCoverage: 0.9,
-          qualityPillarsV4: partial,
-        ),
+        buildScoreBreakdownSection(heroScore: 98.1, qualityPillarsV4: partial),
       ),
     );
 
@@ -262,15 +224,7 @@ void evidenceScopeReconciliationTests() {
         Column(
           children: [
             buildScoreBreakdownSection(
-              ingredientQuality: null,
-              safetyPurity: null,
-              evidenceResearch: null,
-              brandTrust: null,
               heroScore: 84.4,
-              mappedCoverage: 0.4,
-              sectionBreakdown: const {
-                'evidence_research': {'matched_entries': 1, 'source_count': 2},
-              },
               qualityPillarsV4: pillars,
             ),
             buildEvidenceSection(
@@ -532,15 +486,7 @@ void evidenceScopeReconciliationTests() {
 
     await tester.pumpWidget(
       _wrap(
-        buildScoreBreakdownSection(
-          ingredientQuality: null,
-          safetyPurity: null,
-          evidenceResearch: null,
-          brandTrust: null,
-          heroScore: 80,
-          mappedCoverage: 0.68,
-          qualityPillarsV4: pillars,
-        ),
+        buildScoreBreakdownSection(heroScore: 80, qualityPillarsV4: pillars),
       ),
     );
 
@@ -565,12 +511,7 @@ Widget _v4Section({
   double? heroScore = 94,
   Map<String, VoidCallback>? onPillarTap,
 }) => buildScoreBreakdownSection(
-  ingredientQuality: 99,
-  safetyPurity: 99,
-  evidenceResearch: 99,
-  brandTrust: 99,
   heroScore: heroScore,
-  mappedCoverage: 0.9,
   qualityPillarsV4: pillars ?? _v4Pillars(),
   onPillarTap: onPillarTap,
 );
@@ -612,17 +553,7 @@ void nativeScaleTests() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _wrap(
-        buildScoreBreakdownSection(
-          ingredientQuality: 20, // /25 → 8/10
-          safetyPurity: 30, // /30 → 10/10
-          evidenceResearch: 10, // /20 → 5/10
-          brandTrust: 4, // /5 → 8/10
-          heroScore: 73,
-          mappedCoverage: 0.9,
-          qualityPillarsV4: null,
-        ),
-      ),
+      _wrap(buildScoreBreakdownSection(heroScore: 73, qualityPillarsV4: null)),
     );
 
     expect(find.byType(PGScoreBreakdownCard), findsNothing);

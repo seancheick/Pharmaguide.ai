@@ -830,7 +830,6 @@ void main() {
                   productName: 'Magnesium Glycinate 200',
                   brandName: const drift.Value('Clean Lab'),
                   qualityScoreV4100: const drift.Value(87),
-                  score100Equivalent: const drift.Value(87),
                   qualityScoreStatus: const drift.Value('scored'),
                   productSafetyStatus: const drift.Value(
                     'no_known_catalog_concern',
@@ -897,7 +896,6 @@ void main() {
                   productName: 'Saved Magnesium',
                   brandName: const drift.Value('Clean Lab'),
                   qualityScoreV4100: const drift.Value(87),
-                  score100Equivalent: const drift.Value(87),
                   qualityScoreStatus: const drift.Value('scored'),
                   exportVersion: 'test',
                   exportedAt: '2026-05-18T00:00:00Z',

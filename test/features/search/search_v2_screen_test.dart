@@ -58,7 +58,6 @@ void main() {
             productName: productName,
             brandName: drift.Value(brandName),
             primaryCategory: drift.Value(primaryCategory),
-            score100Equivalent: drift.Value(score),
             qualityScoreV4100: drift.Value(score),
             qualityScoreStatus: const drift.Value('scored'),
             mappedCoverage: drift.Value(mappedCoverage),

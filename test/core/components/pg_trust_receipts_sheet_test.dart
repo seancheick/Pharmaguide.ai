@@ -137,12 +137,7 @@ void main() {
             home: Scaffold(
               body: SingleChildScrollView(
                 child: buildScoreBreakdownSection(
-                  ingredientQuality: 20,
-                  safetyPurity: 25,
-                  evidenceResearch: 15,
-                  brandTrust: 4,
                   heroScore: 80,
-                  mappedCoverage: 0.9,
                   qualityPillarsV4: const {
                     'formulation': {
                       'score': 16,

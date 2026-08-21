@@ -16,6 +16,8 @@ import 'package:drift/drift.dart';
 /// - `interaction_db_version`    — human-readable release tag
 /// - `pipeline_version`          — pipeline build version
 /// - `min_app_version`           — min Flutter app version that can read it
+/// - `profile_warning_rules_count` — schema-2 embedded rule row count
+/// - `profile_warning_rules_version` — authored rule-registry version
 ///
 /// **`sha256_checksum` is intentionally NOT embedded.** Storing the
 /// file's own hash inside the file would invalidate the hash. The

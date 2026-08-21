@@ -15,8 +15,9 @@ void main() {
         .toSet();
 
     expect(declared, appCoreProjectionColumns);
-    expect(declared, hasLength(101));
     expect(declared, isNot(contains('v4_confidence')));
+    expect(declared, isNot(contains('score_100_equivalent')));
+    expect(declared, isNot(contains('score_ingredient_quality')));
     expect(declared, contains('quality_score_confidence'));
     expect(declared, contains('score_unavailable_reason'));
     expect(declared, contains('route_confidence'));

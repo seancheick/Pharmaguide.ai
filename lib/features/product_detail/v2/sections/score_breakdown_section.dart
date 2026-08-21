@@ -5,7 +5,7 @@
 //   Formulation /20 · Dose /20 · Evidence /20 · Transparency /15 ·
 //   Testing & Brand /15 · Formula & quality checks /10
 // each as score/max + a tap-revealed one-line `reason`. The hero is the v4
-// /100 score (`score_100_equivalent` mirrors `quality_score_v4_100`).
+// /100 score (`quality_score_v4_100`).
 //
 // Missing or partial v4 pillar blobs suppress this optional section. The app
 // is clean-cut v4: stale v3 A/B/C/D section columns must never explain a v4
@@ -34,14 +34,8 @@ import 'package:pharmaguide/core/utils/num_parse.dart';
 /// the v4 six-pillar breakdown. Null/empty/malformed data is suppressed rather
 /// than exposing catalog diagnostics or stale v3 score math.
 Widget buildScoreBreakdownSection({
-  required double? ingredientQuality,
-  required double? safetyPurity,
-  required double? evidenceResearch,
-  required double? brandTrust,
   required double? heroScore,
   String? qualityTier,
-  required double? mappedCoverage,
-  Map<String, dynamic>? sectionBreakdown,
   Map<String, dynamic>? qualityPillarsV4,
   Map<String, dynamic>? qualityScoreCapV4,
 

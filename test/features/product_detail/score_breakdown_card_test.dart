@@ -17,19 +17,13 @@ void main() {
     double? safetyHygiene,
     double? heroScore,
     String? qualityTier,
-    double? mappedCoverage,
   }) {
     return MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
           child: buildScoreBreakdownSection(
-            ingredientQuality: 99,
-            safetyPurity: 99,
-            evidenceResearch: 99,
-            brandTrust: 99,
             heroScore: heroScore,
             qualityTier: qualityTier,
-            mappedCoverage: mappedCoverage,
             qualityPillarsV4: _v4Pillars(
               formulation: formulation,
               dose: dose,
@@ -123,7 +117,7 @@ void main() {
     testWidgets('internal coverage never renders in the consumer score card', (
       tester,
     ) async {
-      await tester.pumpWidget(buildTestWidget(mappedCoverage: 0.92));
+      await tester.pumpWidget(buildTestWidget());
 
       expect(find.text('92%'), findsNothing);
       expect(find.textContaining('high-confidence'), findsNothing);
@@ -152,12 +146,7 @@ void main() {
             home: Scaffold(
               body: SingleChildScrollView(
                 child: buildScoreBreakdownSection(
-                  ingredientQuality: null,
-                  safetyPurity: null,
-                  evidenceResearch: null,
-                  brandTrust: null,
                   heroScore: 63.6,
-                  mappedCoverage: null,
                   qualityPillarsV4: pillars,
                   onPillarTap: {
                     'formulation': () {},

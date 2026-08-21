@@ -71,7 +71,7 @@ void enforceInteractionDatabaseVersionGate({
   required String minAppVersion,
   required String schemaVersion,
   required String appVersion,
-  int maxSupportedSchemaMajor = 1,
+  int maxSupportedSchemaMajor = 2,
 }) {
   final appComparison = compareSemver(minAppVersion, appVersion);
   if (appComparison == null) {

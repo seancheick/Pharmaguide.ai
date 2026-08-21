@@ -52,6 +52,7 @@ import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
+import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/v2/scroll_anchors.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
@@ -399,7 +400,6 @@ class _ProductDetailV2ConnectedState
     final brandName = _product?.brandName ?? '';
     final formFactor = _product?.formFactor ?? '';
     final score100 = _product?.qualityScoreV4100;
-    final mappedCoverage = _product?.mappedCoverage ?? 0.0;
     final trustTags = buildHeroTrustTags(_product);
     final isBlocked = productIsBlocked(_product);
     final isNotScored = productIsNotScored(_product);
@@ -439,6 +439,12 @@ class _ProductDetailV2ConnectedState
     // empty for the wrong reason — surface a hedge instead of letting
     // the page imply "no interactions found".
     final personalizedWarningsFailed = personalizedWarningsAsync.hasError;
+    final profileRuleWarningsAsync = ref.watch(
+      profileWarningRuleWarningsProvider(widget.dsldId),
+    );
+    final profileRuleWarnings =
+        profileRuleWarningsAsync.value ?? const <InteractionWarning>[];
+    final profileRuleWarningsFailed = profileRuleWarningsAsync.hasError;
     final profile = ref.watch(profileProvider);
     final userConditionsSet = profile.conditionsForEvaluator.toSet();
     final userProfileFlagsAsync = ref.watch(evaluatorProfileFlagsProvider);
@@ -460,12 +466,14 @@ class _ProductDetailV2ConnectedState
       detailBlob: detailBlob,
       productStatus: _product?.productStatus,
       personalizedWarnings: personalizedWarnings,
+      resolvedRuleWarnings: profileRuleWarnings,
       userConditions: userConditionsSet,
       userDrugClasses: userDrugClassesSet,
       userProfileFlags: userProfileFlagsSet,
     );
     final profileBenefitWarnings = InteractionWarning.dedupe([
       ...personalizedWarnings,
+      ...profileRuleWarnings,
       ...parseBlobWarnings(detailBlob, productStatus: _product?.productStatus),
     ]).where((w) => w.direction == 'beneficial').toList(growable: false);
     final profileBenefitNotes = profileBenefitWarnings
@@ -490,6 +498,7 @@ class _ProductDetailV2ConnectedState
     final fitResult = fitAsync.asData?.value;
     final personalizedChecksFailed =
         personalizedWarningsFailed ||
+        profileRuleWarningsFailed ||
         fitAsync.hasError ||
         userProfileFlagsAsync.asData == null;
 
@@ -844,17 +853,8 @@ class _ProductDetailV2ConnectedState
                   // already-visible product rather than interrupting it.
                   if (showScoreBreakdown) ...[
                     buildScoreBreakdownSection(
-                      ingredientQuality: _product?.scoreIngredientQuality,
-                      safetyPurity: _product?.scoreSafetyPurity,
-                      evidenceResearch: _product?.scoreEvidenceResearch,
-                      brandTrust: _product?.scoreBrandTrust,
                       heroScore: score100,
                       qualityTier: _product?.qualityTier,
-                      mappedCoverage: mappedCoverage,
-                      sectionBreakdown: _blobMap(
-                        detailBlob,
-                        'section_breakdown',
-                      ),
                       qualityPillarsV4: _blobMap(
                         detailBlob,
                         'quality_pillars_v4',

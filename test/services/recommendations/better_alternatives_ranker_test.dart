@@ -52,7 +52,6 @@ ProductsCoreData _product({
   int hasBannedSubstance = 0,
   int hasRecalledIngredient = 0,
   double? mappedCoverage,
-  double? scoreBrandTrust,
   String? ingredientFingerprint,
 }) {
   return ProductsCoreData(
@@ -63,7 +62,6 @@ ProductsCoreData _product({
     primaryCategory: primaryCategory,
     qualityScoreV4100: qualityScoreV4100,
     qualityTier: qualityTier,
-    score100Equivalent: qualityScoreV4100,
     qualityScoreStatus: qualityScoreStatus,
     discontinuedDate: discontinuedDate,
     keyIngredientTags: keyIngredientTags,
@@ -84,7 +82,6 @@ ProductsCoreData _product({
     hasBannedSubstance: hasBannedSubstance,
     hasRecalledIngredient: hasRecalledIngredient,
     mappedCoverage: mappedCoverage,
-    scoreBrandTrust: scoreBrandTrust,
     ingredientFingerprint: ingredientFingerprint,
     exportVersion: 'test',
     exportedAt: '2026-05-16T00:00:00Z',
@@ -112,7 +109,6 @@ Future<void> _insertPoolProduct(
           supplementType: Value(supplementType),
           primaryCategory: Value(supplementType),
           qualityScoreV4100: Value(score),
-          score100Equivalent: Value(score),
           qualityScoreStatus: const Value('scored'),
           keyIngredientTags: Value(keyIngredientTags),
         ),
@@ -724,8 +720,6 @@ void main() {
         qualityScoreV4100: 60,
         keyIngredientTags: '["magnesium","glycinate"]',
         goalMatches: '["GOAL_MUSCLE_GROWTH_RECOVERY"]',
-        // Vestigial v3 data must not affect v4 alternative ranking.
-        scoreBrandTrust: 9.0,
       );
 
       final result = rankAlternatives(
@@ -771,7 +765,6 @@ void main() {
         primaryCategory: 'multivitamin',
         qualityScoreV4100: 60,
         goalMatches: '["GOAL_INCREASE_ENERGY"]',
-        scoreBrandTrust: 9.0,
       );
 
       final result = rankAlternatives(

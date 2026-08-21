@@ -25,7 +25,7 @@ void main() {
             productName: productName,
             brandName: drift.Value(brandName),
             imageThumbnailUrl: const drift.Value('https://example.com/a.png'),
-            score100Equivalent: const drift.Value(82),
+            qualityScoreV4100: const drift.Value(82),
             exportVersion: 'test',
             exportedAt: '2026-05-18T00:00:00Z',
           ),

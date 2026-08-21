@@ -73,6 +73,7 @@ List<InteractionWarning> composeGuardedWarnings({
   required Map<String, dynamic>? detailBlob,
   String? productStatus,
   required List<InteractionWarning> personalizedWarnings,
+  List<InteractionWarning> resolvedRuleWarnings = const [],
   required Set<String> userConditions,
   required Set<String> userDrugClasses,
   required Set<String> userProfileFlags,
@@ -81,7 +82,11 @@ List<InteractionWarning> composeGuardedWarnings({
     detailBlob,
     productStatus: productStatus,
   );
-  final merged = <InteractionWarning>[...personalizedWarnings, ...blobWarnings];
+  final merged = <InteractionWarning>[
+    ...personalizedWarnings,
+    ...resolvedRuleWarnings,
+    ...blobWarnings,
+  ];
   return filterProductDetailWarningsForProfile(
     detailBlob: detailBlob,
     warnings: merged,

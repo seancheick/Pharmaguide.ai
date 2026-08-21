@@ -84,7 +84,6 @@ Future<void> _seedProduct(
           exportVersion: 'test',
           exportedAt: '2026-07-19T00:00:00Z',
           qualityScoreV4100: const Value(88),
-          score100Equivalent: const Value(88),
           qualityScoreStatus: const Value('scored'),
           mappedCoverage: const Value(1),
           verdict: const Value('SAFE'),
@@ -628,7 +627,7 @@ void main() {
     );
 
     testWidgets(
-      'connected catalog action compares history with the canonical ledger',
+      'connected catalog keeps unsupported formula history UI removed',
       (tester) async {
         await _pumpConnectedScreen(
           tester,
@@ -669,23 +668,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final action = find.byKey(const Key('formula-history-action'));
-        expect(action, findsOneWidget);
-        await tester.ensureVisible(action);
-        await tester.pumpAndSettle();
-        await tester.tap(action);
-        await tester.pumpAndSettle();
-
-        expect(find.text('Snapshot older-label'), findsOneWidget);
-        final changedRow = find.text('• Row 1: EPA · 300 mg → EPA · 360 mg');
-        for (
-          var attempt = 0;
-          attempt < 4 && changedRow.evaluate().isEmpty;
-          attempt++
-        ) {
-          await tester.drag(find.byType(ListView).last, const Offset(0, -220));
-          await tester.pumpAndSettle();
-        }
-        expect(changedRow, findsOneWidget);
+        expect(action, findsNothing);
+        expect(find.text('Snapshot older-label'), findsNothing);
       },
     );
 
@@ -812,7 +796,7 @@ void main() {
         );
 
         final ingredientsTitle = find.text('Active ingredients');
-        final probioticTitle = find.text('Probiotic label & research');
+        final probioticTitle = find.text('Probiotic label details');
         expect(ingredientsTitle, findsOneWidget);
         expect(probioticTitle, findsOneWidget);
         final sectionGap =

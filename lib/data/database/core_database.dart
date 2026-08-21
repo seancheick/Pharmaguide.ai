@@ -189,8 +189,6 @@ class CoreDatabase extends _$CoreDatabase {
       'quality_score_confidence TEXT',
       'score_unavailable_reason TEXT',
       'route_confidence TEXT',
-      // Read only at this migration boundary, never through Drift.
-      'v4_confidence TEXT',
       'score_model_version TEXT',
     ];
 

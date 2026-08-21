@@ -61,13 +61,7 @@ class ProductsCore extends Table {
   TextColumn get formFactor => text().named('form_factor').nullable()();
   TextColumn get supplementType => text().named('supplement_type').nullable()();
 
-  // Scores — v4 production contract (export schema 2.4.0).
-  TextColumn get scoreDisplay100Equivalent =>
-      text().named('score_display_100_equivalent').nullable()();
-  // Honest /100 mirror. Mirrors quality_score_v4_100 when scored and is NULL
-  // when quality_score_status is suppressed/not_scored.
-  RealColumn get score100Equivalent =>
-      real().named('score_100_equivalent').nullable()();
+  // Scores — v4 production contract (export schema 2.4.0+).
   TextColumn get grade => text().named('grade').nullable()();
   TextColumn get verdict => text().named('verdict').nullable()();
   TextColumn get safetyVerdict => text().named('safety_verdict').nullable()();
@@ -100,24 +94,6 @@ class ProductsCore extends Table {
       text().named('route_confidence').nullable()();
   TextColumn get scoreModelVersion =>
       text().named('score_model_version').nullable()();
-
-  // Section scores
-  RealColumn get scoreIngredientQuality =>
-      real().named('score_ingredient_quality').nullable()();
-  RealColumn get scoreIngredientQualityMax =>
-      real().named('score_ingredient_quality_max').nullable()();
-  RealColumn get scoreSafetyPurity =>
-      real().named('score_safety_purity').nullable()();
-  RealColumn get scoreSafetyPurityMax =>
-      real().named('score_safety_purity_max').nullable()();
-  RealColumn get scoreEvidenceResearch =>
-      real().named('score_evidence_research').nullable()();
-  RealColumn get scoreEvidenceResearchMax =>
-      real().named('score_evidence_research_max').nullable()();
-  RealColumn get scoreBrandTrust =>
-      real().named('score_brand_trust').nullable()();
-  RealColumn get scoreBrandTrustMax =>
-      real().named('score_brand_trust_max').nullable()();
 
   // Percentile
   RealColumn get percentileRank => real().named('percentile_rank').nullable()();

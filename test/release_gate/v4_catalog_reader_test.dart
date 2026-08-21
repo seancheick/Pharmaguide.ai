@@ -30,7 +30,6 @@ void main() {
     final elite = await db.findById('175321'); // Creatine, 98.1 Elite
     expect(elite, isNotNull);
     expect(elite!.qualityScoreV4100, closeTo(98.1, 0.6));
-    expect(elite.score100Equivalent, closeTo(98.1, 0.6));
     expect(elite.qualityScoreStatus, 'scored');
     expect(elite.qualityTier, 'Elite');
     expect(elite.scoreModelVersion, 'v4');
@@ -52,7 +51,6 @@ void main() {
           'detail screen can explain why it is blocked',
     );
     expect(blocked!.qualityScoreV4100, isNull);
-    expect(blocked.score100Equivalent, isNull);
     expect(blocked.qualityScoreStatus, 'suppressed_safety');
     expect(blocked.qualityScoreSuppressedReason, 'banned_ingredient');
     expect(blocked.verdict, 'BLOCKED');

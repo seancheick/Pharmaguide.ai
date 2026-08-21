@@ -424,6 +424,13 @@ void main() {
       expect(meta.interactionDbVersion, isNotEmpty);
       expect(meta.pipelineVersion, isNotEmpty);
       expect(meta.minAppVersion, isNotEmpty);
+      if (meta.schemaVersion.startsWith('2.')) {
+        expect(meta.profileWarningRulesCount, greaterThan(0));
+        expect(meta.profileWarningRulesVersion, isNotEmpty);
+      } else {
+        expect(meta.profileWarningRulesCount, 0);
+        expect(meta.profileWarningRulesVersion, isNull);
+      }
     });
 
     test('totalInteractions matches countLiveInteractions', () async {

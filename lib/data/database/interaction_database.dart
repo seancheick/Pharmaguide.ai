@@ -6,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:pharmaguide/data/database/tables/drug_class_map_table.dart';
 import 'package:pharmaguide/data/database/tables/interaction_db_metadata_table.dart';
 import 'package:pharmaguide/data/database/tables/interactions_table.dart';
+import 'package:pharmaguide/data/database/tables/profile_warning_rules_table.dart';
 import 'package:pharmaguide/data/database/tables/research_pairs_table.dart';
 
 part 'interaction_database.g.dart';
@@ -30,6 +31,8 @@ class InteractionDbMetadata {
     required this.interactionDbVersion,
     required this.pipelineVersion,
     required this.minAppVersion,
+    required this.profileWarningRulesCount,
+    required this.profileWarningRulesVersion,
   });
 
   /// Schema version of the SQLite layout (e.g. `"1.0.0"`).
@@ -66,6 +69,12 @@ class InteractionDbMetadata {
   /// Minimum Flutter app `version` (semver) that can read this DB. The app
   /// must refuse to open a bundle that requires a newer version than itself.
   final String minAppVersion;
+
+  /// Number and authored source version of rules available for schema-3
+  /// compact warning resolution. Schema-1 compatibility bundles report
+  /// zero/null.
+  final int profileWarningRulesCount;
+  final String? profileWarningRulesVersion;
 }
 
 /// READ-ONLY Drift wrapper around the bundled `interaction_db.sqlite` asset.
@@ -81,16 +90,17 @@ class InteractionDbMetadata {
 /// table for audit but filtered out of every public lookup via
 /// `WHERE retired_at IS NULL`.
 ///
-/// **No migrations.** The bundle is replaced wholesale on every release;
-/// `schemaVersion` is pinned to `1` (matching the pipeline's
-/// `PRAGMA user_version=1`) so Drift never attempts to alter the schema at
-/// open time. The pipeline's manifest carries the human-readable
-/// `schema_version` ("1.0.0") for compatibility checks.
+/// The bundle is replaced wholesale on every release. The sole migration
+/// retained here creates the schema-2 warning-rule table for a device that
+/// opens an older local copy before the new bundle swap completes. An empty
+/// migrated table is safe: schema-3 reference resolution fails closed and the
+/// product page shows its warning-check hedge instead of claiming no warning.
 @DriftDatabase(
   tables: [
     Interactions,
     DrugClassMap,
     ResearchPairs,
+    ProfileWarningRules,
     InteractionDbMetadataTable,
   ],
 )
@@ -102,7 +112,7 @@ class InteractionDatabase extends _$InteractionDatabase {
   InteractionDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -114,10 +124,13 @@ class InteractionDatabase extends _$InteractionDatabase {
       await m.createAll();
     },
     onUpgrade: (migrator, from, to) async {
+      if (from == 1 && to == 2) {
+        await migrator.createTable(profileWarningRules);
+        return;
+      }
       throw StateError(
-        'Interaction database schema changed from $from to $to. '
-        'This database is a pre-built artifact and must be replaced, '
-        'not migrated in place.',
+        'Unsupported interaction database migration from $from to $to. '
+        'This pre-built artifact must be replaced.',
       );
     },
     beforeOpen: (details) async {
@@ -409,6 +422,57 @@ class InteractionDatabase extends _$InteractionDatabase {
     return out;
   }
 
+  /// Resolve schema-3 compact warning references from the versioned local DB.
+  ///
+  /// Missing IDs are intentionally absent from the returned map; the pure
+  /// warning resolver treats that as a fatal format error. Corrupt JSON and a
+  /// rule whose embedded id disagrees with its primary key also fail closed.
+  Future<Map<String, Map<String, dynamic>>> lookupProfileWarningRules(
+    Set<String> ruleIds,
+  ) async {
+    final normalized = ruleIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (normalized.isEmpty) return const <String, Map<String, dynamic>>{};
+
+    final rows = await (select(
+      profileWarningRules,
+    )..where((table) => table.ruleId.isIn(normalized))).get();
+    final resolved = <String, Map<String, dynamic>>{};
+    for (final row in rows) {
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(row.ruleJson);
+      } on FormatException catch (error) {
+        throw FormatException(
+          'profile warning rule ${row.ruleId} contains invalid JSON: $error',
+        );
+      }
+      if (decoded is! Map) {
+        throw FormatException(
+          'profile warning rule ${row.ruleId} must decode to an object',
+        );
+      }
+      final rule = Map<String, dynamic>.from(decoded);
+      if (rule['id']?.toString().trim() != row.ruleId) {
+        throw FormatException(
+          'profile warning rule ${row.ruleId} has a mismatched embedded id',
+        );
+      }
+      resolved[row.ruleId] = rule;
+    }
+    return resolved;
+  }
+
+  Future<int> countProfileWarningRules() async {
+    final row = await customSelect(
+      'SELECT COUNT(*) AS count FROM profile_warning_rules',
+      readsFrom: {profileWarningRules},
+    ).getSingle();
+    return row.read<int>('count');
+  }
+
   // ---------------------------------------------------------------------------
   // Metadata
   // ---------------------------------------------------------------------------
@@ -446,8 +510,17 @@ class InteractionDatabase extends _$InteractionDatabase {
       return parsed;
     }
 
+    final schemaVersion = require('schema_version');
+    final schemaMajor = int.tryParse(schemaVersion.split('.').first);
+    if (schemaMajor == null) {
+      throw StateError(
+        'interaction_db_metadata schema_version is malformed: '
+        '"$schemaVersion"',
+      );
+    }
+
     return InteractionDbMetadata(
-      schemaVersion: require('schema_version'),
+      schemaVersion: schemaVersion,
       builtAt: require('built_at'),
       sourceDraftsCount: requireInt('source_drafts_count'),
       sourceSuppaiCount: requireInt('source_suppai_count'),
@@ -457,6 +530,12 @@ class InteractionDatabase extends _$InteractionDatabase {
       interactionDbVersion: require('interaction_db_version'),
       pipelineVersion: require('pipeline_version'),
       minAppVersion: require('min_app_version'),
+      profileWarningRulesCount: schemaMajor >= 2
+          ? requireInt('profile_warning_rules_count')
+          : 0,
+      profileWarningRulesVersion: schemaMajor >= 2
+          ? require('profile_warning_rules_version')
+          : null,
     );
   }
 

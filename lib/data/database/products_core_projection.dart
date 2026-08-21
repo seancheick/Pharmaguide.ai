@@ -2,9 +2,9 @@
 // Source: PharmaGuide_Pipeline/scripts/core_export_model.py
 // App projection for export schema 2.4.0.
 
-const String appCoreProjectionModelVersion = '1.0.0';
+const String appCoreProjectionModelVersion = '1.1.0';
 const String appCoreProjectionModelSha256 =
-    'sha256:62370a6c5e26df1059eb6466adf2634d121d04bead43ab019e039edad0314612';
+    'sha256:4615d5de0af5e01fedf790448710acbaeb20059bd377471db65659a36f92c30c';
 const Set<String> appCoreProjectionColumns = <String>{
   'dsld_id',
   'product_name',
@@ -20,8 +20,6 @@ const Set<String> appCoreProjectionColumns = <String>{
   'discontinued_date',
   'form_factor',
   'supplement_type',
-  'score_display_100_equivalent',
-  'score_100_equivalent',
   'grade',
   'verdict',
   'safety_verdict',
@@ -37,14 +35,6 @@ const Set<String> appCoreProjectionColumns = <String>{
   'score_unavailable_reason',
   'route_confidence',
   'score_model_version',
-  'score_ingredient_quality',
-  'score_ingredient_quality_max',
-  'score_safety_purity',
-  'score_safety_purity_max',
-  'score_evidence_research',
-  'score_evidence_research_max',
-  'score_brand_trust',
-  'score_brand_trust_max',
   'percentile_rank',
   'percentile_top_pct',
   'percentile_category',
