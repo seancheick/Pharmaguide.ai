@@ -32,13 +32,15 @@
 #      db_version, schema_version, pipeline_version, scoring_version,
 #      product_count, min_app_version, checksum_sha256, generated_at.
 # 3. schema_version is one of the APP_SUPPORTED_SCHEMAS values below.
-# 4. SHA-256 of pharmaguide_core.db matches the manifest's checksum_sha256.
-# 5. SQLite opens cleanly and `PRAGMA integrity_check` returns `ok`.
-# 6. `SELECT COUNT(*) FROM products_core` returns at least
+# 4. Schema 2.4's core-projection model hash matches the generated Drift
+#    projection compiled into this app.
+# 5. SHA-256 of pharmaguide_core.db matches the manifest's checksum_sha256.
+# 6. SQLite opens cleanly and `PRAGMA integrity_check` returns `ok`.
+# 7. `SELECT COUNT(*) FROM products_core` returns at least
 #    MIN_PRODUCT_COUNT (defaults to 2000; override with --min-products).
-# 7. SQLite's internal `export_manifest` table agrees with the JSON manifest
+# 8. SQLite's internal `export_manifest` table agrees with the JSON manifest
 #    on db_version and schema_version (guards against split-brain).
-# 8. At least one row in products_core has a non-empty export_version.
+# 9. At least one row in products_core has a non-empty export_version.
 #
 # ## Interaction DB validation gates (only run if files present)
 #
@@ -46,16 +48,20 @@
 #       built_at, checksum_sha256, schema_version, db_version,
 #       total_interactions, source_drafts_count, source_suppai_count,
 #       interaction_db_version, pipeline_version, min_app_version.
+#     Schema 2 additionally requires profile_warning_rules_count and
+#     profile_warning_rules_version.
 #     (override_count and resolved_conflict_count live in the embedded
 #     interaction_db_metadata kv table only — verified by gate I7.)
 # I2. schema_version is in APP_SUPPORTED_INTERACTION_SCHEMAS.
 # I3. SHA-256 of interaction_db.sqlite matches manifest's checksum_sha256.
 # I4. PRAGMA integrity_check returns 'ok'.
-# I5. PRAGMA user_version returns 1 (matches the pipeline's pinned value).
+# I5. PRAGMA user_version matches the value paired with the accepted schema
+#     (1 for schema 1.0.0; 2 for schema 2.0.0).
 # I6. SELECT COUNT(*) FROM interactions WHERE retired_at IS NULL is at least
 #     MIN_INTERACTION_COUNT (defaults to 1; override with --min-interactions).
 # I7. The embedded interaction_db_metadata kv table agrees with the JSON
-#     manifest on schema_version and total_interactions.
+#     manifest on schema_version, total_interactions, and schema-2 warning
+#     registry count/version; the physical warning-rule table count also agrees.
 # I8. The embedded sha256_checksum key is **NOT** present (T7 fix —
 #     storing the file's hash inside the file would invalidate the hash).
 # I9. research_pairs count matches metadata and any non-empty Tier 2
@@ -112,11 +118,11 @@ APP_SUPPORTED_SCHEMAS=(
   "2.4.0"
 )
 
-# Interaction DB schema versions the Flutter Drift wrapper supports. The
-# pipeline pins schema_version="1.0.0" / PRAGMA user_version=1 — both must
-# match what `lib/data/database/interaction_database.dart` declares.
-APP_SUPPORTED_INTERACTION_SCHEMAS=("1.0.0")
-APP_SUPPORTED_INTERACTION_USER_VERSION=1
+# Interaction DB schema versions and their paired SQLite user_version values.
+# Keep the arrays index-aligned. Schema 1 remains supported for the currently
+# bundled compatibility database; schema 2 carries profile warning rules.
+APP_SUPPORTED_INTERACTION_SCHEMAS=("1.0.0" "2.0.0")
+APP_SUPPORTED_INTERACTION_USER_VERSIONS=(1 2)
 
 # ---------------------------------------------------------------------------
 # CLI parsing
@@ -154,7 +160,14 @@ while (($# > 0)); do
       shift 2
       ;;
     --allow-interaction-schema)
-      APP_SUPPORTED_INTERACTION_SCHEMAS+=("${2:?--allow-interaction-schema requires a value}")
+      interaction_override="${2:?--allow-interaction-schema requires a value}"
+      interaction_override_major="${interaction_override%%.*}"
+      if [[ ! "$interaction_override_major" =~ ^[1-9][0-9]*$ ]]; then
+        err "--allow-interaction-schema requires a numeric-major schema"
+        exit 1
+      fi
+      APP_SUPPORTED_INTERACTION_SCHEMAS+=("$interaction_override")
+      APP_SUPPORTED_INTERACTION_USER_VERSIONS+=("$interaction_override_major")
       shift 2
       ;;
     --dry-run)
@@ -194,6 +207,7 @@ TARGET_DB="$ASSETS_DB_DIR/pharmaguide_core.db"
 TARGET_MANIFEST="$ASSETS_DB_DIR/export_manifest.json"
 TARGET_INTERACTION_DB="$ASSETS_DB_DIR/interaction_db.sqlite"
 TARGET_INTERACTION_MANIFEST="$ASSETS_DB_DIR/interaction_db_manifest.json"
+CORE_PROJECTION_DART="$REPO_ROOT/lib/data/database/products_core_projection.dart"
 
 DIST_DIR="$(cd "$DIST_DIR" && pwd)"
 SRC_DB="$DIST_DIR/pharmaguide_core.db"
@@ -258,6 +272,19 @@ print(value)
 PY
 }
 
+read_manifest_path() {
+  python3 - "$SRC_MANIFEST" "$1" <<'PY'
+import json, sys
+with open(sys.argv[1]) as fh:
+    value = json.load(fh)
+for key in sys.argv[2].split('.'):
+    if not isinstance(value, dict) or key not in value:
+        sys.exit(42)
+    value = value[key]
+print(value)
+PY
+}
+
 # Validate JSON is parseable and required keys are present.
 REQUIRED_KEYS=(
   db_version
@@ -306,6 +333,42 @@ if (( schema_accepted == 0 )); then
   exit 1
 fi
 ok "schema_version $SCHEMA_VERSION is supported"
+
+# ---------------------------------------------------------------------------
+# Gate 1b: schema-2.4 projection model matches the generated app reader
+# ---------------------------------------------------------------------------
+
+if [[ "$SCHEMA_VERSION" == "2.4.0" ]]; then
+  if ! CANDIDATE_CORE_PROJECTION_MODEL_SHA256="$(
+    read_manifest_path core_projection_manifest.model_sha256
+  )"; then
+    err "schema 2.4 manifest is missing core_projection_manifest.model_sha256"
+    exit 1
+  fi
+  if ! EXPECTED_CORE_PROJECTION_MODEL_SHA256="$(python3 - "$CORE_PROJECTION_DART" <<'PY'
+import pathlib, re, sys
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+match = re.search(
+    r"appCoreProjectionModelSha256\s*=\s*['\"]([^'\"]+)['\"]",
+    text,
+)
+if match is None:
+    sys.exit(42)
+print(match.group(1))
+PY
+  )"; then
+    err "cannot read app projection hash from $CORE_PROJECTION_DART"
+    exit 2
+  fi
+  if [[ "$CANDIDATE_CORE_PROJECTION_MODEL_SHA256" != "$EXPECTED_CORE_PROJECTION_MODEL_SHA256" ]]; then
+    err "candidate projection model does not match this app"
+    err "  candidate: $CANDIDATE_CORE_PROJECTION_MODEL_SHA256"
+    err "  app:       $EXPECTED_CORE_PROJECTION_MODEL_SHA256"
+    err "regenerate products_core_projection.dart and Drift before importing"
+    exit 1
+  fi
+  ok "core projection model matches generated app reader"
+fi
 
 # ---------------------------------------------------------------------------
 # Gate 2: SHA-256 match
@@ -459,6 +522,22 @@ PY
   INTERACTION_MANIFEST_CHECKSUM="$(read_interaction_manifest_field checksum_sha256)"
   INTERACTION_PIPELINE_VERSION="$(read_interaction_manifest_field pipeline_version)"
   INTERACTION_BUILT_AT="$(read_interaction_manifest_field built_at)"
+  INTERACTION_PROFILE_WARNING_RULES_COUNT=""
+  INTERACTION_PROFILE_WARNING_RULES_VERSION=""
+  if [[ "$INTERACTION_SCHEMA_VERSION" == 2.* ]]; then
+    for key in profile_warning_rules_count profile_warning_rules_version; do
+      if ! read_interaction_manifest_field "$key" >/dev/null 2>&1; then
+        err "schema-2 interaction manifest missing required key: $key"
+        exit 1
+      fi
+    done
+    INTERACTION_PROFILE_WARNING_RULES_COUNT="$(
+      read_interaction_manifest_field profile_warning_rules_count
+    )"
+    INTERACTION_PROFILE_WARNING_RULES_VERSION="$(
+      read_interaction_manifest_field profile_warning_rules_version
+    )"
+  fi
 
   ok "interaction manifest parsed: db_version=$INTERACTION_DB_VERSION schema=$INTERACTION_SCHEMA_VERSION rows=$INTERACTION_TOTAL"
 
@@ -467,9 +546,11 @@ PY
   # ---------------------------------------------------------------------------
 
   interaction_schema_accepted=0
-  for s in "${APP_SUPPORTED_INTERACTION_SCHEMAS[@]}"; do
-    if [[ "$s" == "$INTERACTION_SCHEMA_VERSION" ]]; then
+  EXPECTED_INTERACTION_USER_VERSION=""
+  for i in "${!APP_SUPPORTED_INTERACTION_SCHEMAS[@]}"; do
+    if [[ "${APP_SUPPORTED_INTERACTION_SCHEMAS[$i]}" == "$INTERACTION_SCHEMA_VERSION" ]]; then
       interaction_schema_accepted=1
+      EXPECTED_INTERACTION_USER_VERSION="${APP_SUPPORTED_INTERACTION_USER_VERSIONS[$i]}"
       break
     fi
   done
@@ -514,9 +595,9 @@ PY
   # ---------------------------------------------------------------------------
 
   INTERACTION_USER_VERSION="$(sqlite3 "$SRC_INTERACTION_DB" 'PRAGMA user_version;' 2>/dev/null || echo "?")"
-  if [[ "$INTERACTION_USER_VERSION" != "$APP_SUPPORTED_INTERACTION_USER_VERSION" ]]; then
+  if [[ "$INTERACTION_USER_VERSION" != "$EXPECTED_INTERACTION_USER_VERSION" ]]; then
     err "interaction DB PRAGMA user_version mismatch"
-    err "  expected: $APP_SUPPORTED_INTERACTION_USER_VERSION"
+    err "  expected: $EXPECTED_INTERACTION_USER_VERSION for schema $INTERACTION_SCHEMA_VERSION"
     err "  actual:   $INTERACTION_USER_VERSION"
     err "the pipeline build_interaction_db.py must pin user_version to match"
     err "what the Flutter Drift wrapper declares as schemaVersion."
@@ -566,6 +647,42 @@ PY
     err "  manifest: $INTERACTION_TOTAL"
     err "  embedded: $EMBEDDED_INTERACTION_TOTAL"
     exit 1
+  fi
+
+  if [[ "$INTERACTION_SCHEMA_VERSION" == 2.* ]]; then
+    EMBEDDED_PROFILE_WARNING_RULES_COUNT="$(
+      read_interaction_embedded profile_warning_rules_count
+    )"
+    EMBEDDED_PROFILE_WARNING_RULES_VERSION="$(
+      read_interaction_embedded profile_warning_rules_version
+    )"
+    PROFILE_WARNING_RULE_TABLE_PRESENT="$(sqlite3 "$SRC_INTERACTION_DB" \
+      "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='profile_warning_rules';" \
+      2>/dev/null || echo 0)"
+    if [[ "$PROFILE_WARNING_RULE_TABLE_PRESENT" != "1" ]]; then
+      err "schema-2 interaction DB is missing profile_warning_rules"
+      exit 1
+    fi
+    PROFILE_WARNING_RULE_TABLE_COUNT="$(sqlite3 "$SRC_INTERACTION_DB" \
+      'SELECT COUNT(*) FROM profile_warning_rules;' 2>/dev/null || echo -1)"
+    if [[ "$INTERACTION_PROFILE_WARNING_RULES_COUNT" != "$EMBEDDED_PROFILE_WARNING_RULES_COUNT" \
+      || "$INTERACTION_PROFILE_WARNING_RULES_COUNT" != "$PROFILE_WARNING_RULE_TABLE_COUNT" ]]; then
+      err "profile warning rule count split-brain"
+      err "  manifest: $INTERACTION_PROFILE_WARNING_RULES_COUNT"
+      err "  embedded: $EMBEDDED_PROFILE_WARNING_RULES_COUNT"
+      err "  table:    $PROFILE_WARNING_RULE_TABLE_COUNT"
+      exit 1
+    fi
+    if [[ "$INTERACTION_PROFILE_WARNING_RULES_VERSION" != "$EMBEDDED_PROFILE_WARNING_RULES_VERSION" ]]; then
+      err "profile warning rule version split-brain"
+      err "  manifest: $INTERACTION_PROFILE_WARNING_RULES_VERSION"
+      err "  embedded: $EMBEDDED_PROFILE_WARNING_RULES_VERSION"
+      exit 1
+    fi
+    if [[ ! "$PROFILE_WARNING_RULE_TABLE_COUNT" =~ ^[1-9][0-9]*$ ]]; then
+      err "schema-2 interaction DB has no profile warning rules"
+      exit 1
+    fi
   fi
   ok "embedded interaction_db_metadata agrees with JSON manifest"
 

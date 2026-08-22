@@ -96,6 +96,26 @@ void main() {
     });
 
     test(
+      'catalog importer binds schema 2.4 to the generated app projection',
+      () {
+        final importer = File(
+          'scripts/import_catalog_artifact.sh',
+        ).readAsStringSync();
+
+        expect(importer, contains('products_core_projection.dart'));
+        expect(importer, contains('core_projection_manifest.model_sha256'));
+        expect(importer, contains('EXPECTED_CORE_PROJECTION_MODEL_SHA256'));
+        expect(
+          importer,
+          contains('candidate projection model does not match this app'),
+          reason:
+              'A matching schema label is insufficient when the pipeline and '
+              'Drift projections were generated from different models.',
+        );
+      },
+    );
+
+    test(
       'assets/db/pharmaguide_core.db is declared, loadable, and non-trivial',
       () async {
         final data = await rootBundle.load('assets/db/pharmaguide_core.db');

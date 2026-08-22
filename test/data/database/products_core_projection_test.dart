@@ -65,10 +65,15 @@ void main() {
 
     final blocked = await database
         .customSelect(
-          'SELECT quality_score_confidence FROM products_core '
+          'SELECT quality_score_confidence, score_unavailable_reason '
+          'FROM products_core '
           "WHERE dsld_id = 'legacy-blocked'",
         )
         .getSingle();
     expect(blocked.read<String?>('quality_score_confidence'), isNull);
+    expect(
+      blocked.read<String?>('score_unavailable_reason'),
+      'blocked_by_safety_gate',
+    );
   });
 }

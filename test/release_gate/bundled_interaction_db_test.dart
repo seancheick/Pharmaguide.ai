@@ -68,6 +68,40 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('release gate: bundled interaction DB asset', () {
+    test('catalog importer accepts interaction schemas 1 and 2 as pairs', () {
+      final importer = File(
+        'scripts/import_catalog_artifact.sh',
+      ).readAsStringSync();
+      final supportedSchemas = RegExp(
+        r'APP_SUPPORTED_INTERACTION_SCHEMAS=\(([^)]*)\)',
+      ).firstMatch(importer)?.group(1);
+      final supportedUserVersions = RegExp(
+        r'APP_SUPPORTED_INTERACTION_USER_VERSIONS=\(([^)]*)\)',
+      ).firstMatch(importer)?.group(1);
+
+      expect(supportedSchemas, contains('"1.0.0"'));
+      expect(supportedSchemas, contains('"2.0.0"'));
+      expect(supportedUserVersions, contains('1'));
+      expect(supportedUserVersions, contains('2'));
+      expect(
+        importer,
+        contains('EXPECTED_INTERACTION_USER_VERSION'),
+        reason:
+            'The importer must validate the file user_version paired with '
+            'the selected interaction schema, not accept arbitrary mixes.',
+      );
+      expect(importer, contains('profile_warning_rules_count'));
+      expect(importer, contains('profile_warning_rules_version'));
+      expect(importer, contains('PROFILE_WARNING_RULE_TABLE_COUNT'));
+      expect(
+        importer,
+        contains('profile warning rule count split-brain'),
+        reason:
+            'Schema 2 must prove that its manifest, embedded metadata, and '
+            'actual warning-rule table describe the same reviewed registry.',
+      );
+    });
+
     test(
       'assets/db/interaction_db.sqlite is declared, loadable, and non-trivial',
       () async {

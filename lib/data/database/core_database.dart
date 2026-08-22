@@ -225,6 +225,12 @@ class CoreDatabase extends _$CoreDatabase {
         'WHERE quality_score_confidence IS NULL '
         "AND LOWER(TRIM(v4_confidence)) IN ('high', 'moderate', 'low')",
       );
+      await customStatement(
+        'UPDATE products_core '
+        "SET score_unavailable_reason = 'blocked_by_safety_gate' "
+        'WHERE score_unavailable_reason IS NULL '
+        "AND LOWER(TRIM(v4_confidence)) = 'blocked_by_safety_gate'",
+      );
     } on Exception catch (e, st) {
       final message = e.toString().toLowerCase();
       if (!message.contains('no such column')) {
