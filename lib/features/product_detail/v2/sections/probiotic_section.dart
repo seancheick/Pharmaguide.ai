@@ -5,8 +5,8 @@
 // Reads:
 //   probiotic_detail.total_cfu_label / total_billion_count
 //   probiotic_detail.probiotic_blends[].strains[]
-//   probiotic_detail.clinical_strains[] — label-linked per-strain CFU and
-//     inactivation detail only; research/badge fields are deliberately ignored
+//   probiotic_detail.clinical_strains[] — per-strain detail with
+//     cfu_per_day + evidence_level + is_inactivated
 //   probiotic_detail.has_survivability_coating + survivability_reason
 //   probiotic_detail.prebiotic_present
 //
@@ -18,7 +18,10 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 
 /// Build the Probiotic section. Returns `SizedBox.shrink()` when the
 /// blob is null or contains no probiotic signals.
-Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
+Widget buildProbioticSection({
+  required Map<String, dynamic>? probioticDetail,
+  void Function(List<String> sourceUrls)? onTapSources,
+}) {
   if (probioticDetail == null) return const SizedBox.shrink();
 
   final probioticBlends = probioticDetail.safeMapList('probiotic_blends');
@@ -39,8 +42,8 @@ Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
     totalCfuLabel = _formatCfuCount(billionCount.toDouble() * 1e9);
   }
 
-  // Strains — use the label-linked clinical_strains rows only for CFU and
-  // inactivation facts; research claims remain hidden until authoritative.
+  // Strains — prefer clinical_strains[] for richer per-strain data,
+  // fall back to flattened probiotic_blends[].strains[].
   final clinicalStrains = probioticDetail.safeMapList('clinical_strains');
   final strainNames = <String>[];
   final clinicalByName = <String, Map<String, dynamic>>{};
@@ -82,14 +85,17 @@ Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
     return const SizedBox.shrink();
   }
 
-  // Build label-only rows. Evidence status and source URLs are intentionally
-  // not projected into UI models.
+  // Build PGStrain list — clinical-strain enrichment when available.
   final strains = strainNames
       .map((name) {
         final cs = clinicalByName[name];
         return PGStrain(
           name: name,
           cfuLabel: cs == null ? '' : _formatStrainCfu(cs['cfu_per_day']),
+          supportLevel: cs?.safeString('clinical_support_level') ?? '',
+          indication: cs?.safeString('indication_primary') ?? '',
+          researchStatus: _researchStatus(cs),
+          sourceUrls: cs?.safeStringList('source_urls') ?? const [],
           isInactivated: cs?['is_inactivated'] == true,
         );
       })
@@ -120,7 +126,30 @@ Widget buildProbioticSection({required Map<String, dynamic>? probioticDetail}) {
     prebioticPresent: prebioticPresent,
     hasPostbioticStrains: hasPostbioticStrains,
     strains: strains,
+    onTapSources: onTapSources,
   );
+}
+
+/// Map the pipeline's `research_match_status` onto a badge.
+///
+/// The producer (`enrich_supplements_v3._strain_research_semantics`) exists to
+/// stop the UI from reading membership in `clinical_strains` as proof that the
+/// exact strain, product, dose, and use were validated. Deleting this mapping
+/// does not make the card more conservative — it drops the qualification and
+/// leaves the strain listed unannotated, which claims more, not less.
+///
+/// `pending_review` (no clinician sign-off) and `rejected` deliberately fall
+/// through to `none`, which renders "No verified strain-specific research
+/// found". Do not add them to the affirmative cases.
+PGProbioticResearchStatus _researchStatus(Map<String, dynamic>? row) {
+  if (row == null) return PGProbioticResearchStatus.none;
+  if (row.safeBool('is_blocked')) return PGProbioticResearchStatus.none;
+  return switch (row.safeString('research_match_status').trim().toLowerCase()) {
+    'exact_strain' => PGProbioticResearchStatus.exactStrain,
+    'formula_only' => PGProbioticResearchStatus.formulaOnly,
+    'species_level' => PGProbioticResearchStatus.speciesLevel,
+    _ => PGProbioticResearchStatus.none,
+  };
 }
 
 bool _isGenericContainerEcho({

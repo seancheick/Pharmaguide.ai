@@ -796,7 +796,7 @@ void main() {
         );
 
         final ingredientsTitle = find.text('Active ingredients');
-        final probioticTitle = find.text('Probiotic label details');
+        final probioticTitle = find.text('Probiotic label & research');
         expect(ingredientsTitle, findsOneWidget);
         expect(probioticTitle, findsOneWidget);
         final sectionGap =

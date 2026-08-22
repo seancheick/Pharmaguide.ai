@@ -837,13 +837,15 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 6.1 Probiotic label details ---------------
+                  // ---- 6.1 Probiotic label & research -----------
                   // Keep label-specific context beside the ingredient
-                  // ledger it explains. No clinical-strain badge is shown
-                  // until an authoritative producer exists.
+                  // ledger it explains. Research status is shown only for
+                  // clinician-reviewed strains; see probiotic_section.dart.
                   if (showDeepDive) ...[
                     buildProbioticSection(
                       probioticDetail: _blobMap(detailBlob, 'probiotic_detail'),
+                      onTapSources: (urls) =>
+                          showProfileRelevanceCitationsSheet(context, urls),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

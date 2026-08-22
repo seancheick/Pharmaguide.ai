@@ -29,15 +29,21 @@ void main() {
     expect(labelMatch, isNot(contains('No source-linked formula history')));
   });
 
-  test('probiotic card presents label facts without clinical badges', () {
-    final component = _read('lib/core/components/pg_probiotic_section.dart');
+  // The probiotic research badge is NOT in this file's category. Its fields do
+  // have an authoritative producer -- `enrich_supplements_v3` derives
+  // research_match_status / evidence_scope / review_status / source_urls
+  // specifically so the card can qualify a strain listing. Hiding the
+  // qualification leaves the strain listed unannotated, which claims more than
+  // showing it does.
+  test('probiotic card still qualifies strains it lists', () {
     final adapter = _read(
       'lib/features/product_detail/v2/sections/probiotic_section.dart',
     );
 
-    expect(component, isNot(contains('PGProbioticResearchStatus')));
-    expect(component, isNot(contains('matched to verified research')));
-    expect(adapter, isNot(contains('research_match_status')));
-    expect(adapter, isNot(contains('source_urls')));
+    expect(adapter, contains('research_match_status'));
+    expect(adapter, contains('source_urls'));
+    // Unreviewed and rejected matches must not reach an affirmative badge.
+    expect(adapter, isNot(contains("'pending_review' => PGProbiotic")));
+    expect(adapter, isNot(contains("'rejected' => PGProbiotic")));
   });
 }
