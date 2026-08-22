@@ -4,6 +4,10 @@
 // Keep this reconstruction byte-for-byte equivalent at the map level so a
 // catalog schema change cannot alter the warning a user sees.
 
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+
 List<Map<String, dynamic>> warningRuleRefs(Map<String, dynamic>? blob) {
   final raw = blob?['warning_rule_refs'];
   if (raw == null) return const <Map<String, dynamic>>[];
@@ -40,75 +44,164 @@ List<String> _normalizedIds(Object? value) {
       .toList(growable: false);
 }
 
-Map<String, dynamic> _ruleSubentry(
+Map<String, dynamic> _subentryCopy(
+  Map<String, dynamic> subentry,
+  String subentryKind,
+) {
+  final actionKey = subentryKind == 'pregnancy_lactation' ? 'notes' : 'action';
+  return <String, dynamic>{
+    'detail': _pythonStringOrEmpty(subentry['mechanism']),
+    'action': _pythonStringOrEmpty(subentry[actionKey]),
+    'alert_headline': subentry['alert_headline'],
+    'alert_body': subentry['alert_body'],
+    'informational_note': subentry['informational_note'],
+  };
+}
+
+String _warningCopyFingerprint(Map<String, dynamic> copyFields) {
+  // Python's json.dumps(..., sort_keys=True, separators=(',', ':')) emits
+  // these five keys in this exact lexical order. Dart maps preserve insertion
+  // order and jsonEncode already uses compact separators.
+  final canonical = <String, dynamic>{
+    'action': copyFields['action'],
+    'alert_body': copyFields['alert_body'],
+    'alert_headline': copyFields['alert_headline'],
+    'detail': copyFields['detail'],
+    'informational_note': copyFields['informational_note'],
+  };
+  return sha256.convert(utf8.encode(jsonEncode(canonical))).toString();
+}
+
+List<({Map<String, dynamic> subentry, String kind})> _candidateSubentries(
   Map<String, dynamic> rule,
   Map<String, dynamic> ref,
 ) {
   final conditionIds = _normalizedIds(ref['condition_ids']);
   final drugClassIds = _normalizedIds(ref['drug_class_ids']);
+  final candidates = <({Map<String, dynamic> subentry, String kind})>[];
   if (conditionIds.isNotEmpty) {
     final target = conditionIds.first;
-    final candidates = rule['condition_rules'];
-    if (candidates is List) {
-      for (final candidate in candidates) {
+    final conditionRules = rule['condition_rules'];
+    if (conditionRules is List) {
+      for (final candidate in conditionRules) {
         if (candidate is Map &&
             candidate['condition_id']?.toString().trim() == target) {
-          return Map<String, dynamic>.from(candidate);
+          candidates.add((
+            subentry: Map<String, dynamic>.from(candidate),
+            kind: 'condition',
+          ));
         }
       }
+    }
+    final pregnancyLactation = rule['pregnancy_lactation'];
+    if (const {'pregnancy', 'lactation'}.contains(target) &&
+        pregnancyLactation is Map) {
+      candidates.add((
+        subentry: Map<String, dynamic>.from(pregnancyLactation),
+        kind: 'pregnancy_lactation',
+      ));
     }
   }
   if (drugClassIds.isNotEmpty) {
     final target = drugClassIds.first;
-    final candidates = rule['drug_class_rules'];
-    if (candidates is List) {
-      for (final candidate in candidates) {
+    final drugClassRules = rule['drug_class_rules'];
+    if (drugClassRules is List) {
+      for (final candidate in drugClassRules) {
         if (candidate is Map &&
             candidate['drug_class_id']?.toString().trim() == target) {
-          return Map<String, dynamic>.from(candidate);
+          candidates.add((
+            subentry: Map<String, dynamic>.from(candidate),
+            kind: 'drug_class',
+          ));
         }
       }
     }
   }
+  return candidates;
+}
+
+({Map<String, dynamic> subentry, String kind}) _ruleSubentry(
+  Map<String, dynamic> rule,
+  Map<String, dynamic> ref,
+) {
+  final copyFingerprint = ref['copy_fingerprint']?.toString().trim() ?? '';
+  if (copyFingerprint.isEmpty) {
+    throw FormatException(
+      'warning rule ref ${ref['rule_id']} is missing copy_fingerprint',
+    );
+  }
+  for (final candidate in _candidateSubentries(rule, ref)) {
+    if (_warningCopyFingerprint(
+          _subentryCopy(candidate.subentry, candidate.kind),
+        ) ==
+        copyFingerprint) {
+      return candidate;
+    }
+  }
   throw FormatException(
-    'warning rule ref ${ref['rule_id']} has no matching condition/drug sub-rule',
+    'warning rule ref ${ref['rule_id']} has no matching reviewed copy',
   );
 }
+
+Object? _refOrRuleValue(
+  Map<String, dynamic> ref,
+  Map<String, dynamic> subentry,
+  String key,
+) => ref.containsKey(key) ? ref[key] : subentry[key];
+
+Object? _firstNonEmpty(Object? preferred, Object? fallback) {
+  return _isPythonFalsy(preferred) ? fallback : preferred;
+}
+
+bool _isPythonFalsy(Object? value) =>
+    value == null ||
+    value == false ||
+    value == 0 ||
+    (value is String && value.isEmpty) ||
+    (value is Iterable && value.isEmpty) ||
+    (value is Map && value.isEmpty);
+
+String _pythonStringOrEmpty(Object? value) =>
+    _isPythonFalsy(value) ? '' : value.toString();
 
 Map<String, dynamic> _resolvedWarning(
   Map<String, dynamic> ref,
   Map<String, dynamic> rule,
 ) {
-  final subentry = _ruleSubentry(rule, ref);
+  final selected = _ruleSubentry(rule, ref);
+  final subentry = selected.subentry;
+  final copyFields = _subentryCopy(subentry, selected.kind);
   final conditionIds = _normalizedIds(ref['condition_ids']);
   final drugClassIds = _normalizedIds(ref['drug_class_ids']);
-  final ingredientName = ref['ingredient_name']?.toString().trim() ?? '';
+  final ingredientName = _pythonStringOrEmpty(ref['ingredient_name']).trim();
   final scopeId = conditionIds.isNotEmpty
       ? conditionIds.first
       : (drugClassIds.isNotEmpty ? drugClassIds.first : '');
-  final severity = ref['severity'] ?? subentry['severity'];
+  final severity = _firstNonEmpty(ref['severity'], subentry['severity']);
   final type =
-      ref['type'] ??
+      _firstNonEmpty(ref['type'], null) ??
       (drugClassIds.isNotEmpty ? 'drug_interaction' : 'interaction');
+  final evidenceLevel = _refOrRuleValue(ref, subentry, 'evidence_level');
+  final sourceValue = _refOrRuleValue(ref, subentry, 'sources');
 
-  return <String, dynamic>{
+  final resolved = <String, dynamic>{
     'type': type,
     'severity': severity,
     'severity_contextual': ref['severity_contextual'],
     'display_mode_default': ref['display_mode_default'],
     'title': '$ingredientName / $scopeId',
-    'detail': subentry['mechanism']?.toString() ?? '',
-    'action': subentry['action']?.toString() ?? '',
-    'alert_headline': subentry['alert_headline'],
-    'alert_body': subentry['alert_body'],
-    'informational_note': subentry['informational_note'],
+    'detail': copyFields['detail'],
+    'action': copyFields['action'],
+    'alert_headline': copyFields['alert_headline'],
+    'alert_body': copyFields['alert_body'],
+    'informational_note': copyFields['informational_note'],
     'condition_ids': conditionIds,
     'drug_class_ids': drugClassIds,
     'ingredient_name': ingredientName,
     'ingredient_canonical_id': ref['ingredient_canonical_id'],
-    'evidence_level': subentry['evidence_level']?.toString() ?? '',
-    'sources': subentry['sources'] is List
-        ? List<dynamic>.from(subentry['sources'] as List)
+    'evidence_level': _pythonStringOrEmpty(evidenceLevel),
+    'sources': sourceValue is List
+        ? List<dynamic>.from(sourceValue)
         : <dynamic>[],
     'dose_threshold_evaluation': null,
     'dose_decision': ref['dose_decision'],
@@ -128,6 +221,13 @@ Map<String, dynamic> _resolvedWarning(
         ? ref['profile_gate']
         : subentry['profile_gate'],
   };
+  if (ref.containsKey('source_producers')) {
+    final producers = ref['source_producers'];
+    resolved['source_producers'] = producers is List
+        ? List<dynamic>.from(producers)
+        : <dynamic>[];
+  }
+  return resolved;
 }
 
 List<Map<String, dynamic>> resolveWarningRuleRefs(

@@ -33,6 +33,8 @@ const _blob = <String, dynamic>{
   'warning_rule_refs': <Map<String, dynamic>>[
     <String, dynamic>{
       'rule_id': _ruleId,
+      'copy_fingerprint':
+          '98c3c24a9dfecef14bee6d23aba244d1a23daf97ea94f447442db02b553b0626',
       'type': 'interaction',
       'severity': 'caution',
       'condition_ids': <String>['diabetes'],

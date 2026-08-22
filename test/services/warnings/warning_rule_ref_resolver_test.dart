@@ -89,6 +89,8 @@ void main() {
       'warning_rule_refs': <Map<String, dynamic>>[
         <String, dynamic>{
           'rule_id': 'RULE_TEST_MAGNESIUM_DIABETES',
+          'copy_fingerprint':
+              '27d0bb0fd10e809a279f2b4763413856917e7e975dfec304282d506a12fc4529',
           'type': 'interaction',
           'severity': 'caution',
           'severity_contextual': 'informational',
@@ -131,6 +133,96 @@ void main() {
     expect(
       () =>
           resolveWarningRuleRefs(blob, const <String, Map<String, dynamic>>{}),
+      throwsFormatException,
+    );
+  });
+
+  test(
+    'copy fingerprint selects reviewed pregnancy aggregate and keeps provenance',
+    () {
+      const pregnancyRule = <String, dynamic>{
+        'id': 'RULE_TEST_PREGNANCY',
+        'condition_rules': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'condition_id': 'pregnancy',
+            'severity': 'caution',
+            'evidence_level': 'established',
+            'mechanism': 'Different explicit condition copy.',
+            'action': 'Do not select this condition copy.',
+            'sources': <String>['https://example.com/condition'],
+            'alert_headline': 'Different condition headline',
+            'alert_body': 'Different condition body.',
+            'informational_note': null,
+          },
+        ],
+        'drug_class_rules': <Map<String, dynamic>>[],
+        'pregnancy_lactation': <String, dynamic>{
+          'pregnancy_category': 'no_data',
+          'lactation_category': 'no_data',
+          'evidence_level': 'no_data',
+          'notes': 'Discuss use during pregnancy with your clinician.',
+          'alert_headline': 'Pregnancy guidance',
+          'alert_body': 'Use the aggregate pregnancy guidance.',
+          'informational_note': 'Pregnancy-specific guidance applies.',
+          'sources': <String>['https://example.com/aggregate'],
+        },
+      };
+      const blob = <String, dynamic>{
+        'warning_rule_refs': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'rule_id': 'RULE_TEST_PREGNANCY',
+            'copy_fingerprint':
+                '12fc8ac3b7294524903be10f3e5b89b0428b8a729d3ec7f72cee4be9d8d0d965',
+            'type': 'interaction',
+            'severity': 'no_data',
+            'condition_ids': <String>['pregnancy'],
+            'drug_class_ids': <String>[],
+            'ingredient_name': 'Magnesium',
+            'ingredient_canonical_id': 'magnesium',
+            'evidence_level': 'reviewed_no_data',
+            'sources': <String>['https://example.com/reviewed-warning'],
+            'source_producers': <String>['pregnancy_lactation'],
+          },
+        ],
+      };
+
+      final resolved = resolveWarningRuleRefs(
+        blob,
+        const <String, Map<String, dynamic>>{
+          'RULE_TEST_PREGNANCY': pregnancyRule,
+        },
+      ).single;
+
+      expect(resolved['detail'], '');
+      expect(
+        resolved['action'],
+        'Discuss use during pregnancy with your clinician.',
+      );
+      expect(resolved['alert_headline'], 'Pregnancy guidance');
+      expect(resolved['evidence_level'], 'reviewed_no_data');
+      expect(resolved['sources'], <String>[
+        'https://example.com/reviewed-warning',
+      ]);
+      expect(resolved['source_producers'], <String>['pregnancy_lactation']);
+    },
+  );
+
+  test('copy drift fails closed instead of silently changing warning text', () {
+    const blob = <String, dynamic>{
+      'warning_rule_refs': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'rule_id': 'RULE_TEST_MAGNESIUM_DIABETES',
+          'copy_fingerprint': 'reviewed-copy-no-longer-matches',
+          'condition_ids': <String>['diabetes'],
+          'drug_class_ids': <String>[],
+        },
+      ],
+    };
+
+    expect(
+      () => resolveWarningRuleRefs(blob, const <String, Map<String, dynamic>>{
+        'RULE_TEST_MAGNESIUM_DIABETES': _rule,
+      }),
       throwsFormatException,
     );
   });

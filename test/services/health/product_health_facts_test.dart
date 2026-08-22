@@ -66,6 +66,28 @@ void main() {
   });
 
   group('ProductHealthFacts.fromDetailBlob', () {
+    test('merges schema 3 resolved warning refs into shared health facts', () {
+      final resolved = InteractionWarning.fromJson(<String, dynamic>{
+        'type': 'interaction',
+        'severity': 'caution',
+        'title': 'Magnesium / diabetes',
+        'detail': 'Reviewed warning copy.',
+        'condition_ids': <String>['diabetes'],
+        'drug_class_ids': <String>[],
+        'source': 'interaction_rules',
+        'source_rule_id': 'RULE_TEST',
+      });
+
+      final facts = ProductHealthFacts.fromDetailBlob(
+        <String, dynamic>{'warnings': <Map<String, dynamic>>[]},
+        resolvedRuleWarnings: <InteractionWarning>[resolved],
+      );
+
+      expect(facts.warnings, hasLength(1));
+      expect(facts.warnings.single.title, 'Magnesium / diabetes');
+      expect(facts.warnings.single.conditionIds, <String>['diabetes']);
+    });
+
     test('uses pipeline RDA/UL rows before legacy ingredient fallbacks', () {
       final facts = ProductHealthFacts.fromDetailBlob({
         'ingredients': [

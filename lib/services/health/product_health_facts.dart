@@ -64,7 +64,10 @@ class ProductHealthFacts {
   final Map<String, IngredientDose> ingredientDoses;
   final List<String> ingredientNames;
 
-  factory ProductHealthFacts.fromDetailBlob(Map<String, dynamic> blob) {
+  factory ProductHealthFacts.fromDetailBlob(
+    Map<String, dynamic> blob, {
+    List<InteractionWarning> resolvedRuleWarnings = const [],
+  }) {
     final nutrients = _extractNutrients(blob);
     final ulAnalysis = _extractUlAnalysis(blob);
     final ingredientContextRows = _extractIngredientContextRows(blob);
@@ -76,7 +79,10 @@ class ProductHealthFacts {
       ingredientContextRows: ingredientContextRows,
       nutrients: nutrients,
       interactionSummary: _extractMap(blob['interaction_summary']),
-      warnings: _extractWarnings(blob),
+      warnings: InteractionWarning.dedupe([
+        ..._extractWarnings(blob),
+        ...resolvedRuleWarnings,
+      ]),
       allergens: _extractAllergens(blob['allergens']),
       productClusters: _extractProductClusters(blob),
       productForm: _stringValue(blob['product_form']),

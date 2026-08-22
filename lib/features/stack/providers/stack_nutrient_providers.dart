@@ -24,6 +24,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as ref_data;
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
@@ -217,7 +218,13 @@ final stackDoseThresholdAlertsProvider =
         }
         if (blob == null) continue;
 
-        final facts = ProductHealthFacts.fromDetailBlob(blob);
+        final resolvedRuleWarnings = await ref.watch(
+          profileWarningRuleWarningsProvider(dsldId).future,
+        );
+        final facts = ProductHealthFacts.fromDetailBlob(
+          blob,
+          resolvedRuleWarnings: resolvedRuleWarnings,
+        );
         thresholdRules.addAll(
           stackDoseThresholdRulesFromWarnings(
             facts.warnings,

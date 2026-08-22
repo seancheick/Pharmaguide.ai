@@ -23,6 +23,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
+import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
@@ -113,7 +114,13 @@ final fitScoreForProductProvider = FutureProvider.family
       }
       if (blob == null) return null;
 
-      final healthFacts = ProductHealthFacts.fromDetailBlob(blob);
+      final resolvedRuleWarnings = await ref.watch(
+        profileWarningRuleWarningsProvider(dsldId).future,
+      );
+      final healthFacts = ProductHealthFacts.fromDetailBlob(
+        blob,
+        resolvedRuleWarnings: resolvedRuleWarnings,
+      );
       final nutrients = healthFacts.nutrients;
       final interactionSummary = healthFacts.interactionSummary;
       final productClusters = healthFacts.productClusters;
