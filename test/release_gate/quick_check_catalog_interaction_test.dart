@@ -157,14 +157,6 @@ void main() {
               expectedSeverity: Severity.caution,
             ),
             (
-              canonicalId: 'vinpocetine',
-              medicationName: 'Warfarin',
-              rxcui: '11289',
-              drugClasses: ['class:anticoagulants'],
-              expectedInteractionId: 'DSI_ANTICOAG_VINPOCETINE',
-              expectedSeverity: Severity.caution,
-            ),
-            (
               canonicalId: 'horse_chestnut_seed',
               medicationName: 'Warfarin',
               rxcui: '11289',
@@ -173,6 +165,26 @@ void main() {
               expectedSeverity: Severity.caution,
             ),
           ];
+
+      final liveVinpocetine = await coreDb
+          .customSelect(
+            '''
+            SELECT COUNT(*) AS n FROM products_core
+            WHERE EXISTS (
+              SELECT 1 FROM json_each(key_ingredient_tags)
+              WHERE lower(value) = 'vinpocetine'
+            )
+            ''',
+            readsFrom: {coreDb.productsCore},
+          )
+          .getSingle();
+      expect(
+        liveVinpocetine.read<int>('n'),
+        0,
+        reason:
+            'safety-policy quarantined vinpocetine products must not leak '
+            'into the live app catalog',
+      );
 
       for (final fixture in fixtures) {
         final supplement = QuickCheckItem.supplement(

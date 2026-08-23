@@ -52,7 +52,9 @@ void main() {
     db = sqlite3.open('assets/db/pharmaguide_core.db', mode: OpenMode.readOnly);
     final json =
         jsonDecode(
-              File('assets/reference_data/timing_rules.json').readAsStringSync(),
+              File(
+                'assets/reference_data/timing_rules.json',
+              ).readAsStringSync(),
             )
             as Map<String, dynamic>;
     rules = (json['timing_rules'] as List).cast<Map<String, dynamic>>();
@@ -212,26 +214,18 @@ void main() {
     }
   });
 
-  test('the levothyroxine soy rule reaches real soy products', () {
-    // Regression guard for the worst defect found: an FDA-labelled hard drug
-    // rule that matched 4 of 13,271 products because it aliased to `soy` and
-    // `soy_protein`, tags the catalog never emits.
-    //
-    // Checked across ALL rules, not just verified ones. Reachability and
-    // clinical disposition are independent: this rule's identity is fixed and
-    // must stay fixed, while its 4-hour interval is separately suppressed
-    // pending a source that actually states four hours. A rule can be correctly
-    // targeted and still not ready to publish.
-    final rule = rules.firstWhere(
-      (r) => r['id'] == 'timing_thyroid_med_soy_separate',
-      orElse: () => throw StateError('the soy rule is gone'),
-    );
-    final reach = identityTagsOf(
-      rule,
-    ).fold<int>(0, (sum, tag) => sum + productsCarrying(tag));
-    expect(reach, greaterThan(4), reason: 'still effectively unreachable');
-    expect(identityTagsOf(rule), contains('soybean'));
-    expect(identityTagsOf(rule), isNot(contains('soy_protein')));
+  test('unverified levothyroxine soy guidance stays out of the app asset', () {
+    const ruleId = 'timing_thyroid_med_soy_separate';
+    final metadata =
+        jsonDecode(
+              File(
+                'assets/reference_data/timing_rules.json',
+              ).readAsStringSync(),
+            )['_metadata']
+            as Map<String, dynamic>;
+
+    expect(rules.where((r) => r['id'] == ruleId), isEmpty);
+    expect(metadata['withheld_entry_ids'] as List, contains(ruleId));
   });
 
   test('no rule anywhere keys coffee guidance on a stimulant tag', () {

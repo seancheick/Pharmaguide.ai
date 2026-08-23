@@ -43,8 +43,11 @@ import 'package:flutter_test/flutter_test.dart';
 // as the stale half of the contract. The pipeline pins the same value in
 // scripts/tests/test_medication_depletions_artifact.py (verified green), so
 // both halves now agree again.
+// Repinned 2026-08-23 after the export boundary became fail-closed: only
+// records with verified citation review now publish, while the artifact
+// metadata accounts for every withheld needs-revision or rejected record.
 const _pinnedContentHash =
-    'sha256:365502ccbdc944c78a07ac2af45b05f58a0bef0635fa4456215045a718fc218e';
+    'sha256:f85e11b5937602ae4ef0b9aad5c1eb812401050418749437aa6927763ecb8a14';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {

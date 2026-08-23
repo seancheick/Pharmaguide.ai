@@ -89,6 +89,7 @@ void main() {
   late Directory tempDir;
   late InteractionDatabase db;
   late int expectedLiveInteractionCount;
+  late String expectedSchemaVersion;
 
   setUpAll(() async {
     final manifest = jsonDecode(
@@ -97,6 +98,7 @@ void main() {
     expect(manifest, isA<Map<String, dynamic>>());
     expectedLiveInteractionCount =
         (manifest as Map<String, dynamic>)['total_interactions'] as int;
+    expectedSchemaVersion = manifest['schema_version'] as String;
 
     // Materialize the bundled asset to a temp file. NativeDatabase cannot
     // open from in-memory ByteData; we follow the same pattern as
@@ -414,7 +416,7 @@ void main() {
   group('getMetadata', () {
     test('hydrates every required key from the embedded kv table', () async {
       final meta = await db.getMetadata();
-      expect(meta.schemaVersion, '1.0.0');
+      expect(meta.schemaVersion, expectedSchemaVersion);
       expect(meta.builtAt, isNotEmpty);
       expect(meta.totalInteractions, expectedLiveInteractionCount);
       expect(meta.sourceDraftsCount, greaterThan(0));

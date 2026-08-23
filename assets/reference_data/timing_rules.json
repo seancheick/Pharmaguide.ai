@@ -3,131 +3,39 @@
     "description": "Supplement timing and absorption interaction rules for optimal nutrient uptake",
     "purpose": "timing_optimization",
     "schema_version": "6.0.0",
-    "last_updated": "2026-08-05",
-    "total_entries": 20,
+    "last_updated": "2026-08-23",
+    "total_entries": 7,
     "clinical_review_version": "timing-section-2-adversarial",
     "runtime_policy": "verified_only",
     "status_counts": {
       "verified": 7,
       "needs_revision": 13,
       "rejected": 13
-    }
+    },
+    "withheld_entries": 13,
+    "withheld_entry_ids": [
+      "timing_bromelain_timing_by_purpose",
+      "timing_calcium_carbonate_with_food",
+      "timing_calcium_vitamin_d_together",
+      "timing_egcg_iron_separate",
+      "timing_iron_calcium_separate",
+      "timing_iron_zinc_separate",
+      "timing_l_theanine_caffeine_together",
+      "timing_melatonin_before_bed",
+      "timing_probiotics_by_formulation",
+      "timing_psyllium_water_med_spacing",
+      "timing_quercetin_vitamin_c_together",
+      "timing_thyroid_med_magnesium_separate",
+      "timing_thyroid_med_soy_separate"
+    ],
+    "withheld_by_review_status": {
+      "needs_revision": 13
+    },
+    "publishable_review_states": [
+      "verified"
+    ]
   },
   "timing_rules": [
-    {
-      "id": "timing_iron_calcium_separate",
-      "ingredient1": "iron",
-      "ingredient1_tags": [
-        "iron"
-      ],
-      "ingredient2": "calcium",
-      "ingredient2_tags": [
-        "calcium"
-      ],
-      "timing_relation": {
-        "type": "separate_from",
-        "minimum_hours": 2
-      },
-      "category": "important_separation",
-      "applies_to": "any",
-      "actionability": "recommended",
-      "source_authority": "clinical_study",
-      "review_status": "needs_revision",
-      "advice": "Take iron and calcium at least 2 hours apart — calcium significantly reduces iron absorption.",
-      "mechanism": "Calcium inhibits both non-heme and heme iron absorption in a dose-dependent manner (significant above 300 mg). The exact mechanism is not fully elucidated — the 1991 Hallberg study found the effect is not solely located in the GI tract and is independent of phytate binding. Clinically, separation by 2+ hours avoids the interaction.",
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Hallberg L et al. — Calcium: effect of different amounts on nonheme- and heme-iron absorption in humans. Am J Clin Nutr. 1991",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/1984335/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Hallberg L et al. — Calcium and iron absorption: mechanism of action and nutritional importance",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/1600930/"
-        }
-      ],
-      "review_note": "INTERVAL UNSUPPORTED BY CITED SOURCE. Hallberg 1991 (PMID 1984335) and 1992 (PMID 1600930) establish a 50-60% acute reduction in iron absorption at 300-600 mg calcium and locate the effect in the mucosal cell. Neither tests or recommends a 2-hour separation, and neither addresses whether spacing changes iron status over time. Blocked on interval evidence.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "interval_not_supported_by_cited_source"
-      ]
-    },
-    {
-      "id": "timing_iron_zinc_separate",
-      "ingredient1": "iron",
-      "ingredient1_tags": [
-        "iron"
-      ],
-      "ingredient2": "zinc",
-      "ingredient2_tags": [
-        "zinc"
-      ],
-      "timing_relation": {
-        "type": "separate_from",
-        "minimum_hours": 2
-      },
-      "category": "important_separation",
-      "applies_to": "any",
-      "actionability": "recommended",
-      "source_authority": "systematic_review",
-      "review_status": "needs_revision",
-      "advice": "If you take higher-dose iron (about 25 mg or more), space it from zinc by a couple of hours — at those doses on an empty stomach they compete for the same transporter. Taking either with food blunts the effect.",
-      "mechanism": "Both iron and zinc are divalent cations absorbed via DMT1; high molar ratios of one suppress the other's uptake in a dose-dependent manner. The competition is meaningful mainly at supplemental iron doses around 25 mg or higher taken fasting; food largely abolishes it.",
-      "score_impact": -2,
-      "evidence_level": "probable",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Kordas K, Stoltzfus RJ — New evidence of iron and zinc interplay at the enterocyte and neural tissues",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/15173386/"
-        }
-      ],
-      "min_dose": {
-        "tag": "iron",
-        "mg": 25
-      },
-      "review_note": "INTERVAL UNSUPPORTED BY CITED SOURCE. Kordas & Stoltzfus 2004 (PMID 15173386) states 'iron does seem to reduce the absorption of zinc' but establishes no interval, and argues the enterocyte DMT1 is an unlikely site. The 25 mg fasting-iron gate is retained and correct. Blocked on interval evidence.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "interval_not_supported_by_cited_source"
-      ]
-    },
-    {
-      "id": "timing_calcium_vitamin_d_together",
-      "ingredient1": "calcium",
-      "ingredient1_tags": [
-        "calcium"
-      ],
-      "ingredient2": "vitamin d",
-      "timing_relation": {
-        "type": "with_food"
-      },
-      "category": "optional",
-      "applies_to": "standalone",
-      "actionability": "informational",
-      "source_authority": "clinical_study",
-      "review_status": "needs_revision",
-      "advice": "Take calcium and vitamin D together — vitamin D is required for active calcium absorption in the small intestine.",
-      "mechanism": "Vitamin D is essential for efficient calcium absorption. The 2011 IOM Dietary Reference Intakes report confirmed that adequate vitamin D status is required to meet calcium requirements. Taking them together ensures both are bioavailable during the absorption window.",
-      "score_impact": 1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Ross AC, Manson JE, Abrams SA et al. — The 2011 IOM report on dietary reference intakes for calcium and vitamin D. J Clin Endocrinol Metab. 2011",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/21118827/"
-        }
-      ],
-      "_relation_is_migration_placeholder": true,
-      "review_note": "The cited source (PMID 21118827) is the IOM dietary reference intake report for calcium and vitamin D. It establishes daily intake requirements; it says nothing about swallowing the two together. knowledge/timing-rules-research.md reaches the same conclusion: 'STRONG but STATUS, not same-pill timing'. Pending clinician decision to remove or re-author as adequacy guidance.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "awaiting_clinician_decision"
-      ]
-    },
     {
       "id": "timing_vitamin_d_with_food",
       "ingredient1": "vitamin d",
@@ -158,75 +66,9 @@
           "12016"
         ],
         "negative": [
-          "278010"
+          "12928"
         ]
       }
-    },
-    {
-      "id": "timing_melatonin_before_bed",
-      "ingredient1": "melatonin",
-      "ingredient1_tags": [
-        "melatonin"
-      ],
-      "timing_relation": {
-        "type": "before_event",
-        "event": "intended_sleep",
-        "minimum_minutes": 30,
-        "maximum_minutes": 60
-      },
-      "category": "how_to_take",
-      "applies_to": "standalone",
-      "actionability": "recommended",
-      "source_authority": "systematic_review",
-      "review_status": "needs_revision",
-      "advice": "Take melatonin 30 to 60 minutes before your target bedtime for best effect on sleep onset.",
-      "mechanism": "Exogenous melatonin binds MT1/MT2 receptors in the SCN to reinforce the circadian sleep-wake signal; the 30–60 min window aligns with endogenous dim-light melatonin onset and the descending phase of core body temperature.",
-      "score_impact": 0,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Arendt J & Skene DJ — Melatonin as a chronobiotic. Sleep Med Rev. 2005",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/15649736/"
-        }
-      ],
-      "review_note": "INTERVAL AND AUTHORITY BOTH OVERCLAIMED. Arendt & Skene 2005 (PMID 15649736) supports melatonin as a chronobiotic and says exogenous melatonin is 'most effective around dusk and dawn', but it never states a 30-60 minute pre-sleep window — the number in the advice has no cited source. PubMed also types it as a narrative Review, not a systematic review, so the authority assigned during the first pass was an overclaim. The rule's own source entry additionally typed a pubmed.ncbi.nlm.nih.gov URL as `reference`. Separately, one window cannot cover immediate-release, prolonged-release, phase-shifting and jet-lag use at different doses. Blocked on an interval source and a form/purpose scope.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "citation_not_content_verified"
-      ]
-    },
-    {
-      "id": "timing_probiotics_by_formulation",
-      "ingredient1": "probiotics",
-      "ingredient1_tags": [
-        "probiotics",
-        "probiotic"
-      ],
-      "timing_relation": {
-        "type": "with_food"
-      },
-      "category": "how_to_take",
-      "applies_to": "standalone",
-      "actionability": "recommended",
-      "source_authority": "clinical_study",
-      "review_status": "needs_revision",
-      "advice": "Probiotic timing depends on formulation. Enteric-coated capsules can be taken any time. For standard probiotics, taking with a small meal may improve survival. Follow manufacturer guidance when available.",
-      "mechanism": "The optimal timing for probiotics is debated. Fasted gastric pH is actually lower (more acidic, ~1.5-2.0) than postprandial pH (~3-5 due to food buffering). However, fasted gastric transit is faster, reducing total acid exposure time. Some evidence (Tompkins 2011, PMID 22146689) suggests probiotic survival is better WITH a meal containing fat or oatmeal due to acid buffering. Enteric-coated formulations bypass this concern. Net effect depends on strain, formulation, and meal composition.",
-      "score_impact": -1,
-      "evidence_level": "possible",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Tompkins TA et al. — The impact of meals on a probiotic during transit through a model of the human upper gastrointestinal tract",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/22146689/"
-        }
-      ],
-      "review_note": "Tompkins 2011 (PMID 22146689) is an in vitro digestive-model study, not a clinical one, and supports 'with or just prior to a meal containing some fats'. Identity is also fragmented: the `probiotics` tag reaches 10 products while the catalog carries 60+ distinct `*_probiotic_blend` tags and 695 products flagged is_probiotic. Needs a pipeline-level probiotic identity plus an evidence downgrade.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "canonical_identity_unresolved"
-      ]
     },
     {
       "id": "timing_coq10_with_food",
@@ -258,97 +100,9 @@
           "17550"
         ],
         "negative": [
-          "278010"
+          "17473"
         ]
       }
-    },
-    {
-      "id": "timing_psyllium_water_med_spacing",
-      "ingredient1": "psyllium",
-      "ingredient1_tags": [
-        "psyllium"
-      ],
-      "ingredient2": "medications",
-      "timing_relation": {
-        "type": "separate_from_medications",
-        "minimum_hours": 3
-      },
-      "category": "important_separation",
-      "applies_to": "standalone",
-      "actionability": "recommended",
-      "source_authority": "reference",
-      "review_status": "needs_revision",
-      "advice": "Mix psyllium with at least 8 oz of liquid, and take other medications at least 3 hours away.",
-      "mechanism": "Bulk-forming psyllium absorbs water and swells in the gut. Taking it dry or with too little fluid can cause choking, and the gel can delay absorption of some oral medications.",
-      "score_impact": -1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "MedlinePlus — Psyllium",
-          "url": "https://medlineplus.gov/druginfo/meds/a601104.html"
-        }
-      ],
-      "review_note": "MedlinePlus supports spacing psyllium from medicines, and the relation is now honestly modelled as separate_from_medications with no invented second bottle. Held pending clinician sign-off on applying a blanket 3-hour window to every medication rather than per-drug.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "awaiting_clinician_decision"
-      ]
-    },
-    {
-      "id": "timing_egcg_iron_separate",
-      "ingredient1": "green tea extract",
-      "ingredient1_tags": [
-        "green_tea_extract",
-        "egcg",
-        "green_tea",
-        "green_tea_leaf",
-        "black_tea_leaf",
-        "oolong_tea_leaf"
-      ],
-      "ingredient2": "iron",
-      "ingredient2_tags": [
-        "iron"
-      ],
-      "timing_relation": {
-        "type": "separate_from",
-        "minimum_hours": 1
-      },
-      "category": "important_separation",
-      "applies_to": "any",
-      "actionability": "optional",
-      "source_authority": "clinical_study",
-      "review_status": "needs_revision",
-      "advice": "Green tea can reduce how much iron your body absorbs. Leaving about an hour between them may help - in a trial, tea taken an hour after an iron-rich meal roughly halved the effect rather than removing it.",
-      "mechanism": "Tea polyphenols bind nonheme iron in the gut lumen and form complexes that are not absorbed. Ahmad Fuzi 2017 measured fractional iron absorption of 5.7% with water, 3.6% with tea taken simultaneously, and 5.7% with tea taken one hour after the meal; the inhibitory effect fell from 37.2% to 18.1%. The trial used brewed tea in 12 iron-replete women, so applying it to tea supplements is an extrapolation on form, and the effect is attenuated rather than eliminated by the interval.",
-      "score_impact": -2,
-      "evidence_level": "probable",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Ahmad Fuzi SF et al - A 1-h time interval between a meal containing iron and consumption of tea attenuates the inhibitory effects on iron absorption. Am J Clin Nutr 2017",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/29046302/"
-        },
-        {
-          "source_type": "pubmed",
-          "label": "Zijp IM et al. — Effect of tea and other dietary factors on iron absorption",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/11029010/"
-        }
-      ],
-      "canaries": {
-        "positive": [
-          "229960",
-          "17105"
-        ],
-        "negative": [
-          "180249"
-        ]
-      },
-      "review_note": "FORM EXTRAPOLATION. PMID 29046302 directly tested brewed tea consumed with or one hour after an iron-containing meal in 12 iron-replete women. The catalog identities are tea extracts and leaf supplements, not the brewed beverage/meal exposure studied. Polyphenol content alone does not verify that the same one-hour interval applies to capsules. Suppressed until a form-specific source or a dietary-exposure model supports the instruction.",
-      "reviewed_on": "2026-08-05",
-      "review_blockers": [
-        "form_specific_evidence_missing"
-      ]
     },
     {
       "id": "timing_thyroid_med_iron_separate",
@@ -396,42 +150,6 @@
       }
     },
     {
-      "id": "timing_thyroid_med_magnesium_separate",
-      "ingredient1": "levothyroxine",
-      "ingredient1_rxcuis": [
-        "10582"
-      ],
-      "ingredient2": "magnesium",
-      "ingredient2_tags": [
-        "magnesium"
-      ],
-      "timing_relation": {
-        "type": "separate_from",
-        "minimum_hours": 4
-      },
-      "category": "important_separation",
-      "applies_to": "any",
-      "actionability": "recommended",
-      "source_authority": "fda_label",
-      "review_status": "needs_revision",
-      "advice": "Keep magnesium supplements at least 4 hours away from levothyroxine unless the prescriber gives different instructions.",
-      "mechanism": "Magnesium-containing products can reduce levothyroxine absorption. Levothyroxine labeling directs patients to separate medicines known to interfere with absorption by at least 4 hours.",
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "fda",
-          "label": "DailyMed — Levothyroxine sodium tablets prescribing information",
-          "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=3e77de84-6f59-40ac-a1a4-7bfe30387823"
-        }
-      ],
-      "review_note": "NOT LABEL-SUPPORTED AS WRITTEN. Verification on 2026-08-01 read the SYNTHROID label (setid 1e11ad30-1041-4520-10b0-8f9d30d30fcc, SPL v1537) and the generic in full: magnesium is never named as a SUPPLEMENT. Every occurrence is either 'magnesium hydroxides' (an antacid) or 'magnesium stearate' (an excipient), and the antacid row in section 7.1 carries no interval at all - it says only 'Monitor patients appropriately.' Section 17 does place antacids inside the 4-hour instruction, so a magnesium-ANTACID rule may be defensible, but a standalone magnesium-supplement rule at 4 hours is not. This rule was briefly promoted on the assumption the label covered it; reading the label removed it. Needs either an antacid-scoped rewrite or a source that addresses magnesium salts.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "citation_not_content_verified"
-      ]
-    },
-    {
       "id": "timing_ala_empty_stomach",
       "ingredient1": "alpha-lipoic acid",
       "ingredient1_tags": [
@@ -461,106 +179,9 @@
           "17323"
         ],
         "negative": [
-          "278010"
+          "209443"
         ]
       }
-    },
-    {
-      "id": "timing_quercetin_vitamin_c_together",
-      "ingredient1": "quercetin",
-      "ingredient1_tags": [
-        "quercetin"
-      ],
-      "ingredient2": "vitamin c",
-      "timing_relation": {
-        "type": "with_food"
-      },
-      "category": "optional",
-      "applies_to": "standalone",
-      "actionability": "informational",
-      "source_authority": "reference",
-      "review_status": "needs_revision",
-      "advice": "Take quercetin and vitamin C together — vitamin C enhances quercetin absorption and both have complementary antioxidant activity.",
-      "mechanism": "Ascorbic acid regenerates oxidized quercetin (quercetin semiquinone) back to the active reduced form, extending its antioxidant half-life; vitamin C also improves quercetin solubility in the GI lumen and may upregulate cellular uptake.",
-      "score_impact": 1,
-      "evidence_level": "probable",
-      "sources": [
-        {
-          "source_type": "reference",
-          "label": "Linus Pauling Institute — Flavonoids: Quercetin",
-          "url": "https://lpi.oregonstate.edu/mic/dietary-factors/phytochemicals/flavonoids#quercetin"
-        }
-      ],
-      "_relation_is_migration_placeholder": true,
-      "review_note": "The cited Linus Pauling Institute flavonoid page does not establish that vitamin C enhances quercetin absorption. Mechanism-only co-administration advice. Pending clinician decision.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "awaiting_clinician_decision"
-      ]
-    },
-    {
-      "id": "timing_bromelain_timing_by_purpose",
-      "ingredient1": "bromelain",
-      "ingredient1_tags": [
-        "bromelain"
-      ],
-      "timing_relation": {
-        "type": "empty_stomach"
-      },
-      "category": "how_to_take",
-      "applies_to": "standalone",
-      "actionability": "recommended",
-      "source_authority": "clinical_study",
-      "review_status": "needs_revision",
-      "advice": "Take bromelain on an empty stomach for systemic anti-inflammatory effects, or with meals if you want it to aid protein digestion.",
-      "mechanism": "In the fasted state, bromelain is absorbed intact through intestinal epithelium into systemic circulation to exert anti-inflammatory and fibrinolytic effects; with food, its proteolytic activity is consumed in GI digestion before systemic absorption can occur.",
-      "score_impact": 0,
-      "evidence_level": "probable",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Castell JV et al. — Intestinal absorption of undegraded proteins in men: presence of bromelain in plasma after oral intake",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/9252520/"
-        }
-      ],
-      "review_note": "Castell 1997 (PMID 9252520) demonstrates that undegraded bromelain reaches plasma after oral dosing. It does not establish the rule's purpose-dependent claim (empty stomach for systemic effect vs with food for digestion). Needs a source that addresses administration timing.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "citation_not_content_verified"
-      ]
-    },
-    {
-      "id": "timing_l_theanine_caffeine_together",
-      "ingredient1": "l-theanine",
-      "ingredient1_tags": [
-        "l_theanine"
-      ],
-      "ingredient2": "caffeine",
-      "timing_relation": {
-        "type": "with_food"
-      },
-      "category": "optional",
-      "applies_to": "standalone",
-      "actionability": "informational",
-      "source_authority": "clinical_study",
-      "review_status": "needs_revision",
-      "advice": "Take L-theanine and caffeine together for synergistic focus and reduced jitteriness — the combination is well-supported by clinical research.",
-      "mechanism": "L-theanine promotes alpha brain wave activity and modulates GABA/glutamate signaling, blunting caffeine's sympathomimetic side effects while preserving and enhancing its pro-attentional effects via adenosine antagonism.",
-      "score_impact": 1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Owen GN et al. — The combined effects of L-theanine and caffeine on cognitive performance",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/18681988/"
-        }
-      ],
-      "_relation_is_migration_placeholder": true,
-      "review_note": "Owen 2008 (PMID 18681988) is a real randomized crossover showing L-theanine plus caffeine improves attention-switching. But that is a combination-effect finding, not timing guidance, and it lands in the `optional` category which requires explicit clinician approval before it may render. Pending that approval.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "awaiting_clinician_decision"
-      ]
     },
     {
       "id": "timing_vitamin_e_with_food",
@@ -597,7 +218,7 @@
           "17092"
         ],
         "negative": [
-          "278010"
+          "12178"
         ]
       }
     },
@@ -646,81 +267,6 @@
       }
     },
     {
-      "id": "timing_calcium_carbonate_with_food",
-      "ingredient1": "calcium carbonate",
-      "ingredient1_tags": [
-        "calcium_carbonate"
-      ],
-      "timing_relation": {
-        "type": "with_food"
-      },
-      "category": "how_to_take",
-      "applies_to": "standalone",
-      "actionability": "recommended",
-      "source_authority": "clinical_study",
-      "review_status": "needs_revision",
-      "advice": "Take calcium carbonate with meals — it requires stomach acid to dissolve. Calcium citrate can be taken without food.",
-      "mechanism": "Calcium carbonate requires gastric acid to dissolve and release ionized calcium for absorption. In achlorhydric or fasted conditions, dissolution is markedly impaired. Calcium citrate is pre-solubilized and does not require acid, making it suitable for fasting or for patients on acid-suppressing medications (PPIs, H2 blockers).",
-      "score_impact": -1,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Recker RR — Calcium absorption and achlorhydria. N Engl J Med. 1985",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/4000241/"
-        },
-        {
-          "source_type": "nih_ods",
-          "label": "NIH ODS — Calcium Fact Sheet for Health Professionals",
-          "url": "https://ods.od.nih.gov/factsheets/Calcium-HealthProfessional/"
-        }
-      ],
-      "review_note": "PIPELINE DEPENDENCY, not a clinical defect. Recker 1985 (PMID 4000241) is strong: calcium carbonate absorption is impaired under fasting conditions in achlorhydria, and 'Administration of calcium carbonate as part of a normal breakfast resulted in completely normal absorption'. But the catalog emits zero `calcium_carbonate` tags, so the rule is unreachable. Blocked on the pipeline emitting a calcium form identity. Valid science must not be rejected for a catalog gap.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "canonical_identity_unresolved",
-        "catalog_identity_missing_upstream"
-      ]
-    },
-    {
-      "id": "timing_thyroid_med_soy_separate",
-      "ingredient1": "levothyroxine",
-      "ingredient1_rxcuis": [
-        "10582"
-      ],
-      "ingredient2": "soy protein",
-      "ingredient2_tags": [
-        "soybean",
-        "soy_isoflavones"
-      ],
-      "timing_relation": {
-        "type": "separate_from",
-        "minimum_hours": 4
-      },
-      "category": "important_separation",
-      "applies_to": "any",
-      "actionability": "recommended",
-      "source_authority": "systematic_review",
-      "review_status": "needs_revision",
-      "advice": "Take levothyroxine at least 4 hours apart from soy protein or soy isoflavone supplements.",
-      "mechanism": "Soy protein and soy isoflavones (genistein, daidzein) can reduce levothyroxine absorption and may also inhibit thyroid peroxidase, compounding the effect in hypothyroid patients. The FDA prescribing information for levothyroxine warns about concurrent soy intake.",
-      "score_impact": -2,
-      "evidence_level": "established",
-      "sources": [
-        {
-          "source_type": "pubmed",
-          "label": "Messina M & Redmond G — Effects of soy protein and soybean isoflavones on thyroid function. Thyroid. 2006",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/16571087/"
-        }
-      ],
-      "review_note": "IDENTITY FIXED, INTERVAL NOT. The reachability defect is corrected — the rule now names `soybean` and `soy_isoflavones` instead of `soy` and `soy_protein`, which the catalog never emits. Messina & Redmond 2006 (PMID 16571087) supports the interaction: soy foods 'by inhibiting absorption, may increase the dose of thyroid hormone required'. Neither that review nor Skelin 2017 states 4 hours. Also unresolved: whether concentrated isoflavone supplements and soy foods warrant the same instruction. Blocked on the label plus that scope decision.",
-      "reviewed_on": "2026-08-01",
-      "review_blockers": [
-        "interval_not_supported_by_cited_source",
-        "canonical_identity_unresolved"
-      ]
-    },
-    {
       "id": "timing_iron_with_food_gi",
       "ingredient1": "iron",
       "ingredient1_tags": [
@@ -751,7 +297,7 @@
           "217573"
         ],
         "negative": [
-          "278010"
+          "175429"
         ]
       },
       "reviewed_on": "2026-08-01",

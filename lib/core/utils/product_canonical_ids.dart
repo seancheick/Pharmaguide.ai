@@ -114,6 +114,20 @@ List<String> canonicalIdsFromDetailBlob(Map<String, dynamic>? detailBlob) {
 
   scanIngredients(detailBlob['ingredients']);
 
+  final displayIngredients = detailBlob['display_ingredients'];
+  if (displayIngredients is List) {
+    scanIngredients(
+      displayIngredients.where((item) {
+        if (item is! Map) return false;
+        final section = item['source_section']?.toString().toLowerCase() ?? '';
+        final disposition =
+            item['display_disposition']?.toString().toLowerCase() ?? '';
+        return (section == 'active' || section == 'activeingredients') &&
+            disposition != 'other_ingredient';
+      }).toList(growable: false),
+    );
+  }
+
   final ingredientQualityData = detailBlob['ingredient_quality_data'];
   if (ingredientQualityData is Map) {
     scanIngredients(ingredientQualityData['ingredients']);
@@ -149,6 +163,20 @@ List<String> markerCanonicalIdsFromDetailBlob(
   }
 
   scanIngredients(detailBlob['ingredients']);
+
+  final displayIngredients = detailBlob['display_ingredients'];
+  if (displayIngredients is List) {
+    scanIngredients(
+      displayIngredients.where((item) {
+        if (item is! Map) return false;
+        final section = item['source_section']?.toString().toLowerCase() ?? '';
+        final disposition =
+            item['display_disposition']?.toString().toLowerCase() ?? '';
+        return (section == 'active' || section == 'activeingredients') &&
+            disposition != 'other_ingredient';
+      }).toList(growable: false),
+    );
+  }
 
   final ingredientQualityData = detailBlob['ingredient_quality_data'];
   if (ingredientQualityData is Map) {

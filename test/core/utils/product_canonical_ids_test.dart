@@ -48,6 +48,23 @@ void main() {
       expect(markerCanonicalIdsFromDetailBlob(blob), ['egcg']);
     });
 
+    test('reads markers from a recognized active in the 2.4 label ledger', () {
+      final blob = <String, dynamic>{
+        'display_ingredients': [
+          {
+            'source_section': 'activeIngredients',
+            'display_disposition': 'scored',
+            'canonical_id': 'camu_camu',
+            'delivers_markers': [
+              {'marker_canonical_id': 'vitamin_c'},
+            ],
+          },
+        ],
+      };
+
+      expect(markerCanonicalIdsFromDetailBlob(blob), ['vitamin_c']);
+    });
+
     test('returns empty when an ingredient delivers no markers', () {
       final blob = <String, dynamic>{
         'ingredients': [
@@ -121,6 +138,25 @@ void main() {
       expect(canonicalIdsFromDetailBlob(blob), ['turmeric']);
       expect(canonicalIdsFromDetailBlob(blob), isNot(contains('curcumin')));
       expect(markerCanonicalIdsFromDetailBlob(blob), ['curcumin']);
+    });
+
+    test('canonical source IDs include active label-ledger identities only', () {
+      final blob = <String, dynamic>{
+        'display_ingredients': [
+          {
+            'source_section': 'activeIngredients',
+            'display_disposition': 'scored',
+            'canonical_id': 'camu_camu',
+          },
+          {
+            'source_section': 'inactiveIngredients',
+            'display_disposition': 'other_ingredient',
+            'canonical_id': 'magnesium_stearate',
+          },
+        ],
+      };
+
+      expect(canonicalIdsFromDetailBlob(blob), ['camu_camu']);
     });
   });
 }
