@@ -141,9 +141,19 @@ Widget buildProbioticSection({
 /// `pending_review` (no clinician sign-off) and `rejected` deliberately fall
 /// through to `none`, which renders "No verified strain-specific research
 /// found". Do not add them to the affirmative cases.
+///
+/// The app re-checks `review_status` rather than trusting
+/// `research_match_status`. The producer used to emit `formula_only` before it
+/// consulted `dr_pham_signoff`, and a bundle built before that fix is still
+/// installable — so the reader fails closed on its own instead of relying on
+/// the artifact being new enough.
 PGProbioticResearchStatus _researchStatus(Map<String, dynamic>? row) {
   if (row == null) return PGProbioticResearchStatus.none;
   if (row.safeBool('is_blocked')) return PGProbioticResearchStatus.none;
+  if (row.safeString('review_status').trim().toLowerCase() !=
+      'clinician_verified') {
+    return PGProbioticResearchStatus.none;
+  }
   return switch (row.safeString('research_match_status').trim().toLowerCase()) {
     'exact_strain' => PGProbioticResearchStatus.exactStrain,
     'formula_only' => PGProbioticResearchStatus.formulaOnly,
@@ -151,6 +161,13 @@ PGProbioticResearchStatus _researchStatus(Map<String, dynamic>? row) {
     _ => PGProbioticResearchStatus.none,
   };
 }
+
+/// Test seam for [_researchStatus]. The gate is the point of the file, so it
+/// gets asserted directly rather than only through a rendered widget.
+@visibleForTesting
+PGProbioticResearchStatus probioticResearchStatusForTest(
+  Map<String, dynamic>? row,
+) => _researchStatus(row);
 
 bool _isGenericContainerEcho({
   required String blendName,
