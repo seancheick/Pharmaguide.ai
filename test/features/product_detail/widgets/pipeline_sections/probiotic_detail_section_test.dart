@@ -330,6 +330,9 @@ void main() {
                   'research_match_status': 'pending_review',
                 },
                 {
+                  // formula_only with no clinician sign-off. This used to
+                  // render "Research applies to the formula", which is the
+                  // positive copy the test name forbids.
                   'strain': 'Formula F-1',
                   'research_match_status': 'formula_only',
                 },
@@ -351,11 +354,48 @@ void main() {
         find.text(
           'Research applies to the formula, not necessarily each strain',
         ),
+        findsNothing,
+        reason: 'none of these three rows carries clinician sign-off',
+      );
+      expect(
+        find.text('No verified strain-specific research found'),
+        findsNWidgets(3),
+      );
+    });
+
+    testWidgets('a reviewed formula-level match keeps its hedged copy', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildProbioticSection(
+            probioticDetail: {
+              'probiotic_blends': [
+                {
+                  'strains': ['Formula F-2'],
+                },
+              ],
+              'clinical_strains': [
+                {
+                  'strain': 'Formula F-2',
+                  'research_match_status': 'formula_only',
+                  'review_status': 'clinician_verified',
+                },
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(
+        find.text(
+          'Research applies to the formula, not necessarily each strain',
+        ),
         findsOneWidget,
       );
       expect(
         find.text('No verified strain-specific research found'),
-        findsNWidgets(2),
+        findsNothing,
       );
     });
 
@@ -375,6 +415,7 @@ void main() {
                   {
                     'strain': 'Lactobacillus acidophilus LA-1',
                     'research_match_status': 'species_level',
+                    'review_status': 'clinician_verified',
                   },
                 ],
               },
