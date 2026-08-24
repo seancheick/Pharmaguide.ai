@@ -1,6 +1,6 @@
 {
-  "checksum": "sha256:07e2e202bb239461348a93ea08fb710bb76315176dda3fb844ce990afeafff5d",
-  "checksum_sha256": "07e2e202bb239461348a93ea08fb710bb76315176dda3fb844ce990afeafff5d",
+  "checksum": "sha256:4e02a87a00d0c206b766a57e2b83aa542320b7a2467decc0478324b8849cd997",
+  "checksum_sha256": "4e02a87a00d0c206b766a57e2b83aa542320b7a2467decc0478324b8849cd997",
   "core_projection_manifest": {
     "app_core_column_count": 91,
     "checksum": "sha256:18cf782562d54e03a1414859d3978c65804e448fe212d134d2506771ff4c15ec",
@@ -9,10 +9,10 @@
     "path": "core_projection_manifest.json",
     "server_core_column_count": 26
   },
-  "db_version": "2026.08.24.100843",
-  "detail_blob_count": 15278,
-  "detail_blob_unique_count": 15278,
-  "detail_index_checksum": "sha256:4a9f3a53d96c4c2683376ec063deb6ac85f922c023f5c7cb23be06c9d0fe7db0",
+  "db_version": "2026.08.24.165613",
+  "detail_blob_count": 15287,
+  "detail_blob_unique_count": 15287,
+  "detail_index_checksum": "sha256:ec12033382d1e03859619268a70a03fe50c763f7ec83c29cd523cbd1bc521112",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -50,10 +50,6 @@
     {
       "dsld_id": "201437",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "204468",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "211387",
@@ -110,10 +106,6 @@
     {
       "dsld_id": "231335",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "232923",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "243670",
@@ -180,20 +172,12 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
-      "dsld_id": "294063",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
       "dsld_id": "294450",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "294491",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "295535",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "302650",
@@ -282,10 +266,6 @@
     {
       "dsld_id": "328300",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "328399",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "328602",
@@ -472,24 +452,12 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
-      "dsld_id": "44121",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
       "dsld_id": "57157",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "59047",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "59786",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "60562",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "64333",
@@ -532,10 +500,6 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
-      "dsld_id": "77114",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
       "dsld_id": "78355",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     },
@@ -552,34 +516,34 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     }
   ],
-  "generated_at": "2026-08-24T10:08:43.634112+00:00",
+  "generated_at": "2026-08-24T16:56:13.424670+00:00",
   "integrity": {
     "contract_failures": 0,
-    "contract_quarantine_count": 134,
-    "coverage_pct": 99.13,
+    "contract_quarantine_count": 125,
+    "coverage_pct": 99.19,
     "enriched_input_count": 15412,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 134,
-    "exported_count": 15278,
+    "excluded_by_gate_count": 125,
+    "exported_count": 15287,
     "has_banned_substance": 54,
     "has_recalled_ingredient": 0,
     "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
     "scored_input_count": 15412,
     "scored_only_count": 0,
-    "skipped_count": 134,
+    "skipped_count": 125,
     "strict_mode": true,
-    "total_skipped": 134,
+    "total_skipped": 125,
     "verdict_blocked": 54,
-    "verdict_not_scored": 134,
+    "verdict_not_scored": 125,
     "verdict_unsafe": 0,
     "warning_count": 0
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 15278,
+  "product_count": 15287,
   "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
-  "release_staged_at": "2026-08-24T10:09:30Z",
+  "release_staged_at": "2026-08-24T16:57:26Z",
   "schema_version": "2.4.0",
   "score_model": "v4",
   "scoring_version": "4.3.0",
