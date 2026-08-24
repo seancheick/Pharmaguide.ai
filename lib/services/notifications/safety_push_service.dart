@@ -20,7 +20,13 @@ class SafetyPushService with WidgetsBindingObserver {
   StreamSubscription<dynamic>? _authState;
   FutureOr<void> Function()? _onSafetyAlert;
 
-  Future<bool> initialize({required FutureOr<void> Function() onSafetyAlert}) async {
+  Future<bool> initialize({
+    required FutureOr<void> Function() onSafetyAlert,
+    // Foreground nudge: refresh data quietly (no banner shows in foreground).
+    FutureOr<void> Function()? onSubmissionUpdate,
+    // The user tapped the OS notification: navigating is expected.
+    FutureOr<void> Function()? onSubmissionUpdateOpened,
+  }) async {
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.iOS &&
             defaultTargetPlatform != TargetPlatform.android)) {
@@ -37,15 +43,25 @@ class SafetyPushService with WidgetsBindingObserver {
       _foreground = FirebaseMessaging.onMessage.listen((message) {
         if (message.data['type'] == 'safety_alert') {
           unawaited(Future<void>.sync(onSafetyAlert));
+        } else if (message.data['type'] == 'submission_update' &&
+            onSubmissionUpdate != null) {
+          unawaited(Future<void>.sync(onSubmissionUpdate));
         }
       });
       _opened = FirebaseMessaging.onMessageOpenedApp.listen((message) {
         if (message.data['type'] == 'safety_alert') {
           unawaited(Future<void>.sync(onSafetyAlert));
+        } else if (message.data['type'] == 'submission_update' &&
+            onSubmissionUpdateOpened != null) {
+          unawaited(Future<void>.sync(onSubmissionUpdateOpened));
         }
       });
       final initial = await _messaging.getInitialMessage();
       if (initial?.data['type'] == 'safety_alert') await onSafetyAlert();
+      if (initial?.data['type'] == 'submission_update' &&
+          onSubmissionUpdateOpened != null) {
+        await onSubmissionUpdateOpened();
+      }
       _tokenRefresh = _messaging.onTokenRefresh.listen((token) {
         unawaited(_register(token));
       });
