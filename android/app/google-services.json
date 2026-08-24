@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "350343817797",
+    "project_id": "pharmaguide-a8940",
+    "storage_bucket": "pharmaguide-a8940.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:350343817797:android:39853b4ef1979939f7912c",
+        "android_client_info": {
+          "package_name": "com.pharmaguide.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "350343817797-kfoqtsvgqk2sq593e0tlg9ifgmmvpspl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoJHD5DY0m_Iik1P1jfnlpFi1fcNCAHM8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "350343817797-kfoqtsvgqk2sq593e0tlg9ifgmmvpspl.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "350343817797-btkq9jemj0df6rgj616f29i7maut9t8m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.pharmaguide.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
