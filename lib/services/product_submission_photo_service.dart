@@ -13,7 +13,7 @@ typedef SanitizeProductSubmissionPhoto =
 /// metadata operation can remove text visible in the pixels.
 Future<ProductSubmissionPhoto?> pickProductSubmissionPhoto({
   required ImagePicker picker,
-  required ProductSubmissionPhotoSlot slot,
+  required Set<ProductSubmissionEvidenceCategory> categories,
   required ImageSource source,
 }) async {
   final file = await picker.pickImage(
@@ -21,13 +21,13 @@ Future<ProductSubmissionPhoto?> pickProductSubmissionPhoto({
     requestFullMetadata: false,
   );
   if (file == null) return null;
-  return buildProductSubmissionPhotoFromFile(file: file, slot: slot);
+  return buildProductSubmissionPhotoFromFile(file: file, categories: categories);
 }
 
 @visibleForTesting
 Future<ProductSubmissionPhoto> buildProductSubmissionPhotoFromFile({
   required XFile file,
-  required ProductSubmissionPhotoSlot slot,
+  required Set<ProductSubmissionEvidenceCategory> categories,
   SanitizeProductSubmissionPhoto sanitizer = _sanitizeProductSubmissionPhoto,
 }) async {
   _supportedContentType(file);
@@ -64,7 +64,7 @@ Future<ProductSubmissionPhoto> buildProductSubmissionPhotoFromFile({
   }
 
   return ProductSubmissionPhoto(
-    slot: slot,
+    categories: categories,
     bytes: sanitizedBytes,
     contentType: 'image/jpeg',
   );

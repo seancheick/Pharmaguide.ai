@@ -13,7 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 typedef PickProductSubmissionPhoto =
     Future<ProductSubmissionPhoto?> Function(
-      ProductSubmissionPhotoSlot slot,
+      ProductSubmissionEvidenceCategory category,
       ImageSource source,
     );
 
@@ -44,9 +44,9 @@ Future<void> showLabelMismatchSheet(
       reportService: resolvedService,
       pickPhoto:
           pickPhoto ??
-          (slot, source) => pickProductSubmissionPhoto(
+          (category, source) => pickProductSubmissionPhoto(
             picker: picker,
-            slot: slot,
+            categories: {category},
             source: source,
           ),
       reportIdFactory: reportIdFactory,
@@ -86,8 +86,8 @@ class LabelMismatchSheet extends StatefulWidget {
 
 class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
   final _categories = <LabelMismatchCategory>{};
-  final _photos = <ProductSubmissionPhotoSlot, ProductSubmissionPhoto>{};
-  final _photoErrors = <ProductSubmissionPhotoSlot, String>{};
+  final _photos = <ProductSubmissionEvidenceCategory, ProductSubmissionPhoto>{};
+  final _photoErrors = <ProductSubmissionEvidenceCategory, String>{};
 
   bool _consent = false;
   bool _submitting = false;
@@ -120,42 +120,43 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
   }
 
   Future<void> _choosePhoto(
-    ProductSubmissionPhotoSlot slot,
+    ProductSubmissionEvidenceCategory category,
     ImageSource source,
   ) async {
     if (_submitting || _succeeded || _draftLocked) return;
-    setState(() => _photoErrors.remove(slot));
+    setState(() => _photoErrors.remove(category));
     try {
-      final photo = await widget.pickPhoto(slot, source);
+      final photo = await widget.pickPhoto(category, source);
       if (!mounted || photo == null) return;
-      if (photo.slot != slot) {
+      if (!photo.categories.contains(category)) {
         setState(() {
-          _photoErrors[slot] = 'That photo was assigned to the wrong slot.';
+          _photoErrors[category] =
+              'That photo was assigned to the wrong label view.';
         });
         return;
       }
       setState(() {
-        _photos[slot] = photo;
+        _photos[category] = photo;
         _invalidateDraft();
       });
     } on ProductSubmissionValidationException catch (error) {
       if (!mounted) return;
-      setState(() => _photoErrors[slot] = _photoValidationMessage(error));
+      setState(() => _photoErrors[category] = _photoValidationMessage(error));
     } on Object {
       if (!mounted) return;
       setState(() {
-        _photoErrors[slot] = source == ImageSource.camera
+        _photoErrors[category] = source == ImageSource.camera
             ? 'We couldn’t open the camera. Try again.'
             : 'We couldn’t open the photo library. Try again.';
       });
     }
   }
 
-  void _removePhoto(ProductSubmissionPhotoSlot slot) {
+  void _removePhoto(ProductSubmissionEvidenceCategory category) {
     if (_draftLocked) return;
     setState(() {
-      _photos.remove(slot);
-      _photoErrors.remove(slot);
+      _photos.remove(category);
+      _photoErrors.remove(category);
       _invalidateDraft();
     });
   }
@@ -179,8 +180,8 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
           product: widget.product,
           categories: _categories,
           photos: [
-            for (final slot in ProductSubmissionPhotoSlot.values)
-              if (_photos[slot] case final photo?) photo,
+            for (final category in _attachmentCategories)
+              if (_photos[category] case final photo?) photo,
           ],
           reportIdFactory: widget.reportIdFactory,
         );
@@ -293,16 +294,16 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
               style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
             const SizedBox(height: V2Spacing.space12),
-            for (final slot in ProductSubmissionPhotoSlot.values) ...[
+            for (final category in _attachmentCategories) ...[
               _PhotoSlotCard(
-                slot: slot,
-                photo: _photos[slot],
-                error: _photoErrors[slot],
+                category: category,
+                photo: _photos[category],
+                error: _photoErrors[category],
                 enabled: !_submitting && !_draftLocked,
-                onChoose: (source) => _choosePhoto(slot, source),
-                onRemove: () => _removePhoto(slot),
+                onChoose: (source) => _choosePhoto(category, source),
+                onRemove: () => _removePhoto(category),
               ),
-              if (slot != ProductSubmissionPhotoSlot.values.last)
+              if (category != _attachmentCategories.last)
                 const SizedBox(height: V2Spacing.space12),
             ],
             const SizedBox(height: V2Spacing.space24),
@@ -504,7 +505,7 @@ class _PrivacyNotice extends StatelessWidget {
 }
 
 class _PhotoSlotCard extends StatelessWidget {
-  final ProductSubmissionPhotoSlot slot;
+  final ProductSubmissionEvidenceCategory category;
   final ProductSubmissionPhoto? photo;
   final String? error;
   final bool enabled;
@@ -512,7 +513,7 @@ class _PhotoSlotCard extends StatelessWidget {
   final VoidCallback onRemove;
 
   const _PhotoSlotCard({
-    required this.slot,
+    required this.category,
     required this.photo,
     required this.error,
     required this.enabled,
@@ -522,7 +523,7 @@ class _PhotoSlotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = _photoSlotLabel(slot);
+    final label = _photoSlotLabel(category);
     final selected = photo != null;
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space12),
@@ -543,7 +544,7 @@ class _PhotoSlotCard extends StatelessWidget {
               ),
               if (selected) ...[
                 Semantics(
-                  key: Key('label-mismatch-photo-${slot.wireValue}-preview'),
+                  key: Key('label-mismatch-photo-${category.wireValue}-preview'),
                   container: true,
                   image: true,
                   excludeSemantics: true,
@@ -574,7 +575,7 @@ class _PhotoSlotCard extends StatelessWidget {
                   style: V2Typography.caption(color: context.v2.safe),
                 ),
                 IconButton(
-                  key: Key('label-mismatch-photo-${slot.wireValue}-remove'),
+                  key: Key('label-mismatch-photo-${category.wireValue}-remove'),
                   tooltip: 'Remove $label photo',
                   onPressed: enabled ? onRemove : null,
                   icon: const Icon(Icons.close_rounded, size: 18),
@@ -588,14 +589,14 @@ class _PhotoSlotCard extends StatelessWidget {
             runSpacing: V2Spacing.space8,
             children: [
               _PhotoSourceButton(
-                key: Key('label-mismatch-photo-${slot.wireValue}-camera'),
+                key: Key('label-mismatch-photo-${category.wireValue}-camera'),
                 semanticsLabel: 'Take $label photo with camera',
                 icon: Icons.photo_camera_outlined,
                 label: selected ? 'Retake' : 'Camera',
                 onPressed: enabled ? () => onChoose(ImageSource.camera) : null,
               ),
               _PhotoSourceButton(
-                key: Key('label-mismatch-photo-${slot.wireValue}-gallery'),
+                key: Key('label-mismatch-photo-${category.wireValue}-gallery'),
                 semanticsLabel: 'Choose $label photo from library',
                 icon: Icons.photo_library_outlined,
                 label: selected ? 'Replace from library' : 'Photo library',
@@ -817,8 +818,18 @@ String _categoryLabel(LabelMismatchCategory category) => switch (category) {
     'Catalog version or product status',
 };
 
-String _photoSlotLabel(ProductSubmissionPhotoSlot slot) => switch (slot) {
-  ProductSubmissionPhotoSlot.front => 'Front of bottle',
-  ProductSubmissionPhotoSlot.supplementFacts => 'Supplement Facts',
-  ProductSubmissionPhotoSlot.otherIngredients => 'Other Ingredients',
-};
+/// The three label views a correction may attach, in display order.
+const _attachmentCategories = <ProductSubmissionEvidenceCategory>[
+  ProductSubmissionEvidenceCategory.frontIdentity,
+  ProductSubmissionEvidenceCategory.supplementFacts,
+  ProductSubmissionEvidenceCategory.ingredientDisclosure,
+];
+
+String _photoSlotLabel(ProductSubmissionEvidenceCategory category) =>
+    switch (category) {
+      ProductSubmissionEvidenceCategory.frontIdentity => 'Front of bottle',
+      ProductSubmissionEvidenceCategory.supplementFacts => 'Supplement Facts',
+      ProductSubmissionEvidenceCategory.ingredientDisclosure =>
+        'Other Ingredients',
+      _ => 'Label detail',
+    };
