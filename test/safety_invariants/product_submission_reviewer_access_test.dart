@@ -62,10 +62,18 @@ void main() {
     );
     expect(
       source,
-      allOf(
-        contains("'product_submission_missing_details!'"),
-        contains("'product_submission_missing_details_submission_id_fkey('"),
-      ),
+      contains('declared_no_separate_ingredient_panel'),
+      reason: 'The reviewer cue moved onto the submission envelope in v2.',
+    );
+    expect(
+      source,
+      contains('resolution_code,resolution_detail,resolved_dsld_id'),
+      reason: 'Reviewers must see prior resolution state in the queue.',
+    );
+    expect(
+      source,
+      isNot(contains('product_submission_missing_details!')),
+      reason: 'The dropped other_ingredients_not_present embed would 500.',
     );
     expect(photoSigning, greaterThan(readyFilter));
     expect(
@@ -153,5 +161,83 @@ void main() {
     );
     expect(byteVerification, greaterThan(approvalBranch));
     expect(reviewRpc, greaterThan(byteVerification));
+  });
+
+  test('transition accepts the resolution contract and nothing more', () {
+    expect(
+      source,
+      allOf(
+        contains("'resolution_code'"),
+        contains("'resolution_detail'"),
+        contains("'resolved_dsld_id'"),
+      ),
+    );
+    expect(source, contains('p_resolution_code: resolutionCode'));
+    expect(source, contains('p_resolution_detail: resolutionDetail'));
+    expect(source, contains('p_resolved_dsld_id: resolvedDsldId'));
+    expect(
+      source,
+      contains('RESOLVED_DSLD_PATTERN'),
+      reason: 'Resolved ids must match catalog or PG_SUB identity shapes.',
+    );
+  });
+
+  test('submission pushes are durable, deferred, and generic', () {
+    final reviewRpc = source.indexOf("admin.rpc('review_product_submission'");
+    final drainCall = source.indexOf(
+      'drainSubmissionPushDeliveries(admin, submissionId)',
+      reviewRpc,
+    );
+    expect(
+      drainCall,
+      greaterThan(reviewRpc),
+      reason: 'The push drain must run only after the audited transition.',
+    );
+    expect(
+      source,
+      contains('EdgeRuntime.waitUntil'),
+      reason:
+          'A bare floating send can be killed when the worker terminates '
+          'after responding.',
+    );
+    expect(
+      source,
+      contains("from('product_submission_push_deliveries')"),
+      reason: 'Sends must drain the durable in-transaction queue.',
+    );
+    expect(source, contains('buildSubmissionUpdateMessage('));
+    expect(
+      source,
+      isNot(contains('notification: {')),
+      reason:
+          'Visible push copy lives only in the shared generic constants, '
+          'never inline where payload text could reach it.',
+    );
+    final fcm = File('supabase/functions/_shared/fcm_v1.ts')
+        .readAsStringSync()
+        .replaceAll('"', "'");
+    expect(fcm, contains("'Your product submission has an update.'"));
+    final copyConstants = fcm
+        .split('\n')
+        .where(
+          (line) =>
+              line.contains('SUBMISSION_UPDATE_TITLE') ||
+              line.contains('SUBMISSION_UPDATE_BODY'),
+        )
+        .join('\n');
+    expect(
+      copyConstants,
+      isNot(contains(r'${')),
+      reason: 'Visible push copy must be constant, never interpolated.',
+    );
+  });
+
+  test('photo integrity is keyed by photo identity, not slots', () {
+    expect(
+      source,
+      contains("select('photo_id,object_path,byte_size,content_sha256')"),
+    );
+    expect(source, contains("order('photo_id', { ascending: true })"));
+    expect(source, isNot(contains('photo_slot')));
   });
 }

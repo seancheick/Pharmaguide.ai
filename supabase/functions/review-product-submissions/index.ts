@@ -7,6 +7,17 @@ import {
   resolveSupabaseAdminKey,
   resolveSupabasePublicKey,
 } from "../_shared/supabase_server_keys.ts";
+import {
+  buildSubmissionUpdateMessage,
+  fcmAccessToken,
+  sendFcmMessage,
+} from "../_shared/fcm_v1.ts";
+
+// Supabase Edge Runtime keeps promises passed to EdgeRuntime.waitUntil alive
+// after the response is returned; a bare floating promise may be killed.
+declare const EdgeRuntime: {
+  waitUntil(promise: Promise<unknown>): void;
+} | undefined;
 
 const PHOTO_BUCKET = "product-submission-photos";
 const APPROVED_SCHEMA_VERSION = "manual_label_v1";
@@ -30,6 +41,20 @@ const TRANSITION_STATUSES = new Set([
   "duplicate",
 ]);
 const KINDS = new Set(["label_mismatch", "missing_product"]);
+const REJECTED_RESOLUTION_CODES = new Set([
+  "photo_quality",
+  "missing_panel",
+  "label_unreadable",
+  "not_a_supplement",
+  "other",
+]);
+const DUPLICATE_RESOLUTION_CODES = new Set([
+  "already_in_catalog",
+  "duplicate_submission",
+]);
+const RESOLVED_DSLD_PATTERN = /^([0-9]{1,30}|PG_SUB_[0-9A-F]{32})$/;
+const STALE_PUSH_RETRY_MS = 2 * 60 * 1000;
+const MAX_PUSH_BATCH = 20;
 const APPROVED_PAYLOAD_FIELDS = new Set([
   "brandName",
   "fullName",
@@ -196,14 +221,14 @@ async function verifySubmissionPhotoIntegrity(
 ): Promise<JsonObject> {
   const { data, error } = await admin
     .from("product_submission_photos")
-    .select("photo_slot,object_path,byte_size,content_sha256")
+    .select("photo_id,object_path,byte_size,content_sha256")
     .eq("submission_id", submissionId)
-    .order("photo_slot", { ascending: true });
+    .order("photo_id", { ascending: true });
   if (error) throw error;
 
   const verifiedHashes: JsonObject = {};
   for (const raw of (data ?? []) as unknown as JsonObject[]) {
-    const slot = requiredString(raw.photo_slot, "photo slot", 40);
+    const photoId = requiredUuid(raw.photo_id, "photo id");
     const objectPath = requiredString(raw.object_path, "object path", 300);
     const expectedHash = requiredString(
       raw.content_sha256,
@@ -233,12 +258,119 @@ async function verifySubmissionPhotoIntegrity(
     if (actualHash !== expectedHash) {
       throw new Error("photo content hash mismatch");
     }
-    if (verifiedHashes[slot] !== undefined) {
-      throw new Error("duplicate persisted photo slot");
+    if (verifiedHashes[photoId] !== undefined) {
+      throw new Error("duplicate persisted photo id");
     }
-    verifiedHashes[slot] = actualHash;
+    verifiedHashes[photoId] = actualHash;
   }
   return verifiedHashes;
+}
+
+
+// Drain pending submission push deliveries: this submission's rows plus a
+// bounded batch of stale pending rows from earlier failed sends. Delivery is
+// at-least-once by design — the visible copy is generic, so a duplicate
+// nudge is harmless, while a silently lost approval/rejection is not.
+async function drainSubmissionPushDeliveries(
+  admin: SupabaseClient,
+  submissionId: string,
+): Promise<void> {
+  const staleBefore = new Date(Date.now() - STALE_PUSH_RETRY_MS).toISOString();
+  const { data: pending, error: pendingError } = await admin
+    .from("product_submission_push_deliveries")
+    .select("id,submission_id,user_id,attempts")
+    .is("sent_at", null)
+    .or(`submission_id.eq.${submissionId},created_at.lt.${staleBefore}`)
+    .order("created_at", { ascending: true })
+    .limit(MAX_PUSH_BATCH);
+  if (pendingError) throw pendingError;
+  const rows = (pending ?? []) as unknown as JsonObject[];
+  if (rows.length === 0) return;
+
+  let access;
+  try {
+    access = await fcmAccessToken();
+  } catch (credentialError) {
+    // No transport: leave every row pending for a later drain.
+    console.error(JSON.stringify({
+      event: "product_submission_push_transport_unavailable",
+      message: String(credentialError),
+    }));
+    return;
+  }
+
+  let sent = 0;
+  let removedTokens = 0;
+  for (const row of rows) {
+    const deliveryId = row.id;
+    const userId = typeof row.user_id === "string" ? row.user_id : null;
+    const rowSubmissionId = typeof row.submission_id === "string"
+      ? row.submission_id
+      : submissionId;
+    const attempts = Number(row.attempts ?? 0) + 1;
+    let lastError: string | null = null;
+    let delivered = false;
+    try {
+      if (!userId) throw new Error("delivery row missing user");
+      const { data: tokens, error: tokenError } = await admin
+        .from("device_push_tokens")
+        .select("id,fcm_token")
+        .eq("user_id", userId);
+      if (tokenError) throw tokenError;
+      const tokenRows = (tokens ?? []) as unknown as JsonObject[];
+      // No registered device is a completed delivery: there is nothing to
+      // send now, and the app refreshes state on open regardless.
+      delivered = true;
+      for (const tokenRow of tokenRows) {
+        if (
+          typeof tokenRow.fcm_token !== "string" ||
+          typeof tokenRow.id !== "string"
+        ) continue;
+        const outcome = await sendFcmMessage(
+          access,
+          buildSubmissionUpdateMessage({
+            token: tokenRow.fcm_token,
+            submissionId: rowSubmissionId,
+          }),
+        );
+        if (outcome.invalidToken) {
+          await admin.from("device_push_tokens").delete().eq(
+            "id",
+            tokenRow.id,
+          );
+          removedTokens++;
+        } else if (!outcome.delivered) {
+          delivered = false;
+          lastError = "fcm send failed";
+        }
+      }
+    } catch (rowError) {
+      delivered = false;
+      lastError = String(rowError).slice(0, 500);
+    }
+    const { error: updateError } = await admin
+      .from("product_submission_push_deliveries")
+      .update(
+        delivered
+          ? { sent_at: new Date().toISOString(), attempts }
+          : { attempts, last_error: lastError ?? "unknown" },
+      )
+      .eq("id", deliveryId);
+    if (updateError) {
+      console.error(JSON.stringify({
+        event: "product_submission_push_bookkeeping_failed",
+        message: String(updateError),
+      }));
+    }
+    if (delivered) sent++;
+  }
+  console.info(JSON.stringify({
+    event: "product_submission_push_drain",
+    submission_id: submissionId,
+    processed: rows.length,
+    sent,
+    removed_tokens: removedTokens,
+  }));
 }
 
 Deno.serve(async (request: Request): Promise<Response> => {
@@ -316,8 +448,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (action === "list") {
       rejectUnknownKeys(
         body,
-        new Set(["action", "status", "kind", "limit"]),
+        new Set(["action", "status", "kind", "limit", "submission_id"]),
       );
+      const listSubmissionId = body.submission_id === undefined ||
+          body.submission_id === null
+        ? null
+        : requiredUuid(body.submission_id, "submission id");
       const limit = body.limit ?? 50;
       if (
         !Number.isInteger(limit) ||
@@ -343,14 +479,14 @@ Deno.serve(async (request: Request): Promise<Response> => {
         .from("product_submissions")
         .select(
           "id,kind,normalized_upc,review_status,created_at,submitted_at," +
-            "reviewed_at,promoted_catalog_version," +
+            "reviewed_at,promoted_catalog_version,promoted_at," +
+            "declared_no_separate_ingredient_panel," +
+            "resolution_code,resolution_detail,resolved_dsld_id," +
+            "duplicate_of," +
             "product_submission_mismatch_details!" +
             "product_submission_mismatch_details_submission_id_fkey(" +
             "dsld_id,source_record_id," +
-            "catalog_source_version,formula_fingerprint,mismatch_categories)," +
-            "product_submission_missing_details!" +
-            "product_submission_missing_details_submission_id_fkey(" +
-            "other_ingredients_not_present)",
+            "catalog_source_version,formula_fingerprint,mismatch_categories)",
         )
         .eq("upload_state", "ready")
         .order("submitted_at", { ascending: true })
@@ -358,6 +494,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
         .limit(Number(limit));
       if (body.status) query = query.eq("review_status", body.status);
       if (body.kind) query = query.eq("kind", body.kind);
+      if (listSubmissionId) query = query.eq("id", listSubmissionId);
 
       const { data: submissions, error: submissionsError } = await query;
       if (submissionsError) throw submissionsError;
@@ -368,11 +505,11 @@ Deno.serve(async (request: Request): Promise<Response> => {
         const { data: photos, error: photosError } = await admin
           .from("product_submission_photos")
           .select(
-            "submission_id,photo_slot,object_path,content_type,byte_size," +
-              "content_sha256,created_at",
+            "submission_id,photo_id,seq,categories,object_path,content_type," +
+              "byte_size,content_sha256,created_at",
           )
           .in("submission_id", ids)
-          .order("photo_slot", { ascending: true });
+          .order("seq", { ascending: true });
         if (photosError) throw photosError;
         const photoRows = (photos ?? []) as unknown as JsonObject[];
         if (photoRows.length > 0) {
@@ -388,7 +525,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
             const signedUrl = signedByPath.get(photo.object_path as string);
             if (!signedUrl) throw new Error("missing signed URL");
             const responsePhoto = {
-              photo_slot: photo.photo_slot,
+              photo_id: photo.photo_id,
+              seq: photo.seq,
+              categories: photo.categories,
               content_type: photo.content_type,
               byte_size: photo.byte_size,
               content_sha256: photo.content_sha256,
@@ -500,6 +639,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
         "approved_schema_version",
         "approved_payload",
         "duplicate_of",
+        "resolution_code",
+        "resolution_detail",
+        "resolved_dsld_id",
       ]),
     );
     const submissionId = requiredUuid(body.submission_id, "submission id");
@@ -515,6 +657,30 @@ Deno.serve(async (request: Request): Promise<Response> => {
         body.duplicate_of === null
       ? null
       : requiredUuid(body.duplicate_of, "duplicate id");
+    // Shape validation only; the status-conditional resolution matrix is
+    // enforced authoritatively inside review_product_submission.
+    const resolutionCode = body.resolution_code === undefined ||
+        body.resolution_code === null
+      ? null
+      : requiredString(body.resolution_code, "resolution code", 40);
+    if (
+      resolutionCode !== null &&
+      !REJECTED_RESOLUTION_CODES.has(resolutionCode) &&
+      !DUPLICATE_RESOLUTION_CODES.has(resolutionCode)
+    ) {
+      throw new Error("invalid resolution code");
+    }
+    const resolutionDetail = body.resolution_detail === undefined ||
+        body.resolution_detail === null
+      ? null
+      : requiredString(body.resolution_detail, "resolution detail", 280);
+    const resolvedDsldId = body.resolved_dsld_id === undefined ||
+        body.resolved_dsld_id === null
+      ? null
+      : requiredString(body.resolved_dsld_id, "resolved product id", 40);
+    if (resolvedDsldId !== null && !RESOLVED_DSLD_PATTERN.test(resolvedDsldId)) {
+      throw new Error("invalid resolved product id");
+    }
 
     let schemaVersion: string | null = null;
     let approvedPayload: JsonObject | null = null;
@@ -556,8 +722,30 @@ Deno.serve(async (request: Request): Promise<Response> => {
       p_approved_payload_canonical: approvedPayloadCanonical,
       p_payload_sha256: payloadHash,
       p_duplicate_of: duplicateOf,
+      p_resolution_code: resolutionCode,
+      p_resolution_detail: resolutionDetail,
+      p_resolved_dsld_id: resolvedDsldId,
     });
     if (error || data !== true) throw error;
+
+    // The durable delivery row is already committed by the RPC. Draining it
+    // must survive the response being returned, so it runs under
+    // EdgeRuntime.waitUntil; a failed send stays pending and is retried by
+    // the stale sweep on the next review action.
+    const drain = drainSubmissionPushDeliveries(admin, submissionId)
+      .catch((pushError) => {
+        console.error(JSON.stringify({
+          event: "product_submission_push_drain_failed",
+          submission_id: submissionId,
+          message: String(pushError),
+        }));
+      });
+    if (typeof EdgeRuntime !== "undefined") {
+      EdgeRuntime.waitUntil(drain);
+    } else {
+      await drain;
+    }
+
     audit(reviewerId, action, "success", 1);
     return json({ updated: true, payload_sha256: payloadHash });
   } catch {

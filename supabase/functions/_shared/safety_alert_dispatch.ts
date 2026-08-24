@@ -42,30 +42,3 @@ export async function constantTimeEquals(
   }
   return difference === 0;
 }
-
-export function buildSafetyAlertNotification({
-  token,
-  alertId,
-  revision,
-}: {
-  token: string;
-  alertId: string;
-  revision: number;
-}) {
-  return {
-    message: {
-      token,
-      notification: {
-        title: "PharmaGuide safety update",
-        body: "A product in your stack has a safety update.",
-      },
-      data: {
-        type: "safety_alert",
-        alert_id: alertId,
-        revision: String(revision),
-      },
-      android: { priority: "high" },
-      apns: { headers: { "apns-priority": "10" } },
-    },
-  };
-}
