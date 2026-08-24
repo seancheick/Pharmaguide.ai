@@ -3,11 +3,11 @@
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
     "schema_version": "5.1.0",
-    "last_updated": "2026-08-13",
+    "last_updated": "2026-08-23",
     "reference_data_contract": {
       "contract_version": "1",
-      "reference_version": "5.1.0-2026-08-13",
-      "semantic_fingerprint": "sha256:54ca9b175448c56966d48998b4c3fcd4dc3f7d5f7bd94819cfc33153b699b2f1"
+      "reference_version": "5.1.0-2026-08-23",
+      "semantic_fingerprint": "sha256:e4547593fe51a449ec1afb2329861b9c25864a711fa73ae30a921ac9cce9a12e"
     },
     "total_entries": 77,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
@@ -622,7 +622,11 @@
       "ul_status": "established",
       "unofficial_ul": null,
       "nutrient_class": "ceiling",
-      "ul_basis": "total_intake"
+      "ul_basis": "total_intake",
+      "ul_applies_to_forms": [
+        "Cholecalciferol (Vitamin D3)",
+        "Ergocalciferol (Vitamin D2)"
+      ]
     },
     {
       "standard_name": "Vitamin E",
@@ -1807,7 +1811,10 @@
       "ul_status": "established",
       "unofficial_ul": null,
       "nutrient_class": "ceiling",
-      "ul_basis": "synthetic_only"
+      "ul_basis": "synthetic_only",
+      "ul_applies_to_forms": [
+        "Folic Acid"
+      ]
     },
     {
       "standard_name": "Vitamin B12",
