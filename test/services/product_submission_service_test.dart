@@ -8,13 +8,13 @@ const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
   group('missing-product evidence contract', () {
-    test('requires front and Supplement Facts photos', () {
+    test('requires full evidence-category coverage', () {
       expect(
         () => MissingProductSubmissionDraft(
           submissionId: _submissionId,
           upc: '050428381397',
-          photos: [_photo(ProductSubmissionPhotoSlot.front)],
-          otherIngredientsNotPresent: true,
+          photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
+          noSeparateIngredientPanel: true,
         ),
         throwsA(
           isA<ProductSubmissionValidationException>().having(
@@ -26,24 +26,46 @@ void main() {
       );
     });
 
-    test('requires Other Ingredients evidence or explicit label absence', () {
+    test('ingredient disclosure is evidence, never a checkbox waiver', () {
+      // The cue flag alone must NOT unlock submission: a facts photo
+      // carrying the ingredient list is dual-tagged instead.
       expect(
         () => MissingProductSubmissionDraft(
           submissionId: _submissionId,
           upc: '050428381397',
           photos: [
-            _photo(ProductSubmissionPhotoSlot.front),
-            _photo(ProductSubmissionPhotoSlot.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(ProductSubmissionEvidenceCategory.supplementFacts),
           ],
+          noSeparateIngredientPanel: true,
         ),
         throwsA(
           isA<ProductSubmissionValidationException>().having(
             (error) => error.reason,
             'reason',
-            ProductSubmissionValidationFailure.missingOtherIngredientsEvidence,
+            ProductSubmissionValidationFailure.missingRequiredPhoto,
           ),
         ),
       );
+
+      final dualTagged = MissingProductSubmissionDraft(
+        submissionId: _submissionId,
+        upc: '050428381397',
+        photos: [
+          _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+          ProductSubmissionPhoto(
+            photoId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+            categories: const {
+              ProductSubmissionEvidenceCategory.supplementFacts,
+              ProductSubmissionEvidenceCategory.ingredientDisclosure,
+            },
+            bytes: Uint8List.fromList([7, 7, 7]),
+            contentType: 'image/jpeg',
+          ),
+        ],
+        noSeparateIngredientPanel: true,
+      );
+      expect(dualTagged.noSeparateIngredientPanel, isTrue);
     });
 
     test('normalizes a scanned UPC without accepting arbitrary text', () {
@@ -51,9 +73,9 @@ void main() {
         submissionId: _submissionId,
         upc: '0 50428 38139 7',
         photos: [
-          _photo(ProductSubmissionPhotoSlot.front),
-          _photo(ProductSubmissionPhotoSlot.supplementFacts),
-          _photo(ProductSubmissionPhotoSlot.otherIngredients),
+          _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+          _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+          _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
         ],
       );
 
@@ -63,10 +85,10 @@ void main() {
           submissionId: _submissionId,
           upc: 'patient takes metformin',
           photos: [
-            _photo(ProductSubmissionPhotoSlot.front),
-            _photo(ProductSubmissionPhotoSlot.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
           ],
-          otherIngredientsNotPresent: true,
         ),
         throwsA(isA<ProductSubmissionValidationException>()),
       );
@@ -78,10 +100,10 @@ void main() {
           submissionId: _submissionId,
           upc: '12345678',
           photos: [
-            _photo(ProductSubmissionPhotoSlot.front),
-            _photo(ProductSubmissionPhotoSlot.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
           ],
-          otherIngredientsNotPresent: true,
         ),
         throwsA(
           isA<ProductSubmissionValidationException>().having(
@@ -102,10 +124,10 @@ void main() {
         submissionId: _submissionId,
         upc: '050428381397',
         photos: [
-          _photo(ProductSubmissionPhotoSlot.front),
-          _photo(ProductSubmissionPhotoSlot.supplementFacts),
+          _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+          _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+          _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
         ],
-        otherIngredientsNotPresent: true,
       );
 
       final result = await service.submit(draft);
@@ -114,8 +136,9 @@ void main() {
       expect(backend.operations, [
         'persist',
         'finalize:$_submissionId',
-        'upload:$_userId/$_submissionId/front',
-        'upload:$_userId/$_submissionId/supplement_facts',
+        'upload:$_userId/$_submissionId/$_frontPhotoId',
+        'upload:$_userId/$_submissionId/$_factsPhotoId',
+        'upload:$_userId/$_submissionId/$_ingredientsPhotoId',
         'finalize:$_submissionId',
       ]);
       expect(backend.persistedPayload, {
@@ -123,21 +146,31 @@ void main() {
         'p_kind': 'missing_product',
         'p_upc': '050428381397',
         'p_mismatch_detail': null,
-        'p_other_ingredients_not_present': true,
+        'p_no_separate_ingredient_panel': false,
         'p_photos': [
           {
-            'photo_slot': 'front',
+            'photo_id': _frontPhotoId,
+            'seq': 1,
+            'categories': ['front_identity'],
             'content_type': 'image/jpeg',
-            'byte_size': 3,
-            'content_sha256':
-                '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
+            'byte_size': 4,
+            'content_sha256': _photo(ProductSubmissionEvidenceCategory.frontIdentity).contentSha256,
           },
           {
-            'photo_slot': 'supplement_facts',
+            'photo_id': _factsPhotoId,
+            'seq': 2,
+            'categories': ['supplement_facts'],
             'content_type': 'image/jpeg',
-            'byte_size': 3,
-            'content_sha256':
-                '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
+            'byte_size': 4,
+            'content_sha256': _photo(ProductSubmissionEvidenceCategory.supplementFacts).contentSha256,
+          },
+          {
+            'photo_id': _ingredientsPhotoId,
+            'seq': 3,
+            'categories': ['ingredient_disclosure'],
+            'content_type': 'image/jpeg',
+            'byte_size': 4,
+            'content_sha256': _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure).contentSha256,
           },
         ],
       });
@@ -171,7 +204,7 @@ void main() {
             'formula_fingerprint': null,
             'mismatch_categories': ['amount_or_unit'],
           },
-          'p_other_ingredients_not_present': false,
+          'p_no_separate_ingredient_panel': false,
           'p_photos': <Map<String, Object?>>[],
         });
       },
@@ -209,10 +242,22 @@ void main() {
   });
 }
 
-ProductSubmissionPhoto _photo(ProductSubmissionPhotoSlot slot) {
+const _frontPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+const _factsPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+const _ingredientsPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3';
+
+ProductSubmissionPhoto _photo(ProductSubmissionEvidenceCategory category) {
+  final id = switch (category) {
+    ProductSubmissionEvidenceCategory.frontIdentity => _frontPhotoId,
+    ProductSubmissionEvidenceCategory.supplementFacts => _factsPhotoId,
+    ProductSubmissionEvidenceCategory.ingredientDisclosure =>
+      _ingredientsPhotoId,
+    _ => _frontPhotoId,
+  };
   return ProductSubmissionPhoto(
-    slot: slot,
-    bytes: Uint8List.fromList([1, 2, 3]),
+    photoId: id,
+    categories: {category},
+    bytes: Uint8List.fromList([1, 2, 3, id.codeUnitAt(id.length - 1)]),
     contentType: 'image/jpeg',
   );
 }
@@ -248,7 +293,7 @@ class _FakeBackend implements ProductSubmissionBackend {
         persistedPayload?['p_photos'] as List<Map<String, Object?>>? ??
         const [];
     final expected = photos.map(
-      (photo) => '$_userId/$submissionId/${photo['photo_slot']}',
+      (photo) => '$_userId/$submissionId/${photo['photo_id']}',
     );
     return expected.every(uploadedPaths.contains);
   }
