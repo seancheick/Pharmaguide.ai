@@ -17,6 +17,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -96,10 +97,16 @@ void main() {
   late InteractionDatabase db;
   late Uint8List assetBytes;
   late Map<String, dynamic> pin;
+  late Map<String, dynamic> manifest;
 
   setUpAll(() async {
     pin =
         jsonDecode(File('tool/interaction_db.release.json').readAsStringSync())
+            as Map<String, dynamic>;
+    manifest =
+        jsonDecode(
+              File('assets/db/interaction_db_manifest.json').readAsStringSync(),
+            )
             as Map<String, dynamic>;
 
     final data = await rootBundle.load('assets/db/interaction_db.sqlite');
@@ -136,6 +143,16 @@ void main() {
         assetBytes.length,
         greaterThanOrEqualTo(pin['min_size_bytes'] as int),
       );
+    });
+
+    test('release pin, bundled file, and manifest identify one artifact', () {
+      final bundledSha256 = sha256.convert(assetBytes).toString();
+
+      expect(pin['sha256'], bundledSha256);
+      expect(pin['size_bytes'], assetBytes.length);
+      expect(manifest['checksum_sha256'], bundledSha256);
+      expect(pin['interaction_db_version'], manifest['interaction_db_version']);
+      expect(pin['schema_version'], manifest['schema_version']);
     });
   });
 
