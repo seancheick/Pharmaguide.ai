@@ -173,11 +173,11 @@ Must include: private review, third-party AI may read the label, human approves 
 - Modify: `scripts/product_submission_import.py` `_validate_label_payload`
 - Create: shared malformed/valid JSON fixtures; checksum test in both repos
 
-- [ ] **Step 1: Deno tests** — empty ingredient object rejected; blend nesting; units; `unverified` disclosure rejected; `present` requires otherIngredients text; `declared_none` requires empty.
+- [x] **Step 1: Deno tests** — empty ingredient object rejected; blend nesting; units; `unverified` disclosure rejected; `present` requires otherIngredients text; `declared_none` requires empty.
 
-- [ ] **Step 2: Implement schema; importer parity**
+- [x] **Step 2: Implement schema; importer parity**
 
-- [ ] **Step 3:** `deno test --allow-env supabase/functions/` and `bash scripts/test.sh fast -k "product_submission_import or manual_label"` in dsld_clean
+- [x] **Step 3:** `deno test --allow-env supabase/functions/` (21 passed) and `bash scripts/test.sh fast -k "product_submission_import or manual_label"` (36 passed) in dsld_clean
 
 ### Task 10: Open queue + cursor pagination
 

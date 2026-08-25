@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const _functionPath = 'supabase/functions/review-product-submissions/index.ts';
+const _schemaPath = 'supabase/functions/review-product-submissions/schema.ts';
 
 void main() {
   late String source;
+  late String schemaSource;
 
   setUpAll(() {
     final function = File(_functionPath);
@@ -15,6 +17,13 @@ void main() {
       reason: 'The unified reviewer boundary must exist.',
     );
     source = function.readAsStringSync().replaceAll('"', "'");
+    final schema = File(_schemaPath);
+    expect(
+      schema.existsSync(),
+      isTrue,
+      reason: 'The deep label schema must exist.',
+    );
+    schemaSource = schema.readAsStringSync().replaceAll('"', "'");
   });
 
   test('authenticates an allowlisted reviewer before service-role access', () {
@@ -132,6 +141,7 @@ void main() {
       'nutritionalInfo',
       'offMarket',
       'otherIngredients',
+      'otherIngredientsDisclosure',
       'physicalState',
       'productType',
       'servingSizes',
@@ -139,15 +149,18 @@ void main() {
       'statements',
     ]) {
       expect(
-        source,
+        '$source\n$schemaSource',
         contains("'$field'"),
         reason:
             'The reviewer and pipeline must pin the same manual-label fields.',
       );
     }
     expect(source, contains('APPROVED_PAYLOAD_MAX_BYTES = 512 * 1024'));
-    expect(source, contains('ingredientRows.length > 200'));
-    expect(source, contains('servingSizes.length > 20'));
+    expect(schemaSource, contains('payload.ingredientRows.length > 200'));
+    expect(schemaSource, contains('payload.servingSizes.length > 20'));
+    expect(schemaSource, contains('validateIngredientRow('));
+    expect(schemaSource, contains("'included_on_facts_panel'"));
+    expect(schemaSource, isNot(contains("'unverified',")));
     expect(source, contains('.download(objectPath)'));
     expect(source, contains('sha256HexBytes(bytes)'));
     final approvalBranch = source.indexOf("if (toStatus === 'approved')");
@@ -213,9 +226,9 @@ void main() {
           'Visible push copy lives only in the shared generic constants, '
           'never inline where payload text could reach it.',
     );
-    final fcm = File('supabase/functions/_shared/fcm_v1.ts')
-        .readAsStringSync()
-        .replaceAll('"', "'");
+    final fcm = File(
+      'supabase/functions/_shared/fcm_v1.ts',
+    ).readAsStringSync().replaceAll('"', "'");
     expect(fcm, contains("'Your product submission has an update.'"));
     final copyConstants = fcm
         .split('\n')

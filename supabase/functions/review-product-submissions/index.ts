@@ -12,6 +12,7 @@ import {
   fcmAccessToken,
   sendFcmMessage,
 } from "../_shared/fcm_v1.ts";
+import { validateManualLabelV1 } from "./schema.ts";
 
 // Supabase Edge Runtime keeps promises passed to EdgeRuntime.waitUntil alive
 // after the response is returned; a bare floating promise may be killed.
@@ -55,20 +56,6 @@ const DUPLICATE_RESOLUTION_CODES = new Set([
 const RESOLVED_DSLD_PATTERN = /^([0-9]{1,30}|PG_SUB_[0-9A-F]{32})$/;
 const STALE_PUSH_RETRY_MS = 2 * 60 * 1000;
 const MAX_PUSH_BATCH = 20;
-const APPROVED_PAYLOAD_FIELDS = new Set([
-  "brandName",
-  "fullName",
-  "ingredientRows",
-  "nutritionalInfo",
-  "offMarket",
-  "otherIngredients",
-  "physicalState",
-  "productType",
-  "servingSizes",
-  "servingsPerContainer",
-  "statements",
-]);
-
 type JsonObject = Record<string, unknown>;
 
 function json(body: unknown, status = 200): Response {
@@ -128,35 +115,7 @@ function requiredUuid(value: unknown, name: string): string {
 }
 
 function validateApprovedPayload(value: unknown): JsonObject {
-  if (!isObject(value)) throw new Error("approved payload required");
-  rejectUnknownKeys(value, APPROVED_PAYLOAD_FIELDS);
-  requiredString(value.brandName, "approved brand", 300);
-  requiredString(value.fullName, "approved product name", 300);
-
-  const ingredientRows = value.ingredientRows;
-  if (
-    !Array.isArray(ingredientRows) || ingredientRows.length === 0 ||
-    ingredientRows.length > 200 ||
-    !ingredientRows.every(isObject)
-  ) {
-    throw new Error("invalid approved ingredient rows");
-  }
-  const servingSizes = value.servingSizes;
-  if (
-    !Array.isArray(servingSizes) || servingSizes.length === 0 ||
-    servingSizes.length > 20 ||
-    !servingSizes.every(isObject)
-  ) {
-    throw new Error("invalid approved serving sizes");
-  }
-  if (
-    value.offMarket !== undefined &&
-    value.offMarket !== 0 && value.offMarket !== 1 &&
-    value.offMarket !== false && value.offMarket !== true
-  ) {
-    throw new Error("invalid approved market status");
-  }
-  return value;
+  return validateManualLabelV1(value);
 }
 
 function canonicalJson(value: unknown): string {
@@ -265,7 +224,6 @@ async function verifySubmissionPhotoIntegrity(
   }
   return verifiedHashes;
 }
-
 
 // Drain pending submission push deliveries: this submission's rows plus a
 // bounded batch of stale pending rows from earlier failed sends. Delivery is
@@ -678,7 +636,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
         body.resolved_dsld_id === null
       ? null
       : requiredString(body.resolved_dsld_id, "resolved product id", 40);
-    if (resolvedDsldId !== null && !RESOLVED_DSLD_PATTERN.test(resolvedDsldId)) {
+    if (
+      resolvedDsldId !== null && !RESOLVED_DSLD_PATTERN.test(resolvedDsldId)
+    ) {
       throw new Error("invalid resolved product id");
     }
 
