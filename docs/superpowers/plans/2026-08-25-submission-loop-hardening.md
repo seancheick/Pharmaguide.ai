@@ -157,9 +157,9 @@ Must include: private review, third-party AI may read the label, human approves 
 
 ### Task 8: Batch 1 verification
 
-- [ ] `flutter test` on all files touched in Batch 1
-- [ ] `make check` in PharmaGuide ai
-- [ ] Commit Batch 1 as one PR (or stacked commits per task)
+- [x] `flutter test` on all files touched in Batch 1 — 136 focused tests passed.
+- [x] `make check` in PharmaGuide ai — analyze clean; all 3,357 tests passed.
+- [x] Commit Batch 1 as one PR (stacked commits per task).
 
 ---
 
