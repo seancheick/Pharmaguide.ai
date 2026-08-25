@@ -15,14 +15,22 @@ class SafetyPushService with WidgetsBindingObserver {
     FirebaseMessaging? messaging,
     this._invokeFunction,
     @visibleForTesting this.isAuthenticated,
-  }) : _messaging = messaging ?? FirebaseMessaging.instance;
+  }) : _messagingOverride = messaging;
 
   /// The one live transport instance, set by [initialize]. Sign-out flows use
   /// it to tear down the device token while the session can still authorize
   /// the server-side removal.
   static SafetyPushService? active;
 
-  final FirebaseMessaging _messaging;
+  final FirebaseMessaging? _messagingOverride;
+
+  // Resolved lazily: FirebaseMessaging.instance requires the default Firebase
+  // app, which exists only after initialize() has awaited
+  // Firebase.initializeApp(). Touching it in the constructor threw
+  // [core/no-app] inside the bootstrap FutureProvider, which swallowed the
+  // error — push registration silently never ran on any platform.
+  late final FirebaseMessaging _messaging =
+      _messagingOverride ?? FirebaseMessaging.instance;
   final Future<void> Function(String functionName, Map<String, dynamic> body)?
   _invokeFunction;
   final bool Function()? isAuthenticated;
@@ -47,7 +55,9 @@ class SafetyPushService with WidgetsBindingObserver {
     }
     try {
       _onSafetyAlert = onSafetyAlert;
+      debugPrint('Safety push: initializing');
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
+      debugPrint('Safety push: Firebase ready');
       await _messaging.setForegroundNotificationPresentationOptions(
         alert: false,
         badge: false,
@@ -121,9 +131,13 @@ class SafetyPushService with WidgetsBindingObserver {
   /// and the resumed-lifecycle retry complete registration later.
   @visibleForTesting
   Future<void> acquireAndRegisterToken() async {
-    if (!_hasAuthenticatedUser) return;
+    if (!_hasAuthenticatedUser) {
+      debugPrint('Safety push: acquire skipped (signed out)');
+      return;
+    }
     try {
       final settings = await _messaging.requestPermission();
+      debugPrint('Safety push: permission ${settings.authorizationStatus}');
       if (settings.authorizationStatus == AuthorizationStatus.denied ||
           settings.authorizationStatus == AuthorizationStatus.notDetermined) {
         return;
@@ -137,9 +151,13 @@ class SafetyPushService with WidgetsBindingObserver {
         }
         // getToken() throws while the APNs token is missing; onTokenRefresh
         // fires once the platform delivers it, and registration follows then.
-        if (apnsToken == null) return;
+        if (apnsToken == null) {
+          debugPrint('Safety push: APNs token not ready; deferring');
+          return;
+        }
       }
       final token = await _messaging.getToken();
+      if (token == null) debugPrint('Safety push: FCM token null');
       if (token != null) await _register(token);
     } on Object catch (error) {
       debugPrint('Push token acquisition failed: $error');
@@ -189,6 +207,7 @@ class SafetyPushService with WidgetsBindingObserver {
       'platform': platform,
     });
     _tokenRegistered = true;
+    debugPrint('Push token registered ($platform)');
   }
 
   Future<void> _invoke(String functionName, Map<String, dynamic> body) async {
