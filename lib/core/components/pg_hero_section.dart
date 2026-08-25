@@ -190,6 +190,9 @@ class PGHeroSection extends StatelessWidget {
     final confidenceLabel = limitedAssessment
         ? 'Limited'
         : parsedConfidenceLabel;
+    final limitedAssessmentDetail = scoreConfidenceDrivers.isEmpty
+        ? 'Limited assessment'
+        : scoreConfidenceDrivers.join(' • ');
     final scoreDisplay = heroScoreDisplayFor(
       score: score,
       isBlocked: isBlocked,
@@ -330,7 +333,7 @@ class PGHeroSection extends StatelessWidget {
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
-              'Limited assessment',
+              limitedAssessmentDetail,
               style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
