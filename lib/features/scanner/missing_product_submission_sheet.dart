@@ -136,21 +136,20 @@ class _MissingProductSubmissionSheetState
         _CaptureStep.ingredients => const {
           ProductSubmissionEvidenceCategory.ingredientDisclosure,
         },
-        _CaptureStep.extras || _CaptureStep.review =>
-          const <ProductSubmissionEvidenceCategory>{},
+        _CaptureStep.extras ||
+        _CaptureStep.review => const <ProductSubmissionEvidenceCategory>{},
       };
 
   bool get _stepSatisfied => switch (_step) {
-    _CaptureStep.front =>
-      _photosTagged(ProductSubmissionEvidenceCategory.frontIdentity).isNotEmpty,
-    _CaptureStep.facts =>
-      _photosTagged(
-        ProductSubmissionEvidenceCategory.supplementFacts,
-      ).isNotEmpty,
-    _CaptureStep.ingredients =>
-      _photosTagged(
-        ProductSubmissionEvidenceCategory.ingredientDisclosure,
-      ).isNotEmpty,
+    _CaptureStep.front => _photosTagged(
+      ProductSubmissionEvidenceCategory.frontIdentity,
+    ).isNotEmpty,
+    _CaptureStep.facts => _photosTagged(
+      ProductSubmissionEvidenceCategory.supplementFacts,
+    ).isNotEmpty,
+    _CaptureStep.ingredients => _photosTagged(
+      ProductSubmissionEvidenceCategory.ingredientDisclosure,
+    ).isNotEmpty,
     _CaptureStep.extras || _CaptureStep.review => true,
   };
 
@@ -622,17 +621,14 @@ class _MissingProductSubmissionSheetState
     if (_submitting && _phase != null) ...[
       const SizedBox(height: V2Spacing.space8),
       Center(
-        child: Text(
-          switch (_phase!) {
-            ProductSubmissionPhase.savingReport => 'Saving your report…',
-            ProductSubmissionPhase.uploadingPhotos =>
-              'Uploading ${_photos.length} photo'
-                  '${_photos.length == 1 ? '' : 's'}…',
-            ProductSubmissionPhase.succeeded => 'Done',
-            ProductSubmissionPhase.failed => 'Something went wrong',
-          },
-          style: V2Typography.caption(color: context.v2.fgMuted),
-        ),
+        child: Text(switch (_phase!) {
+          ProductSubmissionPhase.savingReport => 'Saving your report…',
+          ProductSubmissionPhase.uploadingPhotos =>
+            'Uploading ${_photos.length} photo'
+                '${_photos.length == 1 ? '' : 's'}…',
+          ProductSubmissionPhase.succeeded => 'Done',
+          ProductSubmissionPhase.failed => 'Something went wrong',
+        }, style: V2Typography.caption(color: context.v2.fgMuted)),
       ),
     ],
     const SizedBox(height: V2Spacing.space12),
@@ -667,10 +663,12 @@ class _MissingProductSubmissionSheetState
 
   String _requiredCopy(_CaptureStep step) => switch (step) {
     _CaptureStep.front => 'Add at least one photo of the front label.',
-    _CaptureStep.facts => 'Add at least one photo of the Supplement Facts '
-        'panel.',
-    _CaptureStep.ingredients => 'Add at least one photo of the Other '
-        'Ingredients list.',
+    _CaptureStep.facts =>
+      'Add at least one photo of the Supplement Facts '
+          'panel.',
+    _CaptureStep.ingredients =>
+      'Add at least one photo of the Other '
+          'Ingredients list.',
     _CaptureStep.extras || _CaptureStep.review => '',
   };
 }
@@ -741,11 +739,7 @@ class _PhotoThumbnailStrip extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   tooltip: 'Remove photo',
                   onPressed: enabled ? () => onRemove(photo) : null,
-                  icon: Icon(
-                    Icons.cancel,
-                    size: 20,
-                    color: context.v2.fgMuted,
-                  ),
+                  icon: Icon(Icons.cancel, size: 20, color: context.v2.fgMuted),
                 ),
               ),
             ],

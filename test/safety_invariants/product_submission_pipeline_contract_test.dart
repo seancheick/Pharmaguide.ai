@@ -181,6 +181,32 @@ void main() {
     );
   });
 
+  test('duplicate-barcode submissions are refused at create, not finalize', () {
+    final file = File(
+      'supabase/migrations/'
+      '20260825131703_reject_duplicate_open_submission_at_create.sql',
+    );
+    expect(
+      file.existsSync(),
+      isTrue,
+      reason:
+          'Without the create-time guard a duplicate submission '
+          'completes every photo upload and only then dies at finalize, '
+          'stranding an orphaned pending row and a retry loop.',
+    );
+    final sql = file.readAsStringSync().toLowerCase();
+    expect(sql, contains('before insert on public.product_submissions'));
+    expect(sql, contains("existing.upload_state = 'ready'"));
+    expect(sql, contains('existing.promoted_at is null'));
+    expect(
+      sql,
+      contains('idx_product_submissions_user_open_upc'),
+      reason:
+          'The app maps this substring to its actionable conflict copy; '
+          'the trigger must speak the same language as the index.',
+    );
+  });
+
   test(
     'review artifacts are versioned, attributable, and never self-approved',
     () {
@@ -524,10 +550,7 @@ void main() {
       );
       expect(v2, contains('rejection resolution code required'));
       expect(v2, contains('resolution not allowed for this transition'));
-      expect(
-        v2,
-        contains('product_submissions_resolution_consistent'),
-      );
+      expect(v2, contains('product_submissions_resolution_consistent'));
     });
 
     test('promotion stamps resolution and cascades to duplicates', () {
@@ -538,25 +561,27 @@ void main() {
       expect(v2, contains('p_resolved_dsld_id text'));
       expect(
         v2,
-        contains("where duplicate_of = p_submission_id and "
-            "review_status = 'duplicate'"),
+        contains(
+          "where duplicate_of = p_submission_id and "
+          "review_status = 'duplicate'",
+        ),
         reason:
             'Duplicate submitters must not stay at on-the-way forever once '
             'their target ships.',
       );
       expect(
         v2,
-        contains('grant execute on function '
-            'public.mark_product_submission_promoted( uuid, text, text )'),
+        contains(
+          'grant execute on function '
+          'public.mark_product_submission_promoted( uuid, text, text )',
+        ),
       );
     });
 
     test('push deliveries are durable, service-scoped, and policy-free', () {
       expect(
         v2,
-        contains(
-          'create table public.product_submission_push_deliveries',
-        ),
+        contains('create table public.product_submission_push_deliveries'),
       );
       expect(
         v2,
@@ -565,20 +590,22 @@ void main() {
       );
       expect(
         v2,
-        contains('alter table public.product_submission_push_deliveries '
-            'force row level security'),
+        contains(
+          'alter table public.product_submission_push_deliveries '
+          'force row level security',
+        ),
       );
       expect(
         v2,
-        isNot(
-          contains('create policy "product_submission_push_deliveries'),
-        ),
+        isNot(contains('create policy "product_submission_push_deliveries')),
         reason: 'No client route to the push queue.',
       );
       expect(
         v2,
-        contains('grant select, update on table '
-            'public.product_submission_push_deliveries to service_role'),
+        contains(
+          'grant select, update on table '
+          'public.product_submission_push_deliveries to service_role',
+        ),
       );
     });
 

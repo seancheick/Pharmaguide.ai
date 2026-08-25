@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
-import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
@@ -21,6 +20,8 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/features/scanner/scanner_capture_overlay.dart';
+import 'package:pharmaguide/features/scanner/scanner_not_found_sheet.dart';
 import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
@@ -55,7 +56,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   // sees nothing happen until they aim at the actual UPC, which
   // matches their expectation of "scan the barcode".
   final _scannerController = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
+    // noDuplicates suppresses repeat emissions of the same code at the
+    // decoder level; the post-dismiss cooldown below handles re-arming
+    // after a not-found sheet closes over the same bottle.
+    detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
     formats: const [
       BarcodeFormat.upcA,
@@ -72,10 +76,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   String? _revealCaption;
   ProductsCoreData? _pendingRevealProduct;
 
-  // S1 — full-screen not-found overlay (replaces bottom sheet only
-  // for presentation; failed-scan sensor + actions unchanged).
-  bool _showNotFound = false;
-  String? _notFoundUpc;
+  // Ignore the just-missed code briefly after its not-found sheet closes,
+  // or the resumed camera re-fires the same sheet before the user can
+  // move the phone off the bottle.
+  String? _cooldownCode;
+  DateTime? _cooldownUntil;
 
   @override
   void dispose() {
@@ -92,6 +97,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final barcode = barcodes.first;
     final value = barcode.rawValue;
     if (value == null || value.isEmpty) return;
+    final cooldownUntil = _cooldownUntil;
+    if (value == _cooldownCode &&
+        cooldownUntil != null &&
+        DateTime.now().isBefore(cooldownUntil)) {
+      return;
+    }
 
     setState(() => _hasScanned = true);
     // Decorative tap haptic — confirms barcode was captured. Suppressed
@@ -148,7 +159,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         await _showVerdictFlashAndNavigate(product);
       } else if (resolution is UpcNotFound) {
         CrashReportingService().setScanResult('not_found');
-        _showProductNotFound(upc);
+        unawaited(_showProductNotFound(upc));
       } else {
         setState(() => _hasScanned = false);
       }
@@ -163,7 +174,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       CrashReportingService().recordError(e, st, hint: 'scanner:db_error');
       if (!mounted) return;
       setState(() => _isLookingUp = false);
-      _showProductNotFound(upc);
+      unawaited(_showProductNotFound(upc));
     }
   }
 
@@ -211,7 +222,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  void _showProductNotFound(String upc) {
+  Future<void> _showProductNotFound(String upc) async {
     // Layer 4 missing-UPC sensor: persist the miss locally (UPC + count
     // only; no user identifier per the privacy contract in
     // failed_scans_table.dart) and breadcrumb to Sentry so it appears
@@ -221,40 +232,51 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     // Event name ONLY — never the barcode.
     CrashReportingService().log('scan_failed_missing_upc');
 
-    setState(() {
-      _showNotFound = true;
-      _notFoundUpc = upc;
-    });
-  }
-
-  void _dismissNotFound() {
+    // A live camera behind a decision sheet is noise — and worse, it
+    // looks like it is still tracking whatever the user frames next
+    // while the sheet's stored code never changes. Freeze it; every
+    // path out of the sheet re-arms explicitly.
+    unawaited(_scannerController.stop());
+    final action = await showScannerNotFoundSheet(context, scannedCode: upc);
     if (!mounted) return;
-    setState(() {
-      _showNotFound = false;
-      _notFoundUpc = null;
-      _hasScanned = false;
-    });
+    switch (action) {
+      case ScannerNotFoundAction.searchByName:
+        await context.push(Routes.search);
+      case ScannerNotFoundAction.helpAddProduct:
+        await _openMissingProductSubmission(upc);
+      case ScannerNotFoundAction.addMedication:
+        await context.push(Routes.medicationEntry);
+      case ScannerNotFoundAction.scanAgain || null:
+        break;
+    }
+    _resumeScanning(cooldownFor: upc);
   }
 
-  Future<void> _openMissingProductSubmission() async {
-    final upc = _notFoundUpc;
-    if (upc == null || upc.isEmpty) return;
+  /// Re-arms the camera after any overlay flow, briefly ignoring the
+  /// code that just failed so the sheet cannot instantly re-fire.
+  void _resumeScanning({String? cooldownFor}) {
+    if (!mounted) return;
+    if (cooldownFor != null) {
+      _cooldownCode = cooldownFor;
+      _cooldownUntil = DateTime.now().add(const Duration(seconds: 3));
+    }
+    setState(() => _hasScanned = false);
+    unawaited(_scannerController.start());
+  }
+
+  Future<void> _openMissingProductSubmission(String upc) async {
+    if (upc.isEmpty) return;
     if (ref.read(authStateProvider) != AuthMode.signedIn) {
       // The global auth listener lands users with router.go(...) after
       // sign-in (and a magic link may restart the app), so the sheet is
       // reopened from a persisted intent — never from this await.
       await PendingSubmissionIntent.save(upc);
       if (!mounted) return;
-      _dismissNotFound();
       await context.push(Routes.authInvitation);
       return;
     }
 
-    final submitted = await showMissingProductSubmissionSheet(
-      context,
-      upc: upc,
-    );
-    if (submitted && mounted) _dismissNotFound();
+    await showMissingProductSubmissionSheet(context, upc: upc);
   }
 
   /// Opens the manual barcode entry bottom sheet, then runs the same
@@ -303,167 +325,128 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Camera
-          MobileScanner(
-            controller: _scannerController,
-            onDetect: _onDetect,
-            errorBuilder: (_, _) => const ColoredBox(color: Colors.black),
-          ),
-          // Overlay
-          Positioned.fill(
-            child: ValueListenableBuilder<MobileScannerState>(
-              valueListenable: _scannerController,
-              builder: (context, scannerState, _) {
-                if (scannerCameraPermissionDenied(scannerState)) {
-                  return CameraPermissionV2Screen(
-                    denied: true,
-                    onPrimaryAction: () => unawaited(_openAppSettings()),
-                    onManualEntry: _openManualBarcodeSheet,
-                  );
-                }
-                final cameraUnavailable = scannerState.error != null;
-                return SafeArea(
-                  child: Column(
-                    children: [
-                      // Top bar
-                      Padding(
-                        padding: const EdgeInsets.all(V2Spacing.space16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Scan product',
-                              style: V2Typography.titleSm(color: Colors.white),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.flash_on_rounded,
-                                color: Colors.white,
-                              ),
-                              onPressed: () => _scannerController.toggleTorch(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: cameraUnavailable
-                              ? const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: V2Spacing.space24,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final layoutSize = constraints.biggest;
+          return Stack(
+            children: [
+              // Camera — the decode window derives from the SAME layout box
+              // as the drawn reticle, so the guide and the real detection
+              // region cannot silently diverge.
+              MobileScanner(
+                controller: _scannerController,
+                onDetect: _onDetect,
+                scanWindow: ScannerReticleGeometry.scanWindow(layoutSize),
+                errorBuilder: (_, _) => const ColoredBox(color: Colors.black),
+              ),
+              // Contrast chrome above the feed: cutout scrim, corner
+              // brackets, and a pill-backed helper line — raw text over a
+              // live camera is unreadable on bright scenes.
+              const ScannerCaptureOverlay(helperText: 'Point at the barcode'),
+              // Overlay
+              Positioned.fill(
+                child: ValueListenableBuilder<MobileScannerState>(
+                  valueListenable: _scannerController,
+                  builder: (context, scannerState, _) {
+                    if (scannerCameraPermissionDenied(scannerState)) {
+                      return CameraPermissionV2Screen(
+                        denied: true,
+                        onPrimaryAction: () => unawaited(_openAppSettings()),
+                        onManualEntry: _openManualBarcodeSheet,
+                      );
+                    }
+                    final cameraUnavailable = scannerState.error != null;
+                    return SafeArea(
+                      child: Column(
+                        children: [
+                          // Top bar
+                          Padding(
+                            padding: const EdgeInsets.all(V2Spacing.space16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Scan product',
+                                  style: V2Typography.titleSm(
+                                    color: Colors.white,
                                   ),
-                                  child: _ScannerUnavailableCard(),
-                                )
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxWidth: 250,
-                                        maxHeight: 250,
-                                      ),
-                                      child: AspectRatio(
-                                        aspectRatio: 1,
-                                        child: DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            border: Border.all(
-                                              color: Colors.white70,
-                                              width: 2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              V2Spacing.radiusCard,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: V2Spacing.space16),
-                                    Text(
-                                      'Center the barcode in the frame',
-                                      style: V2Typography.bodyMedium(
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: V2Spacing.space8),
-                                    Text(
-                                      'We will match it against your on-device product catalog.',
-                                      style: V2Typography.bodySm(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.72,
-                                        ),
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
                                 ),
-                        ),
-                      ),
-                      // Bottom actions
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          V2Spacing.space24,
-                          V2Spacing.space16,
-                          V2Spacing.space24,
-                          V2Spacing.space24,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PGPillButton(
-                              label: 'Enter code manually',
-                              icon: Icons.keyboard_rounded,
-                              variant: PGPillVariant.primary,
-                              expand: true,
-                              onPressed: _openManualBarcodeSheet,
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.flash_on_rounded,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () =>
+                                      _scannerController.toggleTorch(),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: V2Spacing.space12),
-                            PGPillButton(
-                              label: 'Add medication',
-                              icon: Icons.medication_outlined,
-                              variant: PGPillVariant.secondary,
-                              expand: true,
-                              onPressed: () =>
-                                  context.push(Routes.medicationEntry),
+                          ),
+                          // The reticle, scrim, and helper pill live in
+                          // ScannerCaptureOverlay behind this layer; this
+                          // slot only surfaces the camera-unavailable card.
+                          Expanded(
+                            child: Center(
+                              child: cameraUnavailable
+                                  ? const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: V2Spacing.space24,
+                                      ),
+                                      child: _ScannerUnavailableCard(),
+                                    )
+                                  : const SizedBox.shrink(),
                             ),
-                          ],
-                        ),
+                          ),
+                          // Bottom actions
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              V2Spacing.space24,
+                              V2Spacing.space16,
+                              V2Spacing.space24,
+                              V2Spacing.space24,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                PGPillButton(
+                                  label: 'Enter code manually',
+                                  icon: Icons.keyboard_rounded,
+                                  variant: PGPillVariant.primary,
+                                  expand: true,
+                                  onPressed: _openManualBarcodeSheet,
+                                ),
+                                const SizedBox(height: V2Spacing.space12),
+                                PGPillButton(
+                                  label: 'Add medication',
+                                  icon: Icons.medication_outlined,
+                                  variant: PGPillVariant.secondary,
+                                  expand: true,
+                                  onPressed: () =>
+                                      context.push(Routes.medicationEntry),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: kPGNavBarHeight),
+                        ],
                       ),
-                      const SizedBox(height: kPGNavBarHeight),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          // Loading overlay
-          if (_isLookingUp) const ScannerLookupOverlay(),
-          // S1 — v2 verdict reveal (success / attention).
-          if (_revealKind != null)
-            PGVerdictReveal(
-              kind: _revealKind!,
-              caption: _revealCaption,
-              playHaptic: false,
-              onDismiss: () => unawaited(_completeRevealAndNavigate()),
-            ),
-          // S1 — v2 not-found overlay.
-          if (_showNotFound)
-            PGScanNotFound(
-              scannedCode: _notFoundUpc,
-              onRetry: _dismissNotFound,
-              onSearchByName: () {
-                _dismissNotFound();
-                context.push(Routes.search);
-              },
-              onManualEntry: () {
-                _dismissNotFound();
-                unawaited(_openManualBarcodeSheet());
-              },
-              onSubmitProduct: () => unawaited(_openMissingProductSubmission()),
-              onClose: _dismissNotFound,
-            ),
-        ],
+                    );
+                  },
+                ),
+              ),
+              // Loading overlay
+              if (_isLookingUp) const ScannerLookupOverlay(),
+              // S1 — v2 verdict reveal (success / attention).
+              if (_revealKind != null)
+                PGVerdictReveal(
+                  kind: _revealKind!,
+                  caption: _revealCaption,
+                  playHaptic: false,
+                  onDismiss: () => unawaited(_completeRevealAndNavigate()),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -616,119 +599,6 @@ class ScannerLookupOverlay extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class ScannerNotFoundSheet extends StatelessWidget {
-  final String upc;
-  final VoidCallback onTryAgain;
-  final VoidCallback onSearchByName;
-  final VoidCallback? onSubmitProduct;
-
-  const ScannerNotFoundSheet({
-    super.key,
-    required this.upc,
-    required this.onTryAgain,
-    required this.onSearchByName,
-    this.onSubmitProduct,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      // `PGModal.bottomSheet` already wraps content in `SafeArea` so
-      // adding `kPGNavBarHeight` here pushed the action row up above
-      // the device's safe-area gutter — Sean called this out as the
-      // "modal opens too high" bug on 1.0.0+4. Inside a modal there
-      // is no nav bar to clear, only the safe-area inset which the
-      // SafeArea wrapper already consumes.
-      padding: const EdgeInsets.fromLTRB(
-        V2Spacing.space24,
-        V2Spacing.space8,
-        V2Spacing.space24,
-        V2Spacing.space24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: context.v2.cautionTint,
-              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            ),
-            child: Icon(
-              Icons.search_off_rounded,
-              color: context.v2.caution,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: V2Spacing.space16),
-          Text(
-            'Product not found',
-            style: V2Typography.titleSm(color: context.v2.fg),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: V2Spacing.space8),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: V2Spacing.space12,
-              vertical: V2Spacing.space8,
-            ),
-            decoration: BoxDecoration(
-              color: context.v2.surfaceHighest,
-              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            ),
-            child: Text(
-              'UPC: $upc',
-              style: V2Typography.monoData(color: context.v2.fgMuted),
-            ),
-          ),
-          const SizedBox(height: V2Spacing.space12),
-          Text(
-            "We couldn't match this barcode yet. Search by name or "
-            'scan again to check the on-device catalog.',
-            style: V2Typography.bodySm(color: context.v2.fgMuted),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: V2Spacing.space24),
-          Row(
-            children: [
-              Expanded(
-                child: PGPillButton(
-                  onPressed: onSearchByName,
-                  icon: Icons.search_rounded,
-                  label: 'Search by name',
-                  variant: PGPillVariant.secondary,
-                  expand: true,
-                ),
-              ),
-              const SizedBox(width: V2Spacing.space12),
-              Expanded(
-                child: PGPillButton(
-                  onPressed: onTryAgain,
-                  icon: Icons.qr_code_scanner_rounded,
-                  label: 'Scan again',
-                  variant: PGPillVariant.primary,
-                  expand: true,
-                ),
-              ),
-            ],
-          ),
-          if (onSubmitProduct != null) ...[
-            const SizedBox(height: V2Spacing.space12),
-            PGPillButton(
-              onPressed: onSubmitProduct,
-              icon: Icons.add_a_photo_outlined,
-              label: 'Help add this product',
-              variant: PGPillVariant.secondary,
-              expand: true,
-            ),
-          ],
-        ],
       ),
     );
   }

@@ -5,6 +5,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
+import 'package:pharmaguide/features/scanner/scanner_capture_overlay.dart';
+import 'package:pharmaguide/features/scanner/scanner_not_found_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 
 void main() {
@@ -52,47 +54,86 @@ void main() {
     });
   });
 
-  group('ScannerNotFoundSheet', () {
-    testWidgets('renders barcode, guidance, and actions', (tester) async {
+  group('showScannerNotFoundSheet', () {
+    Future<ValueNotifier<ScannerNotFoundAction?>> pumpSheet(
+      WidgetTester tester, {
+      bool manualEntry = false,
+    }) async {
+      final result = ValueNotifier<ScannerNotFoundAction?>(null);
       await tester.pumpWidget(
-        wrap(
-          ScannerNotFoundSheet(
-            upc: '0123456789012',
-            onTryAgain: () {},
-            onSearchByName: () {},
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  result.value = await showScannerNotFoundSheet(
+                    context,
+                    scannedCode: '0123456789012',
+                    manualEntry: manualEntry,
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
           ),
         ),
       );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      return result;
+    }
 
-      expect(find.text('Product not found'), findsOneWidget);
-      expect(find.text('UPC: 0123456789012'), findsOneWidget);
-      expect(find.text('Search by name'), findsOneWidget);
-      expect(find.text('Scan again'), findsOneWidget);
-      expect(find.text('Help add this product'), findsNothing);
-      expect(
-        find.textContaining('Search by name or scan again'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('can route a manual barcode miss into the same intake', (
+    testWidgets('one primary, one secondary, links — and the code shown', (
       tester,
     ) async {
-      var submitted = false;
-      await tester.pumpWidget(
-        wrap(
-          ScannerNotFoundSheet(
-            upc: '050428381397',
-            onTryAgain: () {},
-            onSearchByName: () {},
-            onSubmitProduct: () => submitted = true,
-          ),
-        ),
-      );
+      final result = await pumpSheet(tester);
 
+      expect(find.text('Product not found'), findsOneWidget);
+      expect(find.text('0123456789012'), findsOneWidget);
+      expect(find.text('Search by name'), findsOneWidget);
+      expect(find.text('Scan again'), findsOneWidget);
       expect(find.text('Help add this product'), findsOneWidget);
-      await tester.tap(find.text('Help add this product'));
-      expect(submitted, isTrue);
+      expect(find.text('Add as medication'), findsOneWidget);
+      // The code was READ — re-typing it is never offered here; manual
+      // entry stays on the idle scanner chrome for the can't-read case.
+      expect(find.text('Enter code manually'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('scanner-not-found-help-add')));
+      await tester.pumpAndSettle();
+      expect(result.value, ScannerNotFoundAction.helpAddProduct);
+    });
+
+    testWidgets('manual-entry flavor swaps copy and secondary label', (
+      tester,
+    ) async {
+      final result = await pumpSheet(tester, manualEntry: true);
+
+      expect(find.text('Re-enter code'), findsOneWidget);
+      expect(find.text('Scan again'), findsNothing);
+      expect(
+        find.textContaining("isn't in your on-device catalog"),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('scanner-not-found-rescan')));
+      await tester.pumpAndSettle();
+      expect(result.value, ScannerNotFoundAction.scanAgain);
+    });
+  });
+
+  group('ScannerReticleGeometry', () {
+    test('scan window strictly contains the drawn reticle', () {
+      const size = Size(390, 844);
+      final reticle = ScannerReticleGeometry.reticleRect(size);
+      final window = ScannerReticleGeometry.scanWindow(size);
+      expect(
+        window.contains(reticle.topLeft) &&
+            window.contains(reticle.bottomRight),
+        isTrue,
+        reason:
+            'the guide invites, the decode window forgives — a window '
+            'smaller than the frame silently ignores well-framed codes',
+      );
+      expect(reticle.width / reticle.height, closeTo(2.2, 0.01));
     });
   });
 
