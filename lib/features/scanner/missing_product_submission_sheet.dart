@@ -266,18 +266,25 @@ class _MissingProductSubmissionSheetState
     if (_submitting) return;
     setState(() {
       _factsCarriesIngredients = value ?? false;
-      // Re-tagging cannot be retroactive: photos already taken keep their
-      // categories, so clear facts/ingredients captures on a mode change
-      // rather than silently shipping wrong evidence tags.
-      _photos.removeWhere(
-        (photo) =>
-            photo.categories.contains(
-              ProductSubmissionEvidenceCategory.supplementFacts,
-            ) ||
-            photo.categories.contains(
-              ProductSubmissionEvidenceCategory.ingredientDisclosure,
-            ),
-      );
+      // The toggle states whether the facts panel carries the ingredient
+      // list, so existing facts captures gain or lose that tag in place —
+      // deleting them punished ticking the box after taking the shot.
+      // Standalone ingredient-step captures are left untouched.
+      for (var i = 0; i < _photos.length; i++) {
+        final photo = _photos[i];
+        if (!photo.categories.contains(
+          ProductSubmissionEvidenceCategory.supplementFacts,
+        )) {
+          continue;
+        }
+        final next = {...photo.categories};
+        if (_factsCarriesIngredients) {
+          next.add(ProductSubmissionEvidenceCategory.ingredientDisclosure);
+        } else {
+          next.remove(ProductSubmissionEvidenceCategory.ingredientDisclosure);
+        }
+        _photos[i] = photo.withCategories(next);
+      }
       _draft = null;
       _stepError = null;
       _failure = null;

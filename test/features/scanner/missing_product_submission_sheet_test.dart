@@ -131,6 +131,62 @@ void main() {
     expect(find.text('Thanks — it’s in review'), findsOneWidget);
   });
 
+  testWidgets('ticking the combined-panel box after the shot retags in place', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(_harness(backend: backend));
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
+
+    // Natural order: photograph the facts panel FIRST, then notice the
+    // ingredient list lives on it and tick the box. The capture must survive
+    // and gain the ingredient tag (regression: the toggle used to delete it).
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-supplement_facts')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('No photo yet'), findsNothing);
+    await tester.tap(
+      find.byKey(const Key('missing-product-facts-carries-ingredients')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('No photo yet'), findsNothing);
+
+    // Unticking reverts the tag but never removes the capture.
+    await tester.tap(
+      find.byKey(const Key('missing-product-facts-carries-ingredients')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('No photo yet'), findsNothing);
+    await tester.tap(
+      find.byKey(const Key('missing-product-facts-carries-ingredients')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
+    // Combined panel: the ingredients step is skipped straight to extras.
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+
+    expect(backend.manifest, hasLength(2));
+    expect(backend.manifest[1]['categories'], [
+      'supplement_facts',
+      'ingredient_disclosure',
+    ]);
+  });
+
   testWidgets('hard-blocks tiny photos and soft-warns blurry ones', (
     tester,
   ) async {

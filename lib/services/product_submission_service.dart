@@ -207,6 +207,25 @@ class ProductSubmissionPhoto {
     return [for (final category in ordered) category.wireValue];
   }
 
+  /// Same capture, new evidence tags. Keeps [photoId] and bytes so a
+  /// mode change (e.g. "the facts panel carries the ingredient list")
+  /// re-tags instead of forcing a retake.
+  ProductSubmissionPhoto withCategories(
+    Set<ProductSubmissionEvidenceCategory> categories,
+  ) {
+    if (categories.isEmpty || categories.length > 6) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.invalidEvidenceCategories,
+      );
+    }
+    return ProductSubmissionPhoto._(
+      _bytes,
+      photoId: photoId,
+      categories: Set.unmodifiable(categories),
+      contentType: contentType,
+    );
+  }
+
   factory ProductSubmissionPhoto({
     required Set<ProductSubmissionEvidenceCategory> categories,
     required Uint8List bytes,
