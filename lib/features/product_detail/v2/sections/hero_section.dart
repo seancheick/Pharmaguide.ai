@@ -40,7 +40,12 @@ class HeroTrustTag {
 }
 
 const _confidenceDriverLabels = <String, String>{
-  'no_clinical_evidence_matched': 'No clinical evidence matched',
+  // A missing registry match is a curation state, not proof that the
+  // ingredient lacks clinical evidence or that the product is low quality.
+  'no_clinical_evidence_matched': 'Clinical evidence review is incomplete',
+  'evidence_review_incomplete': 'Clinical evidence review is incomplete',
+  'evidence_review_complete_limited_or_negative':
+      'Evidence review found limited or mixed support',
   'human_clinical_evidence_absent': 'No human clinical evidence matched',
   'limited_human_evidence': 'Human clinical evidence is limited',
   'product_specific_nct_absent':

@@ -44,9 +44,25 @@ void main() {
             'drivers': ['no_verified_third_party_certification'],
           },
         }),
-        ['No clinical evidence matched'],
+        ['Clinical evidence review is incomplete'],
       );
     });
+
+    test(
+      'renders the typed provisional-review driver without judging quality',
+      () {
+        expect(
+          scoreConfidenceDriverLabels({
+            'band': 'moderate',
+            'evidence': {
+              'level': 'moderate',
+              'drivers': ['evidence_review_incomplete'],
+            },
+          }),
+          ['Clinical evidence review is incomplete'],
+        );
+      },
+    );
 
     test('returns at most two distinct dominant moderate drivers', () {
       expect(
