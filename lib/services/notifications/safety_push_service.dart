@@ -14,6 +14,7 @@ class SafetyPushService with WidgetsBindingObserver {
   SafetyPushService({
     FirebaseMessaging? messaging,
     this._invokeFunction,
+    @visibleForTesting this.isAuthenticated,
   }) : _messaging = messaging ?? FirebaseMessaging.instance;
 
   /// The one live transport instance, set by [initialize]. Sign-out flows use
@@ -23,7 +24,8 @@ class SafetyPushService with WidgetsBindingObserver {
 
   final FirebaseMessaging _messaging;
   final Future<void> Function(String functionName, Map<String, dynamic> body)?
-      _invokeFunction;
+  _invokeFunction;
+  final bool Function()? isAuthenticated;
   bool _tokenRegistered = false;
   StreamSubscription<String>? _tokenRefresh;
   StreamSubscription<RemoteMessage>? _foreground;
@@ -87,7 +89,7 @@ class SafetyPushService with WidgetsBindingObserver {
           return;
         }
         if (state.session == null) return;
-        unawaited(_registerCurrentToken());
+        unawaited(acquireAndRegisterToken());
       });
       await acquireAndRegisterToken();
       WidgetsBinding.instance.addObserver(this);
@@ -108,7 +110,7 @@ class SafetyPushService with WidgetsBindingObserver {
       if (refresh != null) unawaited(Future<void>.sync(refresh));
       // First-launch APNs readiness can outlast startup; finish registration
       // on the next foreground instead of staying dark for the session.
-      if (!_tokenRegistered && supabase.auth.currentUser != null) {
+      if (!_tokenRegistered && _hasAuthenticatedUser) {
         unawaited(acquireAndRegisterToken());
       }
     }
@@ -119,8 +121,13 @@ class SafetyPushService with WidgetsBindingObserver {
   /// and the resumed-lifecycle retry complete registration later.
   @visibleForTesting
   Future<void> acquireAndRegisterToken() async {
+    if (!_hasAuthenticatedUser) return;
     try {
-      await _messaging.requestPermission();
+      final settings = await _messaging.requestPermission();
+      if (settings.authorizationStatus == AuthorizationStatus.denied ||
+          settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+        return;
+      }
       if (defaultTargetPlatform == TargetPlatform.iOS) {
         String? apnsToken;
         for (var attempt = 0; attempt < 6; attempt++) {
@@ -173,9 +180,14 @@ class SafetyPushService with WidgetsBindingObserver {
   }
 
   Future<void> _register(String token) async {
-    if (supabase.auth.currentUser == null) return;
-    final platform = defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
-    await _invoke('register-push-token', {'token': token, 'platform': platform});
+    if (!_hasAuthenticatedUser) return;
+    final platform = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'ios'
+        : 'android';
+    await _invoke('register-push-token', {
+      'token': token,
+      'platform': platform,
+    });
     _tokenRegistered = true;
   }
 
@@ -185,9 +197,14 @@ class SafetyPushService with WidgetsBindingObserver {
     await supabase.functions.invoke(functionName, body: body);
   }
 
-  Future<void> _registerCurrentToken() async {
-    final token = await _messaging.getToken();
-    if (token != null) await _register(token);
+  bool get _hasAuthenticatedUser {
+    final override = isAuthenticated;
+    if (override != null) return override();
+    try {
+      return supabase.auth.currentUser != null;
+    } on Object {
+      return false;
+    }
   }
 
   Future<void> dispose() async {
