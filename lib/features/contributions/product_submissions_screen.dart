@@ -10,12 +10,19 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
+typedef ResubmitProductSubmission =
+    Future<void> Function(ProductSubmissionSummary status);
+
 /// Full-page catalog-contribution surface: impact stats, every submission
 /// with its verdict and guidance, and how the pipeline works. Replaces the
 /// old bottom sheet — a sheet stops working at fifty submissions, and the
 /// impact header is the contributor's "my work mattered" moment.
 class ProductSubmissionsScreen extends ConsumerStatefulWidget {
-  const ProductSubmissionsScreen({super.key});
+  const ProductSubmissionsScreen({super.key, this.onResubmit});
+
+  /// Injected so the status surface stays independent of the capture route.
+  /// The production lineage-aware handler is wired with Task 4.
+  final ResubmitProductSubmission? onResubmit;
 
   @override
   ConsumerState<ProductSubmissionsScreen> createState() =>
@@ -105,7 +112,10 @@ class _ProductSubmissionsScreenState
                   _EmptyState()
                 else
                   for (final status in statuses) ...[
-                    _SubmissionCard(status: status),
+                    _SubmissionCard(
+                      status: status,
+                      onResubmit: widget.onResubmit,
+                    ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
                 const SizedBox(height: V2Spacing.space16),
@@ -367,9 +377,10 @@ class _HowItWorksStep extends StatelessWidget {
 }
 
 class _SubmissionCard extends ConsumerWidget {
-  const _SubmissionCard({required this.status});
+  const _SubmissionCard({required this.status, this.onResubmit});
 
   final ProductSubmissionSummary status;
+  final ResubmitProductSubmission? onResubmit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -425,6 +436,19 @@ class _SubmissionCard extends ConsumerWidget {
                   ],
                   if (status.resolvedDsldId case final resolvedId?)
                     _GatedProductLink(resolvedDsldId: resolvedId),
+                  if (status.reviewStatus ==
+                          ProductSubmissionReviewStatus.rejected &&
+                      status.resolutionCode?.resubmittable == true &&
+                      onResubmit != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: Key('submission-resubmit-${status.submissionId}'),
+                        onPressed: () => onResubmit!(status),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Try again with new photos'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -527,6 +551,21 @@ _StatusDisplay _statusDisplay(V2Palette p, ProductSubmissionSummary status) {
       'Upload incomplete — start a new submission to try again',
       Icons.cloud_off_outlined,
       p.caution,
+    );
+  }
+  final resolutionHeadline = switch (status.resolutionCode) {
+    ProductSubmissionResolutionCode.alreadyInCatalog =>
+      'Already in the catalog',
+    ProductSubmissionResolutionCode.duplicateSubmission => 'Already on its way',
+    _ => null,
+  };
+  if (resolutionHeadline != null &&
+      (status.reviewStatus == ProductSubmissionReviewStatus.rejected ||
+          status.reviewStatus == ProductSubmissionReviewStatus.duplicate)) {
+    return _StatusDisplay(
+      resolutionHeadline,
+      Icons.content_copy_outlined,
+      p.fgMuted,
     );
   }
   return switch (status.reviewStatus) {

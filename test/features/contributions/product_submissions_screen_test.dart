@@ -10,7 +10,11 @@ import 'package:pharmaguide/features/contributions/providers/product_submission_
 import 'package:pharmaguide/features/contributions/product_submissions_screen.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
-Widget _harness(List<Map<String, Object?>> rows, {CoreDatabase? db}) {
+Widget _harness(
+  List<Map<String, Object?>> rows, {
+  CoreDatabase? db,
+  Future<void> Function(ProductSubmissionSummary status)? onResubmit,
+}) {
   final database = db ?? CoreDatabase.memory();
   if (db == null) addTearDown(database.close);
   return ProviderScope(
@@ -20,7 +24,7 @@ Widget _harness(List<Map<String, Object?>> rows, {CoreDatabase? db}) {
       ),
       coreDatabaseProvider.overrideWithValue(database),
     ],
-    child: const MaterialApp(home: ProductSubmissionsScreen()),
+    child: MaterialApp(home: ProductSubmissionsScreen(onResubmit: onResubmit)),
   );
 }
 
@@ -146,6 +150,67 @@ void main() {
       find.text('The lot number sticker covered the panel.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('duplicate outcomes use distinct truthful headlines', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+            reviewStatus: 'duplicate',
+          ),
+          'resolution_code': 'already_in_catalog',
+        },
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a12',
+            reviewStatus: 'duplicate',
+          ),
+          'resolution_code': 'duplicate_submission',
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Already in the catalog'), findsOneWidget);
+    expect(find.text('Already on its way'), findsOneWidget);
+    expect(find.text('Already under review'), findsNothing);
+  });
+
+  testWidgets('offers resubmission only for evidence users can correct', (
+    tester,
+  ) async {
+    ProductSubmissionSummary? retried;
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+            reviewStatus: 'rejected',
+          ),
+          'resolution_code': 'photo_quality',
+        },
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a12',
+            reviewStatus: 'rejected',
+          ),
+          'resolution_code': 'not_a_supplement',
+        },
+      ], onResubmit: (status) async => retried = status),
+    );
+    await tester.pumpAndSettle();
+
+    final retry = find.text('Try again with new photos');
+    expect(retry, findsOneWidget);
+    await tester.tap(retry);
+    await tester.pump();
+
+    expect(retried?.submissionId, '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11');
+    expect(retried?.upc, '050428381397');
   });
 
   testWidgets('deep link renders only when the product exists locally', (

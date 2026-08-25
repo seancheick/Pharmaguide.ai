@@ -102,11 +102,11 @@ Scanner symbology is an input, never inferred from â€œEAN-8 never starts with 0â
 - Modify: `lib/features/contributions/product_submissions_screen.dart`
 - Test: `test/features/contributions/product_submissions_screen_test.dart`
 
-- [ ] **Step 1: Failing tests** for `alreadyInCatalog` / `duplicateSubmission` headlines; Try-again present for `photoQuality`, absent for `notASupplement`.
+- [x] **Step 1: Failing tests** for `alreadyInCatalog` / `duplicateSubmission` headlines; Try-again present for `photoQuality`, absent for `notASupplement`.
 
-- [ ] **Step 2: Implement headline switch + CTA that calls a callback with UPC / product id**
+- [x] **Step 2: Implement headline switch + CTA that calls a callback with UPC / product id**
 
-- [ ] **Step 3: GREEN**
+- [x] **Step 3: GREEN**
 
 ### Task 4: `resubmission_of` migration + create RPC + service
 
