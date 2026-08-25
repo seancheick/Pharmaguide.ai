@@ -141,9 +141,9 @@ Scanner symbology is an input, never inferred from “EAN-8 never starts with 0�
 - Modify: `lib/app.dart`
 - Test: pending intent tests + mismatch sheet tests
 
-- [ ] **Step 1: Tests** — 60 min TTL, consume-once, missing kind = missing_product, label_mismatch routes via `findById` or drops.
+- [x] **Step 1: Tests** — 60 min TTL, consume-once, missing kind = missing_product, label_mismatch routes via `findById` or drops.
 
-- [ ] **Step 2: Implement save-before-auth on mismatch; consume routes by kind.**
+- [x] **Step 2: Implement save-before-auth on mismatch; consume routes by kind.**
 
 ### Task 7: Combined consent copy
 

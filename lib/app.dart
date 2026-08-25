@@ -43,6 +43,7 @@ import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/features/compare/compare_screen.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
+import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
 import 'package:pharmaguide/features/quick_check/v2/quick_check_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
@@ -61,6 +62,7 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/features/contributions/product_submissions_screen.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
@@ -252,7 +254,7 @@ class ScanScreen extends ConsumerWidget {
     if (ref.read(authStateProvider) != AuthMode.signedIn) {
       // Reopened post-auth from the persisted intent; the awaited push dies
       // when the auth listener router.go()s on sign-in.
-      await PendingSubmissionIntent.save(barcode);
+      await PendingSubmissionIntent.saveMissingProduct(barcode);
       if (!context.mounted) return;
       await context.push(Routes.authInvitation);
       return;
@@ -886,17 +888,48 @@ void _navigatePostAuthIfOnAuthPath(GoRouter router) {
   );
 }
 
-/// If a signed-out user tried to submit a product, sign-in consumes the
-/// persisted intent and reopens the capture sheet for that barcode on the
-/// post-auth landing screen.
+/// If a signed-out user tried to submit product evidence, sign-in consumes
+/// the typed intent and reopens the correct sheet on the landing screen.
 Future<void> _resumePendingSubmission() async {
-  final upc = await PendingSubmissionIntent.consume();
-  if (upc == null) return;
+  final intent = await PendingSubmissionIntent.consume();
+  if (intent == null) return;
   // Let the landing route finish its first frame before presenting a sheet.
   await Future<void>.delayed(const Duration(milliseconds: 300));
   final context = rootNavigatorKey.currentContext;
   if (context == null || !context.mounted) return;
-  await showMissingProductSubmissionSheet(context, upc: upc);
+  await routePendingSubmissionIntent<ProductsCoreData>(
+    intent,
+    openMissingProduct: (upc) async {
+      if (!context.mounted) return;
+      await showMissingProductSubmissionSheet(context, upc: upc);
+    },
+    resolveLabelMismatch: (dsldId) => ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(coreDatabaseProvider).findById(dsldId),
+    openLabelMismatch: (product) async {
+      if (!context.mounted) return;
+      await showLabelMismatchSheet(
+        context,
+        product: _resumeLabelMismatchMetadata(product),
+      );
+    },
+  );
+}
+
+LabelMismatchProductMetadata _resumeLabelMismatchMetadata(
+  ProductsCoreData product,
+) {
+  try {
+    return LabelMismatchProductMetadata(
+      dsldId: product.dsldId,
+      upc: product.upcSku,
+    );
+  } on ProductSubmissionValidationException {
+    // A malformed optional legacy UPC must not prevent a report from being
+    // reopened against the catalog's stable DSLD identity.
+    return LabelMismatchProductMetadata(dsldId: product.dsldId);
+  }
 }
 
 void _surfaceAuthError(PGAuthResult result) {

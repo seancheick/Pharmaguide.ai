@@ -8,8 +8,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
+import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 const _reportId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11';
@@ -126,6 +128,7 @@ void main() {
   testWidgets('guest follows the exact sign-in route and cannot submit', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
     final router = GoRouter(
       initialLocation: '/',
       routes: [
@@ -168,9 +171,42 @@ void main() {
     await tester.tap(
       find.widgetWithText(FilledButton, 'Sign in to report a mismatch'),
     );
+    // The intent is durably persisted before navigation begins.
+    await tester.pump(const Duration(milliseconds: 50));
     await tester.pumpAndSettle();
 
     expect(find.text('Auth invitation route'), findsOneWidget);
+  });
+
+  testWidgets('guest saves mismatch intent before starting authentication', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    PendingSubmissionIntentValue? intentAtAuthStart;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelMismatchSheet(
+            product: _metadata(),
+            isAuthenticated: false,
+            reportService: null,
+            pickPhoto: (_, _) async => null,
+            onSignIn: () async {
+              intentAtAuthStart = await PendingSubmissionIntent.consume();
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Sign in to report a mismatch'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(intentAtAuthStart?.kind, PendingSubmissionIntentKind.labelMismatch);
+    expect(intentAtAuthStart?.identifier, '999');
   });
 
   testWidgets(

@@ -7,6 +7,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -104,6 +105,11 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
 
   bool get _canSubmit =>
       _categories.isNotEmpty && _consent && !_submitting && !_succeeded;
+
+  Future<void> _startSignIn() async {
+    await PendingSubmissionIntent.saveLabelMismatch(widget.product.dsldId);
+    await widget.onSignIn();
+  }
 
   void _toggleCategory(LabelMismatchCategory category, bool selected) {
     if (_draftLocked) return;
@@ -223,7 +229,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
   @override
   Widget build(BuildContext context) {
     if (!widget.isAuthenticated) {
-      return _SignInGate(onSignIn: widget.onSignIn);
+      return _SignInGate(onSignIn: _startSignIn);
     }
     if (_succeeded) return const _SuccessState();
 
@@ -346,7 +352,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
                 label: 'Sign in to report a mismatch',
                 icon: Icons.person_outline_rounded,
                 expand: true,
-                onPressed: widget.onSignIn,
+                onPressed: _startSignIn,
               )
             else if (_failure?.retryable == true)
               PGPillButton(
