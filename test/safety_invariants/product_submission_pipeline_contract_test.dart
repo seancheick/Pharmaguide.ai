@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 const _migrationPath =
     'supabase/migrations/'
     '20260731144527_product_submission_pipeline_20260730.sql';
+const _v2MigrationPath =
+    'supabase/migrations/'
+    '20260824172752_product_submission_evidence_resolution_v2.sql';
 
 String _normalized(String source) => source
     .replaceAll(RegExp(r'--[^\n]*'), ' ')
@@ -416,4 +419,172 @@ void main() {
       );
     },
   );
+
+  group('evidence + resolution v2 migration', () {
+    late String v2;
+
+    setUpAll(() {
+      final file = File(_v2MigrationPath);
+      expect(
+        file.existsSync(),
+        isTrue,
+        reason: 'The v2 contribution migration must remain shipped.',
+      );
+      v2 = _normalized(file.readAsStringSync());
+    });
+
+    test('typed evidence categories replace the slot model', () {
+      expect(
+        v2,
+        contains('create type public.product_submission_evidence_category'),
+      );
+      for (final category in const [
+        "'front_identity'",
+        "'supplement_facts'",
+        "'ingredient_disclosure'",
+        "'directions_warnings'",
+        "'barcode'",
+        "'lot_expiry'",
+      ]) {
+        expect(v2, contains(category));
+      }
+      expect(v2, contains('drop type public.product_submission_photo_slot'));
+      expect(v2, contains('primary key (submission_id, photo_id)'));
+      expect(v2, contains('unique (submission_id, seq)'));
+      expect(v2, contains('unique (submission_id, content_sha256)'));
+      expect(
+        v2,
+        contains(
+          "object_path = user_id::text || '/' || submission_id::text || '/' "
+          "|| photo_id::text",
+        ),
+        reason: 'Storage paths derive from photo identity, never client text.',
+      );
+    });
+
+    test('rebuilt photo evidence stays row-secured', () {
+      expect(
+        v2,
+        contains(
+          'alter table public.product_submission_photos '
+          'enable row level security',
+        ),
+      );
+      expect(
+        v2,
+        contains(
+          'alter table public.product_submission_photos '
+          'force row level security',
+        ),
+      );
+      expect(
+        v2,
+        contains('create policy "product_submission_photos_select_own"'),
+      );
+    });
+
+    test('missing-product evidence coverage is category complete', () {
+      expect(
+        v2,
+        contains(
+          'create function public.product_submission_has_required_evidence',
+        ),
+      );
+      expect(v2, contains('count(distinct category) = 3'));
+      expect(
+        v2,
+        contains('missing required evidence categories'),
+        reason: 'Coverage fails fast at create, before any bytes upload.',
+      );
+    });
+
+    test('resolution contract is typed, mirrored, and status-scoped', () {
+      expect(
+        v2,
+        contains('create type public.product_submission_resolution_code'),
+      );
+      for (final code in const [
+        "'photo_quality'",
+        "'missing_panel'",
+        "'label_unreadable'",
+        "'not_a_supplement'",
+        "'already_in_catalog'",
+        "'duplicate_submission'",
+        "'other'",
+      ]) {
+        expect(v2, contains(code));
+      }
+      expect(v2, contains('add column resolution_code'));
+      expect(v2, contains('add column resolution_detail'));
+      expect(v2, contains('add column resolved_dsld_id'));
+      expect(
+        v2,
+        contains("resolved_dsld_id ~ '^([0-9]{1,30}|pg_sub_[0-9a-f]{32})"),
+        reason: 'Resolved ids must be catalog or PG_SUB identities.',
+      );
+      expect(v2, contains('rejection resolution code required'));
+      expect(v2, contains('resolution not allowed for this transition'));
+      expect(
+        v2,
+        contains('product_submissions_resolution_consistent'),
+      );
+    });
+
+    test('promotion stamps resolution and cascades to duplicates', () {
+      expect(
+        v2,
+        contains('drop function public.mark_product_submission_promoted'),
+      );
+      expect(v2, contains('p_resolved_dsld_id text'));
+      expect(
+        v2,
+        contains("where duplicate_of = p_submission_id and "
+            "review_status = 'duplicate'"),
+        reason:
+            'Duplicate submitters must not stay at on-the-way forever once '
+            'their target ships.',
+      );
+      expect(
+        v2,
+        contains('grant execute on function '
+            'public.mark_product_submission_promoted( uuid, text, text )'),
+      );
+    });
+
+    test('push deliveries are durable, service-scoped, and policy-free', () {
+      expect(
+        v2,
+        contains(
+          'create table public.product_submission_push_deliveries',
+        ),
+      );
+      expect(
+        v2,
+        contains('insert into public.product_submission_push_deliveries'),
+        reason: 'The review RPC records delivery intent in-transaction.',
+      );
+      expect(
+        v2,
+        contains('alter table public.product_submission_push_deliveries '
+            'force row level security'),
+      );
+      expect(
+        v2,
+        isNot(
+          contains('create policy "product_submission_push_deliveries'),
+        ),
+        reason: 'No client route to the push queue.',
+      );
+      expect(
+        v2,
+        contains('grant select, update on table '
+            'public.product_submission_push_deliveries to service_role'),
+      );
+    });
+
+    test('carries no free-text user channels into v2', () {
+      expect(v2, isNot(contains('submitter_note')));
+      expect(v2, isNot(contains('user_note')));
+    });
+  });
 }

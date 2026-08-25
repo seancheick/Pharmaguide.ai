@@ -3,164 +3,175 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/services/photo_quality_gate.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
+const _submissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11';
+const _upc = '050428381397';
+
+const _okQuality = PhotoQualityResult(
+  verdict: PhotoQualityVerdict.ok,
+  shortSide: 1200,
+  blurScore: 500,
+);
+
+var _photoCounter = 0;
+
+ProductSubmissionPhoto _photo(Set<ProductSubmissionEvidenceCategory> tags) {
+  _photoCounter += 1;
+  final suffix = _photoCounter.toRadixString(16).padLeft(2, '0');
+  return ProductSubmissionPhoto(
+    photoId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa$suffix',
+    categories: tags,
+    bytes: Uint8List.fromList([1, 2, 3, _photoCounter]),
+    contentType: 'image/jpeg',
+  );
+}
+
+Widget _harness({
+  required _Backend backend,
+  PickMissingProductPhoto? pickPhoto,
+  EvaluatePhotoQuality? qualityGate,
+}) {
+  return MaterialApp(
+    home: Scaffold(
+      body: MissingProductSubmissionSheet(
+        upc: _upc,
+        service: ProductSubmissionService(backend: backend),
+        submissionIdFactory: () => _submissionId,
+        qualityGate: qualityGate ?? (_) async => _okQuality,
+        pickPhoto: pickPhoto ?? (tags) async => _photo(tags),
+      ),
+    ),
+  );
+}
+
+/// Drives the guided flow through the three required capture steps with the
+/// facts photo dual-tagged (no separate ingredient panel), landing on the
+/// review step.
+Future<void> _captureRequiredEvidence(WidgetTester tester) async {
+  // Front step.
+  await tester.tap(find.byKey(const Key('missing-product-add-front_identity')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('missing-product-next')));
+  await tester.pumpAndSettle();
+
+  // Facts step: declare the combined panel FIRST so the capture is tagged
+  // with both categories and the ingredients step disappears.
+  await tester.tap(
+    find.byKey(const Key('missing-product-facts-carries-ingredients')),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(
+    find.byKey(const Key('missing-product-add-supplement_facts')),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('missing-product-next')));
+  await tester.pumpAndSettle();
+
+  // Extras step — skip straight to review.
+  await tester.tap(find.byKey(const Key('missing-product-next')));
+  await tester.pumpAndSettle();
+}
 
 void main() {
-  testWidgets('explains private evidence collection without free text', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MissingProductSubmissionSheet(
-            upc: '050428381397',
-            service: ProductSubmissionService(
-              backend: _Backend(authenticatedUserId: _userId),
-            ),
-            pickPhoto: (_) async => null,
-          ),
-        ),
-      ),
-    );
+  setUp(() => _photoCounter = 0);
 
-    expect(find.text('Help add this product'), findsOneWidget);
-    expect(find.text('UPC 050428381397'), findsOneWidget);
-    expect(find.text('Front label'), findsOneWidget);
-    expect(find.text('Supplement Facts'), findsOneWidget);
-    expect(find.text('Other Ingredients'), findsOneWidget);
-    expect(
-      find.textContaining('Do not include pharmacy labels'),
-      findsOneWidget,
-    );
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('missing-product-consent')),
-      300,
-    );
-    expect(
-      find.textContaining('I consent to send my account identifier'),
-      findsOneWidget,
-    );
-    expect(find.byType(TextField), findsNothing);
-    expect(
-      tester
-          .widget<FilledButton>(find.byKey(const Key('missing-product-submit')))
-          .onPressed,
-      isNull,
-    );
-  });
-
-  testWidgets('requires exact evidence then submits through the one service', (
+  testWidgets('guides required evidence before allowing review', (
     tester,
   ) async {
     final backend = _Backend(authenticatedUserId: _userId);
-    final picked = <ProductSubmissionPhotoSlot>[];
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MissingProductSubmissionSheet(
-            upc: '050428381397',
-            service: ProductSubmissionService(backend: backend),
-            submissionIdFactory: () => '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
-            pickPhoto: (slot) async {
-              picked.add(slot);
-              return ProductSubmissionPhoto(
-                slot: slot,
-                bytes: Uint8List.fromList([1, 2, 3]),
-                contentType: 'image/jpeg',
-              );
-            },
-          ),
-        ),
-      ),
+    await tester.pumpWidget(_harness(backend: backend));
+
+    // Cannot advance past the front step without a photo.
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pump();
+    expect(
+      find.text('Add at least one photo of the front label.'),
+      findsOneWidget,
     );
 
-    await tester.tap(find.text('Front label'));
-    await tester.pump();
-    await tester.tap(find.text('Supplement Facts'));
-    await tester.pump();
+    await _captureRequiredEvidence(tester);
 
-    expect(picked, [
-      ProductSubmissionPhotoSlot.front,
-      ProductSubmissionPhotoSlot.supplementFacts,
-    ]);
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('missing-product-submit')),
-      300,
-    );
+    expect(find.text('Review & submit'), findsOneWidget);
+    expect(find.byKey(const Key('missing-product-consent')), findsOneWidget);
+    expect(backend.persistedSubmissionIds, isEmpty);
+  });
+
+  testWidgets('submits the dual-tagged manifest through the one service', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(_harness(backend: backend));
+    await _captureRequiredEvidence(tester);
+
+    // Consent gates submission.
     expect(
       tester
           .widget<FilledButton>(find.byKey(const Key('missing-product-submit')))
           .onPressed,
       isNull,
-      reason: 'Other Ingredients still needs a photo or explicit absence.',
     );
-
-    await tester.tap(find.text('No Other Ingredients panel on this label'));
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('missing-product-consent')),
-      300,
-    );
-    expect(
-      tester
-          .widget<FilledButton>(find.byKey(const Key('missing-product-submit')))
-          .onPressed,
-      isNull,
-      reason: 'Private processing requires explicit user consent.',
-    );
-
-    await tester.tap(
-      find.textContaining('I consent to send my account identifier'),
-    );
-    await tester.pump();
-    final submit = tester.widget<FilledButton>(
-      find.byKey(const Key('missing-product-submit')),
-    );
-    expect(submit.onPressed, isNotNull);
-
-    await tester.tap(find.text('Submit'));
-    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
     await tester.pumpAndSettle();
 
     expect(backend.persistedKind, 'missing_product');
-    expect(find.text('Submitted for review'), findsOneWidget);
+    expect(backend.persistedCueFlag, isTrue);
+    expect(backend.manifest, hasLength(2));
+    expect(backend.manifest[0]['seq'], 1);
+    expect(backend.manifest[0]['categories'], ['front_identity']);
+    expect(backend.manifest[1]['seq'], 2);
+    expect(backend.manifest[1]['categories'], [
+      'supplement_facts',
+      'ingredient_disclosure',
+    ]);
+    expect(find.text('Thanks — it’s in review'), findsOneWidget);
   });
 
-  testWidgets('a captured Other Ingredients photo clears the absence choice', (
+  testWidgets('hard-blocks tiny photos and soft-warns blurry ones', (
     tester,
   ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    final verdicts = <PhotoQualityResult>[
+      const PhotoQualityResult(
+        verdict: PhotoQualityVerdict.tooSmall,
+        shortSide: 300,
+        blurScore: double.nan,
+      ),
+      const PhotoQualityResult(
+        verdict: PhotoQualityVerdict.likelyBlurry,
+        shortSide: 1200,
+        blurScore: 3,
+      ),
+    ];
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MissingProductSubmissionSheet(
-            upc: '050428381397',
-            service: ProductSubmissionService(
-              backend: _Backend(authenticatedUserId: _userId),
-            ),
-            pickPhoto: (slot) async => ProductSubmissionPhoto(
-              slot: slot,
-              bytes: Uint8List.fromList([1, 2, 3]),
-              contentType: 'image/jpeg',
-            ),
-          ),
-        ),
+      _harness(
+        backend: backend,
+        qualityGate: (_) async =>
+            verdicts.isEmpty ? _okQuality : verdicts.removeAt(0),
       ),
     );
 
-    await tester.tap(find.text('No Other Ingredients panel on this label'));
-    await tester.pump();
-    final absent = find.byKey(
-      const Key('missing-product-other-ingredients-absent'),
+    // Too small: hard block with retake guidance, photo NOT added.
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
     );
-    expect(tester.widget<CheckboxListTile>(absent).value, isTrue);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('too small to read'), findsOneWidget);
+    expect(find.text('No photo yet'), findsOneWidget);
 
-    await tester.tap(find.text('Other Ingredients'));
-    await tester.pump();
-
-    expect(tester.widget<CheckboxListTile>(absent).value, isFalse);
-    expect(find.text('Photo added'), findsNWidgets(1));
+    // Blurry: dialog offers Retake / Use anyway; choosing Use anyway keeps it.
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('That photo looks blurry'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('missing-product-blur-use-anyway')));
+    await tester.pumpAndSettle();
+    expect(find.text('No photo yet'), findsNothing);
   });
 
   testWidgets('retry reuses one immutable submission id', (tester) async {
@@ -168,35 +179,9 @@ void main() {
       authenticatedUserId: _userId,
       persistFailuresRemaining: 1,
     );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MissingProductSubmissionSheet(
-            upc: '050428381397',
-            service: ProductSubmissionService(backend: backend),
-            submissionIdFactory: () => '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
-            pickPhoto: (slot) async => ProductSubmissionPhoto(
-              slot: slot,
-              bytes: Uint8List.fromList([1, 2, 3]),
-              contentType: 'image/jpeg',
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Front label'));
-    await tester.pump();
-    await tester.tap(find.text('Supplement Facts'));
-    await tester.pump();
-    await tester.tap(find.text('No Other Ingredients panel on this label'));
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('missing-product-consent')),
-      300,
-    );
-    await tester.tap(
-      find.textContaining('I consent to send my account identifier'),
-    );
+    await tester.pumpWidget(_harness(backend: backend));
+    await _captureRequiredEvidence(tester);
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -209,11 +194,31 @@ void main() {
     await tester.tap(find.byKey(const Key('missing-product-submit')));
     await tester.pumpAndSettle();
 
-    expect(backend.persistedSubmissionIds, [
-      '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
-      '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
-    ]);
-    expect(find.text('Submitted for review'), findsOneWidget);
+    expect(backend.persistedSubmissionIds, [_submissionId, _submissionId]);
+    expect(find.text('Thanks — it’s in review'), findsOneWidget);
+  });
+
+  testWidgets('maps an open-submission conflict to actionable copy', (
+    tester,
+  ) async {
+    final backend = _Backend(
+      authenticatedUserId: _userId,
+      persistError: StateError(
+        'duplicate key value violates unique constraint '
+        '"idx_product_submissions_user_open_upc"',
+      ),
+    );
+    await tester.pumpWidget(_harness(backend: backend));
+    await _captureRequiredEvidence(tester);
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('already have an open submission'),
+      findsOneWidget,
+    );
   });
 }
 
@@ -221,12 +226,15 @@ class _Backend implements ProductSubmissionBackend {
   _Backend({
     required this.authenticatedUserId,
     this.persistFailuresRemaining = 0,
+    this.persistError,
   });
 
   @override
   final String? authenticatedUserId;
   String? persistedKind;
+  bool? persistedCueFlag;
   int persistFailuresRemaining;
+  final Object? persistError;
   final List<String> persistedSubmissionIds = [];
   final Set<String> uploaded = {};
   List<Map<String, Object?>> manifest = const [];
@@ -237,11 +245,13 @@ class _Backend implements ProductSubmissionBackend {
     required Map<String, Object?> payload,
   }) async {
     persistedSubmissionIds.add(payload['p_submission_id']! as String);
+    if (persistError != null) throw persistError!;
     if (persistFailuresRemaining > 0) {
       persistFailuresRemaining -= 1;
       throw StateError('ambiguous persist failure');
     }
     persistedKind = payload['p_kind'] as String?;
+    persistedCueFlag = payload['p_no_separate_ingredient_panel'] as bool?;
     manifest = payload['p_photos']! as List<Map<String, Object?>>;
   }
 
@@ -261,7 +271,7 @@ class _Backend implements ProductSubmissionBackend {
     required String submissionId,
   }) async {
     final expected = manifest.map(
-      (photo) => '$_userId/$submissionId/${photo['photo_slot'] as String}',
+      (photo) => '$_userId/$submissionId/${photo['photo_id'] as String}',
     );
     return expected.every(uploaded.contains);
   }

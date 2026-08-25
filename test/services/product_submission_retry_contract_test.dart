@@ -24,11 +24,21 @@ void main() {
       );
     });
 
-    test('photo slots exactly match the private-storage contract', () {
+    test('evidence categories exactly match the database enum', () {
       expect(
-        ProductSubmissionPhotoSlot.values.map((slot) => slot.wireValue),
-        const ['front', 'supplement_facts', 'other_ingredients'],
+        ProductSubmissionEvidenceCategory.values.map(
+          (category) => category.wireValue,
+        ),
+        const [
+          'front_identity',
+          'supplement_facts',
+          'ingredient_disclosure',
+          'directions_warnings',
+          'barcode',
+          'lot_expiry',
+        ],
       );
+      expect(ProductSubmissionPhoto.maxPerSubmission, 8);
       expect(ProductSubmissionPhoto.maxByteSize, 15728640);
       expect(ProductSubmissionPhoto.allowedContentTypes, const {
         'image/jpeg',
@@ -42,7 +52,8 @@ void main() {
     test('photo bytes remain immutable across retries', () {
       final source = Uint8List.fromList([1, 2, 3]);
       final photo = ProductSubmissionPhoto(
-        slot: ProductSubmissionPhotoSlot.front,
+        photoId: _frontPhotoId,
+        categories: const {ProductSubmissionEvidenceCategory.frontIdentity},
         bytes: source,
         contentType: 'image/jpeg',
       );
@@ -55,14 +66,16 @@ void main() {
       expect(photo.byteSize, 3);
     });
 
-    test('rejects a fourth photo before any network operation', () {
+    test('rejects a ninth photo before any network operation', () {
       expect(
         () => _draft(
           photos: [
-            _photo(ProductSubmissionPhotoSlot.front),
-            _photo(ProductSubmissionPhotoSlot.supplementFacts),
-            _photo(ProductSubmissionPhotoSlot.otherIngredients),
-            _photo(ProductSubmissionPhotoSlot.front),
+            for (var index = 0; index < 9; index++)
+              _photo(
+                ProductSubmissionEvidenceCategory.frontIdentity,
+                photoId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa0$index',
+                bytes: Uint8List.fromList([1, 2, 3, index]),
+              ),
           ],
         ),
         throwsA(
@@ -75,19 +88,47 @@ void main() {
       );
     });
 
-    test('rejects duplicate named photo slots', () {
+    test('rejects duplicate photo identities', () {
       expect(
         () => _draft(
           photos: [
-            _photo(ProductSubmissionPhotoSlot.front),
-            _photo(ProductSubmissionPhotoSlot.front),
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(
+              ProductSubmissionEvidenceCategory.supplementFacts,
+              photoId: _frontPhotoId,
+              bytes: Uint8List.fromList([9, 9, 9]),
+            ),
           ],
         ),
         throwsA(
           isA<ProductSubmissionValidationException>().having(
             (error) => error.reason,
             'reason',
-            ProductSubmissionValidationFailure.duplicatePhotoSlot,
+            ProductSubmissionValidationFailure.duplicatePhotoId,
+          ),
+        ),
+      );
+    });
+
+    test('rejects the same photo bytes twice', () {
+      expect(
+        () => _draft(
+          photos: [
+            _photo(
+              ProductSubmissionEvidenceCategory.frontIdentity,
+              bytes: Uint8List.fromList([1, 2, 3]),
+            ),
+            _photo(
+              ProductSubmissionEvidenceCategory.supplementFacts,
+              bytes: Uint8List.fromList([1, 2, 3]),
+            ),
+          ],
+        ),
+        throwsA(
+          isA<ProductSubmissionValidationException>().having(
+            (error) => error.reason,
+            'reason',
+            ProductSubmissionValidationFailure.duplicatePhotoContent,
           ),
         ),
       );
@@ -107,7 +148,10 @@ void main() {
           ),
         );
         expect(
-          () => _photo(ProductSubmissionPhotoSlot.front, bytes: Uint8List(0)),
+          () => _photo(
+            ProductSubmissionEvidenceCategory.frontIdentity,
+            bytes: Uint8List(0),
+          ),
           throwsA(
             isA<ProductSubmissionValidationException>().having(
               (error) => error.reason,
@@ -118,7 +162,9 @@ void main() {
         );
         expect(
           () => ProductSubmissionPhoto(
-            slot: ProductSubmissionPhotoSlot.front,
+            categories: const {
+              ProductSubmissionEvidenceCategory.frontIdentity,
+            },
             bytes: Uint8List.fromList([1]),
             contentType: 'image/svg+xml',
           ),
@@ -132,7 +178,7 @@ void main() {
         );
         expect(
           () => _photo(
-            ProductSubmissionPhotoSlot.front,
+            ProductSubmissionEvidenceCategory.frontIdentity,
             bytes: Uint8List(ProductSubmissionPhoto.maxByteSize + 1),
           ),
           throwsA(
@@ -282,8 +328,8 @@ void main() {
         final result = await service.submit(
           _draft(
             photos: [
-              _photo(ProductSubmissionPhotoSlot.front),
-              _photo(ProductSubmissionPhotoSlot.supplementFacts),
+              _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+              _photo(ProductSubmissionEvidenceCategory.supplementFacts),
             ],
           ),
           onPhaseChanged: phases.add,
@@ -299,8 +345,8 @@ void main() {
         expect(backend.operations, [
           'persist',
           'finalize:$_reportId',
-          'upload:$_userId/$_reportId/front',
-          'upload:$_userId/$_reportId/supplement_facts',
+          'upload:$_userId/$_reportId/$_frontPhotoId',
+          'upload:$_userId/$_reportId/$_factsPhotoId',
           'finalize:$_reportId',
         ]);
         expect(phases, [
@@ -333,7 +379,7 @@ void main() {
             LabelMismatchCategory.amountOrUnit,
             LabelMismatchCategory.formOrParenthetical,
           },
-          photos: [_photo(ProductSubmissionPhotoSlot.otherIngredients)],
+          photos: [_photo(ProductSubmissionEvidenceCategory.ingredientDisclosure)],
         ),
       );
 
@@ -349,16 +395,19 @@ void main() {
               'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           'mismatch_categories': ['amount_or_unit', 'form_or_parenthetical'],
         },
-        'p_other_ingredients_not_present': false,
+        'p_no_separate_ingredient_panel': false,
         'p_photos': backend.photoRows,
       });
       expect(backend.photoRows, [
         {
-          'photo_slot': 'other_ingredients',
+          'photo_id': _ingredientsPhotoId,
+          'seq': 1,
+          'categories': ['ingredient_disclosure'],
           'content_type': 'image/jpeg',
-          'byte_size': 3,
-          'content_sha256':
-              '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
+          'byte_size': 4,
+          'content_sha256': _photo(
+            ProductSubmissionEvidenceCategory.ingredientDisclosure,
+          ).contentSha256,
         },
       ]);
     });
@@ -382,7 +431,7 @@ void main() {
             'formula_fingerprint': null,
             'mismatch_categories': ['product_identity'],
           },
-          'p_other_ingredients_not_present': false,
+          'p_no_separate_ingredient_panel': false,
           'p_photos': <Map<String, Object?>>[],
         });
         expect(backend.photoRows, isEmpty);
@@ -414,7 +463,7 @@ void main() {
         );
         final service = ProductSubmissionService(backend: backend);
         final draft = _draft(
-          photos: [_photo(ProductSubmissionPhotoSlot.supplementFacts)],
+          photos: [_photo(ProductSubmissionEvidenceCategory.supplementFacts)],
         );
 
         final first = await service.submit(draft);
@@ -438,7 +487,7 @@ void main() {
               'cause: ${second is ProductSubmissionFailure ? second.cause : null}',
         );
         expect(backend.uploads.map((upload) => upload.objectPath), const [
-          '$_userId/$_reportId/supplement_facts',
+          '$_userId/$_reportId/$_factsPhotoId',
         ]);
         expect(backend.reportRows.map((row) => row['p_submission_id']), [
           _reportId,
@@ -457,8 +506,8 @@ void main() {
       final result = await service.submit(
         _draft(
           photos: [
-            _photo(ProductSubmissionPhotoSlot.front),
-            _photo(ProductSubmissionPhotoSlot.otherIngredients),
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
           ],
         ),
       );
@@ -487,8 +536,8 @@ void main() {
         final result = await service.submit(
           _draft(
             photos: [
-              _photo(ProductSubmissionPhotoSlot.front),
-              _photo(ProductSubmissionPhotoSlot.supplementFacts),
+              _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+              _photo(ProductSubmissionEvidenceCategory.supplementFacts),
             ],
           ),
         );
@@ -517,7 +566,7 @@ void main() {
       final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
+        _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
       );
 
       expect(
@@ -542,7 +591,7 @@ void main() {
         final service = ProductSubmissionService(backend: backend);
 
         final result = await service.submit(
-          _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
+          _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
         );
 
         expect(
@@ -569,7 +618,7 @@ void main() {
         final service = ProductSubmissionService(backend: backend);
 
         final result = await service.submit(
-          _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
+          _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
         );
 
         expect(
@@ -581,7 +630,7 @@ void main() {
           ),
         );
         expect(backend.operations.first, 'persist');
-        expect(backend.operations.last, 'upload:$_userId/$_reportId/front');
+        expect(backend.operations.last, 'upload:$_userId/$_reportId/$_frontPhotoId');
       },
     );
 
@@ -593,7 +642,7 @@ void main() {
       final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
+        _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
       );
 
       expect(
@@ -618,8 +667,8 @@ void main() {
       final result = await service.submit(
         _draft(
           photos: [
-            _photo(ProductSubmissionPhotoSlot.front),
-            _photo(ProductSubmissionPhotoSlot.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(ProductSubmissionEvidenceCategory.supplementFacts),
           ],
         ),
       );
@@ -650,7 +699,7 @@ void main() {
       final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(ProductSubmissionPhotoSlot.front)]),
+        _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
       );
 
       expect(
@@ -677,7 +726,7 @@ void main() {
         );
         final service = ProductSubmissionService(backend: backend);
         final draft = _draft(
-          photos: [_photo(ProductSubmissionPhotoSlot.front)],
+          photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
         );
 
         final first = await service.submit(draft);
@@ -697,7 +746,7 @@ void main() {
         expect(backend.operations, [
           'persist',
           'finalize:$_reportId',
-          'upload:$_userId/$_reportId/front',
+          'upload:$_userId/$_reportId/$_frontPhotoId',
           'finalize:$_reportId',
           'persist',
           'finalize:$_reportId',
@@ -723,13 +772,34 @@ LabelMismatchReportDraft _draft({
   );
 }
 
+const _frontPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+const _factsPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+const _ingredientsPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3';
+
 ProductSubmissionPhoto _photo(
-  ProductSubmissionPhotoSlot slot, {
+  ProductSubmissionEvidenceCategory category, {
   Uint8List? bytes,
+  String? photoId,
 }) {
+  final id = photoId ??
+      switch (category) {
+        ProductSubmissionEvidenceCategory.frontIdentity => _frontPhotoId,
+        ProductSubmissionEvidenceCategory.supplementFacts => _factsPhotoId,
+        ProductSubmissionEvidenceCategory.ingredientDisclosure =>
+          _ingredientsPhotoId,
+        _ => _frontPhotoId,
+      };
+  // Distinct default bytes per id: same-content photos are a client bug.
+  final defaultBytes = Uint8List.fromList([
+    1,
+    2,
+    3,
+    id.codeUnitAt(id.length - 1),
+  ]);
   return ProductSubmissionPhoto(
-    slot: slot,
-    bytes: bytes ?? Uint8List.fromList([1, 2, 3]),
+    photoId: id,
+    categories: {category},
+    bytes: bytes ?? defaultBytes,
     contentType: 'image/jpeg',
   );
 }
@@ -828,7 +898,7 @@ class _FakeBackend implements ProductSubmissionBackend {
       throw StateError('report missing');
     }
     final expectedPaths = (photoRows ?? const <Map<String, Object?>>[]).map(
-      (row) => '$_userId/$submissionId/${row['photo_slot']}',
+      (row) => '$_userId/$submissionId/${row['photo_id']}',
     );
     if (!expectedPaths.every(successfulObjectPaths.contains)) return false;
     readyReportIds.add(submissionId);

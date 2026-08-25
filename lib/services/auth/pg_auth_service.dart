@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/notifications/safety_push_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -373,7 +374,14 @@ class PGAuthService {
   /// [AccountOwnerStore] record: the owner stays the last signed-in uid,
   /// so the SAME user returning keeps their data and a DIFFERENT next
   /// sign-in triggers the account-switch clear. Do not add a wipe here.
-  Future<void> signOut() => supabase.auth.signOut();
+  ///
+  /// Push teardown is transport cleanup, not user data: the device token must
+  /// be unregistered while the session JWT can still authorize it, or the
+  /// signed-out device keeps receiving this account's notifications.
+  Future<void> signOut() async {
+    await SafetyPushService.active?.unregisterBeforeSignOut();
+    await supabase.auth.signOut();
+  }
 
   /// Clears only the session cached on this device.
   ///

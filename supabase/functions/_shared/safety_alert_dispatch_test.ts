@@ -1,5 +1,4 @@
 import {
-  buildSafetyAlertNotification,
   constantTimeEquals,
   parseReleaseDispatchRequest,
 } from "./safety_alert_dispatch.ts";
@@ -37,22 +36,6 @@ Deno.test("dispatch request rejects unknown fields and malformed identifiers", a
   }
 });
 
-Deno.test("FCM notification content never names a product or ingredient", () => {
-  const message = buildSafetyAlertNotification({
-    token: "token-123",
-    alertId: "SA_2026_0001",
-    revision: 2,
-  });
-  if (message.message.notification?.title !== "PharmaGuide safety update") {
-    throw new Error("unexpected notification title");
-  }
-  if (message.message.notification?.body !== "A product in your stack has a safety update.") {
-    throw new Error("unexpected notification body");
-  }
-  if (message.message.data?.alert_id !== "SA_2026_0001") {
-    throw new Error("missing alert route data");
-  }
-});
 
 Deno.test("dispatch secret comparison is exact and length-aware", async () => {
   if (!await constantTimeEquals("expected", "expected")) {

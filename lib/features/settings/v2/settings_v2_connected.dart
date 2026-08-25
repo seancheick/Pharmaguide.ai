@@ -19,7 +19,6 @@ import 'package:pharmaguide/services/auth/account_deletion_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/history/health_attachment_store.dart';
-import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -85,12 +84,7 @@ class SettingsV2Connected extends ConsumerWidget {
             ),
           ),
       onOpenProductSubmissions: signedIn
-          ? () => PGModal.bottomSheet<void>(
-              context: context,
-              builder: (_) => ProductSubmissionStatusSheet(
-                service: ProductSubmissionService.production(),
-              ),
-            )
+          ? () => showProductSubmissionStatusSheet(context)
           : null,
       themeCaption: themePreferenceLabel(preferences.theme),
       notificationCaption: notificationSettingsCaption(

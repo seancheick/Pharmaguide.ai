@@ -27,11 +27,11 @@ void main() {
             name: 'facts.JPG',
             mimeType: 'image/jpg; charset=binary',
           ),
-          slot: ProductSubmissionPhotoSlot.supplementFacts,
+          categories: const {ProductSubmissionEvidenceCategory.supplementFacts},
           sanitizer: (_) async => Uint8List.fromList([9, 8, 7]),
         );
 
-        expect(photo.slot, ProductSubmissionPhotoSlot.supplementFacts);
+        expect(photo.categories, {ProductSubmissionEvidenceCategory.supplementFacts});
         expect(photo.contentType, 'image/jpeg');
         expect(photo.bytes, [9, 8, 7]);
       },
@@ -47,7 +47,7 @@ void main() {
             name: 'facts.jpg',
             mimeType: 'image/jpeg',
           ),
-          slot: ProductSubmissionPhotoSlot.supplementFacts,
+          categories: const {ProductSubmissionEvidenceCategory.supplementFacts},
           sanitizer: (_) async {
             sanitizerCalled = true;
             return Uint8List.fromList([1]);
@@ -70,7 +70,7 @@ void main() {
               name: 'not-an-image.jpg',
               mimeType: 'application/pdf',
             ),
-            slot: ProductSubmissionPhotoSlot.front,
+            categories: const {ProductSubmissionEvidenceCategory.frontIdentity},
             sanitizer: (_) async {
               sanitizerCalled = true;
               return Uint8List.fromList([1]);
@@ -85,7 +85,7 @@ void main() {
     test('uses an image extension only when MIME is absent', () async {
       final photo = await buildProductSubmissionPhotoFromFile(
         file: XFile.fromData(Uint8List.fromList([1]), path: 'facts.HeIc'),
-        slot: ProductSubmissionPhotoSlot.supplementFacts,
+        categories: const {ProductSubmissionEvidenceCategory.supplementFacts},
         sanitizer: (_) async => Uint8List.fromList([2]),
       );
 
@@ -101,7 +101,7 @@ void main() {
             name: 'empty.png',
             mimeType: 'image/png',
           ),
-          slot: ProductSubmissionPhotoSlot.front,
+          categories: const {ProductSubmissionEvidenceCategory.frontIdentity},
           sanitizer: (_) async => Uint8List.fromList([1]),
         ),
         ProductSubmissionValidationFailure.emptyPhoto,
@@ -113,7 +113,7 @@ void main() {
             name: 'front.png',
             mimeType: 'image/png',
           ),
-          slot: ProductSubmissionPhotoSlot.front,
+          categories: const {ProductSubmissionEvidenceCategory.frontIdentity},
           sanitizer: (_) async => Uint8List(0),
         ),
         ProductSubmissionValidationFailure.photoSanitizationFailed,
@@ -242,14 +242,14 @@ void main() {
     final semantics = tester.ensureSemantics();
     await _setLargePhone(tester);
     final backend = _FakeBackend();
-    final pickerCalls = <(ProductSubmissionPhotoSlot, ImageSource)>[];
+    final pickerCalls = <(ProductSubmissionEvidenceCategory, ImageSource)>[];
 
     await tester.pumpWidget(
       _sheetHarness(
         backend: backend,
-        pickPhoto: (slot, source) async {
-          pickerCalls.add((slot, source));
-          return _photo(slot);
+        pickPhoto: (category, source) async {
+          pickerCalls.add((category, source));
+          return _photo(category);
         },
       ),
     );
@@ -260,11 +260,11 @@ void main() {
     await tester.pump();
 
     expect(pickerCalls, [
-      (ProductSubmissionPhotoSlot.front, ImageSource.camera),
+      (ProductSubmissionEvidenceCategory.frontIdentity, ImageSource.camera),
     ]);
     expect(find.text('Photo selected'), findsOneWidget);
     expect(
-      find.byKey(const Key('label-mismatch-photo-front-preview')),
+      find.byKey(const Key('label-mismatch-photo-front_identity-preview')),
       findsOneWidget,
     );
     expect(
@@ -286,7 +286,7 @@ void main() {
     expect(backend.operations, [
       'persist',
       'finalize',
-      'upload:front',
+      'upload:$_frontPhotoId',
       'finalize',
     ]);
     expect(find.text('Report sent'), findsOneWidget);
@@ -314,7 +314,7 @@ void main() {
     await tester.pumpWidget(
       _sheetHarness(
         backend: backend,
-        pickPhoto: (slot, _) async => _photo(slot),
+        pickPhoto: (category, _) async => _photo(category),
       ),
     );
     await tester.tap(
@@ -350,7 +350,7 @@ void main() {
     await tester.pumpWidget(
       _sheetHarness(
         backend: backend,
-        pickPhoto: (slot, _) async => _photo(slot),
+        pickPhoto: (category, _) async => _photo(category),
       ),
     );
     await tester.tap(
@@ -393,7 +393,7 @@ void main() {
       tester
           .widget<OutlinedButton>(
             find.descendant(
-              of: find.byKey(const Key('label-mismatch-photo-front-camera')),
+              of: find.byKey(const Key('label-mismatch-photo-front_identity-camera')),
               matching: find.byType(OutlinedButton),
             ),
           )
@@ -403,7 +403,7 @@ void main() {
     expect(
       tester
           .widget<IconButton>(
-            find.byKey(const Key('label-mismatch-photo-front-remove')),
+            find.byKey(const Key('label-mismatch-photo-front_identity-remove')),
           )
           .onPressed,
       isNull,
@@ -484,7 +484,7 @@ void main() {
     await tester.pumpWidget(
       _sheetHarness(
         backend: backend,
-        pickPhoto: (slot, _) async => _photo(slot),
+        pickPhoto: (category, _) async => _photo(category),
         textScaler: const TextScaler.linear(2),
       ),
     );
@@ -605,9 +605,12 @@ LabelMismatchProductMetadata _metadata() => LabelMismatchProductMetadata(
   formulaFingerprint: _fingerprint,
 );
 
-ProductSubmissionPhoto _photo(ProductSubmissionPhotoSlot slot) =>
+const _frontPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+
+ProductSubmissionPhoto _photo(ProductSubmissionEvidenceCategory category) =>
     ProductSubmissionPhoto(
-      slot: slot,
+      photoId: _frontPhotoId,
+      categories: {category},
       bytes: Uint8List.fromList([1, 2, 3]),
       contentType: 'image/jpeg',
     );
@@ -686,7 +689,7 @@ class _FakeBackend implements ProductSubmissionBackend {
   }) async {
     operations.add('finalize');
     return photoRows
-        .map((row) => '$_userId/$submissionId/${row['photo_slot']}')
+        .map((row) => '$_userId/$submissionId/${row['photo_id']}')
         .every(successfulObjectPaths.contains);
   }
 

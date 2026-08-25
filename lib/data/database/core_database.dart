@@ -361,12 +361,37 @@ class CoreDatabase extends _$CoreDatabase {
 
     // Build candidate list — dedup to avoid running the query twice
     // for a 12-digit UPC that doesn't need adjustment.
+    //
+    // The catalog stores GTINs VERBATIM in {8,12,13,14} digit widths
+    // (normalize_upc, build_final_db.py); GS1 zero-padding equivalence is
+    // the reader's job, so every valid zero-padded/stripped representation
+    // of the scanned code becomes a candidate. EAN-8 is its own GS1
+    // numbering — never a stripped form of a longer code — so an 8-digit
+    // scan only ever pads, and longer codes never strip below 12.
     final candidates = <String>{digits};
-    if (digits.length == 13 && digits.startsWith('0')) {
-      candidates.add(digits.substring(1)); // UPC-A fallback
+    if (digits.length == 8) {
+      candidates.add('000000$digits'); // EAN-8 stored as GTIN-14
     }
     if (digits.length == 12) {
       candidates.add('0$digits'); // EAN-13 variant
+      candidates.add('00$digits'); // GTIN-14 variant
+    }
+    if (digits.length == 13 && digits.startsWith('0')) {
+      candidates.add(digits.substring(1)); // UPC-A fallback
+    }
+    if (digits.length == 13) {
+      candidates.add('0$digits'); // GTIN-14 variant
+    }
+    if (digits.length == 14) {
+      if (digits.startsWith('0')) {
+        candidates.add(digits.substring(1)); // EAN-13 form
+      }
+      if (digits.startsWith('00')) {
+        candidates.add(digits.substring(2)); // UPC-A form
+      }
+      if (digits.startsWith('000000')) {
+        candidates.add(digits.substring(6)); // EAN-8 form
+      }
     }
 
     final matches = <String, ProductsCoreData>{};

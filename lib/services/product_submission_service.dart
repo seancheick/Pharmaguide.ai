@@ -23,13 +23,20 @@ enum LabelMismatchCategory {
 }
 
 /// The three explicit product-label photo positions supported by Storage.
-enum ProductSubmissionPhotoSlot {
-  front('front'),
+/// Typed evidence categories (schema v2). One photo may satisfy several —
+/// a Supplement Facts panel that also carries the ingredient list is tagged
+/// with both, which is how "no separate Other Ingredients panel" labels
+/// still reach full coverage.
+enum ProductSubmissionEvidenceCategory {
+  frontIdentity('front_identity'),
   supplementFacts('supplement_facts'),
-  otherIngredients('other_ingredients');
+  ingredientDisclosure('ingredient_disclosure'),
+  directionsWarnings('directions_warnings'),
+  barcode('barcode'),
+  lotExpiry('lot_expiry');
 
   final String wireValue;
-  const ProductSubmissionPhotoSlot(this.wireValue);
+  const ProductSubmissionEvidenceCategory(this.wireValue);
 }
 
 enum ProductSubmissionValidationFailure {
@@ -41,14 +48,14 @@ enum ProductSubmissionValidationFailure {
   unexpectedMetadata,
   noCategories,
   tooManyPhotos,
-  duplicatePhotoSlot,
+  duplicatePhotoId,
+  duplicatePhotoContent,
   emptyPhoto,
   photoTooLarge,
   unsupportedPhotoContentType,
   photoSanitizationFailed,
   missingRequiredPhoto,
-  missingOtherIngredientsEvidence,
-  conflictingOtherIngredientsEvidence,
+  invalidEvidenceCategories,
 }
 
 class ProductSubmissionValidationException implements Exception {
@@ -174,6 +181,7 @@ class LabelMismatchProductMetadata {
 
 class ProductSubmissionPhoto {
   static const maxByteSize = 15 * 1024 * 1024;
+  static const maxPerSubmission = 8;
   static const allowedContentTypes = <String>{
     'image/jpeg',
     'image/png',
@@ -182,7 +190,10 @@ class ProductSubmissionPhoto {
     'image/webp',
   };
 
-  final ProductSubmissionPhotoSlot slot;
+  /// Client-minted identity; becomes the storage path leaf, so it is a
+  /// validated UUID exactly like the submission id.
+  final String photoId;
+  final Set<ProductSubmissionEvidenceCategory> categories;
   final Uint8List _bytes;
   final String contentType;
 
@@ -190,10 +201,17 @@ class ProductSubmissionPhoto {
   int get byteSize => _bytes.length;
   String get contentSha256 => sha256.convert(_bytes).toString();
 
+  List<String> get categoryWireValues {
+    final ordered = categories.toList()
+      ..sort((left, right) => left.index.compareTo(right.index));
+    return [for (final category in ordered) category.wireValue];
+  }
+
   factory ProductSubmissionPhoto({
-    required ProductSubmissionPhotoSlot slot,
+    required Set<ProductSubmissionEvidenceCategory> categories,
     required Uint8List bytes,
     required String contentType,
+    String? photoId,
   }) {
     if (bytes.isEmpty) {
       throw const ProductSubmissionValidationException(
@@ -210,16 +228,23 @@ class ProductSubmissionPhoto {
         ProductSubmissionValidationFailure.unsupportedPhotoContentType,
       );
     }
+    if (categories.isEmpty || categories.length > 6) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.invalidEvidenceCategories,
+      );
+    }
     return ProductSubmissionPhoto._(
       Uint8List.fromList(bytes),
-      slot: slot,
+      photoId: _validateSubmissionId(photoId ?? _newUuidV4()),
+      categories: Set.unmodifiable(categories),
       contentType: contentType,
     );
   }
 
   ProductSubmissionPhoto._(
     this._bytes, {
-    required this.slot,
+    required this.photoId,
+    required this.categories,
     required this.contentType,
   });
 }
@@ -242,7 +267,12 @@ sealed class ProductSubmissionDraft {
   String? get upc;
   List<ProductSubmissionPhoto> get photos;
   Map<String, Object?>? get mismatchDetail;
-  bool get otherIngredientsNotPresent;
+
+  /// Reviewer cue only ("this label has no separate Other Ingredients
+  /// panel") — never evidence. Coverage still requires an
+  /// ingredient_disclosure-tagged photo; on such labels the Supplement
+  /// Facts photo carries both categories.
+  bool get noSeparateIngredientPanel;
 }
 
 /// A structured correction against one known catalog record.
@@ -260,7 +290,7 @@ class LabelMismatchReportDraft implements ProductSubmissionDraft {
   @override
   String? get upc => product.upc;
   @override
-  bool get otherIngredientsNotPresent => false;
+  bool get noSeparateIngredientPanel => false;
   @override
   Map<String, Object?> get mismatchDetail {
     final categoriesInWireOrder = categories.toList()
@@ -292,16 +322,7 @@ class LabelMismatchReportDraft implements ProductSubmissionDraft {
         ProductSubmissionValidationFailure.noCategories,
       );
     }
-    if (photos.length > ProductSubmissionPhotoSlot.values.length) {
-      throw const ProductSubmissionValidationException(
-        ProductSubmissionValidationFailure.tooManyPhotos,
-      );
-    }
-    if (photos.map((photo) => photo.slot).toSet().length != photos.length) {
-      throw const ProductSubmissionValidationException(
-        ProductSubmissionValidationFailure.duplicatePhotoSlot,
-      );
-    }
+    _validatePhotoSet(photos);
   }
 
   factory LabelMismatchReportDraft.create({
@@ -321,10 +342,16 @@ class LabelMismatchReportDraft implements ProductSubmissionDraft {
 
 /// New product evidence created from a barcode miss.
 ///
-/// Front and Supplement Facts are always required. Other Ingredients is
-/// required unless the user explicitly confirms that no such panel appears on
-/// the product. Product/brand names are intentionally not collected as text.
+/// Coverage is category-typed: the photo set must include front_identity,
+/// supplement_facts, and ingredient_disclosure (one photo may carry
+/// several). Product/brand names are intentionally not collected as text.
 class MissingProductSubmissionDraft implements ProductSubmissionDraft {
+  static const requiredCategories = <ProductSubmissionEvidenceCategory>{
+    ProductSubmissionEvidenceCategory.frontIdentity,
+    ProductSubmissionEvidenceCategory.supplementFacts,
+    ProductSubmissionEvidenceCategory.ingredientDisclosure,
+  };
+
   @override
   final String submissionId;
   @override
@@ -332,35 +359,23 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   @override
   final List<ProductSubmissionPhoto> photos;
   @override
-  final bool otherIngredientsNotPresent;
+  final bool noSeparateIngredientPanel;
 
   MissingProductSubmissionDraft({
     required String submissionId,
     required String upc,
     required List<ProductSubmissionPhoto> photos,
-    this.otherIngredientsNotPresent = false,
+    this.noSeparateIngredientPanel = false,
   }) : submissionId = _validateSubmissionId(submissionId),
        upc = _normalizeUpc(upc),
        photos = List.unmodifiable(photos) {
     _validatePhotoSet(photos);
-    final slots = photos.map((photo) => photo.slot).toSet();
-    if (!slots.contains(ProductSubmissionPhotoSlot.front) ||
-        !slots.contains(ProductSubmissionPhotoSlot.supplementFacts)) {
+    final covered = <ProductSubmissionEvidenceCategory>{
+      for (final photo in photos) ...photo.categories,
+    };
+    if (!covered.containsAll(requiredCategories)) {
       throw const ProductSubmissionValidationException(
         ProductSubmissionValidationFailure.missingRequiredPhoto,
-      );
-    }
-    final hasOther = slots.contains(
-      ProductSubmissionPhotoSlot.otherIngredients,
-    );
-    if (!hasOther && !otherIngredientsNotPresent) {
-      throw const ProductSubmissionValidationException(
-        ProductSubmissionValidationFailure.missingOtherIngredientsEvidence,
-      );
-    }
-    if (hasOther && otherIngredientsNotPresent) {
-      throw const ProductSubmissionValidationException(
-        ProductSubmissionValidationFailure.conflictingOtherIngredientsEvidence,
       );
     }
   }
@@ -368,14 +383,14 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   factory MissingProductSubmissionDraft.create({
     required String upc,
     required List<ProductSubmissionPhoto> photos,
-    bool otherIngredientsNotPresent = false,
+    bool noSeparateIngredientPanel = false,
     String Function()? submissionIdFactory,
   }) {
     return MissingProductSubmissionDraft(
       submissionId: (submissionIdFactory ?? _newUuidV4)(),
       upc: upc,
       photos: photos,
-      otherIngredientsNotPresent: otherIngredientsNotPresent,
+      noSeparateIngredientPanel: noSeparateIngredientPanel,
     );
   }
 
@@ -443,14 +458,22 @@ bool _isValidGtin(String value) {
 }
 
 void _validatePhotoSet(List<ProductSubmissionPhoto> photos) {
-  if (photos.length > ProductSubmissionPhotoSlot.values.length) {
+  if (photos.length > ProductSubmissionPhoto.maxPerSubmission) {
     throw const ProductSubmissionValidationException(
       ProductSubmissionValidationFailure.tooManyPhotos,
     );
   }
-  if (photos.map((photo) => photo.slot).toSet().length != photos.length) {
+  if (photos.map((photo) => photo.photoId).toSet().length != photos.length) {
     throw const ProductSubmissionValidationException(
-      ProductSubmissionValidationFailure.duplicatePhotoSlot,
+      ProductSubmissionValidationFailure.duplicatePhotoId,
+    );
+  }
+  // Same bytes twice in one submission is a client bug: multi-category
+  // tagging covers legitimate reuse without duplicating uploads.
+  if (photos.map((photo) => photo.contentSha256).toSet().length !=
+      photos.length) {
+    throw const ProductSubmissionValidationException(
+      ProductSubmissionValidationFailure.duplicatePhotoContent,
     );
   }
 }
@@ -486,11 +509,12 @@ sealed class ProductSubmissionResult {
 }
 
 class ProductSubmissionSuccess extends ProductSubmissionResult {
-  final Map<ProductSubmissionPhotoSlot, String> photoObjectPaths;
+  /// Keyed by photo id — the storage path leaf.
+  final Map<String, String> photoObjectPaths;
 
   ProductSubmissionSuccess({
     required super.submissionId,
-    required Map<ProductSubmissionPhotoSlot, String> photoObjectPaths,
+    required Map<String, String> photoObjectPaths,
   }) : photoObjectPaths = Map.unmodifiable(photoObjectPaths);
 }
 
@@ -567,22 +591,24 @@ class ProductSubmissionService {
       );
     }
 
-    final orderedPhotos = draft.photos.toList()
-      ..sort((left, right) => left.slot.index.compareTo(right.slot.index));
-    final objectPaths = <ProductSubmissionPhotoSlot, String>{};
+    // Capture order IS evidence order: seq derives from the draft's list
+    // position, and the storage path leaf is the photo's own identity.
+    final orderedPhotos = draft.photos;
+    final objectPaths = <String, String>{};
     for (final photo in orderedPhotos) {
-      final objectPath =
-          '$userId/${draft.submissionId}/${photo.slot.wireValue}';
-      objectPaths[photo.slot] = objectPath;
+      objectPaths[photo.photoId] =
+          '$userId/${draft.submissionId}/${photo.photoId}';
     }
 
     final manifest = <Map<String, Object?>>[
-      for (final photo in orderedPhotos)
+      for (var index = 0; index < orderedPhotos.length; index++)
         <String, Object?>{
-          'photo_slot': photo.slot.wireValue,
-          'content_type': photo.contentType,
-          'byte_size': photo.byteSize,
-          'content_sha256': photo.contentSha256,
+          'photo_id': orderedPhotos[index].photoId,
+          'seq': index + 1,
+          'categories': orderedPhotos[index].categoryWireValues,
+          'content_type': orderedPhotos[index].contentType,
+          'byte_size': orderedPhotos[index].byteSize,
+          'content_sha256': orderedPhotos[index].contentSha256,
         },
     ];
     final payload = <String, Object?>{
@@ -590,7 +616,7 @@ class ProductSubmissionService {
       'p_kind': draft.kind.wireValue,
       'p_upc': draft.upc,
       'p_mismatch_detail': draft.mismatchDetail,
-      'p_other_ingredients_not_present': draft.otherIngredientsNotPresent,
+      'p_no_separate_ingredient_panel': draft.noSeparateIngredientPanel,
       'p_photos': manifest,
     };
 
@@ -642,7 +668,7 @@ class ProductSubmissionService {
       onPhaseChanged?.call(ProductSubmissionPhase.uploadingPhotos);
     }
     for (final photo in orderedPhotos) {
-      final objectPath = objectPaths[photo.slot]!;
+      final objectPath = objectPaths[photo.photoId]!;
       try {
         await backend.uploadPhoto(
           bucket: photoBucket,
@@ -752,12 +778,42 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
         .from(table)
         .select(
           'id,kind,normalized_upc,upload_state,review_status,created_at,'
-          'promoted_catalog_version',
+          'promoted_catalog_version,promoted_at,'
+          'resolution_code,resolution_detail,resolved_dsld_id',
         )
         .order('created_at', ascending: false)
         .limit(100);
     return [for (final row in rows) Map<String, Object?>.from(row)];
   }
+}
+
+/// Closed vocabulary of user-facing review outcomes (schema v2). The copy
+/// map in the status UI translates each code; `other` is accompanied by a
+/// sanitized `resolution_detail` written by the reviewer.
+enum ProductSubmissionResolutionCode {
+  photoQuality('photo_quality'),
+  missingPanel('missing_panel'),
+  labelUnreadable('label_unreadable'),
+  notASupplement('not_a_supplement'),
+  alreadyInCatalog('already_in_catalog'),
+  duplicateSubmission('duplicate_submission'),
+  other('other');
+
+  final String wireValue;
+  const ProductSubmissionResolutionCode(this.wireValue);
+
+  static ProductSubmissionResolutionCode? fromWire(Object? raw) {
+    for (final code in values) {
+      if (code.wireValue == raw) return code;
+    }
+    return null;
+  }
+
+  /// Whether a fresh submission with better evidence can succeed.
+  bool get resubmittable => switch (this) {
+    photoQuality || missingPanel || labelUnreadable || other => true,
+    notASupplement || alreadyInCatalog || duplicateSubmission => false,
+  };
 }
 
 enum ProductSubmissionReviewStatus {
@@ -801,6 +857,10 @@ class ProductSubmissionSummary {
     required this.reviewStatus,
     required this.createdAt,
     required this.promotedCatalogVersion,
+    this.promotedAt,
+    this.resolutionCode,
+    this.resolutionDetail,
+    this.resolvedDsldId,
   });
 
   final String submissionId;
@@ -810,6 +870,15 @@ class ProductSubmissionSummary {
   final ProductSubmissionReviewStatus reviewStatus;
   final DateTime? createdAt;
   final String? promotedCatalogVersion;
+  final DateTime? promotedAt;
+  final ProductSubmissionResolutionCode? resolutionCode;
+  final String? resolutionDetail;
+
+  /// Catalog identity this submission resolved to: stamped at promotion for
+  /// approvals (and cascaded to duplicates), or at review for
+  /// already-in-catalog duplicates. Deep links must confirm the id exists in
+  /// the INSTALLED local catalog before rendering a button.
+  final String? resolvedDsldId;
 
   bool get uploadReady => uploadState == ProductSubmissionUploadState.ready;
 
@@ -832,6 +901,7 @@ class ProductSubmissionSummary {
       _ => null,
     };
     final createdAtRaw = row['created_at'];
+    final promotedAtRaw = row['promoted_at'];
     return ProductSubmissionSummary(
       submissionId: row['id'] is String ? row['id']! as String : '',
       kind: kind,
@@ -844,6 +914,14 @@ class ProductSubmissionSummary {
           ? DateTime.tryParse(createdAtRaw)?.toUtc()
           : null,
       promotedCatalogVersion: row['promoted_catalog_version'] as String?,
+      promotedAt: promotedAtRaw is String
+          ? DateTime.tryParse(promotedAtRaw)?.toUtc()
+          : null,
+      resolutionCode: ProductSubmissionResolutionCode.fromWire(
+        row['resolution_code'],
+      ),
+      resolutionDetail: row['resolution_detail'] as String?,
+      resolvedDsldId: row['resolved_dsld_id'] as String?,
     );
   }
 }

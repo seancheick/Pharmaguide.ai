@@ -36,6 +36,7 @@ import 'package:pharmaguide/features/profile/v2/profile_wizard_v2_screen.dart';
 import 'package:pharmaguide/features/scanner/camera_permission_gate.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
@@ -247,6 +248,10 @@ class ScanScreen extends ConsumerWidget {
     String barcode,
   ) async {
     if (ref.read(authStateProvider) != AuthMode.signedIn) {
+      // Reopened post-auth from the persisted intent; the awaited push dies
+      // when the auth listener router.go()s on sign-in.
+      await PendingSubmissionIntent.save(barcode);
+      if (!context.mounted) return;
       await context.push(Routes.authInvitation);
       return;
     }
@@ -869,8 +874,22 @@ void _navigatePostAuthIfOnAuthPath(GoRouter router) {
         .then((dest) => router.go(dest))
         // A SharedPreferences hiccup shouldn't strand the user on the
         // sign-in screen after a successful sign-in — fall back home.
-        .catchError((_) => router.go(Routes.home)),
+        .catchError((_) => router.go(Routes.home))
+        .then((_) => _resumePendingSubmission()),
   );
+}
+
+/// If a signed-out user tried to submit a product, sign-in consumes the
+/// persisted intent and reopens the capture sheet for that barcode on the
+/// post-auth landing screen.
+Future<void> _resumePendingSubmission() async {
+  final upc = await PendingSubmissionIntent.consume();
+  if (upc == null) return;
+  // Let the landing route finish its first frame before presenting a sheet.
+  await Future<void>.delayed(const Duration(milliseconds: 300));
+  final context = rootNavigatorKey.currentContext;
+  if (context == null || !context.mounted) return;
+  await showMissingProductSubmissionSheet(context, upc: upc);
 }
 
 void _surfaceAuthError(PGAuthResult result) {

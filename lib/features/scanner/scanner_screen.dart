@@ -21,6 +21,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
@@ -239,6 +240,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final upc = _notFoundUpc;
     if (upc == null || upc.isEmpty) return;
     if (ref.read(authStateProvider) != AuthMode.signedIn) {
+      // The global auth listener lands users with router.go(...) after
+      // sign-in (and a magic link may restart the app), so the sheet is
+      // reopened from a persisted intent — never from this await.
+      await PendingSubmissionIntent.save(upc);
+      if (!mounted) return;
       _dismissNotFound();
       await context.push(Routes.authInvitation);
       return;
