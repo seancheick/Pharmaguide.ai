@@ -12,6 +12,12 @@ import {
   fcmAccessToken,
   sendFcmMessage,
 } from "../_shared/fcm_v1.ts";
+import {
+  cursorFilter,
+  nextListCursor,
+  parseListRequest,
+  reviewStatusesForList,
+} from "./queue.ts";
 import { validateManualLabelV1 } from "./schema.ts";
 
 // Supabase Edge Runtime keeps promises passed to EdgeRuntime.waitUntil alive
@@ -28,20 +34,12 @@ const MAX_BODY_BYTES = 1_000_000;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTIONS = new Set(["list", "record_extraction", "transition"]);
-const REVIEW_STATUSES = new Set([
-  "submitted",
-  "under_review",
-  "approved",
-  "rejected",
-  "duplicate",
-]);
 const TRANSITION_STATUSES = new Set([
   "under_review",
   "approved",
   "rejected",
   "duplicate",
 ]);
-const KINDS = new Set(["label_mismatch", "missing_product"]);
 const REJECTED_RESOLUTION_CODES = new Set([
   "photo_quality",
   "missing_panel",
@@ -404,34 +402,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
   try {
     if (action === "list") {
-      rejectUnknownKeys(
-        body,
-        new Set(["action", "status", "kind", "limit", "submission_id"]),
-      );
-      const listSubmissionId = body.submission_id === undefined ||
-          body.submission_id === null
-        ? null
-        : requiredUuid(body.submission_id, "submission id");
-      const limit = body.limit ?? 50;
-      if (
-        !Number.isInteger(limit) ||
-        !(Number(limit) >= 1 && Number(limit) <= 100)
-      ) {
-        throw new Error("invalid limit");
-      }
-      if (
-        body.status !== undefined &&
-        (typeof body.status !== "string" ||
-          !REVIEW_STATUSES.has(body.status))
-      ) {
-        throw new Error("invalid status");
-      }
-      if (
-        body.kind !== undefined &&
-        (typeof body.kind !== "string" || !KINDS.has(body.kind))
-      ) {
-        throw new Error("invalid kind");
-      }
+      const listRequest = parseListRequest(body);
+      const statuses = reviewStatusesForList(listRequest.status);
 
       let query = admin
         .from("product_submissions")
@@ -447,15 +419,35 @@ Deno.serve(async (request: Request): Promise<Response> => {
             "catalog_source_version,formula_fingerprint,mismatch_categories)",
         )
         .eq("upload_state", "ready")
+        .not("submitted_at", "is", null)
         .order("submitted_at", { ascending: true })
         .order("id", { ascending: true })
-        .limit(Number(limit));
-      if (body.status) query = query.eq("review_status", body.status);
-      if (body.kind) query = query.eq("kind", body.kind);
-      if (listSubmissionId) query = query.eq("id", listSubmissionId);
+        .limit(listRequest.limit);
+      if (statuses) query = query.in("review_status", statuses);
+      if (listRequest.kind) query = query.eq("kind", listRequest.kind);
+      if (listRequest.submissionId) {
+        query = query.eq("id", listRequest.submissionId);
+      }
+      if (listRequest.after) {
+        query = query.or(cursorFilter(listRequest.after));
+      }
 
-      const { data: submissions, error: submissionsError } = await query;
-      if (submissionsError) throw submissionsError;
+      let openCountQuery = admin
+        .from("product_submissions")
+        .select("id", { count: "exact", head: true })
+        .eq("upload_state", "ready")
+        .in("review_status", ["submitted", "under_review"]);
+      if (listRequest.kind) {
+        openCountQuery = openCountQuery.eq("kind", listRequest.kind);
+      }
+
+      const [listResult, openCountResult] = await Promise.all([
+        query,
+        openCountQuery,
+      ]);
+      if (listResult.error) throw listResult.error;
+      if (openCountResult.error) throw openCountResult.error;
+      const submissions = listResult.data;
       const submissionRows = (submissions ?? []) as unknown as JsonObject[];
       const ids = submissionRows.map((row) => row.id as string);
       const photosBySubmission = new Map<string, JsonObject[]>();
@@ -504,8 +496,15 @@ Deno.serve(async (request: Request): Promise<Response> => {
         ...submission,
         photos: photosBySubmission.get(submission.id as string) ?? [],
       }));
+      const nextAfter = listRequest.submissionId
+        ? null
+        : nextListCursor(submissionRows, listRequest.limit);
       audit(reviewerId, action, "success", responseSubmissions.length);
-      return json({ submissions: responseSubmissions });
+      return json({
+        submissions: responseSubmissions,
+        total_open_count: openCountResult.count ?? 0,
+        next_after: nextAfter,
+      });
     }
 
     if (action === "record_extraction") {

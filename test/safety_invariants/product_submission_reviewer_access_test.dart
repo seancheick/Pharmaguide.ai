@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const _functionPath = 'supabase/functions/review-product-submissions/index.ts';
+const _queuePath = 'supabase/functions/review-product-submissions/queue.ts';
 const _schemaPath = 'supabase/functions/review-product-submissions/schema.ts';
 
 void main() {
   late String source;
+  late String queueSource;
   late String schemaSource;
 
   setUpAll(() {
@@ -17,6 +19,9 @@ void main() {
       reason: 'The unified reviewer boundary must exist.',
     );
     source = function.readAsStringSync().replaceAll('"', "'");
+    final queue = File(_queuePath);
+    expect(queue.existsSync(), isTrue, reason: 'The list contract must exist.');
+    queueSource = queue.readAsStringSync().replaceAll('"', "'");
     final schema = File(_schemaPath);
     expect(
       schema.existsSync(),
@@ -91,8 +96,13 @@ void main() {
     );
     expect(source, contains("'product-submission-photos'"));
     expect(source, isNot(contains('createPublicUrl')));
-    expect(source, contains('Number(limit) >= 1'));
-    expect(source, contains('Number(limit) <= 100'));
+    expect(queueSource, contains('Number(rawLimit) < 1'));
+    expect(queueSource, contains('Number(rawLimit) > 100'));
+    expect(source, contains('parseListRequest(body)'));
+    expect(source, contains("query.in('review_status', statuses)"));
+    expect(source, contains('query.or(cursorFilter(listRequest.after))'));
+    expect(source, contains('total_open_count: openCountResult.count ?? 0'));
+    expect(source, contains('next_after: nextAfter'));
   });
 
   test('keeps AI extraction drafts separate from approval', () {

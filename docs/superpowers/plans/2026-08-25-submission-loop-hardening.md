@@ -186,10 +186,10 @@ Must include: private review, third-party AI may read the label, human approves 
 - Modify: `scripts/submission_review/static/app.js`
 - Test: Deno list tests + `test_submission_review_server.py` if it stubs list
 
-- [ ] `status: "open"` filters `submitted` + `under_review`
-- [ ] `after: {submitted_at, id}` cursor
-- [ ] total open count in response
-- [ ] Console default Open, Load more, render count
+- [x] `status: "open"` filters `submitted` + `under_review`
+- [x] `after: {submitted_at, id}` cursor
+- [x] total open count in response
+- [x] Console default Open, Load more, render count
 
 ### Task 11: Allowlist table, `auth.uid()` review RPC, fail-closed identity
 
