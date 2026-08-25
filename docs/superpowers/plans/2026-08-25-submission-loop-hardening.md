@@ -159,7 +159,7 @@ Must include: private review, third-party AI may read the label, human approves 
 
 - [x] `flutter test` on all files touched in Batch 1 — 136 focused tests passed.
 - [x] `make check` in PharmaGuide ai — analyze clean; all 3,357 tests passed.
-- [x] Commit Batch 1 as one PR (stacked commits per task).
+- [x] Commit Batch 1 as stacked commits per task; integrated by fast-forward to `main`.
 
 ---
 
