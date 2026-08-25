@@ -29,6 +29,7 @@ abstract final class Routes {
 
   /// "Safe to Take Together?" quick pair interaction check.
   static const quickCheck = '/quick-check';
+  static const productSubmissions = '/contributions';
 
   /// Brand-reveal splash intro played between the native splash and
   /// the app's first content screen. The destination route after the

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/history/health_history_screen.dart';
@@ -11,7 +12,7 @@ import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/v2/theme_settings_sheet.dart';
 import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
 import 'package:pharmaguide/features/settings/providers/notification_settings_provider.dart';
-import 'package:pharmaguide/features/settings/v2/product_submission_status_sheet.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/clinician_report_preview_screen.dart';
@@ -84,7 +85,7 @@ class SettingsV2Connected extends ConsumerWidget {
             ),
           ),
       onOpenProductSubmissions: signedIn
-          ? () => showProductSubmissionStatusSheet(context)
+          ? () => context.push(Routes.productSubmissions)
           : null,
       themeCaption: themePreferenceLabel(preferences.theme),
       notificationCaption: notificationSettingsCaption(

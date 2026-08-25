@@ -62,6 +62,7 @@ import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pharmaguide/features/contributions/product_submissions_screen.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 // `ScannerV2Screen` / `ScannerV2Preview` are referenced only by the
 // dev gallery route below. Production keeps `ScannerScreen` because it
@@ -727,6 +728,11 @@ GoRouter _buildRouter({
         path: Routes.medicationEntry,
         pageBuilder: (_, state) =>
             _platformPage(state, const MedicationEntryV2Screen()),
+      ),
+      GoRoute(
+        path: Routes.productSubmissions,
+        pageBuilder: (_, state) =>
+            _platformPage(state, const ProductSubmissionsScreen()),
       ),
       // Direct dev preview — bypasses the env toggle so reviewers
       // can poke at the v2 screen without restarting with a flag.

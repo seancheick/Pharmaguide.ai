@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
-import 'package:pharmaguide/features/settings/v2/product_submission_status_sheet.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/services/notifications/safety_push_service.dart';
 
 /// Starts the optional FCM transport once per app scope. The feed remains
@@ -23,7 +24,7 @@ final safetyPushBootstrapProvider = FutureProvider<bool>((ref) async {
       ref.invalidate(productSubmissionsProvider);
       final context = rootNavigatorKey.currentContext;
       if (context == null || !context.mounted) return;
-      await showProductSubmissionStatusSheet(context);
+      await context.push(Routes.productSubmissions);
     },
   );
 });

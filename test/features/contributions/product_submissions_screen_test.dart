@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
-import 'package:pharmaguide/features/settings/v2/product_submission_status_sheet.dart';
+import 'package:pharmaguide/features/contributions/product_submissions_screen.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 Widget _harness(List<Map<String, Object?>> rows, {CoreDatabase? db}) {
@@ -19,9 +19,7 @@ Widget _harness(List<Map<String, Object?>> rows, {CoreDatabase? db}) {
       ),
       coreDatabaseProvider.overrideWithValue(database),
     ],
-    child: const MaterialApp(
-      home: Scaffold(body: ProductSubmissionStatusSheet()),
-    ),
+    child: const MaterialApp(home: ProductSubmissionsScreen()),
   );
 }
 
@@ -44,7 +42,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Product submissions'), findsOneWidget);
+    expect(find.text('Your contributions'), findsOneWidget);
     expect(find.text('Under review'), findsOneWidget);
     expect(find.text('Added to catalog'), findsOneWidget);
     expect(find.textContaining('2026.07.30.1'), findsOneWidget);
@@ -167,27 +165,24 @@ void main() {
         );
 
     await tester.pumpWidget(
-      _harness(
-        [
-          {
-            ..._row(
-              id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
-              reviewStatus: 'approved',
-              catalogVersion: '2026.08.30.1',
-            ),
-            'resolved_dsld_id': 'PG_SUB_AAAA',
-          },
-          {
-            ..._row(
-              id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a12',
-              reviewStatus: 'approved',
-              catalogVersion: '2026.08.30.1',
-            ),
-            'resolved_dsld_id': 'PG_SUB_NOT_INSTALLED',
-          },
-        ],
-        db: db,
-      ),
+      _harness([
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+            reviewStatus: 'approved',
+            catalogVersion: '2026.08.30.1',
+          ),
+          'resolved_dsld_id': 'PG_SUB_AAAA',
+        },
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a12',
+            reviewStatus: 'approved',
+            catalogVersion: '2026.08.30.1',
+          ),
+          'resolved_dsld_id': 'PG_SUB_NOT_INSTALLED',
+        },
+      ], db: db),
     );
     await tester.pumpAndSettle();
 
@@ -202,6 +197,59 @@ void main() {
     expect(
       find.text('Available after your next catalog update.'),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('impact grid counts pending, approved, total, and points', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        _row(
+          id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+          reviewStatus: 'under_review',
+        ),
+        _row(
+          id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a12',
+          reviewStatus: 'approved',
+        ),
+        _row(
+          id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a13',
+          reviewStatus: 'approved',
+          catalogVersion: '2026.08.25.1',
+        ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    Text statValue(String key) => tester.widget<Text>(
+      find
+          .descendant(of: find.byKey(Key(key)), matching: find.byType(Text))
+          .first,
+    );
+
+    expect(statValue('contributions-stat-pending').data, '1');
+    expect(statValue('contributions-stat-approved').data, '2');
+    expect(statValue('contributions-stat-total').data, '3');
+    // 10 (under review) + 50 (approved) + 100 (live in catalog).
+    expect(statValue('contributions-stat-points').data, '160');
+  });
+
+  test('contribution points ignore unfinished uploads', () {
+    ProductSubmissionSummary summary(Map<String, Object?> row) =>
+        ProductSubmissionSummary.fromRow(row);
+    expect(
+      contributionPoints([
+        summary({
+          ..._row(id: 'a', reviewStatus: 'submitted'),
+          'upload_state': 'pending',
+        }),
+        summary(_row(id: 'b', reviewStatus: 'rejected')),
+        summary(_row(id: 'c', reviewStatus: 'approved', catalogVersion: 'v1')),
+      ]),
+      // 0 (never finished uploading) + 10 (a reviewed attempt still
+      // counts) + 100 (live).
+      110,
     );
   });
 }
