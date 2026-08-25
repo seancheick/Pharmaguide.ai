@@ -224,7 +224,14 @@ void main() {
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Product quality score unavailable.'), findsNothing);
       expect(find.text('Strong'), findsNothing);
-      expect(find.text('Limited assessment'), findsOneWidget);
+      expect(
+        find.text(
+          'No clinical evidence matched • '
+          'Product-level certification not verified',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Limited assessment'), findsNothing);
       expect(find.textContaining('Score confidence'), findsNothing);
       expect(find.textContaining('Why:'), findsNothing);
     });
