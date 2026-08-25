@@ -169,7 +169,15 @@ void main() {
       final liveVinpocetine = await coreDb
           .customSelect(
             '''
-            SELECT COUNT(*) AS n FROM products_core
+            SELECT
+              COUNT(*) AS n,
+              SUM(CASE WHEN safety_verdict = 'CAUTION' THEN 1 ELSE 0 END)
+                AS caution_n,
+              SUM(CASE WHEN quality_score_status = 'scored' THEN 1 ELSE 0 END)
+                AS scored_n,
+              SUM(CASE WHEN blocking_reason IS NOT NULL THEN 1 ELSE 0 END)
+                AS blocked_n
+            FROM products_core
             WHERE EXISTS (
               SELECT 1 FROM json_each(key_ingredient_tags)
               WHERE lower(value) = 'vinpocetine'
@@ -178,12 +186,24 @@ void main() {
             readsFrom: {coreDb.productsCore},
           )
           .getSingle();
+      final liveVinpocetineCount = liveVinpocetine.read<int>('n');
+      expect(liveVinpocetineCount, greaterThan(0));
       expect(
-        liveVinpocetine.read<int>('n'),
+        liveVinpocetine.read<int>('caution_n'),
+        liveVinpocetineCount,
+        reason: 'the reviewed FDA vinpocetine policy must render as CAUTION',
+      );
+      expect(
+        liveVinpocetine.read<int>('scored_n'),
+        liveVinpocetineCount,
+        reason: 'reviewed vinpocetine products must remain fully scored',
+      );
+      expect(
+        liveVinpocetine.read<int>('blocked_n'),
         0,
         reason:
-            'safety-policy quarantined vinpocetine products must not leak '
-            'into the live app catalog',
+            'tentative legal status must not leak into the hard-blocking '
+            'reason surface',
       );
 
       for (final fixture in fixtures) {
