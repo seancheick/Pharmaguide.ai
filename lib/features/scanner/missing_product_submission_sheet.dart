@@ -76,8 +76,9 @@ Future<bool> showMissingProductSubmissionSheet(
 
 /// One guided capture step. `categories` is what a photo taken on this step
 /// is tagged with; the ingredients step disappears when the facts capture
-/// already carries the ingredient list (asked as a one-tap question right
-/// after the facts shot — never a checkbox that could invalidate work).
+/// already carries the ingredient list (asked as a one-tap question when
+/// the user continues from Facts — never a checkbox that could invalidate
+/// work).
 enum _CaptureStep { intro, front, facts, ingredients, extras, review }
 
 /// Private, structured evidence intake for a barcode the catalog cannot
@@ -114,6 +115,7 @@ class _MissingProductSubmissionSheetState
   final List<ProductSubmissionPhoto> _photos = [];
   _CaptureStep _step = _CaptureStep.intro;
   bool _factsCarriesIngredients = false;
+  bool _factsPanelLocationConfirmed = false;
   bool _consent = false;
   bool _submitting = false;
   bool _submitted = false;
@@ -183,9 +185,9 @@ class _MissingProductSubmissionSheetState
     );
   }
 
-  /// Camera-first capture. On a required step the flow advances by itself
-  /// after a passing shot — confirming in the system camera IS the
-  /// confirmation, so no extra Next tap is asked for.
+  /// Camera-first capture. Simple required steps advance after a passing
+  /// shot. Facts deliberately stays open so a wrapped panel can receive
+  /// more than one angle before the user continues.
   Future<void> _addPhoto(
     Set<ProductSubmissionEvidenceCategory> categories, {
     bool fromLibrary = false,
@@ -237,7 +239,7 @@ class _MissingProductSubmissionSheetState
         _photos.add(photo);
         _draft = null;
       });
-      if (autoAdvance) await _advanceAfterCapture();
+      if (autoAdvance) await _goForward();
     } on ProductSubmissionValidationException {
       if (!mounted) return;
       setState(
@@ -251,41 +253,6 @@ class _MissingProductSubmissionSheetState
     } finally {
       if (mounted) setState(() => _adding = false);
     }
-  }
-
-  /// The one flow fork. Right after the facts shot the user answers where
-  /// the "Other Ingredients" list lives — a one-tap question that RE-TAGS
-  /// the capture they just took (never deletes it) and decides whether the
-  /// ingredients step exists at all.
-  Future<void> _advanceAfterCapture() async {
-    if (_step == _CaptureStep.facts && !_factsCarriesIngredients) {
-      final combined = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('One quick check'),
-          content: const Text(
-            'Is the “Other Ingredients” list part of the panel you just '
-            'photographed?',
-          ),
-          actions: [
-            TextButton(
-              key: const Key('missing-product-facts-separate'),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('It’s separate'),
-            ),
-            FilledButton(
-              key: const Key('missing-product-facts-combined'),
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('It’s on this panel'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      if (combined == true) _setFactsCoversIngredients(true);
-    }
-    _goForward();
   }
 
   Future<bool> _confirmBlurryPhoto() async {
@@ -319,6 +286,12 @@ class _MissingProductSubmissionSheetState
     if (_submitting) return;
     setState(() {
       _photos.remove(photo);
+      if (_photosTagged(
+        ProductSubmissionEvidenceCategory.supplementFacts,
+      ).isEmpty) {
+        _factsCarriesIngredients = false;
+        _factsPanelLocationConfirmed = false;
+      }
       _draft = null;
       _stepError = null;
       _failure = null;
@@ -333,6 +306,7 @@ class _MissingProductSubmissionSheetState
     if (_submitting) return;
     setState(() {
       _factsCarriesIngredients = value;
+      _factsPanelLocationConfirmed = true;
       for (var i = 0; i < _photos.length; i++) {
         final photo = _photos[i];
         if (!photo.categories.contains(
@@ -384,13 +358,42 @@ class _MissingProductSubmissionSheetState
     Navigator.of(context).pop(false);
   }
 
-  void _goForward() {
-    final steps = _visibleSteps;
-    final index = steps.indexOf(_step);
+  Future<void> _goForward() async {
     if (!_stepSatisfied) {
       setState(() => _stepError = _requiredCopy(_step));
       return;
     }
+
+    if (_step == _CaptureStep.facts && !_factsPanelLocationConfirmed) {
+      final combined = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('One quick check'),
+          content: const Text(
+            'Is the “Other Ingredients” list part of the panel you just '
+            'photographed?',
+          ),
+          actions: [
+            TextButton(
+              key: const Key('missing-product-facts-separate'),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('It’s separate'),
+            ),
+            FilledButton(
+              key: const Key('missing-product-facts-combined'),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('It’s on this panel'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || combined == null) return;
+      _setFactsCoversIngredients(combined);
+    }
+
+    final steps = _visibleSteps;
+    final index = steps.indexOf(_step);
     if (index < steps.length - 1) {
       setState(() {
         _step = steps[index + 1];
@@ -644,8 +647,8 @@ class _MissingProductSubmissionSheetState
 
     return [
       Text(
-        'A few clear photos add this product for everyone. Snap each one; '
-        'the flow moves forward on its own.',
+        'A few clear photos add this product for everyone. We’ll guide you '
+        'through each label panel.',
         style: V2Typography.bodySm(color: context.v2.fgMuted),
       ),
       const SizedBox(height: V2Spacing.space12),
@@ -706,7 +709,10 @@ class _MissingProductSubmissionSheetState
           key: Key('missing-product-add-${category.wireValue}'),
           onPressed: _submitting || _adding
               ? null
-              : () => _addPhoto(_stepCategories(_step), autoAdvance: true),
+              : () => _addPhoto(
+                  _stepCategories(_step),
+                  autoAdvance: _step != _CaptureStep.facts,
+                ),
           icon: const Icon(Icons.photo_camera_outlined, size: 20),
           label: Text(photos.isEmpty ? 'Open camera' : 'Add another angle'),
         ),
@@ -720,7 +726,7 @@ class _MissingProductSubmissionSheetState
               : () => _addPhoto(
                   _stepCategories(_step),
                   fromLibrary: true,
-                  autoAdvance: true,
+                  autoAdvance: _step != _CaptureStep.facts,
                 ),
           child: Text(
             'Choose from library instead',

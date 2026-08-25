@@ -129,9 +129,9 @@ Scanner symbology is an input, never inferred from “EAN-8 never starts with 0�
 - Modify: `lib/features/scanner/missing_product_submission_sheet.dart`
 - Test: `test/features/scanner/missing_product_submission_sheet_test.dart`
 
-- [ ] **Step 1: Change `_captureRequiredEvidence` helper tests** — first facts shot stays; second angle appends; combined-panel dialog fires once on Continue.
+- [x] **Step 1: Change `_captureRequiredEvidence` helper tests** — first facts shot stays; second angle appends; combined-panel dialog fires once on Continue.
 
-- [ ] **Step 2: Implement** — auto-advance remains for front; facts wait for Continue.
+- [x] **Step 2: Implement** — auto-advance remains for front; facts wait for Continue.
 
 ### Task 6: Intent TTL + mismatch kind
 

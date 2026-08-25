@@ -49,9 +49,9 @@ Widget _harness({
 }
 
 /// Drives the camera-first flow through the required captures with the
-/// facts shot carrying the ingredient list (answered via the one-tap
-/// question), landing on the review step. Every passing shot advances by
-/// itself — the only taps are shutter taps and the fork answer.
+/// facts shots carrying the ingredient list (answered via the one-tap
+/// question), landing on the review step. Front advances automatically;
+/// Facts stays open so a wrapped panel can receive another angle.
 Future<void> _captureRequiredEvidence(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('missing-product-start')));
   await tester.pumpAndSettle();
@@ -61,12 +61,30 @@ Future<void> _captureRequiredEvidence(WidgetTester tester) async {
   await tester.pumpAndSettle();
   expect(find.text('Supplement Facts'), findsOneWidget);
 
-  // Facts: one shot, then the combined-panel question replaces both the
-  // old checkbox and the separate ingredients step.
+  // Facts: the first shot stays put, a second angle appends, and only
+  // Continue opens the combined-panel question.
   await tester.tap(
     find.byKey(const Key('missing-product-add-supplement_facts')),
   );
   await tester.pumpAndSettle();
+  expect(find.text('Supplement Facts'), findsOneWidget);
+  expect(find.text('Add another angle'), findsOneWidget);
+  expect(find.byKey(const Key('missing-product-facts-combined')), findsNothing);
+
+  await tester.tap(
+    find.byKey(const Key('missing-product-add-supplement_facts')),
+  );
+  await tester.pumpAndSettle();
+  expect(find.text('Supplement Facts'), findsOneWidget);
+  expect(find.byTooltip('Remove photo'), findsNWidgets(2));
+  expect(find.byKey(const Key('missing-product-facts-combined')), findsNothing);
+
+  await tester.tap(find.byKey(const Key('missing-product-next')));
+  await tester.pumpAndSettle();
+  expect(
+    find.byKey(const Key('missing-product-facts-combined')),
+    findsOneWidget,
+  );
   await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
   await tester.pumpAndSettle();
   expect(find.text('Anything else?'), findsOneWidget);
@@ -109,7 +127,7 @@ void main() {
     expect(backend.persistedSubmissionIds, isEmpty);
   });
 
-  testWidgets('captures advance by themselves; review gates on evidence', (
+  testWidgets('front advances automatically while facts waits for Continue', (
     tester,
   ) async {
     final backend = _Backend(authenticatedUserId: _userId);
@@ -134,6 +152,13 @@ void main() {
     await tester.tap(
       find.byKey(const Key('missing-product-add-supplement_facts')),
     );
+    await tester.pumpAndSettle();
+    expect(find.text('Supplement Facts'), findsOneWidget);
+    expect(
+      find.byKey(const Key('missing-product-facts-combined')),
+      findsNothing,
+    );
+    await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
     await tester.pumpAndSettle();
@@ -170,11 +195,16 @@ void main() {
     // The combined-panel answer re-tagged the facts capture in place —
     // both photos survived the question (regression: a checkbox used to
     // delete the shot it described).
-    expect(backend.manifest, hasLength(2));
+    expect(backend.manifest, hasLength(3));
     expect(backend.manifest[0]['seq'], 1);
     expect(backend.manifest[0]['categories'], ['front_identity']);
     expect(backend.manifest[1]['seq'], 2);
     expect(backend.manifest[1]['categories'], [
+      'supplement_facts',
+      'ingredient_disclosure',
+    ]);
+    expect(backend.manifest[2]['seq'], 3);
+    expect(backend.manifest[2]['categories'], [
       'supplement_facts',
       'ingredient_disclosure',
     ]);
@@ -196,6 +226,9 @@ void main() {
     await tester.tap(
       find.byKey(const Key('missing-product-add-supplement_facts')),
     );
+    await tester.pumpAndSettle();
+    expect(find.text('Supplement Facts'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-facts-separate')));
     await tester.pumpAndSettle();
@@ -245,9 +278,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(backend.persistedCueFlag, isFalse);
-    expect(backend.manifest, hasLength(3));
+    expect(backend.manifest, hasLength(4));
     expect(backend.manifest[1]['categories'], ['supplement_facts']);
-    expect(backend.manifest[2]['categories'], ['ingredient_disclosure']);
+    expect(backend.manifest[2]['categories'], ['supplement_facts']);
+    expect(backend.manifest[3]['categories'], ['ingredient_disclosure']);
   });
 
   testWidgets('the no-facts dead end explains why and can cancel', (
