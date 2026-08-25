@@ -38,6 +38,7 @@ import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
+import 'package:pharmaguide/features/scanner/scanner_not_found_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 import 'package:pharmaguide/features/compare/compare_screen.dart';
@@ -148,7 +149,7 @@ class ScanScreen extends ConsumerWidget {
       if (!context.mounted) return;
 
       if (resolution is UpcNotFound) {
-        _showManualLookupNotFound(context, ref, barcode);
+        await _showManualLookupNotFound(context, ref, barcode);
         return;
       }
       final product = switch (resolution) {
@@ -191,7 +192,7 @@ class ScanScreen extends ConsumerWidget {
       }
     } on Object {
       if (!context.mounted) return;
-      _showManualLookupNotFound(context, ref, barcode);
+      await _showManualLookupNotFound(context, ref, barcode);
     }
   }
 
@@ -217,29 +218,29 @@ class ScanScreen extends ConsumerWidget {
     );
   }
 
-  void _showManualLookupNotFound(
+  Future<void> _showManualLookupNotFound(
     BuildContext context,
     WidgetRef ref,
     String barcode,
-  ) {
-    PGModal.bottomSheet<void>(
-      context: context,
-      builder: (ctx) => ScannerNotFoundSheet(
-        upc: barcode,
-        onTryAgain: () {
-          Navigator.pop(ctx);
-          unawaited(_openManualEntry(context, ref));
-        },
-        onSearchByName: () {
-          Navigator.pop(ctx);
-          context.push(Routes.search);
-        },
-        onSubmitProduct: () {
-          Navigator.pop(ctx);
-          unawaited(_openMissingProductSubmission(context, ref, barcode));
-        },
-      ),
+  ) async {
+    final action = await showScannerNotFoundSheet(
+      context,
+      scannedCode: barcode,
+      manualEntry: true,
     );
+    if (!context.mounted) return;
+    switch (action) {
+      case ScannerNotFoundAction.searchByName:
+        await context.push(Routes.search);
+      case ScannerNotFoundAction.scanAgain:
+        await _openManualEntry(context, ref);
+      case ScannerNotFoundAction.helpAddProduct:
+        await _openMissingProductSubmission(context, ref, barcode);
+      case ScannerNotFoundAction.addMedication:
+        await context.push(Routes.medicationEntry);
+      case null:
+        break;
+    }
   }
 
   Future<void> _openMissingProductSubmission(

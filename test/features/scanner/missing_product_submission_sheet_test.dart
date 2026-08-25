@@ -47,54 +47,70 @@ Widget _harness({
   );
 }
 
-/// Drives the guided flow through the three required capture steps with the
-/// facts photo dual-tagged (no separate ingredient panel), landing on the
-/// review step.
+/// Drives the camera-first flow through the required captures with the
+/// facts shot carrying the ingredient list (answered via the one-tap
+/// question), landing on the review step. Every passing shot advances by
+/// itself — the only taps are shutter taps and the fork answer.
 Future<void> _captureRequiredEvidence(WidgetTester tester) async {
-  // Front step.
-  await tester.tap(find.byKey(const Key('missing-product-add-front_identity')));
-  await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const Key('missing-product-next')));
+  await tester.tap(find.byKey(const Key('missing-product-start')));
   await tester.pumpAndSettle();
 
-  // Facts step: declare the combined panel FIRST so the capture is tagged
-  // with both categories and the ingredients step disappears.
-  await tester.tap(
-    find.byKey(const Key('missing-product-facts-carries-ingredients')),
-  );
+  // Front: one shot, auto-advances to the facts step.
+  await tester.tap(find.byKey(const Key('missing-product-add-front_identity')));
   await tester.pumpAndSettle();
+  expect(find.text('Supplement Facts'), findsOneWidget);
+
+  // Facts: one shot, then the combined-panel question replaces both the
+  // old checkbox and the separate ingredients step.
   await tester.tap(
     find.byKey(const Key('missing-product-add-supplement_facts')),
   );
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const Key('missing-product-next')));
+  await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
   await tester.pumpAndSettle();
+  expect(find.text('Anything else?'), findsOneWidget);
 
-  // Extras step — skip straight to review.
+  // Extras are skippable; move straight to review.
   await tester.tap(find.byKey(const Key('missing-product-next')));
   await tester.pumpAndSettle();
+  expect(find.text('Review & submit'), findsOneWidget);
 }
 
 void main() {
   setUp(() => _photoCounter = 0);
 
-  testWidgets('guides required evidence before allowing review', (
+  testWidgets('captures advance by themselves; review gates on evidence', (
     tester,
   ) async {
     final backend = _Backend(authenticatedUserId: _userId);
     await tester.pumpWidget(_harness(backend: backend));
 
-    // Cannot advance past the front step without a photo.
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pump();
-    expect(
-      find.text('Add at least one photo of the front label.'),
-      findsOneWidget,
+    // Intro explains the job and owns the only Start affordance.
+    expect(find.text('Add this product'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+
+    // No photo yet: there is nothing to continue with — the forward
+    // button does not exist until the step is satisfied.
+    expect(find.text('Front of the package'), findsOneWidget);
+    expect(find.byKey(const Key('missing-product-next')), findsNothing);
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
     );
-
-    await _captureRequiredEvidence(tester);
-
+    await tester.pumpAndSettle();
+    expect(find.text('Supplement Facts'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-supplement_facts')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
+    await tester.pumpAndSettle();
+    expect(find.text('Anything else?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
     expect(find.text('Review & submit'), findsOneWidget);
+
     expect(find.byKey(const Key('missing-product-consent')), findsOneWidget);
     expect(backend.persistedSubmissionIds, isEmpty);
   });
@@ -120,6 +136,9 @@ void main() {
 
     expect(backend.persistedKind, 'missing_product');
     expect(backend.persistedCueFlag, isTrue);
+    // The combined-panel answer re-tagged the facts capture in place —
+    // both photos survived the question (regression: a checkbox used to
+    // delete the shot it described).
     expect(backend.manifest, hasLength(2));
     expect(backend.manifest[0]['seq'], 1);
     expect(backend.manifest[0]['categories'], ['front_identity']);
@@ -131,60 +150,90 @@ void main() {
     expect(find.text('Thanks — it’s in review'), findsOneWidget);
   });
 
-  testWidgets('ticking the combined-panel box after the shot retags in place', (
+  testWidgets('a separate ingredient panel gets its own capture step', (
     tester,
   ) async {
     final backend = _Backend(authenticatedUserId: _userId);
     await tester.pumpWidget(_harness(backend: backend));
 
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const Key('missing-product-add-front_identity')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pumpAndSettle();
-
-    // Natural order: photograph the facts panel FIRST, then notice the
-    // ingredient list lives on it and tick the box. The capture must survive
-    // and gain the ingredient tag (regression: the toggle used to delete it).
     await tester.tap(
       find.byKey(const Key('missing-product-add-supplement_facts')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('No photo yet'), findsNothing);
-    await tester.tap(
-      find.byKey(const Key('missing-product-facts-carries-ingredients')),
-    );
+    await tester.tap(find.byKey(const Key('missing-product-facts-separate')));
     await tester.pumpAndSettle();
-    expect(find.text('No photo yet'), findsNothing);
 
-    // Unticking reverts the tag but never removes the capture.
+    expect(find.text('Other Ingredients'), findsOneWidget);
     await tester.tap(
-      find.byKey(const Key('missing-product-facts-carries-ingredients')),
+      find.byKey(const Key('missing-product-add-ingredient_disclosure')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('No photo yet'), findsNothing);
-    await tester.tap(
-      find.byKey(const Key('missing-product-facts-carries-ingredients')),
-    );
-    await tester.pumpAndSettle();
+    expect(find.text('Anything else?'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
-    // Combined panel: the ingredients step is skipped straight to extras.
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pumpAndSettle();
-
     await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('missing-product-submit')));
     await tester.pumpAndSettle();
 
-    expect(backend.manifest, hasLength(2));
-    expect(backend.manifest[1]['categories'], [
-      'supplement_facts',
-      'ingredient_disclosure',
-    ]);
+    expect(backend.persistedCueFlag, isFalse);
+    expect(backend.manifest, hasLength(3));
+    expect(backend.manifest[1]['categories'], ['supplement_facts']);
+    expect(backend.manifest[2]['categories'], ['ingredient_disclosure']);
+  });
+
+  testWidgets('the no-facts dead end explains why and can cancel', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => showMissingProductSubmissionSheet(
+                context,
+                upc: _upc,
+                service: ProductSubmissionService(backend: backend),
+                submissionIdFactory: () => _submissionId,
+                qualityGate: (_) async => _okQuality,
+                pickPhoto: (tags) async => _photo(tags),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('missing-product-no-facts-link')));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Check the outer box'),
+      findsOneWidget,
+      reason: 'The dead end must offer the box hint before giving up.',
+    );
+    await tester.tap(find.byKey(const Key('missing-product-no-facts-cancel')));
+    await tester.pumpAndSettle();
+
+    // The sheet is gone and nothing was submitted.
+    expect(find.text('Supplement Facts'), findsNothing);
+    expect(backend.persistedSubmissionIds, isEmpty);
   });
 
   testWidgets('hard-blocks tiny photos and soft-warns blurry ones', (
@@ -210,16 +259,18 @@ void main() {
             verdicts.isEmpty ? _okQuality : verdicts.removeAt(0),
       ),
     );
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
 
-    // Too small: hard block with retake guidance, photo NOT added.
+    // Too small: hard block with retake guidance; no photo, no advance.
     await tester.tap(
       find.byKey(const Key('missing-product-add-front_identity')),
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('too small to read'), findsOneWidget);
-    expect(find.text('No photo yet'), findsOneWidget);
+    expect(find.text('Front of the package'), findsOneWidget);
 
-    // Blurry: dialog offers Retake / Use anyway; choosing Use anyway keeps it.
+    // Blurry: readability self-check; keeping it advances the flow.
     await tester.tap(
       find.byKey(const Key('missing-product-add-front_identity')),
     );
@@ -227,7 +278,7 @@ void main() {
     expect(find.text('That photo looks blurry'), findsOneWidget);
     await tester.tap(find.byKey(const Key('missing-product-blur-use-anyway')));
     await tester.pumpAndSettle();
-    expect(find.text('No photo yet'), findsNothing);
+    expect(find.text('Supplement Facts'), findsOneWidget);
   });
 
   testWidgets('retry reuses one immutable submission id', (tester) async {
