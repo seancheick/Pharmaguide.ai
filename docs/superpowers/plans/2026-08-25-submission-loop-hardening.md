@@ -117,11 +117,11 @@ Scanner symbology is an input, never inferred from “EAN-8 never starts with 0�
 - Test: `test/safety_invariants/product_submission_pipeline_contract_test.dart`
 - Test: `test/services/product_submission_service_test.dart`
 
-- [ ] **Step 1: Contract tests** — RPC accepts `resubmission_of` only for own rejected row; wrong owner / non-rejected / missing id fail closed.
+- [x] **Step 1: Contract tests** — RPC accepts `resubmission_of` only for own rejected row; wrong owner / non-rejected / missing id fail closed.
 
-- [ ] **Step 2: Migration + Dart payload**
+- [x] **Step 2: Migration + Dart payload**
 
-- [ ] **Step 3: Wire CTA** — missing_product reopens capture with that UPC; label_mismatch reopens mismatch sheet; both pass `resubmission_of`.
+- [x] **Step 3: Wire CTA** — missing_product reopens capture with that UPC; label_mismatch reopens mismatch sheet; both pass `resubmission_of`.
 
 ### Task 5: Facts step no auto-advance
 

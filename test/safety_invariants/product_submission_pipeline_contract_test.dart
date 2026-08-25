@@ -8,6 +8,9 @@ const _migrationPath =
 const _v2MigrationPath =
     'supabase/migrations/'
     '20260824172752_product_submission_evidence_resolution_v2.sql';
+const _resubmissionMigrationPath =
+    'supabase/migrations/'
+    '20260825181500_product_submission_resubmission_of.sql';
 
 String _normalized(String source) => source
     .replaceAll(RegExp(r'--[^\n]*'), ' ')
@@ -217,6 +220,57 @@ void main() {
       reason:
           'The app maps this substring to its actionable conflict copy; '
           'the trigger must speak the same language as the index.',
+    );
+  });
+
+  test('resubmission lineage is additive, owner-scoped, and fail-closed', () {
+    final file = File(_resubmissionMigrationPath);
+    expect(file.existsSync(), isTrue);
+    final resubmissionSql = _normalized(file.readAsStringSync());
+
+    expect(
+      resubmissionSql,
+      contains(
+        'add column resubmission_of uuid references '
+        'public.product_submissions(id) on delete set null',
+      ),
+    );
+    expect(resubmissionSql, contains('p_resubmission_of uuid default null'));
+    expect(resubmissionSql, contains('target.user_id = caller_id'));
+    expect(resubmissionSql, contains("target.review_status = 'rejected'"));
+    for (final code in const [
+      'photo_quality',
+      'missing_panel',
+      'label_unreadable',
+      'other',
+    ]) {
+      expect(resubmissionSql, contains("'$code'"));
+    }
+    expect(resubmissionSql, contains('target.kind = p_kind'));
+    expect(
+      resubmissionSql,
+      contains(
+        'target.normalized_upc is not distinct from normalized_upc_value',
+      ),
+    );
+    expect(
+      resubmissionSql,
+      contains("raise exception 'invalid resubmission lineage'"),
+      reason:
+          'Missing ids, another user’s ids, and non-rejected rows must all '
+          'fail through the same non-enumerating boundary.',
+    );
+    expect(
+      resubmissionSql,
+      contains("raise exception 'resubmission replay conflict'"),
+      reason: 'An idempotent replay cannot silently change its parent.',
+    );
+    expect(
+      resubmissionSql,
+      contains(
+        'revoke all on function public.create_product_submission_v2_internal',
+      ),
+      reason: 'Only the lineage-enforcing wrapper may remain callable.',
     );
   });
 

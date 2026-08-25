@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 const _submissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11';
+const _rejectedSubmissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a10';
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
@@ -128,6 +129,28 @@ void main() {
         ),
       );
     });
+
+    test('rejects malformed resubmission lineage before network work', () {
+      expect(
+        () => MissingProductSubmissionDraft(
+          submissionId: _submissionId,
+          upc: '050428381397',
+          resubmissionOf: 'not-a-uuid',
+          photos: [
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+          ],
+        ),
+        throwsA(
+          isA<ProductSubmissionValidationException>().having(
+            (error) => error.reason,
+            'reason',
+            ProductSubmissionValidationFailure.invalidReportId,
+          ),
+        ),
+      );
+    });
   });
 
   group('one submission orchestrator', () {
@@ -232,6 +255,29 @@ void main() {
         });
       },
     );
+
+    test('sends rejected-submission lineage only on a resubmission', () async {
+      final backend = _FakeBackend(authenticatedUserId: _userId);
+      final service = ProductSubmissionService(backend: backend);
+      final draft = MissingProductSubmissionDraft(
+        submissionId: _submissionId,
+        resubmissionOf: _rejectedSubmissionId,
+        upc: '050428381397',
+        photos: [
+          _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+          _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+          _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+        ],
+      );
+
+      final result = await service.submit(draft);
+
+      expect(result, isA<ProductSubmissionSuccess>());
+      expect(
+        backend.persistedPayload?['p_resubmission_of'],
+        _rejectedSubmissionId,
+      );
+    });
 
     test(
       'unknown server status remains unavailable instead of looking complete',

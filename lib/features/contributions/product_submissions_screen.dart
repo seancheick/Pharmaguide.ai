@@ -8,6 +8,8 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
+import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
+import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 typedef ResubmitProductSubmission =
@@ -55,6 +57,34 @@ class _ProductSubmissionsScreenState
   Future<void> _refresh() async {
     ref.invalidate(productSubmissionsProvider);
     await ref.read(productSubmissionsProvider.future);
+  }
+
+  Future<void> _resubmit(ProductSubmissionSummary status) async {
+    final service = ref.read(productSubmissionServiceProvider);
+    switch (status.kind) {
+      case ProductSubmissionKind.missingProduct:
+        final upc = status.upc;
+        if (upc == null) return;
+        await showMissingProductSubmissionSheet(
+          context,
+          upc: upc,
+          service: service,
+          resubmissionOf: status.submissionId,
+        );
+      case ProductSubmissionKind.labelMismatch:
+        final product = status.mismatchProduct;
+        if (product == null) return;
+        await showLabelMismatchSheet(
+          context,
+          product: product,
+          isAuthenticated: true,
+          reportService: service,
+          resubmissionOf: status.submissionId,
+        );
+      case null:
+        return;
+    }
+    if (mounted) ref.invalidate(productSubmissionsProvider);
   }
 
   @override
@@ -114,7 +144,7 @@ class _ProductSubmissionsScreenState
                   for (final status in statuses) ...[
                     _SubmissionCard(
                       status: status,
-                      onResubmit: widget.onResubmit,
+                      onResubmit: widget.onResubmit ?? _resubmit,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -439,6 +469,7 @@ class _SubmissionCard extends ConsumerWidget {
                   if (status.reviewStatus ==
                           ProductSubmissionReviewStatus.rejected &&
                       status.resolutionCode?.resubmittable == true &&
+                      status.hasResubmissionTarget &&
                       onResubmit != null)
                     Align(
                       alignment: Alignment.centerLeft,

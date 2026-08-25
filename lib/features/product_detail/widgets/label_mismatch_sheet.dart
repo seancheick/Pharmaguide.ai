@@ -29,6 +29,7 @@ Future<void> showLabelMismatchSheet(
   PickProductSubmissionPhoto? pickPhoto,
   Future<void> Function()? onSignIn,
   String Function()? reportIdFactory,
+  String? resubmissionOf,
 }) async {
   final signedIn = isAuthenticated ?? _hasAuthenticatedUser();
   final picker = ImagePicker();
@@ -50,6 +51,7 @@ Future<void> showLabelMismatchSheet(
             source: source,
           ),
       reportIdFactory: reportIdFactory,
+      resubmissionOf: resubmissionOf,
       onSignIn:
           onSignIn ??
           () async {
@@ -69,6 +71,7 @@ class LabelMismatchSheet extends StatefulWidget {
   final PickProductSubmissionPhoto pickPhoto;
   final Future<void> Function() onSignIn;
   final String Function()? reportIdFactory;
+  final String? resubmissionOf;
 
   const LabelMismatchSheet({
     super.key,
@@ -78,6 +81,7 @@ class LabelMismatchSheet extends StatefulWidget {
     required this.pickPhoto,
     required this.onSignIn,
     this.reportIdFactory,
+    this.resubmissionOf,
   });
 
   @override
@@ -183,6 +187,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
             for (final category in _attachmentCategories)
               if (_photos[category] case final photo?) photo,
           ],
+          resubmissionOf: widget.resubmissionOf,
           reportIdFactory: widget.reportIdFactory,
         );
     _draft = draft;
@@ -544,7 +549,9 @@ class _PhotoSlotCard extends StatelessWidget {
               ),
               if (selected) ...[
                 Semantics(
-                  key: Key('label-mismatch-photo-${category.wireValue}-preview'),
+                  key: Key(
+                    'label-mismatch-photo-${category.wireValue}-preview',
+                  ),
                   container: true,
                   image: true,
                   excludeSemantics: true,

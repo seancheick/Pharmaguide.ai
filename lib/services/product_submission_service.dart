@@ -283,6 +283,7 @@ enum ProductSubmissionKind {
 /// service never accepts narrative user text or health/profile fields.
 sealed class ProductSubmissionDraft {
   String get submissionId;
+  String? get resubmissionOf;
   ProductSubmissionKind get kind;
   String? get upc;
   List<ProductSubmissionPhoto> get photos;
@@ -299,6 +300,8 @@ sealed class ProductSubmissionDraft {
 class LabelMismatchReportDraft implements ProductSubmissionDraft {
   @override
   final String submissionId;
+  @override
+  final String? resubmissionOf;
   final LabelMismatchProductMetadata product;
   final Set<LabelMismatchCategory> categories;
   @override
@@ -329,12 +332,14 @@ class LabelMismatchReportDraft implements ProductSubmissionDraft {
   LabelMismatchReportDraft({
     String? reportId,
     String? submissionId,
+    String? resubmissionOf,
     required this.product,
     required Set<LabelMismatchCategory> categories,
     List<ProductSubmissionPhoto> photos = const [],
   }) : submissionId = _validateSubmissionId(
          _exactlyOneId(reportId: reportId, submissionId: submissionId),
        ),
+       resubmissionOf = _optionalSubmissionId(resubmissionOf),
        categories = Set.unmodifiable(categories),
        photos = List.unmodifiable(photos) {
     if (categories.isEmpty) {
@@ -343,12 +348,18 @@ class LabelMismatchReportDraft implements ProductSubmissionDraft {
       );
     }
     _validatePhotoSet(photos);
+    if (this.resubmissionOf == this.submissionId) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.invalidReportId,
+      );
+    }
   }
 
   factory LabelMismatchReportDraft.create({
     required LabelMismatchProductMetadata product,
     required Set<LabelMismatchCategory> categories,
     List<ProductSubmissionPhoto> photos = const [],
+    String? resubmissionOf,
     String Function()? reportIdFactory,
   }) {
     return LabelMismatchReportDraft(
@@ -356,6 +367,7 @@ class LabelMismatchReportDraft implements ProductSubmissionDraft {
       product: product,
       categories: categories,
       photos: photos,
+      resubmissionOf: resubmissionOf,
     );
   }
 }
@@ -375,6 +387,8 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   @override
   final String submissionId;
   @override
+  final String? resubmissionOf;
+  @override
   final String upc;
   @override
   final List<ProductSubmissionPhoto> photos;
@@ -383,13 +397,20 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
 
   MissingProductSubmissionDraft({
     required String submissionId,
+    String? resubmissionOf,
     required String upc,
     required List<ProductSubmissionPhoto> photos,
     this.noSeparateIngredientPanel = false,
   }) : submissionId = _validateSubmissionId(submissionId),
+       resubmissionOf = _optionalSubmissionId(resubmissionOf),
        upc = _normalizeUpc(upc),
        photos = List.unmodifiable(photos) {
     _validatePhotoSet(photos);
+    if (this.resubmissionOf == this.submissionId) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.invalidReportId,
+      );
+    }
     final covered = <ProductSubmissionEvidenceCategory>{
       for (final photo in photos) ...photo.categories,
     };
@@ -404,6 +425,7 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
     required String upc,
     required List<ProductSubmissionPhoto> photos,
     bool noSeparateIngredientPanel = false,
+    String? resubmissionOf,
     String Function()? submissionIdFactory,
   }) {
     return MissingProductSubmissionDraft(
@@ -411,6 +433,7 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
       upc: upc,
       photos: photos,
       noSeparateIngredientPanel: noSeparateIngredientPanel,
+      resubmissionOf: resubmissionOf,
     );
   }
 
@@ -440,6 +463,11 @@ String _validateSubmissionId(String value) {
     );
   }
   return normalized;
+}
+
+String? _optionalSubmissionId(String? value) {
+  if (value == null) return null;
+  return _validateSubmissionId(value);
 }
 
 String _normalizeUpc(String value) {
@@ -616,6 +644,8 @@ class ProductSubmissionService {
       'p_mismatch_detail': draft.mismatchDetail,
       'p_no_separate_ingredient_panel': draft.noSeparateIngredientPanel,
       'p_photos': manifest,
+      if (draft.resubmissionOf != null)
+        'p_resubmission_of': draft.resubmissionOf,
     };
 
     // Persist the immutable submission and photo manifest before
@@ -790,7 +820,10 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
         .select(
           'id,kind,normalized_upc,upload_state,review_status,created_at,'
           'promoted_catalog_version,promoted_at,'
-          'resolution_code,resolution_detail,resolved_dsld_id',
+          'resolution_code,resolution_detail,resolved_dsld_id,'
+          'product_submission_mismatch_details('
+          'dsld_id,source_record_id,catalog_source_version,'
+          'formula_fingerprint)',
         )
         .order('created_at', ascending: false)
         .order('id', ascending: false)
@@ -873,6 +906,7 @@ class ProductSubmissionSummary {
     this.resolutionCode,
     this.resolutionDetail,
     this.resolvedDsldId,
+    this.mismatchProduct,
   });
 
   final String submissionId;
@@ -892,6 +926,9 @@ class ProductSubmissionSummary {
   /// the INSTALLED local catalog before rendering a button.
   final String? resolvedDsldId;
 
+  /// Original catalog identity for a correctable label-mismatch retry.
+  final LabelMismatchProductMetadata? mismatchProduct;
+
   bool get uploadReady => uploadState == ProductSubmissionUploadState.ready;
 
   bool get hasKnownState =>
@@ -906,6 +943,12 @@ class ProductSubmissionSummary {
       reviewStatus == ProductSubmissionReviewStatus.approved &&
       promotedCatalogVersion != null;
 
+  bool get hasResubmissionTarget => switch (kind) {
+    ProductSubmissionKind.missingProduct => upc != null,
+    ProductSubmissionKind.labelMismatch => mismatchProduct != null,
+    null => false,
+  };
+
   factory ProductSubmissionSummary.fromRow(Map<String, Object?> row) {
     final kind = switch (row['kind']) {
       'label_mismatch' => ProductSubmissionKind.labelMismatch,
@@ -914,6 +957,24 @@ class ProductSubmissionSummary {
     };
     final createdAtRaw = row['created_at'];
     final promotedAtRaw = row['promoted_at'];
+    final mismatchRow = _nestedMismatchRow(
+      row['product_submission_mismatch_details'],
+    );
+    LabelMismatchProductMetadata? mismatchProduct;
+    if (kind == ProductSubmissionKind.labelMismatch && mismatchRow != null) {
+      try {
+        mismatchProduct = LabelMismatchProductMetadata(
+          dsldId: mismatchRow['dsld_id'] as String,
+          upc: row['normalized_upc'] as String?,
+          sourceRecordId: mismatchRow['source_record_id'] as String?,
+          catalogSourceVersion:
+              mismatchRow['catalog_source_version'] as String?,
+          formulaFingerprint: mismatchRow['formula_fingerprint'] as String?,
+        );
+      } on Object {
+        mismatchProduct = null;
+      }
+    }
     return ProductSubmissionSummary(
       submissionId: row['id'] is String ? row['id']! as String : '',
       kind: kind,
@@ -934,6 +995,15 @@ class ProductSubmissionSummary {
       ),
       resolutionDetail: row['resolution_detail'] as String?,
       resolvedDsldId: row['resolved_dsld_id'] as String?,
+      mismatchProduct: mismatchProduct,
     );
   }
+}
+
+Map<String, Object?>? _nestedMismatchRow(Object? raw) {
+  if (raw is Map) return Map<String, Object?>.from(raw);
+  if (raw is List && raw.length == 1 && raw.single is Map) {
+    return Map<String, Object?>.from(raw.single as Map);
+  }
+  return null;
 }

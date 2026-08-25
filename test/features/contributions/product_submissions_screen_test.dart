@@ -8,6 +8,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/contributions/product_submissions_screen.dart';
+import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 Widget _harness(
@@ -211,6 +212,65 @@ void main() {
 
     expect(retried?.submissionId, '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11');
     expect(retried?.upc, '050428381397');
+  });
+
+  testWidgets('missing-product retry reopens capture for the rejected UPC', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+            reviewStatus: 'rejected',
+          ),
+          'resolution_code': 'photo_quality',
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Try again with new photos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add this product'), findsOneWidget);
+    expect(find.text('For barcode 050428381397'), findsOneWidget);
+  });
+
+  testWidgets('label-mismatch retry preserves its catalog identity', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+            reviewStatus: 'rejected',
+          ),
+          'kind': 'label_mismatch',
+          'resolution_code': 'label_unreadable',
+          'product_submission_mismatch_details': {
+            'dsld_id': '278454',
+            'source_record_id': 'DSLD-278454',
+            'catalog_source_version': '2026.08.25',
+            'formula_fingerprint': null,
+          },
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Try again with new photos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Report a label mismatch'), findsOneWidget);
+    expect(
+      tester
+          .widget<LabelMismatchSheet>(find.byType(LabelMismatchSheet))
+          .product
+          .dsldId,
+      '278454',
+    );
   });
 
   testWidgets('deep link renders only when the product exists locally', (

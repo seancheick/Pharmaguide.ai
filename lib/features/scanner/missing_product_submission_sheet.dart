@@ -34,6 +34,7 @@ Future<bool> showMissingProductSubmissionSheet(
   PickMissingProductPhoto? pickPhotoFromLibrary,
   EvaluatePhotoQuality? qualityGate,
   String Function()? submissionIdFactory,
+  String? resubmissionOf,
 }) async {
   late final GtinIdentity identity;
   try {
@@ -51,6 +52,7 @@ Future<bool> showMissingProductSubmissionSheet(
       upc: identity.submissionIdentity,
       service: service ?? ProductSubmissionService.production(),
       submissionIdFactory: submissionIdFactory,
+      resubmissionOf: resubmissionOf,
       qualityGate:
           qualityGate ?? (photo) => PhotoQualityGate.evaluate(photo.bytes),
       pickPhoto:
@@ -91,6 +93,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
     required this.qualityGate,
     this.pickPhotoFromLibrary,
     this.submissionIdFactory,
+    this.resubmissionOf,
   });
 
   final String upc;
@@ -99,6 +102,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
   final PickMissingProductPhoto? pickPhotoFromLibrary;
   final EvaluatePhotoQuality qualityGate;
   final String Function()? submissionIdFactory;
+  final String? resubmissionOf;
 
   @override
   State<MissingProductSubmissionSheet> createState() =>
@@ -421,6 +425,7 @@ class _MissingProductSubmissionSheetState
             upc: widget.upc,
             photos: List.unmodifiable(_photos),
             noSeparateIngredientPanel: _factsCarriesIngredients,
+            resubmissionOf: widget.resubmissionOf,
             submissionIdFactory: widget.submissionIdFactory,
           );
       _draft = draft;
