@@ -1,13 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/scanner/manual_barcode_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_capture_overlay.dart';
 import 'package:pharmaguide/features/scanner/scanner_not_found_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
+import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   Widget wrap(Widget child) {
@@ -118,6 +126,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(result.value, ScannerNotFoundAction.scanAgain);
     });
+
+    testWidgets('quiet actions do not overflow a narrow phone', (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await pumpSheet(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Help add this product'), findsOneWidget);
+      expect(find.text('Add as medication'), findsOneWidget);
+    });
   });
 
   group('ScannerReticleGeometry', () {
@@ -135,6 +158,71 @@ void main() {
       );
       expect(reticle.width / reticle.height, closeTo(2.2, 0.01));
     });
+  });
+
+  testWidgets('camera permission gate survives a visible keyboard', (
+    tester,
+  ) async {
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.resetViewInsets);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CameraPermissionV2Screen(
+          onPrimaryAction: () {},
+          onManualEntry: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Enter code manually'), findsOneWidget);
+  });
+
+  testWidgets('a manual barcode miss keeps manual-entry recovery', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    final previousPlatform = MobileScannerPlatform.instance;
+    MobileScannerPlatform.instance = _FakeMobileScannerPlatform();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+      MobileScannerPlatform.instance = previousPlatform;
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+        ],
+        child: const MaterialApp(home: ScannerScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Enter code manually'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '111111111111');
+    await tester.pump();
+    await tester.tap(find.text('Find Product'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Re-enter code'),
+      findsOneWidget,
+      reason: tester
+          .widgetList<Text>(find.byType(Text))
+          .map((widget) => widget.data)
+          .whereType<String>()
+          .join(' | '),
+    );
+    expect(find.text('Scan again'), findsNothing);
   });
 
   group('PGScanNotFound', () {
@@ -305,4 +393,40 @@ void main() {
       expect(submitted, '048107058432');
     });
   });
+}
+
+class _FakeMobileScannerPlatform extends MobileScannerPlatform {
+  final _barcodes = StreamController<BarcodeCapture>.broadcast();
+
+  @override
+  Stream<BarcodeCapture?> get barcodesStream => _barcodes.stream;
+
+  @override
+  Stream<TorchState> get torchStateStream =>
+      Stream.value(TorchState.unavailable);
+
+  @override
+  Stream<double> get zoomScaleStateStream => Stream.value(1);
+
+  @override
+  Future<MobileScannerViewAttributes> start(StartOptions startOptions) async {
+    return const MobileScannerViewAttributes(
+      cameraDirection: CameraFacing.back,
+      currentTorchMode: TorchState.unavailable,
+      size: Size(320, 568),
+      numberOfCameras: 1,
+    );
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Widget buildCameraView() => const SizedBox.expand();
+
+  @override
+  Future<void> updateScanWindow(Rect? window) async {}
+
+  @override
+  Future<void> dispose() => _barcodes.close();
 }

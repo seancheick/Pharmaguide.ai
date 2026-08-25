@@ -111,7 +111,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     _lookUpProduct(value);
   }
 
-  Future<void> _lookUpProduct(String upc) async {
+  Future<void> _lookUpProduct(String upc, {bool manualEntry = false}) async {
     final allowed = await _recordAllowedScan();
     if (!mounted) return;
     if (!allowed) {
@@ -159,7 +159,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         await _showVerdictFlashAndNavigate(product);
       } else if (resolution is UpcNotFound) {
         CrashReportingService().setScanResult('not_found');
-        unawaited(_showProductNotFound(upc));
+        unawaited(_showProductNotFound(upc, manualEntry: manualEntry));
       } else {
         setState(() => _hasScanned = false);
       }
@@ -174,7 +174,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       CrashReportingService().recordError(e, st, hint: 'scanner:db_error');
       if (!mounted) return;
       setState(() => _isLookingUp = false);
-      unawaited(_showProductNotFound(upc));
+      unawaited(_showProductNotFound(upc, manualEntry: manualEntry));
     }
   }
 
@@ -222,7 +222,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  Future<void> _showProductNotFound(String upc) async {
+  Future<void> _showProductNotFound(
+    String upc, {
+    bool manualEntry = false,
+  }) async {
     // Layer 4 missing-UPC sensor: persist the miss locally (UPC + count
     // only; no user identifier per the privacy contract in
     // failed_scans_table.dart) and breadcrumb to Sentry so it appears
@@ -237,7 +240,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     // while the sheet's stored code never changes. Freeze it; every
     // path out of the sheet re-arms explicitly.
     unawaited(_scannerController.stop());
-    final action = await showScannerNotFoundSheet(context, scannedCode: upc);
+    final action = await showScannerNotFoundSheet(
+      context,
+      scannedCode: upc,
+      manualEntry: manualEntry,
+    );
     if (!mounted) return;
     switch (action) {
       case ScannerNotFoundAction.searchByName:
@@ -246,7 +253,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         await _openMissingProductSubmission(upc);
       case ScannerNotFoundAction.addMedication:
         await context.push(Routes.medicationEntry);
-      case ScannerNotFoundAction.scanAgain || null:
+      case ScannerNotFoundAction.scanAgain:
+        if (manualEntry) {
+          _resumeScanning(cooldownFor: upc);
+          await _openManualBarcodeSheet();
+          return;
+        }
+      case null:
         break;
     }
     _resumeScanning(cooldownFor: upc);
@@ -290,7 +303,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       setState(() => _hasScanned = false);
       return;
     }
-    await _lookUpProduct(barcode);
+    await _lookUpProduct(barcode, manualEntry: true);
   }
 
   Future<void> _openAppSettings() {

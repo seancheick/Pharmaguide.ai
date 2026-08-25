@@ -184,7 +184,7 @@ void main() {
   test('duplicate-barcode submissions are refused at create, not finalize', () {
     final file = File(
       'supabase/migrations/'
-      '20260825131703_reject_duplicate_open_submission_at_create.sql',
+      '20260825172103_reject_duplicate_open_submission_at_create.sql',
     );
     expect(
       file.existsSync(),
@@ -198,6 +198,19 @@ void main() {
     expect(sql, contains('before insert on public.product_submissions'));
     expect(sql, contains("existing.upload_state = 'ready'"));
     expect(sql, contains('existing.promoted_at is null'));
+    final replayFix = File(
+      'supabase/migrations/'
+      '20260825173314_preserve_product_submission_replay.sql',
+    ).readAsStringSync().toLowerCase();
+    expect(
+      replayFix,
+      contains('existing.id <> new.id'),
+      reason:
+          'The create RPC is intentionally idempotent for the same '
+          'submission id. The duplicate guard must reject a different '
+          'submission for the barcode without rejecting a replay of the '
+          'already-committed submission itself.',
+    );
     expect(
       sql,
       contains('idx_product_submissions_user_open_upc'),

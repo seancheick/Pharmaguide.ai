@@ -66,6 +66,11 @@ class CameraPermissionV2Screen extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: v2SystemOverlay(context),
       child: Scaffold(
+        // Manual entry is presented above this screen. Letting its keyboard
+        // resize the inactive permission gate can overflow the spacer-based
+        // layout while the manual sheet is being replaced by the not-found
+        // sheet.
+        resizeToAvoidBottomInset: false,
         body: PGHaloBackground(
           origin: const Alignment(0, -0.45),
           radius: 1.0,
