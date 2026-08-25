@@ -94,6 +94,20 @@ void main() {
       );
     });
 
+    test('expands UPC-E into the canonical submit identity', () {
+      final draft = MissingProductSubmissionDraft(
+        submissionId: _submissionId,
+        upc: '06543217',
+        photos: [
+          _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+          _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+          _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+        ],
+      );
+
+      expect(draft.upc, '065100004327');
+    });
+
     test('rejects a barcode whose GTIN check digit is wrong', () {
       expect(
         () => MissingProductSubmissionDraft(

@@ -90,11 +90,11 @@ Scanner symbology is an input, never inferred from “EAN-8 never starts with 0�
 - Modify: `lib/services/product_submission_service.dart` (use `gtin.dart` instead of private `_isValidGtin`)
 - Test: existing scanner / manual / submission sheet tests + new cases
 
-- [ ] **Step 1: Failing tests** — manual 9-digit rejected with inline copy; invalid GTIN never opens capture; UPC-E lookup uses expansion; submit-time `invalidUpc` uses the same copy as `label_mismatch_action.dart`.
+- [x] **Step 1: Failing tests** — manual 9-digit rejected with inline copy; invalid GTIN never opens capture; UPC-E lookup uses expansion; submit-time `invalidUpc` uses the same copy as `label_mismatch_action.dart`.
 
-- [ ] **Step 2: Implement minimum wiring**
+- [x] **Step 2: Implement minimum wiring**
 
-- [ ] **Step 3: `flutter test` on the touched test files — GREEN**
+- [x] **Step 3: `flutter test` on the touched test files — GREEN**
 
 ### Task 3: Duplicate headline + resubmit CTA (UI)
 

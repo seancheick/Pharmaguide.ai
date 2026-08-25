@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
@@ -34,11 +35,20 @@ Future<bool> showMissingProductSubmissionSheet(
   EvaluatePhotoQuality? qualityGate,
   String Function()? submissionIdFactory,
 }) async {
+  late final GtinIdentity identity;
+  try {
+    identity = GtinIdentity.parse(upc);
+  } on FormatException {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text(invalidGtinMessage)));
+    return false;
+  }
   final picker = ImagePicker();
   final submitted = await PGModal.bottomSheet<bool>(
     context: context,
     builder: (sheetContext) => MissingProductSubmissionSheet(
-      upc: upc,
+      upc: identity.submissionIdentity,
       service: service ?? ProductSubmissionService.production(),
       submissionIdFactory: submissionIdFactory,
       qualityGate:
@@ -414,10 +424,14 @@ class _MissingProductSubmissionSheetState
             submissionIdFactory: widget.submissionIdFactory,
           );
       _draft = draft;
-    } on ProductSubmissionValidationException {
+    } on ProductSubmissionValidationException catch (error) {
       if (!mounted) return;
       setState(() {
         _submitting = false;
+        if (error.reason == ProductSubmissionValidationFailure.invalidUpc) {
+          _stepError = invalidGtinMessage;
+          return;
+        }
         _failure = const ProductSubmissionFailure(
           submissionId: '',
           kind: ProductSubmissionFailureKind.reportInsertFailed,

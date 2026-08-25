@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -15,6 +16,7 @@ import 'package:pharmaguide/features/scanner/scanner_capture_overlay.dart';
 import 'package:pharmaguide/features/scanner/scanner_not_found_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
+import 'package:pharmaguide/services/gtin.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -60,6 +62,17 @@ void main() {
         isFalse,
       );
     });
+  });
+
+  test('scanner symbology is preserved for eight-digit barcodes', () {
+    expect(
+      gtinSymbologyForBarcodeFormat(BarcodeFormat.upcE),
+      GtinSymbology.upcE,
+    );
+    expect(
+      gtinSymbologyForBarcodeFormat(BarcodeFormat.ean8),
+      GtinSymbology.ean8,
+    );
   });
 
   group('showScannerNotFoundSheet', () {
@@ -208,7 +221,7 @@ void main() {
 
     await tester.tap(find.text('Enter code manually'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '111111111111');
+    await tester.enterText(find.byType(TextField), '050428381397');
     await tester.pump();
     await tester.tap(find.text('Find Product'));
     await tester.pumpAndSettle();
@@ -391,6 +404,38 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(submitted, '048107058432');
+    });
+
+    testWidgets('rejects a nine-digit entry with one inline explanation', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: FilledButton(
+                onPressed: () => showManualBarcodeSheet(context),
+                child: const Text('Open manual entry'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open manual entry'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '123456789');
+      await tester.pump();
+
+      expect(find.text(invalidGtinMessage), findsOneWidget);
+      expect(
+        tester
+            .widget<PGPillButton>(
+              find.widgetWithText(PGPillButton, 'Find Product'),
+            )
+            .onPressed,
+        isNull,
+      );
     });
   });
 }

@@ -5,6 +5,7 @@
       "name": "UPC-A",
       "input": "050428381397",
       "symbology": "upcA",
+      "submission_identity": "050428381397",
       "canonical_gtin14": "00050428381397",
       "lookup_candidates": [
         "050428381397",
@@ -16,6 +17,7 @@
       "name": "EAN-13",
       "input": "4006381333931",
       "symbology": "ean13",
+      "submission_identity": "4006381333931",
       "canonical_gtin14": "04006381333931",
       "lookup_candidates": [
         "4006381333931",
@@ -26,6 +28,7 @@
       "name": "EAN-8",
       "input": "96385074",
       "symbology": "ean8",
+      "submission_identity": "96385074",
       "canonical_gtin14": "00000096385074",
       "lookup_candidates": [
         "96385074",
@@ -37,7 +40,7 @@
       "input": "06543217",
       "symbology": "upcE",
       "expanded_upca": "065100004327",
-      "submission_identity": "00065100004327",
+      "submission_identity": "065100004327",
       "canonical_gtin14": "00065100004327",
       "lookup_candidates": [
         "06543217",
@@ -50,6 +53,7 @@
       "name": "GTIN-14",
       "input": "00016000275447",
       "symbology": "gtin14",
+      "submission_identity": "00016000275447",
       "canonical_gtin14": "00016000275447",
       "lookup_candidates": [
         "016000275447",

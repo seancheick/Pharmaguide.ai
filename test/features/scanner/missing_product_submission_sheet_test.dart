@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
@@ -78,6 +79,35 @@ Future<void> _captureRequiredEvidence(WidgetTester tester) async {
 
 void main() {
   setUp(() => _photoCounter = 0);
+
+  testWidgets('invalid GTIN never opens the capture flow', (tester) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => showMissingProductSubmissionSheet(
+                context,
+                upc: '123456789',
+                service: ProductSubmissionService(backend: backend),
+                qualityGate: (_) async => _okQuality,
+                pickPhoto: (tags) async => _photo(tags),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(invalidGtinMessage), findsOneWidget);
+    expect(find.text('Add this product'), findsNothing);
+    expect(backend.persistedSubmissionIds, isEmpty);
+  });
 
   testWidgets('captures advance by themselves; review gates on evidence', (
     tester,

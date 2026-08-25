@@ -28,6 +28,7 @@ import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,6 +37,15 @@ import 'package:url_launcher/url_launcher.dart';
 bool scannerCameraPermissionDenied(MobileScannerState state) {
   return state.error?.errorCode == MobileScannerErrorCode.permissionDenied;
 }
+
+GtinSymbology gtinSymbologyForBarcodeFormat(BarcodeFormat format) =>
+    switch (format) {
+      BarcodeFormat.upcE => GtinSymbology.upcE,
+      BarcodeFormat.ean8 => GtinSymbology.ean8,
+      BarcodeFormat.upcA => GtinSymbology.upcA,
+      BarcodeFormat.ean13 => GtinSymbology.ean13,
+      _ => GtinSymbology.unknown,
+    };
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -97,6 +107,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final barcode = barcodes.first;
     final value = barcode.rawValue;
     if (value == null || value.isEmpty) return;
+    late final GtinIdentity identity;
+    try {
+      identity = GtinIdentity.parse(
+        value,
+        detectedSymbology: gtinSymbologyForBarcodeFormat(barcode.format),
+      );
+    } on FormatException {
+      return;
+    }
     final cooldownUntil = _cooldownUntil;
     if (value == _cooldownCode &&
         cooldownUntil != null &&
@@ -108,10 +127,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     // Decorative tap haptic — confirms barcode was captured. Suppressed
     // under reduce-motion via PGHaptics.tap.
     unawaited(PGHaptics.tap(context));
-    _lookUpProduct(value);
+    _lookUpProduct(identity);
   }
 
-  Future<void> _lookUpProduct(String upc, {bool manualEntry = false}) async {
+  Future<void> _lookUpProduct(
+    GtinIdentity identity, {
+    bool manualEntry = false,
+  }) async {
     final allowed = await _recordAllowedScan();
     if (!mounted) return;
     if (!allowed) {
@@ -124,7 +146,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     try {
       final db = ref.read(coreDatabaseProvider);
-      final resolution = await db.resolveByUpc(upc);
+      final resolution = await db.resolveByGtin(identity);
 
       if (!mounted) return;
 
@@ -159,7 +181,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         await _showVerdictFlashAndNavigate(product);
       } else if (resolution is UpcNotFound) {
         CrashReportingService().setScanResult('not_found');
-        unawaited(_showProductNotFound(upc, manualEntry: manualEntry));
+        unawaited(_showProductNotFound(identity, manualEntry: manualEntry));
       } else {
         setState(() => _hasScanned = false);
       }
@@ -174,7 +196,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       CrashReportingService().recordError(e, st, hint: 'scanner:db_error');
       if (!mounted) return;
       setState(() => _isLookingUp = false);
-      unawaited(_showProductNotFound(upc, manualEntry: manualEntry));
+      unawaited(_showProductNotFound(identity, manualEntry: manualEntry));
     }
   }
 
@@ -223,7 +245,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _showProductNotFound(
-    String upc, {
+    GtinIdentity identity, {
     bool manualEntry = false,
   }) async {
     // Layer 4 missing-UPC sensor: persist the miss locally (UPC + count
@@ -231,7 +253,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     // failed_scans_table.dart) and breadcrumb to Sentry so it appears
     // near any crash that follows. Fire-and-forget — a transient DB
     // error must not block the user-facing not-found surface.
-    unawaited(ref.read(userDatabaseProvider).recordFailedScan(upc));
+    unawaited(
+      ref
+          .read(userDatabaseProvider)
+          .recordFailedScan(identity.submissionIdentity),
+    );
     // Event name ONLY — never the barcode.
     CrashReportingService().log('scan_failed_missing_upc');
 
@@ -242,7 +268,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     unawaited(_scannerController.stop());
     final action = await showScannerNotFoundSheet(
       context,
-      scannedCode: upc,
+      scannedCode: identity.rawDigits,
       manualEntry: manualEntry,
     );
     if (!mounted) return;
@@ -250,19 +276,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       case ScannerNotFoundAction.searchByName:
         await context.push(Routes.search);
       case ScannerNotFoundAction.helpAddProduct:
-        await _openMissingProductSubmission(upc);
+        await _openMissingProductSubmission(identity);
       case ScannerNotFoundAction.addMedication:
         await context.push(Routes.medicationEntry);
       case ScannerNotFoundAction.scanAgain:
         if (manualEntry) {
-          _resumeScanning(cooldownFor: upc);
+          _resumeScanning(cooldownFor: identity.rawDigits);
           await _openManualBarcodeSheet();
           return;
         }
       case null:
         break;
     }
-    _resumeScanning(cooldownFor: upc);
+    _resumeScanning(cooldownFor: identity.rawDigits);
   }
 
   /// Re-arms the camera after any overlay flow, briefly ignoring the
@@ -277,19 +303,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     unawaited(_scannerController.start());
   }
 
-  Future<void> _openMissingProductSubmission(String upc) async {
-    if (upc.isEmpty) return;
+  Future<void> _openMissingProductSubmission(GtinIdentity identity) async {
     if (ref.read(authStateProvider) != AuthMode.signedIn) {
       // The global auth listener lands users with router.go(...) after
       // sign-in (and a magic link may restart the app), so the sheet is
       // reopened from a persisted intent — never from this await.
-      await PendingSubmissionIntent.save(upc);
+      await PendingSubmissionIntent.save(identity.submissionIdentity);
       if (!mounted) return;
       await context.push(Routes.authInvitation);
       return;
     }
 
-    await showMissingProductSubmissionSheet(context, upc: upc);
+    await showMissingProductSubmissionSheet(
+      context,
+      upc: identity.submissionIdentity,
+    );
   }
 
   /// Opens the manual barcode entry bottom sheet, then runs the same
@@ -303,7 +331,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       setState(() => _hasScanned = false);
       return;
     }
-    await _lookUpProduct(barcode, manualEntry: true);
+    await _lookUpProduct(GtinIdentity.parse(barcode), manualEntry: true);
   }
 
   Future<void> _openAppSettings() {

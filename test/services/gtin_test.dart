@@ -35,10 +35,7 @@ void main() {
           identity.lookupCandidates.toSet(),
           _strings(vector['lookup_candidates']),
         );
-        expect(
-          identity.submissionIdentity,
-          vector['submission_identity'] ?? vector['canonical_gtin14'],
-        );
+        expect(identity.submissionIdentity, vector['submission_identity']);
         if (vector['expanded_upca'] case final String expanded) {
           expect(expandUpcE(vector['input']! as String), expanded);
           expect(identity.lookupCandidates, contains(expanded));
@@ -69,6 +66,12 @@ void main() {
           _strings(vector['lookup_candidates']),
         );
         expect(identity.lookupCandidates, contains(vector['upce_expanded']));
+        expect(
+          identity.submissionIdentity,
+          isValidGtin(vector['input']! as String)
+              ? vector['input']
+              : vector['upce_expanded'],
+        );
       });
     }
   });

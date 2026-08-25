@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/services/gtin.dart';
 
 /// GTIN width equivalence contract (defect B companion, 2026-08-24).
 ///
@@ -89,21 +90,38 @@ void main() {
       expect((result as UpcUnique).product.dsldId, 'ean13');
     });
 
-    test('padding-equivalent twins surface as ambiguous, never merged',
-        () async {
-      final db = CoreDatabase.memory();
-      addTearDown(db.close);
-      await _seed(db, 'twin-12', '016000275447');
-      await _seed(db, 'twin-14', '00016000275447');
+    test(
+      'UPC-E scanner identity resolves an expanded UPC-A catalog row',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await _seed(db, 'upce-expanded', '065100004327');
 
-      final result = await db.resolveByUpc('016000275447');
+        final result = await db.resolveByGtin(
+          GtinIdentity.parse('06543217', detectedSymbology: GtinSymbology.upcE),
+        );
 
-      expect(result, isA<UpcAmbiguous>());
-      final ids = (result as UpcAmbiguous)
-          .candidates
-          .map((product) => product.dsldId)
-          .toSet();
-      expect(ids, {'twin-12', 'twin-14'});
-    });
+        expect(result, isA<UpcUnique>());
+        expect((result as UpcUnique).product.dsldId, 'upce-expanded');
+      },
+    );
+
+    test(
+      'padding-equivalent twins surface as ambiguous, never merged',
+      () async {
+        final db = CoreDatabase.memory();
+        addTearDown(db.close);
+        await _seed(db, 'twin-12', '016000275447');
+        await _seed(db, 'twin-14', '00016000275447');
+
+        final result = await db.resolveByUpc('016000275447');
+
+        expect(result, isA<UpcAmbiguous>());
+        final ids = (result as UpcAmbiguous).candidates
+            .map((product) => product.dsldId)
+            .toSet();
+        expect(ids, {'twin-12', 'twin-14'});
+      },
+    );
   });
 }

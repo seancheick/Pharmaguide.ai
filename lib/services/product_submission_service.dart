@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:pharmaguide/services/gtin.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// The only mismatch categories accepted by the unified submission system.
@@ -442,38 +443,13 @@ String _validateSubmissionId(String value) {
 }
 
 String _normalizeUpc(String value) {
-  if (RegExp(r'[^0-9\s-]').hasMatch(value)) {
+  try {
+    return GtinIdentity.parse(value).submissionIdentity;
+  } on FormatException {
     throw const ProductSubmissionValidationException(
       ProductSubmissionValidationFailure.invalidUpc,
     );
   }
-  final normalized = value.replaceAll(RegExp(r'[^0-9]'), '');
-  if (!_isValidGtin(normalized)) {
-    throw const ProductSubmissionValidationException(
-      ProductSubmissionValidationFailure.invalidUpc,
-    );
-  }
-  return normalized;
-}
-
-bool _isValidGtin(String value) {
-  if (!RegExp(
-    r'^(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$',
-  ).hasMatch(value)) {
-    return false;
-  }
-  final body = value.substring(0, value.length - 1);
-  var sum = 0;
-  for (
-    var positionFromRight = 1;
-    positionFromRight <= body.length;
-    positionFromRight++
-  ) {
-    final digit = int.parse(body[body.length - positionFromRight]);
-    sum += digit * (positionFromRight.isOdd ? 3 : 1);
-  }
-  final expectedCheckDigit = (10 - (sum % 10)) % 10;
-  return expectedCheckDigit == int.parse(value[value.length - 1]);
 }
 
 void _validatePhotoSet(List<ProductSubmissionPhoto> photos) {

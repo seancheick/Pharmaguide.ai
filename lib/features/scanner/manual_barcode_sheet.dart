@@ -13,6 +13,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/services/gtin.dart';
 
 /// Shows the manual barcode entry sheet via [PGModal.bottomSheet].
 ///
@@ -42,9 +43,13 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
     super.dispose();
   }
 
-  bool get _isValid {
-    final digits = _barcode.replaceAll(RegExp(r'[^0-9]'), '');
-    return digits.length >= 8 && digits.length <= 14;
+  GtinIdentity? get _identity {
+    if (_barcode.isEmpty) return null;
+    try {
+      return GtinIdentity.parse(_barcode);
+    } on FormatException {
+      return null;
+    }
   }
 
   void _onChanged(String value) {
@@ -52,8 +57,9 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
   }
 
   void _submit() {
-    if (!_isValid) return;
-    Navigator.of(context).pop(_barcode.replaceAll(RegExp(r'[^0-9]'), ''));
+    final identity = _identity;
+    if (identity == null) return;
+    Navigator.of(context).pop(identity.submissionIdentity);
   }
 
   @override
@@ -109,6 +115,16 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
             onChanged: _onChanged,
             onSubmitted: (_) => _submit(),
           ),
+          if (_barcode.isNotEmpty && _identity == null) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                invalidGtinMessage,
+                style: V2Typography.caption(color: context.v2.contraindicated),
+              ),
+            ),
+          ],
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Most supplement barcodes are 12 or 13 digits.',
@@ -119,7 +135,7 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
             label: 'Find Product',
             icon: Icons.search_rounded,
             expand: true,
-            onPressed: _isValid ? _submit : null,
+            onPressed: _identity == null ? null : _submit,
           ),
         ],
       ),

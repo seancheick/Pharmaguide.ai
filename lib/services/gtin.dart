@@ -4,12 +4,17 @@
 /// from UPC-E. Camera callers must pass the decoder's symbology.
 enum GtinSymbology { upcE, ean8, upcA, ean13, gtin14, unknown }
 
+/// Shared user-facing validation copy for every barcode entry boundary.
+const invalidGtinMessage =
+    'Enter a valid 8, 12, 13, or 14-digit barcode, including its check digit.';
+
 /// One validated product identity with every exact catalog lookup form.
 class GtinIdentity {
   const GtinIdentity._({
     required this.rawDigits,
     required this.detectedSymbology,
     required this.canonicalGtin14,
+    required this.submissionIdentity,
     required this.lookupCandidates,
   });
 
@@ -20,14 +25,16 @@ class GtinIdentity {
   /// entry.
   final GtinSymbology detectedSymbology;
 
-  /// Zero-padded GTIN-14 used as the durable submission identity.
+  /// Zero-padded GTIN-14 used as the cross-layer comparison key.
   final String canonicalGtin14;
+
+  /// Width-stable value sent to the current submission RPC. UPC-E is the
+  /// exception: its validated expanded UPC-A is sent because the compressed
+  /// value is symbology-dependent.
+  final String submissionIdentity;
 
   /// Exact-width representations that may exist in older catalog exports.
   final List<String> lookupCandidates;
-
-  /// The server-facing identity is always canonical, including UPC-E inputs.
-  String get submissionIdentity => canonicalGtin14;
 
   /// Parses and validates [value].
   ///
@@ -49,6 +56,7 @@ class GtinIdentity {
         rawDigits: rawDigits,
         detectedSymbology: detectedSymbology,
         canonicalGtin14: expanded.padLeft(14, '0'),
+        submissionIdentity: expanded,
         lookupCandidates: List.unmodifiable({
           rawDigits,
           ...gtinWidthCandidates(expanded),
@@ -81,6 +89,7 @@ class GtinIdentity {
       rawDigits: rawDigits,
       detectedSymbology: detectedSymbology,
       canonicalGtin14: rawDigits.padLeft(14, '0'),
+      submissionIdentity: rawDigits,
       lookupCandidates: List.unmodifiable(gtinWidthCandidates(rawDigits)),
     );
   }
@@ -107,6 +116,7 @@ GtinIdentity _parseManualEightDigits(String rawDigits) {
     rawDigits: rawDigits,
     detectedSymbology: GtinSymbology.unknown,
     canonicalGtin14: primary.padLeft(14, '0'),
+    submissionIdentity: primary,
     lookupCandidates: List.unmodifiable(candidates),
   );
 }

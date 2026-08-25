@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:pharmaguide/data/database/tables/products_core_table.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/gtin.dart';
 
 part 'core_database.g.dart';
 
@@ -347,55 +348,26 @@ class CoreDatabase extends _$CoreDatabase {
   /// may be reported as EAN-13 (13 digits with a leading zero) depending
   /// on the symbology the scanner detected.
   ///
-  /// This method normalizes both sides:
-  ///   1. Strips the scanner input to digits only.
-  ///   2. Tries the raw digits, with a leading zero, and without.
-  ///   3. Uses `REPLACE(upc_sku, ' ', '')` in SQL so the stored spaces
-  ///      don't prevent the match.
+  /// The shared GTIN contract validates the check digit and supplies exact
+  /// width equivalents (plus valid UPC-E expansion). SQL then uses
+  /// `REPLACE(upc_sku, ' ', '')` so human-readable storage spaces do not
+  /// prevent a match.
   ///
   /// Returns every matching catalog identity. A score, verdict, or warning is
   /// never used to decide which physical bottle the user scanned.
   Future<List<ProductsCoreData>> findAllByUpc(String upc) async {
-    final digits = upc.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return const [];
+    try {
+      return findAllByGtin(GtinIdentity.parse(upc));
+    } on FormatException {
+      return const [];
+    }
+  }
 
-    // Build candidate list — dedup to avoid running the query twice
-    // for a 12-digit UPC that doesn't need adjustment.
-    //
-    // The catalog stores GTINs VERBATIM in {8,12,13,14} digit widths
-    // (normalize_upc, build_final_db.py); GS1 zero-padding equivalence is
-    // the reader's job, so every valid zero-padded/stripped representation
-    // of the scanned code becomes a candidate. EAN-8 is its own GS1
-    // numbering — never a stripped form of a longer code — so an 8-digit
-    // scan only ever pads, and longer codes never strip below 12.
-    final candidates = <String>{digits};
-    if (digits.length == 8) {
-      candidates.add('000000$digits'); // EAN-8 stored as GTIN-14
-    }
-    if (digits.length == 12) {
-      candidates.add('0$digits'); // EAN-13 variant
-      candidates.add('00$digits'); // GTIN-14 variant
-    }
-    if (digits.length == 13 && digits.startsWith('0')) {
-      candidates.add(digits.substring(1)); // UPC-A fallback
-    }
-    if (digits.length == 13) {
-      candidates.add('0$digits'); // GTIN-14 variant
-    }
-    if (digits.length == 14) {
-      if (digits.startsWith('0')) {
-        candidates.add(digits.substring(1)); // EAN-13 form
-      }
-      if (digits.startsWith('00')) {
-        candidates.add(digits.substring(2)); // UPC-A form
-      }
-      if (digits.startsWith('000000')) {
-        candidates.add(digits.substring(6)); // EAN-8 form
-      }
-    }
-
+  /// Barcode lookup for a scanner- or manual-entry identity that has already
+  /// been validated by the shared GTIN contract.
+  Future<List<ProductsCoreData>> findAllByGtin(GtinIdentity identity) async {
     final matches = <String, ProductsCoreData>{};
-    for (final candidate in candidates) {
+    for (final candidate in identity.lookupCandidates) {
       // Uses [upcNormalizeSql] so the WHERE expression matches the
       // idx_core_upc_normalized expression index exactly (SEARCH, not SCAN).
       final rows = await customSelect(
@@ -415,6 +387,13 @@ class CoreDatabase extends _$CoreDatabase {
 
   Future<UpcResolution> resolveByUpc(String upc) async {
     final candidates = await findAllByUpc(upc);
+    if (candidates.isEmpty) return const UpcNotFound();
+    if (candidates.length == 1) return UpcUnique(candidates.single);
+    return UpcAmbiguous(candidates);
+  }
+
+  Future<UpcResolution> resolveByGtin(GtinIdentity identity) async {
+    final candidates = await findAllByGtin(identity);
     if (candidates.isEmpty) return const UpcNotFound();
     if (candidates.length == 1) return UpcUnique(candidates.single);
     return UpcAmbiguous(candidates);
