@@ -199,12 +199,12 @@ Must include: private review, third-party AI may read the label, human approves 
 - Test: `test/safety_invariants/product_submission_reviewer_access_test.dart`
 - Test: `test/safety_invariants/product_submission_pipeline_contract_test.dart`
 
-- [ ] **Allowlist table** — `ENABLE` + `FORCE RLS`, **no policies**, `REVOKE ALL` from `PUBLIC, anon, authenticated, service_role`. Membership via migration / operator SQL only.
-- [ ] **Replace `review_product_submission`** — drop `p_reviewer_id`; identity and `reviewed_by` from `auth.uid()` + table membership (same pattern as `finalize_product_submission`). `GRANT EXECUTE` to `authenticated` only; revoke `service_role` and `anon`.
-- [ ] **Edge `transition`** uses the user client. Env `PRODUCT_SUBMISSION_REVIEWER_IDS` remains the early 403. Gate-ordering test still requires byte-verify before the RPC, now against the user-client call.
-- [ ] **`record_match`** outcomes: `catalog_match` / `dsld_match` / `identity_ambiguous` / `no_match_verified` / `not_this_product` (required reason, history retained). Exact canonical GTIN-14 only. Index built-at stored on the check.
-- [ ] **Approve precondition:** latest check is `no_match_verified` and index age within the 60-day block. Otherwise 400. `dsld_match` Duplicate immediately after `refresh-ids` lands in canonical raw — do not wait for OTA.
-- [ ] Update the two pinned tests in **this** PR (action/field allowlist ~35–46, transition fields ~166–184, `admin.rpc` assertions, ~388 service-only grants).
+- [x] **Allowlist table** — `ENABLE` + `FORCE RLS`, **no policies**, `REVOKE ALL` from `PUBLIC, anon, authenticated, service_role`. Membership via migration / operator SQL only.
+- [x] **Replace `review_product_submission`** — drop `p_reviewer_id`; identity and `reviewed_by` from `auth.uid()` + table membership (same pattern as `finalize_product_submission`). `GRANT EXECUTE` to `authenticated` only; revoke `service_role` and `anon`.
+- [x] **Edge `transition`** uses the user client. Env `PRODUCT_SUBMISSION_REVIEWER_IDS` remains the early 403. Gate-ordering test still requires byte-verify before the RPC, now against the user-client call.
+- [x] **`record_match`** outcomes: `catalog_match` / `dsld_match` / `identity_ambiguous` / `no_match_verified` / `not_this_product` (required reason, history retained). Exact canonical GTIN-14 only. Index built-at stored on the check.
+- [x] **Approve precondition:** latest check is `no_match_verified` and index age within the 60-day block. Otherwise 400. `dsld_match` Duplicate immediately after `refresh-ids` lands in canonical raw — do not wait for OTA.
+- [x] Update the two pinned tests in **this** PR (action/field allowlist ~35–46, transition fields ~166–184, `admin.rpc` assertions, ~388 service-only grants).
 
 ### Task 12: Local UPC index in `serve.py`
 

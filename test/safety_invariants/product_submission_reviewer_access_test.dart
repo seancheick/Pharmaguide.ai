@@ -5,11 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 const _functionPath = 'supabase/functions/review-product-submissions/index.ts';
 const _queuePath = 'supabase/functions/review-product-submissions/queue.ts';
 const _schemaPath = 'supabase/functions/review-product-submissions/schema.ts';
+const _reviewV2MigrationPath =
+    'supabase/migrations/20260825213000_submission_review_v2.sql';
 
 void main() {
   late String source;
   late String queueSource;
   late String schemaSource;
+  late String reviewV2Sql;
 
   setUpAll(() {
     final function = File(_functionPath);
@@ -29,6 +32,13 @@ void main() {
       reason: 'The deep label schema must exist.',
     );
     schemaSource = schema.readAsStringSync().replaceAll('"', "'");
+    final migration = File(_reviewV2MigrationPath);
+    expect(
+      migration.existsSync(),
+      isTrue,
+      reason: 'The human-only reviewer boundary must be additive.',
+    );
+    reviewV2Sql = migration.readAsStringSync().replaceAll('"', "'");
   });
 
   test('authenticates an allowlisted reviewer before service-role access', () {
@@ -49,8 +59,12 @@ void main() {
   test('accepts only explicit review actions and fields', () {
     expect(
       source,
-      contains(
-        "const ACTIONS = new Set(['list', 'record_extraction', 'transition'])",
+      allOf(
+        contains('const ACTIONS = new Set(['),
+        contains("'list'"),
+        contains("'record_extraction'"),
+        contains("'record_match'"),
+        contains("'transition'"),
       ),
     );
     expect(source, contains('rejectUnknownKeys'));
@@ -129,10 +143,10 @@ void main() {
   });
 
   test('approval is an audited RPC transition with a server hash', () {
-    expect(source, contains("admin.rpc('review_product_submission'"));
+    expect(source, contains("userClient.rpc('review_product_submission'"));
     expect(source, contains('canonicalJson'));
     expect(source, contains('sha256Hex'));
-    expect(source, contains('p_reviewer_id: reviewerId'));
+    expect(source, isNot(contains('p_reviewer_id: reviewerId')));
     expect(source, contains('p_payload_sha256: payloadHash'));
     expect(source, contains("event: 'product_submission_review_access'"));
     expect(source, isNot(contains('console.log(body')));
@@ -179,11 +193,69 @@ void main() {
       approvalBranch,
     );
     final reviewRpc = source.indexOf(
-      "admin.rpc('review_product_submission'",
+      "userClient.rpc('review_product_submission'",
       approvalBranch,
     );
     expect(byteVerification, greaterThan(approvalBranch));
     expect(reviewRpc, greaterThan(byteVerification));
+  });
+
+  test('records exact match evidence through the authenticated boundary', () {
+    expect(source, contains("if (action === 'record_match')"));
+    expect(source, contains('parseRecordMatchRequest(body)'));
+    expect(
+      source,
+      contains("'record_product_submission_match_check'"),
+    );
+    expect(source, contains('p_index_built_at: match.indexBuiltAt'));
+    expect(source, contains('p_canonical_gtin14: match.canonicalGtin14'));
+  });
+
+  test('database derives reviewer identity and denies service-role approval', () {
+    final normalized = reviewV2Sql
+        .replaceAll(RegExp(r'--[^\n]*'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+    expect(
+      normalized,
+      contains('create table public.product_submission_reviewers'),
+    );
+    expect(
+      normalized,
+      contains(
+        'alter table public.product_submission_reviewers force row level security',
+      ),
+    );
+    expect(
+      normalized,
+      contains(
+        'revoke all on table public.product_submission_reviewers from public, anon, authenticated, service_role',
+      ),
+    );
+    expect(normalized, contains('reviewer_id uuid := auth.uid()'));
+    expect(
+      normalized,
+      contains(
+        'from public.product_submission_reviewers as reviewer where reviewer.user_id = reviewer_id',
+      ),
+    );
+    expect(normalized, isNot(contains('p_reviewer_id uuid')));
+    expect(
+      normalized,
+      contains('to authenticated'),
+      reason: 'Only a signed-in, allowlisted human can execute review.',
+    );
+    expect(
+      normalized,
+      contains(
+        'from public, anon, authenticated, service_role',
+      ),
+    );
+    expect(normalized, contains("latest_match.outcome <> 'no_match_verified'"));
+    expect(
+      normalized,
+      contains("latest_match.index_built_at < now() - interval '60 days'"),
+    );
   });
 
   test('transition accepts the resolution contract and nothing more', () {
@@ -206,7 +278,7 @@ void main() {
   });
 
   test('submission pushes are durable, deferred, and generic', () {
-    final reviewRpc = source.indexOf("admin.rpc('review_product_submission'");
+    final reviewRpc = source.indexOf("userClient.rpc('review_product_submission'");
     final drainCall = source.indexOf(
       'drainSubmissionPushDeliveries(admin, submissionId)',
       reviewRpc,

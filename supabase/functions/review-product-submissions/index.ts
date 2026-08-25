@@ -18,6 +18,7 @@ import {
   parseListRequest,
   reviewStatusesForList,
 } from "./queue.ts";
+import { parseRecordMatchRequest } from "./match.ts";
 import { validateManualLabelV1 } from "./schema.ts";
 
 // Supabase Edge Runtime keeps promises passed to EdgeRuntime.waitUntil alive
@@ -33,7 +34,12 @@ const SIGNED_URL_TTL_SECONDS = 300;
 const MAX_BODY_BYTES = 1_000_000;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ACTIONS = new Set(["list", "record_extraction", "transition"]);
+const ACTIONS = new Set([
+  "list",
+  "record_extraction",
+  "record_match",
+  "transition",
+]);
 const TRANSITION_STATUSES = new Set([
   "under_review",
   "approved",
@@ -586,6 +592,25 @@ Deno.serve(async (request: Request): Promise<Response> => {
       return json({ extraction_version: data });
     }
 
+    if (action === "record_match") {
+      const match = parseRecordMatchRequest(body);
+      const { data, error } = await userClient.rpc(
+        "record_product_submission_match_check",
+        {
+          p_submission_id: match.submissionId,
+          p_outcome: match.outcome,
+          p_canonical_gtin14: match.canonicalGtin14,
+          p_index_built_at: match.indexBuiltAt,
+          p_matched_dsld_id: match.matchedDsldId,
+          p_candidate_dsld_ids: match.candidateDsldIds,
+          p_reason: match.reason,
+        },
+      );
+      if (error || typeof data !== "number") throw error;
+      audit(reviewerId, action, "success", 1);
+      return json({ match_check_id: data });
+    }
+
     rejectUnknownKeys(
       body,
       new Set([
@@ -671,9 +696,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
       throw new Error("approved payload not allowed");
     }
 
-    const { data, error } = await admin.rpc("review_product_submission", {
+    const { data, error } = await userClient.rpc("review_product_submission", {
       p_submission_id: submissionId,
-      p_reviewer_id: reviewerId,
       p_to_status: toStatus,
       p_review_notes: reviewNotes,
       p_approved_schema_version: schemaVersion,
