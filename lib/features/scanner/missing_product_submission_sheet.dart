@@ -315,7 +315,7 @@ class _MissingProductSubmissionSheetState
   /// place. Existing shots gain or lose the ingredient tag; standalone
   /// ingredient-step captures are left untouched. Nothing is ever deleted
   /// by answering a question.
-  void _setFactsCoversIngredients(bool value) {
+  void _setFactsCoversIngredients(bool value, {_CaptureStep? nextStep}) {
     if (_submitting) return;
     setState(() {
       _factsCarriesIngredients = value;
@@ -337,6 +337,7 @@ class _MissingProductSubmissionSheetState
       _draft = null;
       _stepError = null;
       _failure = null;
+      if (nextStep != null) _step = nextStep;
     });
   }
 
@@ -624,7 +625,7 @@ class _MissingProductSubmissionSheetState
 
     return [
       Text(
-        'Three quick photos add this product for everyone. Snap each one; '
+        'A few clear photos add this product for everyone. Snap each one; '
         'the flow moves forward on its own.',
         style: V2Typography.bodySm(color: context.v2.fgMuted),
       ),
@@ -723,6 +724,38 @@ class _MissingProductSubmissionSheetState
       enabled: !_submitting,
       onRemove: _removePhoto,
     ),
+    if (_factsCarriesIngredients) ...[
+      const SizedBox(height: V2Spacing.space8),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(V2Spacing.space12),
+        decoration: BoxDecoration(
+          color: context.v2.surfaceLow,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          border: Border.all(color: context.v2.outline),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Other Ingredients marked as visible in the Supplement Facts '
+              'photo.',
+              style: V2Typography.bodySm(color: context.v2.fg),
+            ),
+            TextButton(
+              key: const Key('missing-product-facts-change-to-separate'),
+              onPressed: _submitting
+                  ? null
+                  : () => _setFactsCoversIngredients(
+                      false,
+                      nextStep: _CaptureStep.ingredients,
+                    ),
+              child: const Text('They’re on a separate panel'),
+            ),
+          ],
+        ),
+      ),
+    ],
     const SizedBox(height: V2Spacing.space8),
     Center(
       child: TextButton(

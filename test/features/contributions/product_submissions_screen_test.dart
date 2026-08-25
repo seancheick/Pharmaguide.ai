@@ -12,6 +12,7 @@ import 'package:pharmaguide/services/product_submission_service.dart';
 
 Widget _harness(List<Map<String, Object?>> rows, {CoreDatabase? db}) {
   final database = db ?? CoreDatabase.memory();
+  if (db == null) addTearDown(database.close);
   return ProviderScope(
     overrides: [
       productSubmissionServiceProvider.overrideWithValue(
@@ -235,6 +236,32 @@ void main() {
     expect(statValue('contributions-stat-points').data, '160');
   });
 
+  testWidgets('impact stats remain readable on a narrow large-text screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(
+      _harness([
+        for (var index = 0; index < 123; index++)
+          _row(
+            id: 'submission-$index',
+            reviewStatus: 'approved',
+            catalogVersion: '2026.08.25.1',
+          ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('contributions-stat-points')), findsOneWidget);
+  });
+
   test('contribution points ignore unfinished uploads', () {
     ProductSubmissionSummary summary(Map<String, Object?> row) =>
         ProductSubmissionSummary.fromRow(row);
@@ -280,8 +307,10 @@ class _Backend implements ProductSubmissionBackend {
   @override
   Future<List<Map<String, Object?>>> listOwnSubmissions({
     required String table,
+    required int offset,
+    required int limit,
   }) async {
-    return rows;
+    return rows.skip(offset).take(limit).toList(growable: false);
   }
 
   @override

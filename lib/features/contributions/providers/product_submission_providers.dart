@@ -11,28 +11,38 @@ final productSubmissionServiceProvider = Provider<ProductSubmissionService>(
 /// server-side). Invalidated by pull-to-refresh, app resume on the status
 /// surface, and incoming `submission_update` pushes.
 ///
-/// An unfinished upload for a barcode that also has a COMPLETED submission
-/// is an abandoned duplicate attempt (historically minted when the
-/// duplicate check only fired at finalize). It is noise, not a task — its
-/// "start a new submission" copy invited a retry that could only conflict —
-/// so it is hidden here, where both the list and the badge count read from.
-/// A standalone unfinished upload (a genuinely interrupted submission with
-/// no completed sibling) still shows with its retry guidance.
+/// An unfinished upload for a barcode that also has an open, reviewable
+/// submission is an abandoned duplicate attempt (historically minted when
+/// the duplicate check only fired at finalize). It is noise, not a task —
+/// its retry would still conflict — so it is hidden here, where both the
+/// list and the badge count read from. Rejected and already-promoted
+/// siblings do not block a new attempt server-side, so they must not hide a
+/// genuinely interrupted upload.
 final productSubmissionsProvider =
     FutureProvider.autoDispose<List<ProductSubmissionSummary>>((ref) async {
       final all = await ref
           .watch(productSubmissionServiceProvider)
           .listOwnSubmissions();
-      final completedBarcodes = {
+      final openBarcodes = {
         for (final submission in all)
-          if (submission.uploadReady && submission.upc != null)
+          if (submission.uploadReady &&
+              submission.promotedAt == null &&
+              submission.kind != null &&
+              submission.upc != null &&
+              (submission.reviewStatus ==
+                      ProductSubmissionReviewStatus.submitted ||
+                  submission.reviewStatus ==
+                      ProductSubmissionReviewStatus.underReview ||
+                  submission.reviewStatus ==
+                      ProductSubmissionReviewStatus.approved))
             (submission.kind, submission.upc),
       };
       return [
         for (final submission in all)
           if (submission.uploadReady ||
+              submission.kind == null ||
               submission.upc == null ||
-              !completedBarcodes.contains((submission.kind, submission.upc)))
+              !openBarcodes.contains((submission.kind, submission.upc)))
             submission,
       ];
     });
@@ -69,10 +79,11 @@ final pendingSubmissionCountProvider = Provider.autoDispose<int>((ref) {
   return submissions
       .where(
         (ProductSubmissionSummary submission) =>
-            submission.reviewStatus ==
-                ProductSubmissionReviewStatus.submitted ||
-            submission.reviewStatus ==
-                ProductSubmissionReviewStatus.underReview,
+            submission.uploadReady &&
+            (submission.reviewStatus ==
+                    ProductSubmissionReviewStatus.submitted ||
+                submission.reviewStatus ==
+                    ProductSubmissionReviewStatus.underReview),
       )
       .length;
 });

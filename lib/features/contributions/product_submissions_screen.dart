@@ -183,102 +183,113 @@ class _ImpactGrid extends StatelessWidget {
       required Color accent,
       required int value,
       required String label,
-    }) => Expanded(
-      child: Container(
-        key: key,
-        decoration: BoxDecoration(
-          color: context.v2.surface,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: context.v2.outline),
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // The old design's colored edge, as an inner bar: a mixed
-              // border color cannot legally carry a borderRadius.
-              Container(
-                width: 3,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: const BorderRadius.horizontal(
-                    left: Radius.circular(V2Spacing.radiusCard),
-                  ),
+    }) => Container(
+      key: key,
+      decoration: BoxDecoration(
+        color: context.v2.surface,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        border: Border.all(color: context.v2.outline),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The old design's colored edge, as an inner bar: a mixed
+            // border color cannot legally carry a borderRadius.
+            Container(
+              width: 3,
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(V2Spacing.radiusCard),
                 ),
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(V2Spacing.space16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Icon(icon, color: accent, size: 20),
-                          Text(
-                            '$value',
-                            style: V2Typography.title(color: context.v2.fg),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: V2Spacing.space8),
-                      Text(
-                        label,
-                        style: V2Typography.bodySm(color: context.v2.fgMuted),
-                      ),
-                    ],
-                  ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(V2Spacing.space16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(icon, color: accent, size: 20),
+                        Text(
+                          '$value',
+                          style: V2Typography.title(color: context.v2.fg),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      label,
+                      style: V2Typography.bodySm(color: context.v2.fgMuted),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
 
-    return Column(
-      children: [
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final oneColumn =
+            constraints.maxWidth < 300 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        final cardWidth = oneColumn
+            ? constraints.maxWidth
+            : (constraints.maxWidth - V2Spacing.space12) / 2;
+        return Wrap(
+          spacing: V2Spacing.space12,
+          runSpacing: V2Spacing.space12,
           children: [
-            card(
-              key: const Key('contributions-stat-pending'),
-              icon: Icons.schedule_rounded,
-              accent: context.v2.caution,
-              value: pending,
-              label: 'Pending review',
+            SizedBox(
+              width: cardWidth,
+              child: card(
+                key: const Key('contributions-stat-pending'),
+                icon: Icons.schedule_rounded,
+                accent: context.v2.caution,
+                value: pending,
+                label: 'Pending review',
+              ),
             ),
-            const SizedBox(width: V2Spacing.space12),
-            card(
-              key: const Key('contributions-stat-approved'),
-              icon: Icons.verified_outlined,
-              accent: context.v2.safe,
-              value: approved,
-              label: 'Approved',
+            SizedBox(
+              width: cardWidth,
+              child: card(
+                key: const Key('contributions-stat-approved'),
+                icon: Icons.verified_outlined,
+                accent: context.v2.safe,
+                value: approved,
+                label: 'Approved',
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: card(
+                key: const Key('contributions-stat-total'),
+                icon: Icons.upload_outlined,
+                accent: context.v2.accent,
+                value: statuses.length,
+                label: 'Total submissions',
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: card(
+                key: const Key('contributions-stat-points'),
+                icon: Icons.star_outline_rounded,
+                accent: context.v2.accentStrong,
+                value: points,
+                label: 'Points earned',
+              ),
             ),
           ],
-        ),
-        const SizedBox(height: V2Spacing.space12),
-        Row(
-          children: [
-            card(
-              key: const Key('contributions-stat-total'),
-              icon: Icons.upload_outlined,
-              accent: context.v2.accent,
-              value: statuses.length,
-              label: 'Total submissions',
-            ),
-            const SizedBox(width: V2Spacing.space12),
-            card(
-              key: const Key('contributions-stat-points'),
-              icon: Icons.star_outline_rounded,
-              accent: context.v2.accentStrong,
-              value: points,
-              label: 'Points earned',
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 }

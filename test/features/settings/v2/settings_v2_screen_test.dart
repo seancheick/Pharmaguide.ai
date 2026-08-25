@@ -9,6 +9,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_connected.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
 import 'package:pharmaguide/features/settings/providers/notification_settings_provider.dart';
+import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/services/notifications/notification_authorization_service.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
@@ -155,6 +156,7 @@ void main() {
       MaterialApp(
         home: SettingsV2Screen(
           signedIn: true,
+          pendingProductSubmissionCount: 3,
           onOpenProductSubmissions: () => opened = true,
         ),
       ),
@@ -174,6 +176,11 @@ void main() {
       find.text('Track label corrections and missing products'),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const Key('product-submissions-pending-badge')),
+      findsOneWidget,
+    );
+    expect(find.text('3'), findsOneWidget);
   });
 
   testWidgets('connected settings reacts when auth state becomes guest', (
@@ -188,6 +195,7 @@ void main() {
         notificationAuthorizationServiceProvider.overrideWithValue(
           const _AllowedNotificationService(),
         ),
+        pendingSubmissionCountProvider.overrideWithValue(2),
       ],
     );
     addTearDown(container.dispose);
@@ -202,6 +210,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Sign out'), findsOneWidget);
+    expect(
+      find.byKey(const Key('product-submissions-pending-badge')),
+      findsOneWidget,
+    );
 
     authState.onSignedOut();
     await tester.pump();

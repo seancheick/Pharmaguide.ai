@@ -577,6 +577,8 @@ abstract interface class ProductSubmissionBackend {
 
   Future<List<Map<String, Object?>>> listOwnSubmissions({
     required String table,
+    required int offset,
+    required int limit,
   });
 }
 
@@ -585,6 +587,7 @@ class ProductSubmissionService {
   static const photoBucket = 'product-submission-photos';
   static const createFunction = 'create_product_submission';
   static const finalizeFunction = 'finalize_product_submission';
+  static const _submissionPageSize = 100;
 
   final ProductSubmissionBackend backend;
 
@@ -733,7 +736,18 @@ class ProductSubmissionService {
   Future<List<ProductSubmissionSummary>> listOwnSubmissions() async {
     final userId = backend.authenticatedUserId;
     if (userId == null || userId.isEmpty) return const [];
-    final rows = await backend.listOwnSubmissions(table: submissionsTable);
+    final rows = <Map<String, Object?>>[];
+    var offset = 0;
+    while (true) {
+      final page = await backend.listOwnSubmissions(
+        table: submissionsTable,
+        offset: offset,
+        limit: _submissionPageSize,
+      );
+      rows.addAll(page);
+      if (page.length < _submissionPageSize) break;
+      offset += page.length;
+    }
     return rows.map(ProductSubmissionSummary.fromRow).toList(growable: false);
   }
 }
@@ -792,6 +806,8 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
   @override
   Future<List<Map<String, Object?>>> listOwnSubmissions({
     required String table,
+    required int offset,
+    required int limit,
   }) async {
     final rows = await _client
         .from(table)
@@ -801,7 +817,8 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
           'resolution_code,resolution_detail,resolved_dsld_id',
         )
         .order('created_at', ascending: false)
-        .limit(100);
+        .order('id', ascending: false)
+        .range(offset, offset + limit - 1);
     return [for (final row in rows) Map<String, Object?>.from(row)];
   }
 }

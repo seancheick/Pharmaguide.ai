@@ -31,7 +31,9 @@ void main() {
           sanitizer: (_) async => Uint8List.fromList([9, 8, 7]),
         );
 
-        expect(photo.categories, {ProductSubmissionEvidenceCategory.supplementFacts});
+        expect(photo.categories, {
+          ProductSubmissionEvidenceCategory.supplementFacts,
+        });
         expect(photo.contentType, 'image/jpeg');
         expect(photo.bytes, [9, 8, 7]);
       },
@@ -393,7 +395,9 @@ void main() {
       tester
           .widget<OutlinedButton>(
             find.descendant(
-              of: find.byKey(const Key('label-mismatch-photo-front_identity-camera')),
+              of: find.byKey(
+                const Key('label-mismatch-photo-front_identity-camera'),
+              ),
               matching: find.byType(OutlinedButton),
             ),
           )
@@ -696,6 +700,8 @@ class _FakeBackend implements ProductSubmissionBackend {
   @override
   Future<List<Map<String, Object?>>> listOwnSubmissions({
     required String table,
+    required int offset,
+    required int limit,
   }) async {
     return const [];
   }

@@ -117,64 +117,73 @@ void main() {
   });
 
   group('one submission orchestrator', () {
-    test('persists one typed manifest before uploading private bytes', () async {
-      final backend = _FakeBackend(authenticatedUserId: _userId);
-      final service = ProductSubmissionService(backend: backend);
-      final draft = MissingProductSubmissionDraft(
-        submissionId: _submissionId,
-        upc: '050428381397',
-        photos: [
-          _photo(ProductSubmissionEvidenceCategory.frontIdentity),
-          _photo(ProductSubmissionEvidenceCategory.supplementFacts),
-          _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
-        ],
-      );
+    test(
+      'persists one typed manifest before uploading private bytes',
+      () async {
+        final backend = _FakeBackend(authenticatedUserId: _userId);
+        final service = ProductSubmissionService(backend: backend);
+        final draft = MissingProductSubmissionDraft(
+          submissionId: _submissionId,
+          upc: '050428381397',
+          photos: [
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+          ],
+        );
 
-      final result = await service.submit(draft);
+        final result = await service.submit(draft);
 
-      expect(result, isA<ProductSubmissionSuccess>());
-      expect(backend.operations, [
-        'persist',
-        'finalize:$_submissionId',
-        'upload:$_userId/$_submissionId/$_frontPhotoId',
-        'upload:$_userId/$_submissionId/$_factsPhotoId',
-        'upload:$_userId/$_submissionId/$_ingredientsPhotoId',
-        'finalize:$_submissionId',
-      ]);
-      expect(backend.persistedPayload, {
-        'p_submission_id': _submissionId,
-        'p_kind': 'missing_product',
-        'p_upc': '050428381397',
-        'p_mismatch_detail': null,
-        'p_no_separate_ingredient_panel': false,
-        'p_photos': [
-          {
-            'photo_id': _frontPhotoId,
-            'seq': 1,
-            'categories': ['front_identity'],
-            'content_type': 'image/jpeg',
-            'byte_size': 4,
-            'content_sha256': _photo(ProductSubmissionEvidenceCategory.frontIdentity).contentSha256,
-          },
-          {
-            'photo_id': _factsPhotoId,
-            'seq': 2,
-            'categories': ['supplement_facts'],
-            'content_type': 'image/jpeg',
-            'byte_size': 4,
-            'content_sha256': _photo(ProductSubmissionEvidenceCategory.supplementFacts).contentSha256,
-          },
-          {
-            'photo_id': _ingredientsPhotoId,
-            'seq': 3,
-            'categories': ['ingredient_disclosure'],
-            'content_type': 'image/jpeg',
-            'byte_size': 4,
-            'content_sha256': _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure).contentSha256,
-          },
-        ],
-      });
-    });
+        expect(result, isA<ProductSubmissionSuccess>());
+        expect(backend.operations, [
+          'persist',
+          'finalize:$_submissionId',
+          'upload:$_userId/$_submissionId/$_frontPhotoId',
+          'upload:$_userId/$_submissionId/$_factsPhotoId',
+          'upload:$_userId/$_submissionId/$_ingredientsPhotoId',
+          'finalize:$_submissionId',
+        ]);
+        expect(backend.persistedPayload, {
+          'p_submission_id': _submissionId,
+          'p_kind': 'missing_product',
+          'p_upc': '050428381397',
+          'p_mismatch_detail': null,
+          'p_no_separate_ingredient_panel': false,
+          'p_photos': [
+            {
+              'photo_id': _frontPhotoId,
+              'seq': 1,
+              'categories': ['front_identity'],
+              'content_type': 'image/jpeg',
+              'byte_size': 4,
+              'content_sha256': _photo(
+                ProductSubmissionEvidenceCategory.frontIdentity,
+              ).contentSha256,
+            },
+            {
+              'photo_id': _factsPhotoId,
+              'seq': 2,
+              'categories': ['supplement_facts'],
+              'content_type': 'image/jpeg',
+              'byte_size': 4,
+              'content_sha256': _photo(
+                ProductSubmissionEvidenceCategory.supplementFacts,
+              ).contentSha256,
+            },
+            {
+              'photo_id': _ingredientsPhotoId,
+              'seq': 3,
+              'categories': ['ingredient_disclosure'],
+              'content_type': 'image/jpeg',
+              'byte_size': 4,
+              'content_sha256': _photo(
+                ProductSubmissionEvidenceCategory.ingredientDisclosure,
+              ).contentSha256,
+            },
+          ],
+        });
+      },
+    );
 
     test(
       'label mismatch uses the same RPC without missing-product fields',
@@ -239,6 +248,31 @@ void main() {
         expect(statuses.single.isComplete, isFalse);
       },
     );
+
+    test('loads every submission instead of stopping at one page', () async {
+      final backend = _FakeBackend(
+        authenticatedUserId: _userId,
+        statusRows: [
+          for (var index = 0; index < 205; index++)
+            {
+              'id': 'submission-$index',
+              'kind': 'missing_product',
+              'normalized_upc': '050428381397',
+              'upload_state': 'ready',
+              'review_status': 'submitted',
+              'created_at': '2026-07-30T12:00:00Z',
+              'promoted_catalog_version': null,
+            },
+        ],
+      );
+      final service = ProductSubmissionService(backend: backend);
+
+      final statuses = await service.listOwnSubmissions();
+
+      expect(statuses, hasLength(205));
+      expect(statuses.first.submissionId, 'submission-0');
+      expect(statuses.last.submissionId, 'submission-204');
+    });
   });
 }
 
@@ -313,8 +347,10 @@ class _FakeBackend implements ProductSubmissionBackend {
   @override
   Future<List<Map<String, Object?>>> listOwnSubmissions({
     required String table,
+    int offset = 0,
+    int limit = 100,
   }) async {
     expect(table, ProductSubmissionService.submissionsTable);
-    return statusRows;
+    return statusRows.skip(offset).take(limit).toList(growable: false);
   }
 }

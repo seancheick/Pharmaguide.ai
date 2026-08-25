@@ -5,6 +5,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/history/health_history_screen.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
+import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/settings/v2/delete_account_sheet.dart';
 import 'package:pharmaguide/features/settings/v2/notification_settings_sheet.dart';
@@ -53,6 +54,9 @@ class SettingsV2Connected extends ConsumerWidget {
     final authMode = ref.watch(authStateProvider);
     final user = _safeCurrentUser();
     final signedIn = authMode == AuthMode.signedIn;
+    final pendingProductSubmissionCount = signedIn
+        ? ref.watch(pendingSubmissionCountProvider)
+        : 0;
 
     final stack = stackAsync.asData?.value ?? const [];
     final supplementCount = stack.where((e) => e.type == 'supplement').length;
@@ -87,6 +91,7 @@ class SettingsV2Connected extends ConsumerWidget {
       onOpenProductSubmissions: signedIn
           ? () => context.push(Routes.productSubmissions)
           : null,
+      pendingProductSubmissionCount: pendingProductSubmissionCount,
       themeCaption: themePreferenceLabel(preferences.theme),
       notificationCaption: notificationSettingsCaption(
         notificationSettings.status,

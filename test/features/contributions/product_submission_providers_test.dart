@@ -10,6 +10,7 @@ Map<String, Object?> _row({
   required String upc,
   required String uploadState,
   required String reviewStatus,
+  DateTime? promotedAt,
 }) => {
   'id': id,
   'kind': 'missing_product',
@@ -18,7 +19,7 @@ Map<String, Object?> _row({
   'review_status': reviewStatus,
   'created_at': '2026-08-25T15:41:35.000Z',
   'promoted_catalog_version': null,
-  'promoted_at': null,
+  'promoted_at': promotedAt?.toIso8601String(),
   'resolution_code': null,
   'resolution_detail': null,
   'resolved_dsld_id': null,
@@ -35,7 +36,9 @@ class _ListBackend implements ProductSubmissionBackend {
   @override
   Future<List<Map<String, Object?>>> listOwnSubmissions({
     required String table,
-  }) async => rows;
+    required int offset,
+    required int limit,
+  }) async => rows.skip(offset).take(limit).toList(growable: false);
 
   @override
   Future<void> persistSubmission({
@@ -112,4 +115,85 @@ void main() {
       ]);
     },
   );
+
+  test(
+    'keeps retries when completed siblings no longer block submissions',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          productSubmissionServiceProvider.overrideWithValue(
+            ProductSubmissionService(
+              backend: _ListBackend([
+                _row(
+                  id: '00000000-0000-4000-8000-000000000011',
+                  upc: '0850051911561',
+                  uploadState: 'pending',
+                  reviewStatus: 'submitted',
+                ),
+                _row(
+                  id: '00000000-0000-4000-8000-000000000012',
+                  upc: '0850051911561',
+                  uploadState: 'ready',
+                  reviewStatus: 'rejected',
+                ),
+                _row(
+                  id: '00000000-0000-4000-8000-000000000013',
+                  upc: '0850021920654',
+                  uploadState: 'pending',
+                  reviewStatus: 'submitted',
+                ),
+                _row(
+                  id: '00000000-0000-4000-8000-000000000014',
+                  upc: '0850021920654',
+                  uploadState: 'ready',
+                  reviewStatus: 'approved',
+                  promotedAt: DateTime.utc(2026, 8, 25),
+                ),
+              ]),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final visible = await container.read(productSubmissionsProvider.future);
+
+      expect(visible.map((s) => s.submissionId), [
+        '00000000-0000-4000-8000-000000000011',
+        '00000000-0000-4000-8000-000000000012',
+        '00000000-0000-4000-8000-000000000013',
+        '00000000-0000-4000-8000-000000000014',
+      ]);
+    },
+  );
+
+  test('pending badge counts only submissions ready for review', () async {
+    final container = ProviderContainer(
+      overrides: [
+        productSubmissionServiceProvider.overrideWithValue(
+          ProductSubmissionService(
+            backend: _ListBackend([
+              _row(
+                id: '00000000-0000-4000-8000-000000000021',
+                upc: '0850051911561',
+                uploadState: 'pending',
+                reviewStatus: 'submitted',
+              ),
+              _row(
+                id: '00000000-0000-4000-8000-000000000022',
+                upc: '0850021920654',
+                uploadState: 'ready',
+                reviewStatus: 'under_review',
+              ),
+            ]),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(productSubmissionsProvider.future);
+
+    expect(container.read(pendingSubmissionCountProvider), 1);
+  });
 }

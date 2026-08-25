@@ -87,6 +87,7 @@ void main() {
 
     // Intro explains the job and owns the only Start affordance.
     expect(find.text('Add this product'), findsOneWidget);
+    expect(find.textContaining('A few clear photos'), findsOneWidget);
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
 
@@ -176,6 +177,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Anything else?'), findsOneWidget);
 
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+
+    expect(backend.persistedCueFlag, isFalse);
+    expect(backend.manifest, hasLength(3));
+    expect(backend.manifest[1]['categories'], ['supplement_facts']);
+    expect(backend.manifest[2]['categories'], ['ingredient_disclosure']);
+  });
+
+  testWidgets('a combined-panel answer can be corrected before submission', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(_harness(backend: backend));
+    await _captureRequiredEvidence(tester);
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-facts-change-to-separate')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Other Ingredients'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-ingredient_disclosure')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-consent')));
@@ -386,6 +417,8 @@ class _Backend implements ProductSubmissionBackend {
   @override
   Future<List<Map<String, Object?>>> listOwnSubmissions({
     required String table,
+    required int offset,
+    required int limit,
   }) async {
     return const [];
   }

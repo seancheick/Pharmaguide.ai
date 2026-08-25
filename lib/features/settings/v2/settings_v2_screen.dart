@@ -41,6 +41,7 @@ class SettingsV2Screen extends StatelessWidget {
   final VoidCallback? onOpenHealthHistory;
   final VoidCallback? onOpenClinicianReport;
   final VoidCallback? onOpenProductSubmissions;
+  final int pendingProductSubmissionCount;
   final VoidCallback? onDeleteAccount;
   final String themeCaption;
   final String notificationCaption;
@@ -60,12 +61,13 @@ class SettingsV2Screen extends StatelessWidget {
     this.onOpenHealthHistory,
     this.onOpenClinicianReport,
     this.onOpenProductSubmissions,
+    this.pendingProductSubmissionCount = 0,
     this.onDeleteAccount,
     this.themeCaption = 'System',
     this.notificationCaption = 'Not enabled',
     this.onOpenThemeSettings,
     this.onOpenNotificationSettings,
-  });
+  }) : assert(pendingProductSubmissionCount >= 0);
 
   @override
   Widget build(BuildContext context) {
@@ -160,6 +162,11 @@ class SettingsV2Screen extends StatelessWidget {
                     icon: Icons.inventory_2_outlined,
                     title: 'Product submissions',
                     caption: 'Track label corrections and missing products',
+                    trailing: pendingProductSubmissionCount > 0
+                        ? _PendingSubmissionTrailing(
+                            count: pendingProductSubmissionCount,
+                          )
+                        : null,
                     onTap: onOpenProductSubmissions,
                   ),
               ],
@@ -324,6 +331,41 @@ class SettingsV2Screen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PendingSubmissionTrailing extends StatelessWidget {
+  const _PendingSubmissionTrailing({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Semantics(
+          label: '$count product submissions pending review',
+          excludeSemantics: true,
+          child: Container(
+            key: const Key('product-submissions-pending-badge'),
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
+            decoration: BoxDecoration(
+              color: context.v2.cautionTint,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+            ),
+            child: Text(
+              count > 99 ? '99+' : '$count',
+              style: V2Typography.caption(color: context.v2.caution),
+            ),
+          ),
+        ),
+        const SizedBox(width: V2Spacing.space8),
+        Icon(Icons.chevron_right_rounded, color: context.v2.fgSubtle, size: 20),
+      ],
     );
   }
 }

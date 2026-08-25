@@ -162,9 +162,7 @@ void main() {
         );
         expect(
           () => ProductSubmissionPhoto(
-            categories: const {
-              ProductSubmissionEvidenceCategory.frontIdentity,
-            },
+            categories: const {ProductSubmissionEvidenceCategory.frontIdentity},
             bytes: Uint8List.fromList([1]),
             contentType: 'image/svg+xml',
           ),
@@ -361,56 +359,61 @@ void main() {
       },
     );
 
-    test('writes only product/source/version/fingerprint report metadata', () async {
-      final backend = _FakeBackend(authenticatedUserId: _userId);
-      final service = ProductSubmissionService(backend: backend);
+    test(
+      'writes only product/source/version/fingerprint report metadata',
+      () async {
+        final backend = _FakeBackend(authenticatedUserId: _userId);
+        final service = ProductSubmissionService(backend: backend);
 
-      await service.submit(
-        _draft(
-          metadata: LabelMismatchProductMetadata(
-            dsldId: '12345',
-            upc: '050428381397',
-            sourceRecordId: 'DSLD-12345',
-            catalogSourceVersion: '2026-07-19',
-            formulaFingerprint:
-                'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        await service.submit(
+          _draft(
+            metadata: LabelMismatchProductMetadata(
+              dsldId: '12345',
+              upc: '050428381397',
+              sourceRecordId: 'DSLD-12345',
+              catalogSourceVersion: '2026-07-19',
+              formulaFingerprint:
+                  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            ),
+            categories: const {
+              LabelMismatchCategory.amountOrUnit,
+              LabelMismatchCategory.formOrParenthetical,
+            },
+            photos: [
+              _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+            ],
           ),
-          categories: const {
-            LabelMismatchCategory.amountOrUnit,
-            LabelMismatchCategory.formOrParenthetical,
-          },
-          photos: [_photo(ProductSubmissionEvidenceCategory.ingredientDisclosure)],
-        ),
-      );
+        );
 
-      expect(backend.reportRow, {
-        'p_submission_id': _reportId,
-        'p_kind': 'label_mismatch',
-        'p_upc': '050428381397',
-        'p_mismatch_detail': {
-          'dsld_id': '12345',
-          'source_record_id': 'DSLD-12345',
-          'catalog_source_version': '2026-07-19',
-          'formula_fingerprint':
-              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          'mismatch_categories': ['amount_or_unit', 'form_or_parenthetical'],
-        },
-        'p_no_separate_ingredient_panel': false,
-        'p_photos': backend.photoRows,
-      });
-      expect(backend.photoRows, [
-        {
-          'photo_id': _ingredientsPhotoId,
-          'seq': 1,
-          'categories': ['ingredient_disclosure'],
-          'content_type': 'image/jpeg',
-          'byte_size': 4,
-          'content_sha256': _photo(
-            ProductSubmissionEvidenceCategory.ingredientDisclosure,
-          ).contentSha256,
-        },
-      ]);
-    });
+        expect(backend.reportRow, {
+          'p_submission_id': _reportId,
+          'p_kind': 'label_mismatch',
+          'p_upc': '050428381397',
+          'p_mismatch_detail': {
+            'dsld_id': '12345',
+            'source_record_id': 'DSLD-12345',
+            'catalog_source_version': '2026-07-19',
+            'formula_fingerprint':
+                'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            'mismatch_categories': ['amount_or_unit', 'form_or_parenthetical'],
+          },
+          'p_no_separate_ingredient_panel': false,
+          'p_photos': backend.photoRows,
+        });
+        expect(backend.photoRows, [
+          {
+            'photo_id': _ingredientsPhotoId,
+            'seq': 1,
+            'categories': ['ingredient_disclosure'],
+            'content_type': 'image/jpeg',
+            'byte_size': 4,
+            'content_sha256': _photo(
+              ProductSubmissionEvidenceCategory.ingredientDisclosure,
+            ).contentSha256,
+          },
+        ]);
+      },
+    );
 
     test(
       'omits absent nullable metadata instead of inventing values',
@@ -566,7 +569,9 @@ void main() {
       final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
+        _draft(
+          photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
+        ),
       );
 
       expect(
@@ -591,7 +596,9 @@ void main() {
         final service = ProductSubmissionService(backend: backend);
 
         final result = await service.submit(
-          _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
+          _draft(
+            photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
+          ),
         );
 
         expect(
@@ -618,7 +625,9 @@ void main() {
         final service = ProductSubmissionService(backend: backend);
 
         final result = await service.submit(
-          _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
+          _draft(
+            photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
+          ),
         );
 
         expect(
@@ -630,7 +639,10 @@ void main() {
           ),
         );
         expect(backend.operations.first, 'persist');
-        expect(backend.operations.last, 'upload:$_userId/$_reportId/$_frontPhotoId');
+        expect(
+          backend.operations.last,
+          'upload:$_userId/$_reportId/$_frontPhotoId',
+        );
       },
     );
 
@@ -642,7 +654,9 @@ void main() {
       final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
+        _draft(
+          photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
+        ),
       );
 
       expect(
@@ -699,7 +713,9 @@ void main() {
       final service = ProductSubmissionService(backend: backend);
 
       final result = await service.submit(
-        _draft(photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)]),
+        _draft(
+          photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
+        ),
       );
 
       expect(
@@ -781,7 +797,8 @@ ProductSubmissionPhoto _photo(
   Uint8List? bytes,
   String? photoId,
 }) {
-  final id = photoId ??
+  final id =
+      photoId ??
       switch (category) {
         ProductSubmissionEvidenceCategory.frontIdentity => _frontPhotoId,
         ProductSubmissionEvidenceCategory.supplementFacts => _factsPhotoId,
@@ -912,6 +929,8 @@ class _FakeBackend implements ProductSubmissionBackend {
   @override
   Future<List<Map<String, Object?>>> listOwnSubmissions({
     required String table,
+    required int offset,
+    required int limit,
   }) async {
     return const [];
   }
