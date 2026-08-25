@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0.0",
+  "valid_identities": [
+    {
+      "name": "UPC-A",
+      "input": "050428381397",
+      "symbology": "upcA",
+      "canonical_gtin14": "00050428381397",
+      "lookup_candidates": [
+        "050428381397",
+        "0050428381397",
+        "00050428381397"
+      ]
+    },
+    {
+      "name": "EAN-13",
+      "input": "4006381333931",
+      "symbology": "ean13",
+      "canonical_gtin14": "04006381333931",
+      "lookup_candidates": [
+        "4006381333931",
+        "04006381333931"
+      ]
+    },
+    {
+      "name": "EAN-8",
+      "input": "96385074",
+      "symbology": "ean8",
+      "canonical_gtin14": "00000096385074",
+      "lookup_candidates": [
+        "96385074",
+        "00000096385074"
+      ]
+    },
+    {
+      "name": "UPC-E",
+      "input": "06543217",
+      "symbology": "upcE",
+      "expanded_upca": "065100004327",
+      "submission_identity": "00065100004327",
+      "canonical_gtin14": "00065100004327",
+      "lookup_candidates": [
+        "06543217",
+        "065100004327",
+        "0065100004327",
+        "00065100004327"
+      ]
+    },
+    {
+      "name": "GTIN-14",
+      "input": "00016000275447",
+      "symbology": "gtin14",
+      "canonical_gtin14": "00016000275447",
+      "lookup_candidates": [
+        "016000275447",
+        "0016000275447",
+        "00016000275447"
+      ]
+    }
+  ],
+  "manual_eight_digit": [
+    {
+      "name": "valid as both EAN-8 and UPC-E",
+      "input": "01234565",
+      "primary_canonical_gtin14": "00000001234565",
+      "upce_expanded": "012345000065",
+      "lookup_candidates": [
+        "01234565",
+        "00000001234565",
+        "012345000065",
+        "0012345000065",
+        "00012345000065"
+      ]
+    },
+    {
+      "name": "valid only as UPC-E",
+      "input": "06543217",
+      "primary_canonical_gtin14": "00065100004327",
+      "upce_expanded": "065100004327",
+      "lookup_candidates": [
+        "06543217",
+        "065100004327",
+        "0065100004327",
+        "00065100004327"
+      ]
+    }
+  ],
+  "invalid_inputs": [
+    {
+      "name": "wrong check digit",
+      "input": "050428381398"
+    },
+    {
+      "name": "nine digits",
+      "input": "123456789"
+    },
+    {
+      "name": "ten digits",
+      "input": "1234567890"
+    },
+    {
+      "name": "eleven digits",
+      "input": "12345678901"
+    },
+    {
+      "name": "non barcode text",
+      "input": "patient takes metformin"
+    }
+  ],
+  "zero_pad_equivalence": [
+    "016000275447",
+    "0016000275447",
+    "00016000275447"
+  ]
+}
