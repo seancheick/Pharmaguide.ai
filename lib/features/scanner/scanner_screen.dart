@@ -308,7 +308,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       // The global auth listener lands users with router.go(...) after
       // sign-in (and a magic link may restart the app), so the sheet is
       // reopened from a persisted intent — never from this await.
-      await PendingSubmissionIntent.save(identity.submissionIdentity);
+      await PendingSubmissionIntent.saveMissingProduct(
+        identity.submissionIdentity,
+      );
       if (!mounted) return;
       await context.push(Routes.authInvitation);
       return;
