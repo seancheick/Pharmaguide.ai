@@ -73,6 +73,9 @@ Deno.test("sendFcmMessage classifies UNREGISTERED as invalid token", async () =>
   if (gone.delivered || !gone.invalidToken) {
     throw new Error("UNREGISTERED not classified as invalid token");
   }
+  if (gone.retryable) {
+    throw new Error("invalid token must not be retryable");
+  }
 
   const throttled = await sendFcmMessage(
     access,
@@ -82,13 +85,37 @@ Deno.test("sendFcmMessage classifies UNREGISTERED as invalid token", async () =>
   if (throttled.delivered || throttled.invalidToken) {
     throw new Error("transient failure misclassified");
   }
+  if (!throttled.retryable) {
+    throw new Error("429 must stay retryable so the delivery is not lost");
+  }
+
+  const outage = await sendFcmMessage(
+    access,
+    { token: "x" },
+    () => Promise.resolve(new Response("upstream", { status: 503 })),
+  );
+  if (outage.delivered || outage.invalidToken || !outage.retryable) {
+    throw new Error("5xx must stay retryable so the delivery is not lost");
+  }
+  if (!outage.detail.includes("HTTP 503")) {
+    throw new Error("failure detail must record the transport status");
+  }
+
+  const badRequest = await sendFcmMessage(
+    access,
+    { token: "x" },
+    () => Promise.resolve(new Response("bad payload", { status: 400 })),
+  );
+  if (badRequest.delivered || badRequest.invalidToken || badRequest.retryable) {
+    throw new Error("4xx request errors are not transient");
+  }
 
   const ok = await sendFcmMessage(
     access,
     { token: "x" },
     () => Promise.resolve(new Response("{}", { status: 200 })),
   );
-  if (!ok.delivered || ok.invalidToken) {
+  if (!ok.delivered || ok.invalidToken || ok.retryable || ok.detail !== "") {
     throw new Error("success misclassified");
   }
 });

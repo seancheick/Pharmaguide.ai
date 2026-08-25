@@ -10,6 +10,7 @@ import {
   fcmAccessToken,
   sendFcmMessage,
   type FcmAccess,
+  type FcmSendOutcome,
 } from "../_shared/fcm_v1.ts";
 
 const DISPATCH_SECRET_HEADER = "x-safety-alert-dispatch-secret";
@@ -84,6 +85,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
   let sent = 0;
   let removed = 0;
+  let failed = 0;
   for (const alert of alerts) {
     const alertId = alert.alert_id;
     const revision = alert.revision;
@@ -123,14 +125,24 @@ Deno.serve(async (request: Request): Promise<Response> => {
         if (claimError) return json({ error: "Delivery claim failed" }, 503);
         if (claimed !== true) continue;
 
-        const outcome = await sendFcmMessage(
-          access,
-          buildSafetyAlertMessage({
-            token: row.fcm_token,
-            alertId,
-            revision,
-          }),
-        );
+        let outcome: FcmSendOutcome;
+        try {
+          outcome = await sendFcmMessage(
+            access,
+            buildSafetyAlertMessage({
+              token: row.fcm_token,
+              alertId,
+              revision,
+            }),
+          );
+        } catch (sendError) {
+          outcome = {
+            delivered: false,
+            invalidToken: false,
+            retryable: true,
+            detail: `network ${String(sendError)}`.slice(0, 200),
+          };
+        }
         if (outcome.delivered) {
           const { error: completionError } = await admin.rpc(
             "complete_safety_alert_push_delivery",
@@ -142,20 +154,42 @@ Deno.serve(async (request: Request): Promise<Response> => {
           );
           if (completionError) return json({ error: "Delivery completion failed" }, 503);
           sent++;
-        } else {
-          await admin.rpc("release_safety_alert_push_delivery", {
-            p_alert_id: alertId,
-            p_revision: revision,
-            p_device_push_token_id: row.id,
-          });
-        }
-        if (outcome.invalidToken) {
+        } else if (outcome.invalidToken) {
+          // Deleting the token cascades its pending delivery row away.
           await admin.from("device_push_tokens").delete().eq("id", row.id);
           removed++;
+        } else {
+          // Keep the delivery queued: record the failure and back-date the
+          // claim so the next dispatch invocation reclaims it immediately.
+          const { error: releaseError } = await admin.rpc(
+            "release_safety_alert_push_delivery",
+            {
+              p_alert_id: alertId,
+              p_revision: revision,
+              p_device_push_token_id: row.id,
+              p_error: outcome.detail,
+            },
+          );
+          if (releaseError) {
+            console.error(JSON.stringify({
+              event: "safety_alert_release_failed",
+              message: String(releaseError),
+            }));
+          }
+          failed++;
         }
       }
     }
   }
-  console.info(JSON.stringify({ event: "safety_alert_dispatch", release_id: releaseId, sent, removed }));
-  return json({ ok: true, sent, removed });
+  console.info(JSON.stringify({
+    event: "safety_alert_dispatch",
+    release_id: releaseId,
+    sent,
+    removed,
+    failed,
+  }));
+  // Undelivered rows stay queued for the next invocation; the caller must see
+  // the failure so its release pipeline halts instead of reporting success.
+  const ok = failed === 0;
+  return json({ ok, sent, removed, failed }, ok ? 200 : 502);
 });

@@ -341,7 +341,7 @@ async function drainSubmissionPushDeliveries(
           removedTokens++;
         } else if (!outcome.delivered) {
           delivered = false;
-          lastError = "fcm send failed";
+          lastError = (outcome.detail || "fcm send failed").slice(0, 500);
         }
       }
     } catch (rowError) {

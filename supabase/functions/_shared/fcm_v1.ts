@@ -25,6 +25,11 @@ export interface FcmAccess {
 export interface FcmSendOutcome {
   delivered: boolean;
   invalidToken: boolean;
+  // Transient transport failure (429/5xx): the delivery must stay queued so a
+  // later dispatch retries it. Never true when invalidToken is true.
+  retryable: boolean;
+  // Short failure description for delivery bookkeeping; empty when delivered.
+  detail: string;
 }
 
 export type ReadEnvironment = (name: string) => string | undefined;
@@ -70,11 +75,17 @@ export async function sendFcmMessage(
       body: JSON.stringify({ message }),
     },
   );
-  if (response.ok) return { delivered: true, invalidToken: false };
+  if (response.ok) {
+    return { delivered: true, invalidToken: false, retryable: false, detail: "" };
+  }
   const body = await response.text();
+  const invalidToken = response.status === 404 && body.includes("UNREGISTERED");
   return {
     delivered: false,
-    invalidToken: response.status === 404 && body.includes("UNREGISTERED"),
+    invalidToken,
+    retryable: !invalidToken &&
+      (response.status === 429 || response.status >= 500),
+    detail: `HTTP ${response.status} ${body}`.slice(0, 200),
   };
 }
 
