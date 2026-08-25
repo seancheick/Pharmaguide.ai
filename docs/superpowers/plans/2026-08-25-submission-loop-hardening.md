@@ -153,6 +153,8 @@ Scanner symbology is an input, never inferred from â€œEAN-8 never starts with 0â
 
 Must include: private review, third-party AI may read the label, human approves every entry, front photo may be published (including crop), EXIF stripped, no PHI in pixels.
 
+- [x] **Pinned copy and implementation complete in both submission flows.**
+
 ### Task 8: Batch 1 verification
 
 - [ ] `flutter test` on all files touched in Batch 1

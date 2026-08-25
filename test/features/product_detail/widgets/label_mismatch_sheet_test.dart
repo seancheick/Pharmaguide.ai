@@ -252,9 +252,15 @@ void main() {
       expect(
         find.text(
           'Your account identifier, this product’s catalog identifiers '
-          '(including UPC when available), the mismatch categories you '
-          'select, and selected product-label photos are sent. We remove '
-          'embedded photo metadata before upload. Your profile, medications, '
+          '(including UPC when available), selected mismatch categories, and '
+          'selected product-label photos go privately to PharmaGuide for '
+          'review. We strip embedded photo metadata (EXIF) before upload, but '
+          'anything visible in the pixels remains. Do not include pharmacy '
+          'stickers, names, prescription numbers, or other personal health '
+          'information.\n\nA third-party AI service may read the label to '
+          'prepare a draft. A human reviewer approves every catalog entry. '
+          'If approved, the front-label photo—including a crop—may be '
+          'published as the product image. Your health profile, medications, '
           'conditions, allergies, and stack stay on this device.',
         ),
         findsOneWidget,
@@ -262,8 +268,12 @@ void main() {
       expect(
         find.text(
           'I consent to send this account-linked product report, its catalog '
-          'identifiers, selected categories, and selected label photos to '
-          'PharmaGuide for review.',
+          'identifiers, selected mismatch categories, and selected label '
+          'photos privately to PharmaGuide for review. A third-party AI '
+          'service may read the label, but a human reviewer approves every '
+          'entry. If approved, the front-label photo—including a crop—may be '
+          'published as the product image. I confirm the photos contain no '
+          'pharmacy stickers or other personal health information.',
         ),
         findsOneWidget,
       );

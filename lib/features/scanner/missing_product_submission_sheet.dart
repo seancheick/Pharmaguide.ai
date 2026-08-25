@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
@@ -476,6 +477,7 @@ class _MissingProductSubmissionSheetState
     return SafeArea(
       top: false,
       child: ListView(
+        key: const Key('missing-product-scroll'),
         shrinkWrap: true,
         padding: const EdgeInsets.fromLTRB(
           V2Spacing.space24,
@@ -808,13 +810,7 @@ class _MissingProductSubmissionSheetState
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           ),
           child: Text(
-            'Your account identifier, this barcode, and the label photos '
-            'you selected are sent privately to PharmaGuide for review. '
-            'Embedded photo metadata is removed. Your health profile, '
-            'medications, conditions, allergies, and stack stay on this '
-            'device.\n\nPhotograph only the product package. Do not include '
-            'pharmacy labels, names, prescription numbers, or other '
-            'personal information visible in the photo.',
+            missingProductPrivacyCopy,
             style: V2Typography.bodySm(color: context.v2.fg),
           ),
         ),
@@ -832,8 +828,7 @@ class _MissingProductSubmissionSheetState
               _failure = null;
             }),
       title: Text(
-        'I consent to send my account identifier, this barcode, and the '
-        'selected product-label photos to PharmaGuide for review.',
+        missingProductConsentCopy,
         style: V2Typography.bodySm(color: context.v2.fg),
       ),
     ),

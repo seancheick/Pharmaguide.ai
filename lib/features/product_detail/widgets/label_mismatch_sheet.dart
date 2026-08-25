@@ -7,6 +7,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
@@ -330,9 +331,7 @@ class _LabelMismatchSheetState extends State<LabelMismatchSheet> {
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
               title: Text(
-                'I consent to send this account-linked product report, its '
-                'catalog identifiers, selected categories, and selected '
-                'label photos to PharmaGuide for review.',
+                labelMismatchConsentCopy,
                 style: V2Typography.bodySm(color: context.v2.fg),
               ),
             ),
@@ -477,11 +476,7 @@ class _PrivacyNotice extends StatelessWidget {
     return Semantics(
       container: true,
       excludeSemantics: true,
-      label:
-          'Privacy. Your account identifier, this product’s catalog '
-          'identifiers, selected mismatch categories, and selected '
-          'product-label photos are sent. Embedded photo metadata is removed. '
-          'Health profile data stays on this device.',
+      label: 'Privacy. $labelMismatchPrivacyCopy',
       child: Container(
         padding: const EdgeInsets.all(V2Spacing.space12),
         decoration: BoxDecoration(
@@ -499,12 +494,7 @@ class _PrivacyNotice extends StatelessWidget {
             const SizedBox(width: V2Spacing.space12),
             Expanded(
               child: Text(
-                'Your account identifier, this product’s catalog identifiers '
-                '(including UPC when available), the mismatch categories you '
-                'select, and selected product-label photos are sent. We remove '
-                'embedded photo metadata before upload. Your profile, '
-                'medications, conditions, allergies, and stack stay on this '
-                'device.',
+                labelMismatchPrivacyCopy,
                 style: V2Typography.bodySm(color: context.v2.fg),
               ),
             ),

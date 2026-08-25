@@ -93,6 +93,16 @@ Future<void> _captureRequiredEvidence(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('missing-product-next')));
   await tester.pumpAndSettle();
   expect(find.text('Review & submit'), findsOneWidget);
+  await tester.scrollUntilVisible(
+    find.byKey(const Key('missing-product-submit')),
+    300,
+    scrollable: find
+        .descendant(
+          of: find.byKey(const Key('missing-product-scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
 }
 
 void main() {
@@ -168,6 +178,34 @@ void main() {
     expect(find.text('Review & submit'), findsOneWidget);
 
     expect(find.byKey(const Key('missing-product-consent')), findsOneWidget);
+    expect(
+      find.text(
+        'I consent to send this account-linked product submission, barcode, '
+        'and selected label photos privately to PharmaGuide for review. A '
+        'third-party AI service may read the label, but a human reviewer '
+        'approves every entry. If approved, the front-label photo—including '
+        'a crop—may be published as the product image. I confirm the photos '
+        'contain no pharmacy stickers or other personal health information.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('missing-product-privacy')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Your account identifier, this barcode, and selected product-label '
+        'photos go privately to PharmaGuide for review. We strip embedded '
+        'photo metadata (EXIF) before upload, but anything visible in the '
+        'pixels remains. Do not include pharmacy stickers, names, '
+        'prescription numbers, or other personal health information.\n\n'
+        'A third-party AI service may read the label to prepare a draft. A '
+        'human reviewer approves every catalog entry. If approved, the '
+        'front-label photo—including a crop—may be published as the product '
+        'image. Your health profile, medications, conditions, allergies, and '
+        'stack stay on this device.',
+      ),
+      findsOneWidget,
+    );
     expect(backend.persistedSubmissionIds, isEmpty);
   });
 
