@@ -4,7 +4,11 @@ import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/presentation/package_identity.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
 
+import '../../../support/app_fonts.dart';
+
 void main() {
+  setUpAll(loadAppFonts);
+
   group('hero package identity', () {
     test('uses net contents instead of servings as package quantity', () {
       expect(
@@ -44,9 +48,25 @@ void main() {
             'drivers': ['no_verified_third_party_certification'],
           },
         }),
-        ['No clinical evidence matched'],
+        ['Clinical evidence review is incomplete'],
       );
     });
+
+    test(
+      'renders the typed provisional-review driver without judging quality',
+      () {
+        expect(
+          scoreConfidenceDriverLabels({
+            'band': 'moderate',
+            'evidence': {
+              'level': 'moderate',
+              'drivers': ['evidence_review_incomplete'],
+            },
+          }),
+          ['Clinical evidence review is incomplete'],
+        );
+      },
+    );
 
     test('returns at most two distinct dominant moderate drivers', () {
       expect(
@@ -130,4 +150,46 @@ void main() {
     expect(find.text('Acceptable'), findsOneWidget);
     expect(find.text('Strong'), findsNothing);
   });
+
+  testWidgets(
+    'legacy limited score explains an unfinished evidence review without judging quality',
+    (tester) async {
+      tester.view.physicalSize = const Size(1170, 900);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            body: PGHeroSection(
+              imageWidget: SizedBox.shrink(),
+              productName: 'Evidence review canary',
+              brandName: 'Test',
+              score: 62,
+              qualityTier: 'Weak',
+              limitedAssessment: true,
+              scoreConfidence: 'low',
+              scoreConfidenceDrivers: [
+                'Clinical evidence review is incomplete',
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Clinical evidence review is incomplete'),
+        findsOneWidget,
+      );
+      expect(find.text('Limited assessment'), findsNothing);
+      expect(find.text('Weak'), findsNothing);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/hero_evidence_review_incomplete.png'),
+      );
+    },
+  );
 }
