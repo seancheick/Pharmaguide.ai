@@ -493,9 +493,18 @@ void main() {
     expect(file.existsSync(), isTrue);
     final reviewV2 = _normalized(file.readAsStringSync());
 
-    expect(reviewV2, contains('create table public.product_submission_reviewers'));
-    expect(reviewV2, contains('create type public.product_submission_match_outcome'));
-    expect(reviewV2, contains('create table public.product_submission_match_checks'));
+    expect(
+      reviewV2,
+      contains('create table public.product_submission_reviewers'),
+    );
+    expect(
+      reviewV2,
+      contains('create type public.product_submission_match_outcome'),
+    );
+    expect(
+      reviewV2,
+      contains('create table public.product_submission_match_checks'),
+    );
     expect(
       reviewV2,
       contains('create function public.record_product_submission_match_check'),
@@ -510,9 +519,7 @@ void main() {
     );
     expect(
       reviewV2,
-      contains(
-        'grant execute on function public.review_product_submission',
-      ),
+      contains('grant execute on function public.review_product_submission'),
     );
     expect(reviewV2, contains('to authenticated'));
     expect(

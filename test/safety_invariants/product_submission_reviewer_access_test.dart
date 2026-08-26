@@ -48,9 +48,10 @@ void main() {
       isTrue,
       reason: 'Reviewer cleanup and allowlist FKs need covering indexes.',
     );
-    reviewV2IndexesSql = indexesMigration
-        .readAsStringSync()
-        .replaceAll('"', "'");
+    reviewV2IndexesSql = indexesMigration.readAsStringSync().replaceAll(
+      '"',
+      "'",
+    );
   });
 
   test('authenticates an allowlisted reviewer before service-role access', () {
@@ -107,13 +108,25 @@ void main() {
         .replaceAll(RegExp(r'--[^\n]*'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .toLowerCase();
-    expect(normalized, contains('create type public.product_submission_image_rights'));
-    expect(normalized, contains('create table public.product_submission_reviewer_images'));
+    expect(
+      normalized,
+      contains('create type public.product_submission_image_rights'),
+    );
+    expect(
+      normalized,
+      contains('create table public.product_submission_reviewer_images'),
+    );
     expect(normalized, contains('approved_product_image_photo_id uuid'));
-    expect(normalized, contains('approved_product_image_reviewer_object_id uuid'));
+    expect(
+      normalized,
+      contains('approved_product_image_reviewer_object_id uuid'),
+    );
     expect(normalized, contains('num_nonnulls('));
     expect(normalized, contains("'front_identity' = any(photo.categories)"));
-    expect(normalized, contains('product_submission_extractions add column usage jsonb'));
+    expect(
+      normalized,
+      contains('product_submission_extractions add column usage jsonb'),
+    );
     expect(
       normalized,
       contains('create function public.get_approved_product_submission_image'),
@@ -136,7 +149,8 @@ void main() {
     expect(
       normalized.substring(imageExportStart, imageExportEnd),
       isNot(contains('promoted_at is null')),
-      reason: 'A transient image-copy failure must remain retryable after release.',
+      reason:
+          'A transient image-copy failure must remain retryable after release.',
     );
     final normalizedIndexes = reviewV2IndexesSql
         .replaceAll(RegExp(r'--[^\n]*'), ' ')
@@ -281,10 +295,7 @@ void main() {
   test('records exact match evidence through the authenticated boundary', () {
     expect(source, contains("if (action === 'record_match')"));
     expect(source, contains('parseRecordMatchRequest(body)'));
-    expect(
-      source,
-      contains("'record_product_submission_match_check'"),
-    );
+    expect(source, contains("'record_product_submission_match_check'"));
     expect(source, contains('p_index_built_at: match.indexBuiltAt'));
     expect(source, contains('p_canonical_gtin14: match.canonicalGtin14'));
   });
@@ -325,9 +336,7 @@ void main() {
     );
     expect(
       normalized,
-      contains(
-        'from public, anon, authenticated, service_role',
-      ),
+      contains('from public, anon, authenticated, service_role'),
     );
     expect(normalized, contains("latest_match.outcome <> 'no_match_verified'"));
     expect(
@@ -356,7 +365,9 @@ void main() {
   });
 
   test('submission pushes are durable, deferred, and generic', () {
-    final reviewRpc = source.indexOf("userClient.rpc('review_product_submission'");
+    final reviewRpc = source.indexOf(
+      "userClient.rpc('review_product_submission'",
+    );
     final drainCall = source.indexOf(
       'drainSubmissionPushDeliveries(admin, submissionId)',
       reviewRpc,
