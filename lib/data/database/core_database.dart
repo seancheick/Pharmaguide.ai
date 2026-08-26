@@ -357,7 +357,7 @@ class CoreDatabase extends _$CoreDatabase {
   /// never used to decide which physical bottle the user scanned.
   Future<List<ProductsCoreData>> findAllByUpc(String upc) async {
     try {
-      return findAllByGtin(GtinIdentity.parse(upc));
+      return await findAllByGtin(GtinIdentity.parse(upc));
     } on FormatException {
       return const [];
     }

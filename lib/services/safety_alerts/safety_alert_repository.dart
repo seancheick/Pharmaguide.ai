@@ -46,11 +46,11 @@ class SafetyAlertRepository {
       if (row == null) return const SafetyAlertRelease(alerts: [], baselineRevisions: {}, isComplete: true);
       final release = await _decodeRemote(Map<String, dynamic>.from(row));
       await _preferences.setString(_cacheKey, jsonEncode(_cachePayload(release)));
-      return _withWatermark(release, isComplete: true);
+      return await _withWatermark(release, isComplete: true);
     } on Object {
       final cached = await _loadCached();
       if (cached == null) return const SafetyAlertRelease(alerts: [], baselineRevisions: {}, isComplete: false);
-      return _withWatermark(cached, isComplete: false);
+      return await _withWatermark(cached, isComplete: false);
     }
   }
 
