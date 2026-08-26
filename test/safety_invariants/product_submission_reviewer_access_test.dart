@@ -538,4 +538,24 @@ void main() {
           'not keep advertising the 401 that delayed it.',
     );
   });
+
+  test('opening the review queue retries bounded stale push deliveries', () {
+    final listStart = source.indexOf("if (action === 'list')");
+    final nextAction = source.indexOf(
+      "if (action === 'create_reviewer_image_upload')",
+      listStart,
+    );
+
+    expect(listStart, greaterThanOrEqualTo(0));
+    expect(nextAction, greaterThan(listStart));
+    final listAction = source.substring(listStart, nextAction);
+    expect(
+      listAction,
+      contains('drainSubmissionPushDeliveries('),
+      reason:
+          'A failed delivery must not wait forever for another status '
+          'transition. Opening the authenticated reviewer queue is the '
+          'bounded retry sweep.',
+    );
+  });
 }

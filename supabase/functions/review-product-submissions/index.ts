@@ -315,14 +315,19 @@ async function verifyDisclosurePhotoSupport(
 // discarded (review_events keeps the full transition history).
 async function drainSubmissionPushDeliveries(
   admin: SupabaseClient,
-  submissionId: string,
+  submissionId: string | null,
 ): Promise<void> {
   const staleBefore = new Date(Date.now() - STALE_PUSH_RETRY_MS).toISOString();
-  const { data: candidates, error: pendingError } = await admin
+  let candidateQuery = admin
     .from("product_submission_push_deliveries")
     .select("submission_id")
-    .is("sent_at", null)
-    .or(`submission_id.eq.${submissionId},created_at.lt.${staleBefore}`)
+    .is("sent_at", null);
+  candidateQuery = submissionId === null
+    ? candidateQuery.lt("created_at", staleBefore)
+    : candidateQuery.or(
+      `submission_id.eq.${submissionId},created_at.lt.${staleBefore}`,
+    );
+  const { data: candidates, error: pendingError } = await candidateQuery
     .order("created_at", { ascending: true })
     .limit(MAX_PUSH_BATCH);
   if (pendingError) throw pendingError;
@@ -400,9 +405,7 @@ async function drainSubmissionPushDeliveries(
   for (const row of rows) {
     const deliveryId = row.id;
     const userId = typeof row.user_id === "string" ? row.user_id : null;
-    const rowSubmissionId = typeof row.submission_id === "string"
-      ? row.submission_id
-      : submissionId;
+    const rowSubmissionId = row.submission_id;
     const attempts = Number(row.attempts ?? 0) + 1;
     let lastError: string | null = null;
     let delivered = false;
@@ -547,6 +550,18 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (action === "list") {
       const listRequest = parseListRequest(body);
       const statuses = reviewStatusesForList(listRequest.status);
+      const stalePushDrain = drainSubmissionPushDeliveries(admin, null)
+        .catch((pushError) => {
+          console.error(JSON.stringify({
+            event: "product_submission_stale_push_drain_failed",
+            message: String(pushError),
+          }));
+        });
+      if (typeof EdgeRuntime !== "undefined") {
+        EdgeRuntime.waitUntil(stalePushDrain);
+      } else {
+        await stalePushDrain;
+      }
 
       let query = admin
         .from("product_submissions")
