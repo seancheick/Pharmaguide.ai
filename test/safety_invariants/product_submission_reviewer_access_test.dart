@@ -102,6 +102,30 @@ void main() {
     expect(normalized, contains('num_nonnulls('));
     expect(normalized, contains("'front_identity' = any(photo.categories)"));
     expect(normalized, contains('product_submission_extractions add column usage jsonb'));
+    expect(
+      normalized,
+      contains('create function public.get_approved_product_submission_image'),
+    );
+    expect(
+      normalized,
+      contains(
+        'grant execute on function public.get_approved_product_submission_image(uuid) to service_role',
+      ),
+    );
+    final imageExportStart = normalized.indexOf(
+      'create function public.get_approved_product_submission_image',
+    );
+    final imageExportEnd = normalized.indexOf(
+      'revoke all on function public.record_product_submission_match_check',
+      imageExportStart,
+    );
+    expect(imageExportStart, greaterThanOrEqualTo(0));
+    expect(imageExportEnd, greaterThan(imageExportStart));
+    expect(
+      normalized.substring(imageExportStart, imageExportEnd),
+      isNot(contains('promoted_at is null')),
+      reason: 'A transient image-copy failure must remain retryable after release.',
+    );
   });
 
   test('lists ready evidence with short-lived private URLs', () {

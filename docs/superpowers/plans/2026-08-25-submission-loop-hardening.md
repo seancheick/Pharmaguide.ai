@@ -249,7 +249,7 @@ After materialize, download evidence or reviewer object then:
 
 Do **not** call `build_final_db.py:backfill_image_thumbnails` (dead code, zero callers). Do not rely on `extract_product_images.py` (PDF-only probe). Failure of the image copy does not drop the label. Identity lock remains the RPC.
 
-- [ ] Test asserts the WebP file **and** the index entry **and** the `image_thumbnail_url` column.
+- [x] Test asserts the WebP file **and** the index entry **and** the `image_thumbnail_url` column.
 
 ### Task 15: Batch 2 verification
 

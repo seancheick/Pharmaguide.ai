@@ -741,7 +741,6 @@ AS $$
   WHERE submission.id = p_submission_id
     AND submission.kind = 'missing_product'
     AND submission.review_status = 'approved'
-    AND submission.promoted_at IS NULL
   UNION ALL
   SELECT
     'product-submission-reviewer-images'::text,
@@ -756,8 +755,7 @@ AS $$
    AND image.object_id = approved.approved_product_image_reviewer_object_id
   WHERE submission.id = p_submission_id
     AND submission.kind = 'missing_product'
-    AND submission.review_status = 'approved'
-    AND submission.promoted_at IS NULL;
+    AND submission.review_status = 'approved';
 $$;
 
 REVOKE ALL ON FUNCTION public.record_product_submission_match_check(
