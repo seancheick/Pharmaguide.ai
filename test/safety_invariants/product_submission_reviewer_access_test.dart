@@ -468,4 +468,47 @@ void main() {
     expect(source, contains("order('photo_id', { ascending: true })"));
     expect(source, isNot(contains('photo_slot')));
   });
+
+  test('push drain coalesces backlogs to the latest status per submission', () {
+    // Field case: three queued rows (under_review, approved, corrected
+    // approved) all delivered together when APNs recovered — an outdated
+    // "under review" nudge for an already-approved submission. Only the
+    // newest pending row per submission may send; older siblings are
+    // discarded, and review_events keeps the full history.
+    expect(source, contains('partitionSupersededDeliveries'));
+    expect(
+      source,
+      contains(".in('submission_id', candidateSubmissionIds)"),
+      reason: 'Supersession must see each candidate submission whole, not '
+          'just the rows that happened to land in the stale window.',
+    );
+    expect(
+      source,
+      contains(".delete()"),
+    );
+    final supersedeGrant = File(
+      'supabase/migrations/20260826150000_push_queue_supersede_delete.sql',
+    );
+    expect(
+      supersedeGrant.existsSync(),
+      isTrue,
+      reason: 'Discarding queue rows requires the service-role DELETE grant '
+          'the v2 migration deliberately omitted.',
+    );
+    expect(
+      supersedeGrant.readAsStringSync().replaceAll('"', "'"),
+      contains(
+        'GRANT DELETE ON TABLE public.product_submission_push_deliveries',
+      ),
+    );
+  });
+
+  test('a successful retry clears the failure that preceded it', () {
+    expect(
+      source,
+      contains('last_error: null'),
+      reason: 'last_error describes the CURRENT state; a delivered row must '
+          'not keep advertising the 401 that delayed it.',
+    );
+  });
 }

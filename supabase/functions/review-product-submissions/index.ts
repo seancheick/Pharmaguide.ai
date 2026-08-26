@@ -13,6 +13,10 @@ import {
   sendFcmMessage,
 } from "../_shared/fcm_v1.ts";
 import {
+  partitionSupersededDeliveries,
+  type PendingDeliveryRow,
+} from "../_shared/push_queue.ts";
+import {
   cursorFilter,
   nextListCursor,
   parseListRequest,
@@ -306,20 +310,73 @@ async function verifyDisclosurePhotoSupport(
 // bounded batch of stale pending rows from earlier failed sends. Delivery is
 // at-least-once by design — the visible copy is generic, so a duplicate
 // nudge is harmless, while a silently lost approval/rejection is not.
+// Backlogs are coalesced first: only the newest pending row per submission
+// is sent; older siblings carry statuses that are no longer true and are
+// discarded (review_events keeps the full transition history).
 async function drainSubmissionPushDeliveries(
   admin: SupabaseClient,
   submissionId: string,
 ): Promise<void> {
   const staleBefore = new Date(Date.now() - STALE_PUSH_RETRY_MS).toISOString();
-  const { data: pending, error: pendingError } = await admin
+  const { data: candidates, error: pendingError } = await admin
     .from("product_submission_push_deliveries")
-    .select("id,submission_id,user_id,attempts")
+    .select("submission_id")
     .is("sent_at", null)
     .or(`submission_id.eq.${submissionId},created_at.lt.${staleBefore}`)
     .order("created_at", { ascending: true })
     .limit(MAX_PUSH_BATCH);
   if (pendingError) throw pendingError;
-  const rows = (pending ?? []) as unknown as JsonObject[];
+  const candidateSubmissionIds = [
+    ...new Set(
+      ((candidates ?? []) as unknown as JsonObject[])
+        .map((row) => row.submission_id)
+        .filter((value): value is string => typeof value === "string"),
+    ),
+  ];
+  if (candidateSubmissionIds.length === 0) return;
+
+  // Re-fetch EVERY pending row for the candidate submissions so supersession
+  // sees each submission whole — the candidate window alone could hold an old
+  // row whose newer sibling is neither stale nor the current submission.
+  // A submission accumulates at most a handful of transitions, so the bound
+  // is generous, not load-bearing.
+  const { data: pendingFull, error: pendingFullError } = await admin
+    .from("product_submission_push_deliveries")
+    .select("id,submission_id,user_id,attempts,created_at")
+    .is("sent_at", null)
+    .in("submission_id", candidateSubmissionIds)
+    .order("created_at", { ascending: true })
+    .limit(MAX_PUSH_BATCH * 8);
+  if (pendingFullError) throw pendingFullError;
+  const pendingRows: PendingDeliveryRow[] = [];
+  for (const raw of (pendingFull ?? []) as unknown as JsonObject[]) {
+    if (typeof raw.id !== "number") continue;
+    if (typeof raw.submission_id !== "string") continue;
+    if (typeof raw.created_at !== "string") continue;
+    pendingRows.push({
+      id: raw.id,
+      submission_id: raw.submission_id,
+      user_id: typeof raw.user_id === "string" ? raw.user_id : null,
+      attempts: Number(raw.attempts ?? 0),
+      created_at: raw.created_at,
+    });
+  }
+  const { latest, superseded } = partitionSupersededDeliveries(pendingRows);
+  if (superseded.length > 0) {
+    const { error: supersededError } = await admin
+      .from("product_submission_push_deliveries")
+      .delete()
+      .in("id", superseded.map((row) => row.id));
+    if (supersededError) {
+      // A failed discard is not a failed send: the latest rows still go out,
+      // and a later drain re-partitions whatever survived.
+      console.error(JSON.stringify({
+        event: "product_submission_push_supersede_failed",
+        message: String(supersededError),
+      }));
+    }
+  }
+  const rows = latest;
   if (rows.length === 0) return;
 
   let access;
@@ -387,7 +444,9 @@ async function drainSubmissionPushDeliveries(
       .from("product_submission_push_deliveries")
       .update(
         delivered
-          ? { sent_at: new Date().toISOString(), attempts }
+          // A retry that succeeds must not leave the failure that preceded
+          // it on the row — last_error describes the CURRENT state.
+          ? { sent_at: new Date().toISOString(), attempts, last_error: null }
           : { attempts, last_error: lastError ?? "unknown" },
       )
       .eq("id", deliveryId);
@@ -403,6 +462,7 @@ async function drainSubmissionPushDeliveries(
     event: "product_submission_push_drain",
     submission_id: submissionId,
     processed: rows.length,
+    superseded: superseded.length,
     sent,
     removed_tokens: removedTokens,
   }));
