@@ -7,3 +7,12 @@
 
 GRANT DELETE ON TABLE public.product_submission_push_deliveries
   TO service_role;
+
+-- One-time repair: rows delivered by the pre-coalescing drain kept the
+-- transport failure that preceded their successful retry. last_error
+-- describes the CURRENT state; a delivered row must not keep advertising
+-- the 401 that once delayed it.
+UPDATE public.product_submission_push_deliveries
+  SET last_error = NULL
+  WHERE sent_at IS NOT NULL
+    AND last_error IS NOT NULL;

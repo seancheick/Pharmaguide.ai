@@ -368,12 +368,16 @@ async function drainSubmissionPushDeliveries(
       .delete()
       .in("id", superseded.map((row) => row.id));
     if (supersededError) {
-      // A failed discard is not a failed send: the latest rows still go out,
-      // and a later drain re-partitions whatever survived.
+      // Fail closed: sending the newest row while its stale siblings cannot
+      // be discarded would mark it sent and leave an older status as the
+      // "newest pending" for a later drain — exactly the outdated-status
+      // replay this partition exists to prevent. Everything stays pending
+      // until a drain can discard first.
       console.error(JSON.stringify({
         event: "product_submission_push_supersede_failed",
         message: String(supersededError),
       }));
+      return;
     }
   }
   const rows = latest;
