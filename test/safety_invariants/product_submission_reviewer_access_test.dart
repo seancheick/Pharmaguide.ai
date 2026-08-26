@@ -9,6 +9,9 @@ const _reviewV2MigrationPath =
     'supabase/migrations/20260825213000_submission_review_v2.sql';
 const _reviewV2IndexesMigrationPath =
     'supabase/migrations/20260826001957_submission_review_v2_indexes.sql';
+const _reviewerIdAmbiguityFixMigrationPath =
+    'supabase/migrations/'
+    '20260826100000_fix_review_submission_reviewer_id_ambiguity.sql';
 
 void main() {
   late String source;
@@ -16,6 +19,7 @@ void main() {
   late String schemaSource;
   late String reviewV2Sql;
   late String reviewV2IndexesSql;
+  late String reviewerIdAmbiguityFixSql;
 
   setUpAll(() {
     final function = File(_functionPath);
@@ -52,6 +56,15 @@ void main() {
       '"',
       "'",
     );
+    final reviewerIdFixMigration = File(_reviewerIdAmbiguityFixMigrationPath);
+    expect(
+      reviewerIdFixMigration.existsSync(),
+      isTrue,
+      reason: 'The production reviewer-id ambiguity must stay repaired.',
+    );
+    reviewerIdAmbiguityFixSql = reviewerIdFixMigration
+        .readAsStringSync()
+        .replaceAll('"', "'");
   });
 
   test('authenticates an allowlisted reviewer before service-role access', () {
@@ -343,6 +356,37 @@ void main() {
       normalized,
       contains("latest_match.index_built_at < now() - interval '60 days'"),
     );
+  });
+
+  test('approval wrapper uses an unambiguous reviewer identity variable', () {
+    final normalized = reviewerIdAmbiguityFixSql
+        .replaceAll(RegExp(r'--[^\n]*'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+
+    expect(
+      normalized,
+      contains('create or replace function public.review_product_submission'),
+    );
+    expect(normalized, contains('v_reviewer_id uuid := auth.uid()'));
+    expect(
+      normalized,
+      contains(
+        'from public.product_submission_reviewers as reviewer where reviewer.user_id = v_reviewer_id',
+      ),
+    );
+    expect(normalized, contains('and image.reviewer_id = v_reviewer_id'));
+    expect(
+      normalized,
+      contains(
+        'public.review_product_submission_human_internal( p_submission_id, v_reviewer_id,',
+      ),
+    );
+    expect(
+      normalized,
+      isNot(contains('declare reviewer_id uuid := auth.uid()')),
+    );
+    expect(normalized, isNot(contains('where reviewer.user_id = reviewer_id')));
   });
 
   test('transition accepts the resolution contract and nothing more', () {
