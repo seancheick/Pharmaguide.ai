@@ -173,11 +173,11 @@ Must include: private review, third-party AI may read the label, human approves 
 - Modify: `scripts/product_submission_import.py` `_validate_label_payload`
 - Create: shared malformed/valid JSON fixtures; checksum test in both repos
 
-- [ ] **Step 1: Deno tests** — empty ingredient object rejected; blend nesting; units; `unverified` disclosure rejected; `present` requires otherIngredients text; `declared_none` requires empty.
+- [x] **Step 1: Deno tests** — empty ingredient object rejected; blend nesting; units; `unverified` disclosure rejected; `present` requires otherIngredients text; `declared_none` requires empty.
 
-- [ ] **Step 2: Implement schema; importer parity**
+- [x] **Step 2: Implement schema; importer parity**
 
-- [ ] **Step 3:** `deno test --allow-env supabase/functions/` and `bash scripts/test.sh fast -k "product_submission_import or manual_label"` in dsld_clean
+- [x] **Step 3:** `deno test --allow-env supabase/functions/` (21 passed) and `bash scripts/test.sh fast -k "product_submission_import or manual_label"` (36 passed) in dsld_clean
 
 ### Task 10: Open queue + cursor pagination
 
@@ -186,10 +186,10 @@ Must include: private review, third-party AI may read the label, human approves 
 - Modify: `scripts/submission_review/static/app.js`
 - Test: Deno list tests + `test_submission_review_server.py` if it stubs list
 
-- [ ] `status: "open"` filters `submitted` + `under_review`
-- [ ] `after: {submitted_at, id}` cursor
-- [ ] total open count in response
-- [ ] Console default Open, Load more, render count
+- [x] `status: "open"` filters `submitted` + `under_review`
+- [x] `after: {submitted_at, id}` cursor
+- [x] total open count in response
+- [x] Console default Open, Load more, render count
 
 ### Task 11: Allowlist table, `auth.uid()` review RPC, fail-closed identity
 
@@ -199,12 +199,12 @@ Must include: private review, third-party AI may read the label, human approves 
 - Test: `test/safety_invariants/product_submission_reviewer_access_test.dart`
 - Test: `test/safety_invariants/product_submission_pipeline_contract_test.dart`
 
-- [ ] **Allowlist table** — `ENABLE` + `FORCE RLS`, **no policies**, `REVOKE ALL` from `PUBLIC, anon, authenticated, service_role`. Membership via migration / operator SQL only.
-- [ ] **Replace `review_product_submission`** — drop `p_reviewer_id`; identity and `reviewed_by` from `auth.uid()` + table membership (same pattern as `finalize_product_submission`). `GRANT EXECUTE` to `authenticated` only; revoke `service_role` and `anon`.
-- [ ] **Edge `transition`** uses the user client. Env `PRODUCT_SUBMISSION_REVIEWER_IDS` remains the early 403. Gate-ordering test still requires byte-verify before the RPC, now against the user-client call.
-- [ ] **`record_match`** outcomes: `catalog_match` / `dsld_match` / `identity_ambiguous` / `no_match_verified` / `not_this_product` (required reason, history retained). Exact canonical GTIN-14 only. Index built-at stored on the check.
-- [ ] **Approve precondition:** latest check is `no_match_verified` and index age within the 60-day block. Otherwise 400. `dsld_match` Duplicate immediately after `refresh-ids` lands in canonical raw — do not wait for OTA.
-- [ ] Update the two pinned tests in **this** PR (action/field allowlist ~35–46, transition fields ~166–184, `admin.rpc` assertions, ~388 service-only grants).
+- [x] **Allowlist table** — `ENABLE` + `FORCE RLS`, **no policies**, `REVOKE ALL` from `PUBLIC, anon, authenticated, service_role`. Membership via migration / operator SQL only.
+- [x] **Replace `review_product_submission`** — drop `p_reviewer_id`; identity and `reviewed_by` from `auth.uid()` + table membership (same pattern as `finalize_product_submission`). `GRANT EXECUTE` to `authenticated` only; revoke `service_role` and `anon`.
+- [x] **Edge `transition`** uses the user client. Env `PRODUCT_SUBMISSION_REVIEWER_IDS` remains the early 403. Gate-ordering test still requires byte-verify before the RPC, now against the user-client call.
+- [x] **`record_match`** outcomes: `catalog_match` / `dsld_match` / `identity_ambiguous` / `no_match_verified` / `not_this_product` (required reason, history retained). Exact canonical GTIN-14 only. Index built-at stored on the check.
+- [x] **Approve precondition:** latest check is `no_match_verified` and index age within the 60-day block. Otherwise 400. `dsld_match` Duplicate immediately after `refresh-ids` lands in canonical raw — do not wait for OTA.
+- [x] Update the two pinned tests in **this** PR (action/field allowlist ~35–46, transition fields ~166–184, `admin.rpc` assertions, ~388 service-only grants).
 
 ### Task 12: Local UPC index in `serve.py`
 
@@ -216,9 +216,9 @@ Index keys = same GTIN candidate set as Task 1 (load golden JSON; checksum again
 
 Sources: `--catalog-db` products_core + configurable enriched-corpus dir (DSLD input including excluded).
 
-- [ ] Surface **index built-at** in the console.
-- [ ] Freshness constants **in this file**: warn at 30 days, block at 60. Blocked index ⇒ cannot `record_match` `no_match_verified` ⇒ Approve stays rejected (shared with Task 11).
-- [ ] Cards: shipped → Duplicate; corpus-only → Import + `refresh-ids` then Duplicate immediately; **ambiguous never auto-picks**; no exact hit → `no_match_verified`; wrong hit → audited `not_this_product`. Use as draft fills the editor only.
+- [x] Surface **index built-at** in the console.
+- [x] Freshness constants **in this file**: warn at 30 days, block at 60. Blocked index ⇒ cannot `record_match` `no_match_verified` ⇒ Approve stays rejected (shared with Task 11).
+- [x] Cards: shipped → Duplicate; corpus-only → Import + `refresh-ids` then Duplicate immediately; **ambiguous never auto-picks**; no exact hit → `no_match_verified`; wrong hit → audited `not_this_product`. Use as draft fills the editor only.
 
 ### Task 13: Console editor + polish + picture + cleanup
 
@@ -230,10 +230,10 @@ Sources: `--catalog-db` products_core + configurable enriched-corpus dir (DSLD i
 - Test: `test/safety_invariants/product_submission_reviewer_access_test.dart` (picture keys on `transition`; cleanup must name the reviewer-image bucket)
 - Test: `test/safety_invariants/product_submission_retention_test.dart` if it pins the photos bucket only
 
-- [ ] Structured editor: forms, nested rows, Other Ingredients, statements, disclosure control — same object as raw JSON
-- [ ] Product picture radio; crop/rotate export JPEG (`source_rights = user_evidence_crop`, no extra attestation); upload replacement requires `operator_photo` / `manufacturer_provided` / `licensed` attestation
-- [ ] Lightbox with ✕; signed URL refresh ~4.5 min; edge errors visible; terminal buttons disabled
-- [ ] Cleanup purges reviewer-image objects on the same 90-day post-promotion claims as evidence photos
+- [x] Structured editor: forms, nested rows, Other Ingredients, statements, disclosure control — same object as raw JSON
+- [x] Product picture radio; crop/rotate export JPEG (`source_rights = user_evidence_crop`, no extra attestation); upload replacement requires `operator_photo` / `manufacturer_provided` / `licensed` attestation
+- [x] Lightbox with ✕; signed URL refresh ~4.5 min; edge errors visible; terminal buttons disabled
+- [x] Cleanup purges reviewer-image objects on the same 90-day post-promotion claims as evidence photos
 
 ### Task 14: Importer copies catalog WebP **and** registers it
 
@@ -249,15 +249,15 @@ After materialize, download evidence or reviewer object then:
 
 Do **not** call `build_final_db.py:backfill_image_thumbnails` (dead code, zero callers). Do not rely on `extract_product_images.py` (PDF-only probe). Failure of the image copy does not drop the label. Identity lock remains the RPC.
 
-- [ ] Test asserts the WebP file **and** the index entry **and** the `image_thumbnail_url` column.
+- [x] Test asserts the WebP file **and** the index entry **and** the `image_thumbnail_url` column.
 
 ### Task 15: Batch 2 verification
 
-- [ ] `supabase db reset` locally after migrations
-- [ ] Deno tests
-- [ ] `bash scripts/test.sh fast -k "submission or review or gtin or import"`
-- [ ] Flutter safety-invariant tests that grep the edge/SQL sources (`product_submission_reviewer_access_test.dart`, `product_submission_pipeline_contract_test.dart`) — already updated in Tasks 11/13, re-run here
-- [ ] Deploy `review-product-submissions` **and** `cleanup-product-submissions` once with Batch 2
+- [x] `supabase db reset` locally after migrations (isolated verification copy; two pre-2026-07 legacy files share one historical version in the canonical folder)
+- [x] Deno tests
+- [x] `bash scripts/test.sh fast -k "submission or review or gtin or import"`
+- [x] Flutter safety-invariant tests that grep the edge/SQL sources (`product_submission_reviewer_access_test.dart`, `product_submission_pipeline_contract_test.dart`) — already updated in Tasks 11/13, re-run here
+- [x] Deploy `review-product-submissions` **and** `cleanup-product-submissions` once with Batch 2
 
 ---
 

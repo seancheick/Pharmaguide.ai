@@ -4,6 +4,7 @@ import { resolveSupabaseAdminKey } from "../_shared/supabase_server_keys.ts";
 import { removeStorageObjectsOrThrow } from "../_shared/verified_storage_removal.ts";
 
 const PHOTO_BUCKET = "product-submission-photos";
+const REVIEWER_IMAGE_BUCKET = "product-submission-reviewer-images";
 const CLEANUP_LIMIT = 100;
 
 function json(body: unknown, status = 200): Response {
@@ -82,24 +83,37 @@ Deno.serve(async (request: Request): Promise<Response> => {
   let removedObjectCount = 0;
   for (const claim of claims) {
     const submissionId = claim.submission_id;
-    const rawObjectPaths: unknown[] = Array.isArray(claim.object_paths)
-      ? claim.object_paths
+    const rawEvidencePaths: unknown[] = Array.isArray(claim.evidence_object_paths)
+      ? claim.evidence_object_paths
       : [];
-    const objectPaths = rawObjectPaths.filter((path): path is string =>
+    const evidenceObjectPaths = rawEvidencePaths.filter((path): path is string =>
+      typeof path === "string" && path.length > 0
+    );
+    const rawReviewerPaths: unknown[] = Array.isArray(claim.reviewer_object_paths)
+      ? claim.reviewer_object_paths
+      : [];
+    const reviewerObjectPaths = rawReviewerPaths.filter((path): path is string =>
       typeof path === "string" && path.length > 0
     );
     if (typeof submissionId !== "string") continue;
-    if (objectPaths.length > 0) {
-      try {
+    try {
+      if (evidenceObjectPaths.length > 0) {
         const removal = await removeStorageObjectsOrThrow(
           admin.storage.from(PHOTO_BUCKET),
-          objectPaths,
+          evidenceObjectPaths,
         );
         removedObjectCount += removal.deletedObjectCount;
-      } catch {
-        failedSubmissionIds.push(submissionId);
-        continue;
       }
+      if (reviewerObjectPaths.length > 0) {
+        const removal = await removeStorageObjectsOrThrow(
+          admin.storage.from(REVIEWER_IMAGE_BUCKET),
+          reviewerObjectPaths,
+        );
+        removedObjectCount += removal.deletedObjectCount;
+      }
+    } catch {
+      failedSubmissionIds.push(submissionId);
+      continue;
     }
     completedSubmissionIds.push(submissionId);
   }

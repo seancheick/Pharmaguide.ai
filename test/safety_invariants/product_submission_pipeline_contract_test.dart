@@ -11,6 +11,8 @@ const _v2MigrationPath =
 const _resubmissionMigrationPath =
     'supabase/migrations/'
     '20260825181500_product_submission_resubmission_of.sql';
+const _reviewV2MigrationPath =
+    'supabase/migrations/20260825213000_submission_review_v2.sql';
 
 String _normalized(String source) => source
     .replaceAll(RegExp(r'--[^\n]*'), ' ')
@@ -449,7 +451,6 @@ void main() {
     );
     for (final functionName in const [
       'record_product_submission_extraction',
-      'review_product_submission',
       'export_approved_product_submissions',
       'mark_product_submission_promoted',
       'claim_product_submission_cleanup',
@@ -484,6 +485,47 @@ void main() {
       reason:
           'The service role may read photo manifests; it must not rewrite '
           'immutable evidence outside the RPC boundary.',
+    );
+  });
+
+  test('review v2 makes human identity and match history authoritative', () {
+    final file = File(_reviewV2MigrationPath);
+    expect(file.existsSync(), isTrue);
+    final reviewV2 = _normalized(file.readAsStringSync());
+
+    expect(
+      reviewV2,
+      contains('create table public.product_submission_reviewers'),
+    );
+    expect(
+      reviewV2,
+      contains('create type public.product_submission_match_outcome'),
+    );
+    expect(
+      reviewV2,
+      contains('create table public.product_submission_match_checks'),
+    );
+    expect(
+      reviewV2,
+      contains('create function public.record_product_submission_match_check'),
+    );
+    expect(reviewV2, contains('reviewer_id uuid := auth.uid()'));
+    expect(reviewV2, contains("canonical_gtin14 ~ '^[0-9]{14}\$'"));
+    expect(reviewV2, contains('order by match_check.created_at desc'));
+    expect(reviewV2, contains("latest_match.outcome <> 'no_match_verified'"));
+    expect(
+      reviewV2,
+      contains("latest_match.index_built_at < now() - interval '60 days'"),
+    );
+    expect(
+      reviewV2,
+      contains('grant execute on function public.review_product_submission'),
+    );
+    expect(reviewV2, contains('to authenticated'));
+    expect(
+      reviewV2,
+      contains('from public, anon, authenticated, service_role'),
+      reason: 'Automation identities must be unable to approve.',
     );
   });
 

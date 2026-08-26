@@ -60,6 +60,9 @@ void main() {
     expect(storageDelete, greaterThanOrEqualTo(0));
     expect(databaseDelete, greaterThan(storageDelete));
     expect(source, contains("'product-submission-photos'"));
+    expect(source, contains("'product-submission-reviewer-images'"));
+    expect(source, contains('reviewer_object_paths'));
+    expect(source, contains('evidence_object_paths'));
   });
 
   test('does not silently delete manifests after a storage failure', () {

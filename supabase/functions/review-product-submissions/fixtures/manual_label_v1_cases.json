@@ -1,0 +1,480 @@
+{
+  "fixture_version": "manual_label_v1_cases_v1",
+  "cases": [
+    {
+      "name": "valid_present_other_ingredients",
+      "valid": true,
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Vitamin D3 25 mcg",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Vitamin D",
+            "name": "Vitamin D3 (as cholecalciferol)",
+            "category": "vitamin",
+            "quantity": [
+              {
+                "quantity": 25,
+                "unit": "mcg"
+              }
+            ],
+            "forms": [
+              {
+                "name": "Cholecalciferol"
+              }
+            ],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "maxDailyServings": 1,
+            "unit": "Capsule(s)"
+          }
+        ],
+        "servingsPerContainer": "60",
+        "offMarket": 0,
+        "physicalState": {
+          "name": "Capsule"
+        },
+        "productType": {
+          "name": "Single-ingredient Dietary Supplement"
+        },
+        "otherIngredientsDisclosure": "present",
+        "otherIngredients": "Rice flour, capsule (hypromellose).",
+        "statements": [
+          {
+            "type": "Allergen statement",
+            "notes": "Free from milk."
+          }
+        ]
+      }
+    },
+    {
+      "name": "valid_nested_blend_on_facts_panel",
+      "valid": true,
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Calm Blend",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Blend",
+            "name": "Calm Blend",
+            "category": "blend",
+            "quantity": [
+              {
+                "quantity": 500,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": [
+              {
+                "ingredientGroup": "L-Theanine",
+                "name": "L-Theanine",
+                "quantity": [],
+                "forms": [],
+                "nestedRows": []
+              },
+              {
+                "ingredientGroup": "Lemon Balm",
+                "name": "Lemon Balm leaf extract",
+                "quantity": [],
+                "forms": [
+                  {
+                    "name": "Lemon Balm Extract"
+                  }
+                ],
+                "nestedRows": []
+              }
+            ]
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 2,
+            "maxQuantity": 2,
+            "minDailyServings": 1,
+            "maxDailyServings": 2,
+            "unit": "Capsule(s)"
+          }
+        ],
+        "offMarket": false,
+        "otherIngredientsDisclosure": "included_on_facts_panel",
+        "otherIngredients": "",
+        "statements": []
+      }
+    },
+    {
+      "name": "valid_declared_none",
+      "valid": true,
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "maxDailyServings": 1,
+            "unit": "Scoop(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": ""
+      }
+    },
+    {
+      "name": "reject_empty_ingredient_object",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Broken",
+        "ingredientRows": [
+          {}
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Capsule(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": ""
+      }
+    },
+    {
+      "name": "reject_malformed_nested_row",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Broken Blend",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Blend",
+            "name": "Broken Blend",
+            "quantity": [
+              {
+                "quantity": 100,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": [
+              {}
+            ]
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Capsule(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": ""
+      }
+    },
+    {
+      "name": "reject_string_quantity",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Broken Dose",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Magnesium",
+            "name": "Magnesium",
+            "quantity": [
+              {
+                "quantity": "200",
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Capsule(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": ""
+      }
+    },
+    {
+      "name": "reject_empty_quantity_unit",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Broken Unit",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Magnesium",
+            "name": "Magnesium",
+            "quantity": [
+              {
+                "quantity": 200,
+                "unit": ""
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Capsule(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": ""
+      }
+    },
+    {
+      "name": "reject_unverified_disclosure",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Unverified",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Zinc",
+            "name": "Zinc",
+            "quantity": [
+              {
+                "quantity": 15,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Tablet(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "unverified",
+        "otherIngredients": ""
+      }
+    },
+    {
+      "name": "reject_present_without_text",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Missing Other Ingredients",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Zinc",
+            "name": "Zinc",
+            "quantity": [
+              {
+                "quantity": 15,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Tablet(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "present",
+        "otherIngredients": " "
+      }
+    },
+    {
+      "name": "reject_declared_none_with_text",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Contradictory Disclosure",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Zinc",
+            "name": "Zinc",
+            "quantity": [
+              {
+                "quantity": 15,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Tablet(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": "Rice flour"
+      }
+    },
+    {
+      "name": "reject_included_on_facts_with_text",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Contradictory Panel",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Zinc",
+            "name": "Zinc",
+            "quantity": [
+              {
+                "quantity": 15,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Tablet(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "included_on_facts_panel",
+        "otherIngredients": "Rice flour"
+      }
+    },
+    {
+      "name": "reject_empty_serving_size",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Broken Serving",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Zinc",
+            "name": "Zinc",
+            "quantity": [
+              {
+                "quantity": 15,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {}
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": ""
+      }
+    },
+    {
+      "name": "reject_empty_statement",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Broken Statement",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Zinc",
+            "name": "Zinc",
+            "quantity": [
+              {
+                "quantity": 15,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Tablet(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": "",
+        "statements": [
+          {
+            "type": "",
+            "notes": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "reject_unknown_top_level_field",
+      "valid": false,
+      "payload": {
+        "brandName": "Example",
+        "fullName": "Unknown Field",
+        "ingredientRows": [
+          {
+            "ingredientGroup": "Zinc",
+            "name": "Zinc",
+            "quantity": [
+              {
+                "quantity": 15,
+                "unit": "mg"
+              }
+            ],
+            "forms": [],
+            "nestedRows": []
+          }
+        ],
+        "servingSizes": [
+          {
+            "minQuantity": 1,
+            "maxQuantity": 1,
+            "unit": "Tablet(s)"
+          }
+        ],
+        "otherIngredientsDisclosure": "declared_none",
+        "otherIngredients": "",
+        "userNotes": "should never ship"
+      }
+    }
+  ]
+}

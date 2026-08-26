@@ -3,9 +3,19 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const _functionPath = 'supabase/functions/review-product-submissions/index.ts';
+const _queuePath = 'supabase/functions/review-product-submissions/queue.ts';
+const _schemaPath = 'supabase/functions/review-product-submissions/schema.ts';
+const _reviewV2MigrationPath =
+    'supabase/migrations/20260825213000_submission_review_v2.sql';
+const _reviewV2IndexesMigrationPath =
+    'supabase/migrations/20260826001957_submission_review_v2_indexes.sql';
 
 void main() {
   late String source;
+  late String queueSource;
+  late String schemaSource;
+  late String reviewV2Sql;
+  late String reviewV2IndexesSql;
 
   setUpAll(() {
     final function = File(_functionPath);
@@ -15,6 +25,33 @@ void main() {
       reason: 'The unified reviewer boundary must exist.',
     );
     source = function.readAsStringSync().replaceAll('"', "'");
+    final queue = File(_queuePath);
+    expect(queue.existsSync(), isTrue, reason: 'The list contract must exist.');
+    queueSource = queue.readAsStringSync().replaceAll('"', "'");
+    final schema = File(_schemaPath);
+    expect(
+      schema.existsSync(),
+      isTrue,
+      reason: 'The deep label schema must exist.',
+    );
+    schemaSource = schema.readAsStringSync().replaceAll('"', "'");
+    final migration = File(_reviewV2MigrationPath);
+    expect(
+      migration.existsSync(),
+      isTrue,
+      reason: 'The human-only reviewer boundary must be additive.',
+    );
+    reviewV2Sql = migration.readAsStringSync().replaceAll('"', "'");
+    final indexesMigration = File(_reviewV2IndexesMigrationPath);
+    expect(
+      indexesMigration.existsSync(),
+      isTrue,
+      reason: 'Reviewer cleanup and allowlist FKs need covering indexes.',
+    );
+    reviewV2IndexesSql = indexesMigration.readAsStringSync().replaceAll(
+      '"',
+      "'",
+    );
   });
 
   test('authenticates an allowlisted reviewer before service-role access', () {
@@ -35,14 +72,97 @@ void main() {
   test('accepts only explicit review actions and fields', () {
     expect(
       source,
-      contains(
-        "const ACTIONS = new Set(['list', 'record_extraction', 'transition'])",
+      allOf(
+        contains('const ACTIONS = new Set(['),
+        contains("'list'"),
+        contains("'record_extraction'"),
+        contains("'record_match'"),
+        contains("'create_reviewer_image_upload'"),
+        contains("'transition'"),
       ),
     );
     expect(source, contains('rejectUnknownKeys'));
     expect(source, isNot(contains('body.table')));
     expect(source, isNot(contains('body.bucket')));
     expect(source, isNot(contains('body.object_path')));
+  });
+
+  test('product pictures are rights-bound, byte-verified, and singular', () {
+    expect(source, contains("'product-submission-reviewer-images'"));
+    expect(source, contains("if (action === 'create_reviewer_image_upload')"));
+    expect(source, contains('parseReviewerImageUploadRequest(body)'));
+    expect(source, contains('createSignedUploadUrl(objectPath)'));
+    expect(source, contains('verifyReviewerImageIntegrity('));
+    expect(source, contains('detectReviewerImageContentType(bytes)'));
+    expect(source, contains("'product_image_photo_id'"));
+    expect(source, contains("'product_image_reviewer_object_id'"));
+    expect(source, contains('p_product_image_photo_id: productImagePhotoId'));
+    expect(
+      source,
+      contains(
+        'p_product_image_reviewer_object_id: productImageReviewerObjectId',
+      ),
+    );
+
+    final normalized = reviewV2Sql
+        .replaceAll(RegExp(r'--[^\n]*'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+    expect(
+      normalized,
+      contains('create type public.product_submission_image_rights'),
+    );
+    expect(
+      normalized,
+      contains('create table public.product_submission_reviewer_images'),
+    );
+    expect(normalized, contains('approved_product_image_photo_id uuid'));
+    expect(
+      normalized,
+      contains('approved_product_image_reviewer_object_id uuid'),
+    );
+    expect(normalized, contains('num_nonnulls('));
+    expect(normalized, contains("'front_identity' = any(photo.categories)"));
+    expect(
+      normalized,
+      contains('product_submission_extractions add column usage jsonb'),
+    );
+    expect(
+      normalized,
+      contains('create function public.get_approved_product_submission_image'),
+    );
+    expect(
+      normalized,
+      contains(
+        'grant execute on function public.get_approved_product_submission_image(uuid) to service_role',
+      ),
+    );
+    final imageExportStart = normalized.indexOf(
+      'create function public.get_approved_product_submission_image',
+    );
+    final imageExportEnd = normalized.indexOf(
+      'revoke all on function public.record_product_submission_match_check',
+      imageExportStart,
+    );
+    expect(imageExportStart, greaterThanOrEqualTo(0));
+    expect(imageExportEnd, greaterThan(imageExportStart));
+    expect(
+      normalized.substring(imageExportStart, imageExportEnd),
+      isNot(contains('promoted_at is null')),
+      reason:
+          'A transient image-copy failure must remain retryable after release.',
+    );
+    final normalizedIndexes = reviewV2IndexesSql
+        .replaceAll(RegExp(r'--[^\n]*'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+    for (final index in const [
+      'idx_product_submission_match_checks_reviewer',
+      'idx_product_submission_reviewer_images_submission',
+      'idx_product_submission_reviewer_images_reviewer',
+    ]) {
+      expect(normalizedIndexes, contains('create index $index'));
+    }
   });
 
   test('lists ready evidence with short-lived private URLs', () {
@@ -82,8 +202,13 @@ void main() {
     );
     expect(source, contains("'product-submission-photos'"));
     expect(source, isNot(contains('createPublicUrl')));
-    expect(source, contains('Number(limit) >= 1'));
-    expect(source, contains('Number(limit) <= 100'));
+    expect(queueSource, contains('Number(rawLimit) < 1'));
+    expect(queueSource, contains('Number(rawLimit) > 100'));
+    expect(source, contains('parseListRequest(body)'));
+    expect(source, contains("query.in('review_status', statuses)"));
+    expect(source, contains('query.or(cursorFilter(listRequest.after))'));
+    expect(source, contains('total_open_count: openCountResult.count ?? 0'));
+    expect(source, contains('next_after: nextAfter'));
   });
 
   test('keeps AI extraction drafts separate from approval', () {
@@ -110,10 +235,10 @@ void main() {
   });
 
   test('approval is an audited RPC transition with a server hash', () {
-    expect(source, contains("admin.rpc('review_product_submission'"));
+    expect(source, contains("userClient.rpc('review_product_submission'"));
     expect(source, contains('canonicalJson'));
     expect(source, contains('sha256Hex'));
-    expect(source, contains('p_reviewer_id: reviewerId'));
+    expect(source, isNot(contains('p_reviewer_id: reviewerId')));
     expect(source, contains('p_payload_sha256: payloadHash'));
     expect(source, contains("event: 'product_submission_review_access'"));
     expect(source, isNot(contains('console.log(body')));
@@ -132,6 +257,7 @@ void main() {
       'nutritionalInfo',
       'offMarket',
       'otherIngredients',
+      'otherIngredientsDisclosure',
       'physicalState',
       'productType',
       'servingSizes',
@@ -139,15 +265,18 @@ void main() {
       'statements',
     ]) {
       expect(
-        source,
+        '$source\n$schemaSource',
         contains("'$field'"),
         reason:
             'The reviewer and pipeline must pin the same manual-label fields.',
       );
     }
     expect(source, contains('APPROVED_PAYLOAD_MAX_BYTES = 512 * 1024'));
-    expect(source, contains('ingredientRows.length > 200'));
-    expect(source, contains('servingSizes.length > 20'));
+    expect(schemaSource, contains('payload.ingredientRows.length > 200'));
+    expect(schemaSource, contains('payload.servingSizes.length > 20'));
+    expect(schemaSource, contains('validateIngredientRow('));
+    expect(schemaSource, contains("'included_on_facts_panel'"));
+    expect(schemaSource, isNot(contains("'unverified',")));
     expect(source, contains('.download(objectPath)'));
     expect(source, contains('sha256HexBytes(bytes)'));
     final approvalBranch = source.indexOf("if (toStatus === 'approved')");
@@ -156,11 +285,64 @@ void main() {
       approvalBranch,
     );
     final reviewRpc = source.indexOf(
-      "admin.rpc('review_product_submission'",
+      "userClient.rpc('review_product_submission'",
       approvalBranch,
     );
     expect(byteVerification, greaterThan(approvalBranch));
     expect(reviewRpc, greaterThan(byteVerification));
+  });
+
+  test('records exact match evidence through the authenticated boundary', () {
+    expect(source, contains("if (action === 'record_match')"));
+    expect(source, contains('parseRecordMatchRequest(body)'));
+    expect(source, contains("'record_product_submission_match_check'"));
+    expect(source, contains('p_index_built_at: match.indexBuiltAt'));
+    expect(source, contains('p_canonical_gtin14: match.canonicalGtin14'));
+  });
+
+  test('database derives reviewer identity and denies service-role approval', () {
+    final normalized = reviewV2Sql
+        .replaceAll(RegExp(r'--[^\n]*'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+    expect(
+      normalized,
+      contains('create table public.product_submission_reviewers'),
+    );
+    expect(
+      normalized,
+      contains(
+        'alter table public.product_submission_reviewers force row level security',
+      ),
+    );
+    expect(
+      normalized,
+      contains(
+        'revoke all on table public.product_submission_reviewers from public, anon, authenticated, service_role',
+      ),
+    );
+    expect(normalized, contains('reviewer_id uuid := auth.uid()'));
+    expect(
+      normalized,
+      contains(
+        'from public.product_submission_reviewers as reviewer where reviewer.user_id = reviewer_id',
+      ),
+    );
+    expect(normalized, isNot(contains('p_reviewer_id uuid')));
+    expect(
+      normalized,
+      contains('to authenticated'),
+      reason: 'Only a signed-in, allowlisted human can execute review.',
+    );
+    expect(
+      normalized,
+      contains('from public, anon, authenticated, service_role'),
+    );
+    expect(normalized, contains("latest_match.outcome <> 'no_match_verified'"));
+    expect(
+      normalized,
+      contains("latest_match.index_built_at < now() - interval '60 days'"),
+    );
   });
 
   test('transition accepts the resolution contract and nothing more', () {
@@ -183,7 +365,9 @@ void main() {
   });
 
   test('submission pushes are durable, deferred, and generic', () {
-    final reviewRpc = source.indexOf("admin.rpc('review_product_submission'");
+    final reviewRpc = source.indexOf(
+      "userClient.rpc('review_product_submission'",
+    );
     final drainCall = source.indexOf(
       'drainSubmissionPushDeliveries(admin, submissionId)',
       reviewRpc,
@@ -213,9 +397,9 @@ void main() {
           'Visible push copy lives only in the shared generic constants, '
           'never inline where payload text could reach it.',
     );
-    final fcm = File('supabase/functions/_shared/fcm_v1.ts')
-        .readAsStringSync()
-        .replaceAll('"', "'");
+    final fcm = File(
+      'supabase/functions/_shared/fcm_v1.ts',
+    ).readAsStringSync().replaceAll('"', "'");
     expect(fcm, contains("'Your product submission has an update.'"));
     final copyConstants = fcm
         .split('\n')
