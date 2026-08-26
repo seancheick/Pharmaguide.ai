@@ -7,12 +7,15 @@ const _queuePath = 'supabase/functions/review-product-submissions/queue.ts';
 const _schemaPath = 'supabase/functions/review-product-submissions/schema.ts';
 const _reviewV2MigrationPath =
     'supabase/migrations/20260825213000_submission_review_v2.sql';
+const _reviewV2IndexesMigrationPath =
+    'supabase/migrations/20260826001957_submission_review_v2_indexes.sql';
 
 void main() {
   late String source;
   late String queueSource;
   late String schemaSource;
   late String reviewV2Sql;
+  late String reviewV2IndexesSql;
 
   setUpAll(() {
     final function = File(_functionPath);
@@ -39,6 +42,15 @@ void main() {
       reason: 'The human-only reviewer boundary must be additive.',
     );
     reviewV2Sql = migration.readAsStringSync().replaceAll('"', "'");
+    final indexesMigration = File(_reviewV2IndexesMigrationPath);
+    expect(
+      indexesMigration.existsSync(),
+      isTrue,
+      reason: 'Reviewer cleanup and allowlist FKs need covering indexes.',
+    );
+    reviewV2IndexesSql = indexesMigration
+        .readAsStringSync()
+        .replaceAll('"', "'");
   });
 
   test('authenticates an allowlisted reviewer before service-role access', () {
@@ -126,6 +138,17 @@ void main() {
       isNot(contains('promoted_at is null')),
       reason: 'A transient image-copy failure must remain retryable after release.',
     );
+    final normalizedIndexes = reviewV2IndexesSql
+        .replaceAll(RegExp(r'--[^\n]*'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+    for (final index in const [
+      'idx_product_submission_match_checks_reviewer',
+      'idx_product_submission_reviewer_images_submission',
+      'idx_product_submission_reviewer_images_reviewer',
+    ]) {
+      expect(normalizedIndexes, contains('create index $index'));
+    }
   });
 
   test('lists ready evidence with short-lived private URLs', () {

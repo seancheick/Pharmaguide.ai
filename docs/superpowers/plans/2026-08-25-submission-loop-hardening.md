@@ -253,11 +253,11 @@ Do **not** call `build_final_db.py:backfill_image_thumbnails` (dead code, zero c
 
 ### Task 15: Batch 2 verification
 
-- [ ] `supabase db reset` locally after migrations
-- [ ] Deno tests
-- [ ] `bash scripts/test.sh fast -k "submission or review or gtin or import"`
-- [ ] Flutter safety-invariant tests that grep the edge/SQL sources (`product_submission_reviewer_access_test.dart`, `product_submission_pipeline_contract_test.dart`) — already updated in Tasks 11/13, re-run here
-- [ ] Deploy `review-product-submissions` **and** `cleanup-product-submissions` once with Batch 2
+- [x] `supabase db reset` locally after migrations (isolated verification copy; two pre-2026-07 legacy files share one historical version in the canonical folder)
+- [x] Deno tests
+- [x] `bash scripts/test.sh fast -k "submission or review or gtin or import"`
+- [x] Flutter safety-invariant tests that grep the edge/SQL sources (`product_submission_reviewer_access_test.dart`, `product_submission_pipeline_contract_test.dart`) — already updated in Tasks 11/13, re-run here
+- [x] Deploy `review-product-submissions` **and** `cleanup-product-submissions` once with Batch 2
 
 ---
 
