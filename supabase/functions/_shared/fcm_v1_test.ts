@@ -77,6 +77,35 @@ Deno.test("sendFcmMessage classifies UNREGISTERED as invalid token", async () =>
     throw new Error("invalid token must not be retryable");
   }
 
+  const badApnsToken = await sendFcmMessage(
+    access,
+    { token: "x" },
+    () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 400,
+              message: "APNs device token is invalid.",
+              status: "INVALID_ARGUMENT",
+              details: [{
+                "@type": "type.googleapis.com/google.firebase.fcm.v1.ApnsError",
+                statusCode: 400,
+                reason: "BadDeviceToken",
+              }],
+            },
+          }),
+          { status: 400 },
+        ),
+      ),
+  );
+  if (badApnsToken.delivered || !badApnsToken.invalidToken) {
+    throw new Error("BadDeviceToken not classified as invalid token");
+  }
+  if (badApnsToken.retryable) {
+    throw new Error("BadDeviceToken must not be retryable");
+  }
+
   const throttled = await sendFcmMessage(
     access,
     { token: "x" },

@@ -79,7 +79,10 @@ export async function sendFcmMessage(
     return { delivered: true, invalidToken: false, retryable: false, detail: "" };
   }
   const body = await response.text();
-  const invalidToken = response.status === 404 && body.includes("UNREGISTERED");
+  const invalidToken =
+    (response.status === 404 && body.includes("UNREGISTERED")) ||
+    (response.status === 400 &&
+      body.includes("APNs device token is invalid."));
   return {
     delivered: false,
     invalidToken,
