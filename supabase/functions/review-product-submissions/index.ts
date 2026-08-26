@@ -19,6 +19,10 @@ import {
   reviewStatusesForList,
 } from "./queue.ts";
 import { parseRecordMatchRequest } from "./match.ts";
+import {
+  detectReviewerImageContentType,
+  parseReviewerImageUploadRequest,
+} from "./reviewer_image.ts";
 import { validateManualLabelV1 } from "./schema.ts";
 
 // Supabase Edge Runtime keeps promises passed to EdgeRuntime.waitUntil alive
@@ -28,6 +32,8 @@ declare const EdgeRuntime: {
 } | undefined;
 
 const PHOTO_BUCKET = "product-submission-photos";
+const REVIEWER_IMAGE_BUCKET = "product-submission-reviewer-images";
+const REVIEWER_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const APPROVED_SCHEMA_VERSION = "manual_label_v1";
 const APPROVED_PAYLOAD_MAX_BYTES = 512 * 1024;
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -36,6 +42,7 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTIONS = new Set([
   "list",
+  "create_reviewer_image_upload",
   "record_extraction",
   "record_match",
   "transition",
@@ -227,6 +234,72 @@ async function verifySubmissionPhotoIntegrity(
     verifiedHashes[photoId] = actualHash;
   }
   return verifiedHashes;
+}
+
+async function verifyReviewerImageIntegrity(
+  admin: SupabaseClient,
+  submissionId: string,
+  objectId: string,
+): Promise<void> {
+  const { data: manifest, error } = await admin
+    .from("product_submission_reviewer_images")
+    .select("object_path")
+    .eq("submission_id", submissionId)
+    .eq("object_id", objectId)
+    .maybeSingle();
+  if (error || !manifest) throw error ?? new Error("reviewer image missing");
+  const objectPath = requiredString(manifest.object_path, "object path", 300);
+  const { data: blob, error: downloadError } = await admin.storage
+    .from(REVIEWER_IMAGE_BUCKET)
+    .download(objectPath);
+  if (downloadError || !blob) {
+    throw downloadError ?? new Error("reviewer image download failed");
+  }
+  const buffer = await blob.arrayBuffer();
+  if (buffer.byteLength <= 0 || buffer.byteLength > REVIEWER_IMAGE_MAX_BYTES) {
+    throw new Error("invalid reviewer image size");
+  }
+  const bytes = new Uint8Array(buffer);
+  const contentType = detectReviewerImageContentType(bytes);
+  if (contentType === null) throw new Error("invalid reviewer image type");
+  const contentHash = await sha256HexBytes(buffer);
+  const { data: finalized, error: finalizeError } = await admin.rpc(
+    "finalize_product_submission_reviewer_image",
+    {
+      p_submission_id: submissionId,
+      p_object_id: objectId,
+      p_content_type: contentType,
+      p_byte_size: buffer.byteLength,
+      p_content_sha256: contentHash,
+    },
+  );
+  if (finalizeError || finalized !== true) throw finalizeError;
+}
+
+async function verifyDisclosurePhotoSupport(
+  admin: SupabaseClient,
+  submissionId: string,
+  approvedPayload: JsonObject,
+): Promise<void> {
+  const disclosure = approvedPayload.otherIngredientsDisclosure;
+  const { data, error } = await admin
+    .from("product_submission_photos")
+    .select("categories")
+    .eq("submission_id", submissionId);
+  if (error) throw error;
+  const categories = new Set<string>();
+  for (const row of (data ?? []) as unknown as JsonObject[]) {
+    if (Array.isArray(row.categories)) {
+      for (const category of row.categories) {
+        if (typeof category === "string") categories.add(category);
+      }
+    }
+  }
+  const supported = disclosure === "present"
+    ? categories.has("ingredient_disclosure")
+    : categories.has("ingredient_disclosure") ||
+      categories.has("supplement_facts");
+  if (!supported) throw new Error("disclosure supporting photo required");
 }
 
 // Drain pending submission push deliveries: this submission's rows plus a
@@ -513,6 +586,31 @@ Deno.serve(async (request: Request): Promise<Response> => {
       });
     }
 
+    if (action === "create_reviewer_image_upload") {
+      const imageRequest = parseReviewerImageUploadRequest(body);
+      const { data: objectPath, error } = await userClient.rpc(
+        "create_product_submission_reviewer_image",
+        {
+          p_submission_id: imageRequest.submissionId,
+          p_object_id: imageRequest.objectId,
+          p_source_rights: imageRequest.sourceRights,
+          p_rights_attested: imageRequest.rightsAttested,
+          p_source_photo_id: imageRequest.sourcePhotoId,
+        },
+      );
+      if (error || typeof objectPath !== "string") throw error;
+      const { data: signed, error: signedError } = await admin.storage
+        .from(REVIEWER_IMAGE_BUCKET)
+        .createSignedUploadUrl(objectPath);
+      if (signedError || !signed) throw signedError;
+      audit(reviewerId, action, "success", 1);
+      return json({
+        object_id: imageRequest.objectId,
+        object_path: objectPath,
+        token: signed.token,
+      });
+    }
+
     if (action === "record_extraction") {
       rejectUnknownKeys(
         body,
@@ -624,6 +722,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
         "resolution_code",
         "resolution_detail",
         "resolved_dsld_id",
+        "product_image_photo_id",
+        "product_image_reviewer_object_id",
       ]),
     );
     const submissionId = requiredUuid(body.submission_id, "submission id");
@@ -665,6 +765,21 @@ Deno.serve(async (request: Request): Promise<Response> => {
     ) {
       throw new Error("invalid resolved product id");
     }
+    const productImagePhotoId = body.product_image_photo_id === undefined ||
+        body.product_image_photo_id === null
+      ? null
+      : requiredUuid(body.product_image_photo_id, "product image photo id");
+    const productImageReviewerObjectId =
+      body.product_image_reviewer_object_id === undefined ||
+        body.product_image_reviewer_object_id === null
+        ? null
+        : requiredUuid(
+          body.product_image_reviewer_object_id,
+          "reviewer product image id",
+        );
+    if (productImagePhotoId !== null && productImageReviewerObjectId !== null) {
+      throw new Error("only one product image source is allowed");
+    }
 
     let schemaVersion: string | null = null;
     let approvedPayload: JsonObject | null = null;
@@ -681,6 +796,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
         throw new Error("unsupported approved schema version");
       }
       approvedPayload = validateApprovedPayload(body.approved_payload);
+      await verifyDisclosurePhotoSupport(admin, submissionId, approvedPayload);
       approvedPayloadCanonical = canonicalJson(approvedPayload);
       if (
         new TextEncoder().encode(approvedPayloadCanonical).byteLength >
@@ -689,6 +805,13 @@ Deno.serve(async (request: Request): Promise<Response> => {
         throw new Error("approved payload too large");
       }
       payloadHash = await sha256Hex(approvedPayloadCanonical);
+      if (productImageReviewerObjectId !== null) {
+        await verifyReviewerImageIntegrity(
+          admin,
+          submissionId,
+          productImageReviewerObjectId,
+        );
+      }
     } else if (
       body.approved_schema_version !== undefined ||
       body.approved_payload !== undefined
@@ -708,6 +831,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
       p_resolution_code: resolutionCode,
       p_resolution_detail: resolutionDetail,
       p_resolved_dsld_id: resolvedDsldId,
+      p_product_image_photo_id: productImagePhotoId,
+      p_product_image_reviewer_object_id: productImageReviewerObjectId,
     });
     if (error || data !== true) throw error;
 

@@ -216,9 +216,9 @@ Index keys = same GTIN candidate set as Task 1 (load golden JSON; checksum again
 
 Sources: `--catalog-db` products_core + configurable enriched-corpus dir (DSLD input including excluded).
 
-- [ ] Surface **index built-at** in the console.
-- [ ] Freshness constants **in this file**: warn at 30 days, block at 60. Blocked index ⇒ cannot `record_match` `no_match_verified` ⇒ Approve stays rejected (shared with Task 11).
-- [ ] Cards: shipped → Duplicate; corpus-only → Import + `refresh-ids` then Duplicate immediately; **ambiguous never auto-picks**; no exact hit → `no_match_verified`; wrong hit → audited `not_this_product`. Use as draft fills the editor only.
+- [x] Surface **index built-at** in the console.
+- [x] Freshness constants **in this file**: warn at 30 days, block at 60. Blocked index ⇒ cannot `record_match` `no_match_verified` ⇒ Approve stays rejected (shared with Task 11).
+- [x] Cards: shipped → Duplicate; corpus-only → Import + `refresh-ids` then Duplicate immediately; **ambiguous never auto-picks**; no exact hit → `no_match_verified`; wrong hit → audited `not_this_product`. Use as draft fills the editor only.
 
 ### Task 13: Console editor + polish + picture + cleanup
 
@@ -230,10 +230,10 @@ Sources: `--catalog-db` products_core + configurable enriched-corpus dir (DSLD i
 - Test: `test/safety_invariants/product_submission_reviewer_access_test.dart` (picture keys on `transition`; cleanup must name the reviewer-image bucket)
 - Test: `test/safety_invariants/product_submission_retention_test.dart` if it pins the photos bucket only
 
-- [ ] Structured editor: forms, nested rows, Other Ingredients, statements, disclosure control — same object as raw JSON
-- [ ] Product picture radio; crop/rotate export JPEG (`source_rights = user_evidence_crop`, no extra attestation); upload replacement requires `operator_photo` / `manufacturer_provided` / `licensed` attestation
-- [ ] Lightbox with ✕; signed URL refresh ~4.5 min; edge errors visible; terminal buttons disabled
-- [ ] Cleanup purges reviewer-image objects on the same 90-day post-promotion claims as evidence photos
+- [x] Structured editor: forms, nested rows, Other Ingredients, statements, disclosure control — same object as raw JSON
+- [x] Product picture radio; crop/rotate export JPEG (`source_rights = user_evidence_crop`, no extra attestation); upload replacement requires `operator_photo` / `manufacturer_provided` / `licensed` attestation
+- [x] Lightbox with ✕; signed URL refresh ~4.5 min; edge errors visible; terminal buttons disabled
+- [x] Cleanup purges reviewer-image objects on the same 90-day post-promotion claims as evidence photos
 
 ### Task 14: Importer copies catalog WebP **and** registers it
 

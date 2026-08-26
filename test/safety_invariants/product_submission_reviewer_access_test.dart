@@ -64,6 +64,7 @@ void main() {
         contains("'list'"),
         contains("'record_extraction'"),
         contains("'record_match'"),
+        contains("'create_reviewer_image_upload'"),
         contains("'transition'"),
       ),
     );
@@ -71,6 +72,36 @@ void main() {
     expect(source, isNot(contains('body.table')));
     expect(source, isNot(contains('body.bucket')));
     expect(source, isNot(contains('body.object_path')));
+  });
+
+  test('product pictures are rights-bound, byte-verified, and singular', () {
+    expect(source, contains("'product-submission-reviewer-images'"));
+    expect(source, contains("if (action === 'create_reviewer_image_upload')"));
+    expect(source, contains('parseReviewerImageUploadRequest(body)'));
+    expect(source, contains('createSignedUploadUrl(objectPath)'));
+    expect(source, contains('verifyReviewerImageIntegrity('));
+    expect(source, contains('detectReviewerImageContentType(bytes)'));
+    expect(source, contains("'product_image_photo_id'"));
+    expect(source, contains("'product_image_reviewer_object_id'"));
+    expect(source, contains('p_product_image_photo_id: productImagePhotoId'));
+    expect(
+      source,
+      contains(
+        'p_product_image_reviewer_object_id: productImageReviewerObjectId',
+      ),
+    );
+
+    final normalized = reviewV2Sql
+        .replaceAll(RegExp(r'--[^\n]*'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+    expect(normalized, contains('create type public.product_submission_image_rights'));
+    expect(normalized, contains('create table public.product_submission_reviewer_images'));
+    expect(normalized, contains('approved_product_image_photo_id uuid'));
+    expect(normalized, contains('approved_product_image_reviewer_object_id uuid'));
+    expect(normalized, contains('num_nonnulls('));
+    expect(normalized, contains("'front_identity' = any(photo.categories)"));
+    expect(normalized, contains('product_submission_extractions add column usage jsonb'));
   });
 
   test('lists ready evidence with short-lived private URLs', () {
