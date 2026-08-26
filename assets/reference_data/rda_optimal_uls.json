@@ -2,12 +2,12 @@
   "_metadata": {
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
-    "schema_version": "5.1.0",
-    "last_updated": "2026-08-23",
+    "schema_version": "5.1.1",
+    "last_updated": "2026-08-25",
     "reference_data_contract": {
       "contract_version": "1",
-      "reference_version": "5.1.0-2026-08-23",
-      "semantic_fingerprint": "sha256:e4547593fe51a449ec1afb2329861b9c25864a711fa73ae30a921ac9cce9a12e"
+      "reference_version": "5.1.1-2026-08-25",
+      "semantic_fingerprint": "sha256:b6ef7a762e5779e1907871e7ceb2e8317fb5ca83c9014ac1d16b036f474808df"
     },
     "total_entries": 77,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
@@ -1298,12 +1298,13 @@
     {
       "standard_name": "Niacin",
       "unit": "mg NE",
-      "ul_note": "The supplemental-niacin UL applies to both nicotinic acid and nicotinamide (niacinamide); the forms have different toxicity profiles, and medically supervised use is outside the UL scope.",
+      "ul_note": "The supplemental-niacin UL applies to all added or supplemental forms of niacin without a bioavailability adjustment; the forms have different toxicity profiles, and medically supervised use is outside the UL scope.",
       "ul_applies_to_forms": [
         "nicotinic acid",
-        "nicotinamide (niacinamide)"
+        "nicotinamide (niacinamide)",
+        "inositol hexanicotinate"
       ],
-      "ul_scope_source": "https://ods.od.nih.gov/factsheets/Niacin-HealthProfessional/",
+      "ul_scope_source": "https://www.ncbi.nlm.nih.gov/books/NBK114304/",
       "optimal_range": "16-100",
       "highest_ul": 35,
       "warnings": [
@@ -1640,7 +1641,11 @@
       "ul_status": "established",
       "unofficial_ul": null,
       "nutrient_class": "ceiling",
-      "ul_basis": "total_intake"
+      "ul_basis": "total_intake",
+      "ul_applies_to_forms": [
+        "pyridoxal 5-phosphate"
+      ],
+      "ul_scope_source": "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
     },
     {
       "standard_name": "Folate",

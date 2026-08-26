@@ -1,6 +1,6 @@
 {
-  "checksum": "sha256:03a86460c18b630a50d68894ec39d39123892bf4057ccd21c430192219b8dc0a",
-  "checksum_sha256": "03a86460c18b630a50d68894ec39d39123892bf4057ccd21c430192219b8dc0a",
+  "checksum": "sha256:e0bff9ac370111ea90a569367056026dab5610588a3009e9130e86c2c2281aec",
+  "checksum_sha256": "e0bff9ac370111ea90a569367056026dab5610588a3009e9130e86c2c2281aec",
   "core_projection_manifest": {
     "app_core_column_count": 91,
     "checksum": "sha256:18cf782562d54e03a1414859d3978c65804e448fe212d134d2506771ff4c15ec",
@@ -9,91 +9,83 @@
     "path": "core_projection_manifest.json",
     "server_core_column_count": 26
   },
-  "db_version": "2026.08.25.090053",
-  "detail_blob_count": 15333,
-  "detail_blob_unique_count": 15333,
-  "detail_index_checksum": "sha256:2a2cddd73a6c0f4bad56855f01762b76473a7a26abd870c99659494ae1a6b59e",
+  "db_version": "2026.08.26.141540",
+  "detail_blob_count": 15336,
+  "detail_blob_unique_count": 15336,
+  "detail_index_checksum": "sha256:14281e8acaefc40d19769caa0bedddd44e2791d7e2716f503edd7b6c8d2028c1",
   "errors": [],
   "excluded_by_gate": [
     {
-      "dsld_id": "1179",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
       "dsld_id": "12300",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "13041",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "180399",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
-      "dsld_id": "211387",
+      "dsld_id": "13041",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "214221",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "228317",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
-      "dsld_id": "231334",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "231335",
+      "dsld_id": "228823",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "243713",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "243799",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "243808",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "243812",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "243815",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "252767",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "252769",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "254394",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "254395",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "254396",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "254404",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "254413",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "254415",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "260262",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
-    },
-    {
-      "dsld_id": "263865",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "294450",
@@ -105,43 +97,43 @@
     },
     {
       "dsld_id": "311671",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "311672",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "311673",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "311674",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "311675",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "311709",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "312465",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "312466",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "312467",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "312468",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "315586",
@@ -169,43 +161,43 @@
     },
     {
       "dsld_id": "329907",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "329908",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "329909",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "329910",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330001",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330002",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330003",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330055",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330056",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330057",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330072",
@@ -213,91 +205,91 @@
     },
     {
       "dsld_id": "330277",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330278",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330279",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330280",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330769",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330770",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330771",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330772",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330862",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330863",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330864",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330892",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330893",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330895",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330931",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330932",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330933",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "330934",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "331255",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "331256",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "331257",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "331258",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "33358",
@@ -313,15 +305,15 @@
     },
     {
       "dsld_id": "333714",
-      "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "75188",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "75291",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "78355",
@@ -329,37 +321,37 @@
     },
     {
       "dsld_id": "855",
-      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     }
   ],
-  "generated_at": "2026-08-25T09:00:53.169442+00:00",
+  "generated_at": "2026-08-26T14:15:40.045476+00:00",
   "integrity": {
     "contract_failures": 0,
-    "contract_quarantine_count": 79,
-    "coverage_pct": 99.49,
-    "enriched_input_count": 15412,
+    "contract_quarantine_count": 77,
+    "coverage_pct": 99.5,
+    "enriched_input_count": 15413,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 79,
-    "exported_count": 15333,
+    "excluded_by_gate_count": 77,
+    "exported_count": 15336,
     "has_banned_substance": 54,
     "has_recalled_ingredient": 0,
     "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
-    "scored_input_count": 15412,
+    "scored_input_count": 15413,
     "scored_only_count": 0,
-    "skipped_count": 79,
+    "skipped_count": 77,
     "strict_mode": true,
-    "total_skipped": 79,
+    "total_skipped": 77,
     "verdict_blocked": 54,
-    "verdict_not_scored": 79,
+    "verdict_not_scored": 77,
     "verdict_unsafe": 0,
     "warning_count": 0
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 15333,
+  "product_count": 15336,
   "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
-  "release_staged_at": "2026-08-25T09:01:57Z",
+  "release_staged_at": "2026-08-26T14:24:02Z",
   "schema_version": "2.4.0",
   "score_model": "v4",
   "scoring_version": "4.3.0",
