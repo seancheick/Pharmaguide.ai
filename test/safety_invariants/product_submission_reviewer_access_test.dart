@@ -486,6 +486,17 @@ void main() {
       source,
       contains(".delete()"),
     );
+    final supersedeBlock = source.substring(
+      source.indexOf('product_submission_push_supersede_failed'),
+      source.indexOf('const rows = latest;'),
+    );
+    expect(
+      supersedeBlock,
+      contains('return;'),
+      reason: 'Fail closed: if stale rows cannot be discarded, nothing may '
+          'send — a sent newest row would leave an older status as the '
+          '"newest pending" for a later drain to replay.',
+    );
     final supersedeGrant = File(
       'supabase/migrations/20260826150000_push_queue_supersede_delete.sql',
     );
@@ -495,11 +506,27 @@ void main() {
       reason: 'Discarding queue rows requires the service-role DELETE grant '
           'the v2 migration deliberately omitted.',
     );
+    final supersedeGrantSql = supersedeGrant.readAsStringSync().replaceAll(
+      '"',
+      "'",
+    );
     expect(
-      supersedeGrant.readAsStringSync().replaceAll('"', "'"),
+      supersedeGrantSql,
       contains(
         'GRANT DELETE ON TABLE public.product_submission_push_deliveries',
       ),
+    );
+    expect(
+      supersedeGrantSql,
+      contains('SET last_error = NULL'),
+      reason: 'Rows delivered by the pre-coalescing drain must stop '
+          'advertising the transport failure that preceded their retry.',
+    );
+    expect(
+      supersedeGrantSql,
+      contains('WHERE sent_at IS NOT NULL'),
+      reason: 'The historical cleanup touches only delivered rows; pending '
+          'failures keep their diagnostic last_error.',
     );
   });
 
