@@ -9,6 +9,27 @@ import '../../../support/app_fonts.dart';
 void main() {
   setUpAll(loadAppFonts);
 
+  Future<void> pumpIncompleteEvidenceHero(WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: PGHeroSection(
+            imageWidget: SizedBox.shrink(),
+            productName: 'Evidence review canary',
+            brandName: 'Test',
+            score: 62,
+            qualityTier: 'Weak',
+            limitedAssessment: true,
+            scoreConfidence: 'low',
+            scoreConfidenceDrivers: ['Clinical evidence review is incomplete'],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
   group('hero package identity', () {
     test('uses net contents instead of servings as package quantity', () {
       expect(
@@ -154,31 +175,7 @@ void main() {
   testWidgets(
     'legacy limited score explains an unfinished evidence review without judging quality',
     (tester) async {
-      tester.view.physicalSize = const Size(1170, 900);
-      tester.view.devicePixelRatio = 3.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        const MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: Scaffold(
-            body: PGHeroSection(
-              imageWidget: SizedBox.shrink(),
-              productName: 'Evidence review canary',
-              brandName: 'Test',
-              score: 62,
-              qualityTier: 'Weak',
-              limitedAssessment: true,
-              scoreConfidence: 'low',
-              scoreConfidenceDrivers: [
-                'Clinical evidence review is incomplete',
-              ],
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await pumpIncompleteEvidenceHero(tester);
 
       expect(
         find.text('Clinical evidence review is incomplete'),
@@ -186,10 +183,20 @@ void main() {
       );
       expect(find.text('Limited assessment'), findsNothing);
       expect(find.text('Weak'), findsNothing);
-      await expectLater(
-        find.byType(MaterialApp),
-        matchesGoldenFile('goldens/hero_evidence_review_incomplete.png'),
-      );
     },
   );
+
+  testWidgets('unfinished evidence review visual contract', (tester) async {
+    tester.view.physicalSize = const Size(1170, 900);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await pumpIncompleteEvidenceHero(tester);
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/hero_evidence_review_incomplete.png'),
+    );
+  }, tags: const ['golden']);
 }
