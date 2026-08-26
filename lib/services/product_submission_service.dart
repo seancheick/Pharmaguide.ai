@@ -821,7 +821,8 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
           'id,kind,normalized_upc,upload_state,review_status,created_at,'
           'promoted_catalog_version,promoted_at,'
           'resolution_code,resolution_detail,resolved_dsld_id,'
-          'product_submission_mismatch_details('
+          'product_submission_mismatch_details!'
+          'product_submission_mismatch_details_submission_id_fkey('
           'dsld_id,source_record_id,catalog_source_version,'
           'formula_fingerprint)',
         )
