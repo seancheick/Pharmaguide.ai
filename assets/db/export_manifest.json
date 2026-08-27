@@ -1,6 +1,6 @@
 {
-  "checksum": "sha256:e0bff9ac370111ea90a569367056026dab5610588a3009e9130e86c2c2281aec",
-  "checksum_sha256": "e0bff9ac370111ea90a569367056026dab5610588a3009e9130e86c2c2281aec",
+  "checksum": "sha256:ba58bd0eca7281fd430d4ef0a736d61fb3df14244f2315aa56eadb9cc44c9be1",
+  "checksum_sha256": "ba58bd0eca7281fd430d4ef0a736d61fb3df14244f2315aa56eadb9cc44c9be1",
   "core_projection_manifest": {
     "app_core_column_count": 91,
     "checksum": "sha256:18cf782562d54e03a1414859d3978c65804e448fe212d134d2506771ff4c15ec",
@@ -9,10 +9,10 @@
     "path": "core_projection_manifest.json",
     "server_core_column_count": 26
   },
-  "db_version": "2026.08.26.141540",
+  "db_version": "2026.08.27.162958",
   "detail_blob_count": 15336,
   "detail_blob_unique_count": 15336,
-  "detail_index_checksum": "sha256:14281e8acaefc40d19769caa0bedddd44e2791d7e2716f503edd7b6c8d2028c1",
+  "detail_index_checksum": "sha256:2fc541fa7c1b1c1acb5a6973b7c67662d261ae593e44a320b2b3343bb50107c5",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -324,7 +324,7 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     }
   ],
-  "generated_at": "2026-08-26T14:15:40.045476+00:00",
+  "generated_at": "2026-08-27T16:29:58.534750+00:00",
   "integrity": {
     "contract_failures": 0,
     "contract_quarantine_count": 77,
@@ -351,7 +351,7 @@
   "pipeline_version": "3.4.0",
   "product_count": 15336,
   "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
-  "release_staged_at": "2026-08-26T14:24:02Z",
+  "release_staged_at": "2026-08-27T16:31:28Z",
   "schema_version": "2.4.0",
   "score_model": "v4",
   "scoring_version": "4.3.0",
