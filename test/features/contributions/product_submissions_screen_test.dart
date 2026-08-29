@@ -15,6 +15,7 @@ Widget _harness(
   List<Map<String, Object?>> rows, {
   CoreDatabase? db,
   Future<void> Function(ProductSubmissionSummary status)? onResubmit,
+  Future<void> Function(ProductSubmissionSummary status)? onHide,
 }) {
   final database = db ?? CoreDatabase.memory();
   if (db == null) addTearDown(database.close);
@@ -25,7 +26,9 @@ Widget _harness(
       ),
       coreDatabaseProvider.overrideWithValue(database),
     ],
-    child: MaterialApp(home: ProductSubmissionsScreen(onResubmit: onResubmit)),
+    child: MaterialApp(
+      home: ProductSubmissionsScreen(onResubmit: onResubmit, onHide: onHide),
+    ),
   );
 }
 
@@ -316,6 +319,7 @@ void main() {
       find.byKey(const Key('submission-view-product-PG_SUB_AAAA')),
       findsOneWidget,
     );
+    expect(find.text('Promoted Product'), findsOneWidget);
     expect(
       find.byKey(const Key('submission-view-product-PG_SUB_NOT_INSTALLED')),
       findsNothing,
@@ -326,7 +330,54 @@ void main() {
     );
   });
 
-  testWidgets('impact grid counts pending, approved, total, and points', (
+  testWidgets('unknown rejected product uses a plain name fallback above UPC', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(id: 'rejected', reviewStatus: 'rejected'),
+          'resolution_code': 'photo_quality',
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Product name unavailable'), findsOneWidget);
+    expect(find.text('UPC 050428381397'), findsOneWidget);
+  });
+
+  testWidgets('failed cards offer a confirmed non-destructive history hide', (
+    tester,
+  ) async {
+    ProductSubmissionSummary? hidden;
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(id: 'rejected', reviewStatus: 'rejected'),
+          'resolution_code': 'photo_quality',
+        },
+        _row(id: 'accepted', reviewStatus: 'approved', catalogVersion: 'v1'),
+      ], onHide: (status) async => hidden = status),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Hide from history'), findsOneWidget);
+    await tester.tap(find.byTooltip('Hide from history'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hide this submission?'), findsOneWidget);
+    expect(
+      find.textContaining('review record stays securely stored'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Hide from history'));
+    await tester.pumpAndSettle();
+
+    expect(hidden?.submissionId, 'rejected');
+  });
+
+  testWidgets('impact grid counts finalized outcomes and catalog impact', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -344,6 +395,17 @@ void main() {
           reviewStatus: 'approved',
           catalogVersion: '2026.08.25.1',
         ),
+        _row(
+          id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a14',
+          reviewStatus: 'rejected',
+        ),
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a15',
+            reviewStatus: 'submitted',
+          ),
+          'upload_state': 'pending',
+        },
       ]),
     );
     await tester.pumpAndSettle();
@@ -355,10 +417,70 @@ void main() {
     );
 
     expect(statValue('contributions-stat-pending').data, '1');
-    expect(statValue('contributions-stat-approved').data, '2');
-    expect(statValue('contributions-stat-total').data, '3');
-    // 10 (under review) + 50 (approved) + 100 (live in catalog).
-    expect(statValue('contributions-stat-points').data, '160');
+    expect(statValue('contributions-stat-approved').data, '1');
+    expect(statValue('contributions-stat-total').data, '4');
+    expect(statValue('contributions-stat-points').data, '10');
+    expect(find.text('Catalog additions'), findsOneWidget);
+  });
+
+  testWidgets('points card explains one-time awards and future rewards', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        _row(
+          id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a13',
+          reviewStatus: 'approved',
+          catalogVersion: '2026.08.25.1',
+        ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('contributions-stat-points')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('How points work'), findsOneWidget);
+    expect(
+      find.textContaining('Earn 10 points when a product you submit'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('plan to make points redeemable'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('total card explains finalized outcomes without draft shells', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        _row(id: 'a', reviewStatus: 'under_review'),
+        _row(id: 'b', reviewStatus: 'rejected'),
+        _row(id: 'c', reviewStatus: 'approved', catalogVersion: '2026.08.25.1'),
+        {
+          ..._row(id: 'd', reviewStatus: 'submitted'),
+          'upload_state': 'pending',
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('contributions-stat-total')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Submission breakdown'), findsOneWidget);
+    expect(find.text('Pending review'), findsNWidgets(2));
+    expect(find.text('Not added'), findsNWidgets(2));
+    expect(find.text('Finalized submissions'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('submission-breakdown-total')),
+        matching: find.text('3'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('impact stats remain readable on a narrow large-text screen', (
@@ -387,7 +509,7 @@ void main() {
     expect(find.byKey(const Key('contributions-stat-points')), findsOneWidget);
   });
 
-  test('contribution points ignore unfinished uploads', () {
+  test('contribution points award ten only after catalog promotion', () {
     ProductSubmissionSummary summary(Map<String, Object?> row) =>
         ProductSubmissionSummary.fromRow(row);
     expect(
@@ -397,11 +519,10 @@ void main() {
           'upload_state': 'pending',
         }),
         summary(_row(id: 'b', reviewStatus: 'rejected')),
-        summary(_row(id: 'c', reviewStatus: 'approved', catalogVersion: 'v1')),
+        summary(_row(id: 'c', reviewStatus: 'approved')),
+        summary(_row(id: 'd', reviewStatus: 'approved', catalogVersion: 'v1')),
       ]),
-      // 0 (never finished uploading) + 10 (a reviewed attempt still
-      // counts) + 100 (live).
-      110,
+      10,
     );
   });
 }

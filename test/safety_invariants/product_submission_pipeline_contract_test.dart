@@ -13,6 +13,8 @@ const _resubmissionMigrationPath =
     '20260825181500_product_submission_resubmission_of.sql';
 const _reviewV2MigrationPath =
     'supabase/migrations/20260825213000_submission_review_v2.sql';
+const _hideTerminalMigrationPath =
+    'supabase/migrations/20260829151221_hide_terminal_product_submission.sql';
 
 String _normalized(String source) => source
     .replaceAll(RegExp(r'--[^\n]*'), ' ')
@@ -554,6 +556,42 @@ void main() {
       );
     },
   );
+
+  test('hiding failed history is owner-scoped and keeps the audit record', () {
+    final file = File(_hideTerminalMigrationPath);
+    expect(file.existsSync(), isTrue);
+    final hideSql = _normalized(file.readAsStringSync());
+
+    expect(
+      hideSql,
+      contains('add column dismissed_at timestamptz'),
+      reason: 'Hiding is display state, not row deletion.',
+    );
+    expect(hideSql, contains('create function public.hide_product_submission'));
+    expect(hideSql, contains('security definer set search_path = \'\''));
+    expect(hideSql, contains('caller_id uuid := auth.uid()'));
+    expect(hideSql, contains('candidate.user_id <> caller_id'));
+    expect(
+      hideSql,
+      contains("candidate.review_status not in ('rejected', 'duplicate')"),
+    );
+    expect(hideSql, contains('set dismissed_at = now()'));
+    expect(hideSql, isNot(contains('delete from public.product_submissions')));
+    expect(
+      hideSql,
+      contains(
+        'revoke all on function public.hide_product_submission(uuid) '
+        'from public, anon, service_role',
+      ),
+    );
+    expect(
+      hideSql,
+      contains(
+        'grant execute on function public.hide_product_submission(uuid) '
+        'to authenticated',
+      ),
+    );
+  });
 
   group('evidence + resolution v2 migration', () {
     late String v2;

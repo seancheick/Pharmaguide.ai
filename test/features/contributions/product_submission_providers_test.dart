@@ -11,6 +11,7 @@ Map<String, Object?> _row({
   required String uploadState,
   required String reviewStatus,
   DateTime? promotedAt,
+  DateTime? dismissedAt,
 }) => {
   'id': id,
   'kind': 'missing_product',
@@ -20,6 +21,7 @@ Map<String, Object?> _row({
   'created_at': '2026-08-25T15:41:35.000Z',
   'promoted_catalog_version': null,
   'promoted_at': promotedAt?.toIso8601String(),
+  'dismissed_at': dismissedAt?.toIso8601String(),
   'resolution_code': null,
   'resolution_detail': null,
   'resolved_dsld_id': null,
@@ -117,7 +119,7 @@ void main() {
   );
 
   test(
-    'keeps retries when completed siblings no longer block submissions',
+    'hides stale uploads after promotion but keeps retries after rejection',
     () async {
       final container = ProviderContainer(
         overrides: [
@@ -161,7 +163,6 @@ void main() {
       expect(visible.map((s) => s.submissionId), [
         '00000000-0000-4000-8000-000000000011',
         '00000000-0000-4000-8000-000000000012',
-        '00000000-0000-4000-8000-000000000013',
         '00000000-0000-4000-8000-000000000014',
       ]);
     },
@@ -195,5 +196,38 @@ void main() {
     await container.read(productSubmissionsProvider.future);
 
     expect(container.read(pendingSubmissionCountProvider), 1);
+  });
+
+  test('omits terminal submissions the user hid from history', () async {
+    final container = ProviderContainer(
+      overrides: [
+        productSubmissionServiceProvider.overrideWithValue(
+          ProductSubmissionService(
+            backend: _ListBackend([
+              _row(
+                id: '00000000-0000-4000-8000-000000000031',
+                upc: '0850051911561',
+                uploadState: 'ready',
+                reviewStatus: 'rejected',
+                dismissedAt: DateTime.utc(2026, 8, 29),
+              ),
+              _row(
+                id: '00000000-0000-4000-8000-000000000032',
+                upc: '0850021920654',
+                uploadState: 'ready',
+                reviewStatus: 'approved',
+              ),
+            ]),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final visible = await container.read(productSubmissionsProvider.future);
+
+    expect(visible.map((s) => s.submissionId), [
+      '00000000-0000-4000-8000-000000000032',
+    ]);
   });
 }

@@ -591,6 +591,7 @@ class ProductSubmissionService {
   static const photoBucket = 'product-submission-photos';
   static const createFunction = 'create_product_submission';
   static const finalizeFunction = 'finalize_product_submission';
+  static const hideFromHistoryFunction = 'hide_product_submission';
   static const _submissionPageSize = 100;
 
   final ProductSubmissionBackend backend;
@@ -756,6 +757,13 @@ class ProductSubmissionService {
     }
     return rows.map(ProductSubmissionSummary.fromRow).toList(growable: false);
   }
+
+  Future<void> hideFromHistory(String submissionId) {
+    return backend.persistSubmission(
+      functionName: hideFromHistoryFunction,
+      payload: {'p_submission_id': _validateSubmissionId(submissionId)},
+    );
+  }
 }
 
 class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
@@ -819,7 +827,7 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
         .from(table)
         .select(
           'id,kind,normalized_upc,upload_state,review_status,created_at,'
-          'promoted_catalog_version,promoted_at,'
+          'promoted_catalog_version,promoted_at,dismissed_at,'
           'resolution_code,resolution_detail,resolved_dsld_id,'
           'product_submission_mismatch_details!'
           'product_submission_mismatch_details_submission_id_fkey('
@@ -904,6 +912,7 @@ class ProductSubmissionSummary {
     required this.createdAt,
     required this.promotedCatalogVersion,
     this.promotedAt,
+    this.dismissedAt,
     this.resolutionCode,
     this.resolutionDetail,
     this.resolvedDsldId,
@@ -918,6 +927,7 @@ class ProductSubmissionSummary {
   final DateTime? createdAt;
   final String? promotedCatalogVersion;
   final DateTime? promotedAt;
+  final DateTime? dismissedAt;
   final ProductSubmissionResolutionCode? resolutionCode;
   final String? resolutionDetail;
 
@@ -958,6 +968,7 @@ class ProductSubmissionSummary {
     };
     final createdAtRaw = row['created_at'];
     final promotedAtRaw = row['promoted_at'];
+    final dismissedAtRaw = row['dismissed_at'];
     final mismatchRow = _nestedMismatchRow(
       row['product_submission_mismatch_details'],
     );
@@ -990,6 +1001,9 @@ class ProductSubmissionSummary {
       promotedCatalogVersion: row['promoted_catalog_version'] as String?,
       promotedAt: promotedAtRaw is String
           ? DateTime.tryParse(promotedAtRaw)?.toUtc()
+          : null,
+      dismissedAt: dismissedAtRaw is String
+          ? DateTime.tryParse(dismissedAtRaw)?.toUtc()
           : null,
       resolutionCode: ProductSubmissionResolutionCode.fromWire(
         row['resolution_code'],

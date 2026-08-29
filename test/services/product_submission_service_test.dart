@@ -333,6 +333,21 @@ void main() {
       expect(statuses.first.submissionId, 'submission-0');
       expect(statuses.last.submissionId, 'submission-204');
     });
+
+    test('hides a terminal submission through the owner-scoped RPC', () async {
+      final backend = _FakeBackend(authenticatedUserId: _userId);
+      final service = ProductSubmissionService(backend: backend);
+
+      await service.hideFromHistory(_rejectedSubmissionId);
+
+      expect(
+        backend.persistedFunctionName,
+        ProductSubmissionService.hideFromHistoryFunction,
+      );
+      expect(backend.persistedPayload, {
+        'p_submission_id': _rejectedSubmissionId,
+      });
+    });
   });
 }
 
@@ -365,13 +380,21 @@ class _FakeBackend implements ProductSubmissionBackend {
   final operations = <String>[];
   final Set<String> uploadedPaths = {};
   Map<String, Object?>? persistedPayload;
+  String? persistedFunctionName;
 
   @override
   Future<void> persistSubmission({
     required String functionName,
     required Map<String, Object?> payload,
   }) async {
-    expect(functionName, ProductSubmissionService.createFunction);
+    expect(
+      functionName,
+      anyOf(
+        ProductSubmissionService.createFunction,
+        ProductSubmissionService.hideFromHistoryFunction,
+      ),
+    );
+    persistedFunctionName = functionName;
     operations.add('persist');
     persistedPayload = payload;
   }

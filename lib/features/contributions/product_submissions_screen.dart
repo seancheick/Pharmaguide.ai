@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
@@ -14,17 +15,20 @@ import 'package:pharmaguide/services/product_submission_service.dart';
 
 typedef ResubmitProductSubmission =
     Future<void> Function(ProductSubmissionSummary status);
+typedef HideProductSubmission =
+    Future<void> Function(ProductSubmissionSummary status);
 
 /// Full-page catalog-contribution surface: impact stats, every submission
 /// with its verdict and guidance, and how the pipeline works. Replaces the
 /// old bottom sheet — a sheet stops working at fifty submissions, and the
 /// impact header is the contributor's "my work mattered" moment.
 class ProductSubmissionsScreen extends ConsumerStatefulWidget {
-  const ProductSubmissionsScreen({super.key, this.onResubmit});
+  const ProductSubmissionsScreen({super.key, this.onResubmit, this.onHide});
 
   /// Injected so the status surface stays independent of the capture route.
   /// The production lineage-aware handler is wired with Task 4.
   final ResubmitProductSubmission? onResubmit;
+  final HideProductSubmission? onHide;
 
   @override
   ConsumerState<ProductSubmissionsScreen> createState() =>
@@ -87,6 +91,37 @@ class _ProductSubmissionsScreenState
     if (mounted) ref.invalidate(productSubmissionsProvider);
   }
 
+  Future<void> _hide(ProductSubmissionSummary status) async {
+    final confirmed = await PGModal.bottomSheet<bool>(
+      context: context,
+      builder: (_) => const _HideSubmissionSheet(),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final handler =
+          widget.onHide ??
+          (status) => ref
+              .read(productSubmissionServiceProvider)
+              .hideFromHistory(status.submissionId);
+      await handler(status);
+      if (!mounted) return;
+      ref.invalidate(productSubmissionsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Removed from your contribution history.'),
+        ),
+      );
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t hide this submission. Please try again.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final submissions = ref.watch(productSubmissionsProvider);
@@ -145,6 +180,7 @@ class _ProductSubmissionsScreenState
                     _SubmissionCard(
                       status: status,
                       onResubmit: widget.onResubmit ?? _resubmit,
+                      onHide: _hide,
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -183,9 +219,9 @@ class _ProductSubmissionsScreenState
                     borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                   ),
                   child: Text(
-                    'Points track your impact. We’re building perks to '
-                    'redeem them for — approved contributions already '
-                    'count.',
+                    'Each product added to the catalog earns 10 points. '
+                    'We plan to offer discounts and other rewards in the '
+                    'future; details may change as the program develops.',
                     style: V2Typography.bodySm(color: context.v2.fg),
                   ),
                 ),
@@ -213,8 +249,23 @@ class _ImpactGrid extends StatelessWidget {
                   s.reviewStatus == ProductSubmissionReviewStatus.underReview),
         )
         .length;
-    final approved = statuses
-        .where((s) => s.reviewStatus == ProductSubmissionReviewStatus.approved)
+    final approved = statuses.where((s) => s.isComplete).length;
+    final submitted = statuses.where((s) => s.uploadReady).length;
+    final notAdded = statuses
+        .where(
+          (s) =>
+              s.uploadReady &&
+              (s.reviewStatus == ProductSubmissionReviewStatus.rejected ||
+                  s.reviewStatus == ProductSubmissionReviewStatus.duplicate),
+        )
+        .length;
+    final awaitingRelease = statuses
+        .where(
+          (s) =>
+              s.uploadReady &&
+              s.reviewStatus == ProductSubmissionReviewStatus.approved &&
+              !s.isComplete,
+        )
         .length;
     final points = contributionPoints(statuses);
     Widget card({
@@ -223,54 +274,72 @@ class _ImpactGrid extends StatelessWidget {
       required Color accent,
       required int value,
       required String label,
-    }) => Container(
-      key: key,
-      decoration: BoxDecoration(
+      VoidCallback? onTap,
+      String? tapHint,
+    }) => Semantics(
+      button: onTap != null,
+      hint: tapHint,
+      child: Material(
+        key: key,
         color: context.v2.surface,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: context.v2.outline),
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // The old design's colored edge, as an inner bar: a mixed
-            // border color cannot legally carry a borderRadius.
-            Container(
-              width: 3,
-              decoration: BoxDecoration(
-                color: accent,
-                borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(V2Spacing.radiusCard),
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(V2Spacing.space16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          side: BorderSide(color: context.v2.outline),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // The old design's colored edge, as an inner bar: a mixed
+                // border color cannot legally carry a borderRadius.
+                Container(width: 3, color: accent),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(V2Spacing.space16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(icon, color: accent, size: 20),
-                        Text(
-                          '$value',
-                          style: V2Typography.title(color: context.v2.fg),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Icon(icon, color: accent, size: 20),
+                            Text(
+                              '$value',
+                              style: V2Typography.title(color: context.v2.fg),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: V2Spacing.space8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                label,
+                                style: V2Typography.bodySm(
+                                  color: context.v2.fgMuted,
+                                ),
+                              ),
+                            ),
+                            if (onTap != null) ...[
+                              const SizedBox(width: V2Spacing.space4),
+                              Icon(
+                                Icons.info_outline_rounded,
+                                color: context.v2.fgMuted,
+                                size: 15,
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: V2Spacing.space8),
-                    Text(
-                      label,
-                      style: V2Typography.bodySm(color: context.v2.fgMuted),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -304,7 +373,7 @@ class _ImpactGrid extends StatelessWidget {
                 icon: Icons.verified_outlined,
                 accent: context.v2.safe,
                 value: approved,
-                label: 'Approved',
+                label: 'Catalog additions',
               ),
             ),
             SizedBox(
@@ -313,8 +382,17 @@ class _ImpactGrid extends StatelessWidget {
                 key: const Key('contributions-stat-total'),
                 icon: Icons.upload_outlined,
                 accent: context.v2.accent,
-                value: statuses.length,
+                value: submitted,
                 label: 'Total submissions',
+                tapHint: 'Shows the submission outcome breakdown',
+                onTap: () => _showSubmissionBreakdown(
+                  context,
+                  pending: pending,
+                  awaitingRelease: awaitingRelease,
+                  added: approved,
+                  notAdded: notAdded,
+                  total: submitted,
+                ),
               ),
             ),
             SizedBox(
@@ -325,11 +403,137 @@ class _ImpactGrid extends StatelessWidget {
                 accent: context.v2.accentStrong,
                 value: points,
                 label: 'Points earned',
+                tapHint: 'Explains how contribution points are earned',
+                onTap: () => _showPointsExplanation(context),
               ),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+void _showPointsExplanation(BuildContext context) {
+  PGModal.bottomSheet<void>(
+    context: context,
+    builder: (context) => const _ContributionInfoSheet(
+      title: 'How points work',
+      children: [
+        Text(
+          'Earn 10 points when a product you submit is approved and added '
+          'to PharmaGuide. Pending, rejected, duplicate, and incomplete '
+          'submissions do not earn points.',
+        ),
+        SizedBox(height: V2Spacing.space12),
+        Text(
+          'A successful resubmission earns once. We plan to make points '
+          'redeemable for discounts and other rewards in the future. '
+          'Reward details may change while the program is being developed.',
+        ),
+      ],
+    ),
+  );
+}
+
+void _showSubmissionBreakdown(
+  BuildContext context, {
+  required int pending,
+  required int awaitingRelease,
+  required int added,
+  required int notAdded,
+  required int total,
+}) {
+  PGModal.bottomSheet<void>(
+    context: context,
+    builder: (context) => _ContributionInfoSheet(
+      title: 'Submission breakdown',
+      children: [
+        _BreakdownRow(label: 'Pending review', value: pending),
+        if (awaitingRelease > 0)
+          _BreakdownRow(
+            label: 'Approved, awaiting release',
+            value: awaitingRelease,
+          ),
+        _BreakdownRow(label: 'Added to catalog', value: added),
+        _BreakdownRow(label: 'Not added', value: notAdded),
+        const Divider(height: V2Spacing.space24),
+        _BreakdownRow(
+          key: const Key('submission-breakdown-total'),
+          label: 'Finalized submissions',
+          value: total,
+          emphasized: true,
+        ),
+        const SizedBox(height: V2Spacing.space12),
+        Text(
+          'Interrupted uploads are excluded until their photos are '
+          'successfully submitted.',
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ContributionInfoSheet extends StatelessWidget {
+  const _ContributionInfoSheet({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        V2Spacing.space32,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
+          const SizedBox(height: V2Spacing.space12),
+          DefaultTextStyle(
+            style: V2Typography.body(color: context.v2.fg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BreakdownRow extends StatelessWidget {
+  const _BreakdownRow({
+    super.key,
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final int value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = emphasized
+        ? V2Typography.bodyMedium(color: context.v2.fg)
+        : V2Typography.body(color: context.v2.fg);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          Text('$value', style: style),
+        ],
+      ),
     );
   }
 }
@@ -407,21 +611,20 @@ class _HowItWorksStep extends StatelessWidget {
 }
 
 class _SubmissionCard extends ConsumerWidget {
-  const _SubmissionCard({required this.status, this.onResubmit});
+  const _SubmissionCard({required this.status, this.onResubmit, this.onHide});
 
   final ProductSubmissionSummary status;
   final ResubmitProductSubmission? onResubmit;
+  final HideProductSubmission? onHide;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final display = _statusDisplay(context.v2, status);
-    final identity = switch (status.kind) {
-      ProductSubmissionKind.labelMismatch => 'Catalog correction',
-      ProductSubmissionKind.missingProduct =>
-        'UPC ${status.upc ?? 'unavailable'}',
-      null => 'Submission details unavailable',
-    };
     final guidance = _resolutionGuidance(status);
+    final canHide =
+        status.uploadReady &&
+        (status.reviewStatus == ProductSubmissionReviewStatus.rejected ||
+            status.reviewStatus == ProductSubmissionReviewStatus.duplicate);
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
@@ -431,7 +634,9 @@ class _SubmissionCard extends ConsumerWidget {
       ),
       child: Semantics(
         container: true,
-        label: '$identity. ${display.label}.',
+        label:
+            'Submission${status.upc == null ? '' : ' for UPC ${status.upc}'}. '
+            '${display.label}.',
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -441,10 +646,7 @@ class _SubmissionCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    identity,
-                    style: V2Typography.body(color: context.v2.fg),
-                  ),
+                  _SubmissionIdentity(status: status),
                   const SizedBox(height: V2Spacing.space4),
                   Text(
                     display.label,
@@ -483,11 +685,132 @@ class _SubmissionCard extends ConsumerWidget {
                 ],
               ),
             ),
+            if (canHide && onHide != null)
+              IconButton(
+                key: Key('submission-hide-${status.submissionId}'),
+                tooltip: 'Hide from history',
+                onPressed: () => onHide!(status),
+                icon: const Icon(Icons.close_rounded, size: 18),
+                color: context.v2.fgMuted,
+                visualDensity: VisualDensity.compact,
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+class _HideSubmissionSheet extends StatelessWidget {
+  const _HideSubmissionSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space24,
+        V2Spacing.space8,
+        V2Spacing.space24,
+        V2Spacing.space32,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hide this submission?',
+            style: V2Typography.titleSm(color: context.v2.fg),
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'It will disappear from Your Contributions. The private review '
+            'record stays securely stored, and hiding it does not change '
+            'your points or the catalog.',
+            style: V2Typography.body(color: context.v2.fgMuted),
+          ),
+          const SizedBox(height: V2Spacing.space24),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Hide from history'),
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Keep it'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubmissionIdentity extends ConsumerWidget {
+  const _SubmissionIdentity({required this.status});
+
+  final ProductSubmissionSummary status;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalogId = status.resolvedDsldId ?? status.mismatchProduct?.dsldId;
+    if (catalogId == null) {
+      return _SubmissionIdentityText(
+        name: _fallbackSubmissionName(status),
+        upc: status.upc,
+      );
+    }
+    return FutureBuilder(
+      future: ref.read(coreDatabaseProvider).findById(catalogId),
+      builder: (context, snapshot) => _SubmissionIdentityText(
+        name: snapshot.data?.productName ?? _fallbackSubmissionName(status),
+        upc: status.upc,
+      ),
+    );
+  }
+}
+
+class _SubmissionIdentityText extends StatelessWidget {
+  const _SubmissionIdentityText({required this.name, required this.upc});
+
+  final String name;
+  final String? upc;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: V2Typography.bodyMedium(color: context.v2.fg),
+        ),
+        if (upc != null) ...[
+          const SizedBox(height: V2Spacing.space4),
+          Text(
+            'UPC $upc',
+            style: V2Typography.caption(color: context.v2.fgMuted),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+String _fallbackSubmissionName(ProductSubmissionSummary status) {
+  if (status.kind == null) return 'Submission details unavailable';
+  if (status.kind == ProductSubmissionKind.labelMismatch) {
+    return 'Catalog correction';
+  }
+  if (status.reviewStatus == ProductSubmissionReviewStatus.rejected) {
+    return 'Product name unavailable';
+  }
+  return 'Product submission';
 }
 
 /// "View product" renders only after the id is confirmed present in the
