@@ -1,3 +1,4 @@
+import 'package:pharmaguide/core/utils/app_version.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
@@ -235,7 +236,7 @@ class SettingsV2Screen extends StatelessWidget {
                 const PGSettingsTile(
                   icon: Icons.info_outline_rounded,
                   title: 'Version',
-                  caption: '1.0.0 · build 1',
+                  caption: '$kAppVersion · build $kAppBuildNumber',
                 ),
                 PGSettingsTile(
                   icon: Icons.description_outlined,

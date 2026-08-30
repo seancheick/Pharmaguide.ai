@@ -13,6 +13,11 @@
 /// Current app semver. Keep in sync with pubspec.yaml `version:`.
 const String kAppVersion = '1.0.0';
 
+/// Current build number. Keep in sync with pubspec.yaml `version:` (the
+/// part after `+`). Display-only — the catalog gate uses [kAppVersion].
+/// test/core/app_version_pubspec_sync_test.dart fails on any drift.
+const int kAppBuildNumber = 17;
+
 /// Highest catalog export-manifest `schema_version` MAJOR this app build
 /// can read. Mirrors APP_SUPPORTED_SCHEMAS in
 /// scripts/import_catalog_artifact.sh (currently up to 2.4.0). Prepared schema
