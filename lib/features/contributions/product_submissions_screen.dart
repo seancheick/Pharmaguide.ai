@@ -874,6 +874,9 @@ String? _resolutionGuidance(ProductSubmissionSummary status) {
       ProductSubmissionResolutionCode.labelUnreadable =>
         'The label wasn’t readable enough to verify. A retake with the '
             'label flat and in focus usually fixes this.',
+      ProductSubmissionResolutionCode.productIdentityMismatch =>
+        'The photos didn’t match the scanned product. Scan the barcode again '
+            'and photograph that same package.',
       ProductSubmissionResolutionCode.notASupplement =>
         'This product isn’t a dietary supplement, so it doesn’t belong in '
             'the PharmaGuide catalog.',

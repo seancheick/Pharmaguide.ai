@@ -27,6 +27,27 @@ void main() {
       );
     });
 
+    test('requires barcode evidence to bind photos to the scanned product', () {
+      expect(
+        () => MissingProductSubmissionDraft(
+          submissionId: _submissionId,
+          upc: '050428381397',
+          photos: [
+            _photo(ProductSubmissionEvidenceCategory.frontIdentity),
+            _photo(ProductSubmissionEvidenceCategory.supplementFacts),
+            _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+          ],
+        ),
+        throwsA(
+          isA<ProductSubmissionValidationException>().having(
+            (error) => error.reason,
+            'reason',
+            ProductSubmissionValidationFailure.missingRequiredPhoto,
+          ),
+        ),
+      );
+    });
+
     test('ingredient disclosure is evidence, never a checkbox waiver', () {
       // The cue flag alone must NOT unlock submission: a facts photo
       // carrying the ingredient list is dual-tagged instead.
@@ -63,6 +84,7 @@ void main() {
             bytes: Uint8List.fromList([7, 7, 7]),
             contentType: 'image/jpeg',
           ),
+          _photo(ProductSubmissionEvidenceCategory.barcode),
         ],
         noSeparateIngredientPanel: true,
       );
@@ -77,6 +99,7 @@ void main() {
           _photo(ProductSubmissionEvidenceCategory.frontIdentity),
           _photo(ProductSubmissionEvidenceCategory.supplementFacts),
           _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+          _photo(ProductSubmissionEvidenceCategory.barcode),
         ],
       );
 
@@ -103,6 +126,7 @@ void main() {
           _photo(ProductSubmissionEvidenceCategory.frontIdentity),
           _photo(ProductSubmissionEvidenceCategory.supplementFacts),
           _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+          _photo(ProductSubmissionEvidenceCategory.barcode),
         ],
       );
 
@@ -118,6 +142,7 @@ void main() {
             _photo(ProductSubmissionEvidenceCategory.frontIdentity),
             _photo(ProductSubmissionEvidenceCategory.supplementFacts),
             _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+            _photo(ProductSubmissionEvidenceCategory.barcode),
           ],
         ),
         throwsA(
@@ -140,6 +165,7 @@ void main() {
             _photo(ProductSubmissionEvidenceCategory.frontIdentity),
             _photo(ProductSubmissionEvidenceCategory.supplementFacts),
             _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+            _photo(ProductSubmissionEvidenceCategory.barcode),
           ],
         ),
         throwsA(
@@ -166,6 +192,7 @@ void main() {
             _photo(ProductSubmissionEvidenceCategory.frontIdentity),
             _photo(ProductSubmissionEvidenceCategory.supplementFacts),
             _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+            _photo(ProductSubmissionEvidenceCategory.barcode),
           ],
         );
 
@@ -178,6 +205,7 @@ void main() {
           'upload:$_userId/$_submissionId/$_frontPhotoId',
           'upload:$_userId/$_submissionId/$_factsPhotoId',
           'upload:$_userId/$_submissionId/$_ingredientsPhotoId',
+          'upload:$_userId/$_submissionId/$_barcodePhotoId',
           'finalize:$_submissionId',
         ]);
         expect(backend.persistedPayload, {
@@ -215,6 +243,16 @@ void main() {
               'byte_size': 4,
               'content_sha256': _photo(
                 ProductSubmissionEvidenceCategory.ingredientDisclosure,
+              ).contentSha256,
+            },
+            {
+              'photo_id': _barcodePhotoId,
+              'seq': 4,
+              'categories': ['barcode'],
+              'content_type': 'image/jpeg',
+              'byte_size': 4,
+              'content_sha256': _photo(
+                ProductSubmissionEvidenceCategory.barcode,
               ).contentSha256,
             },
           ],
@@ -267,6 +305,7 @@ void main() {
           _photo(ProductSubmissionEvidenceCategory.frontIdentity),
           _photo(ProductSubmissionEvidenceCategory.supplementFacts),
           _photo(ProductSubmissionEvidenceCategory.ingredientDisclosure),
+          _photo(ProductSubmissionEvidenceCategory.barcode),
         ],
       );
 
@@ -354,6 +393,7 @@ void main() {
 const _frontPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
 const _factsPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
 const _ingredientsPhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3';
+const _barcodePhotoId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4';
 
 ProductSubmissionPhoto _photo(ProductSubmissionEvidenceCategory category) {
   final id = switch (category) {
@@ -361,6 +401,7 @@ ProductSubmissionPhoto _photo(ProductSubmissionEvidenceCategory category) {
     ProductSubmissionEvidenceCategory.supplementFacts => _factsPhotoId,
     ProductSubmissionEvidenceCategory.ingredientDisclosure =>
       _ingredientsPhotoId,
+    ProductSubmissionEvidenceCategory.barcode => _barcodePhotoId,
     _ => _frontPhotoId,
   };
   return ProductSubmissionPhoto(

@@ -87,6 +87,11 @@ Future<void> _captureRequiredEvidence(WidgetTester tester) async {
   );
   await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
   await tester.pumpAndSettle();
+  expect(find.text('Barcode'), findsOneWidget);
+
+  // The barcode is required identity evidence and advances automatically.
+  await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+  await tester.pumpAndSettle();
   expect(find.text('Anything else?'), findsOneWidget);
 
   // Extras are skippable; move straight to review.
@@ -172,6 +177,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
     await tester.pumpAndSettle();
+    expect(find.text('Barcode'), findsOneWidget);
+    expect(find.byKey(const Key('missing-product-next')), findsNothing);
+    await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+    await tester.pumpAndSettle();
     expect(find.text('Anything else?'), findsOneWidget);
     await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
@@ -233,7 +242,7 @@ void main() {
     // The combined-panel answer re-tagged the facts capture in place —
     // both photos survived the question (regression: a checkbox used to
     // delete the shot it described).
-    expect(backend.manifest, hasLength(3));
+    expect(backend.manifest, hasLength(4));
     expect(backend.manifest[0]['seq'], 1);
     expect(backend.manifest[0]['categories'], ['front_identity']);
     expect(backend.manifest[1]['seq'], 2);
@@ -246,6 +255,8 @@ void main() {
       'supplement_facts',
       'ingredient_disclosure',
     ]);
+    expect(backend.manifest[3]['seq'], 4);
+    expect(backend.manifest[3]['categories'], ['barcode']);
     expect(find.text('Thanks — it’s in review'), findsOneWidget);
   });
 
@@ -276,6 +287,9 @@ void main() {
       find.byKey(const Key('missing-product-add-ingredient_disclosure')),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Barcode'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+    await tester.pumpAndSettle();
     expect(find.text('Anything else?'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('missing-product-next')));
@@ -286,9 +300,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(backend.persistedCueFlag, isFalse);
-    expect(backend.manifest, hasLength(3));
+    expect(backend.manifest, hasLength(4));
     expect(backend.manifest[1]['categories'], ['supplement_facts']);
     expect(backend.manifest[2]['categories'], ['ingredient_disclosure']);
+    expect(backend.manifest[3]['categories'], ['barcode']);
   });
 
   testWidgets('a combined-panel answer can be corrected before submission', (
@@ -308,6 +323,10 @@ void main() {
       find.byKey(const Key('missing-product-add-ingredient_disclosure')),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Barcode'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
+    expect(find.text('Anything else?'), findsOneWidget);
     await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-consent')));
@@ -316,10 +335,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(backend.persistedCueFlag, isFalse);
-    expect(backend.manifest, hasLength(4));
+    expect(backend.manifest, hasLength(5));
     expect(backend.manifest[1]['categories'], ['supplement_facts']);
     expect(backend.manifest[2]['categories'], ['supplement_facts']);
-    expect(backend.manifest[3]['categories'], ['ingredient_disclosure']);
+    expect(backend.manifest[3]['categories'], ['barcode']);
+    expect(backend.manifest[4]['categories'], ['ingredient_disclosure']);
   });
 
   testWidgets('the no-facts dead end explains why and can cancel', (

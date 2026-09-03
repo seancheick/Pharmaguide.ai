@@ -15,6 +15,12 @@ const _reviewV2MigrationPath =
     'supabase/migrations/20260825213000_submission_review_v2.sql';
 const _hideTerminalMigrationPath =
     'supabase/migrations/20260829151221_hide_terminal_product_submission.sql';
+const _identityMismatchMigrationPath =
+    'supabase/migrations/'
+    '20260903120000_add_product_identity_mismatch_resolution.sql';
+const _barcodeEvidenceMigrationPath =
+    'supabase/migrations/'
+    '20260903121000_require_missing_product_barcode_evidence.sql';
 
 String _normalized(String source) => source
     .replaceAll(RegExp(r'--[^\n]*'), ' ')
@@ -275,6 +281,56 @@ void main() {
         'revoke all on function public.create_product_submission_v2_internal',
       ),
       reason: 'Only the lineage-enforcing wrapper may remain callable.',
+    );
+  });
+
+  test('identity mismatch is typed and remains retakeable', () {
+    final enumFile = File(_identityMismatchMigrationPath);
+    final evidenceFile = File(_barcodeEvidenceMigrationPath);
+    expect(enumFile.existsSync(), isTrue);
+    expect(evidenceFile.existsSync(), isTrue);
+
+    final enumSql = _normalized(enumFile.readAsStringSync());
+    final evidenceSql = _normalized(evidenceFile.readAsStringSync());
+    expect(
+      enumSql,
+      contains(
+        "alter type public.product_submission_resolution_code "
+        "add value if not exists 'product_identity_mismatch'",
+      ),
+    );
+    expect(evidenceSql, contains("'product_identity_mismatch'"));
+  });
+
+  test('forward migration requires barcode evidence at both server gates', () {
+    final file = File(_barcodeEvidenceMigrationPath);
+    expect(file.existsSync(), isTrue);
+    final migration = _normalized(file.readAsStringSync());
+
+    expect(
+      migration,
+      contains(
+        'create or replace function '
+        'public.product_submission_has_required_evidence',
+      ),
+    );
+    expect(migration, contains('count(distinct category) = 4'));
+    expect(migration, contains("'barcode'"));
+    expect(
+      migration,
+      contains('create or replace function public.create_product_submission'),
+    );
+    expect(
+      migration,
+      contains(
+        'create or replace function '
+        'public.review_product_submission_human_internal',
+      ),
+    );
+    expect(migration, contains('approved_submission_identity_evidence'));
+    expect(
+      migration,
+      contains('barcode-bound evidence required before approval'),
     );
   });
 

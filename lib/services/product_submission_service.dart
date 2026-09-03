@@ -375,13 +375,14 @@ class LabelMismatchReportDraft implements ProductSubmissionDraft {
 /// New product evidence created from a barcode miss.
 ///
 /// Coverage is category-typed: the photo set must include front_identity,
-/// supplement_facts, and ingredient_disclosure (one photo may carry
+/// supplement_facts, ingredient_disclosure, and barcode (one photo may carry
 /// several). Product/brand names are intentionally not collected as text.
 class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   static const requiredCategories = <ProductSubmissionEvidenceCategory>{
     ProductSubmissionEvidenceCategory.frontIdentity,
     ProductSubmissionEvidenceCategory.supplementFacts,
     ProductSubmissionEvidenceCategory.ingredientDisclosure,
+    ProductSubmissionEvidenceCategory.barcode,
   };
 
   @override
@@ -848,6 +849,7 @@ enum ProductSubmissionResolutionCode {
   photoQuality('photo_quality'),
   missingPanel('missing_panel'),
   labelUnreadable('label_unreadable'),
+  productIdentityMismatch('product_identity_mismatch'),
   notASupplement('not_a_supplement'),
   alreadyInCatalog('already_in_catalog'),
   duplicateSubmission('duplicate_submission'),
@@ -865,7 +867,11 @@ enum ProductSubmissionResolutionCode {
 
   /// Whether a fresh submission with better evidence can succeed.
   bool get resubmittable => switch (this) {
-    photoQuality || missingPanel || labelUnreadable || other => true,
+    photoQuality ||
+    missingPanel ||
+    labelUnreadable ||
+    productIdentityMismatch ||
+    other => true,
     notASupplement || alreadyInCatalog || duplicateSubmission => false,
   };
 }

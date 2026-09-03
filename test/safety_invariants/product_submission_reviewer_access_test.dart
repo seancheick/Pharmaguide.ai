@@ -401,6 +401,7 @@ void main() {
     expect(source, contains('p_resolution_code: resolutionCode'));
     expect(source, contains('p_resolution_detail: resolutionDetail'));
     expect(source, contains('p_resolved_dsld_id: resolvedDsldId'));
+    expect(source, contains("'product_identity_mismatch'"));
     expect(
       source,
       contains('RESOLVED_DSLD_PATTERN'),
@@ -479,13 +480,11 @@ void main() {
     expect(
       source,
       contains(".in('submission_id', candidateSubmissionIds)"),
-      reason: 'Supersession must see each candidate submission whole, not '
+      reason:
+          'Supersession must see each candidate submission whole, not '
           'just the rows that happened to land in the stale window.',
     );
-    expect(
-      source,
-      contains(".delete()"),
-    );
+    expect(source, contains(".delete()"));
     final supersedeBlock = source.substring(
       source.indexOf('product_submission_push_supersede_failed'),
       source.indexOf('const rows = latest;'),
@@ -493,7 +492,8 @@ void main() {
     expect(
       supersedeBlock,
       contains('return;'),
-      reason: 'Fail closed: if stale rows cannot be discarded, nothing may '
+      reason:
+          'Fail closed: if stale rows cannot be discarded, nothing may '
           'send — a sent newest row would leave an older status as the '
           '"newest pending" for a later drain to replay.',
     );
@@ -503,7 +503,8 @@ void main() {
     expect(
       supersedeGrant.existsSync(),
       isTrue,
-      reason: 'Discarding queue rows requires the service-role DELETE grant '
+      reason:
+          'Discarding queue rows requires the service-role DELETE grant '
           'the v2 migration deliberately omitted.',
     );
     final supersedeGrantSql = supersedeGrant.readAsStringSync().replaceAll(
@@ -519,13 +520,15 @@ void main() {
     expect(
       supersedeGrantSql,
       contains('SET last_error = NULL'),
-      reason: 'Rows delivered by the pre-coalescing drain must stop '
+      reason:
+          'Rows delivered by the pre-coalescing drain must stop '
           'advertising the transport failure that preceded their retry.',
     );
     expect(
       supersedeGrantSql,
       contains('WHERE sent_at IS NOT NULL'),
-      reason: 'The historical cleanup touches only delivered rows; pending '
+      reason:
+          'The historical cleanup touches only delivered rows; pending '
           'failures keep their diagnostic last_error.',
     );
   });
@@ -534,7 +537,8 @@ void main() {
     expect(
       source,
       contains('last_error: null'),
-      reason: 'last_error describes the CURRENT state; a delivered row must '
+      reason:
+          'last_error describes the CURRENT state; a delivered row must '
           'not keep advertising the 401 that delayed it.',
     );
   });

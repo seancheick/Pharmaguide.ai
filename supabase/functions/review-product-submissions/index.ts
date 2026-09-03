@@ -61,6 +61,7 @@ const REJECTED_RESOLUTION_CODES = new Set([
   "photo_quality",
   "missing_panel",
   "label_unreadable",
+  "product_identity_mismatch",
   "not_a_supplement",
   "other",
 ]);

@@ -80,7 +80,7 @@ Future<bool> showMissingProductSubmissionSheet(
 /// already carries the ingredient list (asked as a one-tap question when
 /// the user continues from Facts — never a checkbox that could invalidate
 /// work).
-enum _CaptureStep { intro, front, facts, ingredients, extras, review }
+enum _CaptureStep { intro, front, facts, ingredients, barcode, extras, review }
 
 /// Private, structured evidence intake for a barcode the catalog cannot
 /// match. There is deliberately no narrative field: the photos, barcode, and
@@ -131,6 +131,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.front,
     _CaptureStep.facts,
     if (!_factsCarriesIngredients) _CaptureStep.ingredients,
+    _CaptureStep.barcode,
     _CaptureStep.extras,
     _CaptureStep.review,
   ];
@@ -157,6 +158,9 @@ class _MissingProductSubmissionSheetState
         _CaptureStep.ingredients => const {
           ProductSubmissionEvidenceCategory.ingredientDisclosure,
         },
+        _CaptureStep.barcode => const {
+          ProductSubmissionEvidenceCategory.barcode,
+        },
         _CaptureStep.intro ||
         _CaptureStep.extras ||
         _CaptureStep.review => const <ProductSubmissionEvidenceCategory>{},
@@ -171,6 +175,9 @@ class _MissingProductSubmissionSheetState
     ).isNotEmpty,
     _CaptureStep.ingredients => _photosTagged(
       ProductSubmissionEvidenceCategory.ingredientDisclosure,
+    ).isNotEmpty,
+    _CaptureStep.barcode => _photosTagged(
+      ProductSubmissionEvidenceCategory.barcode,
     ).isNotEmpty,
     _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => true,
   };
@@ -585,6 +592,14 @@ class _MissingProductSubmissionSheetState
           'ingredient matters for safety checks.',
       category: ProductSubmissionEvidenceCategory.ingredientDisclosure,
     ),
+    _CaptureStep.barcode => _captureStepBody(
+      context,
+      guidance: 'Photograph the barcode on this same package.',
+      tip:
+          'Keep the full barcode and printed digits readable. This binds '
+          'the label photos to the product you scanned.',
+      category: ProductSubmissionEvidenceCategory.barcode,
+    ),
     _CaptureStep.extras => [
       Text(
         'Optional — these help reviewers verify dosing and freshness. '
@@ -602,15 +617,6 @@ class _MissingProductSubmissionSheetState
         onAdd: () => _addPhoto(const {
           ProductSubmissionEvidenceCategory.directionsWarnings,
         }),
-        onRemove: _removePhoto,
-      ),
-      _OptionalCategoryTile(
-        label: 'Barcode close-up',
-        category: ProductSubmissionEvidenceCategory.barcode,
-        photos: _photosTagged(ProductSubmissionEvidenceCategory.barcode),
-        enabled: !_submitting && !_adding,
-        onAdd: () =>
-            _addPhoto(const {ProductSubmissionEvidenceCategory.barcode}),
         onRemove: _removePhoto,
       ),
       _OptionalCategoryTile(
@@ -661,8 +667,8 @@ class _MissingProductSubmissionSheetState
           chip('Front label', required: true),
           chip('Supplement Facts', required: true),
           chip('Other Ingredients', required: true),
+          chip('Barcode', required: true),
           chip('Warnings', required: false),
-          chip('Barcode', required: false),
           chip('Lot & expiry', required: false),
         ],
       ),
@@ -896,6 +902,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.front => 'Front of the package',
     _CaptureStep.facts => 'Supplement Facts',
     _CaptureStep.ingredients => 'Other Ingredients',
+    _CaptureStep.barcode => 'Barcode',
     _CaptureStep.extras => 'Anything else?',
     _CaptureStep.review => 'Review & submit',
   };
@@ -908,6 +915,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.ingredients =>
       'Add at least one photo of the Other '
           'Ingredients list.',
+    _CaptureStep.barcode => 'Add a clear photo of this package’s barcode.',
     _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => '',
   };
 }

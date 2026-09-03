@@ -156,6 +156,29 @@ void main() {
     );
   });
 
+  testWidgets('identity mismatch tells the user to rescan the same package', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a13',
+            reviewStatus: 'rejected',
+          ),
+          'resolution_code': 'product_identity_mismatch',
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('photos didn’t match the scanned product'),
+      findsOneWidget,
+    );
+    expect(find.text('Try again with new photos'), findsOneWidget);
+  });
+
   testWidgets('duplicate outcomes use distinct truthful headlines', (
     tester,
   ) async {
