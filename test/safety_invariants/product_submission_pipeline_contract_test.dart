@@ -17,10 +17,10 @@ const _hideTerminalMigrationPath =
     'supabase/migrations/20260829151221_hide_terminal_product_submission.sql';
 const _identityMismatchMigrationPath =
     'supabase/migrations/'
-    '20260903120000_add_product_identity_mismatch_resolution.sql';
+    '20260903064532_add_product_identity_mismatch_resolution.sql';
 const _barcodeEvidenceMigrationPath =
     'supabase/migrations/'
-    '20260903121000_require_missing_product_barcode_evidence.sql';
+    '20260903064547_require_missing_product_barcode_evidence.sql';
 
 String _normalized(String source) => source
     .replaceAll(RegExp(r'--[^\n]*'), ' ')
