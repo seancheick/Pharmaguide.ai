@@ -233,6 +233,38 @@ void main() {
     );
   });
 
+  test('open-submission dedupe uses one canonical GTIN-14 identity', () {
+    final migration = File(
+      'supabase/migrations/'
+      '20260903065755_canonicalize_open_submission_gtin_dedupe.sql',
+    );
+    expect(
+      migration.existsSync(),
+      isTrue,
+      reason:
+          'UPC-A and its zero-prefixed EAN-13 representation identify the '
+          'same package and must not create two open submissions.',
+    );
+    final sql = migration.readAsStringSync().toLowerCase();
+    final compactSql = sql.replaceAll(RegExp(r'\s+'), ' ');
+    expect(
+      sql,
+      contains(
+        "lpad(existing.normalized_upc, 14, '0') "
+        "= lpad(new.normalized_upc, 14, '0')",
+      ),
+    );
+    expect(
+      compactSql,
+      contains(
+        'create unique index idx_product_submissions_user_open_upc '
+        'on public.product_submissions '
+        "(user_id, kind, (lpad(normalized_upc, 14, '0'))) ",
+      ),
+      reason: 'The database index must close concurrent cross-width races.',
+    );
+  });
+
   test('resubmission lineage is additive, owner-scoped, and fail-closed', () {
     final file = File(_resubmissionMigrationPath);
     expect(file.existsSync(), isTrue);
