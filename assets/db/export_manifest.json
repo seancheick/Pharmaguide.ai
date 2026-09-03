@@ -1,6 +1,6 @@
 {
-  "checksum": "sha256:ba58bd0eca7281fd430d4ef0a736d61fb3df14244f2315aa56eadb9cc44c9be1",
-  "checksum_sha256": "ba58bd0eca7281fd430d4ef0a736d61fb3df14244f2315aa56eadb9cc44c9be1",
+  "checksum": "sha256:e060a5a0474d2ba2bcbfe6e697169fabb91997d8a49c40541838625ef75561b0",
+  "checksum_sha256": "e060a5a0474d2ba2bcbfe6e697169fabb91997d8a49c40541838625ef75561b0",
   "core_projection_manifest": {
     "app_core_column_count": 91,
     "checksum": "sha256:18cf782562d54e03a1414859d3978c65804e448fe212d134d2506771ff4c15ec",
@@ -9,10 +9,10 @@
     "path": "core_projection_manifest.json",
     "server_core_column_count": 26
   },
-  "db_version": "2026.08.27.162958",
-  "detail_blob_count": 15336,
-  "detail_blob_unique_count": 15336,
-  "detail_index_checksum": "sha256:2fc541fa7c1b1c1acb5a6973b7c67662d261ae593e44a320b2b3343bb50107c5",
+  "db_version": "2026.09.03.151135",
+  "detail_blob_count": 15338,
+  "detail_blob_unique_count": 15338,
+  "detail_index_checksum": "sha256:3b09aacdcded3bcd2f9a3c34b9be0df54fcc636fd2ef78d8381941a24b687023",
   "errors": [],
   "excluded_by_gate": [
     {
@@ -324,20 +324,20 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     }
   ],
-  "generated_at": "2026-08-27T16:29:58.534750+00:00",
+  "generated_at": "2026-09-03T15:11:35.055751+00:00",
   "integrity": {
     "contract_failures": 0,
     "contract_quarantine_count": 77,
     "coverage_pct": 99.5,
-    "enriched_input_count": 15413,
+    "enriched_input_count": 15415,
     "enriched_only_count": 0,
     "error_count": 0,
     "excluded_by_gate_count": 77,
-    "exported_count": 15336,
+    "exported_count": 15338,
     "has_banned_substance": 54,
     "has_recalled_ingredient": 0,
     "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
-    "scored_input_count": 15413,
+    "scored_input_count": 15415,
     "scored_only_count": 0,
     "skipped_count": 77,
     "strict_mode": true,
@@ -349,9 +349,9 @@
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 15336,
+  "product_count": 15338,
   "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
-  "release_staged_at": "2026-08-27T16:31:28Z",
+  "release_staged_at": "2026-09-03T15:12:51Z",
   "schema_version": "2.4.0",
   "score_model": "v4",
   "scoring_version": "4.3.0",
