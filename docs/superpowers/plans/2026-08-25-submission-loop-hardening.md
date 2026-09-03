@@ -263,11 +263,27 @@ Do **not** call `build_final_db.py:backfill_image_thumbnails` (dead code, zero c
 
 ## Release gate (human; not agent)
 
-- [ ] User: `bash scripts/release_full.sh`
-- [ ] Rebuild phone from `main` (existing 7 dart-defines / current device)
-- [ ] Rescan a known in-catalog UPC (must not open capture as missing)
-- [ ] Submit junk → reject `photo_quality` → push arrives → Resubmit CTA works
-- [ ] **Stop.** Do not implement Batch 3 until this is checked.
+- [x] User: `bash scripts/release_full.sh`
+- [x] Rebuild phone from `main` (existing 7 dart-defines / current device)
+- [x] Rescan a known in-catalog UPC (must not open capture as missing)
+- [x] Submit junk → reject `photo_quality` → push arrives → Resubmit CTA works
+- [x] **Stop.** Do not implement Batch 3 until this is checked.
+
+Closed on 2026-09-03 from the physical-device run: the promoted Youtheory UPC
+opened its catalog product, the deliberately poor URO submission was rejected as
+`photo_quality`, exactly one notification arrived, and the Resubmit action opened
+the capture flow.
+
+### Post-release product-identity hardening
+
+- [x] Require a barcode-evidence photo for every missing-product submission.
+- [x] Add the typed, retakeable `product_identity_mismatch` review outcome.
+- [x] Fail approval closed for legacy rows that do not contain barcode evidence.
+- [x] Pin the client, RPC, trigger, reviewer console, and Edge Function contracts.
+- [x] Apply the forward-only production migrations and deploy the reviewer function.
+
+The next ordinary phone build must include the required-barcode capture step. The
+server-side approval guard is already live and protects older client builds.
 
 ---
 
