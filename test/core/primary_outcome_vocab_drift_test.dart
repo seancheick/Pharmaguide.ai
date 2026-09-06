@@ -11,21 +11,21 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 15 entries', () {
+    test('schema lock + 16 entries', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
       expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 15);
+      expect(md['total_entries'], 16);
     });
 
-    test('all 15 entries have required fields and snake_case ids', () {
+    test('all 16 entries have required fields and snake_case ids', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['primary_outcomes'] as List)
           .cast<Map<String, dynamic>>();
 
-      expect(entries.length, 15);
+      expect(entries.length, 16);
 
       const required = {
         'id',

@@ -1,10 +1,10 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 15 primary_outcome categories used in backed_clinical_studies.primary_outcome. NOTE: source-data values are still human-readable strings (e.g. 'Reduce Stress/Anxiety') from the V1 schema. This vocab provides snake_case canonical IDs and round-trip mapping via legacy_display. A future v1.1 migration will canonicalize the source-data field to use snake_case IDs.",
+    "description": "Controlled vocabulary for the 16 primary_outcome categories used in backed_clinical_studies.primary_outcome. NOTE: source-data values are still human-readable strings (e.g. 'Reduce Stress/Anxiety') from the V1 schema. This vocab provides snake_case canonical IDs and round-trip mapping via legacy_display. A future v1.1 migration will canonicalize the source-data field to use snake_case IDs.",
     "schema_version": "1.0.0",
-    "last_updated": "2026-05-01",
-    "total_entries": 15,
-    "status": "LOCKED — verified against backed_clinical_studies.json 2026-05-01",
+    "last_updated": "2026-09-05",
+    "total_entries": 16,
+    "status": "LOCKED — verified against backed_clinical_studies.json 2026-05-01; urinary_tract_health added 2026-09-05 (cranberry UTI-prevention evidence had no truthful label)",
     "purpose": "Single source of truth for primary-outcome labels. Surfaced as evidence-grouping chips on the product detail screen.",
     "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json `primary_outcome` field (197 entries; legacy human-readable values still in use).",
     "field_contract": {
@@ -122,6 +122,13 @@
       "legacy_display": "Weight Management",
       "notes": "Body composition, weight loss/maintenance, waist circumference.",
       "related_user_goal_id": "GOAL_WEIGHT_MANAGEMENT"
+    },
+    {
+      "id": "urinary_tract_health",
+      "name": "Urinary tract health",
+      "legacy_display": "Urinary Tract Health",
+      "notes": "Prevention of recurrent urinary tract infections in susceptible people; cranberry products. D-mannose is not credited (no benefit in its largest trial). Not treatment of an active infection.",
+      "related_user_goal_id": "GOAL_URINARY_TRACT_HEALTH"
     }
   ]
 }

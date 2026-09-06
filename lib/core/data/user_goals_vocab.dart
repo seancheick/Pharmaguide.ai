@@ -18,7 +18,7 @@
 //     ]
 //   }
 //
-// 18 entries, locked. Same IDs as user_goals_to_clusters.json
+// 19 entries, locked. Same IDs as user_goals_to_clusters.json
 // (presentation here, cluster-mapping there). Migrated from hardcoded
 // goalLabels + goalPriorities in lib/core/constants/schema_ids.dart.
 //

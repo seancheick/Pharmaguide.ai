@@ -17,17 +17,17 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 18 entries', () {
+    test('schema lock + 19 entries', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
       expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 18);
+      expect(md['total_entries'], 19);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
-    test('canonical 18 IDs match schema_ids.dart `goals`', () {
+    test('canonical 19 IDs match schema_ids.dart `goals`', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['user_goals'] as List)
@@ -55,6 +55,7 @@ void main() {
           'GOAL_PRENATAL_PREGNANCY',
           'GOAL_HORMONAL_BALANCE',
           'GOAL_EYE_VISION_HEALTH',
+          'GOAL_URINARY_TRACT_HEALTH',
         }),
       );
     });
@@ -79,6 +80,7 @@ void main() {
         'GOAL_PRENATAL_PREGNANCY': 'Prenatal/Pregnancy Support',
         'GOAL_HORMONAL_BALANCE': 'Hormonal Balance',
         'GOAL_EYE_VISION_HEALTH': 'Eye & Vision Health',
+        'GOAL_URINARY_TRACT_HEALTH': 'Urinary Tract Health',
       };
 
       final raw = file.readAsStringSync();
@@ -118,6 +120,7 @@ void main() {
         'GOAL_PRENATAL_PREGNANCY': 'high',
         'GOAL_HORMONAL_BALANCE': 'medium',
         'GOAL_EYE_VISION_HEALTH': 'low',
+        'GOAL_URINARY_TRACT_HEALTH': 'low',
       };
 
       final raw = file.readAsStringSync();

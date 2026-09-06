@@ -1,5 +1,5 @@
 // Primary-outcome vocab loader (locked v1.0.0).
-// 15 IDs for backed_clinical_studies primary_outcome categories.
+// 16 IDs for backed_clinical_studies primary_outcome categories.
 // Carries legacy_display string for round-trip lookup until source-data
 // migration to snake_case.
 

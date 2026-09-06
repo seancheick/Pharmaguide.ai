@@ -95,6 +95,7 @@ abstract final class SchemaIds {
     'GOAL_PRENATAL_PREGNANCY',
     'GOAL_HORMONAL_BALANCE',
     'GOAL_EYE_VISION_HEALTH',
+    'GOAL_URINARY_TRACT_HEALTH',
   ];
 
   static const goalLabels = {
@@ -116,6 +117,7 @@ abstract final class SchemaIds {
     'GOAL_PRENATAL_PREGNANCY': 'Prenatal/Pregnancy Support',
     'GOAL_HORMONAL_BALANCE': 'Hormonal Balance',
     'GOAL_EYE_VISION_HEALTH': 'Eye & Vision Health',
+    'GOAL_URINARY_TRACT_HEALTH': 'Urinary Tract Health',
   };
 
   // ---------------------------------------------------------------------------
@@ -189,5 +191,6 @@ abstract final class SchemaIds {
     'GOAL_PRENATAL_PREGNANCY': 'high',
     'GOAL_HORMONAL_BALANCE': 'medium',
     'GOAL_EYE_VISION_HEALTH': 'low',
+    'GOAL_URINARY_TRACT_HEALTH': 'low',
   };
 }

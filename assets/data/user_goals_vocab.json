@@ -1,10 +1,10 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 18 user wellness goals shown in onboarding and the goals screen. Presentation layer for goals; cluster-mapping data (which clusters drive recommendations for each goal) lives in user_goals_to_clusters.json. The 18 IDs MUST match between these two files. Migrating gives clinician control of the user-facing goal copy and priority weighting.",
+    "description": "Controlled vocabulary for the 19 user wellness goals shown in onboarding and the goals screen. Presentation layer for goals; cluster-mapping data (which clusters drive recommendations for each goal) lives in user_goals_to_clusters.json. The 19 IDs MUST match between these two files. Migrating gives clinician control of the user-facing goal copy and priority weighting.",
     "schema_version": "1.0.0",
-    "last_updated": "2026-04-30",
-    "total_entries": 18,
-    "status": "LOCKED — labels migrated from schema_ids.dart 2026-04-30",
+    "last_updated": "2026-09-05",
+    "total_entries": 19,
+    "status": "LOCKED — labels migrated from schema_ids.dart 2026-04-30; GOAL_URINARY_TRACT_HEALTH added 2026-09-05",
     "purpose": "Single source of truth for goal labels, descriptions, priority tier, and cross-references to relevant condition_ids / drug_class_ids. Drives the personalization layer (which goals surface which products, which goals affect interaction-warning relevance).",
     "alignment": "Pipeline source: scripts/data/user_goals_to_clusters.json (18 mapping entries; same IDs). Flutter consumer: lib/core/constants/schema_ids.dart `goals` + `goalLabels` + `goalPriorities` (replaces hardcoded maps).",
     "field_contract": {
@@ -24,7 +24,9 @@
       "notes": "Improve sleep onset, depth, or duration. Common targets: melatonin, magnesium glycinate, L-theanine, valerian, glycine.",
       "priority": "high",
       "related_condition_ids": [],
-      "related_drug_class_ids": ["sedatives"]
+      "related_drug_class_ids": [
+        "sedatives"
+      ]
     },
     {
       "id": "GOAL_REDUCE_STRESS_ANXIETY",
@@ -32,14 +34,19 @@
       "notes": "Lower stress reactivity and tension. Common targets: ashwagandha, L-theanine, magnesium, rhodiola, holy basil.",
       "priority": "high",
       "related_condition_ids": [],
-      "related_drug_class_ids": ["sedatives", "antidepressants_ssri_snri"]
+      "related_drug_class_ids": [
+        "sedatives",
+        "antidepressants_ssri_snri"
+      ]
     },
     {
       "id": "GOAL_INCREASE_ENERGY",
       "name": "Increase Energy",
       "notes": "Reduce fatigue and improve daytime stamina. Common targets: B-complex, CoQ10, iron (if low), creatine, ginseng, rhodiola.",
       "priority": "high",
-      "related_condition_ids": ["thyroid_disorder"],
+      "related_condition_ids": [
+        "thyroid_disorder"
+      ],
       "related_drug_class_ids": []
     },
     {
@@ -47,7 +54,9 @@
       "name": "Digestive Health",
       "notes": "Support gut function and reduce GI symptoms. Common targets: probiotics, prebiotics, digestive enzymes, fiber, glutamine.",
       "priority": "medium",
-      "related_condition_ids": ["autoimmune"],
+      "related_condition_ids": [
+        "autoimmune"
+      ],
       "related_drug_class_ids": []
     },
     {
@@ -55,16 +64,31 @@
       "name": "Weight Management",
       "notes": "Support healthy body composition. Common targets: protein, fiber, green tea extract, berberine, conjugated linoleic acid (CLA).",
       "priority": "high",
-      "related_condition_ids": ["diabetes", "hypertension"],
-      "related_drug_class_ids": ["hypoglycemics"]
+      "related_condition_ids": [
+        "diabetes",
+        "hypertension"
+      ],
+      "related_drug_class_ids": [
+        "hypoglycemics_high_risk",
+        "hypoglycemics_lower_risk",
+        "hypoglycemics_unknown"
+      ]
     },
     {
       "id": "GOAL_CARDIOVASCULAR_HEART_HEALTH",
       "name": "Cardiovascular/Heart Health",
       "notes": "Support heart, vessels, and lipid profile. Common targets: omega-3 (EPA/DHA), CoQ10, garlic, hawthorn, plant sterols.",
       "priority": "high",
-      "related_condition_ids": ["heart_disease", "hypertension", "high_cholesterol"],
-      "related_drug_class_ids": ["statins", "antihypertensives", "anticoagulants"]
+      "related_condition_ids": [
+        "heart_disease",
+        "hypertension",
+        "high_cholesterol"
+      ],
+      "related_drug_class_ids": [
+        "statins",
+        "antihypertensives",
+        "anticoagulants"
+      ]
     },
     {
       "id": "GOAL_HEALTHY_AGING_LONGEVITY",
@@ -79,16 +103,26 @@
       "name": "Blood Sugar Support",
       "notes": "Improve glycemic control. Common targets: berberine, chromium, alpha-lipoic acid, cinnamon, magnesium.",
       "priority": "medium",
-      "related_condition_ids": ["diabetes"],
-      "related_drug_class_ids": ["hypoglycemics"]
+      "related_condition_ids": [
+        "diabetes"
+      ],
+      "related_drug_class_ids": [
+        "hypoglycemics_high_risk",
+        "hypoglycemics_lower_risk",
+        "hypoglycemics_unknown"
+      ]
     },
     {
       "id": "GOAL_IMMUNE_SUPPORT",
       "name": "Immune Support",
       "notes": "Strengthen immune defense. Common targets: vitamin D, vitamin C, zinc, elderberry, beta-glucans, probiotics.",
       "priority": "high",
-      "related_condition_ids": ["autoimmune"],
-      "related_drug_class_ids": ["immunosuppressants"]
+      "related_condition_ids": [
+        "autoimmune"
+      ],
+      "related_drug_class_ids": [
+        "immunosuppressants"
+      ]
     },
     {
       "id": "GOAL_FOCUS_MENTAL_CLARITY",
@@ -104,7 +138,10 @@
       "notes": "Support emotional regulation. Common targets: omega-3 EPA-rich, vitamin D, SAMe, saffron, B-complex, magnesium.",
       "priority": "medium",
       "related_condition_ids": [],
-      "related_drug_class_ids": ["antidepressants_ssri_snri", "maois"]
+      "related_drug_class_ids": [
+        "antidepressants_ssri_snri",
+        "maois"
+      ]
     },
     {
       "id": "GOAL_MUSCLE_GROWTH_RECOVERY",
@@ -128,14 +165,18 @@
       "notes": "Support keratin and collagen synthesis. Common targets: biotin, collagen peptides, vitamin C, zinc, omega-3, silica.",
       "priority": "low",
       "related_condition_ids": [],
-      "related_drug_class_ids": ["thyroid_medications"]
+      "related_drug_class_ids": [
+        "thyroid_medications"
+      ]
     },
     {
       "id": "GOAL_LIVER_DETOX",
       "name": "Liver & Detox Support",
       "notes": "Support hepatic detoxification pathways. Common targets: milk thistle, NAC, alpha-lipoic acid, dandelion root, B-complex.",
       "priority": "low",
-      "related_condition_ids": ["liver_disease"],
+      "related_condition_ids": [
+        "liver_disease"
+      ],
       "related_drug_class_ids": []
     },
     {
@@ -143,7 +184,11 @@
       "name": "Prenatal/Pregnancy Support",
       "notes": "Pregnancy or pre-conception nutrition. Common targets: prenatal multivitamin (with folate), omega-3 DHA, iron, choline, vitamin D.",
       "priority": "high",
-      "related_condition_ids": ["pregnancy", "lactation", "ttc"],
+      "related_condition_ids": [
+        "pregnancy",
+        "lactation",
+        "ttc"
+      ],
       "related_drug_class_ids": []
     },
     {
@@ -151,13 +196,26 @@
       "name": "Hormonal Balance",
       "notes": "Support endocrine regulation. Common targets: ashwagandha, vitex (chasteberry), magnesium, omega-3, vitamin D, zinc.",
       "priority": "medium",
-      "related_condition_ids": ["thyroid_disorder"],
-      "related_drug_class_ids": ["thyroid_medications", "oral_contraceptives"]
+      "related_condition_ids": [
+        "thyroid_disorder"
+      ],
+      "related_drug_class_ids": [
+        "thyroid_medications",
+        "oral_contraceptives"
+      ]
     },
     {
       "id": "GOAL_EYE_VISION_HEALTH",
       "name": "Eye & Vision Health",
       "notes": "Support retinal and macular health. Common targets: lutein, zeaxanthin, omega-3 DHA, vitamin A, vitamin C, zinc.",
+      "priority": "low",
+      "related_condition_ids": [],
+      "related_drug_class_ids": []
+    },
+    {
+      "id": "GOAL_URINARY_TRACT_HEALTH",
+      "name": "Urinary Tract Health",
+      "notes": "Support urinary tract health and reduce recurrent urinary tract infections. Reviewed target: cranberry (proanthocyanidins). D-mannose showed no prevention benefit in its largest trial.",
       "priority": "low",
       "related_condition_ids": [],
       "related_drug_class_ids": []
