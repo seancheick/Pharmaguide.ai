@@ -1,6 +1,6 @@
 {
-  "checksum": "sha256:e060a5a0474d2ba2bcbfe6e697169fabb91997d8a49c40541838625ef75561b0",
-  "checksum_sha256": "e060a5a0474d2ba2bcbfe6e697169fabb91997d8a49c40541838625ef75561b0",
+  "checksum": "sha256:5be7c7fca48d642660aa549d6bc1c4008b8bfd85f5ccedf41024e34169e157c7",
+  "checksum_sha256": "5be7c7fca48d642660aa549d6bc1c4008b8bfd85f5ccedf41024e34169e157c7",
   "core_projection_manifest": {
     "app_core_column_count": 91,
     "checksum": "sha256:18cf782562d54e03a1414859d3978c65804e448fe212d134d2506771ff4c15ec",
@@ -9,12 +9,20 @@
     "path": "core_projection_manifest.json",
     "server_core_column_count": 26
   },
-  "db_version": "2026.09.03.151135",
-  "detail_blob_count": 15338,
-  "detail_blob_unique_count": 15338,
-  "detail_index_checksum": "sha256:3b09aacdcded3bcd2f9a3c34b9be0df54fcc636fd2ef78d8381941a24b687023",
+  "db_version": "2026.09.08.205846",
+  "detail_blob_count": 15103,
+  "detail_blob_unique_count": 15103,
+  "detail_index_checksum": "sha256:d16532875680b736b05e7d485fa1c5680a1b8a1f84a63e3e37b12d11feab0dff",
   "errors": [],
   "excluded_by_gate": [
+    {
+      "dsld_id": "12012",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "12052",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
     {
       "dsld_id": "12300",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
@@ -24,12 +32,428 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
+      "dsld_id": "15919",
+      "error": "review_queue: identity integrity ingredientRows[41]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "15923",
+      "error": "review_queue: identity integrity ingredientRows[41]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "17139",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "17144",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "17148",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "178537",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "178555",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "178643",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "179309",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "179317",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[30]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "179514",
+      "error": "review_queue: identity integrity ingredientRows[30]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "17954",
+      "error": "review_queue: identity integrity ingredientRows[4].forms[6]:unresolved_identity_conflict"
+    },
+    {
+      "dsld_id": "182627",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "182633",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "182644",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18269",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "183201",
+      "error": "review_queue: identity integrity ingredientRows[4]:unresolved_identity_conflict"
+    },
+    {
+      "dsld_id": "18538",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18913",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18918",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18924",
+      "error": "review_queue: identity integrity ingredientRows[24]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "18934",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18935",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18940",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18988",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18989",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18994",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "18997",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19001",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19008",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19013",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19090",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19143",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19196",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19868",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19910",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "19916",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "200362",
+      "error": "review_queue: identity integrity ingredientRows[34]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[36]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "200827",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "200873",
+      "error": "review_queue: identity integrity ingredientRows[24]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "200883",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "200891",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "201577",
+      "error": "review_queue: identity integrity ingredientRows[39]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "204468",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "207381",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "207454",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "208190",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "208299",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "208302",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "210441",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "210972",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "211233",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "211376",
+      "error": "review_queue: identity integrity ingredientRows[28].nestedRows[2]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28].nestedRows[4]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "211573",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "212022",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "213013",
+      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "213015",
+      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "213508",
+      "error": "review_queue: identity integrity ingredientRows[2]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "213634",
+      "error": "review_queue: identity integrity ingredientRows[28].nestedRows[2]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28].nestedRows[4]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
       "dsld_id": "214221",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "216948",
+      "error": "review_queue: identity integrity ingredientRows[4].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "218448",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "218464",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "219865",
+      "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "220806",
+      "error": "review_queue: identity integrity ingredientRows[41]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "221098",
+      "error": "review_queue: identity integrity ingredientRows[28].nestedRows[4]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28].nestedRows[6]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "222758",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222763",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222770",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222788",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222844",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222850",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222857",
+      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[2]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222862",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222867",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222869",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222877",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222880",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222881",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222895",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222896",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222902",
+      "error": "review_queue: identity integrity ingredientRows[4].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222904",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222909",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222910",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "222911",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "223563",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "223572",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "228823",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "228888",
+      "error": "review_queue: identity integrity ingredientRows[28].nestedRows[4]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28].nestedRows[6]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "228894",
+      "error": "review_queue: identity integrity ingredientRows[29].nestedRows[2]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29].nestedRows[4]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "231334",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "231335",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "232718",
+      "error": "review_queue: identity integrity ingredientRows[2]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "232878",
+      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "232887",
+      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "232905",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "232909",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "232923",
+      "error": "review_queue: identity integrity ingredientRows[6]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "239417",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "239455",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "239509",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "239803",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "241706",
+      "error": "review_queue: identity integrity ingredientRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "241744",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "242673",
+      "error": "review_queue: identity integrity ingredientRows[3].nestedRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
     },
     {
       "dsld_id": "243713",
@@ -52,12 +476,68 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
+      "dsld_id": "246324",
+      "error": "review_queue: identity integrity ingredientRows[2].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "252358",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "252426",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "252699",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
       "dsld_id": "252767",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "252769",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "252933",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: suppressed safety product has unresolved material dose assessment."
+    },
+    {
+      "dsld_id": "253331",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "253335",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "253336",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "253339",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "253350",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "253357",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "253990",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "253992",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "253993",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "254394",
@@ -84,8 +564,124 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
+      "dsld_id": "254573",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: suppressed safety product has unresolved material dose assessment."
+    },
+    {
+      "dsld_id": "254574",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: suppressed safety product has unresolved material dose assessment."
+    },
+    {
+      "dsld_id": "254575",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: suppressed safety product has unresolved material dose assessment."
+    },
+    {
+      "dsld_id": "254576",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: suppressed safety product has unresolved material dose assessment."
+    },
+    {
+      "dsld_id": "254577",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: suppressed safety product has unresolved material dose assessment."
+    },
+    {
+      "dsld_id": "254578",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: suppressed safety product has unresolved material dose assessment."
+    },
+    {
+      "dsld_id": "255633",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: suppressed safety product has unresolved material dose assessment."
+    },
+    {
+      "dsld_id": "25834",
+      "error": "review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[31]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "25853",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "25884",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "25916",
+      "error": "review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[31]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "259791",
+      "error": "review_queue: identity integrity ingredientRows[32]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[34]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
       "dsld_id": "260262",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "26177",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "263865",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "26394",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "272956",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "277429",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "277705",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[3]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "277821",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "278388",
+      "error": "review_queue: identity integrity ingredientRows[4]:unresolved_identity_conflict"
+    },
+    {
+      "dsld_id": "278550",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "278551",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "29101",
+      "error": "review_queue: identity integrity ingredientRows[37]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "29118",
+      "error": "review_queue: identity integrity ingredientRows[41]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "29142",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "29187",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "29307",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "294044",
+      "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict"
+    },
+    {
+      "dsld_id": "294063",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "294450",
@@ -94,6 +690,82 @@
     {
       "dsld_id": "294491",
       "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "295535",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "295773",
+      "error": "review_queue: identity integrity ingredientRows[20]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "297650",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "297651",
+      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "297652",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "297653",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "297654",
+      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "299057",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "302763",
+      "error": "review_queue: identity integrity ingredientRows[30]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "304613",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "307546",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "311029",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "311030",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "311031",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "311032",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "311259",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "311260",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "311261",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "311262",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "311671",
@@ -120,6 +792,26 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
+      "dsld_id": "312257",
+      "error": "review_queue: identity integrity ingredientRows[31]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[33]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "312449",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "312450",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "312451",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "312452",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
       "dsld_id": "312465",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
@@ -136,12 +828,56 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
+      "dsld_id": "315319",
+      "error": "review_queue: identity integrity ingredientRows[30]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[32]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
       "dsld_id": "315586",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "315691",
       "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "32381",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328399",
+      "error": "review_queue: identity integrity ingredientRows[7]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328464",
+      "error": "review_queue: identity integrity ingredientRows[0].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328514",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328515",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328516",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328517",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328518",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328519",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "328644",
+      "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "329726",
@@ -248,6 +984,10 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
+      "dsld_id": "330884",
+      "error": "review_queue: identity integrity ingredientRows[31]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[33]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
       "dsld_id": "330892",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
@@ -293,19 +1033,135 @@
     },
     {
       "dsld_id": "33358",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=safety_policy_review_required; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "33360",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=safety_policy_review_required; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "33361",
-      "error": "review_queue: NOT_SCORED verdict (reason=safety_policy_review_required) \u2014 product excluded from the live catalog pending remediation."
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=safety_policy_review_required; incomplete_dimensions=dose,identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "333714",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "37147",
+      "error": "review_queue: identity integrity ingredientRows[37]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "3788",
+      "error": "review_queue: identity integrity ingredientRows[31]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "4102",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "44121",
+      "error": "review_queue: identity integrity ingredientRows[12].nestedRows[2]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "47220",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "47223",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "47224",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "59786",
+      "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "60562",
+      "error": "review_queue: identity integrity ingredientRows[4]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "60910",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "64329",
+      "error": "review_queue: identity integrity ingredientRows[12]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[21]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "64337",
+      "error": "review_queue: identity integrity ingredientRows[21]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[23]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "64433",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "64535",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "64821",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "67554",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "67561",
+      "error": "review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "69752",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "69784",
+      "error": "review_queue: identity integrity ingredientRows[25].nestedRows[5]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[25].nestedRows[7]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "72880",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74531",
+      "error": "review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74612",
+      "error": "review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74616",
+      "error": "review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74620",
+      "error": "review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74650",
+      "error": "review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74683",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74684",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74685",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "74823",
+      "error": "review_queue: identity integrity ingredientRows[28].nestedRows[2]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28].nestedRows[4]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     },
     {
       "dsld_id": "75188",
@@ -316,45 +1172,129 @@
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
     },
     {
+      "dsld_id": "77114",
+      "error": "review_queue: identity integrity ingredientRows[13]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
       "dsld_id": "78355",
       "error": "review_queue: NOT_SCORED verdict (reason=intentional_non_scoreable_product) \u2014 product excluded from the live catalog pending remediation."
     },
     {
+      "dsld_id": "81855",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "81863",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "81872",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "81903",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "82149",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "82222",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "82333",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "82364",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "82387",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "83231",
+      "error": "review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[30]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
       "dsld_id": "855",
       "error": "review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=dose) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "8719",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "8784",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "8786",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "9112",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[28]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "9118",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "9125",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "9128",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "9245",
+      "error": "review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[29]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "9711",
+      "error": "review_queue: identity integrity ingredientRows[25]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
+    },
+    {
+      "dsld_id": "9735",
+      "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     }
   ],
-  "generated_at": "2026-09-03T15:11:35.055751+00:00",
+  "generated_at": "2026-09-08T20:58:46.708234+00:00",
   "integrity": {
     "contract_failures": 0,
-    "contract_quarantine_count": 77,
-    "coverage_pct": 99.5,
+    "contract_quarantine_count": 312,
+    "coverage_pct": 97.98,
     "enriched_input_count": 15415,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 77,
-    "exported_count": 15338,
+    "excluded_by_gate_count": 312,
+    "exported_count": 15103,
     "has_banned_substance": 54,
     "has_recalled_ingredient": 0,
-    "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
+    "quality_score_config_checksum": "sha256:18b7ff59dc1c4baa4e89562492ffa9338491bb618da42e4044900f805beae9e1",
     "scored_input_count": 15415,
     "scored_only_count": 0,
-    "skipped_count": 77,
+    "skipped_count": 312,
     "strict_mode": true,
-    "total_skipped": 77,
+    "total_skipped": 312,
     "verdict_blocked": 54,
-    "verdict_not_scored": 77,
+    "verdict_not_scored": 264,
     "verdict_unsafe": 0,
     "warning_count": 0
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 15338,
-  "quality_score_config_checksum": "sha256:c5fb7ec5a35556d83c0361904fec5d2aefe95379a08b3e2b838ccec129128d8a",
-  "release_staged_at": "2026-09-03T15:12:51Z",
+  "product_count": 15103,
+  "quality_score_config_checksum": "sha256:18b7ff59dc1c4baa4e89562492ffa9338491bb618da42e4044900f805beae9e1",
+  "release_staged_at": "2026-09-08T21:02:27Z",
   "schema_version": "2.4.0",
   "score_model": "v4",
-  "scoring_version": "4.3.0",
+  "scoring_version": "4.4.0",
   "warnings": [],
   "interaction_db_checksum": "cf3bab2f5736881562854ec2b9ba99a3fce517073789c13b8c2e145cc1299891",
   "interaction_db_version": "1.0.11",
