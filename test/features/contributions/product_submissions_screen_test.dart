@@ -567,6 +567,12 @@ Map<String, Object?> _row({
 }
 
 class _Backend implements ProductSubmissionBackend {
+  @override
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  }) async => {'action': 'start_new'};
+
   _Backend(this.rows);
 
   final List<Map<String, Object?>> rows;

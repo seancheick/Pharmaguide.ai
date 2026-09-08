@@ -8,6 +8,120 @@ const _rejectedSubmissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a10';
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
+  group('owner-scoped intake', () {
+    test(
+      'sends validated original barcode and parses only known actions',
+      () async {
+        final backend = _FakeBackend(authenticatedUserId: _userId);
+        final service = ProductSubmissionService(backend: backend);
+        final result = await service.checkIntake(
+          kind: ProductSubmissionKind.missingProduct,
+          upc: '050428381397',
+        );
+        expect(result.action, ProductSubmissionIntakeAction.startNew);
+        expect(backend.intakePayload, {
+          'p_kind': 'missing_product',
+          'p_upc': '050428381397',
+          'p_dsld_id': null,
+        });
+        expect(backend.persistedPayload, isNull);
+        expect(backend.uploadedPaths, isEmpty);
+      },
+    );
+
+    test(
+      'refuses signed-out and invalid-barcode requests before networking',
+      () async {
+        final backend = _FakeBackend();
+        final service = ProductSubmissionService(backend: backend);
+        await expectLater(
+          service.checkIntake(
+            kind: ProductSubmissionKind.missingProduct,
+            upc: '050428381397',
+          ),
+          throwsStateError,
+        );
+        expect(backend.intakePayload, isNull);
+        backend.authenticatedUserId = _userId;
+        await expectLater(
+          service.checkIntake(
+            kind: ProductSubmissionKind.missingProduct,
+            upc: '1234',
+          ),
+          throwsA(isA<ProductSubmissionValidationException>()),
+        );
+        expect(backend.intakePayload, isNull);
+      },
+    );
+
+    test('account switch during lookup discards the old receipt', () async {
+      final backend = _FakeBackend(authenticatedUserId: _userId)
+        ..onIntake = () {};
+      backend.onIntake = () => backend.authenticatedUserId = 'other-user';
+      await expectLater(
+        ProductSubmissionService(backend: backend).checkIntake(
+          kind: ProductSubmissionKind.missingProduct,
+          upc: '050428381397',
+        ),
+        throwsStateError,
+      );
+    });
+
+    for (final response in <Map<String, Object?>>[
+      {'action': 'future_action'},
+      {'action': 'start_new', 'submission_id': _submissionId},
+      {'action': 'open_existing'},
+      {
+        'action': 'retry_rejected',
+        'submission_id': _submissionId,
+        'normalized_upc': '050428381397',
+        'resolution_code': 'not_a_supplement',
+      },
+      {
+        'action': 'retry_rejected',
+        'submission_id': _submissionId,
+        'normalized_upc': '050428381397',
+        'resolution_code': 'product_identity_mismatch',
+      },
+      {
+        'action': 'open_existing',
+        'submission_id': _submissionId,
+        'normalized_upc': '850021920654',
+      },
+    ]) {
+      test('fails closed on invalid intake $response', () async {
+        final backend = _FakeBackend(authenticatedUserId: _userId)
+          ..intakeResponse = response;
+        await expectLater(
+          ProductSubmissionService(backend: backend).checkIntake(
+            kind: ProductSubmissionKind.missingProduct,
+            upc: '050428381397',
+          ),
+          throwsFormatException,
+        );
+      });
+    }
+
+    test(
+      'accepts width-equivalent receipt without rewriting scanned barcode',
+      () async {
+        final backend = _FakeBackend(authenticatedUserId: _userId)
+          ..intakeResponse = {
+            'action': 'open_existing',
+            'submission_id': _submissionId,
+            'normalized_upc': '0050428381397',
+          };
+        final result = await ProductSubmissionService(backend: backend)
+            .checkIntake(
+              kind: ProductSubmissionKind.missingProduct,
+              upc: '050428381397',
+            );
+        expect(result.submissionId, _submissionId);
+        expect(backend.intakePayload!['p_upc'], '050428381397');
+      },
+    );
+  });
+
   group('missing-product evidence contract', () {
     test('requires full evidence-category coverage', () {
       expect(
@@ -413,10 +527,24 @@ ProductSubmissionPhoto _photo(ProductSubmissionEvidenceCategory category) {
 }
 
 class _FakeBackend implements ProductSubmissionBackend {
+  @override
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  }) async {
+    expect(functionName, ProductSubmissionService.intakeFunction);
+    intakePayload = payload;
+    onIntake?.call();
+    return intakeResponse;
+  }
+
   _FakeBackend({this.authenticatedUserId, this.statusRows = const []});
 
   @override
-  final String? authenticatedUserId;
+  String? authenticatedUserId;
+  Map<String, Object?> intakeResponse = {'action': 'start_new'};
+  Map<String, Object?>? intakePayload;
+  void Function()? onIntake;
   final List<Map<String, Object?>> statusRows;
   final operations = <String>[];
   final Set<String> uploadedPaths = {};

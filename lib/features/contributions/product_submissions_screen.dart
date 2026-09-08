@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
+import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
@@ -864,30 +865,10 @@ class _StatusDisplay {
 String? _resolutionGuidance(ProductSubmissionSummary status) {
   if (status.reviewStatus == ProductSubmissionReviewStatus.rejected ||
       status.reviewStatus == ProductSubmissionReviewStatus.duplicate) {
-    return switch (status.resolutionCode) {
-      ProductSubmissionResolutionCode.photoQuality =>
-        'The photos were too blurry or dark to read. Try again with more '
-            'light and steadier hands.',
-      ProductSubmissionResolutionCode.missingPanel =>
-        'We couldn’t see the full Supplement Facts panel. Try again and '
-            'capture the whole panel.',
-      ProductSubmissionResolutionCode.labelUnreadable =>
-        'The label wasn’t readable enough to verify. A retake with the '
-            'label flat and in focus usually fixes this.',
-      ProductSubmissionResolutionCode.productIdentityMismatch =>
-        'The photos didn’t match the scanned product. Scan the barcode again '
-            'and photograph that same package.',
-      ProductSubmissionResolutionCode.notASupplement =>
-        'This product isn’t a dietary supplement, so it doesn’t belong in '
-            'the PharmaGuide catalog.',
-      ProductSubmissionResolutionCode.alreadyInCatalog =>
-        'Good news — this product is already in the catalog.',
-      ProductSubmissionResolutionCode.duplicateSubmission =>
-        'Someone beat you to it — this product is already on its way into '
-            'the catalog.',
-      ProductSubmissionResolutionCode.other => status.resolutionDetail,
-      null => null,
-    };
+    return productSubmissionResolutionGuidance(
+      status.resolutionCode,
+      detail: status.resolutionDetail,
+    );
   }
   return null;
 }

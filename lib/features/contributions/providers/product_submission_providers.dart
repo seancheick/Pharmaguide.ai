@@ -27,22 +27,25 @@ final productSubmissionsProvider =
         for (final submission in all)
           if (submission.uploadReady &&
               submission.kind != null &&
-              submission.upc != null &&
+              submission.canonicalGtin14 != null &&
               (submission.reviewStatus ==
                       ProductSubmissionReviewStatus.submitted ||
                   submission.reviewStatus ==
                       ProductSubmissionReviewStatus.underReview ||
                   submission.reviewStatus ==
                       ProductSubmissionReviewStatus.approved))
-            (submission.kind, submission.upc),
+            (submission.kind, submission.canonicalGtin14),
       };
       return [
         for (final submission in all)
           if (submission.dismissedAt == null &&
               (submission.uploadReady ||
                   submission.kind == null ||
-                  submission.upc == null ||
-                  !openBarcodes.contains((submission.kind, submission.upc))))
+                  submission.canonicalGtin14 == null ||
+                  !openBarcodes.contains((
+                    submission.kind,
+                    submission.canonicalGtin14,
+                  ))))
             submission,
       ];
     });

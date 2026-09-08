@@ -830,6 +830,12 @@ class _UploadCall {
 
 class _FakeBackend implements ProductSubmissionBackend {
   @override
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  }) async => {'action': 'start_new'};
+
+  @override
   final String? authenticatedUserId;
   int persistFailuresRemaining;
   int commitThenThrowFailuresRemaining;

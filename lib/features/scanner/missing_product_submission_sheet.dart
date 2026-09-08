@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/components/pg_progress_dots.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
@@ -7,6 +9,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
+import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
@@ -54,6 +57,10 @@ Future<bool> showMissingProductSubmissionSheet(
       service: service ?? ProductSubmissionService.production(),
       submissionIdFactory: submissionIdFactory,
       resubmissionOf: resubmissionOf,
+      onViewContributions: () {
+        Navigator.of(sheetContext).pop(false);
+        context.push(Routes.productSubmissions);
+      },
       qualityGate:
           qualityGate ?? (photo) => PhotoQualityGate.evaluate(photo.bytes),
       pickPhoto:
@@ -96,6 +103,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
     this.pickPhotoFromLibrary,
     this.submissionIdFactory,
     this.resubmissionOf,
+    this.onViewContributions,
   });
 
   final String upc;
@@ -105,6 +113,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
   final EvaluatePhotoQuality qualityGate;
   final String Function()? submissionIdFactory;
   final String? resubmissionOf;
+  final VoidCallback? onViewContributions;
 
   @override
   State<MissingProductSubmissionSheet> createState() =>
@@ -121,10 +130,18 @@ class _MissingProductSubmissionSheetState
   bool _submitting = false;
   bool _submitted = false;
   bool _adding = false;
+  bool _checkingIntake = false;
+  String? _chosenResubmissionOf;
   String? _stepError;
   ProductSubmissionPhase? _phase;
   ProductSubmissionFailure? _failure;
   MissingProductSubmissionDraft? _draft;
+
+  @override
+  void initState() {
+    super.initState();
+    _chosenResubmissionOf = widget.resubmissionOf;
+  }
 
   List<_CaptureStep> get _visibleSteps => [
     _CaptureStep.intro,
@@ -367,6 +384,11 @@ class _MissingProductSubmissionSheetState
   }
 
   Future<void> _goForward() async {
+    if (_checkingIntake) return;
+    if (_step == _CaptureStep.intro && !await _checkPreviousSubmission()) {
+      return;
+    }
+    if (!mounted) return;
     if (!_stepSatisfied) {
       setState(() => _stepError = _requiredCopy(_step));
       return;
@@ -410,6 +432,101 @@ class _MissingProductSubmissionSheetState
     }
   }
 
+  Future<bool> _checkPreviousSubmission() async {
+    setState(() {
+      _checkingIntake = true;
+      _stepError = null;
+    });
+    try {
+      final intake = await widget.service.checkIntake(
+        kind: ProductSubmissionKind.missingProduct,
+        upc: widget.upc,
+      );
+      if (!mounted) return false;
+      if (intake.action == ProductSubmissionIntakeAction.startNew) return true;
+
+      // The server revalidates explicitly supplied lineage at create time.
+      // Never silently replace it with a different rejected attempt.
+      if (intake.action == ProductSubmissionIntakeAction.retryRejected &&
+          _chosenResubmissionOf == intake.submissionId) {
+        return true;
+      }
+      final existing =
+          intake.action == ProductSubmissionIntakeAction.openExisting;
+      final retry =
+          intake.action == ProductSubmissionIntakeAction.retryRejected;
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          scrollable: true,
+          title: Text(
+            existing
+                ? 'You’ve already sent this product'
+                : retry
+                ? 'Try this product again'
+                : 'Your earlier upload was interrupted',
+          ),
+          content: Text(
+            existing
+                ? 'Check its progress in Your contributions. If it has already been added, '
+                      'the product link appears when your catalog is updated.'
+                : retry
+                ? '${productSubmissionResolutionGuidance(intake.resolutionCode, detail: intake.resolutionDetail) ?? 'Your earlier submission needs new label photos.'}\n\n'
+                      'Photograph the package with barcode ${widget.upc}. '
+                      'These new photos will be linked to your earlier submission.'
+                : 'The earlier photos weren’t fully uploaded. You can continue the '
+                      'original attempt if it is still open on your other device, or take a fresh set here.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop('cancel'),
+              child: const Text('Not now'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop('view'),
+              child: const Text('View your contributions'),
+            ),
+            if (!existing)
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop('continue'),
+                child: Text(
+                  retry ? 'Try again with new photos' : 'Take new photos',
+                ),
+              ),
+          ],
+        ),
+      );
+      if (!mounted) return false;
+      if (choice == 'view') {
+        widget.onViewContributions?.call();
+        return false;
+      }
+      if (choice != 'continue') return false;
+      if (retry) {
+        if (_chosenResubmissionOf != null &&
+            _chosenResubmissionOf != intake.submissionId) {
+          setState(
+            () => _stepError =
+                'Your submission history changed. Check Your contributions and try again.',
+          );
+          return false;
+        }
+        _chosenResubmissionOf = intake.submissionId;
+      }
+      return true;
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _stepError =
+              'Couldn’t check your previous submissions. Check your connection and try again.',
+        );
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => _checkingIntake = false);
+    }
+  }
+
   void _goBack() {
     final steps = _visibleSteps;
     final index = steps.indexOf(_step);
@@ -436,7 +553,7 @@ class _MissingProductSubmissionSheetState
             upc: widget.upc,
             photos: List.unmodifiable(_photos),
             noSeparateIngredientPanel: _factsCarriesIngredients,
-            resubmissionOf: widget.resubmissionOf,
+            resubmissionOf: _chosenResubmissionOf,
             submissionIdFactory: widget.submissionIdFactory,
           );
       _draft = draft;
@@ -683,9 +800,13 @@ class _MissingProductSubmissionSheetState
         height: 48,
         child: FilledButton.icon(
           key: const Key('missing-product-start'),
-          onPressed: _goForward,
+          onPressed: _checkingIntake ? null : _goForward,
           icon: const Icon(Icons.photo_camera_outlined),
-          label: const Text('Start with the front label'),
+          label: Text(
+            _checkingIntake
+                ? 'Checking your submissions…'
+                : 'Start with the front label',
+          ),
         ),
       ),
     ];

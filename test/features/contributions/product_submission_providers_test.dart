@@ -28,6 +28,12 @@ Map<String, Object?> _row({
 };
 
 class _ListBackend implements ProductSubmissionBackend {
+  @override
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  }) async => {'action': 'start_new'};
+
   _ListBackend(this.rows);
 
   final List<Map<String, Object?>> rows;
@@ -64,6 +70,43 @@ class _ListBackend implements ProductSubmissionBackend {
 }
 
 void main() {
+  test(
+    'equivalent barcode widths hide abandoned uploads, not other bottles',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          productSubmissionServiceProvider.overrideWithValue(
+            ProductSubmissionService(
+              backend: _ListBackend([
+                _row(
+                  id: 'pending',
+                  upc: '850021920654',
+                  uploadState: 'pending',
+                  reviewStatus: 'submitted',
+                ),
+                _row(
+                  id: 'approved',
+                  upc: '0850021920654',
+                  uploadState: 'ready',
+                  reviewStatus: 'approved',
+                ),
+                _row(
+                  id: 'other',
+                  upc: '850051911561',
+                  uploadState: 'pending',
+                  reviewStatus: 'submitted',
+                ),
+              ]),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final rows = await container.read(productSubmissionsProvider.future);
+      expect(rows.map((row) => row.submissionId), ['approved', 'other']);
+    },
+  );
+
   test(
     'hides abandoned duplicate uploads behind their completed sibling',
     () async {

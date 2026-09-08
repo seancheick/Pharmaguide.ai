@@ -689,6 +689,12 @@ Map<String, dynamic> _labelRecord() {
 
 class _FakeBackend implements ProductSubmissionBackend {
   @override
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  }) async => {'action': 'start_new'};
+
+  @override
   String? get authenticatedUserId => _userId;
   int persistFailuresRemaining;
   final Completer<void>? uploadGate;
