@@ -205,6 +205,31 @@ type Evidence = {
   photos: JsonObject[];
 };
 
+/** Drafts recorded against the evidence the reviewer is actually looking at.
+ *
+ * Filtered to the current revision on purpose: a draft read from photos that
+ * have since been replaced is not a reading of what is on screen, and showing
+ * it beside the new evidence would invite approving the wrong thing.
+ */
+async function loadSubmissionDrafts(
+  admin: SupabaseClient,
+  submissionId: string,
+  evidenceRevision: number,
+): Promise<JsonObject[]> {
+  const { data, error } = await admin
+    .from("product_submission_extractions")
+    .select(
+      "version,schema_version,provider,model,prompt_version,draft_payload," +
+        "confidence,actor_kind,evidence_revision,created_at",
+    )
+    .eq("submission_id", submissionId)
+    .eq("evidence_revision", evidenceRevision)
+    .order("version", { ascending: false })
+    .limit(5);
+  if (error) throw error;
+  return (data ?? []) as unknown as JsonObject[];
+}
+
 async function loadSubmissionEvidence(
   client: SupabaseClient,
   submissionId: string,
@@ -650,10 +675,20 @@ Deno.serve(async (request: Request): Promise<Response> => {
           const signedByPath = new Map(
             signed.map((item) => [item.path, item.signedUrl]),
           );
+          // Drafts only when one submission was asked for. A queue page does
+          // not need them, and a reviewer reads them one product at a time.
+          const drafts = listRequest.submissionId
+            ? await loadSubmissionDrafts(
+              admin,
+              submission.id as string,
+              evidence.evidence_revision as number,
+            )
+            : [];
           return {
             ...submission,
             evidence_revision: evidence.evidence_revision,
             evidence_manifest_sha256: evidence.manifest_sha256,
+            extractions: drafts,
             photos: evidence.photos.map((photo) => {
               const signedUrl = signedByPath.get(photo.object_path as string);
               if (!signedUrl) throw new Error("missing signed URL");
