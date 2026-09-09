@@ -368,6 +368,26 @@ DECLARE
   settings public.product_submission_extraction_settings%ROWTYPE;
   key text;
 BEGIN
+  -- A retake or terminal review must not leave an old job stranded in the
+  -- queue. Leased work is fenced by clearing its lease; a stale worker then
+  -- fails the same lease check as any other expired attempt. Completed draft
+  -- history is retained for audit and is deliberately not cancelled.
+  IF NEW.evidence_revision IS DISTINCT FROM OLD.evidence_revision THEN
+    UPDATE public.product_submission_extraction_jobs
+    SET state = 'cancelled', leased_by = NULL, leased_until = NULL,
+        error_code = 'superseded_evidence', updated_at = now()
+    WHERE submission_id = NEW.id
+      AND evidence_revision <> NEW.evidence_revision
+      AND state IN ('queued', 'leased', 'retryable_error');
+  ELSIF NEW.review_status NOT IN ('submitted', 'under_review')
+        AND OLD.review_status IN ('submitted', 'under_review') THEN
+    UPDATE public.product_submission_extraction_jobs
+    SET state = 'cancelled', leased_by = NULL, leased_until = NULL,
+        error_code = 'submission_closed', updated_at = now()
+    WHERE submission_id = NEW.id
+      AND state IN ('queued', 'leased', 'retryable_error');
+  END IF;
+
   IF NEW.upload_state <> 'ready' OR OLD.upload_state = 'ready' THEN
     RETURN NEW;
   END IF;
@@ -410,7 +430,8 @@ BEGIN
 END;
 $$;
 CREATE TRIGGER product_submission_extraction_enqueue
-  AFTER UPDATE OF upload_state ON public.product_submissions
+  AFTER UPDATE OF upload_state, review_status, evidence_revision
+  ON public.product_submissions
   FOR EACH ROW EXECUTE FUNCTION public.enqueue_product_submission_extraction();
 
 -- ---------------------------------------------------------------------------
@@ -580,6 +601,8 @@ DECLARE
   job public.product_submission_extraction_jobs%ROWTYPE;
   recorded_version integer;
   next_state public.product_submission_extraction_job_state;
+  monthly_spent bigint;
+  pilot_spent bigint;
 BEGIN
   IF p_outcome NOT IN ('review_ready', 'needs_evidence', 'retryable_error', 'failed') THEN
     RAISE EXCEPTION 'invalid extraction outcome' USING ERRCODE = '22023';
@@ -587,8 +610,11 @@ BEGIN
   IF p_cost_microcents IS NULL OR p_cost_microcents < 0 THEN
     RAISE EXCEPTION 'invalid extraction cost' USING ERRCODE = '22023';
   END IF;
+  -- Serialize spend checks on the singleton settings row. Without this lock,
+  -- two workers can both observe the same remaining allowance and commit a
+  -- charge that takes the pilot or monthly total over its configured cap.
   SELECT * INTO settings
-  FROM public.product_submission_extraction_settings WHERE id;
+  FROM public.product_submission_extraction_settings WHERE id FOR UPDATE;
   SELECT * INTO job
   FROM public.product_submission_extraction_jobs
   WHERE id = p_job_id
@@ -600,6 +626,22 @@ BEGIN
     -- An expired attempt must never overwrite the result of the worker that
     -- replaced it, even when it is the same worker.
     RAISE EXCEPTION 'extraction lease is not held' USING ERRCODE = '55000';
+  END IF;
+
+  IF p_cost_microcents > 0 THEN
+    SELECT coalesce(sum(budget.microcents), 0)
+      INTO monthly_spent
+    FROM public.product_submission_extraction_budget AS budget
+    WHERE budget.month_key = to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM');
+    SELECT coalesce(sum(budget.microcents), 0)
+      INTO pilot_spent
+    FROM public.product_submission_extraction_budget AS budget;
+    IF settings.monthly_cap_microcents <= 0
+       OR p_cost_microcents > settings.monthly_cap_microcents - monthly_spent
+       OR (settings.pilot_cap_microcents > 0
+           AND p_cost_microcents > settings.pilot_cap_microcents - pilot_spent) THEN
+      RAISE EXCEPTION 'extraction budget exceeded' USING ERRCODE = '54000';
+    END IF;
   END IF;
 
   IF p_outcome = 'review_ready' THEN

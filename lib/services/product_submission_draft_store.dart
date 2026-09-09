@@ -99,11 +99,11 @@ class RestoredCapture {
 
 /// Durable storage for captures that have not completed the submit sequence.
 ///
-/// Layout is one directory per submission: `<root>/<submission id>/manifest.json`
-/// plus one file per photo named by its photo id. Files rather than the app
-/// database because these are private label images, not queryable rows, and
-/// because a blob column would put multi-megabyte photos into a schema that
-/// ships with the catalog.
+/// Layout is one account directory per user, then one directory per submission:
+/// `<root>/<account id>/<submission id>/manifest.json` plus one file per photo
+/// named by its photo id. Files rather than the app database because these are
+/// private label images, not queryable rows, and because a blob column would
+/// put multi-megabyte photos into a schema that ships with the catalog.
 class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
   static const _manifestName = 'manifest.json';
   static const _schemaVersion = 'pending_submission_v1';
@@ -128,8 +128,9 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
 
   /// One directory per account, so a different account cannot even enumerate
   /// another's captures, and one directory per submission inside it.
-  Directory _directoryFor(String userId, String submissionId) =>
-      Directory('${root.path}/${_scope(userId)}/$submissionId');
+  Directory _directoryFor(String userId, String submissionId) => Directory(
+    '${root.path}/${_scope(userId)}/${normalizeProductSubmissionId(submissionId)}',
+  );
 
   Directory _accountRoot(String userId) =>
       Directory('${root.path}/${_scope(userId)}');
@@ -172,10 +173,9 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     final entries = <Map<String, Object?>>[];
     for (final photo in photos) {
       final bytes = photo.bytes;
-      await File('${directory.path}/${photo.photoId}').writeAsBytes(
-        bytes,
-        flush: true,
-      );
+      await File(
+        '${directory.path}/${photo.photoId}',
+      ).writeAsBytes(bytes, flush: true);
       entries.add({
         'photo_id': photo.photoId,
         'categories': photo.categoryWireValues,
@@ -198,10 +198,9 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       'captured_at': DateTime.now().toUtc().toIso8601String(),
       'photos': entries,
     };
-    await File('${directory.path}/$_manifestName').writeAsString(
-      jsonEncode(manifest),
-      flush: true,
-    );
+    await File(
+      '${directory.path}/$_manifestName',
+    ).writeAsString(jsonEncode(manifest), flush: true);
   }
 
   @override
@@ -225,8 +224,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
           consentVersion: manifest['consent_version'] as String,
           evidenceRevision: manifest['evidence_revision'] as int,
           photoCount: (manifest['photos'] as List).length,
-          capturedAt:
-              DateTime.parse(manifest['captured_at'] as String).toUtc(),
+          capturedAt: DateTime.parse(manifest['captured_at'] as String).toUtc(),
         ),
       );
     }
@@ -273,7 +271,8 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       return null;
     }
     final photos = <ProductSubmissionPhoto>[];
-    for (final entry in (manifest['photos'] as List).cast<Map<String, Object?>>()) {
+    for (final entry
+        in (manifest['photos'] as List).cast<Map<String, Object?>>()) {
       final photoId = entry['photo_id'] as String;
       final file = File('${directory.path}/$photoId');
       if (!file.existsSync()) return null;
@@ -341,6 +340,13 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
           decoded['photos'] is! List) {
         return null;
       }
+      final normalizedSubmissionId = normalizeProductSubmissionId(
+        decoded['submission_id'] as String,
+      );
+      final directoryName = directory.uri.pathSegments
+          .where((segment) => segment.isNotEmpty)
+          .lastOrNull;
+      if (directoryName != normalizedSubmissionId) return null;
       DateTime.parse(decoded['captured_at'] as String);
       for (final photo in decoded['photos'] as List) {
         if (photo is! Map<String, Object?> ||
@@ -350,6 +356,8 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
             photo['content_sha256'] is! String) {
           return null;
         }
+        final categories = photo['categories'] as List;
+        if (categories.any((category) => category is! String)) return null;
       }
       return decoded;
     } on Object {
@@ -358,5 +366,4 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       return null;
     }
   }
-
 }

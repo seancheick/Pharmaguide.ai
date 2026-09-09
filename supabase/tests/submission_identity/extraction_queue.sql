@@ -229,6 +229,31 @@ DO $$ DECLARE sid uuid; claimed record; BEGIN
     'a failed job is not handed out again');
 END $$ $case$);
 
+SELECT fixture.test('budget caps are enforced before a worker records spend', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  UPDATE public.product_submission_extraction_settings
+  SET monthly_cap_microcents = 10, pilot_cap_microcents = 10
+  WHERE id;
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM fixture.throws(format(
+    'SELECT public.complete_product_submission_extraction_job(%L, %s, ''retryable_error'', p_cost_microcents => 11)',
+    claimed.job_id, claimed.fencing_token),
+    '54000', 'extraction budget exceeded');
+  PERFORM fixture.assert((SELECT state = 'leased'
+    FROM public.product_submission_extraction_jobs WHERE id = claimed.job_id),
+    'a rejected charge must not close the leased job');
+  PERFORM public.complete_product_submission_extraction_job(
+    claimed.job_id, claimed.fencing_token, 'retryable_error',
+    p_cost_microcents => 10);
+  PERFORM fixture.assert((SELECT coalesce(sum(microcents), 0) = 10
+    FROM public.product_submission_extraction_budget),
+    'only an in-cap charge is recorded');
+END $$ $case$);
+
 SELECT fixture.test('work whose evidence moved on is not leased', $case$
 DO $$ DECLARE sid uuid; BEGIN
   PERFORM fixture.enable_extraction();
@@ -240,4 +265,34 @@ DO $$ DECLARE sid uuid; BEGIN
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
   PERFORM fixture.assert(NOT EXISTS(SELECT 1 FROM public.claim_product_submission_extraction_jobs(1)),
     'a job for superseded evidence must not be leased');
+END $$ $case$);
+
+SELECT fixture.test('superseded or closed work is cancelled, not stranded', $case$
+DO $$ DECLARE sid uuid; sid2 uuid; old_job uuid; closed_job uuid; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  SELECT id INTO old_job FROM public.product_submission_extraction_jobs
+  WHERE submission_id = sid;
+  -- A retake changes the evidence revision while the prior job is still
+  -- queued. The trigger fences that work instead of leaving an unclaimable row.
+  UPDATE public.product_submissions SET evidence_revision = 2, upload_state = 'pending'
+  WHERE id = sid;
+  PERFORM fixture.assert((SELECT state = 'cancelled' AND error_code = 'superseded_evidence'
+    FROM public.product_submission_extraction_jobs WHERE id = old_job),
+    'a retake cancels work for the old evidence');
+
+  -- A review decision also closes queued work, while preserving the row for
+  -- operational history. Use a fresh receipt so the two cancellation reasons
+  -- remain independently observable.
+  sid2 := fixture.seed(1, '036000291452', 'submitted', NULL);
+  SELECT id INTO closed_job FROM public.product_submission_extraction_jobs
+  WHERE submission_id = sid2;
+  UPDATE public.product_submissions
+  SET review_status = 'rejected', reviewed_at = now(),
+      reviewed_by = fixture.user_id(3), resolution_code = 'photo_quality'
+  WHERE id = sid2;
+  PERFORM fixture.assert((SELECT state = 'cancelled' AND error_code = 'submission_closed'
+    FROM public.product_submission_extraction_jobs WHERE id = closed_job),
+    'a terminal review cancels outstanding work');
 END $$ $case$);

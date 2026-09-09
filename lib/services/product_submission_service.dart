@@ -463,6 +463,14 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
 /// generator rather than a second UUID implementation in the UI.
 String newProductSubmissionId() => _newUuidV4();
 
+/// Normalizes and validates a submission identity at storage boundaries.
+///
+/// The draft store and network service must use the same UUID contract. Keep
+/// the implementation here so a restored manifest cannot introduce a second
+/// path/identity validator.
+String normalizeProductSubmissionId(String value) =>
+    _validateSubmissionId(value);
+
 String _exactlyOneId({String? reportId, String? submissionId}) {
   if ((reportId == null) == (submissionId == null)) {
     throw const ProductSubmissionValidationException(
