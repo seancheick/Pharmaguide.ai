@@ -508,3 +508,44 @@ DO $$ DECLARE sid uuid; first_token bigint; first_job uuid; outcome record; BEGI
   PERFORM fixture.assert(outcome.result_extraction_version IS NULL AND NOT outcome.draft_recorded,
     'a later attempt result is not evidence about this one');
 END $$ $case$);
+
+SELECT fixture.test('two workers claiming at once never share a job', $case$
+DO $$ DECLARE sid uuid; first_job uuid; second_job uuid; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  INSERT INTO public.product_submission_extraction_workers(user_id, label)
+  VALUES (fixture.user_id(5), 'second-worker') ON CONFLICT DO NOTHING;
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT job_id INTO first_job FROM public.claim_product_submission_extraction_jobs(5);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(5)::text, false);
+  SELECT job_id INTO second_job FROM public.claim_product_submission_extraction_jobs(5);
+  PERFORM fixture.assert(first_job IS NOT NULL AND second_job IS NULL,
+    'a live lease is not handed to a second worker');
+END $$ $case$);
+
+SELECT fixture.test('a revoked worker loses the queue immediately', $case$
+DO $$ DECLARE sid uuid; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  PERFORM fixture.assert(EXISTS(SELECT 1 FROM public.claim_product_submission_extraction_jobs(1)),
+    'an allowlisted worker can claim');
+  DELETE FROM public.product_submission_extraction_workers WHERE user_id = fixture.user_id(4);
+  PERFORM fixture.throws('SELECT * FROM public.claim_product_submission_extraction_jobs(1)',
+    '42501', 'extraction worker access required');
+  PERFORM fixture.throws('SELECT * FROM public.product_submission_extraction_budget_state()',
+    '42501', 'extraction worker access required');
+END $$ $case$);
+
+SELECT fixture.test('turning extraction off stops the queue being worked', $case$
+DO $$ DECLARE sid uuid; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  UPDATE public.product_submission_extraction_settings SET enabled = false WHERE id;
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  PERFORM fixture.throws('SELECT * FROM public.claim_product_submission_extraction_jobs(1)',
+    '55000', 'extraction is disabled');
+END $$ $case$);
