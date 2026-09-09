@@ -40,13 +40,14 @@ Widget _harness({
   EvaluatePhotoQuality? qualityGate,
   String? resubmissionOf,
   ProductSubmissionDraftStorage? draftStore,
+  String Function()? submissionIdFactory,
 }) {
   return MaterialApp(
     home: Scaffold(
       body: MissingProductSubmissionSheet(
         upc: _upc,
         service: ProductSubmissionService(backend: backend),
-        submissionIdFactory: () => _submissionId,
+        submissionIdFactory: submissionIdFactory ?? () => _submissionId,
         qualityGate: qualityGate ?? (_) async => _okQuality,
         resubmissionOf: resubmissionOf,
         draftStore: draftStore,
@@ -775,7 +776,13 @@ void main() {
       await seedInterruptedCapture();
       final backend = _Backend(authenticatedUserId: _userId);
 
-      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          draftStore: store,
+          submissionIdFactory: () => '018f4c79-7c7e-4c70-9d62-7fc3b9ce6aaa',
+        ),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Finish sending'));
       await tester.pumpAndSettle();
@@ -784,6 +791,8 @@ void main() {
       await tester.tap(find.byKey(const Key('missing-product-submit')));
       await tester.pumpAndSettle();
 
+      // The sheet mints a different id for a fresh capture, so this asserts
+      // the recovered one actually won rather than coinciding.
       expect(backend.persistedSubmissionIds, [_submissionId]);
     });
 

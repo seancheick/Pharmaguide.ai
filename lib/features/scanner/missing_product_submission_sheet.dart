@@ -171,8 +171,10 @@ class _MissingProductSubmissionSheetState
   ProductSubmissionDraftStorage? _store;
 
   /// Minted once, before any photo is stored, so every save and the eventual
-  /// submit describe the same contribution.
-  late final String _draftSubmissionId =
+  /// submit describe the same contribution. Recovering a saved capture adopts
+  /// that capture's id instead: submitting under a fresh one would open a
+  /// second contribution for photos the server may already have seen.
+  late String _draftSubmissionId =
       widget.submissionIdFactory?.call() ?? newProductSubmissionId();
 
   List<_CaptureStep> get _visibleSteps => [
@@ -766,6 +768,7 @@ class _MissingProductSubmissionSheetState
       return;
     }
     setState(() {
+      _draftSubmissionId = restored.submissionId;
       _photos
         ..clear()
         ..addAll(restored.photos);
