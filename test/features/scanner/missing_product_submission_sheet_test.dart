@@ -908,6 +908,35 @@ void main() {
       expect((await store.list(_userId)).single.photoCount, 1);
     });
 
+    testWidgets('an upload cut off partway keeps the same identity on retry', (
+      tester,
+    ) async {
+      // The row exists server-side but the bytes never all arrived: the exact
+      // state where minting a second id would strand the first submission.
+      final backend = _Backend(authenticatedUserId: _userId)
+        ..uploadFailuresRemaining = 1;
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await _captureRequiredEvidence(tester);
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+
+      final firstAttempt = List<String>.from(backend.persistedSubmissionIds);
+      expect(firstAttempt, hasLength(1));
+      // The photos are still recoverable because the send did not complete.
+      expect(await store.list(_userId), hasLength(1));
+
+      // Retry from the same sheet: one contribution, not two.
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+
+      expect(backend.persistedSubmissionIds.toSet(), firstAttempt.toSet());
+      expect(await store.list(_userId), isEmpty);
+    });
+
     testWidgets('a signed-out sheet never touches another account\'s capture', (
       tester,
     ) async {
@@ -1124,6 +1153,8 @@ class _Backend implements ProductSubmissionBackend {
     manifest = payload['p_photos']! as List<Map<String, Object?>>;
   }
 
+  int uploadFailuresRemaining = 0;
+
   @override
   Future<void> uploadPhoto({
     required String bucket,
@@ -1131,6 +1162,10 @@ class _Backend implements ProductSubmissionBackend {
     required Uint8List bytes,
     required String contentType,
   }) async {
+    if (uploadFailuresRemaining > 0) {
+      uploadFailuresRemaining -= 1;
+      throw StateError('upload interrupted');
+    }
     uploaded.add(objectPath);
   }
 

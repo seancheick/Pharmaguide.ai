@@ -35,6 +35,7 @@ done
 psql_test -q < "$repo_dir/supabase/migrations/20260908230736_harden_submission_identity_and_intake.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/legacy_foundations.sql"
 psql_test -q < "$repo_dir/supabase/migrations/20260909013000_submission_foundations_consent_revisions_extraction.sql"
+psql_test -q < "$repo_dir/supabase/migrations/20260909120000_submission_extraction_queue.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/helpers.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/identity.sql" >/dev/null
 if [[ -f "$repo_dir/supabase/tests/submission_identity/intake.sql" ]]; then
@@ -42,6 +43,9 @@ if [[ -f "$repo_dir/supabase/tests/submission_identity/intake.sql" ]]; then
 fi
 if [[ -f "$repo_dir/supabase/tests/submission_identity/foundations.sql" ]]; then
   psql_test -q < "$repo_dir/supabase/tests/submission_identity/foundations.sql" >/dev/null
+fi
+if [[ -f "$repo_dir/supabase/tests/submission_identity/extraction_queue.sql" ]]; then
+  psql_test -q < "$repo_dir/supabase/tests/submission_identity/extraction_queue.sql" >/dev/null
 fi
 if [[ "${1:-}" != "--no-concurrency" ]]; then
   source "$repo_dir/supabase/tests/submission_identity/concurrency.sh"

@@ -855,6 +855,77 @@ void main() {
       expect(v2, isNot(contains('user_note')));
     });
   });
+  group('extraction queue migration', () {
+    late String queue;
+
+    setUpAll(() {
+      final file = File(
+        'supabase/migrations/20260909120000_submission_extraction_queue.sql',
+      );
+      expect(file.existsSync(), isTrue, reason: 'the queue must stay shipped.');
+      queue = _normalized(file.readAsStringSync());
+    });
+
+    test('extraction ships disabled and cannot be enabled unspecified', () {
+      expect(queue, contains('enabled boolean not null default false'));
+      expect(
+        queue,
+        contains('product_submission_extraction_settings_enabled_is_specified'),
+        reason: 'turning extraction on must name the exact model and cap.',
+      );
+    });
+
+    test('a machine identity can never approve', () {
+      // Approval reads the reviewer allowlist only, and the two allowlists are
+      // mutually exclusive in both directions.
+      expect(queue, contains('a reviewer cannot also be an extraction worker'));
+      expect(queue, contains('an extraction worker cannot also be a reviewer'));
+      expect(queue, contains('product_submission_reviewer_not_worker'));
+      expect(queue, contains('a worker may only record a model draft'));
+    });
+
+    test('worker RPCs are session-derived and closed to service keys', () {
+      for (final signature in const [
+        'claim_product_submission_extraction_jobs(integer)',
+        'heartbeat_product_submission_extraction_job(uuid, bigint)',
+      ]) {
+        expect(
+          queue,
+          contains('revoke all on function public.$signature from public, anon, service_role'),
+        );
+      }
+      expect(queue, contains('extraction worker access required'));
+      expect(queue, isNot(contains('p_worker_id')));
+    });
+
+    test('one writer serves both the human and the worker path', () {
+      expect(
+        queue,
+        contains('rename to record_product_submission_extraction_internal'),
+        reason: 'the worker must not get a second set of draft rules.',
+      );
+      expect(
+        queue,
+        contains('public.record_product_submission_extraction_internal( job.submission_id'),
+      );
+    });
+
+    test('a lease is fenced and evidence-bound', () {
+      expect(queue, contains('fencing_token bigint not null default 0'));
+      expect(queue, contains("raise exception 'extraction lease is not held'"));
+      expect(
+        queue,
+        contains('and submission.evidence_revision = job.evidence_revision'),
+        reason: 'superseded evidence must never be leased.',
+      );
+    });
+
+    test('spend is integer micro-cents', () {
+      expect(queue, contains('microcents bigint not null check (microcents >= 0)'));
+      expect(queue, isNot(contains('numeric(')));
+    });
+  });
+
   group('submission foundations migration', () {
     late String foundations;
 

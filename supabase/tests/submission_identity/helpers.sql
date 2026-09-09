@@ -83,9 +83,14 @@ RETURNS uuid LANGUAGE plpgsql AS $$ DECLARE sid uuid := gen_random_uuid(); BEGIN
     jsonb_build_object('size', byte_size, 'mimetype', content_type),
     jsonb_build_object('content_sha256', content_sha256)
   FROM public.product_submission_photos WHERE submission_id = sid;
+  -- Production records the consent on the revision as well as the submission
+  -- (create_product_submission stamps revision 1), and consumers read the
+  -- revision's. A fixture that omits it is not the shape the app produces.
   INSERT INTO public.product_submission_evidence_revisions(
-    submission_id, revision, request_key, opened_by, photo_ids)
-  VALUES (sid, 1, sid, fixture.user_id(p_user), ARRAY['10000000-0000-0000-0000-000000000001'::uuid]);
+    submission_id, revision, request_key, opened_by, photo_ids,
+    consent_version, consented_at)
+  VALUES (sid, 1, sid, fixture.user_id(p_user), ARRAY['10000000-0000-0000-0000-000000000001'::uuid],
+    'fixture.consent.v1', now());
   IF p_state = 'ready' THEN
     UPDATE public.product_submission_evidence_revisions SET ready_at = now(),
       manifest = public.product_submission_evidence_records(sid,1),
