@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 const _submissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11';
@@ -328,6 +329,7 @@ void main() {
           'p_upc': '050428381397',
           'p_mismatch_detail': null,
           'p_no_separate_ingredient_panel': false,
+          'p_consent_version': productSubmissionConsentVersion,
           'p_photos': [
             {
               'photo_id': _frontPhotoId,
@@ -403,6 +405,7 @@ void main() {
             'mismatch_categories': ['amount_or_unit'],
           },
           'p_no_separate_ingredient_panel': false,
+          'p_consent_version': productSubmissionConsentVersion,
           'p_photos': <Map<String, Object?>>[],
         });
       },

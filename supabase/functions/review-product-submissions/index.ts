@@ -27,7 +27,11 @@ import {
   detectReviewerImageContentType,
   parseReviewerImageUploadRequest,
 } from "./reviewer_image.ts";
-import { validateManualLabelV1 } from "./schema.ts";
+import {
+  LABEL_DRAFT_SCHEMA_VERSION,
+  validateLabelDraftV1,
+  validateManualLabelV1,
+} from "./schema.ts";
 
 // Supabase Edge Runtime keeps promises passed to EdgeRuntime.waitUntil alive
 // after the response is returned; a bare floating promise may be killed.
@@ -710,6 +714,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
           "draft_payload",
           "field_provenance",
           "confidence",
+          "usage",
+          "evidence_revision",
         ]),
       );
       if (
@@ -742,16 +748,36 @@ Deno.serve(async (request: Request): Promise<Response> => {
       ) {
         throw new Error("invalid confidence");
       }
-      const { data, error } = await admin.rpc(
+      // A draft is the partial, provenance-bound label_draft_v1 contract; the
+      // approved label is validated separately at approval time.
+      const schemaVersion = requiredString(
+        extraction.schema_version,
+        "schema version",
+        80,
+      );
+      if (schemaVersion !== LABEL_DRAFT_SCHEMA_VERSION) {
+        throw new Error("unsupported extraction schema version");
+      }
+      validateLabelDraftV1(extraction.draft_payload);
+      const usage = extraction.usage;
+      if (usage !== null && usage !== undefined && !isObject(usage)) {
+        throw new Error("invalid extraction usage");
+      }
+      const evidenceRevision = extraction.evidence_revision;
+      if (
+        evidenceRevision !== null && evidenceRevision !== undefined &&
+        (!Number.isInteger(evidenceRevision) ||
+          (evidenceRevision as number) < 1)
+      ) {
+        throw new Error("invalid evidence revision");
+      }
+      // The database derives the recorder from the reviewer's own session;
+      // no caller-supplied identity and no service-role execution.
+      const { data, error } = await userClient.rpc(
         "record_product_submission_extraction",
         {
           p_submission_id: submissionId,
-          p_recorded_by: reviewerId,
-          p_schema_version: requiredString(
-            extraction.schema_version,
-            "schema version",
-            80,
-          ),
+          p_schema_version: schemaVersion,
           p_provider: requiredString(extraction.provider, "provider", 120),
           p_model: requiredString(extraction.model, "model", 120),
           p_prompt_version: requiredString(
@@ -763,6 +789,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
           p_draft_payload: extraction.draft_payload,
           p_field_provenance: extraction.field_provenance,
           p_confidence: confidence ?? null,
+          p_usage: usage ?? null,
+          p_evidence_revision: evidenceRevision ?? null,
         },
       );
       if (error || typeof data !== "number") throw error;

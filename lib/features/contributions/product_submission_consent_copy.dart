@@ -42,3 +42,9 @@ const labelMismatchConsentCopy =
     'front-label photo—including a crop—may be published as the product '
     'image. I confirm the photos contain no pharmacy stickers or other '
     'personal health information.';
+
+/// Version the server records with every submission (`consent_version`).
+/// Bump it whenever the consent copy above changes meaning; the database
+/// keeps the version each contribution was made under.
+const productSubmissionConsentVersion =
+    'pharmaguide.submission_consent.2026-08-25.v1';

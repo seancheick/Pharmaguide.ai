@@ -230,7 +230,16 @@ void main() {
     expect(source, contains("'field_provenance'"));
     expect(source, contains("'prompt_version'"));
     expect(source, contains("'confidence'"));
-    expect(source, contains('p_recorded_by: reviewerId'));
+    expect(
+      source,
+      isNot(contains('p_recorded_by')),
+      reason:
+          'The recorder is derived from auth.uid() inside the RPC; a caller '
+          'must not be able to name another reviewer.',
+    );
+    expect(source, contains('validateLabelDraftV1(extraction.draft_payload)'));
+    expect(source, contains('p_usage: usage ?? null'));
+    expect(source, contains('p_evidence_revision: evidenceRevision ?? null'));
     expect(source, isNot(contains('autoApprove')));
     final extractionBranch = source.indexOf(
       "if (action === 'record_extraction')",
@@ -242,6 +251,17 @@ void main() {
     final extractionRpc = source.indexOf(
       "'record_product_submission_extraction'",
       extractionBranch,
+    );
+    final extractionClient = source.lastIndexOf('.rpc(', extractionRpc);
+    expect(
+      source.substring(
+        extractionClient - 'userClient'.length,
+        extractionClient,
+      ),
+      'userClient',
+      reason:
+          'Draft recording runs as the signed-in reviewer, never as the '
+          'service role.',
     );
     expect(byteVerification, greaterThan(extractionBranch));
     expect(extractionRpc, greaterThan(byteVerification));

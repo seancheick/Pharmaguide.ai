@@ -21,6 +21,9 @@ const _identityMismatchMigrationPath =
 const _barcodeEvidenceMigrationPath =
     'supabase/migrations/'
     '20260903064547_require_missing_product_barcode_evidence.sql';
+const _foundationsMigrationPath =
+    'supabase/migrations/'
+    '20260909013000_submission_foundations_consent_revisions_extraction.sql';
 
 String _normalized(String source) => source
     .replaceAll(RegExp(r'--[^\n]*'), ' ')
@@ -847,6 +850,128 @@ void main() {
     test('carries no free-text user channels into v2', () {
       expect(v2, isNot(contains('submitter_note')));
       expect(v2, isNot(contains('user_note')));
+    });
+  });
+  group('submission foundations migration', () {
+    late String foundations;
+
+    setUpAll(() {
+      final file = File(_foundationsMigrationPath);
+      expect(
+        file.existsSync(),
+        isTrue,
+        reason: 'Foundations must stay shipped.',
+      );
+      foundations = _normalized(file.readAsStringSync());
+    });
+
+    test('consent is recorded by the server at creation, once', () {
+      expect(foundations, contains('add column consent_version text'));
+      expect(foundations, contains('add column consented_at timestamptz'));
+      expect(
+        foundations,
+        contains('check ((consent_version is null) = (consented_at is null))'),
+      );
+      expect(foundations, contains('p_consent_version text default null'));
+      expect(
+        foundations,
+        contains("raise exception 'consent version required'"),
+        reason: 'A create call without an attested consent version fails.',
+      );
+      expect(foundations, contains('consented_at = now()'));
+      expect(
+        foundations,
+        contains(
+          'grant execute on function public.create_product_submission( uuid, '
+          'public.product_submission_kind, text, jsonb, boolean, jsonb, uuid, '
+          'text ) to authenticated',
+        ),
+      );
+    });
+
+    test('draft recording identifies the reviewer from the session', () {
+      expect(
+        foundations,
+        contains(
+          'drop function public.record_product_submission_extraction( uuid, '
+          'uuid, text, text, text, text, jsonb, jsonb, jsonb, numeric )',
+        ),
+        reason: 'The caller-named recorder signature must not survive.',
+      );
+      expect(foundations, isNot(contains('p_recorded_by')));
+      expect(foundations, contains('reviewer_id uuid := auth.uid()'));
+      expect(
+        foundations,
+        contains(
+          "from public.product_submission_reviewers as reviewer where "
+          "reviewer.user_id = reviewer_id ) then raise exception "
+          "'reviewer access required' using errcode = '42501'",
+        ),
+      );
+      expect(
+        foundations,
+        contains(
+          'revoke all on function public.record_product_submission_extraction( '
+          'uuid, text, text, text, text, jsonb, jsonb, jsonb, numeric, jsonb, '
+          'integer ) from public, anon, service_role',
+        ),
+        reason: 'Automation must not write drafts through the service role.',
+      );
+      expect(
+        foundations,
+        contains("raise exception 'extraction evidence revision is stale'"),
+      );
+      expect(
+        foundations,
+        contains("raise exception 'extraction image hashes do not match'"),
+      );
+    });
+
+    test('evidence revisions append photos and never rewrite them', () {
+      expect(
+        foundations,
+        contains('add column evidence_revision integer not null default 1'),
+      );
+      expect(
+        foundations,
+        contains('add column revision integer not null default 1'),
+      );
+      expect(
+        foundations,
+        isNot(contains('delete from public.product_submission_photos')),
+      );
+      expect(
+        foundations,
+        contains("raise exception 'open ready submission required'"),
+      );
+      expect(
+        foundations,
+        contains("raise exception 'open evidence revision required'"),
+      );
+      for (final signature in const [
+        'open_product_submission_evidence_revision(uuid)',
+        'add_product_submission_evidence(uuid, jsonb)',
+      ]) {
+        expect(
+          foundations,
+          contains(
+            'revoke all on function public.$signature from public, anon, '
+            'service_role',
+          ),
+        );
+        expect(
+          foundations,
+          contains(
+            'grant execute on function public.$signature to authenticated',
+          ),
+        );
+      }
+      expect(
+        foundations,
+        contains("(upload_state = 'ready' or evidence_revision > 1)"),
+        reason: 'A retake in progress keeps the barcode open for its owner.',
+      );
+      expect(foundations, contains("'resume_evidence_revision'"));
     });
   });
 }

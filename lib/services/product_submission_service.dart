@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -707,6 +708,8 @@ class ProductSubmissionService {
       'p_photos': manifest,
       if (draft.resubmissionOf != null)
         'p_resubmission_of': draft.resubmissionOf,
+      // Recorded server-side at first creation; a replay keeps the original.
+      'p_consent_version': productSubmissionConsentVersion,
     };
 
     // Persist the immutable submission and photo manifest before
