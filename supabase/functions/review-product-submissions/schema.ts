@@ -406,7 +406,12 @@ const DRAFT_FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
   "benefits",
   "safety_verdict",
 ]);
-const DRAFT_FIELD_STATUSES = new Set(["read", "partial", "unreadable", "not_present"]);
+const DRAFT_FIELD_STATUSES = new Set([
+  "read",
+  "partial",
+  "unreadable",
+  "not_present",
+]);
 const DRAFT_ROW_STATUSES = new Set(["read", "partial", "unreadable"]);
 const DRAFT_READABILITIES = new Set(["ok", "partial", "unreadable"]);
 const DRAFT_PHOTO_ISSUES = new Set([
@@ -450,6 +455,7 @@ const DRAFT_DISCREPANCY_CODES = new Set([
 const DRAFT_SEVERITIES = new Set(["info", "warning", "critical"]);
 const DRAFT_TOP_LEVEL_KEYS = new Set([
   "schema_version",
+  "draft_origin",
   "provider",
   "model",
   "prompt_version",
@@ -479,7 +485,8 @@ const DRAFT_MAX_STATEMENTS = 100;
 const DRAFT_MAX_DISCREPANCIES = 100;
 const DRAFT_MAX_TEXT = 2000;
 const DRAFT_MAX_SHORT = 200;
-const DRAFT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const DRAFT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const DRAFT_SHA256 = /^[0-9a-f]{64}$/;
 const DRAFT_TOKEN = /^[A-Za-z0-9._:/+-]{1,120}$/;
 
@@ -539,7 +546,9 @@ function draftText(
 ): void {
   if (value === null && !required) return;
   if (typeof value !== "string") draftFail(path, "must be text");
-  if (required && value.trim().length === 0) draftFail(path, "must not be empty");
+  if (required && value.trim().length === 0) {
+    draftFail(path, "must not be empty");
+  }
   if (value.length > maximum) draftFail(path, `at most ${maximum} characters`);
 }
 
@@ -569,7 +578,11 @@ function draftConfidence(value: unknown, path: string): void {
   if (number < 0 || number > 1) draftFail(path, "must be between 0 and 1");
 }
 
-function draftPhotoRef(value: unknown, path: string, snapshot: Snapshot): string {
+function draftPhotoRef(
+  value: unknown,
+  path: string,
+  snapshot: Snapshot,
+): string {
   if (typeof value !== "string" || !(value in snapshot)) {
     draftFail(path, "must reference a snapshot photo");
   }
@@ -606,7 +619,7 @@ function draftSources(
     const entry = draftObject(source, spath);
     draftRejectUnknown(
       entry,
-      new Set(["photo_id", "supporting_text", "region"]),
+      new Set(["input_id", "photo_id", "supporting_text", "region"]),
       spath,
     );
     draftPhotoRef(entry.photo_id, `${spath}.photo_id`, snapshot);
@@ -642,12 +655,16 @@ function draftField(
   const raw = field.value ?? null;
   const sources = draftSources(field.sources, `${path}.sources`, snapshot);
   if (status === "read" || status === "partial") {
-    if (raw === null) draftFail(`${path}.value`, `${status} field requires a value`);
+    if (raw === null) {
+      draftFail(`${path}.value`, `${status} field requires a value`);
+    }
     if (sources.length === 0) {
       draftFail(`${path}.sources`, `${status} field requires a source`);
     }
   } else {
-    if (raw !== null) draftFail(`${path}.value`, `${status} field must have no value`);
+    if (raw !== null) {
+      draftFail(`${path}.value`, `${status} field must have no value`);
+    }
     if (sources.length > 0) {
       draftFail(`${path}.sources`, `${status} field must have no sources`);
     }
@@ -692,9 +709,28 @@ function draftAmount(value: unknown, path: string, snapshot: Snapshot): void {
   const sources = draftSources(field.sources, `${path}.sources`, snapshot);
   if (status === "read" || status === "partial") {
     const amount = draftObject(raw, `${path}.value`);
-    draftRejectUnknown(amount, new Set(["value", "unit_text"]), `${path}.value`);
-    draftFiniteNumber(amount.value, `${path}.value.value`, 0);
-    draftText(amount.unit_text, `${path}.value.unit_text`, DRAFT_MAX_SHORT, true);
+    draftRejectUnknown(
+      amount,
+      new Set(["value", "unit_text"]),
+      `${path}.value`,
+    );
+    if (amount.value != null || status === "read") {
+      draftFiniteNumber(amount.value, `${path}.value.value`, 0);
+    }
+    if (amount.unit_text != null || status === "read") {
+      draftText(
+        amount.unit_text,
+        `${path}.value.unit_text`,
+        DRAFT_MAX_SHORT,
+        true,
+      );
+    }
+    if (amount.value == null && amount.unit_text == null) {
+      draftFail(
+        `${path}.value`,
+        "partial amount needs a number or printed unit",
+      );
+    }
     if (sources.length === 0) {
       draftFail(`${path}.sources`, `${status} amount requires a source`);
     }
@@ -729,18 +765,79 @@ function draftSentInputs(value: unknown, snapshot: Snapshot): void {
     "$.sent_inputs",
     Object.keys(snapshot).length * 4,
   );
+  const seen = new Set<string>();
   items.forEach((item, index) => {
     const path = `$.sent_inputs[${index}]`;
     const entry = draftObject(item, path);
-    draftRejectUnknown(entry, new Set(["photo_id", "sha256", "crop"]), path);
+    draftRejectUnknown(
+      entry,
+      new Set([
+        "input_id",
+        "photo_id",
+        "original_sha256",
+        "sent_sha256",
+        "crop",
+      ]),
+      path,
+    );
+    draftToken(entry.input_id, `${path}.input_id`);
+    if (seen.has(entry.input_id as string)) {
+      draftFail(`${path}.input_id`, "duplicate input id");
+    }
+    seen.add(entry.input_id as string);
     const photoId = draftPhotoRef(entry.photo_id, `${path}.photo_id`, snapshot);
-    if (entry.sha256 !== snapshot[photoId]) {
-      draftFail(`${path}.sha256`, "must equal the snapshot hash");
+    if (entry.original_sha256 !== snapshot[photoId]) {
+      draftFail(
+        `${path}.original_sha256`,
+        "must equal the original snapshot hash",
+      );
+    }
+    if (
+      typeof entry.sent_sha256 !== "string" ||
+      !DRAFT_SHA256.test(entry.sent_sha256)
+    ) {
+      draftFail(`${path}.sent_sha256`, "must hash the actually sent bytes");
     }
     if (entry.crop !== undefined && entry.crop !== null) {
       draftRegion(entry.crop, `${path}.crop`);
     }
   });
+}
+
+function draftTraceSources(
+  value: unknown,
+  inputs: Map<string, JsonObject>,
+  human: boolean,
+  path = "$",
+): void {
+  if (Array.isArray(value)) {
+    value.forEach((child, index) =>
+      draftTraceSources(child, inputs, human, `${path}[${index}]`)
+    );
+  } else if (isObject(value)) {
+    if (Array.isArray(value.sources)) {
+      for (const raw of value.sources) {
+        const source = raw as JsonObject;
+        if (human) {
+          if (source.input_id != null) {
+            draftFail(
+              `${path}.sources`,
+              "human source cannot cite a model input",
+            );
+          }
+        } else if (
+          typeof source.input_id !== "string" || !inputs.has(source.input_id)
+        ) {
+          draftFail(`${path}.sources`, "must cite an actual sent input_id");
+        } else if (inputs.get(source.input_id)!.photo_id !== source.photo_id) {
+          draftFail(`${path}.sources`, "input_id belongs to another photo");
+        }
+      }
+    }
+    for (const [key, child] of Object.entries(value)) {
+      draftTraceSources(child, inputs, human, `${path}.${key}`);
+    }
+  }
 }
 
 function draftPhotoRoles(value: unknown, snapshot: Snapshot): void {
@@ -769,7 +866,11 @@ function draftPhotoRoles(value: unknown, snapshot: Snapshot): void {
       .forEach((inferred, j) => {
         const ipath = `${path}.inferred[${j}]`;
         const inferredObject = draftObject(inferred, ipath);
-        draftRejectUnknown(inferredObject, new Set(["role", "confidence"]), ipath);
+        draftRejectUnknown(
+          inferredObject,
+          new Set(["role", "confidence"]),
+          ipath,
+        );
         if (
           typeof inferredObject.role !== "string" ||
           !DRAFT_PHOTO_ROLES.has(inferredObject.role)
@@ -785,7 +886,11 @@ function draftPhotoRoles(value: unknown, snapshot: Snapshot): void {
       draftFail(`${path}.readability`, "unknown readability");
     }
     for (
-      const issue of draftList(entry.issues, `${path}.issues`, DRAFT_PHOTO_ISSUES.size)
+      const issue of draftList(
+        entry.issues,
+        `${path}.issues`,
+        DRAFT_PHOTO_ISSUES.size,
+      )
     ) {
       if (typeof issue !== "string" || !DRAFT_PHOTO_ISSUES.has(issue)) {
         draftFail(`${path}.issues`, `unknown issue ${String(issue)}`);
@@ -850,16 +955,23 @@ function draftDiscrepancies(value: unknown, snapshot: Snapshot): void {
       new Set(["code", "severity", "detail", "photo_ids"]),
       path,
     );
-    if (typeof entry.code !== "string" || !DRAFT_DISCREPANCY_CODES.has(entry.code)) {
+    if (
+      typeof entry.code !== "string" || !DRAFT_DISCREPANCY_CODES.has(entry.code)
+    ) {
       draftFail(`${path}.code`, "unknown discrepancy code");
     }
     if (
-      typeof entry.severity !== "string" || !DRAFT_SEVERITIES.has(entry.severity)
+      typeof entry.severity !== "string" ||
+      !DRAFT_SEVERITIES.has(entry.severity)
     ) {
       draftFail(`${path}.severity`, "unknown severity");
     }
     draftText(entry.detail ?? null, `${path}.detail`, DRAFT_MAX_TEXT, false);
-    draftList(entry.photo_ids, `${path}.photo_ids`, Object.keys(snapshot).length)
+    draftList(
+      entry.photo_ids,
+      `${path}.photo_ids`,
+      Object.keys(snapshot).length,
+    )
       .forEach((photoId, j) =>
         draftPhotoRef(photoId, `${path}.photo_ids[${j}]`, snapshot)
       );
@@ -882,17 +994,39 @@ export function validateLabelDraftV1(value: unknown): JsonObject {
   for (const key of ["provider", "model", "prompt_version"]) {
     draftToken(draft[key], `$.${key}`);
   }
+  if (
+    draft.draft_origin !== "model" &&
+    draft.draft_origin !== "human_transcription"
+  ) {
+    draftFail("$.draft_origin", "unknown draft origin");
+  }
+  const human = draft.draft_origin === "human_transcription";
+  if (human && (draft.provider !== "human" || draft.model !== "human")) {
+    draftFail(
+      "$.draft_origin",
+      "human transcription requires human provider and model",
+    );
+  }
   for (const key of ["job_key", "result_fingerprint"]) {
     if (draft[key] !== undefined && draft[key] !== null) {
       draftToken(draft[key], `$.${key}`);
     }
   }
-  if (draft.evidence_revision !== undefined && draft.evidence_revision !== null) {
+  if (
+    draft.evidence_revision !== undefined && draft.evidence_revision !== null
+  ) {
     draftPositiveInt(draft.evidence_revision, "$.evidence_revision");
   }
 
   const snapshot = draftSnapshot(draft.evidence_snapshot);
   draftSentInputs(draft.sent_inputs, snapshot);
+  const sent = draft.sent_inputs as JsonObject[];
+  if (human && sent.length > 0) {
+    draftFail("$.sent_inputs", "human transcription has no model inputs");
+  }
+  if (!human && sent.length === 0) {
+    draftFail("$.sent_inputs", "model draft requires actual sent inputs");
+  }
   draftPhotoRoles(draft.photo_roles, snapshot);
 
   const identity = draftObject(draft.identity, "$.identity");
@@ -912,12 +1046,13 @@ export function validateLabelDraftV1(value: unknown): JsonObject {
   const serving = draftObject(draft.serving, "$.serving");
   draftRejectUnknown(
     serving,
-    new Set(["size", "servings_per_container", "basis_text"]),
+    new Set(["size", "servings_per_container", "basis_text", "amount"]),
     "$.serving",
   );
   for (const key of ["size", "servings_per_container", "basis_text"]) {
     draftField(serving[key], `$.serving.${key}`, snapshot);
   }
+  draftAmount(serving.amount, "$.serving.amount", snapshot);
 
   draftIngredientRows(draft.ingredient_rows, snapshot);
 
@@ -952,5 +1087,10 @@ export function validateLabelDraftV1(value: unknown): JsonObject {
     draftText(reason, "$.abstain_reason", DRAFT_MAX_SHORT, false);
   }
   draftConfidence(draft.overall_confidence, "$.overall_confidence");
+  draftTraceSources(
+    draft,
+    new Map(sent.map((input) => [input.input_id as string, input])),
+    human,
+  );
   return draft;
 }

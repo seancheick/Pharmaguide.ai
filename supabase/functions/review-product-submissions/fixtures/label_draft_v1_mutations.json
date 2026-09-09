@@ -1,0 +1,536 @@
+{
+  "cases": [
+    {
+      "name": "human transcription without model inputs",
+      "valid": true,
+      "changes": [
+        {
+          "path": [
+            "draft_origin"
+          ],
+          "value": "human_transcription"
+        },
+        {
+          "path": [
+            "provider"
+          ],
+          "value": "human"
+        },
+        {
+          "path": [
+            "model"
+          ],
+          "value": "human"
+        },
+        {
+          "path": [
+            "sent_inputs"
+          ],
+          "value": []
+        }
+      ],
+      "remove_input_refs": true
+    },
+    {
+      "name": "model never sent any photo",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "sent_inputs"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "human cannot claim a provider",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "draft_origin"
+          ],
+          "value": "human_transcription"
+        },
+        {
+          "path": [
+            "sent_inputs"
+          ],
+          "value": []
+        }
+      ],
+      "remove_input_refs": true
+    },
+    {
+      "name": "source refers to absent input",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "identity",
+            "brand",
+            "sources",
+            0,
+            "input_id"
+          ],
+          "value": "missing"
+        }
+      ]
+    },
+    {
+      "name": "source input belongs to another photo",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "identity",
+            "brand",
+            "sources",
+            0,
+            "input_id"
+          ],
+          "value": "input-2"
+        }
+      ]
+    },
+    {
+      "name": "original bytes differ from snapshot",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "sent_inputs",
+            0,
+            "original_sha256"
+          ],
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ]
+    },
+    {
+      "name": "sent bytes may differ after reencoding",
+      "valid": true,
+      "changes": [
+        {
+          "path": [
+            "sent_inputs",
+            0,
+            "sent_sha256"
+          ],
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ]
+    },
+    {
+      "name": "duplicate input id",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "sent_inputs",
+            1,
+            "input_id"
+          ],
+          "value": "input-1"
+        }
+      ]
+    },
+    {
+      "name": "human cannot invent a sent model input",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "draft_origin"
+          ],
+          "value": "human_transcription"
+        },
+        {
+          "path": [
+            "provider"
+          ],
+          "value": "human"
+        },
+        {
+          "path": [
+            "model"
+          ],
+          "value": "human"
+        }
+      ],
+      "remove_input_refs": true
+    },
+    {
+      "name": "partial amount with unknown number",
+      "valid": true,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "status"
+          ],
+          "value": "partial"
+        },
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "value",
+            "value"
+          ],
+          "value": null
+        }
+      ]
+    },
+    {
+      "name": "partial amount with unknown unit",
+      "valid": true,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "status"
+          ],
+          "value": "partial"
+        },
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "value",
+            "unit_text"
+          ],
+          "value": null
+        }
+      ]
+    },
+    {
+      "name": "partial amount must know something",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "status"
+          ],
+          "value": "partial"
+        },
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "value"
+          ],
+          "value": {
+            "value": null,
+            "unit_text": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "malformed draft_origin 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "draft_origin"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed draft_origin 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "draft_origin"
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed identity.brand.status 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "identity",
+            "brand",
+            "status"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed identity.brand.status 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "identity",
+            "brand",
+            "status"
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed ingredient_rows.0.amount.status 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "status"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed ingredient_rows.0.amount.status 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "status"
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed ingredient_rows.0.status 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "status"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed ingredient_rows.0.status 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "status"
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed photo_roles.0.declared.0 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "photo_roles",
+            0,
+            "declared",
+            0
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed photo_roles.0.declared.0 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "photo_roles",
+            0,
+            "declared",
+            0
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed photo_roles.0.inferred.0.role 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "photo_roles",
+            0,
+            "inferred",
+            0,
+            "role"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed photo_roles.0.inferred.0.role 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "photo_roles",
+            0,
+            "inferred",
+            0,
+            "role"
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed photo_roles.0.readability 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "photo_roles",
+            0,
+            "readability"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed photo_roles.0.readability 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "photo_roles",
+            0,
+            "readability"
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed photo_roles.1.issues.0 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "photo_roles",
+            1,
+            "issues",
+            0
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed photo_roles.1.issues.0 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "photo_roles",
+            1,
+            "issues",
+            0
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed other_ingredients.disclosure_hint 0",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "other_ingredients",
+            "disclosure_hint"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "malformed other_ingredients.disclosure_hint 1",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "other_ingredients",
+            "disclosure_hint"
+          ],
+          "value": {}
+        }
+      ]
+    },
+    {
+      "name": "malformed discrepancy code",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "discrepancies"
+          ],
+          "value": [
+            {
+              "code": [],
+              "severity": "warning",
+              "photo_ids": [],
+              "detail": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "malformed discrepancy severity",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "discrepancies"
+          ],
+          "value": [
+            {
+              "code": "model_failure",
+              "severity": {},
+              "photo_ids": [],
+              "detail": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
