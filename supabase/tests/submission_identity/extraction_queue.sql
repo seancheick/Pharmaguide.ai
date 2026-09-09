@@ -539,6 +539,34 @@ DO $$ DECLARE sid uuid; BEGIN
     '42501', 'extraction worker access required');
 END $$ $case$);
 
+SELECT fixture.test('worker evidence access stops on switch off or retired consent', $case$
+DO $$ DECLARE sid uuid; claimed record; path text; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  SELECT object_path INTO path FROM public.product_submission_photos WHERE submission_id=sid;
+  UPDATE public.product_submission_extraction_settings SET enabled=false WHERE id;
+  PERFORM fixture.assert(NOT public.product_submission_worker_may_read_object(path), 'disabled extraction must stop private downloads');
+  UPDATE public.product_submission_extraction_settings SET enabled=true WHERE id;
+  UPDATE public.product_submission_consent_versions SET retired_at=now();
+  PERFORM fixture.assert(NOT public.product_submission_worker_may_read_object(path), 'retired consent must stop private downloads');
+END $$ $case$);
+
+SELECT fixture.test('attempt receipts cannot be read by another worker', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  INSERT INTO public.product_submission_extraction_workers(user_id,label) VALUES(fixture.user_id(5),'other');
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(5)::text, false);
+  PERFORM fixture.throws(format('SELECT * FROM public.product_submission_extraction_attempt_outcome(%L,%L)', claimed.job_id, claimed.fencing_token),
+    '42501', 'extraction attempt access required');
+END $$ $case$);
+
 SELECT fixture.test('turning extraction off stops the queue being worked', $case$
 DO $$ DECLARE sid uuid; BEGIN
   PERFORM fixture.enable_extraction();
