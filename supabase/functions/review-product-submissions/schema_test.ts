@@ -56,3 +56,43 @@ Deno.test("manual_label_v1 accepts and rejects the shared contract cases", async
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// label_draft_v1: the partial, provenance-bound draft an extractor produces.
+// Paired with scripts/submission_review/fixtures/label_draft_v1_cases.json in
+// the pipeline repo; both sides pin the checksum so the validators cannot drift.
+
+import { validateLabelDraftV1 } from "./schema.ts";
+import draftFixtureJson from "./fixtures/label_draft_v1_cases.json" with {
+  type: "json",
+};
+
+const DRAFT_FIXTURE_SHA256 =
+  "6e7e5499704a3b142aa9d85dbadf717f4b2fb1d46bd01b0bda3bc5ad4bdf2924";
+const draftFixture = draftFixtureJson as {
+  cases: Array<{ name: string; valid: boolean; payload: unknown }>;
+};
+
+Deno.test("label_draft_v1 fixture contract stays checksum pinned", async () => {
+  const digest = await sha256Hex(
+    new TextEncoder().encode(canonicalJson(draftFixtureJson)),
+  );
+  assertEquals(digest, DRAFT_FIXTURE_SHA256);
+});
+
+Deno.test("label_draft_v1 accepts and rejects the shared contract cases", () => {
+  for (const testCase of draftFixture.cases) {
+    if (testCase.valid) {
+      const validated = validateLabelDraftV1(testCase.payload);
+      assertEquals(validated, testCase.payload, testCase.name);
+    } else {
+      let threw = false;
+      try {
+        validateLabelDraftV1(testCase.payload);
+      } catch {
+        threw = true;
+      }
+      assertEquals(threw, true, `expected rejection: ${testCase.name}`);
+    }
+  }
+});
