@@ -400,3 +400,56 @@ DO $$ DECLARE sid uuid; sid2 uuid; old_job uuid; closed_job uuid; BEGIN
     FROM public.product_submission_extraction_jobs WHERE id = closed_job),
     'a terminal review cancels outstanding work');
 END $$ $case$);
+
+SELECT fixture.test('a claim tells the worker where the leased bytes live', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM fixture.assert(claimed.evidence_object_paths ? '10000000-0000-0000-0000-000000000001',
+    'the lease names the object for each photo it hands over');
+  PERFORM fixture.assert(
+    (claimed.evidence_object_paths->>'10000000-0000-0000-0000-000000000001')
+      = (SELECT object_path FROM public.product_submission_photos
+         WHERE submission_id = sid),
+    'the path is the real stored object, not a guess');
+  -- Manifest and paths describe the same photos: neither may be broader.
+  PERFORM fixture.assert(
+    (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(claimed.evidence_manifest) k)
+      = (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(claimed.evidence_object_paths) k),
+    'a worker is told about exactly the photos it may read');
+END $$ $case$);
+
+SELECT fixture.test('a worker may read leased photos and nothing else', $case$
+DO $$ DECLARE sid uuid; other_sid uuid; claimed record; leased_path text; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  other_sid := fixture.seed(2, '036000291452', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  leased_path := (SELECT object_path FROM public.product_submission_photos WHERE submission_id = claimed.submission_id);
+  PERFORM fixture.assert(public.product_submission_worker_may_read_object(leased_path),
+    'the leased revision is readable while the lease is live');
+  PERFORM fixture.assert(NOT public.product_submission_worker_may_read_object(
+    (SELECT object_path FROM public.product_submission_photos
+     WHERE submission_id <> claimed.submission_id LIMIT 1)),
+    'another submission is not this lease');
+
+  -- An expired lease reads nothing: a worker cannot keep pulling private
+  -- photographs after it has lost the job.
+  UPDATE public.product_submission_extraction_jobs
+  SET leased_until = now() - interval '1 minute' WHERE id = claimed.job_id;
+  PERFORM fixture.assert(NOT public.product_submission_worker_may_read_object(leased_path),
+    'an expired lease must not still read evidence');
+
+  -- And a human, however privileged, is not a worker on this path.
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
+  PERFORM fixture.assert(NOT public.product_submission_worker_may_read_object(leased_path),
+    'the worker read path is for workers only');
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(1)::text, false);
+  PERFORM fixture.assert(NOT public.product_submission_worker_may_read_object(leased_path),
+    'the owner reads through the owner policy, not this one');
+END $$ $case$);
