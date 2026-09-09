@@ -39,6 +39,17 @@ enum ProductSubmissionEvidenceCategory {
 
   final String wireValue;
   const ProductSubmissionEvidenceCategory(this.wireValue);
+
+  /// The one wire-value reader for evidence categories, matching the
+  /// `fromWire` pattern its sibling enums already use. Anything that reads a
+  /// category off a manifest, a row, or a stored draft comes through here so
+  /// the mapping cannot drift between readers.
+  static ProductSubmissionEvidenceCategory? fromWire(Object? raw) {
+    for (final category in ProductSubmissionEvidenceCategory.values) {
+      if (category.wireValue == raw) return category;
+    }
+    return null;
+  }
 }
 
 enum ProductSubmissionValidationFailure {

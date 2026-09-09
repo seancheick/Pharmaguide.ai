@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 /// One unfinished capture, kept on this device.
@@ -175,18 +175,28 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     return pending;
   }
 
-  /// The newest unfinished capture for this barcode, compared the way the
-  /// server compares it so a formatted scan still finds its own draft.
+  /// The newest unfinished capture for this barcode.
+  ///
+  /// Comparison goes through [GtinIdentity], the one owner of product identity
+  /// in this app, so a scan formatted differently from the saved one still
+  /// finds its own draft and this never drifts from how the sheet, the server
+  /// and the catalog compare the same barcode.
   @override
   Future<PendingProductSubmission?> findByUpc(String upc) async {
-    final wanted = _digitsOf(upc);
-    if (wanted.isEmpty) return null;
+    final wanted = _canonicalOrNull(upc);
+    if (wanted == null) return null;
     for (final pending in await list()) {
-      if (_canonical(_digitsOf(pending.upc)) == _canonical(wanted)) {
-        return pending;
-      }
+      if (_canonicalOrNull(pending.upc) == wanted) return pending;
     }
     return null;
+  }
+
+  static String? _canonicalOrNull(String value) {
+    try {
+      return GtinIdentity.parse(value).canonicalGtin14;
+    } on FormatException {
+      return null;
+    }
   }
 
   /// Rebuild the draft exactly as captured, or null when it can no longer be
@@ -207,31 +217,28 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       final file = File('${directory.path}/$photoId');
       if (!file.existsSync()) return null;
       final bytes = Uint8List.fromList(await file.readAsBytes());
-      // The manifest hash is the evidence contract. Bytes that no longer match
-      // are not this user's photo any more, whatever the reason.
-      if (sha256.convert(bytes).toString() != entry['content_sha256']) {
-        return null;
-      }
       final categories = <ProductSubmissionEvidenceCategory>{};
       for (final wire in (entry['categories'] as List).cast<String>()) {
-        final category = ProductSubmissionEvidenceCategory.values
-            .where((value) => value.wireValue == wire)
-            .firstOrNull;
+        final category = ProductSubmissionEvidenceCategory.fromWire(wire);
         if (category == null) return null;
         categories.add(category);
       }
+      final ProductSubmissionPhoto photo;
       try {
-        photos.add(
-          ProductSubmissionPhoto(
-            photoId: photoId,
-            categories: categories,
-            bytes: bytes,
-            contentType: entry['content_type'] as String,
-          ),
+        photo = ProductSubmissionPhoto(
+          photoId: photoId,
+          categories: categories,
+          bytes: bytes,
+          contentType: entry['content_type'] as String,
         );
       } on ProductSubmissionValidationException {
         return null;
       }
+      // The manifest hash is the evidence contract, and the photo itself owns
+      // how content is hashed. Bytes that no longer agree are not this user's
+      // evidence any more, whatever the reason.
+      if (photo.contentSha256 != entry['content_sha256']) return null;
+      photos.add(photo);
     }
     try {
       return MissingProductSubmissionDraft(
@@ -294,8 +301,4 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     }
   }
 
-  static String _digitsOf(String value) =>
-      value.replaceAll(RegExp(r'[^0-9]'), '');
-
-  static String _canonical(String digits) => digits.padLeft(14, '0');
 }

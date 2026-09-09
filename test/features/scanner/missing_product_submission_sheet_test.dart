@@ -926,10 +926,10 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
 
   @override
   Future<PendingProductSubmission?> findByUpc(String upc) async {
-    final wanted = upc.replaceAll(RegExp(r'[^0-9]'), '').padLeft(14, '0');
+    // Same identity owner the real store uses, so the fake cannot drift.
+    final wanted = GtinIdentity.parse(upc).canonicalGtin14;
     for (final record in records.values) {
-      if (record.upc.replaceAll(RegExp(r'[^0-9]'), '').padLeft(14, '0') ==
-          wanted) {
+      if (GtinIdentity.parse(record.upc).canonicalGtin14 == wanted) {
         return record;
       }
     }
