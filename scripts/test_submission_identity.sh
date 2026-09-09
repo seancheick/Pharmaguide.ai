@@ -38,6 +38,7 @@ psql_test -q < "$repo_dir/supabase/migrations/20260909013000_submission_foundati
 psql_test -q < "$repo_dir/supabase/migrations/20260909120000_submission_extraction_queue.sql"
 psql_test -q < "$repo_dir/supabase/migrations/20260909180000_submission_extraction_worker_evidence.sql"
 psql_test -q < "$repo_dir/supabase/migrations/20260909190858_harden_extraction_attempt_receipts.sql"
+psql_test -q < "$repo_dir/supabase/migrations/20260909210000_submission_reviewer_workstation.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/helpers.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/identity.sql" >/dev/null
 if [[ -f "$repo_dir/supabase/tests/submission_identity/intake.sql" ]]; then
@@ -48,6 +49,9 @@ if [[ -f "$repo_dir/supabase/tests/submission_identity/foundations.sql" ]]; then
 fi
 if [[ -f "$repo_dir/supabase/tests/submission_identity/extraction_queue.sql" ]]; then
   psql_test -q < "$repo_dir/supabase/tests/submission_identity/extraction_queue.sql" >/dev/null
+fi
+if [[ -f "$repo_dir/supabase/tests/submission_identity/workstation.sql" ]]; then
+  psql_test -q < "$repo_dir/supabase/tests/submission_identity/workstation.sql" >/dev/null
 fi
 if [[ "${1:-}" != "--no-concurrency" ]]; then
   source "$repo_dir/supabase/tests/submission_identity/concurrency.sh"

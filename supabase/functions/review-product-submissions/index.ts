@@ -58,7 +58,14 @@ const ACTIONS = new Set([
   "record_extraction",
   "record_match",
   "transition",
+  "batch_transition",
+  "save_review",
+  "load_review",
+  "set_field_verification",
 ]);
+// A batch is a convenience for one person at one screen, not a bulk pipe.
+const BATCH_MAX_ITEMS = 25;
+const REVIEWER_DRAFT_MAX_BYTES = 256 * 1024;
 const TRANSITION_STATUSES = new Set([
   "under_review",
   "approved",
@@ -523,6 +530,186 @@ async function drainSubmissionPushDeliveries(
   }));
 }
 
+// One human decision, applied once. Both the single transition and the batch
+// call this, so a batch can never accumulate its own weaker ruleset: every
+// item is fenced to its own evidence, payload and reviewer exactly as a
+// lone approval is. Throws on refusal; the caller decides how to report it.
+async function applyTransition(
+  body: JsonObject,
+  userClient: SupabaseClient,
+  admin: SupabaseClient,
+  // Batch actions require the database to confirm every critical field was
+  // read off the photographs. The single-item path is still gated by the
+  // console checklist; unifying the two changes the approval contract and is
+  // deliberately left as its own decision.
+  requireVerified = false,
+): Promise<string | null> {
+  rejectUnknownKeys(
+    body,
+    new Set([
+      "action",
+      "submission_id",
+      "to_status",
+      "review_notes",
+      "approved_schema_version",
+      "approved_payload",
+      "duplicate_of",
+      "resolution_code",
+      "resolution_detail",
+      "resolved_dsld_id",
+      "product_image_photo_id",
+      "product_image_reviewer_object_id",
+      "expected_evidence_revision",
+      "evidence_manifest_sha256",
+    ]),
+  );
+  const submissionId = requiredUuid(body.submission_id, "submission id");
+  const evidenceBinding = parseEvidenceBinding(body);
+  const toStatus = requiredString(body.to_status, "status", 30);
+  if (!TRANSITION_STATUSES.has(toStatus)) {
+    throw new Error("invalid transition status");
+  }
+  const reviewNotes = body.review_notes === undefined ||
+      body.review_notes === null
+    ? null
+    : requiredString(body.review_notes, "review notes", 2000);
+  const duplicateOf = body.duplicate_of === undefined ||
+      body.duplicate_of === null
+    ? null
+    : requiredUuid(body.duplicate_of, "duplicate id");
+  // Shape validation only; the status-conditional resolution matrix is
+  // enforced authoritatively inside review_product_submission.
+  const resolutionCode = body.resolution_code === undefined ||
+      body.resolution_code === null
+    ? null
+    : requiredString(body.resolution_code, "resolution code", 40);
+  if (
+    resolutionCode !== null &&
+    !REJECTED_RESOLUTION_CODES.has(resolutionCode) &&
+    !DUPLICATE_RESOLUTION_CODES.has(resolutionCode)
+  ) {
+    throw new Error("invalid resolution code");
+  }
+  const resolutionDetail = body.resolution_detail === undefined ||
+      body.resolution_detail === null
+    ? null
+    : requiredString(body.resolution_detail, "resolution detail", 280);
+  const resolvedDsldId = body.resolved_dsld_id === undefined ||
+      body.resolved_dsld_id === null
+    ? null
+    : requiredString(body.resolved_dsld_id, "resolved product id", 40);
+  if (
+    resolvedDsldId !== null && !RESOLVED_DSLD_PATTERN.test(resolvedDsldId)
+  ) {
+    throw new Error("invalid resolved product id");
+  }
+  const productImagePhotoId = body.product_image_photo_id === undefined ||
+      body.product_image_photo_id === null
+    ? null
+    : requiredUuid(body.product_image_photo_id, "product image photo id");
+  const productImageReviewerObjectId =
+    body.product_image_reviewer_object_id === undefined ||
+      body.product_image_reviewer_object_id === null
+      ? null
+      : requiredUuid(
+        body.product_image_reviewer_object_id,
+        "reviewer product image id",
+      );
+  if (productImagePhotoId !== null && productImageReviewerObjectId !== null) {
+    throw new Error("only one product image source is allowed");
+  }
+
+  let schemaVersion: string | null = null;
+  let approvedPayload: JsonObject | null = null;
+  let approvedPayloadCanonical: string | null = null;
+  let payloadHash: string | null = null;
+  if (toStatus === "approved") {
+    const evidence = await loadSubmissionEvidence(userClient, submissionId);
+    if (
+      evidence.evidence_revision !==
+        evidenceBinding.expectedEvidenceRevision ||
+      evidence.manifest_sha256 !== evidenceBinding.evidenceManifestSha256
+    ) throw new Error("review evidence changed");
+    await verifySubmissionPhotoIntegrity(admin, evidence);
+    schemaVersion = requiredString(
+      body.approved_schema_version,
+      "approved schema version",
+      80,
+    );
+    if (schemaVersion !== APPROVED_SCHEMA_VERSION) {
+      throw new Error("unsupported approved schema version");
+    }
+    approvedPayload = validateApprovedPayload(body.approved_payload);
+    await verifyDisclosurePhotoSupport(evidence, approvedPayload);
+    approvedPayloadCanonical = canonicalJson(approvedPayload);
+    if (
+      new TextEncoder().encode(approvedPayloadCanonical).byteLength >
+        APPROVED_PAYLOAD_MAX_BYTES
+    ) {
+      throw new Error("approved payload too large");
+    }
+    payloadHash = await sha256Hex(approvedPayloadCanonical);
+    if (productImageReviewerObjectId !== null) {
+      await verifyReviewerImageIntegrity(
+        admin,
+        submissionId,
+        productImageReviewerObjectId,
+      );
+    }
+    if (requireVerified) {
+      const { error: verifyError } = await userClient.rpc(
+        "assert_product_submission_fully_verified",
+        { p_submission_id: submissionId, p_payload_sha256: payloadHash },
+      );
+      if (verifyError) throw verifyError;
+    }
+  } else if (
+    body.approved_schema_version !== undefined ||
+    body.approved_payload !== undefined
+  ) {
+    throw new Error("approved payload not allowed");
+  }
+
+  const { data, error } = await userClient.rpc("review_product_submission", {
+    p_submission_id: submissionId,
+    p_to_status: toStatus,
+    p_review_notes: reviewNotes,
+    p_approved_schema_version: schemaVersion,
+    p_approved_payload: approvedPayload,
+    p_approved_payload_canonical: approvedPayloadCanonical,
+    p_payload_sha256: payloadHash,
+    p_duplicate_of: duplicateOf,
+    p_resolution_code: resolutionCode,
+    p_resolution_detail: resolutionDetail,
+    p_resolved_dsld_id: resolvedDsldId,
+    p_product_image_photo_id: productImagePhotoId,
+    p_product_image_reviewer_object_id: productImageReviewerObjectId,
+    p_expected_evidence_revision: evidenceBinding.expectedEvidenceRevision,
+    p_evidence_manifest_sha256: evidenceBinding.evidenceManifestSha256,
+  });
+  if (error || data !== true) throw error;
+
+  // The durable delivery row is already committed by the RPC. Draining it
+  // must survive the response being returned, so it runs under
+  // EdgeRuntime.waitUntil; a failed send stays pending and is retried by
+  // the stale sweep on the next review action.
+  const drain = drainSubmissionPushDeliveries(admin, submissionId)
+    .catch((pushError) => {
+      console.error(JSON.stringify({
+        event: "product_submission_push_drain_failed",
+        submission_id: submissionId,
+        message: String(pushError),
+      }));
+    });
+  if (typeof EdgeRuntime !== "undefined") {
+    EdgeRuntime.waitUntil(drain);
+  } else {
+    await drain;
+  }
+
+  return payloadHash;
+}
+
 Deno.serve(async (request: Request): Promise<Response> => {
   if (request.method !== "POST") {
     audit("unverified", "unknown", "method_not_allowed");
@@ -869,162 +1056,158 @@ Deno.serve(async (request: Request): Promise<Response> => {
       return json({ match_check_id: data });
     }
 
-    rejectUnknownKeys(
-      body,
-      new Set([
-        "action",
-        "submission_id",
-        "to_status",
-        "review_notes",
-        "approved_schema_version",
-        "approved_payload",
-        "duplicate_of",
-        "resolution_code",
-        "resolution_detail",
-        "resolved_dsld_id",
-        "product_image_photo_id",
-        "product_image_reviewer_object_id",
-        "expected_evidence_revision",
-        "evidence_manifest_sha256",
-      ]),
-    );
-    const submissionId = requiredUuid(body.submission_id, "submission id");
-    const evidenceBinding = parseEvidenceBinding(body);
-    const toStatus = requiredString(body.to_status, "status", 30);
-    if (!TRANSITION_STATUSES.has(toStatus)) {
-      throw new Error("invalid transition status");
-    }
-    const reviewNotes = body.review_notes === undefined ||
-        body.review_notes === null
-      ? null
-      : requiredString(body.review_notes, "review notes", 2000);
-    const duplicateOf = body.duplicate_of === undefined ||
-        body.duplicate_of === null
-      ? null
-      : requiredUuid(body.duplicate_of, "duplicate id");
-    // Shape validation only; the status-conditional resolution matrix is
-    // enforced authoritatively inside review_product_submission.
-    const resolutionCode = body.resolution_code === undefined ||
-        body.resolution_code === null
-      ? null
-      : requiredString(body.resolution_code, "resolution code", 40);
-    if (
-      resolutionCode !== null &&
-      !REJECTED_RESOLUTION_CODES.has(resolutionCode) &&
-      !DUPLICATE_RESOLUTION_CODES.has(resolutionCode)
-    ) {
-      throw new Error("invalid resolution code");
-    }
-    const resolutionDetail = body.resolution_detail === undefined ||
-        body.resolution_detail === null
-      ? null
-      : requiredString(body.resolution_detail, "resolution detail", 280);
-    const resolvedDsldId = body.resolved_dsld_id === undefined ||
-        body.resolved_dsld_id === null
-      ? null
-      : requiredString(body.resolved_dsld_id, "resolved product id", 40);
-    if (
-      resolvedDsldId !== null && !RESOLVED_DSLD_PATTERN.test(resolvedDsldId)
-    ) {
-      throw new Error("invalid resolved product id");
-    }
-    const productImagePhotoId = body.product_image_photo_id === undefined ||
-        body.product_image_photo_id === null
-      ? null
-      : requiredUuid(body.product_image_photo_id, "product image photo id");
-    const productImageReviewerObjectId =
-      body.product_image_reviewer_object_id === undefined ||
-        body.product_image_reviewer_object_id === null
-        ? null
-        : requiredUuid(
-          body.product_image_reviewer_object_id,
-          "reviewer product image id",
-        );
-    if (productImagePhotoId !== null && productImageReviewerObjectId !== null) {
-      throw new Error("only one product image source is allowed");
-    }
-
-    let schemaVersion: string | null = null;
-    let approvedPayload: JsonObject | null = null;
-    let approvedPayloadCanonical: string | null = null;
-    let payloadHash: string | null = null;
-    if (toStatus === "approved") {
-      const evidence = await loadSubmissionEvidence(userClient, submissionId);
-      if (
-        evidence.evidence_revision !==
-          evidenceBinding.expectedEvidenceRevision ||
-        evidence.manifest_sha256 !== evidenceBinding.evidenceManifestSha256
-      ) throw new Error("review evidence changed");
-      await verifySubmissionPhotoIntegrity(admin, evidence);
-      schemaVersion = requiredString(
-        body.approved_schema_version,
-        "approved schema version",
-        80,
+    if (action === "load_review") {
+      rejectUnknownKeys(body, new Set(["action", "submission_id"]));
+      const submissionId = requiredUuid(body.submission_id, "submission id");
+      const { data, error } = await userClient.rpc(
+        "load_product_submission_reviewer_draft",
+        { p_submission_id: submissionId },
       );
-      if (schemaVersion !== APPROVED_SCHEMA_VERSION) {
-        throw new Error("unsupported approved schema version");
-      }
-      approvedPayload = validateApprovedPayload(body.approved_payload);
-      await verifyDisclosurePhotoSupport(evidence, approvedPayload);
-      approvedPayloadCanonical = canonicalJson(approvedPayload);
+      if (error) throw error;
+      audit(reviewerId, action, "success", 1);
+      return json({ review: data });
+    }
+
+    if (action === "save_review") {
+      rejectUnknownKeys(
+        body,
+        new Set([
+          "action",
+          "submission_id",
+          "payload",
+          "expected_evidence_revision",
+          "evidence_manifest_sha256",
+        ]),
+      );
+      const submissionId = requiredUuid(body.submission_id, "submission id");
+      const evidenceBinding = parseEvidenceBinding(body);
       if (
-        new TextEncoder().encode(approvedPayloadCanonical).byteLength >
-          APPROVED_PAYLOAD_MAX_BYTES
-      ) {
-        throw new Error("approved payload too large");
-      }
-      payloadHash = await sha256Hex(approvedPayloadCanonical);
-      if (productImageReviewerObjectId !== null) {
-        await verifyReviewerImageIntegrity(
-          admin,
-          submissionId,
-          productImageReviewerObjectId,
-        );
-      }
-    } else if (
-      body.approved_schema_version !== undefined ||
-      body.approved_payload !== undefined
-    ) {
-      throw new Error("approved payload not allowed");
+        typeof body.payload !== "object" || body.payload === null ||
+        Array.isArray(body.payload)
+      ) throw new Error("label payload object required");
+      // The digest is computed here, never accepted from the client: an
+      // attestation is bound to this hash, so a caller that could choose it
+      // could bind a reviewer's tick to text the reviewer never saw.
+      const payload = body.payload as JsonObject;
+      const canonical = canonicalJson(payload);
+      if (
+        new TextEncoder().encode(canonical).byteLength >
+          REVIEWER_DRAFT_MAX_BYTES
+      ) throw new Error("reviewed label too large");
+      const { data, error } = await userClient.rpc(
+        "save_product_submission_reviewer_draft",
+        {
+          p_submission_id: submissionId,
+          p_expected_evidence_revision:
+            evidenceBinding.expectedEvidenceRevision,
+          p_evidence_manifest_sha256: evidenceBinding.evidenceManifestSha256,
+          p_payload: payload,
+          p_payload_canonical: canonical,
+          p_payload_sha256: await sha256Hex(canonical),
+        },
+      );
+      if (error) throw error;
+      audit(reviewerId, action, "success", 1);
+      return json({ review: data });
     }
 
-    const { data, error } = await userClient.rpc("review_product_submission", {
-      p_submission_id: submissionId,
-      p_to_status: toStatus,
-      p_review_notes: reviewNotes,
-      p_approved_schema_version: schemaVersion,
-      p_approved_payload: approvedPayload,
-      p_approved_payload_canonical: approvedPayloadCanonical,
-      p_payload_sha256: payloadHash,
-      p_duplicate_of: duplicateOf,
-      p_resolution_code: resolutionCode,
-      p_resolution_detail: resolutionDetail,
-      p_resolved_dsld_id: resolvedDsldId,
-      p_product_image_photo_id: productImagePhotoId,
-      p_product_image_reviewer_object_id: productImageReviewerObjectId,
-      p_expected_evidence_revision: evidenceBinding.expectedEvidenceRevision,
-      p_evidence_manifest_sha256: evidenceBinding.evidenceManifestSha256,
-    });
-    if (error || data !== true) throw error;
-
-    // The durable delivery row is already committed by the RPC. Draining it
-    // must survive the response being returned, so it runs under
-    // EdgeRuntime.waitUntil; a failed send stays pending and is retried by
-    // the stale sweep on the next review action.
-    const drain = drainSubmissionPushDeliveries(admin, submissionId)
-      .catch((pushError) => {
-        console.error(JSON.stringify({
-          event: "product_submission_push_drain_failed",
-          submission_id: submissionId,
-          message: String(pushError),
-        }));
-      });
-    if (typeof EdgeRuntime !== "undefined") {
-      EdgeRuntime.waitUntil(drain);
-    } else {
-      await drain;
+    if (action === "set_field_verification") {
+      rejectUnknownKeys(
+        body,
+        new Set([
+          "action",
+          "submission_id",
+          "field_path",
+          "payload_sha256",
+          "verified",
+          "photo_id",
+        ]),
+      );
+      const submissionId = requiredUuid(body.submission_id, "submission id");
+      const fieldPath = requiredString(body.field_path, "field path", 120);
+      const payloadSha = requiredString(
+        body.payload_sha256,
+        "payload digest",
+        64,
+      );
+      if (!/^[0-9a-f]{64}$/.test(payloadSha)) {
+        throw new Error("invalid payload digest");
+      }
+      if (typeof body.verified !== "boolean") {
+        throw new Error("verified flag required");
+      }
+      const photoId = body.photo_id === undefined || body.photo_id === null
+        ? null
+        : requiredUuid(body.photo_id, "source photo id");
+      const { data, error } = await userClient.rpc(
+        "set_product_submission_field_verification",
+        {
+          p_submission_id: submissionId,
+          p_field_path: fieldPath,
+          p_payload_sha256: payloadSha,
+          p_verified: body.verified,
+          p_photo_id: photoId,
+        },
+      );
+      if (error) throw error;
+      audit(reviewerId, action, "success", 1);
+      return json({ review: data });
     }
 
+    if (action === "batch_transition") {
+      rejectUnknownKeys(body, new Set(["action", "items"]));
+      const items = body.items;
+      if (
+        !Array.isArray(items) || items.length === 0 ||
+        items.length > BATCH_MAX_ITEMS
+      ) throw new Error("invalid batch");
+      // Each item is applied on its own, in its own transaction, against its
+      // own evidence. A neighbour succeeding authorizes nothing, and one
+      // refusal neither rolls back nor skips the rest.
+      // Every item's shape is settled before any of them is applied. A
+      // malformed entry halfway down must not abort a run that has already
+      // approved its predecessors and then report the whole batch as failed.
+      const planned: { submissionId: string; item: JsonObject }[] = [];
+      for (const entry of items) {
+        if (
+          typeof entry !== "object" || entry === null || Array.isArray(entry)
+        ) throw new Error("invalid batch item");
+        planned.push({
+          submissionId: requiredUuid(
+            (entry as JsonObject).submission_id,
+            "submission id",
+          ),
+          item: { action: "transition", ...(entry as JsonObject) },
+        });
+      }
+      const results: JsonObject[] = [];
+      let applied = 0;
+      for (const { submissionId, item } of planned) {
+        try {
+          const payloadHash = await applyTransition(
+            item,
+            userClient,
+            admin,
+            true,
+          );
+          applied += 1;
+          results.push({
+            submission_id: submissionId,
+            applied: true,
+            payload_sha256: payloadHash,
+          });
+        } catch {
+          // The reason stays with the single-item path, which shows it in
+          // full. Repeating a database message per row here would leak
+          // internals into a list and grow a second explanation of refusal.
+          results.push({ submission_id: submissionId, applied: false });
+        }
+      }
+      audit(reviewerId, action, "success", applied);
+      return json({ results, applied, total: items.length });
+    }
+
+    const payloadHash = await applyTransition(body, userClient, admin);
     audit(reviewerId, action, "success", 1);
     return json({ updated: true, payload_sha256: payloadHash });
   } catch {
