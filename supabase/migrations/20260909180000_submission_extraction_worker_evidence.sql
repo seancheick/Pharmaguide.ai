@@ -174,3 +174,75 @@ REVOKE ALL ON FUNCTION public.claim_product_submission_extraction_jobs(integer)
   FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.claim_product_submission_extraction_jobs(integer)
   TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 4. Proving what happened to one attempt.
+-- ---------------------------------------------------------------------------
+
+-- A completion can time out with the transaction already committed. Retrying
+-- blind would double-charge or file a second draft; giving up blind would
+-- strand a reservation and lose a draft that exists. The worker asks instead.
+--
+-- Keyed on the exact attempt, not the job: a later attempt's result is not
+-- evidence about this one.
+CREATE FUNCTION public.product_submission_extraction_attempt_outcome(
+  p_job_id uuid,
+  p_fencing_token bigint
+)
+RETURNS TABLE (
+  attempt_is_current boolean,
+  job_state public.product_submission_extraction_job_state,
+  result_extraction_version integer,
+  draft_recorded boolean,
+  reservation_open boolean,
+  reserved_microcents bigint,
+  settled_microcents bigint
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  worker_id uuid := public.product_submission_extraction_worker_id();
+  job public.product_submission_extraction_jobs%ROWTYPE;
+BEGIN
+  SELECT * INTO job
+  FROM public.product_submission_extraction_jobs
+  WHERE id = p_job_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'extraction job not found' USING ERRCODE = '55000';
+  END IF;
+  RETURN QUERY
+  SELECT
+    job.fencing_token = p_fencing_token,
+    job.state,
+    CASE WHEN job.fencing_token = p_fencing_token
+      THEN job.result_extraction_version ELSE NULL END,
+    -- The draft itself, not the job row, is what proves the write landed.
+    EXISTS (
+      SELECT 1 FROM public.product_submission_extractions AS extraction
+      WHERE extraction.submission_id = job.submission_id
+        AND extraction.evidence_revision = job.evidence_revision
+        AND extraction.actor_kind = 'worker'
+        AND extraction.version = job.result_extraction_version
+        AND job.fencing_token = p_fencing_token
+    ),
+    EXISTS (
+      SELECT 1 FROM public.product_submission_extraction_budget AS budget
+      WHERE budget.job_id = p_job_id AND budget.fencing_token = p_fencing_token
+        AND NOT budget.settled
+    ),
+    coalesce((SELECT budget.reserved_microcents
+      FROM public.product_submission_extraction_budget AS budget
+      WHERE budget.job_id = p_job_id AND budget.fencing_token = p_fencing_token), 0)::bigint,
+    coalesce((SELECT budget.microcents
+      FROM public.product_submission_extraction_budget AS budget
+      WHERE budget.job_id = p_job_id AND budget.fencing_token = p_fencing_token
+        AND budget.settled), 0)::bigint;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.product_submission_extraction_attempt_outcome(uuid, bigint)
+  FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.product_submission_extraction_attempt_outcome(uuid, bigint)
+  TO authenticated;

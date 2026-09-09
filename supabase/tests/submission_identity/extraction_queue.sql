@@ -453,3 +453,58 @@ DO $$ DECLARE sid uuid; other_sid uuid; claimed record; leased_path text; BEGIN
   PERFORM fixture.assert(NOT public.product_submission_worker_may_read_object(leased_path),
     'the owner reads through the owner policy, not this one');
 END $$ $case$);
+
+SELECT fixture.test('an attempt outcome proves what a timed-out completion did', $case$
+DO $$ DECLARE sid uuid; claimed record; outcome record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+
+  -- Before completing: nothing recorded, and the attempt is current.
+  SELECT * INTO outcome FROM public.product_submission_extraction_attempt_outcome(
+    claimed.job_id, claimed.fencing_token);
+  PERFORM fixture.assert(outcome.attempt_is_current AND NOT outcome.draft_recorded,
+    'an unfinished attempt has filed no draft');
+
+  PERFORM public.reserve_product_submission_extraction_budget(claimed.job_id, claimed.fencing_token);
+  SELECT * INTO outcome FROM public.product_submission_extraction_attempt_outcome(
+    claimed.job_id, claimed.fencing_token);
+  PERFORM fixture.assert(outcome.reservation_open AND outcome.reserved_microcents > 0,
+    'a reservation is visible while it is outstanding');
+
+  PERFORM public.complete_product_submission_extraction_job(
+    claimed.job_id, claimed.fencing_token, 'review_ready',
+    'label_draft_v1', 'fake', 'fake-1', 'p1',
+    public.product_submission_evidence_manifest(sid, 1),
+    fixture.model_draft(sid), '{}'::jsonb, 0.5, '{"cost_microcents": 0}'::jsonb, NULL, 0);
+
+  SELECT * INTO outcome FROM public.product_submission_extraction_attempt_outcome(
+    claimed.job_id, claimed.fencing_token);
+  PERFORM fixture.assert(outcome.draft_recorded AND outcome.result_extraction_version = 1,
+    'a committed completion is provable after the fact');
+  PERFORM fixture.assert(NOT outcome.reservation_open,
+    'a settled reservation is no longer outstanding');
+END $$ $case$);
+
+SELECT fixture.test('a superseded attempt cannot read another attempt result', $case$
+DO $$ DECLARE sid uuid; first_token bigint; first_job uuid; outcome record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT job_id, fencing_token INTO first_job, first_token
+  FROM public.claim_product_submission_extraction_jobs(1);
+  UPDATE public.product_submission_extraction_jobs
+  SET leased_until = now() - interval '1 minute' WHERE id = first_job;
+  PERFORM public.claim_product_submission_extraction_jobs(1);
+
+  SELECT * INTO outcome FROM public.product_submission_extraction_attempt_outcome(
+    first_job, first_token);
+
+  PERFORM fixture.assert(NOT outcome.attempt_is_current,
+    'the old attempt is told it no longer owns the job');
+  PERFORM fixture.assert(outcome.result_extraction_version IS NULL AND NOT outcome.draft_recorded,
+    'a later attempt result is not evidence about this one');
+END $$ $case$);
