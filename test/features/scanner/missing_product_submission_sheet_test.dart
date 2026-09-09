@@ -747,6 +747,7 @@ void main() {
 
     Future<void> seedInterruptedCapture() async {
       await store.save(
+        userId: _userId,
         submissionId: _submissionId,
         upc: _upc,
         photos: [_photo(MissingProductSubmissionDraft.requiredCategories)],
@@ -811,7 +812,7 @@ void main() {
       await tester.tap(find.byKey(const Key('missing-product-submit')));
       await tester.pumpAndSettle();
 
-      expect(await store.list(), isEmpty);
+      expect(await store.list(_userId), isEmpty);
     });
 
     testWidgets('starting over deletes the photos rather than keeping them', (
@@ -825,7 +826,7 @@ void main() {
       await tester.tap(find.text('Start over'));
       await tester.pumpAndSettle();
 
-      expect(await store.list(), isEmpty);
+      expect(await store.list(_userId), isEmpty);
       expect(find.text('Add this product'), findsOneWidget);
     });
 
@@ -846,7 +847,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The send failed, so the photos must still be recoverable.
-      final pending = await store.list();
+      final pending = await store.list(_userId);
       expect(pending, hasLength(1));
       expect(pending.single.acceptedByServer, isFalse);
       expect(pending.single.consentVersion, productSubmissionConsentVersion);
@@ -867,7 +868,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(backend.persistedSubmissionIds, isEmpty);
-      final saved = (await store.list()).single;
+      final saved = (await store.list(_userId)).single;
       expect(saved.photoCount, 1);
 
       // Relaunch: the same barcode offers the partial set back and resumes at
@@ -898,13 +899,59 @@ void main() {
         find.byKey(const Key('missing-product-add-supplement_facts')),
       );
       await tester.pumpAndSettle();
-      expect((await store.list()).single.photoCount, 2);
+      expect((await store.list(_userId)).single.photoCount, 2);
 
       // A photo the user deletes must not stay recoverable behind their back.
       await tester.tap(find.byTooltip('Remove photo').first);
       await tester.pumpAndSettle();
 
-      expect((await store.list()).single.photoCount, 1);
+      expect((await store.list(_userId)).single.photoCount, 1);
+    });
+
+    testWidgets('a signed-out sheet never touches another account\'s capture', (
+      tester,
+    ) async {
+      await seedInterruptedCapture();
+      // Nobody is signed in: there is no account whose capture this could be.
+      final backend = _Backend(authenticatedUserId: null);
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Finish your photos?'), findsNothing);
+      expect(await store.list(_userId), hasLength(1));
+    });
+
+    testWidgets('a different account is not offered these photos', (
+      tester,
+    ) async {
+      await seedInterruptedCapture();
+      final backend = _Backend(
+        authenticatedUserId: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6bbb',
+      );
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Finish your photos?'), findsNothing);
+      // And the first account's evidence is still intact.
+      expect(await store.list(_userId), hasLength(1));
+    });
+
+    testWidgets('a capture is saved under the account that took it', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-front_identity')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(store.savedForUsers, everyElement(_userId));
     });
 
     testWidgets('a capture from another attempt is not resumed under this one', (
@@ -926,7 +973,7 @@ void main() {
       // Offering it would send the older attempt's photos without the retry
       // lineage, which the open-submission guard rejects.
       expect(find.text('Finish your photos?'), findsNothing);
-      expect((await store.list()), hasLength(1));
+      expect((await store.list(_userId)), hasLength(1));
     });
 
     testWidgets('photos that no longer match their manifest are not sent', (
@@ -946,7 +993,7 @@ void main() {
         findsOneWidget,
       );
       expect(backend.persistedSubmissionIds, isEmpty);
-      expect(await store.list(), isEmpty);
+      expect(await store.list(_userId), isEmpty);
     });
   });
 }
@@ -957,10 +1004,14 @@ void main() {
 class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
   final Map<String, RestoredCapture> captures = {};
   final Map<String, PendingProductSubmission> records = {};
+  final Map<String, String> owners = {};
   bool corruptOnRestore = false;
+
+  final List<String> savedForUsers = [];
 
   @override
   Future<void> save({
+    required String userId,
     required String submissionId,
     required String upc,
     required List<ProductSubmissionPhoto> photos,
@@ -969,6 +1020,8 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
     bool noSeparateIngredientPanel = false,
     int evidenceRevision = 1,
   }) async {
+    savedForUsers.add(userId);
+    owners[submissionId] = userId;
     captures[submissionId] = RestoredCapture(
       submissionId: submissionId,
       upc: upc,
@@ -989,14 +1042,16 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
   }
 
   @override
-  Future<List<PendingProductSubmission>> list() async =>
-      records.values.toList();
+  Future<List<PendingProductSubmission>> list(String userId) async => [
+    for (final entry in records.entries)
+      if (owners[entry.key] == userId) entry.value,
+  ];
 
   @override
-  Future<PendingProductSubmission?> findByUpc(String upc) async {
+  Future<PendingProductSubmission?> findByUpc(String userId, String upc) async {
     // Same identity owner the real store uses, so the fake cannot drift.
     final wanted = GtinIdentity.parse(upc).canonicalGtin14;
-    for (final record in records.values) {
+    for (final record in await list(userId)) {
       if (GtinIdentity.parse(record.upc).canonicalGtin14 == wanted) {
         return record;
       }
@@ -1005,15 +1060,18 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
   }
 
   @override
-  Future<RestoredCapture?> restore(String submissionId) async {
+  Future<RestoredCapture?> restore(String userId, String submissionId) async {
     if (corruptOnRestore) return null;
+    if (owners[submissionId] != userId) return null;
     return captures[submissionId];
   }
 
   @override
-  Future<void> discard(String submissionId) async {
+  Future<void> discard(String userId, String submissionId) async {
+    if (owners[submissionId] != userId) return;
     captures.remove(submissionId);
     records.remove(submissionId);
+    owners.remove(submissionId);
   }
 }
 

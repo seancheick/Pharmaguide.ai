@@ -50,12 +50,17 @@ class PendingProductSubmission {
 /// test never advances under `pumpAndSettle`, which turns a UI assertion into
 /// a multi-minute hang; the interface keeps the UI honest and the tests fast.
 abstract class ProductSubmissionDraftStorage {
-  /// Persist the capture as it currently stands.
+  /// Persist the capture as it currently stands, owned by one account.
   ///
   /// Deliberately takes photos rather than a validated draft: a capture is
   /// worth keeping from the first shot, and a draft cannot exist until every
   /// required panel is present. Coverage is the submit gate, not the save gate.
+  ///
+  /// Every operation carries [userId] because a phone is shared and an account
+  /// can be switched. These are private label photos belonging to whoever took
+  /// them; another account must not see them, resume them, or submit them.
   Future<void> save({
+    required String userId,
     required String submissionId,
     required String upc,
     required List<ProductSubmissionPhoto> photos,
@@ -65,14 +70,14 @@ abstract class ProductSubmissionDraftStorage {
     int evidenceRevision,
   });
 
-  Future<List<PendingProductSubmission>> list();
+  Future<List<PendingProductSubmission>> list(String userId);
 
-  Future<PendingProductSubmission?> findByUpc(String upc);
+  Future<PendingProductSubmission?> findByUpc(String userId, String upc);
 
   /// The photos and answers as captured, without judging completeness.
-  Future<RestoredCapture?> restore(String submissionId);
+  Future<RestoredCapture?> restore(String userId, String submissionId);
 
-  Future<void> discard(String submissionId);
+  Future<void> discard(String userId, String submissionId);
 }
 
 /// A capture read back from storage, complete or not.
@@ -121,11 +126,30 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
   ]) async =>
       ProductSubmissionDraftStore(root: await resolveRoot(supportDirectory));
 
-  Directory _directoryFor(String submissionId) =>
-      Directory('${root.path}/$submissionId');
+  /// One directory per account, so a different account cannot even enumerate
+  /// another's captures, and one directory per submission inside it.
+  Directory _directoryFor(String userId, String submissionId) =>
+      Directory('${root.path}/${_scope(userId)}/$submissionId');
+
+  Directory _accountRoot(String userId) =>
+      Directory('${root.path}/${_scope(userId)}');
+
+  static final _accountName = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
+
+  /// The account's own identifier, used directly as a directory name.
+  ///
+  /// Supabase user ids are UUIDs, so no encoding is needed; the charset check
+  /// is what keeps an unexpected value from escaping the drafts directory.
+  static String _scope(String userId) {
+    if (!_accountName.hasMatch(userId)) {
+      throw ArgumentError('a capture must belong to a signed-in account');
+    }
+    return userId;
+  }
 
   @override
   Future<void> save({
+    required String userId,
     required String submissionId,
     required String upc,
     required List<ProductSubmissionPhoto> photos,
@@ -137,7 +161,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     if (upc.isEmpty) {
       throw ArgumentError('a durable capture needs the barcode it belongs to');
     }
-    final directory = _directoryFor(submissionId);
+    final directory = _directoryFor(userId, submissionId);
     // Replace rather than merge: the capture in hand is the whole truth, and a
     // leftover image from a superseded attempt is private data with no owner.
     if (directory.existsSync()) {
@@ -164,6 +188,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     final manifest = <String, Object?>{
       'schema_version': _schemaVersion,
       'submission_id': submissionId,
+      'owner_scope': _scope(userId),
       'kind': ProductSubmissionKind.missingProduct.wireValue,
       'upc': upc,
       'resubmission_of': resubmissionOf,
@@ -180,11 +205,15 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
   }
 
   @override
-  Future<List<PendingProductSubmission>> list() async {
-    if (!root.existsSync()) return const [];
+  Future<List<PendingProductSubmission>> list(String userId) async {
+    final accountRoot = _accountRoot(userId);
+    if (!accountRoot.existsSync()) return const [];
     final pending = <PendingProductSubmission>[];
-    for (final entry in root.listSync().whereType<Directory>()) {
+    for (final entry in accountRoot.listSync().whereType<Directory>()) {
       final manifest = await _readManifest(entry);
+      // Belt and braces: the directory says whose it is, and so does the
+      // manifest. A mismatch is not this account's capture.
+      if (manifest?['owner_scope'] != _scope(userId)) continue;
       if (manifest == null) continue;
       pending.add(
         PendingProductSubmission(
@@ -212,10 +241,10 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
   /// finds its own draft and this never drifts from how the sheet, the server
   /// and the catalog compare the same barcode.
   @override
-  Future<PendingProductSubmission?> findByUpc(String upc) async {
+  Future<PendingProductSubmission?> findByUpc(String userId, String upc) async {
     final wanted = _canonicalOrNull(upc);
     if (wanted == null) return null;
-    for (final pending in await list()) {
+    for (final pending in await list(userId)) {
       if (_canonicalOrNull(pending.upc) == wanted) return pending;
     }
     return null;
@@ -235,10 +264,11 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
   /// second contribution. Completeness is not checked here: a half-finished
   /// capture is still the user's work.
   @override
-  Future<RestoredCapture?> restore(String submissionId) async {
-    final directory = _directoryFor(submissionId);
+  Future<RestoredCapture?> restore(String userId, String submissionId) async {
+    final directory = _directoryFor(userId, submissionId);
     final manifest = await _readManifest(directory);
     if (manifest == null) return null;
+    if (manifest['owner_scope'] != _scope(userId)) return null;
     if (manifest['kind'] != ProductSubmissionKind.missingProduct.wireValue) {
       return null;
     }
@@ -283,8 +313,8 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
 
   /// Remove the record and every private image it owns.
   @override
-  Future<void> discard(String submissionId) async {
-    final directory = _directoryFor(submissionId);
+  Future<void> discard(String userId, String submissionId) async {
+    final directory = _directoryFor(userId, submissionId);
     if (!directory.existsSync()) return;
     try {
       await directory.delete(recursive: true);
@@ -302,6 +332,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       if (decoded is! Map<String, Object?>) return null;
       if (decoded['schema_version'] != _schemaVersion) return null;
       if (decoded['submission_id'] is! String ||
+          decoded['owner_scope'] is! String ||
           decoded['upc'] is! String ||
           decoded['kind'] is! String ||
           decoded['consent_version'] is! String ||

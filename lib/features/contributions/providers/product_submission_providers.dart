@@ -105,8 +105,14 @@ final pendingProductSubmissionDraftsProvider =
         productSubmissionDraftStorageProvider.future,
       );
       if (storage == null) return const [];
+      // Only the signed-in account's own captures. A shared phone must not
+      // show one person's label photos to the next.
+      final userId = ref.watch(productSubmissionServiceProvider)
+          .backend
+          .authenticatedUserId;
+      if (userId == null || userId.isEmpty) return const [];
       try {
-        return await storage.list();
+        return await storage.list(userId);
       } on Object {
         return const [];
       }

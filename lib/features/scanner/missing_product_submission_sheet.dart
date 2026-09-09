@@ -682,9 +682,13 @@ class _MissingProductSubmissionSheetState
   /// several minutes of the user's effort.
   Future<void> _persistCapture() async {
     final store = _store;
-    if (store == null || _photos.isEmpty) return;
+    final userId = widget.service.backend.authenticatedUserId;
+    if (store == null || _photos.isEmpty || userId == null || userId.isEmpty) {
+      return;
+    }
     try {
       await store.save(
+        userId: userId,
         submissionId: _draftSubmissionId,
         upc: widget.upc,
         photos: List.unmodifiable(_photos),
@@ -699,9 +703,10 @@ class _MissingProductSubmissionSheetState
 
   Future<void> _discardDraft(String submissionId) async {
     final store = _store;
-    if (store == null) return;
+    final userId = widget.service.backend.authenticatedUserId;
+    if (store == null || userId == null || userId.isEmpty) return;
     try {
-      await store.discard(submissionId);
+      await store.discard(userId, submissionId);
     } on Object {
       // A draft left behind is retried and discarded on the next launch.
     }
@@ -712,11 +717,12 @@ class _MissingProductSubmissionSheetState
   /// finishing it replays the server's idempotent sequence.
   Future<void> _offerRecovery() async {
     final store = _store;
-    if (store == null || !mounted) return;
+    final userId = widget.service.backend.authenticatedUserId;
+    if (store == null || !mounted || userId == null || userId.isEmpty) return;
     if (_step != _CaptureStep.intro || _photos.isNotEmpty) return;
     final PendingProductSubmission? pending;
     try {
-      pending = await store.findByUpc(widget.upc);
+      pending = await store.findByUpc(userId, widget.upc);
     } on Object {
       return;
     }
@@ -752,15 +758,15 @@ class _MissingProductSubmissionSheetState
     );
     if (!mounted) return;
     if (resume != true) {
-      await store.discard(recovered.submissionId);
+      await store.discard(userId, recovered.submissionId);
       return;
     }
-    final restored = await store.restore(recovered.submissionId);
+    final restored = await store.restore(userId, recovered.submissionId);
     if (!mounted) return;
     if (restored == null) {
       // The kept bytes no longer match their manifest, so they are not the
       // user's evidence any more. Say so plainly rather than sending them.
-      await store.discard(recovered.submissionId);
+      await store.discard(userId, recovered.submissionId);
       setState(
         () => _stepError =
             'Those saved photos could not be reopened. Please take them again.',
