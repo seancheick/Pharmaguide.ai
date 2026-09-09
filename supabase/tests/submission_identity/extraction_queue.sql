@@ -27,6 +27,7 @@ CREATE FUNCTION fixture.enable_extraction() RETURNS void LANGUAGE sql AS $$
   UPDATE public.product_submission_extraction_settings
   SET enabled = true, provider = 'fake', model = 'fake-1',
       model_digest = repeat('c', 64), prompt_version = 'p1',
+      retention_policy_version='fixture.local.v1', max_cost_microcents=100,
       monthly_cap_microcents = 1000000
   WHERE id;
 $$;
@@ -48,6 +49,30 @@ DO $$ BEGIN
   PERFORM fixture.enable_extraction();
   PERFORM fixture.assert((SELECT enabled FROM public.product_submission_extraction_settings WHERE id),
     'a fully specified configuration may be enabled');
+END $$ $case$);
+
+SELECT fixture.test('expired lease cannot be renewed or completed before replacement', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction(); PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  UPDATE public.product_submission_extraction_jobs SET leased_until = now() - interval '1 second'
+  WHERE id = claimed.job_id;
+  PERFORM fixture.throws(format('SELECT public.heartbeat_product_submission_extraction_job(%L,%s)',
+    claimed.job_id, claimed.fencing_token), '55000', 'lease is not held');
+  PERFORM fixture.throws(format('SELECT public.complete_product_submission_extraction_job(%L,%s,''failed'')',
+    claimed.job_id, claimed.fencing_token), '55000', 'lease is not held');
+END $$ $case$);
+
+SELECT fixture.test('private-review consent does not authorize AI extraction', $case$
+DO $$ DECLARE sid uuid; BEGIN
+  PERFORM fixture.enable_extraction();
+  UPDATE public.product_submission_consent_versions SET purposes = ARRAY['private_review']
+  WHERE version = 'fixture.consent.v1';
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM fixture.assert(NOT EXISTS(SELECT 1 FROM public.product_submission_extraction_jobs WHERE submission_id=sid),
+    'recognized consent must explicitly include ai_label_draft');
 END $$ $case$);
 
 SELECT fixture.test('a worker is never a reviewer, in either direction', $case$
@@ -166,6 +191,7 @@ DO $$ DECLARE sid uuid; claimed record; version_value integer; BEGIN
   sid := fixture.seed(1, '012345678905', 'submitted', NULL);
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
   SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM public.reserve_product_submission_extraction_budget(claimed.job_id, claimed.fencing_token);
   version_value := public.complete_product_submission_extraction_job(
     claimed.job_id, claimed.fencing_token, 'review_ready',
     'label_draft_v1', 'fake', 'fake-1', 'p1',
@@ -192,11 +218,12 @@ DO $$ DECLARE sid uuid; claimed record; BEGIN
   sid := fixture.seed(1, '012345678905', 'under_review', NULL);
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
   SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM public.reserve_product_submission_extraction_budget(claimed.job_id, claimed.fencing_token);
   PERFORM fixture.throws(format(
     'SELECT public.complete_product_submission_extraction_job(%L, %s, ''review_ready'', ''label_draft_v1'', ''human'', ''human'', ''p1'', %L, %L, ''{}''::jsonb)',
     claimed.job_id, claimed.fencing_token,
     public.product_submission_evidence_manifest(sid, 1), fixture.draft(sid)),
-    '22023', 'a worker may only record a model draft');
+    '22023', 'draft does not match leased configuration');
   -- The machine identity cannot move a review forward, whatever it drafted.
   -- Called directly, because the approve helper switches to a human first.
   PERFORM fixture.throws(format(
@@ -229,29 +256,106 @@ DO $$ DECLARE sid uuid; claimed record; BEGIN
     'a failed job is not handed out again');
 END $$ $case$);
 
-SELECT fixture.test('budget caps are enforced before a worker records spend', $case$
+SELECT fixture.test('budget is reserved before spend and settled once', $case$
 DO $$ DECLARE sid uuid; claimed record; BEGIN
   PERFORM fixture.enable_extraction();
   PERFORM fixture.add_worker();
   UPDATE public.product_submission_extraction_settings
-  SET monthly_cap_microcents = 10, pilot_cap_microcents = 10
+  SET monthly_cap_microcents = 10, pilot_cap_microcents = 10, max_cost_microcents = 10
   WHERE id;
   sid := fixture.seed(1, '012345678905', 'submitted', NULL);
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
   SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
-  PERFORM fixture.throws(format(
-    'SELECT public.complete_product_submission_extraction_job(%L, %s, ''retryable_error'', p_cost_microcents => 11)',
-    claimed.job_id, claimed.fencing_token),
-    '54000', 'extraction budget exceeded');
-  PERFORM fixture.assert((SELECT state = 'leased'
-    FROM public.product_submission_extraction_jobs WHERE id = claimed.job_id),
-    'a rejected charge must not close the leased job');
+  PERFORM fixture.assert(public.reserve_product_submission_extraction_budget(claimed.job_id, claimed.fencing_token),
+    'the permitted maximum is reserved before the call');
+  PERFORM fixture.assert(public.reserve_product_submission_extraction_budget(claimed.job_id, claimed.fencing_token),
+    'a network retry does not reserve twice');
+  PERFORM fixture.assert((SELECT remaining_microcents = 0 FROM public.product_submission_extraction_budget_state()),
+    'outstanding reservations consume allowance');
   PERFORM public.complete_product_submission_extraction_job(
     claimed.job_id, claimed.fencing_token, 'retryable_error',
-    p_cost_microcents => 10);
-  PERFORM fixture.assert((SELECT coalesce(sum(microcents), 0) = 10
+    p_cost_microcents => 6);
+  PERFORM fixture.assert((SELECT coalesce(sum(microcents), 0) = 6 AND count(*)=1
     FROM public.product_submission_extraction_budget),
-    'only an in-cap charge is recorded');
+    'one settlement records actual cost');
+  PERFORM fixture.assert((SELECT remaining_microcents = 4 FROM public.product_submission_extraction_budget_state()),
+    'unused allowance is returned after settlement');
+END $$ $case$);
+
+SELECT fixture.test('a queued job retains its configuration and completion checks it', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction(); PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  UPDATE public.product_submission_extraction_settings SET model='different', prompt_version='p2' WHERE id;
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM fixture.assert(claimed.configuration->>'model'='fake-1', 'lease carries the enqueued configuration');
+  PERFORM public.reserve_product_submission_extraction_budget(claimed.job_id, claimed.fencing_token);
+  PERFORM fixture.throws(format(
+    'SELECT public.complete_product_submission_extraction_job(%L,%s,''review_ready'',''label_draft_v1'',''fake'',''different'',''p1'',%L,%L,''{}''::jsonb)',
+    claimed.job_id, claimed.fencing_token, public.product_submission_evidence_manifest(sid,1),fixture.model_draft(sid)),
+    '22023','leased configuration');
+END $$ $case$);
+
+SELECT fixture.test('reservations respect pilot cap and unknown spend stays held', $case$
+DO $$ DECLARE first_job record; second_job record; BEGIN
+  PERFORM fixture.enable_extraction(); PERFORM fixture.add_worker();
+  UPDATE public.product_submission_extraction_settings
+  SET monthly_cap_microcents=100, pilot_cap_microcents=10, max_cost_microcents=10 WHERE id;
+  PERFORM fixture.seed(1,'012345678905','submitted',NULL);
+  PERFORM fixture.seed(2,'036000291452','submitted',NULL);
+  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(4)::text,false);
+  SELECT * INTO first_job FROM public.claim_product_submission_extraction_jobs(1);
+  SELECT * INTO second_job FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM fixture.assert(public.reserve_product_submission_extraction_budget(first_job.job_id,first_job.fencing_token),'first fits');
+  PERFORM fixture.assert(NOT public.reserve_product_submission_extraction_budget(second_job.job_id,second_job.fencing_token),'pilot cap fences second worker');
+  PERFORM public.complete_product_submission_extraction_job(first_job.job_id,first_job.fencing_token,'retryable_error');
+  PERFORM fixture.assert((SELECT remaining_microcents=0 FROM public.product_submission_extraction_budget_state()),'unknown cost retains full reservation');
+END $$ $case$);
+
+SELECT fixture.test('actual overrun is recorded and disables future spending', $case$
+DO $$ DECLARE claimed record; BEGIN
+  PERFORM fixture.enable_extraction(); PERFORM fixture.add_worker();
+  UPDATE public.product_submission_extraction_settings SET max_cost_microcents=10 WHERE id;
+  PERFORM fixture.seed(1,'012345678905','submitted',NULL);
+  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(4)::text,false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM public.reserve_product_submission_extraction_budget(claimed.job_id,claimed.fencing_token);
+  PERFORM public.complete_product_submission_extraction_job(claimed.job_id,claimed.fencing_token,'failed',p_cost_microcents=>11);
+  PERFORM fixture.assert((SELECT sum(microcents)=11 FROM public.product_submission_extraction_budget),'incurred spend cannot be erased');
+  PERFORM fixture.assert(NOT (SELECT enabled FROM public.product_submission_extraction_settings WHERE id),'overrun closes the spending switch');
+END $$ $case$);
+
+SELECT fixture.test('renamed writer overload is removed and final expired attempt terminates', $case$
+DO $$ DECLARE claimed record; BEGIN
+  PERFORM fixture.assert(to_regprocedure('public.record_product_submission_extraction_internal(uuid,text,text,text,text,jsonb,jsonb,jsonb,numeric,jsonb,integer)') IS NULL,
+    'the old writer must not survive as an overload');
+  PERFORM fixture.enable_extraction(); PERFORM fixture.add_worker();
+  UPDATE public.product_submission_extraction_settings SET max_attempts=1 WHERE id;
+  PERFORM fixture.seed(1,'012345678905','submitted',NULL);
+  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(4)::text,false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  UPDATE public.product_submission_extraction_jobs SET leased_until=now()-interval '1 second' WHERE id=claimed.job_id;
+  PERFORM fixture.assert(NOT EXISTS(SELECT 1 FROM public.claim_product_submission_extraction_jobs(1)), 'final attempt cannot be reclaimed');
+  PERFORM fixture.assert((SELECT state='failed' FROM public.product_submission_extraction_jobs WHERE id=claimed.job_id),'expired last attempt leaves leased state');
+END $$ $case$);
+
+SELECT fixture.test('a null fence cannot complete a lease and budget holds do not exhaust attempts', $case$
+DO $$ DECLARE claimed record; attempt integer; BEGIN
+  PERFORM fixture.enable_extraction(); PERFORM fixture.add_worker();
+  PERFORM fixture.seed(1,'012345678905','submitted',NULL);
+  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(4)::text,false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM fixture.throws(format('SELECT public.complete_product_submission_extraction_job(%L,NULL,''failed'')',claimed.job_id),
+    '55000','lease is not held');
+  PERFORM fixture.throws(format('SELECT public.reserve_product_submission_extraction_budget(%L,NULL)',claimed.job_id),
+    '55000','lease is not held');
+  PERFORM public.complete_product_submission_extraction_job(claimed.job_id,claimed.fencing_token,'budget_hold',p_cost_microcents=>0);
+  FOR attempt IN 1..4 LOOP
+    SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+    PERFORM fixture.assert(claimed.job_id IS NOT NULL,'a no-call budget hold cannot consume retries');
+    PERFORM public.complete_product_submission_extraction_job(claimed.job_id,claimed.fencing_token,'budget_hold',p_cost_microcents=>0);
+  END LOOP;
 END $$ $case$);
 
 SELECT fixture.test('work whose evidence moved on is not leased', $case$

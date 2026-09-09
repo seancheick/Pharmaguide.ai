@@ -35,7 +35,7 @@ AS $$ SELECT ('00000000-0000-0000-0000-' || lpad(p_number::text, 12, '0'))::uuid
 INSERT INTO auth.users(id) SELECT fixture.user_id(n) FROM generate_series(1, 5) n;
 INSERT INTO public.product_submission_reviewers(user_id) VALUES (fixture.user_id(3));
 INSERT INTO public.product_submission_consent_versions(version, kind, purposes, copy_sha256, effective_from)
-SELECT version, kind, ARRAY['private_review'], repeat('f',64), '2020-01-01'
+SELECT version, kind, ARRAY['private_review', 'ai_label_draft'], repeat('f',64), '2020-01-01'
 FROM unnest(ARRAY['fixture.consent.v1','fixture.consent.v2']) version
 CROSS JOIN unnest(enum_range(NULL::public.product_submission_kind)) kind;
 

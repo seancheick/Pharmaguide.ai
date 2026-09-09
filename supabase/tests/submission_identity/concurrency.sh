@@ -81,10 +81,29 @@ storage_finalize_status=0
 wait "$storage_finalize_pid" || storage_finalize_status=$?
 psql_test -q -c "SELECT fixture.test('in-flight Storage mutation serializes with manifest finalization', 'SELECT fixture.assert($storage_waited AND $storage_finalize_status=0 AND (SELECT upload_state=''pending'' FROM public.product_submissions WHERE id=''$storage_pending''), ''no mutable upload may commit after a ready manifest freeze'')')"
 
-if [[ "$approval_waited" != true || "$finalize_waited" != true || "$create_waited" != true || "$identical_waited" != true || "$storage_waited" != true ]]; then
+# Reserve against the actual shared budget from two concurrent transactions.
+# The second must wait for the settings lock and observe the first reservation.
+psql_test -q -c "SELECT fixture.enable_extraction(); SELECT fixture.add_worker(); UPDATE public.product_submission_extraction_settings SET monthly_cap_microcents=10,pilot_cap_microcents=10,max_cost_microcents=10 WHERE id; SELECT fixture.seed(5,'4006381333931','submitted',NULL); SELECT fixture.seed(5,'036000291452','submitted',NULL);"
+budget_jobs="$(psql_test -Atqc "SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000004'; SELECT job_id || ',' || fencing_token FROM public.claim_product_submission_extraction_jobs(2)")"
+budget_first="${budget_jobs%%$'\n'*}"
+budget_second="${budget_jobs#*$'\n'}"
+psql_test -q -c "SET application_name='fixture_budget_first'; SET ROLE authenticated; SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000004'; BEGIN; SELECT fixture.assert(public.reserve_product_submission_extraction_budget('${budget_first%,*}',${budget_first#*,}),'first reservation fits'); SELECT pg_sleep(2); COMMIT;" > "$test_logs/budget-first.log" 2>&1 &
+budget_first_pid=$!
+wait_for_event fixture_budget_first PgSleep
+psql_test -q -c "SET application_name='fixture_budget_second'; SET ROLE authenticated; SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000004'; SELECT fixture.assert(NOT public.reserve_product_submission_extraction_budget('${budget_second%,*}',${budget_second#*,}),'second reservation must be refused');" > "$test_logs/budget-second.log" 2>&1 &
+budget_second_pid=$!
+budget_waited=false
+if wait_for_event fixture_budget_second transactionid; then budget_waited=true; fi
+wait "$budget_first_pid"
+budget_second_status=0
+wait "$budget_second_pid" || budget_second_status=$?
+psql_test -q -c "SELECT fixture.test('concurrent reservations cannot overspend the pilot', 'SELECT fixture.assert($budget_waited AND $budget_second_status=0 AND (SELECT count(*)=1 AND sum(reserved_microcents)=10 FROM public.product_submission_extraction_budget), ''budget admission must serialize before provider calls'')')"
+
+if [[ "$approval_waited" != true || "$finalize_waited" != true || "$create_waited" != true || "$identical_waited" != true || "$storage_waited" != true || "$budget_waited" != true ]]; then
   echo "Concurrency diagnostics: $test_logs"
 else
   rm "$test_logs/approval-first.log" "$test_logs/approval-second.log" "$test_logs/finalize-first.log" "$test_logs/finalize-second.log" "$test_logs/create-first.log" "$test_logs/create-second.log" "$test_logs/identical-first.log" "$test_logs/identical-second.log"
   rm "$test_logs/storage-writer.log" "$test_logs/storage-finalize.log"
+  rm "$test_logs/budget-first.log" "$test_logs/budget-second.log"
   rmdir "$test_logs"
 fi

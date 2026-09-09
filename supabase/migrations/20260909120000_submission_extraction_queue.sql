@@ -180,6 +180,11 @@ $$;
 REVOKE ALL ON FUNCTION public.record_product_submission_extraction_internal(
   uuid, text, text, text, text, jsonb, jsonb, jsonb, numeric, jsonb, integer, uuid, text
 ) FROM PUBLIC, anon, authenticated, service_role;
+-- Adding actor parameters creates an overload, not a replacement. Remove the
+-- renamed eleven-argument writer so it cannot remain a second callable path.
+DROP FUNCTION public.record_product_submission_extraction_internal(
+  uuid, text, text, text, text, jsonb, jsonb, jsonb, numeric, jsonb, integer
+);
 
 -- The human path: unchanged signature, unchanged authorization.
 CREATE FUNCTION public.record_product_submission_extraction(
@@ -238,6 +243,8 @@ CREATE TABLE public.product_submission_extraction_settings (
   prompt_version text CHECK (prompt_version IS NULL OR btrim(prompt_version) <> ''),
   prep_config_version text NOT NULL DEFAULT 'prep_v1'
     CHECK (btrim(prep_config_version) <> ''),
+  retention_policy_version text CHECK (btrim(retention_policy_version) <> ''),
+  max_cost_microcents bigint NOT NULL DEFAULT 0 CHECK (max_cost_microcents >= 0),
   max_attempts integer NOT NULL DEFAULT 3 CHECK (max_attempts BETWEEN 1 AND 10),
   lease_seconds integer NOT NULL DEFAULT 300
     CHECK (lease_seconds BETWEEN 30 AND 3600),
@@ -252,6 +259,8 @@ CREATE TABLE public.product_submission_extraction_settings (
       provider IS NOT NULL AND model IS NOT NULL
       AND model_digest IS NOT NULL AND prompt_version IS NOT NULL
       AND monthly_cap_microcents > 0
+      AND retention_policy_version IS NOT NULL
+      AND (provider IN ('fake', 'ollama') OR max_cost_microcents > 0)
     )
   )
 );
@@ -281,6 +290,7 @@ CREATE TABLE public.product_submission_extraction_jobs (
   -- preparation. Re-readying the same revision cannot enqueue twice, and a
   -- new revision is different work.
   job_key text NOT NULL CHECK (job_key ~ '^[0-9a-f]{64}$'),
+  configuration jsonb NOT NULL CHECK (jsonb_typeof(configuration) = 'object'),
   state public.product_submission_extraction_job_state NOT NULL DEFAULT 'queued',
   attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
   -- Bumped on every claim. A worker whose lease expired holds a stale token
@@ -316,6 +326,10 @@ CREATE TABLE public.product_submission_extraction_budget (
   -- Integer micro-cents. Money in floating point drifts, and a cap that
   -- drifts is not a cap.
   microcents bigint NOT NULL CHECK (microcents >= 0),
+  fencing_token bigint NOT NULL,
+  reserved_microcents bigint NOT NULL CHECK (reserved_microcents >= 0),
+  settled boolean NOT NULL DEFAULT false,
+  UNIQUE (job_id, fencing_token),
   recorded_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE public.product_submission_extraction_budget ENABLE ROW LEVEL SECURITY;
@@ -378,14 +392,14 @@ BEGIN
         error_code = 'superseded_evidence', updated_at = now()
     WHERE submission_id = NEW.id
       AND evidence_revision <> NEW.evidence_revision
-      AND state IN ('queued', 'leased', 'retryable_error');
+      AND state IN ('queued', 'leased', 'retryable_error', 'budget_hold');
   ELSIF NEW.review_status NOT IN ('submitted', 'under_review')
         AND OLD.review_status IN ('submitted', 'under_review') THEN
     UPDATE public.product_submission_extraction_jobs
     SET state = 'cancelled', leased_by = NULL, leased_until = NULL,
         error_code = 'submission_closed', updated_at = now()
     WHERE submission_id = NEW.id
-      AND state IN ('queued', 'leased', 'retryable_error');
+      AND state IN ('queued', 'leased', 'retryable_error', 'budget_hold');
   END IF;
 
   IF NEW.upload_state <> 'ready' OR OLD.upload_state = 'ready' THEN
@@ -405,6 +419,8 @@ BEGIN
       ON consent.version = revision.consent_version
      AND consent.kind = NEW.kind
      AND consent.retired_at IS NULL
+     AND consent.effective_from <= revision.consented_at
+     AND 'ai_label_draft' = ANY(consent.purposes)
     WHERE revision.submission_id = NEW.id
       AND revision.revision = NEW.evidence_revision
   ) THEN
@@ -423,8 +439,13 @@ BEGIN
     RETURN NEW;
   END IF;
   INSERT INTO public.product_submission_extraction_jobs (
-    submission_id, evidence_revision, job_key
-  ) VALUES (NEW.id, NEW.evidence_revision, key)
+    submission_id, evidence_revision, job_key, configuration
+  ) VALUES (NEW.id, NEW.evidence_revision, key, jsonb_build_object(
+    'provider', settings.provider, 'model', settings.model,
+    'model_digest', settings.model_digest, 'prompt_version', settings.prompt_version,
+    'prep_config_version', settings.prep_config_version,
+    'retention_policy_version', settings.retention_policy_version,
+    'max_cost_microcents', settings.max_cost_microcents))
   ON CONFLICT (submission_id, job_key) DO NOTHING;
   RETURN NEW;
 END;
@@ -474,7 +495,8 @@ RETURNS TABLE (
   fencing_token bigint,
   attempts integer,
   leased_until timestamptz,
-  evidence_manifest jsonb
+  evidence_manifest jsonb,
+  configuration jsonb
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -484,7 +506,7 @@ DECLARE
   worker_id uuid := public.product_submission_extraction_worker_id();
   settings public.product_submission_extraction_settings%ROWTYPE;
 BEGIN
-  IF p_limit NOT BETWEEN 1 AND 50 THEN
+  IF p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 50 THEN
     RAISE EXCEPTION 'invalid claim limit' USING ERRCODE = '22023';
   END IF;
   SELECT * INTO settings
@@ -492,6 +514,11 @@ BEGIN
   IF NOT FOUND OR NOT settings.enabled THEN
     RAISE EXCEPTION 'extraction is disabled' USING ERRCODE = '55000';
   END IF;
+  UPDATE public.product_submission_extraction_jobs AS job
+  SET state='failed', leased_by=NULL, leased_until=NULL,
+      error_code='attempts_exhausted', updated_at=now()
+  WHERE job.state='leased' AND job.leased_until <= clock_timestamp()
+    AND job.attempts >= settings.max_attempts;
   RETURN QUERY
   WITH claimable AS (
     SELECT job.id
@@ -499,7 +526,7 @@ BEGIN
     JOIN public.product_submissions AS submission
       ON submission.id = job.submission_id
     WHERE (
-        job.state IN ('queued', 'retryable_error')
+        job.state IN ('queued', 'retryable_error', 'budget_hold')
         OR (job.state = 'leased' AND job.leased_until < now())
       )
       AND job.next_attempt_at <= now()
@@ -508,6 +535,13 @@ BEGIN
       AND submission.upload_state = 'ready'
       AND submission.evidence_revision = job.evidence_revision
       AND submission.review_status IN ('submitted', 'under_review')
+      AND EXISTS (
+        SELECT 1 FROM public.product_submission_evidence_revisions revision
+        JOIN public.product_submission_consent_versions consent
+          ON consent.version=revision.consent_version AND consent.kind=submission.kind
+        WHERE revision.submission_id=submission.id AND revision.revision=job.evidence_revision
+          AND consent.retired_at IS NULL AND consent.effective_from <= revision.consented_at
+          AND 'ai_label_draft'=ANY(consent.purposes))
     ORDER BY job.next_attempt_at, job.created_at
     FOR UPDATE OF job SKIP LOCKED
     LIMIT p_limit
@@ -528,7 +562,7 @@ BEGIN
          leased.leased_until,
          public.product_submission_evidence_manifest(
            leased.submission_id, leased.evidence_revision
-         )
+         ), leased.configuration
   FROM leased;
 END;
 $$;
@@ -560,6 +594,7 @@ BEGIN
     AND state = 'leased'
     AND leased_by = worker_id
     AND fencing_token = p_fencing_token
+    AND leased_until > clock_timestamp()
   RETURNING leased_until INTO extended;
   IF extended IS NULL THEN
     RAISE EXCEPTION 'extraction lease is not held' USING ERRCODE = '55000';
@@ -588,7 +623,7 @@ CREATE FUNCTION public.complete_product_submission_extraction_job(
   p_confidence numeric DEFAULT NULL,
   p_usage jsonb DEFAULT NULL,
   p_error_code text DEFAULT NULL,
-  p_cost_microcents bigint DEFAULT 0
+  p_cost_microcents bigint DEFAULT NULL
 )
 RETURNS integer
 LANGUAGE plpgsql
@@ -601,20 +636,22 @@ DECLARE
   job public.product_submission_extraction_jobs%ROWTYPE;
   recorded_version integer;
   next_state public.product_submission_extraction_job_state;
-  monthly_spent bigint;
-  pilot_spent bigint;
+  reservation public.product_submission_extraction_budget%ROWTYPE;
 BEGIN
-  IF p_outcome NOT IN ('review_ready', 'needs_evidence', 'retryable_error', 'failed') THEN
+  IF p_outcome IS NULL OR p_outcome NOT IN ('review_ready', 'needs_evidence', 'retryable_error', 'failed', 'budget_hold') THEN
     RAISE EXCEPTION 'invalid extraction outcome' USING ERRCODE = '22023';
   END IF;
-  IF p_cost_microcents IS NULL OR p_cost_microcents < 0 THEN
+  IF p_cost_microcents < 0 THEN
     RAISE EXCEPTION 'invalid extraction cost' USING ERRCODE = '22023';
   END IF;
-  -- Serialize spend checks on the singleton settings row. Without this lock,
-  -- two workers can both observe the same remaining allowance and commit a
-  -- charge that takes the pilot or monthly total over its configured cap.
+  -- Settlement shares the reservation lock so allowance is always consistent.
   SELECT * INTO settings
   FROM public.product_submission_extraction_settings WHERE id FOR UPDATE;
+  -- Review/retake locks the receipt before its jobs. Use that same order so
+  -- concurrent completion cannot deadlock against the cancellation trigger.
+  PERFORM 1 FROM public.product_submissions
+  WHERE id=(SELECT submission_id FROM public.product_submission_extraction_jobs WHERE id=p_job_id)
+  FOR UPDATE;
   SELECT * INTO job
   FROM public.product_submission_extraction_jobs
   WHERE id = p_job_id
@@ -622,29 +659,28 @@ BEGIN
   IF NOT FOUND
      OR job.state <> 'leased'
      OR job.leased_by <> worker_id
-     OR job.fencing_token <> p_fencing_token THEN
+     OR job.fencing_token IS DISTINCT FROM p_fencing_token
+     OR job.leased_until <= clock_timestamp() THEN
     -- An expired attempt must never overwrite the result of the worker that
     -- replaced it, even when it is the same worker.
     RAISE EXCEPTION 'extraction lease is not held' USING ERRCODE = '55000';
   END IF;
 
-  IF p_cost_microcents > 0 THEN
-    SELECT coalesce(sum(budget.microcents), 0)
-      INTO monthly_spent
-    FROM public.product_submission_extraction_budget AS budget
-    WHERE budget.month_key = to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM');
-    SELECT coalesce(sum(budget.microcents), 0)
-      INTO pilot_spent
-    FROM public.product_submission_extraction_budget AS budget;
-    IF settings.monthly_cap_microcents <= 0
-       OR p_cost_microcents > settings.monthly_cap_microcents - monthly_spent
-       OR (settings.pilot_cap_microcents > 0
-           AND p_cost_microcents > settings.pilot_cap_microcents - pilot_spent) THEN
-      RAISE EXCEPTION 'extraction budget exceeded' USING ERRCODE = '54000';
-    END IF;
+  SELECT * INTO reservation FROM public.product_submission_extraction_budget
+  WHERE job_id=p_job_id AND fencing_token=p_fencing_token;
+  IF (p_outcome='review_ready' OR p_cost_microcents>0) AND NOT FOUND THEN
+    RAISE EXCEPTION 'extraction budget reservation required' USING ERRCODE='55000';
+  END IF;
+  IF p_outcome='budget_hold' AND reservation.id IS NOT NULL THEN
+    RAISE EXCEPTION 'reserved attempts cannot report an admission hold' USING ERRCODE='22023';
   END IF;
 
   IF p_outcome = 'review_ready' THEN
+    IF p_provider IS DISTINCT FROM job.configuration->>'provider'
+       OR p_model IS DISTINCT FROM job.configuration->>'model'
+       OR p_prompt_version IS DISTINCT FROM job.configuration->>'prompt_version' THEN
+      RAISE EXCEPTION 'draft does not match leased configuration' USING ERRCODE='22023';
+    END IF;
     recorded_version := public.record_product_submission_extraction_internal(
       job.submission_id, p_schema_version, p_provider, p_model,
       p_prompt_version, p_input_image_hashes, p_draft_payload,
@@ -660,6 +696,8 @@ BEGIN
 
   UPDATE public.product_submission_extraction_jobs
   SET state = next_state,
+      -- Admission denial did not call a provider; it must not exhaust retries.
+      attempts = CASE WHEN next_state='budget_hold' THEN greatest(0,job.attempts-1) ELSE job.attempts END,
       leased_by = NULL,
       leased_until = NULL,
       error_code = NULLIF(btrim(coalesce(p_error_code, '')), ''),
@@ -675,12 +713,14 @@ BEGIN
       updated_at = now()
   WHERE id = p_job_id;
 
-  IF p_cost_microcents > 0 THEN
-    INSERT INTO public.product_submission_extraction_budget (
-      job_id, month_key, microcents
-    ) VALUES (
-      p_job_id, to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM'), p_cost_microcents
-    );
+  IF reservation.id IS NOT NULL AND p_cost_microcents IS NOT NULL THEN
+    -- Never discard a cost already incurred. An adapter exceeding its declared
+    -- bound disables new spending; the truthful charge and draft still persist.
+    UPDATE public.product_submission_extraction_budget
+    SET microcents=p_cost_microcents, settled=true WHERE id=reservation.id;
+    IF p_cost_microcents > reservation.reserved_microcents THEN
+      UPDATE public.product_submission_extraction_settings SET enabled=false WHERE id;
+    END IF;
   END IF;
   RETURN recorded_version;
 END;
@@ -694,7 +734,53 @@ GRANT EXECUTE ON FUNCTION public.complete_product_submission_extraction_job(
   jsonb, text, bigint
 ) TO authenticated;
 
--- Spend to date this month, so a runner can stop before calling a provider.
+-- One ledger calculation, shared by admission and operator reporting. Unknown
+-- costs (crash/timeout) retain their reservation until explicitly reconciled.
+CREATE FUNCTION public.product_submission_extraction_allowance()
+RETURNS TABLE (spent bigint, outstanding bigint, remaining bigint)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
+  WITH totals AS (
+    SELECT coalesce(sum(microcents) FILTER (WHERE month_key=to_char(now() AT TIME ZONE 'UTC','YYYY-MM')),0) AS monthly,
+      coalesce(sum(reserved_microcents) FILTER (WHERE NOT settled),0) AS pending,
+      coalesce(sum(microcents),0) AS lifetime
+    FROM public.product_submission_extraction_budget)
+  SELECT monthly::bigint, pending::bigint,
+    greatest(0, least(settings.monthly_cap_microcents-monthly-pending,
+      CASE WHEN settings.pilot_cap_microcents>0 THEN settings.pilot_cap_microcents-lifetime-pending
+           ELSE settings.monthly_cap_microcents-monthly-pending END))::bigint
+  FROM totals CROSS JOIN public.product_submission_extraction_settings settings WHERE settings.id;
+$$;
+REVOKE ALL ON FUNCTION public.product_submission_extraction_allowance() FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE FUNCTION public.reserve_product_submission_extraction_budget(p_job_id uuid, p_fencing_token bigint)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE
+  worker_id uuid := public.product_submission_extraction_worker_id();
+  settings public.product_submission_extraction_settings%ROWTYPE;
+  job public.product_submission_extraction_jobs%ROWTYPE;
+  needed bigint;
+BEGIN
+  SELECT * INTO settings FROM public.product_submission_extraction_settings WHERE id FOR UPDATE;
+  IF NOT settings.enabled THEN RAISE EXCEPTION 'extraction is disabled' USING ERRCODE='55000'; END IF;
+  SELECT * INTO job FROM public.product_submission_extraction_jobs WHERE id=p_job_id FOR UPDATE;
+  IF NOT FOUND OR job.state<>'leased' OR job.leased_by<>worker_id OR job.fencing_token IS DISTINCT FROM p_fencing_token
+     OR job.leased_until<=clock_timestamp() THEN
+    RAISE EXCEPTION 'extraction lease is not held' USING ERRCODE='55000';
+  END IF;
+  IF EXISTS(SELECT 1 FROM public.product_submission_extraction_budget WHERE job_id=p_job_id AND fencing_token=p_fencing_token) THEN
+    RETURN true;
+  END IF;
+  needed := (job.configuration->>'max_cost_microcents')::bigint;
+  IF needed > (SELECT remaining FROM public.product_submission_extraction_allowance()) THEN RETURN false; END IF;
+  INSERT INTO public.product_submission_extraction_budget(job_id, fencing_token, month_key, microcents, reserved_microcents)
+  VALUES(p_job_id,p_fencing_token,to_char(now() AT TIME ZONE 'UTC','YYYY-MM'),0,needed);
+  RETURN true;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.reserve_product_submission_extraction_budget(uuid,bigint) FROM PUBLIC,anon,service_role;
+GRANT EXECUTE ON FUNCTION public.reserve_product_submission_extraction_budget(uuid,bigint) TO authenticated;
+
+-- Includes outstanding reservations and the pilot cap.
 CREATE FUNCTION public.product_submission_extraction_budget_state()
 RETURNS TABLE (month_key text, spent_microcents bigint, monthly_cap_microcents bigint, remaining_microcents bigint)
 LANGUAGE plpgsql
@@ -705,16 +791,13 @@ DECLARE
   worker_id uuid := public.product_submission_extraction_worker_id();
   settings public.product_submission_extraction_settings%ROWTYPE;
   current_month text := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM');
-  spent bigint;
+  allowance record;
 BEGIN
   PERFORM worker_id;
   SELECT * INTO settings
   FROM public.product_submission_extraction_settings WHERE id;
-  SELECT coalesce(sum(budget.microcents), 0) INTO spent
-  FROM public.product_submission_extraction_budget AS budget
-  WHERE budget.month_key = current_month;
-  RETURN QUERY SELECT current_month, spent, settings.monthly_cap_microcents,
-    greatest(0, settings.monthly_cap_microcents - spent);
+  SELECT * INTO allowance FROM public.product_submission_extraction_allowance();
+  RETURN QUERY SELECT current_month, allowance.spent, settings.monthly_cap_microcents, allowance.remaining;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.product_submission_extraction_budget_state()
