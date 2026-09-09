@@ -12,6 +12,7 @@ import 'package:pharmaguide/features/contributions/providers/product_submission_
 import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 typedef ResubmitProductSubmission =
@@ -61,7 +62,22 @@ class _ProductSubmissionsScreenState
 
   Future<void> _refresh() async {
     ref.invalidate(productSubmissionsProvider);
+    ref.invalidate(pendingProductSubmissionDraftsProvider);
     await ref.read(productSubmissionsProvider.future);
+  }
+
+  /// Reopen capture for a barcode this device still holds photos for. The
+  /// sheet recognises the saved capture and offers to finish it.
+  Future<void> _finishPending(PendingProductSubmission pending) async {
+    await showMissingProductSubmissionSheet(
+      context,
+      upc: pending.upc,
+      service: ref.read(productSubmissionServiceProvider),
+      resubmissionOf: pending.resubmissionOf,
+    );
+    if (!mounted) return;
+    ref.invalidate(productSubmissionsProvider);
+    ref.invalidate(pendingProductSubmissionDraftsProvider);
   }
 
   Future<void> _resubmit(ProductSubmissionSummary status) async {
@@ -169,6 +185,7 @@ class _ProductSubmissionsScreenState
                 const SizedBox(height: V2Spacing.space16),
                 _ImpactGrid(statuses: statuses),
                 const SizedBox(height: V2Spacing.space24),
+                _UnfinishedCaptures(onFinish: _finishPending),
                 Text(
                   'Your submissions',
                   style: V2Typography.titleSm(color: context.v2.fg),
@@ -231,6 +248,62 @@ class _ProductSubmissionsScreenState
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Photos this device saved that never reached the server.
+///
+/// Shown above the server-backed history because it is the one thing here the
+/// user can still act on offline, and because the alternative route back to an
+/// interrupted capture is rescanning the same barcode.
+class _UnfinishedCaptures extends ConsumerWidget {
+  const _UnfinishedCaptures({required this.onFinish});
+
+  final Future<void> Function(PendingProductSubmission pending) onFinish;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(pendingProductSubmissionDraftsProvider);
+    final drafts = pending.value ?? const <PendingProductSubmission>[];
+    if (drafts.isEmpty) return const SizedBox.shrink();
+    return Column(
+      key: const Key('unfinished-captures'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Not sent yet',
+          style: V2Typography.titleSm(color: context.v2.fg),
+        ),
+        const SizedBox(height: V2Spacing.space8),
+        Text(
+          'These photos are still on this phone. Nobody has seen them yet.',
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
+        ),
+        const SizedBox(height: V2Spacing.space12),
+        for (final draft in drafts) ...[
+          Card(
+            margin: const EdgeInsets.only(bottom: V2Spacing.space8),
+            child: ListTile(
+              key: Key('unfinished-${draft.submissionId}'),
+              title: Text(
+                '${draft.photoCount} '
+                '${draft.photoCount == 1 ? 'photo' : 'photos'} ready to send',
+                style: V2Typography.bodySm(color: context.v2.fg),
+              ),
+              subtitle: Text(
+                'Barcode ${draft.upc}',
+                style: V2Typography.monoData(color: context.v2.fgMuted),
+              ),
+              trailing: FilledButton(
+                onPressed: () => onFinish(draft),
+                child: const Text('Finish sending'),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: V2Spacing.space24),
+      ],
     );
   }
 }

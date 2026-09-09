@@ -9,6 +9,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/contributions/product_submissions_screen.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
+import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 Widget _harness(
@@ -16,6 +17,7 @@ Widget _harness(
   CoreDatabase? db,
   Future<void> Function(ProductSubmissionSummary status)? onResubmit,
   Future<void> Function(ProductSubmissionSummary status)? onHide,
+  List<PendingProductSubmission> pendingDrafts = const [],
 }) {
   final database = db ?? CoreDatabase.memory();
   if (db == null) addTearDown(database.close);
@@ -25,6 +27,9 @@ Widget _harness(
         ProductSubmissionService(backend: _Backend(rows)),
       ),
       coreDatabaseProvider.overrideWithValue(database),
+      pendingProductSubmissionDraftsProvider.overrideWith(
+        (ref) async => pendingDrafts,
+      ),
     ],
     child: MaterialApp(
       home: ProductSubmissionsScreen(onResubmit: onResubmit, onHide: onHide),
@@ -547,6 +552,47 @@ void main() {
       ]),
       10,
     );
+  });
+
+  testWidgets('unfinished captures are offered before the sent history', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const [],
+        pendingDrafts: [
+          PendingProductSubmission(
+            submissionId: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a20',
+            upc: '012345678905',
+            resubmissionOf: null,
+            noSeparateIngredientPanel: false,
+            consentVersion: 'pharmaguide.submission_consent.2026-08-25.v1',
+            evidenceRevision: 1,
+            photoCount: 3,
+            capturedAt: DateTime.utc(2026, 9, 9),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('unfinished-captures')), findsOneWidget);
+    expect(find.text('3 photos ready to send'), findsOneWidget);
+    // The user must not read this as "submitted and waiting for review".
+    expect(
+      find.textContaining('still on this phone'),
+      findsOneWidget,
+    );
+    expect(find.text('Finish sending'), findsOneWidget);
+  });
+
+  testWidgets('no unfinished section when this device holds nothing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness(const []));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('unfinished-captures')), findsNothing);
   });
 }
 

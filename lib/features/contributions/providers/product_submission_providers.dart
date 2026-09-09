@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 /// One overridable construction point so widgets and push handlers share a
@@ -78,3 +79,35 @@ final pendingSubmissionCountProvider = Provider.autoDispose<int>((ref) {
       )
       .length;
 });
+
+
+/// Where unfinished captures are kept. Overridden in tests with an in-memory
+/// implementation so no widget pump waits on the file system.
+final productSubmissionDraftStorageProvider =
+    FutureProvider<ProductSubmissionDraftStorage?>((ref) async {
+      try {
+        return await ProductSubmissionDraftStore.open();
+      } on Object {
+        // A device without usable private storage still submits; it just
+        // cannot recover an interrupted capture.
+        return null;
+      }
+    });
+
+/// Captures this device holds that were never accepted by the server.
+///
+/// These are the only submissions the user can act on without the network, and
+/// without this list the sole route back to them is rescanning the same
+/// barcode — which a user who force-quit mid-upload has no reason to guess.
+final pendingProductSubmissionDraftsProvider =
+    FutureProvider.autoDispose<List<PendingProductSubmission>>((ref) async {
+      final storage = await ref.watch(
+        productSubmissionDraftStorageProvider.future,
+      );
+      if (storage == null) return const [];
+      try {
+        return await storage.list();
+      } on Object {
+        return const [];
+      }
+    });
