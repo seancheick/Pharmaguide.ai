@@ -21,12 +21,19 @@ ProductSubmissionPhoto _photo({String? id, int seed = 1}) =>
       contentType: 'image/jpeg',
     );
 
-MissingProductSubmissionDraft _draft({List<ProductSubmissionPhoto>? photos}) =>
-    MissingProductSubmissionDraft(
-      submissionId: _submissionId,
-      upc: _upc,
-      photos: photos ?? [_photo()],
-    );
+Future<void> _save(
+  ProductSubmissionDraftStore store, {
+  List<ProductSubmissionPhoto>? photos,
+  int evidenceRevision = 1,
+}) {
+  return store.save(
+    submissionId: _submissionId,
+    upc: _upc,
+    photos: photos ?? [_photo()],
+    consentVersion: productSubmissionConsentVersion,
+    evidenceRevision: evidenceRevision,
+  );
+}
 
 void main() {
   late Directory root;
@@ -42,7 +49,7 @@ void main() {
   });
 
   test('a saved capture survives a restart with identical bytes and ids', () async {
-    await store.save(_draft(), consentVersion: productSubmissionConsentVersion);
+    await _save(store);
 
     // A new instance over the same directory is what a relaunch sees.
     final reopened = ProductSubmissionDraftStore(root: root);
@@ -62,7 +69,7 @@ void main() {
   });
 
   test('restoring rebuilds the same submission so a retry is idempotent', () async {
-    await store.save(_draft(), consentVersion: productSubmissionConsentVersion);
+    await _save(store);
 
     final first = await store.restore(_submissionId);
     final second = await store.restore(_submissionId);
@@ -74,7 +81,7 @@ void main() {
   });
 
   test('discarding removes the label images from disk, not just the record', () async {
-    await store.save(_draft(), consentVersion: productSubmissionConsentVersion);
+    await _save(store);
     final filesBefore = root
         .listSync(recursive: true)
         .whereType<File>()
@@ -92,7 +99,7 @@ void main() {
   });
 
   test('a truncated manifest is discarded instead of crashing capture', () async {
-    await store.save(_draft(), consentVersion: productSubmissionConsentVersion);
+    await _save(store);
     final manifest = root
         .listSync(recursive: true)
         .whereType<File>()
@@ -104,7 +111,7 @@ void main() {
   });
 
   test('a photo whose bytes changed on disk is not restored as evidence', () async {
-    await store.save(_draft(), consentVersion: productSubmissionConsentVersion);
+    await _save(store);
     final image = root
         .listSync(recursive: true)
         .whereType<File>()
@@ -119,7 +126,7 @@ void main() {
   });
 
   test('a pending draft never claims the server accepted it', () async {
-    await store.save(_draft(), consentVersion: productSubmissionConsentVersion);
+    await _save(store);
 
     final pending = (await store.list()).single;
 
@@ -128,7 +135,7 @@ void main() {
   });
 
   test('the newest capture for a barcode is the one offered for resume', () async {
-    await store.save(_draft(), consentVersion: productSubmissionConsentVersion);
+    await _save(store);
 
     final found = await store.findByUpc(' 0-12345-678905 ');
 
@@ -153,21 +160,14 @@ void main() {
   });
 
   test('a saved draft records the evidence revision it belongs to', () async {
-    await store.save(
-      _draft(),
-      consentVersion: productSubmissionConsentVersion,
-      evidenceRevision: 2,
-    );
+    await _save(store, evidenceRevision: 2);
 
     expect((await store.list()).single.evidenceRevision, 2);
   });
 
   test('saving twice replaces the capture rather than duplicating it', () async {
-    await store.save(_draft(), consentVersion: productSubmissionConsentVersion);
-    await store.save(
-      _draft(photos: [_photo(seed: 5)]),
-      consentVersion: productSubmissionConsentVersion,
-    );
+    await _save(store);
+    await _save(store, photos: [_photo(seed: 5)]);
 
     final pending = await store.list();
     expect(pending, hasLength(1));

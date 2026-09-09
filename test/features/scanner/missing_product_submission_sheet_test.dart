@@ -746,13 +746,9 @@ void main() {
 
     Future<void> seedInterruptedCapture() async {
       await store.save(
-        MissingProductSubmissionDraft(
-          submissionId: _submissionId,
-          upc: _upc,
-          photos: [
-            _photo(MissingProductSubmissionDraft.requiredCategories),
-          ],
-        ),
+        submissionId: _submissionId,
+        upc: _upc,
+        photos: [_photo(MissingProductSubmissionDraft.requiredCategories)],
         consentVersion: productSubmissionConsentVersion,
       );
     }
@@ -847,6 +843,61 @@ void main() {
       expect(pending.single.consentVersion, productSubmissionConsentVersion);
     });
 
+    testWidgets('a half-finished capture is kept and resumes where it stopped', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+
+      // One photo in, then the app dies. Nothing was submitted.
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-front_identity')),
+      );
+      await tester.pumpAndSettle();
+      expect(backend.persistedSubmissionIds, isEmpty);
+      final saved = (await store.list()).single;
+      expect(saved.photoCount, 1);
+
+      // Relaunch: the same barcode offers the partial set back and resumes at
+      // the first panel still missing, not at review.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Finish sending'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Supplement Facts'), findsOneWidget);
+    });
+
+    testWidgets('what is kept on disk tracks what the user still sees', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-front_identity')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-supplement_facts')),
+      );
+      await tester.pumpAndSettle();
+      expect((await store.list()).single.photoCount, 2);
+
+      // A photo the user deletes must not stay recoverable behind their back.
+      await tester.tap(find.byTooltip('Remove photo').first);
+      await tester.pumpAndSettle();
+
+      expect((await store.list()).single.photoCount, 1);
+    });
+
     testWidgets('a capture from another attempt is not resumed under this one', (
       tester,
     ) async {
@@ -895,27 +946,35 @@ void main() {
 /// Fidelity that matters here: the manifest hash is what decides whether a
 /// kept capture is still the user's evidence, so this keeps and checks it too.
 class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
-  final Map<String, MissingProductSubmissionDraft> drafts = {};
+  final Map<String, RestoredCapture> captures = {};
   final Map<String, PendingProductSubmission> records = {};
-  final Map<String, String> hashes = {};
   bool corruptOnRestore = false;
 
   @override
-  Future<void> save(
-    ProductSubmissionDraft draft, {
+  Future<void> save({
+    required String submissionId,
+    required String upc,
+    required List<ProductSubmissionPhoto> photos,
     required String consentVersion,
+    String? resubmissionOf,
+    bool noSeparateIngredientPanel = false,
     int evidenceRevision = 1,
   }) async {
-    drafts[draft.submissionId] = draft as MissingProductSubmissionDraft;
-    hashes[draft.submissionId] = draft.photos.map((p) => p.contentSha256).join();
-    records[draft.submissionId] = PendingProductSubmission(
-      submissionId: draft.submissionId,
-      upc: draft.upc,
-      resubmissionOf: draft.resubmissionOf,
-      noSeparateIngredientPanel: draft.noSeparateIngredientPanel,
+    captures[submissionId] = RestoredCapture(
+      submissionId: submissionId,
+      upc: upc,
+      resubmissionOf: resubmissionOf,
+      noSeparateIngredientPanel: noSeparateIngredientPanel,
+      photos: List.unmodifiable(photos),
+    );
+    records[submissionId] = PendingProductSubmission(
+      submissionId: submissionId,
+      upc: upc,
+      resubmissionOf: resubmissionOf,
+      noSeparateIngredientPanel: noSeparateIngredientPanel,
       consentVersion: consentVersion,
       evidenceRevision: evidenceRevision,
-      photoCount: draft.photos.length,
+      photoCount: photos.length,
       capturedAt: DateTime.now().toUtc(),
     );
   }
@@ -937,16 +996,15 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
   }
 
   @override
-  Future<MissingProductSubmissionDraft?> restore(String submissionId) async {
+  Future<RestoredCapture?> restore(String submissionId) async {
     if (corruptOnRestore) return null;
-    return drafts[submissionId];
+    return captures[submissionId];
   }
 
   @override
   Future<void> discard(String submissionId) async {
-    drafts.remove(submissionId);
+    captures.remove(submissionId);
     records.remove(submissionId);
-    hashes.remove(submissionId);
   }
 }
 

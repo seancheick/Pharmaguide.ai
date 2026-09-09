@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
@@ -168,6 +170,11 @@ class _MissingProductSubmissionSheetState
 
   ProductSubmissionDraftStorage? _store;
 
+  /// Minted once, before any photo is stored, so every save and the eventual
+  /// submit describe the same contribution.
+  late final String _draftSubmissionId =
+      widget.submissionIdFactory?.call() ?? newProductSubmissionId();
+
   List<_CaptureStep> get _visibleSteps => [
     _CaptureStep.intro,
     _CaptureStep.front,
@@ -223,6 +230,31 @@ class _MissingProductSubmissionSheetState
     ).isNotEmpty,
     _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => true,
   };
+
+  /// The earliest capture step this set does not yet satisfy, or review when
+  /// every required panel is present.
+  _CaptureStep _firstUnsatisfiedStep() {
+    for (final step in _visibleSteps) {
+      if (step == _CaptureStep.intro) continue;
+      final satisfied = switch (step) {
+        _CaptureStep.front => _photosTagged(
+          ProductSubmissionEvidenceCategory.frontIdentity,
+        ).isNotEmpty,
+        _CaptureStep.facts => _photosTagged(
+          ProductSubmissionEvidenceCategory.supplementFacts,
+        ).isNotEmpty,
+        _CaptureStep.ingredients => _photosTagged(
+          ProductSubmissionEvidenceCategory.ingredientDisclosure,
+        ).isNotEmpty,
+        _CaptureStep.barcode => _photosTagged(
+          ProductSubmissionEvidenceCategory.barcode,
+        ).isNotEmpty,
+        _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => true,
+      };
+      if (!satisfied) return step;
+    }
+    return _CaptureStep.review;
+  }
 
   bool get _canSubmit => _consent && !_submitting && _coverageComplete;
 
@@ -289,6 +321,10 @@ class _MissingProductSubmissionSheetState
         _photos.add(photo);
         _draft = null;
       });
+      // Persist as the set grows: an abandoned capture is recoverable from the
+      // first shot, not only once it is complete.
+      await _persistCapture();
+      if (!mounted) return;
       if (autoAdvance) await _goForward();
     } on ProductSubmissionValidationException {
       if (!mounted) return;
@@ -334,6 +370,8 @@ class _MissingProductSubmissionSheetState
 
   void _removePhoto(ProductSubmissionPhoto photo) {
     if (_submitting) return;
+    // A photo the user deleted must not survive on disk.
+    unawaited(_persistAfterFrame());
     setState(() {
       _photos.remove(photo);
       if (_photosTagged(
@@ -574,12 +612,14 @@ class _MissingProductSubmissionSheetState
     try {
       draft =
           _draft ??
-          MissingProductSubmissionDraft.create(
+          MissingProductSubmissionDraft(
+            // The id the saved capture already carries, so a recovered
+            // submission replays instead of opening a second contribution.
+            submissionId: _draftSubmissionId,
             upc: widget.upc,
             photos: List.unmodifiable(_photos),
             noSeparateIngredientPanel: _factsCarriesIngredients,
             resubmissionOf: _chosenResubmissionOf,
-            submissionIdFactory: widget.submissionIdFactory,
           );
       _draft = draft;
     } on ProductSubmissionValidationException catch (error) {
@@ -600,7 +640,7 @@ class _MissingProductSubmissionSheetState
 
     // Save before the network call, not after. Everything from here on can
     // fail halfway, and the photos are the part the user cannot cheaply redo.
-    await _persistDraft(draft);
+    await _persistCapture();
 
     final result = await widget.service.submit(
       draft,
@@ -623,13 +663,35 @@ class _MissingProductSubmissionSheetState
     });
   }
 
-  Future<void> _persistDraft(MissingProductSubmissionDraft draft) async {
+  /// Save on the next turn, once setState has applied the change the caller is
+  /// making, so what lands on disk is what the user now sees.
+  Future<void> _persistAfterFrame() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    if (_photos.isEmpty) {
+      await _discardDraft(_draftSubmissionId);
+      return;
+    }
+    await _persistCapture();
+  }
+
+  /// Keep what has been captured so far. Called as photos land, not only at
+  /// submit, because a capture abandoned at three of four photos is still
+  /// several minutes of the user's effort.
+  Future<void> _persistCapture() async {
     final store = _store;
-    if (store == null) return;
+    if (store == null || _photos.isEmpty) return;
     try {
-      await store.save(draft, consentVersion: productSubmissionConsentVersion);
+      await store.save(
+        submissionId: _draftSubmissionId,
+        upc: widget.upc,
+        photos: List.unmodifiable(_photos),
+        consentVersion: productSubmissionConsentVersion,
+        resubmissionOf: _chosenResubmissionOf,
+        noSeparateIngredientPanel: _factsCarriesIngredients,
+      );
     } on Object {
-      // Best effort by design: never fail a submission over local bookkeeping.
+      // Best effort by design: never fail capture over local bookkeeping.
     }
   }
 
@@ -704,14 +766,15 @@ class _MissingProductSubmissionSheetState
       return;
     }
     setState(() {
-      _draft = restored;
       _photos
         ..clear()
         ..addAll(restored.photos);
       _chosenResubmissionOf = restored.resubmissionOf;
       _factsCarriesIngredients = restored.noSeparateIngredientPanel;
-      _factsPanelLocationConfirmed = true;
-      _step = _CaptureStep.review;
+      _factsPanelLocationConfirmed = restored.noSeparateIngredientPanel;
+      // Land where the capture actually stands rather than assuming it was
+      // finished: a half-taken set resumes at the first missing panel.
+      _step = _firstUnsatisfiedStep();
       _stepError = null;
     });
   }

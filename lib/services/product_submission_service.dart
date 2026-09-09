@@ -456,6 +456,13 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   Map<String, Object?>? get mismatchDetail => null;
 }
 
+/// The one place a submission identity is minted.
+///
+/// Capture needs an id before a validated draft can exist, because photos are
+/// saved from the first shot. Exposing the service's own minter keeps that one
+/// generator rather than a second UUID implementation in the UI.
+String newProductSubmissionId() => _newUuidV4();
+
 String _exactlyOneId({String? reportId, String? submissionId}) {
   if ((reportId == null) == (submissionId == null)) {
     throw const ProductSubmissionValidationException(

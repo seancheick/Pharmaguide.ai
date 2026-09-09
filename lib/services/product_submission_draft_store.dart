@@ -50,9 +50,18 @@ class PendingProductSubmission {
 /// test never advances under `pumpAndSettle`, which turns a UI assertion into
 /// a multi-minute hang; the interface keeps the UI honest and the tests fast.
 abstract class ProductSubmissionDraftStorage {
-  Future<void> save(
-    ProductSubmissionDraft draft, {
+  /// Persist the capture as it currently stands.
+  ///
+  /// Deliberately takes photos rather than a validated draft: a capture is
+  /// worth keeping from the first shot, and a draft cannot exist until every
+  /// required panel is present. Coverage is the submit gate, not the save gate.
+  Future<void> save({
+    required String submissionId,
+    required String upc,
+    required List<ProductSubmissionPhoto> photos,
     required String consentVersion,
+    String? resubmissionOf,
+    bool noSeparateIngredientPanel,
     int evidenceRevision,
   });
 
@@ -60,9 +69,27 @@ abstract class ProductSubmissionDraftStorage {
 
   Future<PendingProductSubmission?> findByUpc(String upc);
 
-  Future<MissingProductSubmissionDraft?> restore(String submissionId);
+  /// The photos and answers as captured, without judging completeness.
+  Future<RestoredCapture?> restore(String submissionId);
 
   Future<void> discard(String submissionId);
+}
+
+/// A capture read back from storage, complete or not.
+class RestoredCapture {
+  final String submissionId;
+  final String upc;
+  final String? resubmissionOf;
+  final bool noSeparateIngredientPanel;
+  final List<ProductSubmissionPhoto> photos;
+
+  const RestoredCapture({
+    required this.submissionId,
+    required this.upc,
+    required this.resubmissionOf,
+    required this.noSeparateIngredientPanel,
+    required this.photos,
+  });
 }
 
 /// Durable storage for captures that have not completed the submit sequence.
@@ -98,16 +125,19 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       Directory('${root.path}/$submissionId');
 
   @override
-  Future<void> save(
-    ProductSubmissionDraft draft, {
+  Future<void> save({
+    required String submissionId,
+    required String upc,
+    required List<ProductSubmissionPhoto> photos,
     required String consentVersion,
+    String? resubmissionOf,
+    bool noSeparateIngredientPanel = false,
     int evidenceRevision = 1,
   }) async {
-    final upc = draft.upc;
-    if (upc == null || upc.isEmpty) {
-      throw ArgumentError('a durable draft needs the barcode it belongs to');
+    if (upc.isEmpty) {
+      throw ArgumentError('a durable capture needs the barcode it belongs to');
     }
-    final directory = _directoryFor(draft.submissionId);
+    final directory = _directoryFor(submissionId);
     // Replace rather than merge: the capture in hand is the whole truth, and a
     // leftover image from a superseded attempt is private data with no owner.
     if (directory.existsSync()) {
@@ -115,14 +145,14 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     }
     await directory.create(recursive: true);
 
-    final photos = <Map<String, Object?>>[];
-    for (final photo in draft.photos) {
+    final entries = <Map<String, Object?>>[];
+    for (final photo in photos) {
       final bytes = photo.bytes;
       await File('${directory.path}/${photo.photoId}').writeAsBytes(
         bytes,
         flush: true,
       );
-      photos.add({
+      entries.add({
         'photo_id': photo.photoId,
         'categories': photo.categoryWireValues,
         'content_type': photo.contentType,
@@ -133,15 +163,15 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
 
     final manifest = <String, Object?>{
       'schema_version': _schemaVersion,
-      'submission_id': draft.submissionId,
-      'kind': draft.kind.wireValue,
+      'submission_id': submissionId,
+      'kind': ProductSubmissionKind.missingProduct.wireValue,
       'upc': upc,
-      'resubmission_of': draft.resubmissionOf,
-      'no_separate_ingredient_panel': draft.noSeparateIngredientPanel,
+      'resubmission_of': resubmissionOf,
+      'no_separate_ingredient_panel': noSeparateIngredientPanel,
       'consent_version': consentVersion,
       'evidence_revision': evidenceRevision,
       'captured_at': DateTime.now().toUtc().toIso8601String(),
-      'photos': photos,
+      'photos': entries,
     };
     await File('${directory.path}/$_manifestName').writeAsString(
       jsonEncode(manifest),
@@ -199,12 +229,13 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     }
   }
 
-  /// Rebuild the draft exactly as captured, or null when it can no longer be
+  /// Read the capture back exactly as taken, or null when it can no longer be
   /// trusted. Same submission id and same photo ids, so finishing a recovered
   /// capture replays the server's idempotent sequence instead of creating a
-  /// second contribution.
+  /// second contribution. Completeness is not checked here: a half-finished
+  /// capture is still the user's work.
   @override
-  Future<MissingProductSubmissionDraft?> restore(String submissionId) async {
+  Future<RestoredCapture?> restore(String submissionId) async {
     final directory = _directoryFor(submissionId);
     final manifest = await _readManifest(directory);
     if (manifest == null) return null;
@@ -240,18 +271,14 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       if (photo.contentSha256 != entry['content_sha256']) return null;
       photos.add(photo);
     }
-    try {
-      return MissingProductSubmissionDraft(
-        submissionId: manifest['submission_id'] as String,
-        resubmissionOf: manifest['resubmission_of'] as String?,
-        upc: manifest['upc'] as String,
-        photos: photos,
-        noSeparateIngredientPanel:
-            manifest['no_separate_ingredient_panel'] == true,
-      );
-    } on ProductSubmissionValidationException {
-      return null;
-    }
+    return RestoredCapture(
+      submissionId: manifest['submission_id'] as String,
+      upc: manifest['upc'] as String,
+      resubmissionOf: manifest['resubmission_of'] as String?,
+      noSeparateIngredientPanel:
+          manifest['no_separate_ingredient_panel'] == true,
+      photos: photos,
+    );
   }
 
   /// Remove the record and every private image it owns.
