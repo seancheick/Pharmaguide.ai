@@ -43,10 +43,10 @@ psql_test -q -c "SELECT fixture.test('concurrent finalize preserves one ready re
 
 lineage_target="$(psql_test -Atqc "SELECT fixture.seed(5, '96385074')")"
 replayed_id="$(psql_test -Atqc 'SELECT gen_random_uuid()')"
-psql_test -q -c "SET application_name = 'fixture_create_first'; SET ROLE authenticated; SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000005'; BEGIN; SELECT public.create_product_submission('$replayed_id', 'missing_product', '96385074', p_photos => fixture.photos()); SELECT pg_sleep(3); COMMIT;" > "$test_logs/create-first.log" 2>&1 &
+psql_test -q -c "SET application_name = 'fixture_create_first'; SET ROLE authenticated; SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000005'; BEGIN; SELECT public.create_product_submission('$replayed_id', 'missing_product', '96385074', p_photos => fixture.photos(), p_consent_version => 'fixture.consent.v1'); SELECT pg_sleep(3); COMMIT;" > "$test_logs/create-first.log" 2>&1 &
 create_first_pid=$!
 wait_for_event fixture_create_first PgSleep
-psql_test -q -c "SET application_name = 'fixture_create_second'; SET ROLE authenticated; SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000005'; SELECT public.create_product_submission('$replayed_id', 'missing_product', '96385074', p_photos => fixture.photos(), p_resubmission_of => '$lineage_target');" > "$test_logs/create-second.log" 2>&1 &
+psql_test -q -c "SET application_name = 'fixture_create_second'; SET ROLE authenticated; SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000005'; SELECT public.create_product_submission('$replayed_id', 'missing_product', '96385074', p_photos => fixture.photos(), p_consent_version => 'fixture.consent.v1', p_resubmission_of => '$lineage_target');" > "$test_logs/create-second.log" 2>&1 &
 create_second_pid=$!
 create_waited=false
 if wait_for_event fixture_create_second advisory; then create_waited=true; fi
@@ -56,7 +56,7 @@ wait "$create_second_pid" || create_second_status=$?
 psql_test -q -c "SELECT fixture.test('concurrent same UUID create cannot rewrite initial null lineage', 'SELECT fixture.assert($create_waited AND $create_second_status <> 0 AND (SELECT resubmission_of IS NULL FROM public.product_submissions WHERE id = ''$replayed_id''), ''same UUID first-create races must preserve original immutable lineage'')')"
 
 identical_id="$(psql_test -Atqc 'SELECT gen_random_uuid()')"
-identical_call="SELECT public.create_product_submission('$identical_id', 'missing_product', '96385074', p_photos => fixture.photos(), p_resubmission_of => '$lineage_target');"
+identical_call="SELECT public.create_product_submission('$identical_id', 'missing_product', '96385074', p_photos => fixture.photos(), p_consent_version => 'fixture.consent.v1', p_resubmission_of => '$lineage_target');"
 psql_test -q -c "SET application_name = 'fixture_identical_first'; SET ROLE authenticated; SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000005'; BEGIN; $identical_call SELECT pg_sleep(3); COMMIT;" > "$test_logs/identical-first.log" 2>&1 &
 identical_first_pid=$!
 wait_for_event fixture_identical_first PgSleep

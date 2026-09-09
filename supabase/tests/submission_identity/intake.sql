@@ -94,7 +94,7 @@ DO $$ DECLARE sid uuid; BEGIN
   sid := fixture.seed(1, '012345678905', 'submitted', NULL, 'label_mismatch', '123');
   PERFORM fixture.assert(public.get_product_submission_intake('label_mismatch','0012345678905','456')->>'submission_id' = sid::text,
     'existing barcode correction must open because create would reject it even for a different target');
-  PERFORM fixture.throws('SELECT public.create_product_submission(gen_random_uuid(), ''label_mismatch'', ''0012345678905'', fixture.detail(''456''))',
+  PERFORM fixture.throws('SELECT public.create_product_submission(gen_random_uuid(), ''label_mismatch'', ''0012345678905'', fixture.detail(''456''), p_consent_version => ''fixture.consent.v1'')',
     '23505', 'idx_product_submissions_user_open_upc');
 END $$ $case$);
 

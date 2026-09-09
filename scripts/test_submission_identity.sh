@@ -30,11 +30,15 @@ for migration in \
 done
 if [[ "${1:-}" != "--baseline" ]]; then
   psql_test -q < "$repo_dir/supabase/migrations/20260908230736_harden_submission_identity_and_intake.sql"
+  psql_test -q < "$repo_dir/supabase/migrations/20260909013000_submission_foundations_consent_revisions_extraction.sql"
 fi
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/helpers.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/identity.sql" >/dev/null
 if [[ -f "$repo_dir/supabase/tests/submission_identity/intake.sql" ]]; then
   psql_test -q < "$repo_dir/supabase/tests/submission_identity/intake.sql" >/dev/null
+fi
+if [[ "${1:-}" != "--baseline" && -f "$repo_dir/supabase/tests/submission_identity/foundations.sql" ]]; then
+  psql_test -q < "$repo_dir/supabase/tests/submission_identity/foundations.sql" >/dev/null
 fi
 source "$repo_dir/supabase/tests/submission_identity/concurrency.sh"
 psql_test -c 'SELECT name, coalesce(error, '\''PASS'\'') AS result FROM fixture.results ORDER BY name'
