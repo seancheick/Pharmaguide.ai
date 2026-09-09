@@ -659,6 +659,11 @@ class _MissingProductSubmissionSheetState
     if (pending == null || !mounted) return;
     // A local the closure can read without a null check.
     final recovered = pending;
+    // A saved capture belonging to a different attempt for this same barcode
+    // is not this one's evidence. Sending it would carry the wrong lineage
+    // (or none), and the server's open-submission guard would reject it. Leave
+    // it alone; Contributions still lists it under its own attempt.
+    if (recovered.resubmissionOf != _chosenResubmissionOf) return;
     final resume = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(

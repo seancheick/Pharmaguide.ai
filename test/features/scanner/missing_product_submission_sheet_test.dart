@@ -847,6 +847,28 @@ void main() {
       expect(pending.single.consentVersion, productSubmissionConsentVersion);
     });
 
+    testWidgets('a capture from another attempt is not resumed under this one', (
+      tester,
+    ) async {
+      // Saved with no lineage; this sheet is a retry of a rejected submission.
+      await seedInterruptedCapture();
+      final backend = _Backend(authenticatedUserId: _userId);
+
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          draftStore: store,
+          resubmissionOf: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a99',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Offering it would send the older attempt's photos without the retry
+      // lineage, which the open-submission guard rejects.
+      expect(find.text('Finish your photos?'), findsNothing);
+      expect((await store.list()), hasLength(1));
+    });
+
     testWidgets('photos that no longer match their manifest are not sent', (
       tester,
     ) async {
