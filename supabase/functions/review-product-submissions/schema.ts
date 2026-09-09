@@ -376,3 +376,721 @@ export function validateManualLabelV1(value: unknown): JsonObject {
   }
   return payload;
 }
+
+// ---------------------------------------------------------------------------
+// label_draft_v1: the provenance-bound partial draft an extractor produces.
+//
+// A draft is what a reviewer starts from, never what the catalog ingests. It
+// may carry explicit unknowns, per-field photo provenance and typed
+// discrepancies; it may not carry anything a model is forbidden to mint
+// (identities, citations, scores, verdicts). Mirrors
+// scripts/submission_review/extraction/envelope.py in the pipeline repo; both
+// pin fixtures/label_draft_v1_cases.json by checksum. Validation never
+// normalizes label text and returns the value unchanged.
+
+export const LABEL_DRAFT_SCHEMA_VERSION = "label_draft_v1";
+
+const DRAFT_FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
+  "canonical_id",
+  "canonical_ids",
+  "clean_identity_id",
+  "cui",
+  "rxcui",
+  "unii",
+  "pmid",
+  "pmids",
+  "score",
+  "scores",
+  "verdict",
+  "benefit",
+  "benefits",
+  "safety_verdict",
+]);
+const DRAFT_FIELD_STATUSES = new Set([
+  "read",
+  "partial",
+  "unreadable",
+  "not_present",
+]);
+const DRAFT_ROW_STATUSES = new Set(["read", "partial", "unreadable"]);
+const DRAFT_READABILITIES = new Set(["ok", "partial", "unreadable"]);
+const DRAFT_PHOTO_ISSUES = new Set([
+  "glare",
+  "blur",
+  "cut_off",
+  "curved",
+  "dark",
+  "small_print",
+]);
+const DRAFT_PHOTO_ROLES = new Set([
+  "front_identity",
+  "supplement_facts",
+  "ingredient_disclosure",
+  "directions_warnings",
+  "barcode",
+  "lot_expiry",
+]);
+const DRAFT_DISCLOSURE_HINTS = new Set([
+  "present",
+  "declared_none",
+  "on_facts_panel",
+  "unknown",
+]);
+const DRAFT_DISCREPANCY_CODES = new Set([
+  "barcode_mismatch",
+  "multiple_products",
+  "front_facts_brand_conflict",
+  "declared_role_mismatch",
+  "facts_panel_missing",
+  "facts_unreadable",
+  "cut_off_text",
+  "foreign_language",
+  "handwritten",
+  "expired_date_seen",
+  "injection_text_present",
+  "serving_basis_ambiguous",
+  "catalog_candidate",
+  "model_failure",
+]);
+const DRAFT_SEVERITIES = new Set(["info", "warning", "critical"]);
+const DRAFT_TOP_LEVEL_KEYS = new Set([
+  "schema_version",
+  "draft_origin",
+  "provider",
+  "model",
+  "prompt_version",
+  "job_key",
+  "result_fingerprint",
+  "evidence_revision",
+  "evidence_snapshot",
+  "sent_inputs",
+  "photo_roles",
+  "identity",
+  "serving",
+  "ingredient_rows",
+  "other_ingredients",
+  "statements",
+  "discrepancies",
+  "abstained",
+  "abstain_reason",
+  "overall_confidence",
+]);
+const DRAFT_OPTIONAL_TOP_LEVEL_KEYS = new Set([
+  "job_key",
+  "result_fingerprint",
+  "evidence_revision",
+]);
+const DRAFT_MAX_INGREDIENT_ROWS = 500;
+const DRAFT_MAX_STATEMENTS = 100;
+const DRAFT_MAX_DISCREPANCIES = 100;
+const DRAFT_MAX_TEXT = 2000;
+const DRAFT_MAX_SHORT = 200;
+const DRAFT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const DRAFT_SHA256 = /^[0-9a-f]{64}$/;
+const DRAFT_TOKEN = /^[A-Za-z0-9._:/+-]{1,120}$/;
+
+type Snapshot = Record<string, string>;
+
+function draftFail(path: string, message: string): never {
+  throw new Error(`${path}: ${message}`);
+}
+
+function draftObject(value: unknown, path: string): JsonObject {
+  if (!isObject(value)) draftFail(path, "must be an object");
+  return value;
+}
+
+function draftList(value: unknown, path: string, maximum: number): unknown[] {
+  if (!Array.isArray(value)) draftFail(path, "must be an array");
+  if (value.length > maximum) draftFail(path, `at most ${maximum} items`);
+  return value;
+}
+
+function draftRejectUnknown(
+  value: JsonObject,
+  allowed: ReadonlySet<string>,
+  path: string,
+): void {
+  const unknown = Object.keys(value).filter((key) => !allowed.has(key)).sort();
+  if (unknown.length > 0) draftFail(path, `unknown key ${unknown[0]}`);
+}
+
+function draftRejectForbiddenKeys(value: unknown, path: string): void {
+  if (Array.isArray(value)) {
+    value.forEach((child, index) =>
+      draftRejectForbiddenKeys(child, `${path}[${index}]`)
+    );
+    return;
+  }
+  if (!isObject(value)) return;
+  for (const [key, child] of Object.entries(value)) {
+    if (DRAFT_FORBIDDEN_KEYS.has(key.toLowerCase())) {
+      draftFail(`${path}.${key}`, "model output may not carry this key");
+    }
+    draftRejectForbiddenKeys(child, `${path}.${key}`);
+  }
+}
+
+function draftToken(value: unknown, path: string): void {
+  if (typeof value !== "string" || !DRAFT_TOKEN.test(value)) {
+    draftFail(path, "must be a short token");
+  }
+}
+
+function draftText(
+  value: unknown,
+  path: string,
+  maximum: number,
+  required: boolean,
+): void {
+  if (value === null && !required) return;
+  if (typeof value !== "string") draftFail(path, "must be text");
+  if (required && value.trim().length === 0) {
+    draftFail(path, "must not be empty");
+  }
+  if (value.length > maximum) draftFail(path, `at most ${maximum} characters`);
+}
+
+function draftFiniteNumber(
+  value: unknown,
+  path: string,
+  minimum: number | null = null,
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    draftFail(path, "must be a finite number");
+  }
+  if (minimum !== null && value < minimum) {
+    draftFail(path, `must be at least ${minimum}`);
+  }
+  return value;
+}
+
+function draftPositiveInt(value: unknown, path: string): void {
+  if (!Number.isInteger(value) || (value as number) < 1) {
+    draftFail(path, "must be a positive integer");
+  }
+}
+
+function draftConfidence(value: unknown, path: string): void {
+  if (value === null || value === undefined) return;
+  const number = draftFiniteNumber(value, path);
+  if (number < 0 || number > 1) draftFail(path, "must be between 0 and 1");
+}
+
+function draftPhotoRef(
+  value: unknown,
+  path: string,
+  snapshot: Snapshot,
+): string {
+  if (typeof value !== "string" || !(value in snapshot)) {
+    draftFail(path, "must reference a snapshot photo");
+  }
+  return value;
+}
+
+function draftRegion(value: unknown, path: string): void {
+  const region = draftObject(value, path);
+  draftRejectUnknown(region, new Set(["x", "y", "w", "h"]), path);
+  const components: Record<string, number> = {};
+  for (const key of ["x", "y", "w", "h"]) {
+    const component = draftFiniteNumber(region[key], `${path}.${key}`);
+    if (component < 0 || component > 1) {
+      draftFail(`${path}.${key}`, "must be a fraction of the image");
+    }
+    components[key] = component;
+  }
+  if (
+    components.x + components.w > 1.000001 ||
+    components.y + components.h > 1.000001
+  ) {
+    draftFail(path, "must stay inside the image");
+  }
+}
+
+function draftSources(
+  value: unknown,
+  path: string,
+  snapshot: Snapshot,
+): unknown[] {
+  const sources = draftList(value, path, Object.keys(snapshot).length * 4);
+  sources.forEach((source, index) => {
+    const spath = `${path}[${index}]`;
+    const entry = draftObject(source, spath);
+    draftRejectUnknown(
+      entry,
+      new Set(["input_id", "photo_id", "supporting_text", "region"]),
+      spath,
+    );
+    draftPhotoRef(entry.photo_id, `${spath}.photo_id`, snapshot);
+    draftText(
+      entry.supporting_text ?? null,
+      `${spath}.supporting_text`,
+      DRAFT_MAX_TEXT,
+      false,
+    );
+    if (entry.region !== undefined && entry.region !== null) {
+      draftRegion(entry.region, `${spath}.region`);
+    }
+  });
+  return sources;
+}
+
+function draftField(
+  value: unknown,
+  path: string,
+  snapshot: Snapshot,
+  numeric = false,
+): void {
+  const field = draftObject(value, path);
+  draftRejectUnknown(
+    field,
+    new Set(["value", "status", "confidence", "sources"]),
+    path,
+  );
+  const status = field.status;
+  if (typeof status !== "string" || !DRAFT_FIELD_STATUSES.has(status)) {
+    draftFail(`${path}.status`, "unknown field status");
+  }
+  const raw = field.value ?? null;
+  const sources = draftSources(field.sources, `${path}.sources`, snapshot);
+  if (status === "read" || status === "partial") {
+    if (raw === null) {
+      draftFail(`${path}.value`, `${status} field requires a value`);
+    }
+    if (sources.length === 0) {
+      draftFail(`${path}.sources`, `${status} field requires a source`);
+    }
+  } else {
+    if (raw !== null) {
+      draftFail(`${path}.value`, `${status} field must have no value`);
+    }
+    if (sources.length > 0) {
+      draftFail(`${path}.sources`, `${status} field must have no sources`);
+    }
+  }
+  if (raw !== null) {
+    if (numeric) {
+      draftFiniteNumber(raw, `${path}.value`, 0);
+    } else if (isObject(raw) || Array.isArray(raw)) {
+      draftFail(`${path}.value`, "must be text or a number");
+    } else if (typeof raw === "string") {
+      draftText(raw, `${path}.value`, DRAFT_MAX_TEXT, true);
+    } else {
+      draftFiniteNumber(raw, `${path}.value`);
+    }
+  }
+  draftConfidence(field.confidence, `${path}.confidence`);
+}
+
+function draftNullableField(
+  value: unknown,
+  path: string,
+  snapshot: Snapshot,
+  numeric = false,
+): void {
+  if (value === null || value === undefined) return;
+  draftField(value, path, snapshot, numeric);
+}
+
+function draftAmount(value: unknown, path: string, snapshot: Snapshot): void {
+  if (value === null || value === undefined) return;
+  const field = draftObject(value, path);
+  draftRejectUnknown(
+    field,
+    new Set(["value", "status", "confidence", "sources"]),
+    path,
+  );
+  const status = field.status;
+  if (typeof status !== "string" || !DRAFT_FIELD_STATUSES.has(status)) {
+    draftFail(`${path}.status`, "unknown field status");
+  }
+  const raw = field.value ?? null;
+  const sources = draftSources(field.sources, `${path}.sources`, snapshot);
+  if (status === "read" || status === "partial") {
+    const amount = draftObject(raw, `${path}.value`);
+    draftRejectUnknown(
+      amount,
+      new Set(["value", "unit_text"]),
+      `${path}.value`,
+    );
+    if (amount.value != null || status === "read") {
+      draftFiniteNumber(amount.value, `${path}.value.value`, 0);
+    }
+    if (amount.unit_text != null || status === "read") {
+      draftText(
+        amount.unit_text,
+        `${path}.value.unit_text`,
+        DRAFT_MAX_SHORT,
+        true,
+      );
+    }
+    if (amount.value == null && amount.unit_text == null) {
+      draftFail(
+        `${path}.value`,
+        "partial amount needs a number or printed unit",
+      );
+    }
+    if (sources.length === 0) {
+      draftFail(`${path}.sources`, `${status} amount requires a source`);
+    }
+  } else if (raw !== null || sources.length > 0) {
+    draftFail(`${path}.value`, `${status} amount must have no value`);
+  }
+  draftConfidence(field.confidence, `${path}.confidence`);
+}
+
+function draftSnapshot(value: unknown): Snapshot {
+  const snapshot = draftObject(value, "$.evidence_snapshot");
+  const entries = Object.entries(snapshot);
+  if (entries.length === 0) {
+    draftFail("$.evidence_snapshot", "at least one photo required");
+  }
+  const result: Snapshot = {};
+  for (const [photoId, digest] of entries) {
+    if (!DRAFT_UUID.test(photoId)) {
+      draftFail("$.evidence_snapshot", `invalid photo id ${photoId}`);
+    }
+    if (typeof digest !== "string" || !DRAFT_SHA256.test(digest)) {
+      draftFail(`$.evidence_snapshot.${photoId}`, "invalid sha256");
+    }
+    result[photoId] = digest;
+  }
+  return result;
+}
+
+function draftSentInputs(value: unknown, snapshot: Snapshot): void {
+  const items = draftList(
+    value,
+    "$.sent_inputs",
+    Object.keys(snapshot).length * 4,
+  );
+  const seen = new Set<string>();
+  items.forEach((item, index) => {
+    const path = `$.sent_inputs[${index}]`;
+    const entry = draftObject(item, path);
+    draftRejectUnknown(
+      entry,
+      new Set([
+        "input_id",
+        "photo_id",
+        "original_sha256",
+        "sent_sha256",
+        "crop",
+      ]),
+      path,
+    );
+    draftToken(entry.input_id, `${path}.input_id`);
+    if (seen.has(entry.input_id as string)) {
+      draftFail(`${path}.input_id`, "duplicate input id");
+    }
+    seen.add(entry.input_id as string);
+    const photoId = draftPhotoRef(entry.photo_id, `${path}.photo_id`, snapshot);
+    if (entry.original_sha256 !== snapshot[photoId]) {
+      draftFail(
+        `${path}.original_sha256`,
+        "must equal the original snapshot hash",
+      );
+    }
+    if (
+      typeof entry.sent_sha256 !== "string" ||
+      !DRAFT_SHA256.test(entry.sent_sha256)
+    ) {
+      draftFail(`${path}.sent_sha256`, "must hash the actually sent bytes");
+    }
+    if (entry.crop !== undefined && entry.crop !== null) {
+      draftRegion(entry.crop, `${path}.crop`);
+    }
+  });
+}
+
+function draftTraceSources(
+  value: unknown,
+  inputs: Map<string, JsonObject>,
+  human: boolean,
+  path = "$",
+): void {
+  if (Array.isArray(value)) {
+    value.forEach((child, index) =>
+      draftTraceSources(child, inputs, human, `${path}[${index}]`)
+    );
+  } else if (isObject(value)) {
+    if (Array.isArray(value.sources)) {
+      for (const raw of value.sources) {
+        const source = raw as JsonObject;
+        if (human) {
+          if (source.input_id != null) {
+            draftFail(
+              `${path}.sources`,
+              "human source cannot cite a model input",
+            );
+          }
+        } else if (
+          typeof source.input_id !== "string" || !inputs.has(source.input_id)
+        ) {
+          draftFail(`${path}.sources`, "must cite an actual sent input_id");
+        } else if (inputs.get(source.input_id)!.photo_id !== source.photo_id) {
+          draftFail(`${path}.sources`, "input_id belongs to another photo");
+        }
+      }
+    }
+    for (const [key, child] of Object.entries(value)) {
+      draftTraceSources(child, inputs, human, `${path}.${key}`);
+    }
+  }
+}
+
+function draftPhotoRoles(value: unknown, snapshot: Snapshot): void {
+  const roles = draftList(value, "$.photo_roles", Object.keys(snapshot).length);
+  roles.forEach((item, index) => {
+    const path = `$.photo_roles[${index}]`;
+    const entry = draftObject(item, path);
+    draftRejectUnknown(
+      entry,
+      new Set(["photo_id", "declared", "inferred", "readability", "issues"]),
+      path,
+    );
+    draftPhotoRef(entry.photo_id, `${path}.photo_id`, snapshot);
+    for (
+      const role of draftList(
+        entry.declared,
+        `${path}.declared`,
+        DRAFT_PHOTO_ROLES.size,
+      )
+    ) {
+      if (typeof role !== "string" || !DRAFT_PHOTO_ROLES.has(role)) {
+        draftFail(`${path}.declared`, `unknown role ${String(role)}`);
+      }
+    }
+    draftList(entry.inferred, `${path}.inferred`, DRAFT_PHOTO_ROLES.size)
+      .forEach((inferred, j) => {
+        const ipath = `${path}.inferred[${j}]`;
+        const inferredObject = draftObject(inferred, ipath);
+        draftRejectUnknown(
+          inferredObject,
+          new Set(["role", "confidence"]),
+          ipath,
+        );
+        if (
+          typeof inferredObject.role !== "string" ||
+          !DRAFT_PHOTO_ROLES.has(inferredObject.role)
+        ) {
+          draftFail(`${ipath}.role`, "unknown role");
+        }
+        draftConfidence(inferredObject.confidence, `${ipath}.confidence`);
+      });
+    if (
+      typeof entry.readability !== "string" ||
+      !DRAFT_READABILITIES.has(entry.readability)
+    ) {
+      draftFail(`${path}.readability`, "unknown readability");
+    }
+    for (
+      const issue of draftList(
+        entry.issues,
+        `${path}.issues`,
+        DRAFT_PHOTO_ISSUES.size,
+      )
+    ) {
+      if (typeof issue !== "string" || !DRAFT_PHOTO_ISSUES.has(issue)) {
+        draftFail(`${path}.issues`, `unknown issue ${String(issue)}`);
+      }
+    }
+  });
+}
+
+function draftIngredientRows(value: unknown, snapshot: Snapshot): void {
+  const rows = draftList(value, "$.ingredient_rows", DRAFT_MAX_INGREDIENT_ROWS);
+  const headers = new Set<number>();
+  rows.forEach((item, index) => {
+    const path = `$.ingredient_rows[${index}]`;
+    const row = draftObject(item, path);
+    draftRejectUnknown(
+      row,
+      new Set([
+        "display_name",
+        "amount",
+        "percent_dv",
+        "form_text",
+        "parent_index",
+        "is_blend_header",
+        "status",
+      ]),
+      path,
+    );
+    draftField(row.display_name, `${path}.display_name`, snapshot);
+    draftAmount(row.amount, `${path}.amount`, snapshot);
+    draftNullableField(row.percent_dv, `${path}.percent_dv`, snapshot, true);
+    draftNullableField(row.form_text, `${path}.form_text`, snapshot);
+    if (typeof row.is_blend_header !== "boolean") {
+      draftFail(`${path}.is_blend_header`, "must be boolean");
+    }
+    if (typeof row.status !== "string" || !DRAFT_ROW_STATUSES.has(row.status)) {
+      draftFail(`${path}.status`, "unknown row status");
+    }
+    const parent = row.parent_index ?? null;
+    if (parent !== null) {
+      if (!Number.isInteger(parent)) {
+        draftFail(`${path}.parent_index`, "must be an integer or null");
+      }
+      const parentIndex = parent as number;
+      if (parentIndex < 0 || parentIndex >= index) {
+        draftFail(`${path}.parent_index`, "must reference an earlier row");
+      }
+      if (!headers.has(parentIndex)) {
+        draftFail(`${path}.parent_index`, "must reference a blend header");
+      }
+    }
+    if (row.is_blend_header === true) headers.add(index);
+  });
+}
+
+function draftDiscrepancies(value: unknown, snapshot: Snapshot): void {
+  const items = draftList(value, "$.discrepancies", DRAFT_MAX_DISCREPANCIES);
+  items.forEach((item, index) => {
+    const path = `$.discrepancies[${index}]`;
+    const entry = draftObject(item, path);
+    draftRejectUnknown(
+      entry,
+      new Set(["code", "severity", "detail", "photo_ids"]),
+      path,
+    );
+    if (
+      typeof entry.code !== "string" || !DRAFT_DISCREPANCY_CODES.has(entry.code)
+    ) {
+      draftFail(`${path}.code`, "unknown discrepancy code");
+    }
+    if (
+      typeof entry.severity !== "string" ||
+      !DRAFT_SEVERITIES.has(entry.severity)
+    ) {
+      draftFail(`${path}.severity`, "unknown severity");
+    }
+    draftText(entry.detail ?? null, `${path}.detail`, DRAFT_MAX_TEXT, false);
+    draftList(
+      entry.photo_ids,
+      `${path}.photo_ids`,
+      Object.keys(snapshot).length,
+    )
+      .forEach((photoId, j) =>
+        draftPhotoRef(photoId, `${path}.photo_ids[${j}]`, snapshot)
+      );
+  });
+}
+
+/** Validate a partial draft; returns the value unchanged (no normalization). */
+export function validateLabelDraftV1(value: unknown): JsonObject {
+  const draft = draftObject(value, "$");
+  draftRejectUnknown(draft, DRAFT_TOP_LEVEL_KEYS, "$");
+  for (const key of [...DRAFT_TOP_LEVEL_KEYS].sort()) {
+    if (!DRAFT_OPTIONAL_TOP_LEVEL_KEYS.has(key) && !(key in draft)) {
+      draftFail(`$.${key}`, "required");
+    }
+  }
+  draftRejectForbiddenKeys(draft, "$");
+  if (draft.schema_version !== LABEL_DRAFT_SCHEMA_VERSION) {
+    draftFail("$.schema_version", `must be ${LABEL_DRAFT_SCHEMA_VERSION}`);
+  }
+  for (const key of ["provider", "model", "prompt_version"]) {
+    draftToken(draft[key], `$.${key}`);
+  }
+  if (
+    draft.draft_origin !== "model" &&
+    draft.draft_origin !== "human_transcription"
+  ) {
+    draftFail("$.draft_origin", "unknown draft origin");
+  }
+  const human = draft.draft_origin === "human_transcription";
+  if (human && (draft.provider !== "human" || draft.model !== "human")) {
+    draftFail(
+      "$.draft_origin",
+      "human transcription requires human provider and model",
+    );
+  }
+  for (const key of ["job_key", "result_fingerprint"]) {
+    if (draft[key] !== undefined && draft[key] !== null) {
+      draftToken(draft[key], `$.${key}`);
+    }
+  }
+  if (
+    draft.evidence_revision !== undefined && draft.evidence_revision !== null
+  ) {
+    draftPositiveInt(draft.evidence_revision, "$.evidence_revision");
+  }
+
+  const snapshot = draftSnapshot(draft.evidence_snapshot);
+  draftSentInputs(draft.sent_inputs, snapshot);
+  const sent = draft.sent_inputs as JsonObject[];
+  if (human && sent.length > 0) {
+    draftFail("$.sent_inputs", "human transcription has no model inputs");
+  }
+  if (!human && sent.length === 0) {
+    draftFail("$.sent_inputs", "model draft requires actual sent inputs");
+  }
+  draftPhotoRoles(draft.photo_roles, snapshot);
+
+  const identity = draftObject(draft.identity, "$.identity");
+  draftRejectUnknown(
+    identity,
+    new Set(["brand", "product_name", "barcode_digits_seen"]),
+    "$.identity",
+  );
+  draftField(identity.brand, "$.identity.brand", snapshot);
+  draftField(identity.product_name, "$.identity.product_name", snapshot);
+  draftNullableField(
+    identity.barcode_digits_seen,
+    "$.identity.barcode_digits_seen",
+    snapshot,
+  );
+
+  const serving = draftObject(draft.serving, "$.serving");
+  draftRejectUnknown(
+    serving,
+    new Set(["size", "servings_per_container", "basis_text", "amount"]),
+    "$.serving",
+  );
+  for (const key of ["size", "servings_per_container", "basis_text"]) {
+    draftField(serving[key], `$.serving.${key}`, snapshot);
+  }
+  draftAmount(serving.amount, "$.serving.amount", snapshot);
+
+  draftIngredientRows(draft.ingredient_rows, snapshot);
+
+  const other = draftObject(draft.other_ingredients, "$.other_ingredients");
+  draftRejectUnknown(
+    other,
+    new Set(["text", "disclosure_hint"]),
+    "$.other_ingredients",
+  );
+  draftNullableField(other.text, "$.other_ingredients.text", snapshot);
+  if (
+    typeof other.disclosure_hint !== "string" ||
+    !DRAFT_DISCLOSURE_HINTS.has(other.disclosure_hint)
+  ) {
+    draftFail("$.other_ingredients.disclosure_hint", "unknown disclosure hint");
+  }
+
+  draftList(draft.statements, "$.statements", DRAFT_MAX_STATEMENTS)
+    .forEach((statement, index) =>
+      draftField(statement, `$.statements[${index}]`, snapshot)
+    );
+
+  draftDiscrepancies(draft.discrepancies, snapshot);
+
+  if (typeof draft.abstained !== "boolean") {
+    draftFail("$.abstained", "must be boolean");
+  }
+  const reason = draft.abstain_reason ?? null;
+  if (draft.abstained) {
+    draftText(reason, "$.abstain_reason", DRAFT_MAX_SHORT, true);
+  } else if (reason !== null) {
+    draftText(reason, "$.abstain_reason", DRAFT_MAX_SHORT, false);
+  }
+  draftConfidence(draft.overall_confidence, "$.overall_confidence");
+  draftTraceSources(
+    draft,
+    new Map(sent.map((input) => [input.input_id as string, input])),
+    human,
+  );
+  return draft;
+}

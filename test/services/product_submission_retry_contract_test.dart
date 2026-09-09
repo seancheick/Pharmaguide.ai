@@ -1,3 +1,4 @@
+import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -399,6 +400,7 @@ void main() {
           },
           'p_no_separate_ingredient_panel': false,
           'p_photos': backend.photoRows,
+          'p_consent_version': productSubmissionConsentVersion,
         });
         expect(backend.photoRows, [
           {
@@ -436,6 +438,7 @@ void main() {
           },
           'p_no_separate_ingredient_panel': false,
           'p_photos': <Map<String, Object?>>[],
+          'p_consent_version': productSubmissionConsentVersion,
         });
         expect(backend.photoRows, isEmpty);
       },
@@ -829,6 +832,12 @@ class _UploadCall {
 }
 
 class _FakeBackend implements ProductSubmissionBackend {
+  @override
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  }) async => {'action': 'start_new'};
+
   @override
   final String? authenticatedUserId;
   int persistFailuresRemaining;

@@ -211,7 +211,11 @@ void main() {
     expect(photoSigning, greaterThan(readyFilter));
     expect(
       source,
-      contains('createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS)'),
+      allOf(
+        contains('loadSubmissionEvidence(userClient,'),
+        contains('evidence.photos.map('),
+        contains('SIGNED_URL_TTL_SECONDS'),
+      ),
     );
     expect(source, contains("'product-submission-photos'"));
     expect(source, isNot(contains('createPublicUrl')));
@@ -230,7 +234,16 @@ void main() {
     expect(source, contains("'field_provenance'"));
     expect(source, contains("'prompt_version'"));
     expect(source, contains("'confidence'"));
-    expect(source, contains('p_recorded_by: reviewerId'));
+    expect(
+      source,
+      isNot(contains('p_recorded_by')),
+      reason:
+          'The recorder is derived from auth.uid() inside the RPC; a caller '
+          'must not be able to name another reviewer.',
+    );
+    expect(source, contains('validateLabelDraftV1(extraction.draft_payload)'));
+    expect(source, contains('p_usage: usage ?? null'));
+    expect(source, contains('p_evidence_revision: evidenceRevision'));
     expect(source, isNot(contains('autoApprove')));
     final extractionBranch = source.indexOf(
       "if (action === 'record_extraction')",
@@ -242,6 +255,17 @@ void main() {
     final extractionRpc = source.indexOf(
       "'record_product_submission_extraction'",
       extractionBranch,
+    );
+    final extractionClient = source.lastIndexOf('.rpc(', extractionRpc);
+    expect(
+      source.substring(
+        extractionClient - 'userClient'.length,
+        extractionClient,
+      ),
+      'userClient',
+      reason:
+          'Draft recording runs as the signed-in reviewer, never as the '
+          'service role.',
     );
     expect(byteVerification, greaterThan(extractionBranch));
     expect(extractionRpc, greaterThan(byteVerification));
@@ -294,7 +318,7 @@ void main() {
     expect(source, contains('sha256HexBytes(bytes)'));
     final approvalBranch = source.indexOf("if (toStatus === 'approved')");
     final byteVerification = source.indexOf(
-      'verifySubmissionPhotoIntegrity(admin, submissionId)',
+      'verifySubmissionPhotoIntegrity(admin, evidence)',
       approvalBranch,
     );
     final reviewRpc = source.indexOf(
@@ -464,9 +488,19 @@ void main() {
   test('photo integrity is keyed by photo identity, not slots', () {
     expect(
       source,
-      contains("select('photo_id,object_path,byte_size,content_sha256')"),
+      allOf(
+        contains("client.rpc('get_product_submission_evidence'"),
+        contains('for (const raw of evidence.photos)'),
+      ),
     );
-    expect(source, contains("order('photo_id', { ascending: true })"));
+    expect(
+      File(
+        'supabase/migrations/20260909013000_submission_foundations_consent_revisions_extraction.sql',
+      ).readAsStringSync(),
+      contains('ORDER BY photo.photo_id'),
+      reason:
+          'Canonical photo ordering belongs to the revision manifest producer.',
+    );
     expect(source, isNot(contains('photo_slot')));
   });
 

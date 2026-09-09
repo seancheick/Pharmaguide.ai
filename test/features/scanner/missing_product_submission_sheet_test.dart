@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
@@ -34,6 +36,7 @@ Widget _harness({
   required _Backend backend,
   PickMissingProductPhoto? pickPhoto,
   EvaluatePhotoQuality? qualityGate,
+  String? resubmissionOf,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -42,6 +45,7 @@ Widget _harness({
         service: ProductSubmissionService(backend: backend),
         submissionIdFactory: () => _submissionId,
         qualityGate: qualityGate ?? (_) async => _okQuality,
+        resubmissionOf: resubmissionOf,
         pickPhoto: pickPhoto ?? (tags) async => _photo(tags),
       ),
     ),
@@ -112,6 +116,254 @@ Future<void> _captureRequiredEvidence(WidgetTester tester) async {
 
 void main() {
   setUp(() => _photoCounter = 0);
+
+  testWidgets('existing receipt opens contributions and closes capture', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..intake = {
+        'action': 'open_existing',
+        'submission_id': _submissionId,
+        'normalized_upc': _upc,
+        'resolution_code': null,
+        'resolution_detail': null,
+      };
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, _) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () => showMissingProductSubmissionSheet(
+                  context,
+                  upc: _upc,
+                  service: ProductSubmissionService(backend: backend),
+                ),
+                child: const Text('Open capture'),
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/contributions',
+          builder: (_, _) => const Scaffold(body: Text('Contribution history')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.tap(find.text('Open capture'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View your contributions'));
+    await tester.pumpAndSettle();
+    expect(find.text('Contribution history'), findsOneWidget);
+    expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+    expect(backend.persistedSubmissionIds, isEmpty);
+  });
+
+  testWidgets(
+    'interrupted upload offers fresh photos without reusing its manifest',
+    (tester) async {
+      final backend = _Backend(authenticatedUserId: _userId)
+        ..intake = {
+          'action': 'incomplete_upload',
+          'submission_id': _submissionId,
+          'normalized_upc': _upc,
+          'resolution_code': null,
+          'resolution_detail': null,
+        };
+      await tester.pumpWidget(_harness(backend: backend));
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+      expect(find.text('Your earlier upload was interrupted'), findsOneWidget);
+      expect(backend.persistedSubmissionIds, isEmpty);
+      await tester.tap(find.text('Not now'));
+      await tester.pumpAndSettle();
+      expect(find.text('Front of the package'), findsNothing);
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Take new photos'));
+      await tester.pumpAndSettle();
+      expect(find.text('Front of the package'), findsOneWidget);
+      expect(backend.persistedSubmissionIds, isEmpty);
+      expect(backend.persistedLineage, isNull);
+    },
+  );
+
+  testWidgets('retry dialog fits a narrow phone with large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..intake = {
+        'action': 'retry_rejected',
+        'submission_id': _submissionId,
+        'normalized_upc': _upc,
+        'resolution_code': 'photo_quality',
+        'resolution_detail': null,
+      };
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('missing-product-start')),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('missing-product-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('missing-product-start'))),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('too blurry or dark'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Try again with new photos'));
+    expect(
+      find.text('Try again with new photos').hitTestable(),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('checks an existing receipt before taking any photos', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..intake = {
+        'action': 'open_existing',
+        'submission_id': _submissionId,
+        'normalized_upc': '0$_upc',
+        'resolution_code': null,
+        'resolution_detail': null,
+      };
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('You’ve already sent this product'), findsOneWidget);
+    expect(find.text('View your contributions'), findsOneWidget);
+    expect(find.text('Front of the package'), findsNothing);
+    expect(_photoCounter, 0);
+    expect(backend.persistedSubmissionIds, isEmpty);
+  });
+
+  testWidgets('new entry after rejection explicitly offers a linked retry', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..intake = {
+        'action': 'retry_rejected',
+        'submission_id': '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a22',
+        'normalized_upc': '0$_upc',
+        'resolution_code': 'photo_quality',
+        'resolution_detail': null,
+      };
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Try this product again'), findsOneWidget);
+    expect(_photoCounter, 0);
+    await tester.tap(find.text('Try again with new photos'));
+    await tester.pumpAndSettle();
+    // Capture a fresh, complete photo set after explicitly choosing retry.
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-supplement_facts')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('missing-product-submit')),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('missing-product-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+    expect(backend.persistedLineage, '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a22');
+    expect(find.text('Thanks — it’s in review'), findsOneWidget);
+  });
+
+  testWidgets('intake errors do not start a second upload', (tester) async {
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..intakeError = StateError('offline');
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Couldn’t check your previous submissions'),
+      findsOneWidget,
+    );
+    expect(find.text('Front of the package'), findsNothing);
+    expect(_photoCounter, 0);
+  });
+
+  testWidgets('intake timeout leaves capture closed and offers retry', (
+    tester,
+  ) async {
+    final pending = Completer<Map<String, Object?>>();
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..pendingIntake = pending;
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pump(const Duration(seconds: 11));
+    await tester.pump();
+    expect(
+      find.textContaining('Couldn’t check your previous submissions'),
+      findsOneWidget,
+    );
+    expect(find.text('Front of the package'), findsNothing);
+    pending.complete({'action': 'start_new'});
+    await tester.pumpAndSettle();
+    expect(find.text('Front of the package'), findsNothing);
+  });
+
+  testWidgets('one intake check runs while Start is tapped repeatedly', (
+    tester,
+  ) async {
+    final pending = Completer<Map<String, Object?>>();
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..pendingIntake = pending;
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pump();
+    expect(backend.intakeCalls, 1);
+    expect(find.text('Front of the package'), findsNothing);
+    pending.complete({'action': 'start_new'});
+    await tester.pumpAndSettle();
+    expect(find.text('Front of the package'), findsOneWidget);
+  });
 
   testWidgets('invalid GTIN never opens the capture flow', (tester) async {
     final backend = _Backend(authenticatedUserId: _userId);
@@ -495,9 +747,24 @@ class _Backend implements ProductSubmissionBackend {
   bool? persistedCueFlag;
   int persistFailuresRemaining;
   final Object? persistError;
+  Map<String, Object?> intake = {'action': 'start_new'};
+  Object? intakeError;
+  Completer<Map<String, Object?>>? pendingIntake;
+  int intakeCalls = 0;
+  String? persistedLineage;
   final List<String> persistedSubmissionIds = [];
   final Set<String> uploaded = {};
   List<Map<String, Object?>> manifest = const [];
+
+  @override
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  }) async {
+    intakeCalls++;
+    if (intakeError != null) throw intakeError!;
+    return pendingIntake == null ? intake : await pendingIntake!.future;
+  }
 
   @override
   Future<void> persistSubmission({
@@ -511,6 +778,7 @@ class _Backend implements ProductSubmissionBackend {
       throw StateError('ambiguous persist failure');
     }
     persistedKind = payload['p_kind'] as String?;
+    persistedLineage = payload['p_resubmission_of'] as String?;
     persistedCueFlag = payload['p_no_separate_ingredient_panel'] as bool?;
     manifest = payload['p_photos']! as List<Map<String, Object?>>;
   }

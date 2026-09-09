@@ -5,17 +5,33 @@ import { parseRecordMatchRequest } from "./match.ts";
 const submissionId = "018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11";
 const indexBuiltAt = "2026-08-25T16:20:30.123Z";
 
-Deno.test("record_match accepts a fresh exact no-match check", () => {
-  assertEquals(
+Deno.test("match checks require the evidence revision actually reviewed", () => {
+  assertThrows(() =>
     parseRecordMatchRequest({
       action: "record_match",
       submission_id: submissionId,
       outcome: "no_match_verified",
       canonical_gtin14: "00050428381397",
       index_built_at: indexBuiltAt,
+    })
+  );
+});
+
+Deno.test("record_match accepts a fresh exact no-match check", () => {
+  assertEquals(
+    parseRecordMatchRequest({
+      action: "record_match",
+      submission_id: submissionId,
+      expected_evidence_revision: 1,
+      evidence_manifest_sha256: "a".repeat(64),
+      outcome: "no_match_verified",
+      canonical_gtin14: "00050428381397",
+      index_built_at: indexBuiltAt,
     }),
     {
       submissionId,
+      expectedEvidenceRevision: 1,
+      evidenceManifestSha256: "a".repeat(64),
       outcome: "no_match_verified",
       canonicalGtin14: "00050428381397",
       indexBuiltAt,
@@ -31,6 +47,8 @@ Deno.test("record_match validates each outcome-specific shape", () => {
     const parsed = parseRecordMatchRequest({
       action: "record_match",
       submission_id: submissionId,
+      expected_evidence_revision: 1,
+      evidence_manifest_sha256: "a".repeat(64),
       outcome,
       canonical_gtin14: "04006381333931",
       index_built_at: indexBuiltAt,
@@ -43,6 +61,8 @@ Deno.test("record_match validates each outcome-specific shape", () => {
   const ambiguous = parseRecordMatchRequest({
     action: "record_match",
     submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
     outcome: "identity_ambiguous",
     canonical_gtin14: "00000096385074",
     index_built_at: indexBuiltAt,
@@ -53,19 +73,26 @@ Deno.test("record_match validates each outcome-specific shape", () => {
   const override = parseRecordMatchRequest({
     action: "record_match",
     submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
     outcome: "not_this_product",
     canonical_gtin14: "00016000275447",
     index_built_at: indexBuiltAt,
     matched_dsld_id: "PG_SUB_0123456789ABCDEF0123456789ABCDEF",
     reason: "The reviewed label is a different product despite the reused UPC.",
   });
-  assertEquals(override.reason, "The reviewed label is a different product despite the reused UPC.");
+  assertEquals(
+    override.reason,
+    "The reviewed label is a different product despite the reused UPC.",
+  );
 });
 
 Deno.test("record_match fails closed on malformed identity evidence", () => {
   const base = {
     action: "record_match",
     submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
     outcome: "no_match_verified",
     canonical_gtin14: "00050428381397",
     index_built_at: indexBuiltAt,

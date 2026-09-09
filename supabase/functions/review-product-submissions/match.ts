@@ -1,4 +1,5 @@
 type JsonObject = Record<string, unknown>;
+import { parseEvidenceBinding } from "./evidence.ts";
 
 export type MatchOutcome =
   | "catalog_match"
@@ -15,6 +16,8 @@ export type RecordMatchRequest = {
   matchedDsldId: string | null;
   candidateDsldIds: string[];
   reason: string | null;
+  expectedEvidenceRevision: number;
+  evidenceManifestSha256: string;
 };
 
 const UUID_PATTERN =
@@ -39,6 +42,8 @@ const ALLOWED_FIELDS = new Set([
   "matched_dsld_id",
   "candidate_dsld_ids",
   "reason",
+  "expected_evidence_revision",
+  "evidence_manifest_sha256",
 ]);
 
 function isObject(value: unknown): value is JsonObject {
@@ -80,9 +85,15 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
 
   const submissionId = requiredString(value.submission_id, "submission id", 36)
     .toLowerCase();
-  if (!UUID_PATTERN.test(submissionId)) throw new Error("invalid submission id");
+  if (!UUID_PATTERN.test(submissionId)) {
+    throw new Error("invalid submission id");
+  }
 
-  const outcome = requiredString(value.outcome, "match outcome", 40) as MatchOutcome;
+  const outcome = requiredString(
+    value.outcome,
+    "match outcome",
+    40,
+  ) as MatchOutcome;
   if (!OUTCOMES.has(outcome)) throw new Error("invalid match outcome");
 
   const canonicalGtin14 = requiredString(
@@ -97,7 +108,11 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
     throw new Error("invalid canonical GTIN-14");
   }
 
-  const indexBuiltAt = requiredString(value.index_built_at, "index built-at", 40);
+  const indexBuiltAt = requiredString(
+    value.index_built_at,
+    "index built-at",
+    40,
+  );
   if (
     !TIMESTAMP_PATTERN.test(indexBuiltAt) ||
     !Number.isFinite(Date.parse(indexBuiltAt))
@@ -124,15 +139,21 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
     : requiredString(value.reason, "match reason", 1000);
 
   if (outcome === "catalog_match" || outcome === "dsld_match") {
-    if (matchedDsldId === null || candidateDsldIds.length !== 0 || reason !== null) {
+    if (
+      matchedDsldId === null || candidateDsldIds.length !== 0 || reason !== null
+    ) {
       throw new Error("invalid exact-match evidence");
     }
   } else if (outcome === "identity_ambiguous") {
-    if (matchedDsldId !== null || candidateDsldIds.length < 2 || reason !== null) {
+    if (
+      matchedDsldId !== null || candidateDsldIds.length < 2 || reason !== null
+    ) {
       throw new Error("invalid ambiguous-match evidence");
     }
   } else if (outcome === "no_match_verified") {
-    if (matchedDsldId !== null || candidateDsldIds.length !== 0 || reason !== null) {
+    if (
+      matchedDsldId !== null || candidateDsldIds.length !== 0 || reason !== null
+    ) {
       throw new Error("invalid no-match evidence");
     }
   } else if (
@@ -142,6 +163,7 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
   }
 
   return {
+    ...parseEvidenceBinding(value),
     submissionId,
     outcome,
     canonicalGtin14,

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -563,6 +564,11 @@ class ProductSubmissionFailure extends ProductSubmissionResult {
 abstract interface class ProductSubmissionBackend {
   String? get authenticatedUserId;
 
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  });
+
   Future<void> uploadPhoto({
     required String bucket,
     required String objectPath,
@@ -593,6 +599,7 @@ class ProductSubmissionService {
   static const createFunction = 'create_product_submission';
   static const finalizeFunction = 'finalize_product_submission';
   static const hideFromHistoryFunction = 'hide_product_submission';
+  static const intakeFunction = 'get_product_submission_intake';
   static const _submissionPageSize = 100;
 
   final ProductSubmissionBackend backend;
@@ -605,6 +612,59 @@ class ProductSubmissionService {
         client ?? Supabase.instance.client,
       ),
     );
+  }
+
+  /// Read-only guidance before capture. The create/finalize transactions
+  /// remain authoritative if another device submits after this check.
+  Future<ProductSubmissionIntake> checkIntake({
+    required ProductSubmissionKind kind,
+    required String? upc,
+    String? dsldId,
+  }) async {
+    final userId = backend.authenticatedUserId;
+    if (userId == null || userId.isEmpty) {
+      throw StateError('Authentication required.');
+    }
+    final barcode = upc == null ? null : _normalizeUpc(upc);
+    if (kind == ProductSubmissionKind.missingProduct && barcode == null) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.invalidUpc,
+      );
+    }
+    final target = kind == ProductSubmissionKind.labelMismatch
+        ? LabelMismatchProductMetadata(dsldId: dsldId ?? '').dsldId
+        : null;
+    if (kind == ProductSubmissionKind.missingProduct && dsldId != null) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.unexpectedMetadata,
+      );
+    }
+    final row = await backend
+        .fetchIntake(
+          functionName: intakeFunction,
+          payload: {
+            'p_kind': kind.wireValue,
+            'p_upc': barcode,
+            'p_dsld_id': target,
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+    // An account switch during the request must not display the old
+    // account's receipt or transfer its retry lineage to a new account.
+    if (backend.authenticatedUserId != userId) {
+      throw StateError('Submission account changed.');
+    }
+    final intake = ProductSubmissionIntake.fromRow(row);
+    if (intake.action != ProductSubmissionIntakeAction.startNew &&
+        (intake.upc == null
+                ? null
+                : GtinIdentity.parse(intake.upc!).canonicalGtin14) !=
+            (barcode == null
+                ? null
+                : GtinIdentity.parse(barcode).canonicalGtin14)) {
+      throw const FormatException('Intake barcode mismatch');
+    }
+    return intake;
   }
 
   Future<ProductSubmissionResult> submit(
@@ -648,6 +708,8 @@ class ProductSubmissionService {
       'p_photos': manifest,
       if (draft.resubmissionOf != null)
         'p_resubmission_of': draft.resubmissionOf,
+      // Recorded server-side at first creation; a replay keeps the original.
+      'p_consent_version': productSubmissionConsentVersion,
     };
 
     // Persist the immutable submission and photo manifest before
@@ -776,6 +838,18 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
   String? get authenticatedUserId => _client.auth.currentUser?.id;
 
   @override
+  Future<Map<String, Object?>> fetchIntake({
+    required String functionName,
+    required Map<String, Object?> payload,
+  }) async {
+    final result = await _client.rpc<Object?>(functionName, params: payload);
+    if (result is! Map) {
+      throw const FormatException('Invalid submission intake response');
+    }
+    return Map<String, Object?>.from(result);
+  }
+
+  @override
   Future<void> uploadPhoto({
     required String bucket,
     required String objectPath,
@@ -876,6 +950,71 @@ enum ProductSubmissionResolutionCode {
   };
 }
 
+enum ProductSubmissionIntakeAction {
+  startNew,
+  openExisting,
+  retryRejected,
+  incompleteUpload,
+}
+
+/// Minimal owner-scoped response; it carries no internal review notes or
+/// other submitter's receipt. Unknown responses never authorize capture.
+class ProductSubmissionIntake {
+  const ProductSubmissionIntake._({
+    required this.action,
+    this.submissionId,
+    this.upc,
+    this.resolutionCode,
+    this.resolutionDetail,
+  });
+
+  final ProductSubmissionIntakeAction action;
+  final String? submissionId;
+  final String? upc;
+  final ProductSubmissionResolutionCode? resolutionCode;
+  final String? resolutionDetail;
+
+  factory ProductSubmissionIntake.fromRow(Map<String, Object?> row) {
+    final action = switch (row['action']) {
+      'start_new' => ProductSubmissionIntakeAction.startNew,
+      'open_existing' => ProductSubmissionIntakeAction.openExisting,
+      'retry_rejected' => ProductSubmissionIntakeAction.retryRejected,
+      'incomplete_upload' => ProductSubmissionIntakeAction.incompleteUpload,
+      _ => throw const FormatException('Unknown submission intake action'),
+    };
+    if (action == ProductSubmissionIntakeAction.startNew) {
+      if (row['submission_id'] != null) {
+        throw const FormatException('Unexpected intake receipt');
+      }
+      return ProductSubmissionIntake._(action: action);
+    }
+    final id = row['submission_id'];
+    final barcode = row['normalized_upc'];
+    final detail = row['resolution_detail'];
+    if (id is! String ||
+        (barcode != null && barcode is! String) ||
+        (detail != null && (detail is! String || detail.length > 280))) {
+      throw const FormatException('Invalid intake receipt');
+    }
+    final code = ProductSubmissionResolutionCode.fromWire(
+      row['resolution_code'],
+    );
+    if (action == ProductSubmissionIntakeAction.retryRejected &&
+        (code == null ||
+            !code.resubmittable ||
+            code == ProductSubmissionResolutionCode.productIdentityMismatch)) {
+      throw const FormatException('Invalid suggested retry');
+    }
+    return ProductSubmissionIntake._(
+      action: action,
+      submissionId: _validateSubmissionId(id),
+      upc: barcode == null ? null : _normalizeUpc(barcode as String),
+      resolutionCode: code,
+      resolutionDetail: detail as String?,
+    );
+  }
+}
+
 enum ProductSubmissionReviewStatus {
   submitted,
   underReview,
@@ -945,6 +1084,17 @@ class ProductSubmissionSummary {
 
   /// Original catalog identity for a correctable label-mismatch retry.
   final LabelMismatchProductMetadata? mismatchProduct;
+
+  /// Validated comparison identity only; [upc] retains the original digits.
+  String? get canonicalGtin14 {
+    final barcode = upc;
+    if (barcode == null) return null;
+    try {
+      return GtinIdentity.parse(barcode).canonicalGtin14;
+    } on FormatException {
+      return null;
+    }
+  }
 
   bool get uploadReady => uploadState == ProductSubmissionUploadState.ready;
 

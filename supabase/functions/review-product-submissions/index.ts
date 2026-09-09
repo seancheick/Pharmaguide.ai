@@ -24,10 +24,18 @@ import {
 } from "./queue.ts";
 import { parseRecordMatchRequest } from "./match.ts";
 import {
+  assertDraftEvidenceBinding,
+  parseEvidenceBinding,
+} from "./evidence.ts";
+import {
   detectReviewerImageContentType,
   parseReviewerImageUploadRequest,
 } from "./reviewer_image.ts";
-import { validateManualLabelV1 } from "./schema.ts";
+import {
+  LABEL_DRAFT_SCHEMA_VERSION,
+  validateLabelDraftV1,
+  validateManualLabelV1,
+} from "./schema.ts";
 
 // Supabase Edge Runtime keeps promises passed to EdgeRuntime.waitUntil alive
 // after the response is returned; a bare floating promise may be killed.
@@ -190,19 +198,39 @@ async function parseBody(request: Request): Promise<JsonObject> {
 // metadata are useful upload guards, but neither proves byte identity because
 // both originate with the uploader. Extraction and approval therefore bind to
 // hashes recomputed here after the submission has become immutable.
+type Evidence = {
+  evidence_revision: number;
+  manifest_sha256: string;
+  evidence_snapshot: JsonObject;
+  photos: JsonObject[];
+};
+
+async function loadSubmissionEvidence(
+  client: SupabaseClient,
+  submissionId: string,
+): Promise<Evidence> {
+  const { data, error } = await client.rpc("get_product_submission_evidence", {
+    p_submission_id: submissionId,
+  });
+  if (error) throw error;
+  if (
+    !isObject(data) || !Array.isArray(data.photos) ||
+    !data.photos.every(isObject) || !isObject(data.evidence_snapshot)
+  ) throw new Error("evidence unavailable");
+  parseEvidenceBinding({
+    expected_evidence_revision: data.evidence_revision,
+    evidence_manifest_sha256: data.manifest_sha256,
+  });
+  return data as Evidence;
+}
+
 async function verifySubmissionPhotoIntegrity(
   admin: SupabaseClient,
-  submissionId: string,
+  evidence: Evidence,
 ): Promise<JsonObject> {
-  const { data, error } = await admin
-    .from("product_submission_photos")
-    .select("photo_id,object_path,byte_size,content_sha256")
-    .eq("submission_id", submissionId)
-    .order("photo_id", { ascending: true });
-  if (error) throw error;
-
+  if (evidence.photos.length === 0) throw new Error("evidence unavailable");
   const verifiedHashes: JsonObject = {};
-  for (const raw of (data ?? []) as unknown as JsonObject[]) {
+  for (const raw of evidence.photos) {
     const photoId = requiredUuid(raw.photo_id, "photo id");
     const objectPath = requiredString(raw.object_path, "object path", 300);
     const expectedHash = requiredString(
@@ -282,18 +310,12 @@ async function verifyReviewerImageIntegrity(
 }
 
 async function verifyDisclosurePhotoSupport(
-  admin: SupabaseClient,
-  submissionId: string,
+  evidence: Evidence,
   approvedPayload: JsonObject,
 ): Promise<void> {
   const disclosure = approvedPayload.otherIngredientsDisclosure;
-  const { data, error } = await admin
-    .from("product_submission_photos")
-    .select("categories")
-    .eq("submission_id", submissionId);
-  if (error) throw error;
   const categories = new Set<string>();
-  for (const row of (data ?? []) as unknown as JsonObject[]) {
+  for (const row of evidence.photos) {
     if (Array.isArray(row.categories)) {
       for (const category of row.categories) {
         if (typeof category === "string") categories.add(category);
@@ -608,53 +630,43 @@ Deno.serve(async (request: Request): Promise<Response> => {
       if (openCountResult.error) throw openCountResult.error;
       const submissions = listResult.data;
       const submissionRows = (submissions ?? []) as unknown as JsonObject[];
-      const ids = submissionRows.map((row) => row.id as string);
-      const photosBySubmission = new Map<string, JsonObject[]>();
-      if (ids.length > 0) {
-        const { data: photos, error: photosError } = await admin
-          .from("product_submission_photos")
-          .select(
-            "submission_id,photo_id,seq,categories,object_path,content_type," +
-              "byte_size,content_sha256,created_at",
-          )
-          .in("submission_id", ids)
-          .order("seq", { ascending: true });
-        if (photosError) throw photosError;
-        const photoRows = (photos ?? []) as unknown as JsonObject[];
-        if (photoRows.length > 0) {
-          const photoPaths = photoRows.map((row) => row.object_path as string);
-          const { data: signed, error: signedError } = await admin.storage
-            .from(PHOTO_BUCKET)
-            .createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
-          if (signedError || !signed) throw signedError;
+      const responseSubmissions = await Promise.all(
+        submissionRows.map(async (submission) => {
+          const evidence = await loadSubmissionEvidence(
+            userClient,
+            submission.id as string,
+          );
+          const { data: signed, error: signedError } =
+            evidence.photos.length === 0
+              ? { data: [], error: null }
+              : await admin.storage.from(PHOTO_BUCKET)
+                .createSignedUrls(
+                  evidence.photos.map((photo) => photo.object_path as string),
+                  SIGNED_URL_TTL_SECONDS,
+                );
+          if (signedError || !signed) {
+            throw signedError ?? new Error("photo signing failed");
+          }
           const signedByPath = new Map(
             signed.map((item) => [item.path, item.signedUrl]),
           );
-          for (const photo of photoRows) {
-            const signedUrl = signedByPath.get(photo.object_path as string);
-            if (!signedUrl) throw new Error("missing signed URL");
-            const responsePhoto = {
-              photo_id: photo.photo_id,
-              seq: photo.seq,
-              categories: photo.categories,
-              content_type: photo.content_type,
-              byte_size: photo.byte_size,
-              content_sha256: photo.content_sha256,
-              created_at: photo.created_at,
-              signed_url: signedUrl,
-              expires_in_seconds: SIGNED_URL_TTL_SECONDS,
-            };
-            photosBySubmission.set(photo.submission_id as string, [
-              ...(photosBySubmission.get(photo.submission_id as string) ?? []),
-              responsePhoto,
-            ]);
-          }
-        }
-      }
-      const responseSubmissions = submissionRows.map((submission) => ({
-        ...submission,
-        photos: photosBySubmission.get(submission.id as string) ?? [],
-      }));
+          return {
+            ...submission,
+            evidence_revision: evidence.evidence_revision,
+            evidence_manifest_sha256: evidence.manifest_sha256,
+            photos: evidence.photos.map((photo) => {
+              const signedUrl = signedByPath.get(photo.object_path as string);
+              if (!signedUrl) throw new Error("missing signed URL");
+              const { object_path: _privatePath, ...publicPhoto } = photo;
+              return {
+                ...publicPhoto,
+                signed_url: signedUrl,
+                expires_in_seconds: SIGNED_URL_TTL_SECONDS,
+              };
+            }),
+          };
+        }),
+      );
       const nextAfter = listRequest.submissionId
         ? null
         : nextListCursor(submissionRows, listRequest.limit);
@@ -676,6 +688,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
           p_source_rights: imageRequest.sourceRights,
           p_rights_attested: imageRequest.rightsAttested,
           p_source_photo_id: imageRequest.sourcePhotoId,
+          p_expected_evidence_revision: imageRequest.expectedEvidenceRevision,
+          p_evidence_manifest_sha256: imageRequest.evidenceManifestSha256,
         },
       );
       if (error || typeof objectPath !== "string") throw error;
@@ -710,6 +724,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
           "draft_payload",
           "field_provenance",
           "confidence",
+          "usage",
+          "evidence_revision",
         ]),
       );
       if (
@@ -723,9 +739,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
       ) {
         throw new Error("invalid extraction payload");
       }
+      const evidence = await loadSubmissionEvidence(userClient, submissionId);
       const verifiedHashes = await verifySubmissionPhotoIntegrity(
         admin,
-        submissionId,
+        evidence,
       );
       if (
         canonicalJson(verifiedHashes) !==
@@ -742,16 +759,40 @@ Deno.serve(async (request: Request): Promise<Response> => {
       ) {
         throw new Error("invalid confidence");
       }
-      const { data, error } = await admin.rpc(
+      // A draft is the partial, provenance-bound label_draft_v1 contract; the
+      // approved label is validated separately at approval time.
+      const schemaVersion = requiredString(
+        extraction.schema_version,
+        "schema version",
+        80,
+      );
+      if (schemaVersion !== LABEL_DRAFT_SCHEMA_VERSION) {
+        throw new Error("unsupported extraction schema version");
+      }
+      validateLabelDraftV1(extraction.draft_payload);
+      assertDraftEvidenceBinding(
+        extraction,
+        verifiedHashes,
+        evidence.evidence_revision,
+      );
+      const usage = extraction.usage;
+      if (usage !== null && usage !== undefined && !isObject(usage)) {
+        throw new Error("invalid extraction usage");
+      }
+      const evidenceRevision = extraction.evidence_revision;
+      if (
+        typeof evidenceRevision !== "number" ||
+        !Number.isSafeInteger(evidenceRevision) || evidenceRevision < 1
+      ) {
+        throw new Error("invalid evidence revision");
+      }
+      // The database derives the recorder from the reviewer's own session;
+      // no caller-supplied identity and no service-role execution.
+      const { data, error } = await userClient.rpc(
         "record_product_submission_extraction",
         {
           p_submission_id: submissionId,
-          p_recorded_by: reviewerId,
-          p_schema_version: requiredString(
-            extraction.schema_version,
-            "schema version",
-            80,
-          ),
+          p_schema_version: schemaVersion,
           p_provider: requiredString(extraction.provider, "provider", 120),
           p_model: requiredString(extraction.model, "model", 120),
           p_prompt_version: requiredString(
@@ -763,6 +804,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
           p_draft_payload: extraction.draft_payload,
           p_field_provenance: extraction.field_provenance,
           p_confidence: confidence ?? null,
+          p_usage: usage ?? null,
+          p_evidence_revision: evidenceRevision,
         },
       );
       if (error || typeof data !== "number") throw error;
@@ -782,6 +825,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
           p_matched_dsld_id: match.matchedDsldId,
           p_candidate_dsld_ids: match.candidateDsldIds,
           p_reason: match.reason,
+          p_expected_evidence_revision: match.expectedEvidenceRevision,
+          p_evidence_manifest_sha256: match.evidenceManifestSha256,
         },
       );
       if (error || typeof data !== "number") throw error;
@@ -804,9 +849,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
         "resolved_dsld_id",
         "product_image_photo_id",
         "product_image_reviewer_object_id",
+        "expected_evidence_revision",
+        "evidence_manifest_sha256",
       ]),
     );
     const submissionId = requiredUuid(body.submission_id, "submission id");
+    const evidenceBinding = parseEvidenceBinding(body);
     const toStatus = requiredString(body.to_status, "status", 30);
     if (!TRANSITION_STATUSES.has(toStatus)) {
       throw new Error("invalid transition status");
@@ -866,7 +914,13 @@ Deno.serve(async (request: Request): Promise<Response> => {
     let approvedPayloadCanonical: string | null = null;
     let payloadHash: string | null = null;
     if (toStatus === "approved") {
-      await verifySubmissionPhotoIntegrity(admin, submissionId);
+      const evidence = await loadSubmissionEvidence(userClient, submissionId);
+      if (
+        evidence.evidence_revision !==
+          evidenceBinding.expectedEvidenceRevision ||
+        evidence.manifest_sha256 !== evidenceBinding.evidenceManifestSha256
+      ) throw new Error("review evidence changed");
+      await verifySubmissionPhotoIntegrity(admin, evidence);
       schemaVersion = requiredString(
         body.approved_schema_version,
         "approved schema version",
@@ -876,7 +930,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
         throw new Error("unsupported approved schema version");
       }
       approvedPayload = validateApprovedPayload(body.approved_payload);
-      await verifyDisclosurePhotoSupport(admin, submissionId, approvedPayload);
+      await verifyDisclosurePhotoSupport(evidence, approvedPayload);
       approvedPayloadCanonical = canonicalJson(approvedPayload);
       if (
         new TextEncoder().encode(approvedPayloadCanonical).byteLength >
@@ -913,6 +967,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
       p_resolved_dsld_id: resolvedDsldId,
       p_product_image_photo_id: productImagePhotoId,
       p_product_image_reviewer_object_id: productImageReviewerObjectId,
+      p_expected_evidence_revision: evidenceBinding.expectedEvidenceRevision,
+      p_evidence_manifest_sha256: evidenceBinding.evidenceManifestSha256,
     });
     if (error || data !== true) throw error;
 
