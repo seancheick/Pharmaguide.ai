@@ -12,6 +12,7 @@ import 'package:pharmaguide/features/contributions/product_submission_consent_co
 import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
+import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
@@ -104,6 +105,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
     this.submissionIdFactory,
     this.resubmissionOf,
     this.onViewContributions,
+    this.draftStore,
   });
 
   final String upc;
@@ -114,6 +116,11 @@ class MissingProductSubmissionSheet extends StatefulWidget {
   final String Function()? submissionIdFactory;
   final String? resubmissionOf;
   final VoidCallback? onViewContributions;
+
+  /// Where an unfinished capture is kept so a crash, the OS reclaiming the app
+  /// behind the camera, or a dead connection does not discard the user's
+  /// photos. Injected in tests; resolved from app-private storage otherwise.
+  final ProductSubmissionDraftStorage? draftStore;
 
   @override
   State<MissingProductSubmissionSheet> createState() =>
@@ -141,7 +148,25 @@ class _MissingProductSubmissionSheetState
   void initState() {
     super.initState();
     _chosenResubmissionOf = widget.resubmissionOf;
+    // Opening app-private storage crosses a platform channel. Resolve it off
+    // the capture path and offer recovery when it lands, so no step transition
+    // ever waits on the file system.
+    final injected = widget.draftStore;
+    if (injected != null) {
+      _store = injected;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _offerRecovery());
+    } else {
+      ProductSubmissionDraftStore.open().then((store) {
+        if (!mounted) return;
+        _store = store;
+        _offerRecovery();
+      }).catchError((Object _) {
+        // No durable storage: capture still works, recovery does not.
+      });
+    }
   }
+
+  ProductSubmissionDraftStorage? _store;
 
   List<_CaptureStep> get _visibleSteps => [
     _CaptureStep.intro,
@@ -573,12 +598,20 @@ class _MissingProductSubmissionSheetState
       return;
     }
 
+    // Save before the network call, not after. Everything from here on can
+    // fail halfway, and the photos are the part the user cannot cheaply redo.
+    await _persistDraft(draft);
+
     final result = await widget.service.submit(
       draft,
       onPhaseChanged: (phase) {
         if (mounted) setState(() => _phase = phase);
       },
     );
+    // The server's receipt is the only thing that retires a local draft.
+    if (result is ProductSubmissionSuccess) {
+      await _discardDraft(draft.submissionId);
+    }
     if (!mounted) return;
     setState(() {
       _submitting = false;
@@ -587,6 +620,94 @@ class _MissingProductSubmissionSheetState
       } else {
         _failure = result as ProductSubmissionFailure;
       }
+    });
+  }
+
+  Future<void> _persistDraft(MissingProductSubmissionDraft draft) async {
+    final store = _store;
+    if (store == null) return;
+    try {
+      await store.save(draft, consentVersion: productSubmissionConsentVersion);
+    } on Object {
+      // Best effort by design: never fail a submission over local bookkeeping.
+    }
+  }
+
+  Future<void> _discardDraft(String submissionId) async {
+    final store = _store;
+    if (store == null) return;
+    try {
+      await store.discard(submissionId);
+    } on Object {
+      // A draft left behind is retried and discarded on the next launch.
+    }
+  }
+
+  /// Offer an unfinished capture for this barcode instead of asking for the
+  /// same four photos again. The recovered draft keeps its submission id, so
+  /// finishing it replays the server's idempotent sequence.
+  Future<void> _offerRecovery() async {
+    final store = _store;
+    if (store == null || !mounted) return;
+    if (_step != _CaptureStep.intro || _photos.isNotEmpty) return;
+    final PendingProductSubmission? pending;
+    try {
+      pending = await store.findByUpc(widget.upc);
+    } on Object {
+      return;
+    }
+    if (pending == null || !mounted) return;
+    // A local the closure can read without a null check.
+    final recovered = pending;
+    final resume = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        title: const Text('Finish your photos?'),
+        content: Text(
+          'You already took ${recovered.photoCount} '
+          '${recovered.photoCount == 1 ? 'photo' : 'photos'} of this product '
+          'and they were never sent. You can pick up where you left off.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Start over'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Finish sending'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (resume != true) {
+      await store.discard(recovered.submissionId);
+      return;
+    }
+    final restored = await store.restore(recovered.submissionId);
+    if (!mounted) return;
+    if (restored == null) {
+      // The kept bytes no longer match their manifest, so they are not the
+      // user's evidence any more. Say so plainly rather than sending them.
+      await store.discard(recovered.submissionId);
+      setState(
+        () => _stepError =
+            'Those saved photos could not be reopened. Please take them again.',
+      );
+      return;
+    }
+    setState(() {
+      _draft = restored;
+      _photos
+        ..clear()
+        ..addAll(restored.photos);
+      _chosenResubmissionOf = restored.resubmissionOf;
+      _factsCarriesIngredients = restored.noSeparateIngredientPanel;
+      _factsPanelLocationConfirmed = true;
+      _step = _CaptureStep.review;
+      _stepError = null;
     });
   }
 

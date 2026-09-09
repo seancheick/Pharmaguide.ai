@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
+import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
@@ -37,6 +39,7 @@ Widget _harness({
   PickMissingProductPhoto? pickPhoto,
   EvaluatePhotoQuality? qualityGate,
   String? resubmissionOf,
+  ProductSubmissionDraftStorage? draftStore,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -46,6 +49,7 @@ Widget _harness({
         submissionIdFactory: () => _submissionId,
         qualityGate: qualityGate ?? (_) async => _okQuality,
         resubmissionOf: resubmissionOf,
+        draftStore: draftStore,
         pickPhoto: pickPhoto ?? (tags) async => _photo(tags),
       ),
     ),
@@ -732,6 +736,196 @@ void main() {
       findsOneWidget,
     );
   });
+
+  group('interrupted capture recovery', () {
+    late _MemoryDraftStorage store;
+
+    setUp(() {
+      store = _MemoryDraftStorage();
+    });
+
+    Future<void> seedInterruptedCapture() async {
+      await store.save(
+        MissingProductSubmissionDraft(
+          submissionId: _submissionId,
+          upc: _upc,
+          photos: [
+            _photo(MissingProductSubmissionDraft.requiredCategories),
+          ],
+        ),
+        consentVersion: productSubmissionConsentVersion,
+      );
+    }
+
+    testWidgets('offers to finish photos that were never sent', (tester) async {
+      await seedInterruptedCapture();
+      final backend = _Backend(authenticatedUserId: _userId);
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Finish your photos?'), findsOneWidget);
+      await tester.tap(find.text('Finish sending'));
+      await tester.pumpAndSettle();
+
+      // Straight to review with the evidence already in hand.
+      expect(find.byKey(const Key('missing-product-consent')), findsOneWidget);
+      expect(backend.persistedSubmissionIds, isEmpty);
+    });
+
+    testWidgets('resuming keeps the original submission id so a retry replays', (
+      tester,
+    ) async {
+      await seedInterruptedCapture();
+      final backend = _Backend(authenticatedUserId: _userId);
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Finish sending'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+
+      expect(backend.persistedSubmissionIds, [_submissionId]);
+    });
+
+    testWidgets('a sent submission stops being offered for recovery', (
+      tester,
+    ) async {
+      await seedInterruptedCapture();
+      final backend = _Backend(authenticatedUserId: _userId);
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Finish sending'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+
+      expect(await store.list(), isEmpty);
+    });
+
+    testWidgets('starting over deletes the photos rather than keeping them', (
+      tester,
+    ) async {
+      await seedInterruptedCapture();
+      final backend = _Backend(authenticatedUserId: _userId);
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start over'));
+      await tester.pumpAndSettle();
+
+      expect(await store.list(), isEmpty);
+      expect(find.text('Add this product'), findsOneWidget);
+    });
+
+    testWidgets('a completed capture is saved before the network call', (
+      tester,
+    ) async {
+      final backend = _Backend(
+        authenticatedUserId: _userId,
+        persistFailuresRemaining: 1,
+      );
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await _captureRequiredEvidence(tester);
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+
+      // The send failed, so the photos must still be recoverable.
+      final pending = await store.list();
+      expect(pending, hasLength(1));
+      expect(pending.single.acceptedByServer, isFalse);
+      expect(pending.single.consentVersion, productSubmissionConsentVersion);
+    });
+
+    testWidgets('photos that no longer match their manifest are not sent', (
+      tester,
+    ) async {
+      await seedInterruptedCapture();
+      store.corruptOnRestore = true;
+      final backend = _Backend(authenticatedUserId: _userId);
+
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Finish sending'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('could not be reopened'),
+        findsOneWidget,
+      );
+      expect(backend.persistedSubmissionIds, isEmpty);
+      expect(await store.list(), isEmpty);
+    });
+  });
+}
+
+/// The storage contract without a file system, so widget pumps settle.
+/// Fidelity that matters here: the manifest hash is what decides whether a
+/// kept capture is still the user's evidence, so this keeps and checks it too.
+class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
+  final Map<String, MissingProductSubmissionDraft> drafts = {};
+  final Map<String, PendingProductSubmission> records = {};
+  final Map<String, String> hashes = {};
+  bool corruptOnRestore = false;
+
+  @override
+  Future<void> save(
+    ProductSubmissionDraft draft, {
+    required String consentVersion,
+    int evidenceRevision = 1,
+  }) async {
+    drafts[draft.submissionId] = draft as MissingProductSubmissionDraft;
+    hashes[draft.submissionId] = draft.photos.map((p) => p.contentSha256).join();
+    records[draft.submissionId] = PendingProductSubmission(
+      submissionId: draft.submissionId,
+      upc: draft.upc,
+      resubmissionOf: draft.resubmissionOf,
+      noSeparateIngredientPanel: draft.noSeparateIngredientPanel,
+      consentVersion: consentVersion,
+      evidenceRevision: evidenceRevision,
+      photoCount: draft.photos.length,
+      capturedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  @override
+  Future<List<PendingProductSubmission>> list() async =>
+      records.values.toList();
+
+  @override
+  Future<PendingProductSubmission?> findByUpc(String upc) async {
+    final wanted = upc.replaceAll(RegExp(r'[^0-9]'), '').padLeft(14, '0');
+    for (final record in records.values) {
+      if (record.upc.replaceAll(RegExp(r'[^0-9]'), '').padLeft(14, '0') ==
+          wanted) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<MissingProductSubmissionDraft?> restore(String submissionId) async {
+    if (corruptOnRestore) return null;
+    return drafts[submissionId];
+  }
+
+  @override
+  Future<void> discard(String submissionId) async {
+    drafts.remove(submissionId);
+    records.remove(submissionId);
+    hashes.remove(submissionId);
+  }
 }
 
 class _Backend implements ProductSubmissionBackend {
