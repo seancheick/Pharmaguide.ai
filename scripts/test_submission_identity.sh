@@ -2,6 +2,10 @@
 # Executes the actual submission migration chain in a disposable local Docker
 # Postgres. No URL, linked project, credentials, or remote database is accepted.
 set -euo pipefail
+case "${1:-}" in
+  ''|--advisors|--no-concurrency) ;;
+  *) echo 'Usage: test_submission_identity.sh [--advisors|--no-concurrency]. The obsolete --baseline mode is retired; tests target the complete migration chain.' >&2; exit 2 ;;
+esac
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 docker_bin="${DOCKER_BIN:-docker}"
 if ! command -v "$docker_bin" >/dev/null 2>&1; then
@@ -28,19 +32,20 @@ for migration in \
     psql_test -q < "$file"
   done
 done
-if [[ "${1:-}" != "--baseline" ]]; then
-  psql_test -q < "$repo_dir/supabase/migrations/20260908230736_harden_submission_identity_and_intake.sql"
-  psql_test -q < "$repo_dir/supabase/migrations/20260909013000_submission_foundations_consent_revisions_extraction.sql"
-fi
+psql_test -q < "$repo_dir/supabase/migrations/20260908230736_harden_submission_identity_and_intake.sql"
+psql_test -q < "$repo_dir/supabase/tests/submission_identity/legacy_foundations.sql"
+psql_test -q < "$repo_dir/supabase/migrations/20260909013000_submission_foundations_consent_revisions_extraction.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/helpers.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/identity.sql" >/dev/null
 if [[ -f "$repo_dir/supabase/tests/submission_identity/intake.sql" ]]; then
   psql_test -q < "$repo_dir/supabase/tests/submission_identity/intake.sql" >/dev/null
 fi
-if [[ "${1:-}" != "--baseline" && -f "$repo_dir/supabase/tests/submission_identity/foundations.sql" ]]; then
+if [[ -f "$repo_dir/supabase/tests/submission_identity/foundations.sql" ]]; then
   psql_test -q < "$repo_dir/supabase/tests/submission_identity/foundations.sql" >/dev/null
 fi
-source "$repo_dir/supabase/tests/submission_identity/concurrency.sh"
+if [[ "${1:-}" != "--no-concurrency" ]]; then
+  source "$repo_dir/supabase/tests/submission_identity/concurrency.sh"
+fi
 psql_test -c 'SELECT name, coalesce(error, '\''PASS'\'') AS result FROM fixture.results ORDER BY name'
 psql_test -q -c "SELECT fixture.assert(NOT EXISTS (SELECT 1 FROM fixture.results WHERE error IS NOT NULL), 'submission identity tests failed')"
 if [[ "${1:-}" == "--advisors" ]]; then

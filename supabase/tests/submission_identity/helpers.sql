@@ -34,6 +34,10 @@ CREATE FUNCTION fixture.user_id(p_number integer) RETURNS uuid LANGUAGE sql IMMU
 AS $$ SELECT ('00000000-0000-0000-0000-' || lpad(p_number::text, 12, '0'))::uuid $$;
 INSERT INTO auth.users(id) SELECT fixture.user_id(n) FROM generate_series(1, 5) n;
 INSERT INTO public.product_submission_reviewers(user_id) VALUES (fixture.user_id(3));
+INSERT INTO public.product_submission_consent_versions(version, kind, purposes, copy_sha256, effective_from)
+SELECT version, kind, ARRAY['private_review'], repeat('f',64), '2020-01-01'
+FROM unnest(ARRAY['fixture.consent.v1','fixture.consent.v2']) version
+CROSS JOIN unnest(enum_range(NULL::public.product_submission_kind)) kind;
 
 CREATE FUNCTION fixture.photos() RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
 SELECT jsonb_build_array(jsonb_build_object(
@@ -79,7 +83,17 @@ RETURNS uuid LANGUAGE plpgsql AS $$ DECLARE sid uuid := gen_random_uuid(); BEGIN
     jsonb_build_object('size', byte_size, 'mimetype', content_type),
     jsonb_build_object('content_sha256', content_sha256)
   FROM public.product_submission_photos WHERE submission_id = sid;
+  INSERT INTO public.product_submission_evidence_revisions(
+    submission_id, revision, request_key, opened_by, photo_ids)
+  VALUES (sid, 1, sid, fixture.user_id(p_user), ARRAY['10000000-0000-0000-0000-000000000001'::uuid]);
+  IF p_state = 'ready' THEN
+    UPDATE public.product_submission_evidence_revisions SET ready_at = now(),
+      manifest = public.product_submission_evidence_records(sid,1),
+      manifest_sha256 = public.product_submission_manifest_sha256(public.product_submission_evidence_records(sid,1))
+    WHERE submission_id = sid;
+  END IF;
   UPDATE public.product_submissions SET upload_state = p_state, review_status = p_status,
+    consent_version = 'fixture.consent.v1', consented_at = now(),
     reviewed_at = CASE WHEN p_status <> 'submitted' THEN now() END,
     reviewed_by = CASE WHEN p_status <> 'submitted' THEN fixture.user_id(3) END,
     resolution_code = CASE WHEN p_status IN ('rejected','duplicate') THEN p_code END,
@@ -99,5 +113,20 @@ CREATE FUNCTION fixture.approve(p_id uuid) RETURNS boolean LANGUAGE plpgsql AS $
     p_approved_schema_version => 'manual_label_v1', p_approved_payload => '{"fixture":true}'::jsonb,
     p_approved_payload_canonical => '{"fixture":true}',
     p_payload_sha256 => encode(extensions.digest('{"fixture":true}', 'sha256'), 'hex'),
-    p_product_image_photo_id => '10000000-0000-0000-0000-000000000001');
+    p_product_image_photo_id => '10000000-0000-0000-0000-000000000001',
+    p_expected_evidence_revision => (SELECT evidence_revision FROM public.product_submissions WHERE id = p_id),
+    p_evidence_manifest_sha256 => (SELECT manifest_sha256 FROM public.product_submission_evidence_revisions
+      WHERE submission_id = p_id AND revision=(SELECT evidence_revision FROM public.product_submissions WHERE id=p_id)));
 END $$;
+
+CREATE FUNCTION fixture.manifest_hash(sid uuid) RETURNS text LANGUAGE sql AS $$
+ SELECT manifest_sha256 FROM public.product_submission_evidence_revisions
+ WHERE submission_id=sid AND revision=(SELECT evidence_revision FROM public.product_submissions WHERE id=sid)
+$$;
+-- Owner-only synthetic corruption setup for testing independent inner gates.
+CREATE FUNCTION fixture.refreeze(sid uuid) RETURNS void LANGUAGE sql AS $$
+ UPDATE public.product_submission_evidence_revisions SET
+ manifest=public.product_submission_evidence_records(sid,revision),
+ manifest_sha256=public.product_submission_manifest_sha256(public.product_submission_evidence_records(sid,revision))
+ WHERE submission_id=sid
+$$;

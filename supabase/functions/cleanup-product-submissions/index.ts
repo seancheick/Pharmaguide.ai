@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2.110.7";
 import { resolveSupabaseAdminKey } from "../_shared/supabase_server_keys.ts";
 import { removeStorageObjectsOrThrow } from "../_shared/verified_storage_removal.ts";
 
+import { parseCleanupClaims } from "./claims.ts";
+
 const PHOTO_BUCKET = "product-submission-photos";
 const REVIEWER_IMAGE_BUCKET = "product-submission-reviewer-images";
 const CLEANUP_LIMIT = 100;
@@ -78,24 +80,21 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return json({ error: "Cleanup service unavailable" }, 500);
   }
 
+  let validatedClaims;
+  try {
+    validatedClaims = parseCleanupClaims(claims);
+  } catch {
+    audit("invalid_claim", 0, claims.length, 0);
+    return json({ error: "Cleanup service unavailable" }, 500);
+  }
   const completedSubmissionIds: string[] = [];
+  const completedClaims: Record<string, unknown> = {};
   const failedSubmissionIds: string[] = [];
   let removedObjectCount = 0;
-  for (const claim of claims) {
+  for (const claim of validatedClaims) {
     const submissionId = claim.submission_id;
-    const rawEvidencePaths: unknown[] = Array.isArray(claim.evidence_object_paths)
-      ? claim.evidence_object_paths
-      : [];
-    const evidenceObjectPaths = rawEvidencePaths.filter((path): path is string =>
-      typeof path === "string" && path.length > 0
-    );
-    const rawReviewerPaths: unknown[] = Array.isArray(claim.reviewer_object_paths)
-      ? claim.reviewer_object_paths
-      : [];
-    const reviewerObjectPaths = rawReviewerPaths.filter((path): path is string =>
-      typeof path === "string" && path.length > 0
-    );
-    if (typeof submissionId !== "string") continue;
+    const evidenceObjectPaths = claim.evidence_object_paths;
+    const reviewerObjectPaths = claim.reviewer_object_paths;
     try {
       if (evidenceObjectPaths.length > 0) {
         const removal = await removeStorageObjectsOrThrow(
@@ -116,12 +115,16 @@ Deno.serve(async (request: Request): Promise<Response> => {
       continue;
     }
     completedSubmissionIds.push(submissionId);
+    completedClaims[submissionId] = {
+      claim_token: claim.claim_token,
+      evidence_revision: claim.evidence_revision,
+    };
   }
 
   if (completedSubmissionIds.length > 0) {
     const { data: completed, error: completeError } = await admin.rpc(
       "complete_product_submission_cleanup",
-      { p_submission_ids: completedSubmissionIds },
+      { p_submission_ids: completedSubmissionIds, p_claims: completedClaims },
     );
     if (
       completeError || typeof completed !== "number" ||

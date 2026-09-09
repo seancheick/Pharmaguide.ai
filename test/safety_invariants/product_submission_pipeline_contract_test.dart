@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -927,7 +930,7 @@ void main() {
       );
     });
 
-    test('evidence revisions append photos and never rewrite them', () {
+    test('evidence revisions preserve history with scoped retention', () {
       expect(
         foundations,
         contains('add column evidence_revision integer not null default 1'),
@@ -938,7 +941,7 @@ void main() {
       );
       expect(
         foundations,
-        isNot(contains('delete from public.product_submission_photos')),
+        contains('create table public.product_submission_evidence_revisions'),
       );
       expect(
         foundations,
@@ -949,8 +952,8 @@ void main() {
         contains("raise exception 'open evidence revision required'"),
       );
       for (final signature in const [
-        'open_product_submission_evidence_revision(uuid)',
-        'add_product_submission_evidence(uuid, jsonb)',
+        'open_product_submission_evidence_revision(uuid, integer, uuid, uuid[], text)',
+        'add_product_submission_evidence(uuid, integer, jsonb)',
       ]) {
         expect(
           foundations,
@@ -971,7 +974,26 @@ void main() {
         contains("(upload_state = 'ready' or evidence_revision > 1)"),
         reason: 'A retake in progress keeps the barcode open for its owner.',
       );
-      expect(foundations, contains("'resume_evidence_revision'"));
+      expect(foundations, isNot(contains("'resume_evidence_revision'")));
+      expect(
+        foundations,
+        contains('create function public.assert_product_submission_evidence'),
+      );
+      expect(
+        foundations,
+        contains('create table public.product_submission_retired_objects'),
+      );
+      expect(foundations, contains('cleanup claim changed'));
+      expect(foundations, contains('for share of submission'));
+      for (final copy in [
+        missingProductConsentCopy,
+        labelMismatchConsentCopy,
+      ]) {
+        expect(
+          foundations,
+          contains(sha256.convert(utf8.encode(copy)).toString()),
+        );
+      }
     });
   });
 }

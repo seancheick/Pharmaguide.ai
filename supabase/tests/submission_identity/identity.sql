@@ -75,7 +75,7 @@ DO $$ DECLARE target uuid; candidate uuid; BEGIN
   target := fixture.seed(1, '036000291452', 'approved', NULL);
   candidate := fixture.seed(2, '0036000291452', 'submitted', NULL);
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
-  PERFORM public.review_product_submission(candidate, 'duplicate', p_duplicate_of => target, p_resolution_code => 'duplicate_submission');
+  PERFORM public.review_product_submission(candidate, 'duplicate', p_duplicate_of => target, p_resolution_code => 'duplicate_submission', p_expected_evidence_revision=>1, p_evidence_manifest_sha256=>fixture.manifest_hash(candidate));
   PERFORM fixture.assert((SELECT duplicate_of = target FROM public.product_submissions WHERE id = candidate), 'review must retain separate receipt');
 END $$ $case$);
 
@@ -92,12 +92,12 @@ DO $$ DECLARE target uuid; candidate uuid; BEGIN
   target := fixture.seed(4, '012345678905', 'approved', NULL);
   candidate := fixture.seed(4, '96385074', 'submitted', NULL);
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
-  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, %L, p_duplicate_of => %L, p_resolution_code => %L)',
-    candidate, 'duplicate', target, 'duplicate_submission'), '22023', 'approved matching submission');
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, %L, p_duplicate_of => %L, p_resolution_code => %L, p_expected_evidence_revision=>1, p_evidence_manifest_sha256=>fixture.manifest_hash(%L))',
+    candidate, 'duplicate', target, 'duplicate_submission', candidate), '22023', 'approved matching submission');
   target := fixture.seed(4, NULL, 'approved', NULL, 'label_mismatch', '123');
   candidate := fixture.seed(4, NULL, 'submitted', NULL, 'label_mismatch', '456');
-  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, %L, p_duplicate_of => %L, p_resolution_code => %L)',
-    candidate, 'duplicate', target, 'duplicate_submission'), '22023', 'approved matching submission');
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, %L, p_duplicate_of => %L, p_resolution_code => %L, p_expected_evidence_revision=>1, p_evidence_manifest_sha256=>fixture.manifest_hash(%L))',
+    candidate, 'duplicate', target, 'duplicate_submission', candidate), '22023', 'approved matching submission');
 END $$ $case$);
 
 SELECT fixture.test('create and reviewer authentication boundaries preserved', $case$
@@ -107,7 +107,7 @@ DO $$ BEGIN
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(1)::text, false);
   PERFORM fixture.throws('SELECT public.review_product_submission(gen_random_uuid(), ''approved'')', '42501', 'reviewer access required');
   PERFORM fixture.assert(NOT has_function_privilege('service_role',
-    'public.review_product_submission(uuid,public.product_submission_review_status,text,text,jsonb,text,text,uuid,text,text,text,uuid,uuid)', 'EXECUTE'),
+    'public.review_product_submission(uuid,public.product_submission_review_status,text,text,jsonb,text,text,uuid,text,text,text,uuid,uuid,integer,text)', 'EXECUTE'),
     'service role must not receive human approval authority');
   PERFORM fixture.assert(NOT has_function_privilege('authenticated',
     'public.review_product_submission_human_internal(uuid,uuid,public.product_submission_review_status,text,text,jsonb,text,text,uuid,text,text,text)', 'EXECUTE'),
@@ -131,16 +131,18 @@ SELECT fixture.test('human approval still requires verified match image payload 
 DO $$ DECLARE sid uuid; BEGIN
   sid := fixture.seed(1, '012345678905', 'under_review', NULL);
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
-  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'')', sid),
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(%L))', sid,sid),
     '55000', 'fresh verified no-match required');
   UPDATE public.product_submission_photos SET categories = ARRAY['barcode']::public.product_submission_evidence_category[]
   WHERE submission_id = sid;
+  PERFORM fixture.refreeze(sid);
   PERFORM fixture.throws(format('SELECT fixture.approve(%L)', sid), '22023', 'front evidence photo required');
   UPDATE public.product_submission_photos SET categories = ARRAY['front_identity']::public.product_submission_evidence_category[]
   WHERE submission_id = sid;
+  PERFORM fixture.refreeze(sid);
   PERFORM fixture.throws(format('SELECT fixture.approve(%L)', sid), '55000', 'barcode-bound evidence required');
   INSERT INTO public.product_submission_match_checks(submission_id, reviewer_id, canonical_gtin14, outcome, index_built_at)
   VALUES (sid, fixture.user_id(3), '00012345678905', 'no_match_verified', now());
-  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'', p_product_image_photo_id => ''10000000-0000-0000-0000-000000000001'')', sid),
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'', p_product_image_photo_id => ''10000000-0000-0000-0000-000000000001'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(%L))', sid,sid),
     '22023', 'approved canonical payload required');
 END $$ $case$);

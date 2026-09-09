@@ -68,9 +68,23 @@ wait "$identical_first_pid"
 identical_second_status=0
 wait "$identical_second_pid" || identical_second_status=$?
 psql_test -q -c "SELECT fixture.test('concurrent identical UUID replay succeeds with one immutable receipt', 'SELECT fixture.assert($identical_waited AND $identical_second_status = 0 AND (SELECT count(*) = 1 AND bool_and(resubmission_of = ''$lineage_target'') FROM public.product_submissions WHERE id = ''$identical_id'') AND (SELECT count(*) = 1 FROM public.product_submission_photos WHERE submission_id = ''$identical_id''), ''identical create retries must both succeed without duplicating or changing evidence'')')"
-if [[ "$approval_waited" != true || "$finalize_waited" != true || "$create_waited" != true || "$identical_waited" != true ]]; then
+storage_pending="$(psql_test -Atqc "SELECT fixture.seed(1, '012345678905', 'submitted', NULL, 'missing_product', NULL, 'pending')")"
+psql_test -q -c "SET application_name='fixture_storage_writer'; SET ROLE authenticated; SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000001'; BEGIN; UPDATE storage.objects SET user_metadata=jsonb_build_object('content_sha256',repeat('b',64)) WHERE name='00000000-0000-0000-0000-000000000001/$storage_pending/10000000-0000-0000-0000-000000000001'; SELECT pg_sleep(3); COMMIT;" > "$test_logs/storage-writer.log" 2>&1 &
+storage_writer_pid=$!
+wait_for_event fixture_storage_writer PgSleep
+psql_test -q -c "SET application_name='fixture_storage_finalize'; SET ROLE authenticated; SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000001'; SELECT fixture.assert(NOT public.finalize_product_submission('$storage_pending',1),'changed pending bytes must prevent finalization');" > "$test_logs/storage-finalize.log" 2>&1 &
+storage_finalize_pid=$!
+storage_waited=false
+if wait_for_event fixture_storage_finalize transactionid; then storage_waited=true; fi
+wait "$storage_writer_pid"
+storage_finalize_status=0
+wait "$storage_finalize_pid" || storage_finalize_status=$?
+psql_test -q -c "SELECT fixture.test('in-flight Storage mutation serializes with manifest finalization', 'SELECT fixture.assert($storage_waited AND $storage_finalize_status=0 AND (SELECT upload_state=''pending'' FROM public.product_submissions WHERE id=''$storage_pending''), ''no mutable upload may commit after a ready manifest freeze'')')"
+
+if [[ "$approval_waited" != true || "$finalize_waited" != true || "$create_waited" != true || "$identical_waited" != true || "$storage_waited" != true ]]; then
   echo "Concurrency diagnostics: $test_logs"
 else
   rm "$test_logs/approval-first.log" "$test_logs/approval-second.log" "$test_logs/finalize-first.log" "$test_logs/finalize-second.log" "$test_logs/create-first.log" "$test_logs/create-second.log" "$test_logs/identical-first.log" "$test_logs/identical-second.log"
+  rm "$test_logs/storage-writer.log" "$test_logs/storage-finalize.log"
   rmdir "$test_logs"
 fi

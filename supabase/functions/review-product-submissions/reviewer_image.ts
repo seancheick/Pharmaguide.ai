@@ -1,4 +1,5 @@
 type JsonObject = Record<string, unknown>;
+import { parseEvidenceBinding } from "./evidence.ts";
 
 export type ReviewerImageRights =
   | "user_evidence_crop"
@@ -12,6 +13,8 @@ export type ReviewerImageUploadRequest = {
   sourceRights: ReviewerImageRights;
   rightsAttested: boolean;
   sourcePhotoId: string | null;
+  expectedEvidenceRevision: number;
+  evidenceManifestSha256: string;
 };
 
 const UUID_PATTERN =
@@ -29,6 +32,8 @@ const ALLOWED_FIELDS = new Set([
   "source_rights",
   "rights_attested",
   "source_photo_id",
+  "expected_evidence_revision",
+  "evidence_manifest_sha256",
 ]);
 
 function uuid(value: unknown, name: string): string {
@@ -51,9 +56,11 @@ export function parseReviewerImageUploadRequest(
   if (body.action !== "create_reviewer_image_upload") {
     throw new Error("invalid reviewer image action");
   }
-  if (typeof body.source_rights !== "string" || !RIGHTS.has(
-    body.source_rights as ReviewerImageRights,
-  )) {
+  if (
+    typeof body.source_rights !== "string" || !RIGHTS.has(
+      body.source_rights as ReviewerImageRights,
+    )
+  ) {
     throw new Error("invalid image rights");
   }
   if (typeof body.rights_attested !== "boolean") {
@@ -75,6 +82,7 @@ export function parseReviewerImageUploadRequest(
     throw new Error("source photo is not allowed");
   }
   return {
+    ...parseEvidenceBinding(body),
     submissionId: uuid(body.submission_id, "submission id"),
     objectId: uuid(body.object_id, "object id"),
     sourceRights,
@@ -86,7 +94,10 @@ export function parseReviewerImageUploadRequest(
 export function detectReviewerImageContentType(
   bytes: Uint8Array,
 ): "image/jpeg" | "image/png" | "image/webp" | null {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+  if (
+    bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
     return "image/jpeg";
   }
   if (

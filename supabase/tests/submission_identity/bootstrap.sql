@@ -9,6 +9,7 @@ CREATE TABLE storage.objects (
   owner_id text, metadata jsonb, user_metadata jsonb
 );
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON storage.objects TO authenticated;
 CREATE FUNCTION storage.foldername(text) RETURNS text[] LANGUAGE sql IMMUTABLE
 AS $$ SELECT (string_to_array($1, '/'))[1:array_length(string_to_array($1, '/'), 1)-1] $$;
 CREATE FUNCTION storage.filename(text) RETURNS text LANGUAGE sql IMMUTABLE
