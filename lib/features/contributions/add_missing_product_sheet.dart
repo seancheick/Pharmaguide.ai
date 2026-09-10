@@ -173,10 +173,26 @@ class _AddMissingProductIdentitySheetState
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
             scrollPadding: EdgeInsets.only(bottom: bottomInset + 24),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'UPC or GTIN',
               hintText: 'e.g. 030772032565',
               helperText: 'We verify the check digit before continuing.',
+              prefixIcon: const Icon(Icons.numbers_rounded),
+              // Filled with a real border: the default underline reads as
+              // blank space, and a contributor cannot tell it is a field.
+              filled: true,
+              fillColor: context.v2.surfaceLow,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                borderSide: BorderSide(color: context.v2.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                borderSide: BorderSide(color: context.v2.accent, width: 2),
+              ),
             ),
             onChanged: (_) {
               if (_error != null) setState(() => _error = null);
@@ -188,7 +204,7 @@ class _AddMissingProductIdentitySheetState
             spacing: V2Spacing.space8,
             runSpacing: V2Spacing.space8,
             children: [
-              OutlinedButton.icon(
+              FilledButton.tonalIcon(
                 key: const Key('add-product-read-upc'),
                 onPressed: (_reading || _takingPhoto)
                     ? null
@@ -203,7 +219,7 @@ class _AddMissingProductIdentitySheetState
                   _reading ? 'Reading library photo…' : 'Read from library',
                 ),
               ),
-              OutlinedButton.icon(
+              FilledButton.tonalIcon(
                 key: const Key('add-product-take-upc'),
                 onPressed: (_reading || _takingPhoto)
                     ? null

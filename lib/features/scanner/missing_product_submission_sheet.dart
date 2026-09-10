@@ -957,6 +957,10 @@ class _MissingProductSubmissionSheetState
         onAdd: () => _addPhoto(const {
           ProductSubmissionEvidenceCategory.directionsWarnings,
         }),
+        onAddFromLibrary: () => _addPhoto(
+          const {ProductSubmissionEvidenceCategory.directionsWarnings},
+          fromLibrary: true,
+        ),
         onRemove: _removePhoto,
       ),
       _OptionalCategoryTile(
@@ -966,6 +970,10 @@ class _MissingProductSubmissionSheetState
         enabled: !_submitting && !_adding,
         onAdd: () =>
             _addPhoto(const {ProductSubmissionEvidenceCategory.lotExpiry}),
+        onAddFromLibrary: () => _addPhoto(
+          const {ProductSubmissionEvidenceCategory.lotExpiry},
+          fromLibrary: true,
+        ),
         onRemove: _removePhoto,
       ),
     ],
@@ -1398,6 +1406,7 @@ class _OptionalCategoryTile extends StatelessWidget {
     required this.photos,
     required this.enabled,
     required this.onAdd,
+    required this.onAddFromLibrary,
     required this.onRemove,
   });
 
@@ -1406,6 +1415,11 @@ class _OptionalCategoryTile extends StatelessWidget {
   final List<ProductSubmissionPhoto> photos;
   final bool enabled;
   final VoidCallback onAdd;
+  /// Both sources are offered explicitly. These panels are exactly the ones a
+  /// contributor photographs away from the bottle — a warning read off a
+  /// listing, a lot number from an earlier picture — so inheriting the
+  /// camera from an earlier step left them with no way to add it at all.
+  final VoidCallback onAddFromLibrary;
   final void Function(ProductSubmissionPhoto photo) onRemove;
 
   @override
@@ -1429,10 +1443,17 @@ class _OptionalCategoryTile extends StatelessWidget {
                     style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
                 ),
-                TextButton(
+                IconButton(
+                  key: Key('missing-product-add-library-${category.wireValue}'),
+                  onPressed: enabled ? onAddFromLibrary : null,
+                  icon: const Icon(Icons.photo_library_outlined),
+                  tooltip: 'Choose from library',
+                ),
+                TextButton.icon(
                   key: Key('missing-product-add-${category.wireValue}'),
                   onPressed: enabled ? onAdd : null,
-                  child: Text(photos.isEmpty ? 'Add' : 'Add another'),
+                  icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                  label: Text(photos.isEmpty ? 'Add' : 'Add another'),
                 ),
               ],
             ),

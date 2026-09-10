@@ -1073,6 +1073,56 @@ void main() {
       expect(await store.list(_userId), isEmpty);
     });
   });
+
+  testWidgets('an optional panel can be added from the library', (tester) async {
+    // Directions, warnings and lot numbers are exactly the panels a
+    // contributor has a picture of without the bottle in front of them — read
+    // off a listing, or photographed earlier. These tiles only ever opened the
+    // camera, so that contributor had no way to add one at all.
+    final sources = <String>[];
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(_harness(
+      backend: backend,
+      pickPhoto: (tags) async {
+        sources.add('camera');
+        return _photo(tags);
+      },
+      pickPhotoFromLibrary: (tags) async {
+        sources.add('library');
+        return _photo(tags);
+      },
+    ));
+
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-supplement_facts')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+    await tester.pumpAndSettle();
+    expect(find.text('Anything else?'), findsOneWidget);
+
+    sources.clear();
+    await tester.tap(find.byKey(
+      const Key('missing-product-add-library-directions_warnings')));
+    await tester.pumpAndSettle();
+
+    expect(sources, ['library']);
+    // The camera route stays exactly where it was, so a contributor holding
+    // the bottle is not pushed through the photo library instead.
+    sources.clear();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-directions_warnings')));
+    await tester.pumpAndSettle();
+    expect(sources, ['camera']);
+  });
 }
 
 /// The storage contract without a file system, so widget pumps settle.
@@ -1236,4 +1286,5 @@ class _Backend implements ProductSubmissionBackend {
   }) async {
     return const [];
   }
+
 }
