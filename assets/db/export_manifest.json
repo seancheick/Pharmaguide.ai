@@ -1,6 +1,6 @@
 {
-  "checksum": "sha256:5be7c7fca48d642660aa549d6bc1c4008b8bfd85f5ccedf41024e34169e157c7",
-  "checksum_sha256": "5be7c7fca48d642660aa549d6bc1c4008b8bfd85f5ccedf41024e34169e157c7",
+  "checksum": "sha256:48023252cea89946c9e1c7824b085420d2c2bc7067bab733375712e773d55a29",
+  "checksum_sha256": "48023252cea89946c9e1c7824b085420d2c2bc7067bab733375712e773d55a29",
   "core_projection_manifest": {
     "app_core_column_count": 91,
     "checksum": "sha256:18cf782562d54e03a1414859d3978c65804e448fe212d134d2506771ff4c15ec",
@@ -9,7 +9,7 @@
     "path": "core_projection_manifest.json",
     "server_core_column_count": 26
   },
-  "db_version": "2026.09.08.205846",
+  "db_version": "2026.09.10.084534",
   "detail_blob_count": 15103,
   "detail_blob_unique_count": 15103,
   "detail_index_checksum": "sha256:d16532875680b736b05e7d485fa1c5680a1b8a1f84a63e3e37b12d11feab0dff",
@@ -1264,7 +1264,7 @@
       "error": "review_queue: identity integrity ingredientRows[26]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[27]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract.; review_queue: NOT_SCORED verdict (reason=blocked_by_completeness_gate; incomplete_dimensions=identity) \u2014 product excluded from the live catalog pending remediation."
     }
   ],
-  "generated_at": "2026-09-08T20:58:46.708234+00:00",
+  "generated_at": "2026-09-10T08:45:34.768007+00:00",
   "integrity": {
     "contract_failures": 0,
     "contract_quarantine_count": 312,
@@ -1291,7 +1291,7 @@
   "pipeline_version": "3.4.0",
   "product_count": 15103,
   "quality_score_config_checksum": "sha256:18b7ff59dc1c4baa4e89562492ffa9338491bb618da42e4044900f805beae9e1",
-  "release_staged_at": "2026-09-08T21:02:27Z",
+  "release_staged_at": "2026-09-10T08:49:12Z",
   "schema_version": "2.4.0",
   "score_model": "v4",
   "scoring_version": "4.4.0",

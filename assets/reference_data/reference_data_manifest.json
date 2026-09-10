@@ -3,7 +3,7 @@
   "artifacts": {
     "assets/reference_data/rda_optimal_uls.json": "e01ecffd972ac4b39b05078438f6fa8b5e5b234cd393ea6ed6973271d9aa3c8a",
     "assets/data/product_type_vocab.json": "fb9201bb0f22bf0169d916e19e5de0678e4e8249b60df5a8932689532223e537",
-    "assets/reference_data/medication_depletions.json": "743e155a9f784731ca61faf0ac2a5a96ae468421cdaebb7abf1fe48cb7ab2e68",
+    "assets/reference_data/medication_depletions.json": "ec5430017987aff967c7339a88aa90ec991c1ce7310e7f50f9eb0358bb21c451",
     "assets/reference_data/clinical_risk_taxonomy.json": "564cf6baeecfa36a3178e6a4f4297ac4bd99aecd1ccbb4e8a766a09eabac787d",
     "assets/reference_data/timing_rules.json": "a3174bd8ef9af8e5c7e6f621b3751f7bad1b8285ecf612f8edbf74d2716823b5"
   }
