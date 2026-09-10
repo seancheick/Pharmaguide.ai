@@ -577,3 +577,102 @@ DO $$ DECLARE sid uuid; BEGIN
   PERFORM fixture.throws('SELECT * FROM public.claim_product_submission_extraction_jobs(1)',
     '55000', 'extraction is disabled');
 END $$ $case$);
+
+-- Batch 3 completion: the claim carries the identity context the worker's
+-- deterministic checks need. Without it, barcode mismatch and catalog
+-- candidacy can only fire when a caller supplies context by hand, which in
+-- production nobody does.
+
+SELECT fixture.test('a claim carries the submitted barcode in canonical form', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  -- One GTIN owner. The worker is handed the canonical form rather than the
+  -- printed digits, so it never needs a canonicalizer of its own.
+  PERFORM fixture.assert(
+    claimed.submission_gtin = public.product_submission_canonical_gtin('012345678905'),
+    'the claim did not carry the canonical barcode');
+  PERFORM fixture.assert(claimed.submission_gtin ~ '^[0-9]{14}$',
+    'the barcode handed over is not canonical GTIN-14');
+END $$;
+$case$);
+
+SELECT fixture.test('an unchecked submission offers no catalog candidate', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM fixture.assert(claimed.catalog_match IS NULL,
+    'a submission nobody has looked up was offered as a catalog candidate');
+END $$;
+$case$);
+
+SELECT fixture.test('no_match_verified is not a catalog candidate', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  INSERT INTO public.product_submission_match_checks(
+    submission_id, reviewer_id, canonical_gtin14, outcome, index_built_at,
+    candidate_dsld_ids, evidence_revision)
+  VALUES (sid, fixture.user_id(3), '00012345678905', 'no_match_verified', now(),
+    ARRAY[]::text[], 1);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  -- This outcome is the reviewer having established the opposite: the barcode
+  -- is NOT in the catalog. Offering it as a candidate would invert the finding.
+  PERFORM fixture.assert(claimed.catalog_match IS NULL,
+    'a verified non-match was offered as a catalog candidate');
+END $$;
+$case$);
+
+SELECT fixture.test('a recorded catalog hit reaches the worker as a candidate', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  INSERT INTO public.product_submission_match_checks(
+    submission_id, reviewer_id, canonical_gtin14, outcome, index_built_at,
+    matched_dsld_id, candidate_dsld_ids, evidence_revision)
+  VALUES (sid, fixture.user_id(3), '00012345678905', 'catalog_match', now(),
+    '12345', ARRAY[]::text[], 1);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM fixture.assert(claimed.catalog_match ->> 'outcome' = 'catalog_match',
+    'the recorded catalog hit did not reach the worker');
+  PERFORM fixture.assert(claimed.catalog_match ->> 'matched_dsld_id' = '12345',
+    'the candidate identity was not carried');
+END $$;
+$case$);
+
+SELECT fixture.test('a check against replaced photographs is not offered', $case$
+DO $$ DECLARE sid uuid; claimed record; BEGIN
+  PERFORM fixture.enable_extraction();
+  PERFORM fixture.add_worker();
+  sid := fixture.seed(1, '012345678905', 'submitted', NULL);
+  INSERT INTO public.product_submission_match_checks(
+    submission_id, reviewer_id, canonical_gtin14, outcome, index_built_at,
+    matched_dsld_id, candidate_dsld_ids)
+  VALUES (sid, fixture.user_id(3), '00012345678905', 'catalog_match', now(),
+    '12345', ARRAY[]::text[]);
+  -- A BEFORE INSERT trigger stamps the current revision, so a direct insert
+  -- cannot fabricate a stale row. Staleness is what happens afterwards, when
+  -- the photographs are retaken and the recorded lookup describes evidence
+  -- that is no longer the evidence.
+  PERFORM fixture.assert(
+    (SELECT evidence_revision FROM public.product_submission_match_checks
+     WHERE submission_id = sid) = 1,
+    'the revision stamp trigger did not record the current revision');
+  UPDATE public.product_submission_match_checks SET evidence_revision = 7
+  WHERE submission_id = sid;
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(4)::text, false);
+  SELECT * INTO claimed FROM public.claim_product_submission_extraction_jobs(1);
+  PERFORM fixture.assert(claimed.catalog_match IS NULL,
+    'a lookup of other photographs was offered as this revision''s candidate');
+END $$;
+$case$);

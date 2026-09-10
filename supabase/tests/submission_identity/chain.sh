@@ -31,4 +31,5 @@ submission_migration_chain() {
   printf '%s\n' "$repo_dir/supabase/migrations/20260909210000_submission_reviewer_workstation.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260910010000_submission_batch_readiness.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260910150000_enforce_reviewer_verification_at_rpc.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20260910190000_claim_returns_identity_context.sql"
 }
