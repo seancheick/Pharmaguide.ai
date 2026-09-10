@@ -73,6 +73,12 @@ class PGEvidenceSection extends StatelessWidget {
   /// [Widget] so this core component never depends on feature models.
   final Widget? sheetExtra;
 
+  /// Optional factual context rendered inside the evidence card itself.
+  /// Feature sections use this for label-backed probiotic details so the
+  /// evidence and its scope stay together instead of becoming competing
+  /// cards elsewhere on the page.
+  final Widget? cardExtra;
+
   const PGEvidenceSection({
     super.key,
     required this.tier,
@@ -85,6 +91,7 @@ class PGEvidenceSection extends StatelessWidget {
     this.subtitle,
     this.footnote,
     this.sheetExtra,
+    this.cardExtra,
   });
 
   /// CTA label for the studies sheet. Prefers the human-study count the
@@ -242,6 +249,12 @@ class PGEvidenceSection extends StatelessWidget {
               style: V2Typography.caption(color: context.v2.fgMuted),
             ),
           ],
+          if (cardExtra != null) ...[
+            const SizedBox(height: V2Spacing.space16),
+            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
+            const SizedBox(height: V2Spacing.space16),
+            cardExtra!,
+          ],
         ],
       ),
     );
@@ -318,11 +331,7 @@ class _CitationRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.menu_book_outlined,
-            size: 14,
-            color: context.v2.accent,
-          ),
+          Icon(Icons.menu_book_outlined, size: 14, color: context.v2.accent),
           const SizedBox(width: V2Spacing.space8),
           Expanded(
             child: Column(

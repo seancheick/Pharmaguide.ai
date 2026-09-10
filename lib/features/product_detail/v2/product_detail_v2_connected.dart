@@ -71,7 +71,6 @@ import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_a
 import 'package:pharmaguide/features/product_detail/v2/sections/manufacturer_violations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/populations_section.dart';
-import 'package:pharmaguide/features/product_detail/v2/sections/probiotic_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/research_evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
@@ -535,6 +534,7 @@ class _ProductDetailV2ConnectedState
       blobError: blobError,
     );
     final evidenceData = _blobMap(detailBlob, 'evidence_data');
+    final probioticDetail = _blobMap(detailBlob, 'probiotic_detail');
     final showClinicalEvidence =
         showDeepDive && hasRenderableClinicalEvidence(evidenceData);
     final certificationDetail = _blobMap(detailBlob, 'certification_detail');
@@ -837,15 +837,26 @@ class _ProductDetailV2ConnectedState
                     const SizedBox(height: V2Spacing.space12),
                   ],
 
-                  // ---- 6.1 Probiotic label & research -----------
-                  // Keep label-specific context beside the ingredient
-                  // ledger it explains. Research status is shown only for
-                  // clinician-reviewed strains; see probiotic_section.dart.
-                  if (showDeepDive) ...[
-                    buildProbioticSection(
-                      probioticDetail: _blobMap(detailBlob, 'probiotic_detail'),
-                      onTapSources: (urls) =>
-                          showProfileRelevanceCitationsSheet(context, urls),
+                  // ---- 6.1 Clinical evidence + probiotic context --------
+                  // Keep one evidence surface. Probiotic label/research
+                  // context is embedded in the clinical evidence card so it
+                  // cannot compete with a second, repetitive research card.
+                  if (showDeepDive &&
+                      (showClinicalEvidence ||
+                          researchCanonicalIds.isNotEmpty ||
+                          probioticDetail != null)) ...[
+                    KeyedSubtree(
+                      key: _evidenceSectionKey,
+                      child: KeyedSubtree(
+                        key: _anchors.researchKey,
+                        child: ResearchSupportSection(
+                          evidenceData: evidenceData,
+                          canonicalIds: researchCanonicalIds,
+                          probioticDetail: probioticDetail,
+                          onTapProbioticSources: (urls) =>
+                              showProfileRelevanceCitationsSheet(context, urls),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],
@@ -899,29 +910,6 @@ class _ProductDetailV2ConnectedState
                       key: _certificationsSectionKey,
                       child: buildCertificationsSection(
                         certificationDetail: certificationDetail,
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 11. Research support (evidence + literature) ----
-                  // ONE surface (T10): the compact clinical-evidence card
-                  // whose studies sheet also carries related ingredient
-                  // research, or — when there is no clinical evidence — a
-                  // research-only card. Both scroll anchors resolve here.
-                  // Render when either half would have shown; the widget
-                  // itself picks the state (and hides if research resolves
-                  // empty), matching the old per-block gating.
-                  if (showClinicalEvidence ||
-                      (showDeepDive && researchCanonicalIds.isNotEmpty)) ...[
-                    KeyedSubtree(
-                      key: _evidenceSectionKey,
-                      child: KeyedSubtree(
-                        key: _anchors.researchKey,
-                        child: ResearchSupportSection(
-                          evidenceData: evidenceData,
-                          canonicalIds: researchCanonicalIds,
-                        ),
                       ),
                     ),
                     const SizedBox(height: V2Spacing.space12),

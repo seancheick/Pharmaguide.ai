@@ -430,6 +430,7 @@ List<PGCitation> evidenceCitations(List<Map<String, dynamic>> matches) {
 Widget buildEvidenceSection({
   required Map<String, dynamic>? evidenceData,
   Widget? relatedResearch,
+  Widget? cardExtra,
 }) {
   if (evidenceData == null) return const SizedBox.shrink();
 
@@ -496,6 +497,7 @@ Widget buildEvidenceSection({
     citations: citations.toList(growable: false),
     footnote: footnoteLines.join('\n'),
     sheetExtra: relatedResearch,
+    cardExtra: cardExtra,
   );
 }
 

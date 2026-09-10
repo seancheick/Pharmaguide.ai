@@ -16,6 +16,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/core/utils/pubmed_launcher.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/probiotic_section.dart';
 import 'package:pharmaguide/services/stack/research_pair_lookup.dart';
 
 @visibleForTesting
@@ -106,11 +107,15 @@ class ResearchEvidenceSection extends ConsumerWidget {
 class ResearchSupportSection extends ConsumerWidget {
   final Map<String, dynamic>? evidenceData;
   final List<String> canonicalIds;
+  final Map<String, dynamic>? probioticDetail;
+  final void Function(List<String> sourceUrls)? onTapProbioticSources;
 
   const ResearchSupportSection({
     super.key,
     required this.evidenceData,
     required this.canonicalIds,
+    this.probioticDetail,
+    this.onTapProbioticSources,
   });
 
   @override
@@ -134,11 +139,35 @@ class ResearchSupportSection extends ConsumerWidget {
         relatedResearch: research.isEmpty
             ? null
             : buildResearchEvidenceSheetSection(context, research),
+        cardExtra: probioticDetail == null
+            ? null
+            : buildProbioticSection(
+                probioticDetail: probioticDetail,
+                embedded: true,
+                onTapSources: onTapProbioticSources,
+              ),
       );
     }
 
+    final probiotic = buildProbioticSection(
+      probioticDetail: probioticDetail,
+      onTapSources: onTapProbioticSources,
+    );
+    if (research.isNotEmpty && probioticDetail != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ResearchEvidenceCard(evidence: research),
+          const SizedBox(height: V2Spacing.space12),
+          probiotic,
+        ],
+      );
+    }
     if (research.isNotEmpty) {
       return _ResearchEvidenceCard(evidence: research);
+    }
+    if (probioticDetail != null) {
+      return probiotic;
     }
 
     return const SizedBox.shrink();
@@ -220,7 +249,9 @@ class _ResearchEvidenceCard extends StatelessWidget {
                         const SizedBox(height: V2Spacing.space4),
                         Text(
                           "Where this product's ingredients appear in research together with other substances — context, not a warning.",
-                          style: V2Typography.caption(color: context.v2.fgMuted),
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
                         ),
                       ],
                     ),

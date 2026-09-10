@@ -54,6 +54,7 @@ Widget _supportHarness({
   required Map<String, dynamic>? evidenceData,
   required List<ResearchPairEvidence> evidence,
   List<String> canonicalIds = const ['vitamin_k'],
+  Map<String, dynamic>? probioticDetail,
 }) {
   return ProviderScope(
     overrides: [
@@ -67,6 +68,7 @@ Widget _supportHarness({
           child: ResearchSupportSection(
             evidenceData: evidenceData,
             canonicalIds: canonicalIds,
+            probioticDetail: probioticDetail,
           ),
         ),
       ),
@@ -236,6 +238,42 @@ void main() {
         );
       },
     );
+
+    testWidgets('clinical evidence embeds probiotic context in the same card', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _supportHarness(
+          evidenceData: clinicalEvidence,
+          evidence: const [],
+          probioticDetail: {
+            'total_cfu_label': '10 billion CFU',
+            'probiotic_blends': [
+              {
+                'strains': [
+                  'Strain one',
+                  'Strain two',
+                  'Strain three',
+                  'Strain four',
+                ],
+              },
+            ],
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Clinical evidence'), findsOneWidget);
+      expect(find.text('Probiotic label & research'), findsOneWidget);
+      expect(find.text('Show all 4 strains'), findsOneWidget);
+      expect(find.text('Strain four'), findsNothing);
+
+      await tester.ensureVisible(find.text('Show all 4 strains'));
+      await tester.tap(find.text('Show all 4 strains'));
+      await tester.pumpAndSettle();
+      expect(find.text('Strain four'), findsOneWidget);
+      expect(find.text('Show fewer strains'), findsOneWidget);
+    });
 
     testWidgets(
       'research without clinical evidence falls back to the research card',

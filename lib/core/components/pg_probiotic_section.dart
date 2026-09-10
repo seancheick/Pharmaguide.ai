@@ -54,7 +54,7 @@ class PGStrain {
   });
 }
 
-class PGProbioticSection extends StatelessWidget {
+class PGProbioticSection extends StatefulWidget {
   final String? totalCfuLabel;
   final int? totalStrainCount;
   final bool hasSurvivabilityCoating;
@@ -65,6 +65,7 @@ class PGProbioticSection extends StatelessWidget {
   final List<PGStrain> strains;
   final String title;
   final void Function(List<String> sourceUrls)? onTapSources;
+  final bool embedded;
 
   const PGProbioticSection({
     super.key,
@@ -78,24 +79,186 @@ class PGProbioticSection extends StatelessWidget {
     this.strains = const [],
     this.title = 'Probiotic label & research',
     this.onTapSources,
+    this.embedded = false,
   });
 
-  bool get _hasContent => totalCfuLabel != null || strains.isNotEmpty;
+  @override
+  State<PGProbioticSection> createState() => _PGProbioticSectionState();
+}
+
+class _PGProbioticSectionState extends State<PGProbioticSection> {
+  static const _collapsedStrainLimit = 3;
+  bool _showAllStrains = false;
+
+  bool get _hasContent =>
+      widget.totalCfuLabel != null || widget.strains.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
     if (!_hasContent) return const SizedBox.shrink();
-    final verifiedCount = strains
+    final verifiedCount = widget.strains
         .where(
           (strain) =>
               strain.researchStatus == PGProbioticResearchStatus.exactStrain,
         )
         .length;
-    final namedCount = totalStrainCount ?? strains.length;
-    final disclosure = _perStrainDisclosure(strains);
+    final namedCount = widget.totalStrainCount ?? widget.strains.length;
+    final disclosure = _perStrainDisclosure(widget.strains);
     final hasFormulaDetails =
-        hasSurvivabilityCoating || prebioticPresent || hasPostbioticStrains;
+        widget.hasSurvivabilityCoating ||
+        widget.prebioticPresent ||
+        widget.hasPostbioticStrains;
+    final visibleStrains =
+        _showAllStrains || widget.strains.length <= _collapsedStrainLimit
+        ? widget.strains
+        : widget.strains.take(_collapsedStrainLimit).toList(growable: false);
 
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.title,
+                style: V2Typography.titleSm(color: context.v2.fg),
+              ),
+            ),
+            Semantics(
+              button: true,
+              label: 'About probiotic label and research',
+              excludeSemantics: true,
+              child: IconButton(
+                tooltip: 'About probiotic label and research',
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                icon: Icon(
+                  Icons.info_outline,
+                  size: 20,
+                  color: context.v2.accent,
+                ),
+                onPressed: () => _showExplanation(context),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          'Probiotic effects may depend on the named microorganism, '
+          'dose, and intended use.',
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
+        ),
+        if (widget.totalCfuLabel != null) ...[
+          const SizedBox(height: V2Spacing.space12),
+          Text(
+            '${widget.totalCfuLabel!} total per serving',
+            semanticsLabel:
+                '${_expandCfu(widget.totalCfuLabel!)} total per serving',
+            style: V2Typography.bodyMedium(color: context.v2.fg),
+          ),
+        ],
+        if (namedCount > 0) ...[
+          const SizedBox(height: V2Spacing.space8),
+          Wrap(
+            spacing: V2Spacing.space8,
+            runSpacing: V2Spacing.space8,
+            children: [
+              _InfoChip(
+                icon: Icons.bubble_chart_outlined,
+                label:
+                    '$namedCount named microorganism${namedCount == 1 ? '' : 's'}',
+                color: context.v2.accent,
+              ),
+              _InfoChip(
+                icon: verifiedCount > 0
+                    ? Icons.verified_outlined
+                    : Icons.search_off_outlined,
+                label: verifiedCount > 0
+                    ? '$verifiedCount of $namedCount matched to verified research'
+                    : 'No verified strain-specific research matches',
+                color: verifiedCount > 0 ? context.v2.safe : context.v2.fgMuted,
+              ),
+            ],
+          ),
+        ],
+        if (disclosure != null) ...[
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            disclosure,
+            style: V2Typography.caption(color: context.v2.fgMuted),
+          ),
+        ],
+        if (widget.strains.isNotEmpty) ...[
+          const SizedBox(height: V2Spacing.space16),
+          Divider(color: context.v2.outline, height: 1, thickness: 0.5),
+          const SizedBox(height: V2Spacing.space8),
+          for (var i = 0; i < visibleStrains.length; i++)
+            _StrainRow(
+              strain: visibleStrains[i],
+              isLast: i == visibleStrains.length - 1,
+              onTapSources: widget.onTapSources,
+            ),
+          if (widget.strains.length > _collapsedStrainLimit) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => setState(() {
+                  _showAllStrains = !_showAllStrains;
+                }),
+                icon: Icon(
+                  _showAllStrains
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                ),
+                label: Text(
+                  _showAllStrains
+                      ? 'Show fewer strains'
+                      : 'Show all ${widget.strains.length} strains',
+                ),
+              ),
+            ),
+          ],
+        ],
+        if (hasFormulaDetails) ...[
+          const SizedBox(height: V2Spacing.space12),
+          Divider(color: context.v2.outline, height: 1, thickness: 0.5),
+          const SizedBox(height: V2Spacing.space12),
+          Text(
+            'Formula details',
+            style: V2Typography.bodyMedium(color: context.v2.fg),
+          ),
+          const SizedBox(height: V2Spacing.space8),
+          Wrap(
+            spacing: V2Spacing.space8,
+            runSpacing: V2Spacing.space8,
+            children: [
+              if (widget.hasSurvivabilityCoating)
+                _InfoChip(
+                  icon: Icons.shield_outlined,
+                  label: widget.survivabilityReason ?? 'Survivability coating',
+                  color: context.v2.accent,
+                ),
+              if (widget.prebioticPresent)
+                _InfoChip(
+                  icon: Icons.spa_outlined,
+                  label:
+                      widget.prebioticName != null &&
+                          widget.prebioticName!.isNotEmpty
+                      ? 'Prebiotic · ${widget.prebioticName}'
+                      : 'Prebiotic included',
+                  color: context.v2.accent,
+                ),
+              if (widget.hasPostbioticStrains)
+                _InfoChip(
+                  icon: Icons.spa_outlined,
+                  label: 'Postbiotic included',
+                  color: context.v2.monitor,
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+
+    if (widget.embedded) return content;
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space16),
       decoration: BoxDecoration(
@@ -104,132 +267,7 @@ class PGProbioticSection extends StatelessWidget {
         border: Border.all(color: context.v2.outline),
         boxShadow: V2Shadows.sm,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: V2Typography.titleSm(color: context.v2.fg),
-                ),
-              ),
-              Semantics(
-                button: true,
-                label: 'About probiotic label and research',
-                excludeSemantics: true,
-                child: IconButton(
-                  tooltip: 'About probiotic label and research',
-                  constraints: const BoxConstraints(
-                    minWidth: 44,
-                    minHeight: 44,
-                  ),
-                  icon: Icon(
-                    Icons.info_outline,
-                    size: 20,
-                    color: context.v2.accent,
-                  ),
-                  onPressed: () => _showExplanation(context),
-                ),
-              ),
-            ],
-          ),
-          Text(
-            'Probiotic effects may depend on the named microorganism, '
-            'dose, and intended use.',
-            style: V2Typography.bodySm(color: context.v2.fgMuted),
-          ),
-          if (totalCfuLabel != null) ...[
-            const SizedBox(height: V2Spacing.space12),
-            Text(
-              '${totalCfuLabel!} total per serving',
-              semanticsLabel: '${_expandCfu(totalCfuLabel!)} total per serving',
-              style: V2Typography.bodyMedium(color: context.v2.fg),
-            ),
-          ],
-          if (namedCount > 0) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Wrap(
-              spacing: V2Spacing.space8,
-              runSpacing: V2Spacing.space8,
-              children: [
-                _InfoChip(
-                  icon: Icons.bubble_chart_outlined,
-                  label:
-                      '$namedCount named microorganism${namedCount == 1 ? '' : 's'}',
-                  color: context.v2.accent,
-                ),
-                _InfoChip(
-                  icon: verifiedCount > 0
-                      ? Icons.verified_outlined
-                      : Icons.search_off_outlined,
-                  label: verifiedCount > 0
-                      ? '$verifiedCount of $namedCount matched to verified research'
-                      : 'No verified strain-specific research matches',
-                  color: verifiedCount > 0
-                      ? context.v2.safe
-                      : context.v2.fgMuted,
-                ),
-              ],
-            ),
-          ],
-          if (disclosure != null) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Text(
-              disclosure,
-              style: V2Typography.caption(color: context.v2.fgMuted),
-            ),
-          ],
-          if (strains.isNotEmpty) ...[
-            const SizedBox(height: V2Spacing.space16),
-            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
-            const SizedBox(height: V2Spacing.space8),
-            for (var i = 0; i < strains.length; i++)
-              _StrainRow(
-                strain: strains[i],
-                isLast: i == strains.length - 1,
-                onTapSources: onTapSources,
-              ),
-          ],
-          if (hasFormulaDetails) ...[
-            const SizedBox(height: V2Spacing.space12),
-            Divider(color: context.v2.outline, height: 1, thickness: 0.5),
-            const SizedBox(height: V2Spacing.space12),
-            Text(
-              'Formula details',
-              style: V2Typography.bodyMedium(color: context.v2.fg),
-            ),
-            const SizedBox(height: V2Spacing.space8),
-            Wrap(
-              spacing: V2Spacing.space8,
-              runSpacing: V2Spacing.space8,
-              children: [
-                if (hasSurvivabilityCoating)
-                  _InfoChip(
-                    icon: Icons.shield_outlined,
-                    label: survivabilityReason ?? 'Survivability coating',
-                    color: context.v2.accent,
-                  ),
-                if (prebioticPresent)
-                  _InfoChip(
-                    icon: Icons.spa_outlined,
-                    label: prebioticName != null && prebioticName!.isNotEmpty
-                        ? 'Prebiotic · $prebioticName'
-                        : 'Prebiotic included',
-                    color: context.v2.accent,
-                  ),
-                if (hasPostbioticStrains)
-                  _InfoChip(
-                    icon: Icons.spa_outlined,
-                    label: 'Postbiotic included',
-                    color: context.v2.monitor,
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
+      child: content,
     );
   }
 

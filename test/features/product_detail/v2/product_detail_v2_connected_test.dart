@@ -762,7 +762,7 @@ void main() {
     );
 
     testWidgets(
-      'probiotic label research follows Ingredients and renders only once',
+      'probiotic research is embedded in clinical evidence and rendered once',
       (tester) async {
         tester.view.physicalSize = const Size(900, 1800);
         tester.view.devicePixelRatio = 1;
@@ -784,6 +784,22 @@ void main() {
               },
             ],
             'quality_pillars_v4': _connectedV4Pillars(),
+            'evidence_data': const {
+              'match_count': 1,
+              'clinical_matches': [
+                {
+                  'ingredient': 'Lactobacillus acidophilus',
+                  'evidence_level': 'ingredient-human',
+                  'references_structured': [
+                    {
+                      'type': 'pubmed',
+                      'pmid': '111',
+                      'title': 'Lactobacillus human study',
+                    },
+                  ],
+                },
+              ],
+            },
             'probiotic_detail': const {
               'total_cfu_label': '5 billion CFU',
               'probiotic_blends': [
@@ -796,9 +812,16 @@ void main() {
         );
 
         final ingredientsTitle = find.text('Active ingredients');
+        final clinicalTitle = find.text('Clinical evidence');
         final probioticTitle = find.text('Probiotic label & research');
         expect(ingredientsTitle, findsOneWidget);
+        expect(clinicalTitle, findsOneWidget);
         expect(probioticTitle, findsOneWidget);
+        final clinicalToProbioticGap =
+            tester.getTopLeft(probioticTitle).dy -
+            tester.getTopLeft(clinicalTitle).dy;
+        expect(clinicalToProbioticGap, greaterThan(0));
+        expect(clinicalToProbioticGap, lessThan(500));
         final sectionGap =
             tester.getTopLeft(probioticTitle).dy -
             tester.getTopLeft(ingredientsTitle).dy;
@@ -806,7 +829,9 @@ void main() {
         // The card belongs directly after the ingredient ledger, before the
         // remaining deep-dive sections. This guards against it drifting back
         // to the bottom of the page.
-        expect(sectionGap, lessThan(210));
+        // The probiotic context now follows the clinical-evidence heading
+        // inside the same card, so the title includes that compact header.
+        expect(sectionGap, lessThan(700));
       },
     );
 

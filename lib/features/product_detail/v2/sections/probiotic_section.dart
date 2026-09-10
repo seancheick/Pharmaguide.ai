@@ -20,6 +20,7 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 /// blob is null or contains no probiotic signals.
 Widget buildProbioticSection({
   required Map<String, dynamic>? probioticDetail,
+  bool embedded = false,
   void Function(List<String> sourceUrls)? onTapSources,
 }) {
   if (probioticDetail == null) return const SizedBox.shrink();
@@ -119,6 +120,7 @@ Widget buildProbioticSection({
   );
 
   return PGProbioticSection(
+    embedded: embedded,
     totalCfuLabel: totalCfuLabel.isNotEmpty ? totalCfuLabel : null,
     totalStrainCount: strainNames.isNotEmpty ? strainNames.length : null,
     hasSurvivabilityCoating: hasSurvivability,

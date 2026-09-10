@@ -192,6 +192,40 @@ void main() {
       expect(find.textContaining('0.0 million'), findsNothing);
     });
 
+    testWidgets('long strain lists collapse until explicitly expanded', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildProbioticSection(
+            probioticDetail: {
+              'probiotic_blends': [
+                {
+                  'strains': [
+                    'Strain one',
+                    'Strain two',
+                    'Strain three',
+                    'Strain four',
+                  ],
+                },
+              ],
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Strain one'), findsOneWidget);
+      expect(find.text('Strain two'), findsOneWidget);
+      expect(find.text('Strain three'), findsOneWidget);
+      expect(find.text('Strain four'), findsNothing);
+      expect(find.text('Show all 4 strains'), findsOneWidget);
+
+      await tester.tap(find.text('Show all 4 strains'));
+      await tester.pumpAndSettle();
+      expect(find.text('Strain four'), findsOneWidget);
+      expect(find.text('Show fewer strains'), findsOneWidget);
+    });
+
     testWidgets(
       'legacy multi-serving blend header is not rendered or counted as a strain',
       (tester) async {
