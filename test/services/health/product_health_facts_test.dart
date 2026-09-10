@@ -420,9 +420,48 @@ void main() {
           'Exceeds upper limit: Vitamin B3 (Niacin)',
         );
         expect(facts.warnings.single.mechanism, 'Exceeds UL by 15 mg');
+        expect(facts.warnings.single.severity, Severity.avoid);
         expect(facts.warnings.single.displayModeDefault, 'critical');
       },
     );
+
+    test('modest UL exceedance is caution, not not-recommended severity', () {
+      final facts = ProductHealthFacts.fromDetailBlob({
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Vitamin D',
+              'quantity': 125.0,
+              'unit': 'mcg',
+              'nutrient_unit': 'mcg',
+              'ul_for_default_profile': 100.0,
+              'skip_ul_check': false,
+              'warnings': ['Exceeds UL by 25 mcg'],
+            },
+          ],
+        },
+      });
+
+      expect(facts.warnings.single.severity, Severity.caution);
+      expect(facts.warnings.single.management, contains('healthcare provider'));
+    });
+
+    test('major UL exceedance remains not-recommended severity', () {
+      final facts = ProductHealthFacts.fromDetailBlob({
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Vitamin D',
+              'pct_ul': 200.0,
+              'skip_ul_check': false,
+              'warnings': ['Exceeds UL by 100 mcg'],
+            },
+          ],
+        },
+      });
+
+      expect(facts.warnings.single.severity, Severity.avoid);
+    });
 
     test('does not synthesize UL warnings from stale prose alone', () {
       final facts = ProductHealthFacts.fromDetailBlob({

@@ -177,11 +177,11 @@ class ProductHealthFacts {
     return extractUlExceedances(_extractNutrients(blob))
         .map(
           (exceedance) => InteractionWarning(
-            severity: Severity.avoid,
+            severity: exceedance.severity,
             evidenceLevel: EvidenceLevel.established,
             title: 'Exceeds upper limit: ${exceedance.standardName}',
             mechanism: exceedance.warning,
-            management: 'Reduce dose or consult a healthcare provider.',
+            management: managementForConfirmedUlExceedance(exceedance.severity),
             displayModeDefault: 'critical',
           ),
         )

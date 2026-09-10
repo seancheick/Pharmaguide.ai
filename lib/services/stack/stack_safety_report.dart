@@ -22,6 +22,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
+import 'package:pharmaguide/services/health/dose_safety.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
@@ -174,11 +175,7 @@ class StackSafetyReport {
   static Severity severityForNutrient(NutrientStatus n) {
     switch (n.tier) {
       case NutrientTier.exceedsUl:
-        // A legacy/partial status without a percentage cannot be safely
-        // down-ranked. Fresh statuses always carry pctOfUl.
-        return n.pctOfUl != null && n.pctOfUl! < 200
-            ? Severity.caution
-            : Severity.avoid;
+        return severityForConfirmedUlExceedance(n.pctOfUl);
       case NutrientTier.approachingUl:
         return Severity.caution;
       case NutrientTier.noRda:

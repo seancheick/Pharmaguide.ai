@@ -13,6 +13,7 @@
 ///   skip_ul_check →  render neutral; do not claim safe OR unsafe.
 library;
 
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
 
@@ -200,7 +201,68 @@ String? _normalizedName(Object? raw) {
 class UlExceedance {
   final String standardName;
   final String warning;
-  const UlExceedance({required this.standardName, required this.warning});
+
+  /// Percentage of the resolved UL when the source carried enough numeric
+  /// metadata to calculate it. Null is intentionally conservative: an
+  /// explicit exceedance without a measurable magnitude stays hard.
+  final double? pctOfUl;
+
+  const UlExceedance({
+    required this.standardName,
+    required this.warning,
+    this.pctOfUl,
+  });
+
+  /// Shared product-detail/stack disposition for a confirmed UL exceedance.
+  /// A modest breach is review-worthy; only a breach at or above twice the UL
+  /// is treated as an avoid-level event. Unknown magnitude fails closed.
+  Severity get severity => severityForConfirmedUlExceedance(pctOfUl);
+}
+
+/// Map a confirmed UL exceedance to the canonical warning severity.
+///
+/// This is deliberately shared by product detail and stack surfaces. The
+/// pipeline already established that the amount is above the UL; this helper
+/// only decides how strongly to present that fact. Missing magnitude remains
+/// [Severity.avoid] so an incomplete/legacy record can never be down-ranked.
+Severity severityForConfirmedUlExceedance(double? pctOfUl) {
+  return pctOfUl != null && pctOfUl > 100.0 && pctOfUl < 200.0
+      ? Severity.caution
+      : Severity.avoid;
+}
+
+/// Consumer action copy for a confirmed UL exceedance. Keep this beside the
+/// severity policy so product-detail surfaces cannot drift in either wording
+/// or escalation semantics.
+String managementForConfirmedUlExceedance(Severity severity) {
+  if (severity == Severity.caution) {
+    return 'This product alone exceeds the upper limit used for this '
+        'assessment. Review total intake with a healthcare provider; higher '
+        'doses may be appropriate when prescribed and monitored.';
+  }
+  return 'This product alone substantially exceeds the upper limit used for '
+      'this assessment. Do not use this dose unless specifically prescribed '
+      'and monitored by a healthcare provider.';
+}
+
+double? _resolvedPctOfUl(Map<String, dynamic> entry) {
+  final explicit = asFiniteDouble(entry['pct_ul']);
+  if (explicit != null && explicit > 0) return explicit;
+
+  final quantity = asFiniteDouble(entry['quantity']);
+  final ul =
+      asFiniteDouble(entry['ul_for_default_profile']) ??
+      asFiniteDouble(entry['highest_ul']);
+  if (quantity == null || quantity <= 0 || ul == null || ul <= 0) return null;
+
+  final comparableQuantity = _quantityInUlUnit(
+    quantity,
+    quantityUnit: (entry['unit'] ?? '').toString(),
+    ulUnit: (entry['nutrient_unit'] ?? entry['converted_unit'] ?? '')
+        .toString(),
+  );
+  if (comparableQuantity == null || comparableQuantity <= 0) return null;
+  return comparableQuantity / ul * 100.0;
 }
 
 /// Extract UL-exceedance alerts from the pipeline's analysis block.
@@ -232,8 +294,9 @@ List<UlExceedance> extractUlExceedances(List<dynamic>? ulAnalysis) {
     }
     if (messages.isEmpty) continue;
     if (!seenNutrients.add(_ulNutrientKey(name))) continue;
+    final pctOfUl = _resolvedPctOfUl(entry);
     for (final msg in messages) {
-      out.add(UlExceedance(standardName: name, warning: msg));
+      out.add(UlExceedance(standardName: name, warning: msg, pctOfUl: pctOfUl));
     }
   }
   return out;

@@ -148,12 +148,11 @@ List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
   return ulExceedances
       .map(
         (e) => InteractionWarning(
-          severity: Severity.avoid,
+          severity: e.severity,
           evidenceLevel: EvidenceLevel.established,
           title: 'Exceeds upper limit: ${e.standardName}',
           mechanism: e.warning,
-          management:
-              'Worth reviewing this dose with your healthcare provider.',
+          management: managementForConfirmedUlExceedance(e.severity),
           displayModeDefault: 'critical',
         ),
       )

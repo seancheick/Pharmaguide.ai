@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
+import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
@@ -116,6 +117,36 @@ Future<void> _pump(WidgetTester tester, ProfileRelevanceSummary summary) {
 
 void main() {
   group('buildProfileRelevanceSummary', () {
+    test('product UL caution stays review-worthy, not not-recommended', () {
+      final warnings = filterProductDetailWarningsForProfile(
+        detailBlob: {
+          'rda_ul_data': {
+            'analyzed_ingredients': [
+              {
+                'standard_name': 'Vitamin D',
+                'quantity': 125.0,
+                'unit': 'mcg',
+                'nutrient_unit': 'mcg',
+                'ul_for_default_profile': 100.0,
+                'skip_ul_check': false,
+                'warnings': ['Exceeds UL by 25 mcg'],
+              },
+            ],
+          },
+        },
+        warnings: const [],
+        userConditions: const {},
+        userDrugClasses: const {},
+      );
+
+      final summary = _summary(warnings: warnings);
+
+      expect(warnings.single.severity, Severity.caution);
+      expect(summary.status, ProfileRelevanceStatus.review);
+      expect(summary.headline, 'Review before use');
+      expect(summary.headline, isNot('Not recommended for your profile'));
+    });
+
     test(
       'unmatched product states the result without a vague neutral label',
       () {
@@ -618,9 +649,10 @@ void main() {
       final bodies = <String>[
         _summary(fitResult: _fit()).body ?? '',
         _summary(
-          fitResult: _fit(state: FitAssessmentState.goodFit),
-          selectedGoalLabels: const ['Sleep'],
-        ).body ?? '',
+              fitResult: _fit(state: FitAssessmentState.goodFit),
+              selectedGoalLabels: const ['Sleep'],
+            ).body ??
+            '',
       ]..removeWhere((b) => b.isEmpty);
       expect(bodies, isNotEmpty, reason: 'no body copy produced to check');
       for (final body in bodies) {
@@ -634,5 +666,4 @@ void main() {
       }
     });
   });
-
 }

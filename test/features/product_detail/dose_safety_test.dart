@@ -14,6 +14,7 @@
 // "dose not evaluated" state.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 
 void main() {
@@ -327,6 +328,63 @@ void main() {
   });
 
   group('extractUlExceedances (FLTR-5)', () {
+    test('derives the UL percentage from quantity and UL metadata', () {
+      final out = extractUlExceedances([
+        {
+          'standard_name': 'Vitamin D',
+          'quantity': 125.0,
+          'unit': 'mcg',
+          'nutrient_unit': 'mcg',
+          'ul_for_default_profile': 100.0,
+          'skip_ul_check': false,
+          'warnings': ['Exceeds UL by 25 mcg'],
+        },
+      ]);
+
+      expect(out, hasLength(1));
+      expect(out.single.pctOfUl, closeTo(125.0, 0.0001));
+      expect(out.single.severity, Severity.caution);
+    });
+
+    test(
+      'maps a major UL breach to avoid while a modest breach is caution',
+      () {
+        final modest = extractUlExceedances([
+          {
+            'standard_name': 'Vitamin D',
+            'pct_ul': 125.0,
+            'skip_ul_check': false,
+            'warnings': ['Exceeds UL by 25 mcg'],
+          },
+        ]);
+        final major = extractUlExceedances([
+          {
+            'standard_name': 'Vitamin D',
+            'pct_ul': 200.0,
+            'skip_ul_check': false,
+            'warnings': ['Exceeds UL by 100 mcg'],
+          },
+        ]);
+
+        expect(modest.single.severity, Severity.caution);
+        expect(major.single.severity, Severity.avoid);
+      },
+    );
+
+    test('unknown UL magnitude stays conservative at avoid severity', () {
+      final out = extractUlExceedances([
+        {
+          'standard_name': 'Vitamin D',
+          'over_ul': true,
+          'skip_ul_check': false,
+          'warnings': ['Exceeds UL'],
+        },
+      ]);
+
+      expect(out.single.pctOfUl, isNull);
+      expect(out.single.severity, Severity.avoid);
+    });
+
     test('returns one UlExceedance per warning string', () {
       final ulAnalysis = <Map<String, dynamic>>[
         {
