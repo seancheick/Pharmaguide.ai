@@ -36,6 +36,7 @@ typedef EvaluatePhotoQuality =
 Future<bool> showMissingProductSubmissionSheet(
   BuildContext context, {
   required String upc,
+  bool preferLibrary = false,
   ProductSubmissionService? service,
   PickMissingProductPhoto? pickPhoto,
   PickMissingProductPhoto? pickPhotoFromLibrary,
@@ -57,6 +58,7 @@ Future<bool> showMissingProductSubmissionSheet(
     context: context,
     builder: (sheetContext) => MissingProductSubmissionSheet(
       upc: identity.submissionIdentity,
+      preferLibrary: preferLibrary,
       service: service ?? ProductSubmissionService.production(),
       submissionIdFactory: submissionIdFactory,
       resubmissionOf: resubmissionOf,
@@ -103,6 +105,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
     required this.service,
     required this.pickPhoto,
     required this.qualityGate,
+    this.preferLibrary = false,
     this.pickPhotoFromLibrary,
     this.submissionIdFactory,
     this.resubmissionOf,
@@ -112,6 +115,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
 
   final String upc;
   final ProductSubmissionService service;
+  final bool preferLibrary;
   final PickMissingProductPhoto pickPhoto;
   final PickMissingProductPhoto? pickPhotoFromLibrary;
   final EvaluatePhotoQuality qualityGate;
@@ -158,13 +162,15 @@ class _MissingProductSubmissionSheetState
       _store = injected;
       WidgetsBinding.instance.addPostFrameCallback((_) => _offerRecovery());
     } else {
-      ProductSubmissionDraftStore.open().then((store) {
-        if (!mounted) return;
-        _store = store;
-        _offerRecovery();
-      }).catchError((Object _) {
-        // No durable storage: capture still works, recovery does not.
-      });
+      ProductSubmissionDraftStore.open()
+          .then((store) {
+            if (!mounted) return;
+            _store = store;
+            _offerRecovery();
+          })
+          .catchError((Object _) {
+            // No durable storage: capture still works, recovery does not.
+          });
     }
   }
 
@@ -251,7 +257,9 @@ class _MissingProductSubmissionSheetState
         _CaptureStep.barcode => _photosTagged(
           ProductSubmissionEvidenceCategory.barcode,
         ).isNotEmpty,
-        _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => true,
+        _CaptureStep.intro ||
+        _CaptureStep.extras ||
+        _CaptureStep.review => true,
       };
       if (!satisfied) return step;
     }
@@ -909,10 +917,11 @@ class _MissingProductSubmissionSheetState
     ),
     _CaptureStep.barcode => _captureStepBody(
       context,
-      guidance: 'Photograph the barcode on this same package.',
+      guidance: 'Add proof of the UPC on this same package.',
       tip:
-          'Keep the full barcode and printed digits readable. This binds '
-          'the label photos to the product you scanned.',
+          'A barcode photo is ideal. If the bars are not visible, choose a '
+          'clear photo or screenshot showing the printed UPC digits. A '
+          'reviewer will verify the identity before anything is published.',
       category: ProductSubmissionEvidenceCategory.barcode,
     ),
     _CaptureStep.extras => [
@@ -989,8 +998,11 @@ class _MissingProductSubmissionSheetState
       ),
       const SizedBox(height: V2Spacing.space16),
       Text(
-        'Photos go privately to a human reviewer — clear shots get your '
-        'product added faster.',
+        widget.preferLibrary
+            ? 'Choose the clear label photos already on your phone. They go '
+                  'privately to a human reviewer.'
+            : 'Photos go privately to a human reviewer — clear shots get '
+                  'your product added faster.',
         style: V2Typography.caption(color: context.v2.fgSubtle),
       ),
       const SizedBox(height: V2Spacing.space16),
@@ -1003,6 +1015,8 @@ class _MissingProductSubmissionSheetState
           label: Text(
             _checkingIntake
                 ? 'Checking your submissions…'
+                : widget.preferLibrary
+                ? 'Start from my photos'
                 : 'Start with the front label',
           ),
         ),
@@ -1038,10 +1052,15 @@ class _MissingProductSubmissionSheetState
               ? null
               : () => _addPhoto(
                   _stepCategories(_step),
+                  fromLibrary: widget.preferLibrary,
                   autoAdvance: _step != _CaptureStep.facts,
                 ),
           icon: const Icon(Icons.photo_camera_outlined, size: 20),
-          label: Text(photos.isEmpty ? 'Open camera' : 'Add another angle'),
+          label: Text(
+            photos.isEmpty
+                ? (widget.preferLibrary ? 'Choose a photo' : 'Open camera')
+                : 'Add another angle',
+          ),
         ),
       ),
       const SizedBox(height: V2Spacing.space4),
@@ -1056,7 +1075,9 @@ class _MissingProductSubmissionSheetState
                   autoAdvance: _step != _CaptureStep.facts,
                 ),
           child: Text(
-            'Choose from library instead',
+            widget.preferLibrary
+                ? 'Use camera instead'
+                : 'Choose from library instead',
             style: V2Typography.caption(color: context.v2.fgSubtle),
           ),
         ),
@@ -1234,7 +1255,8 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.ingredients =>
       'Add at least one photo of the Other '
           'Ingredients list.',
-    _CaptureStep.barcode => 'Add a clear photo of this package’s barcode.',
+    _CaptureStep.barcode =>
+      'Add a clear photo or screenshot showing this package’s UPC digits.',
     _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => '',
   };
 }

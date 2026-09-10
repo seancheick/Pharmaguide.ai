@@ -579,10 +579,7 @@ void main() {
     expect(find.byKey(const Key('unfinished-captures')), findsOneWidget);
     expect(find.text('3 photos ready to send'), findsOneWidget);
     // The user must not read this as "submitted and waiting for review".
-    expect(
-      find.textContaining('still on this phone'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('still on this phone'), findsOneWidget);
     expect(find.text('Finish sending'), findsOneWidget);
   });
 
@@ -593,6 +590,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('unfinished-captures')), findsNothing);
+  });
+
+  testWidgets('plus button starts a photo-first submission with a UPC', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness(const []));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('contributions-add-product')));
+    await tester.pumpAndSettle();
+    expect(find.text('Add a product from photos'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('add-product-gtin-field')),
+      '030772032565',
+    );
+    await tester.tap(find.byKey(const Key('add-product-continue')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('missing-product-start')), findsOneWidget);
+    expect(find.text('Start from my photos'), findsOneWidget);
+    expect(find.textContaining('030772032565'), findsOneWidget);
   });
 }
 

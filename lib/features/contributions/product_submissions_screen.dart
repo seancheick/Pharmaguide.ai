@@ -10,6 +10,7 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
+import 'package:pharmaguide/features/contributions/add_missing_product_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
@@ -64,6 +65,20 @@ class _ProductSubmissionsScreenState
     ref.invalidate(productSubmissionsProvider);
     ref.invalidate(pendingProductSubmissionDraftsProvider);
     await ref.read(productSubmissionsProvider.future);
+  }
+
+  Future<void> _addFromPhotos() async {
+    final upc = await showAddMissingProductIdentitySheet(context);
+    if (!mounted || upc == null) return;
+    await showMissingProductSubmissionSheet(
+      context,
+      upc: upc,
+      preferLibrary: true,
+      service: ref.read(productSubmissionServiceProvider),
+    );
+    if (!mounted) return;
+    ref.invalidate(productSubmissionsProvider);
+    ref.invalidate(pendingProductSubmissionDraftsProvider);
   }
 
   /// Reopen capture for a barcode this device still holds photos for. The
@@ -154,6 +169,14 @@ class _ProductSubmissionsScreenState
           style: V2Typography.titleSm(color: context.v2.fg),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            key: const Key('contributions-add-product'),
+            tooltip: 'Add a product from photos',
+            onPressed: _addFromPhotos,
+            icon: const Icon(Icons.add_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -271,10 +294,7 @@ class _UnfinishedCaptures extends ConsumerWidget {
       key: const Key('unfinished-captures'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Not sent yet',
-          style: V2Typography.titleSm(color: context.v2.fg),
-        ),
+        Text('Not sent yet', style: V2Typography.titleSm(color: context.v2.fg)),
         const SizedBox(height: V2Spacing.space8),
         Text(
           'These photos are still on this phone. Nobody has seen them yet.',
@@ -622,8 +642,8 @@ class _EmptyState extends StatelessWidget {
         borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
       ),
       child: Text(
-        'No submissions yet. Scan a product we don’t have and it will '
-        'appear here.',
+        'No submissions yet. Scan a product we don’t have, or add one from '
+        'photos and a UPC from the package or store listing.',
         style: V2Typography.body(color: context.v2.fgMuted),
       ),
     );
