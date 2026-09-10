@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -192,6 +194,30 @@ void main() {
 
       await expectLater(service.acquireAndRegisterToken(), completes);
       expect(messaging.log, ['requestPermission', 'getToken']);
+    });
+
+    test('concurrent acquisition registers one token only', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final messaging = _FakeMessaging(fcmToken: 'same-token');
+      final release = Completer<void>();
+      var registrations = 0;
+      final service = SafetyPushService(
+        messaging: messaging,
+        invokeFunction: (_, __) async {
+          registrations++;
+          await release.future;
+        },
+        isAuthenticated: () => true,
+      );
+
+      final first = service.acquireAndRegisterToken();
+      await Future<void>.delayed(Duration.zero);
+      final second = service.acquireAndRegisterToken();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(registrations, 1);
+      release.complete();
+      await Future.wait([first, second]);
     });
   });
 

@@ -35,6 +35,8 @@ class SafetyPushService with WidgetsBindingObserver {
   _invokeFunction;
   final bool Function()? isAuthenticated;
   bool _tokenRegistered = false;
+  String? _registeredToken;
+  Future<void>? _registrationInFlight;
   StreamSubscription<String>? _tokenRefresh;
   StreamSubscription<RemoteMessage>? _foreground;
   StreamSubscription<RemoteMessage>? _opened;
@@ -95,6 +97,7 @@ class SafetyPushService with WidgetsBindingObserver {
           // expiry, account deletion, dev tools): invalidating the FCM token
           // makes every queued row for it come back UNREGISTERED and pruned.
           _tokenRegistered = false;
+          _registeredToken = null;
           unawaited(_deleteLocalToken());
           return;
         }
@@ -170,6 +173,7 @@ class SafetyPushService with WidgetsBindingObserver {
   /// dispatch. Never throws — sign-out must not block on push cleanup.
   Future<void> unregisterBeforeSignOut() async {
     _tokenRegistered = false;
+    _registeredToken = null;
     String? token;
     try {
       token = await _messaging.getToken().timeout(const Duration(seconds: 2));
@@ -199,15 +203,37 @@ class SafetyPushService with WidgetsBindingObserver {
 
   Future<void> _register(String token) async {
     if (!_hasAuthenticatedUser) return;
+    if (_registeredToken == token) return;
+
+    // initialize(), the auth-state callback, and onTokenRefresh can all
+    // observe the same token during startup. Serialize that race and let the
+    // second caller reuse the first request instead of registering twice.
+    final pending = _registrationInFlight;
+    if (pending != null) {
+      await pending;
+      if (!_hasAuthenticatedUser || _registeredToken == token) return;
+    }
+
     final platform = defaultTargetPlatform == TargetPlatform.iOS
         ? 'ios'
         : 'android';
-    await _invoke('register-push-token', {
+    final operation = _invoke('register-push-token', {
       'token': token,
       'platform': platform,
     });
-    _tokenRegistered = true;
-    debugPrint('Push token registered ($platform)');
+    _registrationInFlight = operation;
+    try {
+      await operation;
+      if (_hasAuthenticatedUser) {
+        _registeredToken = token;
+        _tokenRegistered = true;
+        debugPrint('Push token registered ($platform)');
+      }
+    } finally {
+      if (identical(_registrationInFlight, operation)) {
+        _registrationInFlight = null;
+      }
+    }
   }
 
   Future<void> _invoke(String functionName, Map<String, dynamic> body) async {
