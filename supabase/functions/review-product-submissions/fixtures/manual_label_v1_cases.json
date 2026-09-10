@@ -1,480 +1,513 @@
 {
-  "fixture_version": "manual_label_v1_cases_v1",
   "cases": [
     {
       "name": "valid_present_other_ingredients",
-      "valid": true,
       "payload": {
         "brandName": "Example Labs",
         "fullName": "Vitamin D3 25 mcg",
         "ingredientRows": [
           {
-            "ingredientGroup": "Vitamin D",
-            "name": "Vitamin D3 (as cholecalciferol)",
             "category": "vitamin",
-            "quantity": [
-              {
-                "quantity": 25,
-                "unit": "mcg"
-              }
-            ],
             "forms": [
               {
                 "name": "Cholecalciferol"
               }
             ],
-            "nestedRows": []
+            "ingredientGroup": "Vitamin D",
+            "name": "Vitamin D3 (as cholecalciferol)",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 25,
+                "unit": "mcg"
+              }
+            ]
           }
         ],
-        "servingSizes": [
-          {
-            "minQuantity": 1,
-            "maxQuantity": 1,
-            "minDailyServings": 1,
-            "maxDailyServings": 1,
-            "unit": "Capsule(s)"
-          }
-        ],
-        "servingsPerContainer": "60",
         "offMarket": 0,
+        "otherIngredients": "Rice flour, capsule (hypromellose).",
+        "otherIngredientsDisclosure": "present",
         "physicalState": {
           "name": "Capsule"
         },
         "productType": {
           "name": "Single-ingredient Dietary Supplement"
         },
-        "otherIngredientsDisclosure": "present",
-        "otherIngredients": "Rice flour, capsule (hypromellose).",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Capsule(s)"
+          }
+        ],
+        "servingsPerContainer": "60",
         "statements": [
           {
-            "type": "Allergen statement",
-            "notes": "Free from milk."
+            "notes": "Free from milk.",
+            "type": "Allergen statement"
           }
         ]
-      }
+      },
+      "valid": true
     },
     {
       "name": "valid_nested_blend_on_facts_panel",
-      "valid": true,
       "payload": {
         "brandName": "Example Labs",
         "fullName": "Calm Blend",
         "ingredientRows": [
           {
+            "category": "blend",
+            "forms": [],
             "ingredientGroup": "Blend",
             "name": "Calm Blend",
-            "category": "blend",
-            "quantity": [
-              {
-                "quantity": 500,
-                "unit": "mg"
-              }
-            ],
-            "forms": [],
             "nestedRows": [
               {
+                "forms": [],
                 "ingredientGroup": "L-Theanine",
                 "name": "L-Theanine",
-                "quantity": [],
-                "forms": [],
-                "nestedRows": []
+                "nestedRows": [],
+                "quantity": []
               },
               {
-                "ingredientGroup": "Lemon Balm",
-                "name": "Lemon Balm leaf extract",
-                "quantity": [],
                 "forms": [
                   {
                     "name": "Lemon Balm Extract"
                   }
                 ],
-                "nestedRows": []
+                "ingredientGroup": "Lemon Balm",
+                "name": "Lemon Balm leaf extract",
+                "nestedRows": [],
+                "quantity": []
+              }
+            ],
+            "quantity": [
+              {
+                "quantity": 500,
+                "unit": "mg"
               }
             ]
           }
         ],
+        "offMarket": false,
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "included_on_facts_panel",
         "servingSizes": [
           {
-            "minQuantity": 2,
+            "maxDailyServings": 2,
             "maxQuantity": 2,
             "minDailyServings": 1,
-            "maxDailyServings": 2,
+            "minQuantity": 2,
             "unit": "Capsule(s)"
           }
         ],
-        "offMarket": false,
-        "otherIngredientsDisclosure": "included_on_facts_panel",
-        "otherIngredients": "",
         "statements": []
-      }
+      },
+      "valid": true
     },
     {
       "name": "valid_declared_none",
-      "valid": true,
       "payload": {
         "brandName": "Example Labs",
         "fullName": "Pure Creatine",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Creatine",
             "name": "Creatine Monohydrate",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 5,
                 "unit": "g"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {
-            "minQuantity": 1,
+            "maxDailyServings": 1,
             "maxQuantity": 1,
             "minDailyServings": 1,
-            "maxDailyServings": 1,
+            "minQuantity": 1,
             "unit": "Scoop(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": ""
-      }
+        ]
+      },
+      "valid": true
     },
     {
       "name": "reject_empty_ingredient_object",
-      "valid": false,
+      "path": "ingredientRows[0].name",
       "payload": {
         "brandName": "Example",
         "fullName": "Broken",
         "ingredientRows": [
           {}
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Capsule(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": ""
-      }
+        ]
+      },
+      "python_message": "ingredientRows[0].name must be a string",
+      "typescript_message": "ingredientRows[0].name must be a string",
+      "valid": false
     },
     {
       "name": "reject_malformed_nested_row",
-      "valid": false,
+      "path": "ingredientRows[0].nestedRows[0].name",
       "payload": {
         "brandName": "Example",
         "fullName": "Broken Blend",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Blend",
             "name": "Broken Blend",
+            "nestedRows": [
+              {}
+            ],
             "quantity": [
               {
                 "quantity": 100,
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": [
-              {}
             ]
           }
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Capsule(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": ""
-      }
+        ]
+      },
+      "python_message": "ingredientRows[0].nestedRows[0].name must be a string",
+      "typescript_message": "ingredientRows[0].nestedRows[0].name must be a string",
+      "valid": false
     },
     {
       "name": "reject_string_quantity",
-      "valid": false,
+      "path": "ingredientRows[0].quantity[0].quantity",
       "payload": {
         "brandName": "Example",
         "fullName": "Broken Dose",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Magnesium",
             "name": "Magnesium",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": "200",
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Capsule(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": ""
-      }
+        ]
+      },
+      "python_message": "ingredientRows[0].quantity[0].quantity must be a finite number >= 0",
+      "typescript_message": "ingredientRows[0].quantity[0].quantity must be a finite number >= 0",
+      "valid": false
     },
     {
       "name": "reject_empty_quantity_unit",
-      "valid": false,
+      "path": "ingredientRows[0].quantity[0].unit",
       "payload": {
         "brandName": "Example",
         "fullName": "Broken Unit",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Magnesium",
             "name": "Magnesium",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 200,
                 "unit": ""
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Capsule(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": ""
-      }
+        ]
+      },
+      "python_message": "ingredientRows[0].quantity[0].unit is missing or too long",
+      "typescript_message": "ingredientRows[0].quantity[0].unit must not be empty",
+      "valid": false
     },
     {
       "name": "reject_unverified_disclosure",
-      "valid": false,
+      "path": "$",
       "payload": {
         "brandName": "Example",
         "fullName": "Unverified",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Zinc",
             "name": "Zinc",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 15,
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "unverified",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Tablet(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "unverified",
-        "otherIngredients": ""
-      }
+        ]
+      },
+      "python_message": "otherIngredientsDisclosure is unresolved or invalid",
+      "typescript_message": "otherIngredientsDisclosure is unresolved or invalid",
+      "valid": false
     },
     {
       "name": "reject_present_without_text",
-      "valid": false,
+      "path": "$",
       "payload": {
         "brandName": "Example",
         "fullName": "Missing Other Ingredients",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Zinc",
             "name": "Zinc",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 15,
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": " ",
+        "otherIngredientsDisclosure": "present",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Tablet(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "present",
-        "otherIngredients": " "
-      }
+        ]
+      },
+      "python_message": "present other ingredients require text",
+      "typescript_message": "present other ingredients require text",
+      "valid": false
     },
     {
       "name": "reject_declared_none_with_text",
-      "valid": false,
+      "path": "$",
       "payload": {
         "brandName": "Example",
         "fullName": "Contradictory Disclosure",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Zinc",
             "name": "Zinc",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 15,
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "Rice flour",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Tablet(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": "Rice flour"
-      }
+        ]
+      },
+      "python_message": "declared_none requires empty otherIngredients",
+      "typescript_message": "declared_none requires empty otherIngredients",
+      "valid": false
     },
     {
       "name": "reject_included_on_facts_with_text",
-      "valid": false,
+      "path": "$",
       "payload": {
         "brandName": "Example",
         "fullName": "Contradictory Panel",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Zinc",
             "name": "Zinc",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 15,
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "Rice flour",
+        "otherIngredientsDisclosure": "included_on_facts_panel",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Tablet(s)"
           }
-        ],
-        "otherIngredientsDisclosure": "included_on_facts_panel",
-        "otherIngredients": "Rice flour"
-      }
+        ]
+      },
+      "python_message": "included_on_facts_panel requires empty otherIngredients",
+      "typescript_message": "included_on_facts_panel requires empty otherIngredients",
+      "valid": false
     },
     {
       "name": "reject_empty_serving_size",
-      "valid": false,
+      "path": "servingSizes[0].minQuantity",
       "payload": {
         "brandName": "Example",
         "fullName": "Broken Serving",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Zinc",
             "name": "Zinc",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 15,
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {}
-        ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": ""
-      }
+        ]
+      },
+      "python_message": "servingSizes[0].minQuantity must be a finite number >= 2.220446049250313e-16",
+      "typescript_message": "servingSizes[0].minQuantity must be a finite number >= 2.220446049250313e-16",
+      "valid": false
     },
     {
       "name": "reject_empty_statement",
-      "valid": false,
+      "path": "statements[0].type",
       "payload": {
         "brandName": "Example",
         "fullName": "Broken Statement",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Zinc",
             "name": "Zinc",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 15,
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Tablet(s)"
           }
         ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": "",
         "statements": [
           {
-            "type": "",
-            "notes": ""
+            "notes": "",
+            "type": ""
           }
         ]
-      }
+      },
+      "python_message": "statements[0].type is missing or too long",
+      "typescript_message": "statements[0].type must not be empty",
+      "valid": false
     },
     {
       "name": "reject_unknown_top_level_field",
-      "valid": false,
+      "path": "$",
       "payload": {
         "brandName": "Example",
         "fullName": "Unknown Field",
         "ingredientRows": [
           {
+            "forms": [],
             "ingredientGroup": "Zinc",
             "name": "Zinc",
+            "nestedRows": [],
             "quantity": [
               {
                 "quantity": 15,
                 "unit": "mg"
               }
-            ],
-            "forms": [],
-            "nestedRows": []
+            ]
           }
         ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
         "servingSizes": [
           {
-            "minQuantity": 1,
             "maxQuantity": 1,
+            "minQuantity": 1,
             "unit": "Tablet(s)"
           }
         ],
-        "otherIngredientsDisclosure": "declared_none",
-        "otherIngredients": "",
         "userNotes": "should never ship"
-      }
+      },
+      "python_message": "approved payload contains forbidden field(s): userNotes",
+      "typescript_message": "approved payload contains unknown field userNotes",
+      "valid": false
     }
-  ]
+  ],
+  "fixture_version": "manual_label_v1_cases_v1"
 }

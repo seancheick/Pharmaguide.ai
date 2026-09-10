@@ -11,8 +11,22 @@ import fixtureJson from "./fixtures/manual_label_v1_cases.json" with {
 const FIXTURE_SHA256 =
   "3498b58d19399f187aa6d71d78f5bf1aa6583f21ff2479190956cf07fa7bd0de";
 const fixture = fixtureJson as {
-  cases: Array<{ name: string; valid: boolean; payload: unknown }>;
+  cases: Array<
+    {
+      name: string;
+      valid: boolean;
+      payload: unknown;
+      path?: string;
+      typescript_message?: string;
+    }
+  >;
 };
+
+/** The JSON location a rejection names: structure, not prose. */
+function rejectedPath(message: string): string {
+  const head = message.split(" ")[0];
+  return head.includes("[") || head.includes(".") ? head : "$";
+}
 
 function canonicalJson(value: unknown): string {
   if (
@@ -50,12 +64,18 @@ Deno.test("manual_label_v1 accepts and rejects the shared contract cases", async
     if (testCase.valid) {
       validateManualLabelV1(testCase.payload);
     } else {
-      await assertRejects(
+      const error = await assertRejects(
         async () => validateManualLabelV1(testCase.payload),
         Error,
         undefined,
         testCase.name,
       );
+      // Both the location and the exact wording are pinned. manual_label_v1 is
+      // implemented twice — here for the approval gate and in Python for the
+      // catalog gate — so the only defence against the two drifting apart is
+      // that neither can change what it says without this failing.
+      assertEquals(error.message, testCase.typescript_message, testCase.name);
+      assertEquals(rejectedPath(error.message), testCase.path, testCase.name);
     }
   }
 });
