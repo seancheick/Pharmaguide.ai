@@ -34,6 +34,8 @@ enum ProductSubmissionEvidenceCategory {
   supplementFacts('supplement_facts'),
   ingredientDisclosure('ingredient_disclosure'),
   directionsWarnings('directions_warnings'),
+  /// A barcode photo or a clear photo/screenshot of the printed UPC/GTIN.
+  /// Review still verifies the identity before approval.
   barcode('barcode'),
   lotExpiry('lot_expiry');
 

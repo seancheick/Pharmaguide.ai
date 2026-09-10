@@ -14,21 +14,42 @@ typedef GtinTextReader = Future<String> Function(XFile file);
 /// callers must still ask the user to confirm which candidate is the product
 /// UPC. Store-specific identifiers are never promoted to product identity.
 List<GtinIdentity> extractGtinCandidatesFromText(String text) {
+  final labeled = <String, GtinIdentity>{};
+  final labeledPattern = RegExp(
+    r'(?:(?:u\.?p\.?c\.?|gtin|ean(?:-?8|-?13|-?14)?|barcode))\s*[:#-]?\s*'
+    r'((?:\d[\s-]?){8,14})(?!\d)',
+    caseSensitive: false,
+  );
+  for (final match in labeledPattern.allMatches(text)) {
+    _addCandidate(labeled, match.group(1));
+  }
+  // A labeled product code suppresses nearby store identifiers (TCIN/DPCI).
+  if (labeled.isNotEmpty) return List.unmodifiable(labeled.values);
+
   final candidates = <String, GtinIdentity>{};
   final matches = RegExp(r'(?<!\d)(?:\d[\s-]?){8,14}(?!\d)').allMatches(text);
   for (final match in matches) {
-    final raw = match.group(0);
-    if (raw == null) continue;
-    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
-    try {
-      final identity = GtinIdentity.parse(digits);
-      candidates[identity.canonicalGtin14] = identity;
-    } on FormatException {
-      // OCR frequently drops or adds a digit. Invalid candidates are
-      // discarded rather than corrected heuristically.
+    final before = text.substring(0, match.start);
+    if (RegExp(
+      r'(?:t\.?c\.?i\.?n|d\.?p\.?c\.?i)\s*[:#-]?\s*$',
+      caseSensitive: false,
+    ).hasMatch(before)) {
+      continue;
     }
+    _addCandidate(candidates, match.group(0));
   }
   return List.unmodifiable(candidates.values);
+}
+
+void _addCandidate(Map<String, GtinIdentity> candidates, String? raw) {
+  if (raw == null) return;
+  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+  try {
+    final identity = GtinIdentity.parse(digits);
+    candidates[identity.canonicalGtin14] = identity;
+  } on FormatException {
+    // OCR frequently drops or adds a digit. Never repair it heuristically.
+  }
 }
 
 /// Reads Latin text from a local image with on-device ML Kit.

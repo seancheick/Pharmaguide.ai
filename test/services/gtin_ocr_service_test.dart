@@ -19,13 +19,22 @@ void main() {
     expect(extractGtinCandidatesFromText('UPC 030772032564'), isEmpty);
   });
 
-  test('returns multiple valid candidates for explicit user choice', () {
+  test('prefers labeled product codes over valid store identifiers', () {
     final candidates = extractGtinCandidatesFromText(
       'TCIN 96385074 UPC 036000291452',
     );
     expect(candidates.map((candidate) => candidate.submissionIdentity), [
-      '96385074',
       '036000291452',
+    ]);
+  });
+
+  test('offers a choice when more than one product code is labeled', () {
+    final candidates = extractGtinCandidatesFromText(
+      'UPC 036000291452 EAN-13 4006381333931',
+    );
+    expect(candidates.map((candidate) => candidate.submissionIdentity), [
+      '036000291452',
+      '4006381333931',
     ]);
   });
 }
