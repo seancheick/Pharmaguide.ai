@@ -131,18 +131,27 @@ SELECT fixture.test('human approval still requires verified match image payload 
 DO $$ DECLARE sid uuid; BEGIN
   sid := fixture.seed(1, '012345678905', 'under_review', NULL);
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
-  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(%L))', sid,sid),
+  -- An authenticated reviewer must not be able to bypass the workstation by
+  -- calling the SQL RPC directly. The migration's wrapper is the authority.
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'',p_payload_sha256=>%L,p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(%L))', sid, encode(extensions.digest('{"fixture":true}', 'sha256'), 'hex'), sid),
+    '55000', 'not the one reviewed');
+  PERFORM fixture.prepare_review(sid);
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'',p_payload_sha256=>%L,p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(%L))', sid, encode(extensions.digest('{"fixture":true}', 'sha256'), 'hex'), sid),
     '55000', 'fresh verified no-match required');
   UPDATE public.product_submission_photos SET categories = ARRAY['barcode']::public.product_submission_evidence_category[]
   WHERE submission_id = sid;
   PERFORM fixture.refreeze(sid);
   PERFORM fixture.throws(format('SELECT fixture.approve(%L)', sid), '22023', 'front evidence photo required');
+  -- The failed transition rolls back its fixture setup; bind the unchanged
+  -- current revision again before testing the next inner validation.
+  PERFORM fixture.prepare_review(sid);
   UPDATE public.product_submission_photos SET categories = ARRAY['front_identity']::public.product_submission_evidence_category[]
   WHERE submission_id = sid;
   PERFORM fixture.refreeze(sid);
   PERFORM fixture.throws(format('SELECT fixture.approve(%L)', sid), '55000', 'barcode-bound evidence required');
+  PERFORM fixture.prepare_review(sid);
   INSERT INTO public.product_submission_match_checks(submission_id, reviewer_id, canonical_gtin14, outcome, index_built_at)
   VALUES (sid, fixture.user_id(3), '00012345678905', 'no_match_verified', now());
-  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'', p_product_image_photo_id => ''10000000-0000-0000-0000-000000000001'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(%L))', sid,sid),
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L, ''approved'', p_payload_sha256 => %L, p_product_image_photo_id => ''10000000-0000-0000-0000-000000000001'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(%L))', sid, encode(extensions.digest('{"fixture":true}', 'sha256'), 'hex'), sid),
     '22023', 'approved canonical payload required');
 END $$ $case$);

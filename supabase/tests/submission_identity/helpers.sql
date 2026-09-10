@@ -114,6 +114,7 @@ CREATE FUNCTION fixture.approve(p_id uuid) RETURNS boolean LANGUAGE plpgsql AS $
     index_built_at, candidate_dsld_ids)
   SELECT p_id, fixture.user_id(3), lpad(normalized_upc, 14, '0'), 'no_match_verified',
     now(), ARRAY[]::text[] FROM public.product_submissions WHERE id = p_id;
+  PERFORM fixture.prepare_review(p_id);
   RETURN public.review_product_submission(p_id, 'approved',
     p_approved_schema_version => 'manual_label_v1', p_approved_payload => '{"fixture":true}'::jsonb,
     p_approved_payload_canonical => '{"fixture":true}',
@@ -122,6 +123,68 @@ CREATE FUNCTION fixture.approve(p_id uuid) RETURNS boolean LANGUAGE plpgsql AS $
     p_expected_evidence_revision => (SELECT evidence_revision FROM public.product_submissions WHERE id = p_id),
     p_evidence_manifest_sha256 => (SELECT manifest_sha256 FROM public.product_submission_evidence_revisions
       WHERE submission_id = p_id AND revision=(SELECT evidence_revision FROM public.product_submissions WHERE id=p_id)));
+END $$;
+
+-- Seed the complete reviewer workstation state required by the production
+-- approval gate.  This helper refreshes an existing review after a fixture
+-- mutates evidence, so tests reach the inner transition they intend to test.
+CREATE FUNCTION fixture.prepare_review(p_id uuid, p_payload jsonb DEFAULT '{"fixture":true}'::jsonb)
+RETURNS void LANGUAGE plpgsql AS $$ DECLARE
+  current_revision integer;
+  current_manifest text;
+  -- The fixture payload is intentionally already in the canonical wire form
+  -- used by the approval call. Keep this explicit instead of relying on
+  -- jsonb::text formatting, which is not the contract under test.
+  payload_canonical text := CASE WHEN p_payload = '{"fixture":true}'::jsonb
+    THEN '{"fixture":true}' ELSE p_payload::text END;
+  payload_sha text := encode(extensions.digest(payload_canonical, 'sha256'), 'hex');
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
+  -- Recompute the fixture snapshot from the current rows before binding the
+  -- review. This mirrors the production finalize boundary and prevents a
+  -- test fixture's hand-built manifest from masking the approval fence.
+  SELECT evidence_revision INTO current_revision
+  FROM public.product_submissions WHERE id = p_id;
+  current_manifest := public.product_submission_manifest_sha256(
+    public.product_submission_evidence_records(p_id, current_revision));
+  UPDATE public.product_submission_evidence_revisions
+  SET manifest = public.product_submission_evidence_records(p_id, current_revision),
+      manifest_sha256 = current_manifest
+  WHERE submission_id = p_id AND revision = current_revision;
+  INSERT INTO public.product_submission_reviewer_drafts(
+    submission_id, reviewer_id, evidence_revision, evidence_manifest_sha256,
+    payload, payload_canonical, payload_sha256)
+  SELECT p_id, fixture.user_id(3), s.evidence_revision, current_manifest,
+    p_payload, payload_canonical, payload_sha
+  FROM public.product_submissions AS s
+  JOIN public.product_submission_evidence_revisions AS r
+    ON r.submission_id = s.id AND r.revision = s.evidence_revision
+  WHERE s.id = p_id
+  ON CONFLICT (submission_id, reviewer_id) DO UPDATE SET
+    evidence_revision = EXCLUDED.evidence_revision,
+    evidence_manifest_sha256 = EXCLUDED.evidence_manifest_sha256,
+    payload = EXCLUDED.payload,
+    payload_canonical = EXCLUDED.payload_canonical,
+    payload_sha256 = EXCLUDED.payload_sha256,
+    updated_at = now();
+  DELETE FROM public.product_submission_field_verifications
+  WHERE submission_id = p_id AND reviewer_id = fixture.user_id(3);
+  INSERT INTO public.product_submission_field_verifications(
+    submission_id, reviewer_id, field_path, payload_sha256,
+    evidence_revision, evidence_manifest_sha256)
+  SELECT p_id, fixture.user_id(3), required.path,
+    payload_sha,
+    s.evidence_revision, current_manifest
+  FROM public.product_submissions AS s
+  JOIN public.product_submission_evidence_revisions AS r
+    ON r.submission_id = s.id AND r.revision = s.evidence_revision
+  CROSS JOIN unnest(public.product_submission_required_verification_paths())
+    AS required(path)
+  WHERE s.id = p_id
+  ON CONFLICT (submission_id, reviewer_id, field_path) DO UPDATE SET
+    payload_sha256 = EXCLUDED.payload_sha256,
+    evidence_revision = EXCLUDED.evidence_revision,
+    evidence_manifest_sha256 = EXCLUDED.evidence_manifest_sha256;
 END $$;
 
 CREATE FUNCTION fixture.manifest_hash(sid uuid) RETURNS text LANGUAGE sql AS $$

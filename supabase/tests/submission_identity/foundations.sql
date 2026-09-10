@@ -109,9 +109,9 @@ DO $$ DECLARE sid uuid; BEGIN
  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(1)::text,false);
  PERFORM fixture.retake(sid);
  PERFORM fixture.assert(public.get_product_submission_intake('missing_product','012345678905')->>'action'='open_existing','current app must understand pending retake');
- PERFORM fixture.throws('SELECT public.create_product_submission(gen_random_uuid(),''missing_product'',''0012345678905'',p_photos=>fixture.photos(),p_consent_version=>''fixture.consent.v1'')','23505','idx_product_submissions_user_open_upc');
- PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
- PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''approved'')',sid),'55000','ready');
+  PERFORM fixture.throws('SELECT public.create_product_submission(gen_random_uuid(),''missing_product'',''0012345678905'',p_photos=>fixture.photos(),p_consent_version=>''fixture.consent.v1'')','23505','idx_product_submissions_user_open_upc');
+  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''approved'')',sid),'55000','not the one reviewed');
 END $$ $case$);
 
 SELECT fixture.test('new retake not expired by original receipt age and cleanup fences completion', $case$
@@ -157,11 +157,12 @@ DO $$ DECLARE sid uuid; old_hash text; BEGIN
  p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>old_hash);
  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(1)::text,false);
  PERFORM fixture.retake(sid); PERFORM public.add_product_submission_evidence(sid,2,fixture.new_photo());
- PERFORM fixture.upload_revision(sid,2); PERFORM public.finalize_product_submission(sid,2);
- PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
- PERFORM fixture.throws(format('SELECT public.record_product_submission_match_check(%L,''no_match_verified'',''00012345678905'',now(),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',sid,old_hash),'55000','changed since review');
- PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''approved'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',sid,old_hash),'55000','changed since review');
- PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''approved'',p_expected_evidence_revision=>2,p_evidence_manifest_sha256=>%L)',sid,fixture.manifest_hash(sid)),'55000','no-match');
+  PERFORM fixture.upload_revision(sid,2); PERFORM public.finalize_product_submission(sid,2);
+  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
+  PERFORM fixture.prepare_review(sid);
+  PERFORM fixture.throws(format('SELECT public.record_product_submission_match_check(%L,''no_match_verified'',''00012345678905'',now(),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',sid,old_hash),'55000','changed since review');
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''approved'',p_payload_sha256=>%L,p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',sid,encode(extensions.digest('{"fixture":true}', 'sha256'), 'hex'),old_hash),'55000','changed since review');
+  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''approved'',p_payload_sha256=>%L,p_expected_evidence_revision=>2,p_evidence_manifest_sha256=>%L)',sid,encode(extensions.digest('{"fixture":true}', 'sha256'), 'hex'),fixture.manifest_hash(sid)),'55000','no-match');
  PERFORM fixture.throws(format('SELECT fixture.approve(%L)',sid),'22023','front evidence photo');
 END $$ $case$);
 

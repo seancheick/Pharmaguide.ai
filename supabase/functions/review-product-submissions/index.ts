@@ -654,14 +654,6 @@ async function applyTransition(
         productImageReviewerObjectId,
       );
     }
-    // Every approval, single or batched, is held to the same rule, and the
-    // database owns it. A browser checklist is a reviewer's aid; it must never
-    // be the only thing between an unread label and the catalog.
-    const { error: verifyError } = await userClient.rpc(
-      "assert_product_submission_fully_verified",
-      { p_submission_id: submissionId, p_payload_sha256: payloadHash },
-    );
-    if (verifyError) throw verifyError;
   } else if (
     body.approved_schema_version !== undefined ||
     body.approved_payload !== undefined
