@@ -62,6 +62,7 @@ const ACTIONS = new Set([
   "save_review",
   "load_review",
   "set_field_verification",
+  "review_states",
 ]);
 // A batch is a convenience for one person at one screen, not a bulk pipe.
 const BATCH_MAX_ITEMS = 25;
@@ -1154,6 +1155,22 @@ Deno.serve(async (request: Request): Promise<Response> => {
       return json({ review: data });
     }
 
+    if (action === "review_states") {
+      rejectUnknownKeys(body, new Set(["action", "submission_ids"]));
+      const ids = body.submission_ids;
+      if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100) {
+        throw new Error("invalid submission list");
+      }
+      const submissionIds = ids.map((id) => requiredUuid(id, "submission id"));
+      const { data, error } = await userClient.rpc(
+        "product_submission_reviewer_batch_state",
+        { p_submission_ids: submissionIds },
+      );
+      if (error) throw error;
+      audit(reviewerId, action, "success", 1);
+      return json({ states: data ?? [] });
+    }
+
     if (action === "batch_transition") {
       rejectUnknownKeys(body, new Set(["action", "items"]));
       const items = body.items;
@@ -1184,6 +1201,26 @@ Deno.serve(async (request: Request): Promise<Response> => {
       let applied = 0;
       for (const { submissionId, item } of planned) {
         try {
+          if (item.to_status === "approved") {
+            // Read the payload from the reviewer's own saved draft. Accepting
+            // one from the client would let a batch approve text that is not
+            // the text the attestations were made against, and the digest
+            // check further down would then be comparing the wrong things.
+            const { data: review, error: reviewError } = await userClient.rpc(
+              "load_product_submission_reviewer_draft",
+              { p_submission_id: submissionId },
+            );
+            if (reviewError) throw reviewError;
+            const draft = (review as JsonObject | null)?.draft as
+              | JsonObject
+              | null
+              | undefined;
+            if (!draft || draft.superseded === true) {
+              throw new Error("no current reviewed label");
+            }
+            item.approved_payload = draft.payload;
+            item.approved_schema_version = APPROVED_SCHEMA_VERSION;
+          }
           const payloadHash = await applyTransition(
             item,
             userClient,

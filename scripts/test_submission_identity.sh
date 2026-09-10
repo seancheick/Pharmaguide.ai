@@ -24,21 +24,11 @@ for attempt in {1..40}; do
 done
 psql_test() { "$docker_bin" exec -i "$test_container" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 "$@"; }
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/bootstrap.sql"
-for migration in \
-  20260731144153 20260731144527 20260824172752 20260825172103 \
-  20260825173314 20260825181500 20260825213000 20260826001957 \
-  20260826100000 20260829151221 20260903064532 20260903064547 20260903065755; do
-  for file in "$repo_dir"/supabase/migrations/"$migration"_*.sql; do
-    psql_test -q < "$file"
-  done
-done
-psql_test -q < "$repo_dir/supabase/migrations/20260908230736_harden_submission_identity_and_intake.sql"
-psql_test -q < "$repo_dir/supabase/tests/submission_identity/legacy_foundations.sql"
-psql_test -q < "$repo_dir/supabase/migrations/20260909013000_submission_foundations_consent_revisions_extraction.sql"
-psql_test -q < "$repo_dir/supabase/migrations/20260909120000_submission_extraction_queue.sql"
-psql_test -q < "$repo_dir/supabase/migrations/20260909180000_submission_extraction_worker_evidence.sql"
-psql_test -q < "$repo_dir/supabase/migrations/20260909190858_harden_extraction_attempt_receipts.sql"
-psql_test -q < "$repo_dir/supabase/migrations/20260909210000_submission_reviewer_workstation.sql"
+# One owner for the chain, shared with the live-stack provisioner.
+source "$repo_dir/supabase/tests/submission_identity/chain.sh"
+while IFS= read -r chain_file; do
+  psql_test -q < "$chain_file"
+done < <(submission_migration_chain "$repo_dir")
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/helpers.sql"
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/identity.sql" >/dev/null
 if [[ -f "$repo_dir/supabase/tests/submission_identity/intake.sql" ]]; then

@@ -233,3 +233,65 @@ DO $$ DECLARE sid uuid := fixture.seed(1, '012345678905', 'under_review'); BEGIN
     sid, fixture.sha('Acme')), '55000', 'not the one reviewed');
 END $$;
 $case$);
+
+SELECT fixture.test('batch state reports readiness by the same rule as approval', $case$
+DO $$ DECLARE a uuid := fixture.seed(1, '012345678905', 'under_review');
+        b uuid := fixture.seed(2, '012345678929', 'under_review'); state jsonb; BEGIN
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
+  PERFORM fixture.save(a, 'Acme');
+  PERFORM fixture.tick_all(a, 'Acme');
+  PERFORM fixture.save(b, 'Acme');
+  PERFORM public.set_product_submission_field_verification(
+    b, 'identity.brand', fixture.sha('Acme'), true);
+  state := public.product_submission_reviewer_batch_state(ARRAY[a, b]);
+  PERFORM fixture.assert(jsonb_array_length(state) = 2, 'both drafts should appear');
+  PERFORM fixture.assert((SELECT (entry ->> 'fully_verified')::boolean
+    FROM jsonb_array_elements(state) entry WHERE entry ->> 'submission_id' = a::text),
+    'a fully read label was not reported ready');
+  PERFORM fixture.assert((SELECT NOT (entry ->> 'fully_verified')::boolean
+    FROM jsonb_array_elements(state) entry WHERE entry ->> 'submission_id' = b::text),
+    'a partly read label was reported ready');
+END $$;
+$case$);
+
+SELECT fixture.test('batch state never reports another reviewer''s work', $case$
+DO $$ DECLARE sid uuid := fixture.seed(1, '012345678905', 'under_review'); state jsonb; BEGIN
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
+  PERFORM fixture.save(sid, 'Acme');
+  PERFORM fixture.tick_all(sid, 'Acme');
+  INSERT INTO public.product_submission_reviewers(user_id) VALUES (fixture.user_id(5))
+    ON CONFLICT DO NOTHING;
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(5)::text, false);
+  state := public.product_submission_reviewer_batch_state(ARRAY[sid]);
+  PERFORM fixture.assert(jsonb_array_length(state) = 0,
+    'a reviewer saw another reviewer''s readiness');
+END $$;
+$case$);
+
+SELECT fixture.test('a retake withdraws batch readiness', $case$
+DO $$ DECLARE sid uuid := fixture.seed(1, '012345678905', 'under_review'); state jsonb; BEGIN
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
+  PERFORM fixture.save(sid, 'Acme');
+  PERFORM fixture.tick_all(sid, 'Acme');
+  INSERT INTO public.product_submission_evidence_revisions(
+    submission_id, revision, request_key, opened_by, photo_ids,
+    consent_version, consented_at, ready_at, manifest, manifest_sha256)
+  VALUES (sid, 2, gen_random_uuid(), fixture.user_id(1),
+    ARRAY['10000000-0000-0000-0000-000000000001'::uuid],
+    'fixture.consent.v1', now(), now(), '{}'::jsonb, repeat('b', 64));
+  UPDATE public.product_submissions SET evidence_revision = 2 WHERE id = sid;
+  state := public.product_submission_reviewer_batch_state(ARRAY[sid]);
+  PERFORM fixture.assert(
+    (state -> 0 ->> 'superseded')::boolean
+    AND NOT (state -> 0 ->> 'fully_verified')::boolean,
+    'readiness survived the photographs it was based on');
+END $$;
+$case$);
+
+SELECT fixture.test('a naked service key cannot read batch readiness', $case$
+DO $$ BEGIN
+  PERFORM fixture.assert(NOT has_function_privilege('service_role',
+    'public.product_submission_reviewer_batch_state(uuid[])', 'EXECUTE'),
+    'service_role could enumerate reviewer readiness');
+END $$;
+$case$);
