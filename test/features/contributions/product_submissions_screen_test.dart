@@ -610,7 +610,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('missing-product-start')), findsOneWidget);
-    expect(find.text('Start from my photos'), findsOneWidget);
+    expect(find.text('Take a photo'), findsOneWidget);
+    expect(find.byKey(const Key('missing-product-start-library')), findsOneWidget);
     expect(find.textContaining('030772032565'), findsOneWidget);
   });
 }

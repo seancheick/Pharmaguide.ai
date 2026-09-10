@@ -170,11 +170,17 @@ class _ProductSubmissionsScreenState
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            key: const Key('contributions-add-product'),
-            tooltip: 'Add a product from photos',
-            onPressed: _addFromPhotos,
-            icon: const Icon(Icons.add_rounded),
+          Semantics(
+            button: true,
+            label: 'Add a missing product',
+            child: IconButton.filledTonal(
+              key: const Key('contributions-add-product'),
+              tooltip: 'Add a missing product',
+              onPressed: _addFromPhotos,
+              iconSize: 26,
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              icon: const Icon(Icons.add_rounded),
+            ),
           ),
         ],
       ),

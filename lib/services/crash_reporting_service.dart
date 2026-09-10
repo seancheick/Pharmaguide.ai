@@ -102,15 +102,13 @@ class CrashReportingService {
       // ponytail: Sentry bills on transaction volume — drop release back to
       // ~0.2 once beta closes and real-user traffic ramps.
       options.tracesSampleRate = 1.0;
-      // CPU flame-graph profiling for the beta window. Relative to
-      // tracesSampleRate (ratio of profiled traces out of sampled ones), so
-      // 1.0 here = profile every trace we capture. iOS/macOS only — a no-op on
-      // Android, which is fine since the beta ships via iOS TestFlight.
-      // ponytail: drop alongside tracesSampleRate post-beta — profiling adds
-      // runtime sampling overhead. profilesSampleRate is a documented Sentry
-      // API, just not yet marked stable in the 9.x SDK — hence the ignore.
+      // CPU profiling is useful in release builds, but the iOS debug runtime
+      // frequently cannot attach task_threads to a live Flutter tracer. That
+      // produces noisy profiler errors (and obscures real app failures) while
+      // the normal error pipeline remains healthy. Keep profiling off for a
+      // developer session and sample it in release builds only.
       // ignore: experimental_member_use
-      options.profilesSampleRate = 1.0;
+      options.profilesSampleRate = kDebugMode ? 0.0 : 0.2;
       options.beforeSend = _scrubEvent;
       // Feedback events (type:'feedback') run beforeSendFeedback when set,
       // otherwise fall through to beforeSend. Wire it explicitly so the scrub

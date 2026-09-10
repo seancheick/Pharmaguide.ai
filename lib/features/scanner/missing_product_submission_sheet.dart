@@ -13,6 +13,7 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
@@ -144,6 +145,9 @@ class _MissingProductSubmissionSheetState
   bool _submitted = false;
   bool _adding = false;
   bool _checkingIntake = false;
+  bool _intakeCheckFailed = false;
+  bool _intakeCheckBypassed = false;
+  bool _captureFromLibrary = false;
   String? _chosenResubmissionOf;
   String? _stepError;
   ProductSubmissionPhase? _phase;
@@ -456,10 +460,14 @@ class _MissingProductSubmissionSheetState
     Navigator.of(context).pop(false);
   }
 
-  Future<void> _goForward() async {
+  Future<void> _goForward({bool? fromLibrary}) async {
     if (_checkingIntake) return;
-    if (_step == _CaptureStep.intro && !await _checkPreviousSubmission()) {
-      return;
+    if (_step == _CaptureStep.intro) {
+      if (!_intakeCheckBypassed && !await _checkPreviousSubmission()) {
+        return;
+      }
+      if (!mounted) return;
+      _captureFromLibrary = fromLibrary ?? widget.preferLibrary;
     }
     if (!mounted) return;
     if (!_stepSatisfied) {
@@ -516,6 +524,7 @@ class _MissingProductSubmissionSheetState
         upc: widget.upc,
       );
       if (!mounted) return false;
+      _intakeCheckFailed = false;
       if (intake.action == ProductSubmissionIntakeAction.startNew) return true;
 
       // The server revalidates explicitly supplied lineage at create time.
@@ -587,12 +596,19 @@ class _MissingProductSubmissionSheetState
         _chosenResubmissionOf = intake.submissionId;
       }
       return true;
-    } on Object {
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'submission:intake_check',
+      );
       if (mounted) {
-        setState(
-          () => _stepError =
-              'Couldn’t check your previous submissions. Check your connection and try again.',
-        );
+        setState(() {
+          _intakeCheckFailed = true;
+          _stepError =
+              'Couldn’t check your previous submissions. Try again, or '
+              'continue and we’ll run the final duplicate check when you submit.';
+        });
       }
       return false;
     } finally {
@@ -998,11 +1014,8 @@ class _MissingProductSubmissionSheetState
       ),
       const SizedBox(height: V2Spacing.space16),
       Text(
-        widget.preferLibrary
-            ? 'Choose the clear label photos already on your phone. They go '
-                  'privately to a human reviewer.'
-            : 'Photos go privately to a human reviewer — clear shots get '
-                  'your product added faster.',
+        'You can take each label photo now or choose photos already saved on '
+        'your phone. They go privately to a human reviewer.',
         style: V2Typography.caption(color: context.v2.fgSubtle),
       ),
       const SizedBox(height: V2Spacing.space16),
@@ -1010,17 +1023,57 @@ class _MissingProductSubmissionSheetState
         height: 48,
         child: FilledButton.icon(
           key: const Key('missing-product-start'),
-          onPressed: _checkingIntake ? null : _goForward,
+          onPressed: _checkingIntake
+              ? null
+              : () => _goForward(fromLibrary: false),
           icon: const Icon(Icons.photo_camera_outlined),
           label: Text(
-            _checkingIntake
-                ? 'Checking your submissions…'
-                : widget.preferLibrary
-                ? 'Start from my photos'
-                : 'Start with the front label',
+            _checkingIntake ? 'Checking your submissions…' : 'Take a photo',
           ),
         ),
       ),
+      const SizedBox(height: V2Spacing.space8),
+      SizedBox(
+        width: double.infinity,
+        height: 44,
+        child: OutlinedButton.icon(
+          key: const Key('missing-product-start-library'),
+          onPressed: _checkingIntake
+              ? null
+              : () => _goForward(fromLibrary: true),
+          icon: const Icon(Icons.photo_library_outlined),
+          label: const Text('Choose from library'),
+        ),
+      ),
+      if (_intakeCheckFailed) ...[
+        const SizedBox(height: V2Spacing.space8),
+        Row(
+          children: [
+            TextButton(
+              key: const Key('missing-product-intake-retry'),
+              onPressed: _checkingIntake
+                  ? null
+                  : () => _goForward(fromLibrary: _captureFromLibrary),
+              child: const Text('Try again'),
+            ),
+            const Spacer(),
+            TextButton(
+              key: const Key('missing-product-continue-without-history-check'),
+              onPressed: _checkingIntake
+                  ? null
+                  : () {
+                      setState(() {
+                        _intakeCheckBypassed = true;
+                        _intakeCheckFailed = false;
+                        _stepError = null;
+                      });
+                      _goForward(fromLibrary: _captureFromLibrary);
+                    },
+              child: const Text('Continue anyway'),
+            ),
+          ],
+        ),
+      ],
     ];
   }
 
@@ -1052,13 +1105,13 @@ class _MissingProductSubmissionSheetState
               ? null
               : () => _addPhoto(
                   _stepCategories(_step),
-                  fromLibrary: widget.preferLibrary,
+                  fromLibrary: _captureFromLibrary,
                   autoAdvance: _step != _CaptureStep.facts,
                 ),
           icon: const Icon(Icons.photo_camera_outlined, size: 20),
           label: Text(
             photos.isEmpty
-                ? (widget.preferLibrary ? 'Choose a photo' : 'Open camera')
+                ? (_captureFromLibrary ? 'Choose a photo' : 'Open camera')
                 : 'Add another angle',
           ),
         ),
@@ -1075,7 +1128,7 @@ class _MissingProductSubmissionSheetState
                   autoAdvance: _step != _CaptureStep.facts,
                 ),
           child: Text(
-            widget.preferLibrary
+            _captureFromLibrary
                 ? 'Use camera instead'
                 : 'Choose from library instead',
             style: V2Typography.caption(color: context.v2.fgSubtle),

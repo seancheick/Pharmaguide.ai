@@ -17,6 +17,7 @@ typedef ReadIdentityReference = Future<List<GtinIdentity>> Function(XFile file);
 Future<String?> showAddMissingProductIdentitySheet(
   BuildContext context, {
   PickIdentityReference? pickReference,
+  PickIdentityReference? takeReference,
   ReadIdentityReference? readReference,
 }) {
   final picker = ImagePicker();
@@ -29,6 +30,12 @@ Future<String?> showAddMissingProductIdentitySheet(
             source: ImageSource.gallery,
             requestFullMetadata: false,
           ),
+      takeReference:
+          takeReference ??
+          () => picker.pickImage(
+            source: ImageSource.camera,
+            requestFullMetadata: false,
+          ),
       readReference: readReference ?? readGtinCandidatesFromFile,
     ),
   );
@@ -37,10 +44,12 @@ Future<String?> showAddMissingProductIdentitySheet(
 class _AddMissingProductIdentitySheet extends StatefulWidget {
   const _AddMissingProductIdentitySheet({
     required this.pickReference,
+    required this.takeReference,
     required this.readReference,
   });
 
   final PickIdentityReference pickReference;
+  final PickIdentityReference takeReference;
   final ReadIdentityReference readReference;
 
   @override
@@ -52,6 +61,7 @@ class _AddMissingProductIdentitySheetState
     extends State<_AddMissingProductIdentitySheet> {
   final _controller = TextEditingController();
   bool _reading = false;
+  bool _takingPhoto = false;
   String? _error;
   List<GtinIdentity> _candidates = const [];
 
@@ -61,15 +71,21 @@ class _AddMissingProductIdentitySheetState
     super.dispose();
   }
 
-  Future<void> _readFromPhoto() async {
-    if (_reading) return;
+  Future<void> _readFromPhoto({required bool fromCamera}) async {
+    if (_reading || _takingPhoto) return;
     setState(() {
-      _reading = true;
+      if (fromCamera) {
+        _takingPhoto = true;
+      } else {
+        _reading = true;
+      }
       _error = null;
       _candidates = const [];
     });
     try {
-      final file = await widget.pickReference();
+      final file = await (fromCamera
+          ? widget.takeReference()
+          : widget.pickReference());
       if (!mounted || file == null) return;
       final candidates = await widget.readReference(file);
       if (!mounted) return;
@@ -94,7 +110,12 @@ class _AddMissingProductIdentitySheetState
         );
       }
     } finally {
-      if (mounted) setState(() => _reading = false);
+      if (mounted) {
+        setState(() {
+          _reading = false;
+          _takingPhoto = false;
+        });
+      }
     }
   }
 
@@ -114,12 +135,14 @@ class _AddMissingProductIdentitySheetState
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(
         V2Spacing.space24,
         V2Spacing.space8,
         V2Spacing.space24,
-        V2Spacing.space32,
+        V2Spacing.space32 + bottomInset,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -149,6 +172,7 @@ class _AddMissingProductIdentitySheetState
             controller: _controller,
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
+            scrollPadding: EdgeInsets.only(bottom: bottomInset + 24),
             decoration: const InputDecoration(
               labelText: 'UPC or GTIN',
               hintText: 'e.g. 030772032565',
@@ -160,16 +184,41 @@ class _AddMissingProductIdentitySheetState
             onSubmitted: (_) => _continue(),
           ),
           const SizedBox(height: V2Spacing.space8),
-          OutlinedButton.icon(
-            key: const Key('add-product-read-upc'),
-            onPressed: _reading ? null : _readFromPhoto,
-            icon: _reading
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.document_scanner_outlined),
-            label: Text(_reading ? 'Reading photo…' : 'Read UPC from a photo'),
+          Wrap(
+            spacing: V2Spacing.space8,
+            runSpacing: V2Spacing.space8,
+            children: [
+              OutlinedButton.icon(
+                key: const Key('add-product-read-upc'),
+                onPressed: (_reading || _takingPhoto)
+                    ? null
+                    : () => _readFromPhoto(fromCamera: false),
+                icon: _reading
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.photo_library_outlined),
+                label: Text(
+                  _reading ? 'Reading library photo…' : 'Read from library',
+                ),
+              ),
+              OutlinedButton.icon(
+                key: const Key('add-product-take-upc'),
+                onPressed: (_reading || _takingPhoto)
+                    ? null
+                    : () => _readFromPhoto(fromCamera: true),
+                icon: _takingPhoto
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.photo_camera_outlined),
+                label: Text(
+                  _takingPhoto ? 'Reading camera photo…' : 'Take a photo',
+                ),
+              ),
+            ],
           ),
           if (_candidates.length > 1) ...[
             const SizedBox(height: V2Spacing.space12),
@@ -207,7 +256,7 @@ class _AddMissingProductIdentitySheetState
             height: 48,
             child: FilledButton(
               key: const Key('add-product-continue'),
-              onPressed: _reading ? null : _continue,
+              onPressed: (_reading || _takingPhoto) ? null : _continue,
               child: const Text('Continue with this UPC'),
             ),
           ),

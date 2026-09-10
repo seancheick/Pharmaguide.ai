@@ -37,6 +37,7 @@ ProductSubmissionPhoto _photo(Set<ProductSubmissionEvidenceCategory> tags) {
 Widget _harness({
   required _Backend backend,
   PickMissingProductPhoto? pickPhoto,
+  PickMissingProductPhoto? pickPhotoFromLibrary,
   EvaluatePhotoQuality? qualityGate,
   String? resubmissionOf,
   ProductSubmissionDraftStorage? draftStore,
@@ -52,6 +53,7 @@ Widget _harness({
         resubmissionOf: resubmissionOf,
         draftStore: draftStore,
         pickPhoto: pickPhoto ?? (tags) async => _photo(tags),
+        pickPhotoFromLibrary: pickPhotoFromLibrary,
       ),
     ),
   );
@@ -330,6 +332,53 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Front of the package'), findsNothing);
+    expect(_photoCounter, 0);
+  });
+
+  testWidgets('intro offers a library path distinct from the camera path', (
+    tester,
+  ) async {
+    var libraryCalls = 0;
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(
+      _harness(
+        backend: backend,
+        pickPhotoFromLibrary: (tags) async {
+          libraryCalls += 1;
+          return _photo(tags);
+        },
+      ),
+    );
+    expect(
+      find.byKey(const Key('missing-product-start-library')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('missing-product-start-library')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(libraryCalls, 1);
+    expect(find.text('Supplement Facts'), findsOneWidget);
+  });
+
+  testWidgets('intake error offers an explicit safe continuation', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..intakeError = StateError('offline');
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-continue-without-history-check')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Front of the package'), findsOneWidget);
     expect(_photoCounter, 0);
   });
 
@@ -771,31 +820,32 @@ void main() {
       expect(backend.persistedSubmissionIds, isEmpty);
     });
 
-    testWidgets('resuming keeps the original submission id so a retry replays', (
-      tester,
-    ) async {
-      await seedInterruptedCapture();
-      final backend = _Backend(authenticatedUserId: _userId);
+    testWidgets(
+      'resuming keeps the original submission id so a retry replays',
+      (tester) async {
+        await seedInterruptedCapture();
+        final backend = _Backend(authenticatedUserId: _userId);
 
-      await tester.pumpWidget(
-        _harness(
-          backend: backend,
-          draftStore: store,
-          submissionIdFactory: () => '018f4c79-7c7e-4c70-9d62-7fc3b9ce6aaa',
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Finish sending'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('missing-product-consent')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('missing-product-submit')));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _harness(
+            backend: backend,
+            draftStore: store,
+            submissionIdFactory: () => '018f4c79-7c7e-4c70-9d62-7fc3b9ce6aaa',
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Finish sending'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('missing-product-consent')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('missing-product-submit')));
+        await tester.pumpAndSettle();
 
-      // The sheet mints a different id for a fresh capture, so this asserts
-      // the recovered one actually won rather than coinciding.
-      expect(backend.persistedSubmissionIds, [_submissionId]);
-    });
+        // The sheet mints a different id for a fresh capture, so this asserts
+        // the recovered one actually won rather than coinciding.
+        expect(backend.persistedSubmissionIds, [_submissionId]);
+      },
+    );
 
     testWidgets('a sent submission stops being offered for recovery', (
       tester,
@@ -853,35 +903,36 @@ void main() {
       expect(pending.single.consentVersion, productSubmissionConsentVersion);
     });
 
-    testWidgets('a half-finished capture is kept and resumes where it stopped', (
-      tester,
-    ) async {
-      final backend = _Backend(authenticatedUserId: _userId);
-      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('missing-product-start')));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'a half-finished capture is kept and resumes where it stopped',
+      (tester) async {
+        final backend = _Backend(authenticatedUserId: _userId);
+        await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('missing-product-start')));
+        await tester.pumpAndSettle();
 
-      // One photo in, then the app dies. Nothing was submitted.
-      await tester.tap(
-        find.byKey(const Key('missing-product-add-front_identity')),
-      );
-      await tester.pumpAndSettle();
-      expect(backend.persistedSubmissionIds, isEmpty);
-      final saved = (await store.list(_userId)).single;
-      expect(saved.photoCount, 1);
+        // One photo in, then the app dies. Nothing was submitted.
+        await tester.tap(
+          find.byKey(const Key('missing-product-add-front_identity')),
+        );
+        await tester.pumpAndSettle();
+        expect(backend.persistedSubmissionIds, isEmpty);
+        final saved = (await store.list(_userId)).single;
+        expect(saved.photoCount, 1);
 
-      // Relaunch: the same barcode offers the partial set back and resumes at
-      // the first panel still missing, not at review.
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
-      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Finish sending'));
-      await tester.pumpAndSettle();
+        // Relaunch: the same barcode offers the partial set back and resumes at
+        // the first panel still missing, not at review.
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+        await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Finish sending'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Supplement Facts'), findsOneWidget);
-    });
+        expect(find.text('Supplement Facts'), findsOneWidget);
+      },
+    );
 
     testWidgets('what is kept on disk tracks what the user still sees', (
       tester,
@@ -1017,10 +1068,7 @@ void main() {
       await tester.tap(find.text('Finish sending'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('could not be reopened'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('could not be reopened'), findsOneWidget);
       expect(backend.persistedSubmissionIds, isEmpty);
       expect(await store.list(_userId), isEmpty);
     });

@@ -45,4 +45,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Add a product from photos'), findsNothing);
   });
+
+  testWidgets('offers a camera path for reading a printed UPC', (tester) async {
+    var cameraPicked = false;
+    final identity = GtinIdentity.parse('030772032565');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: ElevatedButton(
+              onPressed: () => showAddMissingProductIdentitySheet(
+                context,
+                takeReference: () async {
+                  cameraPicked = true;
+                  return XFile.fromData(Uint8List.fromList(<int>[2]));
+                },
+                readReference: (_) async => [identity],
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('add-product-take-upc')));
+    await tester.pumpAndSettle();
+
+    expect(cameraPicked, isTrue);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('add-product-gtin-field')))
+          .controller!
+          .text,
+      identity.submissionIdentity,
+    );
+  });
 }
