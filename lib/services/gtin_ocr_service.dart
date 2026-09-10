@@ -9,6 +9,12 @@ typedef GtinTextReader = Future<String> Function(XFile file);
 
 /// Finds validated GTINs in OCR text, preserving their exact printed width.
 ///
+/// Digits may be separated by spaces or hyphens but never by a line break. A
+/// printed UPC-A is read as "0  37000  12345  3" — the gap under the bars is
+/// wide — so one separator is not enough; but allowing a newline lets two
+/// unrelated numbers on consecutive lines merge into a run that passes a check
+/// digit, and a confidently wrong identity is the worst outcome here.
+///
 /// Retail screenshots often contain several identifiers (TCIN, DPCI, and
 /// UPC). This function deliberately returns only check-digit-valid GTINs;
 /// callers must still ask the user to confirm which candidate is the product
@@ -17,7 +23,7 @@ List<GtinIdentity> extractGtinCandidatesFromText(String text) {
   final labeled = <String, GtinIdentity>{};
   final labeledPattern = RegExp(
     r'(?:(?:u\.?p\.?c\.?|gtin|ean(?:-?8|-?13|-?14)?|barcode))\s*[:#-]?\s*'
-    r'((?:\d[\s-]?){8,14})(?!\d)',
+    r'((?:\d[ \t -]{0,3}){8,14})(?!\d)',
     caseSensitive: false,
   );
   for (final match in labeledPattern.allMatches(text)) {
@@ -27,7 +33,8 @@ List<GtinIdentity> extractGtinCandidatesFromText(String text) {
   if (labeled.isNotEmpty) return List.unmodifiable(labeled.values);
 
   final candidates = <String, GtinIdentity>{};
-  final matches = RegExp(r'(?<!\d)(?:\d[\s-]?){8,14}(?!\d)').allMatches(text);
+  final matches =
+      RegExp(r'(?<!\d)(?:\d[ \t -]{0,3}){8,14}(?!\d)').allMatches(text);
   for (final match in matches) {
     final before = text.substring(0, match.start);
     if (RegExp(

@@ -37,4 +37,34 @@ void main() {
       '4006381333931',
     ]);
   });
+
+  test('reads a barcode printed with wide gaps under the bars', () {
+    // A UPC-A under its bars is printed "0  37000  12345  3": the gap is wide
+    // and OCR emits more than one space. One optional separator missed it.
+    final wide = extractGtinCandidatesFromText('0  37000  12345  3');
+
+    expect(wide.map((g) => g.canonicalGtin14), ['00037000123453']);
+    expect(
+      extractGtinCandidatesFromText('UPC 0  37000  12345  3')
+          .map((g) => g.canonicalGtin14),
+      ['00037000123453'],
+    );
+  });
+
+  test('never joins digits across a line break into an identity', () {
+    // Two unrelated runs on consecutive lines can concatenate into a string
+    // that passes a check digit. A confidently wrong identity is the worst
+    // outcome this reader can produce, so a newline never joins digits.
+    expect(extractGtinCandidatesFromText('Lot 0370001\n23453 ct'), isEmpty);
+  });
+
+  test('still finds a code labelled on the line above it', () {
+    // The gap between the label and the number may cross lines; only the gap
+    // between digits may not.
+    expect(
+      extractGtinCandidatesFromText('UPC\n762111000217')
+          .map((g) => g.canonicalGtin14),
+      ['00762111000217'],
+    );
+  });
 }
