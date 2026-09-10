@@ -566,6 +566,81 @@ void main() {
     expect(find.text('Thanks — it’s in review'), findsOneWidget);
   });
 
+  testWidgets(
+    'reuses an existing photo for barcode evidence without duplicating bytes',
+    (tester) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(_harness(backend: backend));
+
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-front_identity')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-supplement_facts')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-next')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('missing-product-reuse-barcode')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('missing-product-reuse-barcode')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(
+          const Key(
+            'missing-product-reuse-photo-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01',
+          ),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(
+          const Key(
+            'missing-product-reuse-photo-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Anything else?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('missing-product-next')));
+      await tester.pumpAndSettle();
+      expect(find.text('Review & submit'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('missing-product-submit')),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const Key('missing-product-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(find.byKey(const Key('missing-product-submit')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pump();
+      expect(find.byKey(const Key('missing-product-submit')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+
+      expect(backend.manifest, hasLength(2));
+      expect(backend.manifest[0]['categories'], ['front_identity', 'barcode']);
+      expect(backend.manifest[1]['categories'], [
+        'supplement_facts',
+        'ingredient_disclosure',
+      ]);
+      expect(find.text('Thanks — it’s in review'), findsOneWidget);
+    },
+  );
+
   testWidgets('a separate ingredient panel gets its own capture step', (
     tester,
   ) async {
@@ -1074,32 +1149,38 @@ void main() {
     });
   });
 
-  testWidgets('an optional panel can be added from the library', (tester) async {
+  testWidgets('an optional panel can be added from the library', (
+    tester,
+  ) async {
     // Directions, warnings and lot numbers are exactly the panels a
     // contributor has a picture of without the bottle in front of them — read
     // off a listing, or photographed earlier. These tiles only ever opened the
     // camera, so that contributor had no way to add one at all.
     final sources = <String>[];
     final backend = _Backend(authenticatedUserId: _userId);
-    await tester.pumpWidget(_harness(
-      backend: backend,
-      pickPhoto: (tags) async {
-        sources.add('camera');
-        return _photo(tags);
-      },
-      pickPhotoFromLibrary: (tags) async {
-        sources.add('library');
-        return _photo(tags);
-      },
-    ));
+    await tester.pumpWidget(
+      _harness(
+        backend: backend,
+        pickPhoto: (tags) async {
+          sources.add('camera');
+          return _photo(tags);
+        },
+        pickPhotoFromLibrary: (tags) async {
+          sources.add('library');
+          return _photo(tags);
+        },
+      ),
+    );
 
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const Key('missing-product-add-front_identity')));
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const Key('missing-product-add-supplement_facts')));
+      find.byKey(const Key('missing-product-add-supplement_facts')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
@@ -1110,8 +1191,9 @@ void main() {
     expect(find.text('Anything else?'), findsOneWidget);
 
     sources.clear();
-    await tester.tap(find.byKey(
-      const Key('missing-product-add-library-directions_warnings')));
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-library-directions_warnings')),
+    );
     await tester.pumpAndSettle();
 
     expect(sources, ['library']);
@@ -1119,7 +1201,8 @@ void main() {
     // the bottle is not pushed through the photo library instead.
     sources.clear();
     await tester.tap(
-      find.byKey(const Key('missing-product-add-directions_warnings')));
+      find.byKey(const Key('missing-product-add-directions_warnings')),
+    );
     await tester.pumpAndSettle();
     expect(sources, ['camera']);
   });
@@ -1286,5 +1369,4 @@ class _Backend implements ProductSubmissionBackend {
   }) async {
     return const [];
   }
-
 }

@@ -355,6 +355,96 @@ class _MissingProductSubmissionSheetState
     }
   }
 
+  /// Reuses one already-selected image for another evidence role. A single
+  /// photo can legitimately show both the front/UPC or Facts/Other Ingredients
+  /// (for example, a store listing screenshot). Retagging preserves one photo
+  /// id and one byte hash, so the duplicate-content guard still catches real
+  /// duplicate uploads.
+  Future<void> _reusePhotoForCategory(
+    ProductSubmissionEvidenceCategory category, {
+    bool autoAdvance = false,
+  }) async {
+    if (_submitting || _adding) return;
+    final candidates = _photos
+        .where((photo) => !photo.categories.contains(category))
+        .toList(growable: false);
+    if (candidates.isEmpty) {
+      setState(() => _stepError = 'Add a different photo before reusing one.');
+      return;
+    }
+    final selected = await showModalBottomSheet<ProductSubmissionPhoto>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.only(bottom: V2Spacing.space16),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                V2Spacing.space16,
+                V2Spacing.space4,
+                V2Spacing.space16,
+                V2Spacing.space8,
+              ),
+              child: Text(
+                'Use a photo already added',
+                style: V2Typography.title(color: sheetContext.v2.fg),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: V2Spacing.space16,
+              ),
+              child: Text(
+                'Choose the image that also shows this panel. It will receive '
+                'the new evidence tag without uploading a duplicate.',
+                style: V2Typography.bodySm(color: sheetContext.v2.fgMuted),
+              ),
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            for (final photo in candidates)
+              ListTile(
+                key: Key('missing-product-reuse-photo-${photo.photoId}'),
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                  child: Image.memory(
+                    photo.bytes,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      width: 56,
+                      height: 56,
+                      color: sheetContext.v2.surfaceLow,
+                      child: const Icon(Icons.broken_image_outlined),
+                    ),
+                  ),
+                ),
+                title: Text('Photo ${_photos.indexOf(photo) + 1}'),
+                subtitle: Text(photo.categoryWireValues.join(', ')),
+                onTap: () => Navigator.of(sheetContext).pop(photo),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    final index = _photos.indexOf(selected);
+    if (index < 0) return;
+    setState(() {
+      _photos[index] = selected.withCategories({
+        ...selected.categories,
+        category,
+      });
+      _draft = null;
+      _stepError = null;
+      _failure = null;
+    });
+    await _persistCapture();
+    if (mounted && autoAdvance) await _goForward();
+  }
+
   Future<bool> _confirmBlurryPhoto() async {
     final result = await showDialog<bool>(
       context: context,
@@ -957,10 +1047,9 @@ class _MissingProductSubmissionSheetState
         onAdd: () => _addPhoto(const {
           ProductSubmissionEvidenceCategory.directionsWarnings,
         }),
-        onAddFromLibrary: () => _addPhoto(
-          const {ProductSubmissionEvidenceCategory.directionsWarnings},
-          fromLibrary: true,
-        ),
+        onAddFromLibrary: () => _addPhoto(const {
+          ProductSubmissionEvidenceCategory.directionsWarnings,
+        }, fromLibrary: true),
         onRemove: _removePhoto,
       ),
       _OptionalCategoryTile(
@@ -970,10 +1059,9 @@ class _MissingProductSubmissionSheetState
         enabled: !_submitting && !_adding,
         onAdd: () =>
             _addPhoto(const {ProductSubmissionEvidenceCategory.lotExpiry}),
-        onAddFromLibrary: () => _addPhoto(
-          const {ProductSubmissionEvidenceCategory.lotExpiry},
-          fromLibrary: true,
-        ),
+        onAddFromLibrary: () => _addPhoto(const {
+          ProductSubmissionEvidenceCategory.lotExpiry,
+        }, fromLibrary: true),
         onRemove: _removePhoto,
       ),
     ],
@@ -1092,6 +1180,9 @@ class _MissingProductSubmissionSheetState
     required ProductSubmissionEvidenceCategory category,
   }) {
     final photos = _photosTagged(category);
+    final reusablePhotos = _photos.any(
+      (photo) => !photo.categories.contains(category),
+    );
     return [
       Text(guidance, style: V2Typography.bodyMedium(color: context.v2.fg)),
       const SizedBox(height: V2Spacing.space4),
@@ -1143,6 +1234,22 @@ class _MissingProductSubmissionSheetState
           ),
         ),
       ),
+      if (reusablePhotos) ...[
+        const SizedBox(height: V2Spacing.space4),
+        Center(
+          child: TextButton.icon(
+            key: Key('missing-product-reuse-${category.wireValue}'),
+            onPressed: _submitting || _adding
+                ? null
+                : () => _reusePhotoForCategory(
+                    category,
+                    autoAdvance: _step != _CaptureStep.facts,
+                  ),
+            icon: const Icon(Icons.collections_bookmark_outlined, size: 18),
+            label: const Text('Use a photo already added'),
+          ),
+        ),
+      ],
     ];
   }
 
@@ -1415,6 +1522,7 @@ class _OptionalCategoryTile extends StatelessWidget {
   final List<ProductSubmissionPhoto> photos;
   final bool enabled;
   final VoidCallback onAdd;
+
   /// Both sources are offered explicitly. These panels are exactly the ones a
   /// contributor photographs away from the bottle — a warning read off a
   /// listing, a lot number from an earlier picture — so inheriting the
