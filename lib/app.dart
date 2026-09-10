@@ -1233,13 +1233,25 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
       );
     }
     if (!mounted) return;
+    // A build made without --dart-define points at a placeholder project, so
+    // sign-in cannot succeed however many times it is retried. Release builds
+    // deliberately keep running for guest mode, which means this screen is the
+    // first place the mistake becomes visible: say what it actually is rather
+    // than inviting the user to try again forever.
+    final String message;
+    if (SupabaseConfig.isPlaceholder) {
+      message = 'This build has no backend configuration. Rebuild with '
+          '`make run` so the Supabase keys are included.';
+    } else if (isExpiredLink) {
+      message = 'That sign-in link has expired. Request a new one.';
+    } else {
+      message = 'Sign-in could not be completed. Try again in a moment.';
+    }
     PGToast.showWith(
       scaffoldMessengerKey.currentState,
-      isExpiredLink
-          ? 'That sign-in link has expired. Request a new one.'
-          : 'Sign-in could not be completed. Try again in a moment.',
+      message,
       variant: PGToastVariant.error,
-      duration: const Duration(seconds: 4),
+      duration: Duration(seconds: SupabaseConfig.isPlaceholder ? 8 : 4),
     );
     // A failed magic-link return lands on the /auth/callback spinner with no
     // session, so it would spin forever. Send the user back to the auth
