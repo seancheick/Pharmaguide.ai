@@ -1094,3 +1094,66 @@ export function validateLabelDraftV1(value: unknown): JsonObject {
   );
   return draft;
 }
+
+/**
+ * Every problem the approval validator sees, path by path.
+ *
+ * The reviewer console renders these. It deliberately calls the validator that
+ * will refuse the approval, not a second one written elsewhere: a reviewer must
+ * never be told a label is acceptable by one implementation and refused by
+ * another, with nobody able to say which was right.
+ *
+ * validateManualLabelV1 stops at the first problem, which is correct for a gate
+ * and useless for a person fixing a twenty-row label. The same row and serving
+ * helpers are re-run individually to collect the rest. Nothing new is decided
+ * here, and the whole-payload verdict stays authoritative.
+ */
+export function collectManualLabelDiagnostics(
+  value: unknown,
+): { path: string; message: string }[] {
+  let summary: string;
+  try {
+    validateManualLabelV1(value);
+    return [];
+  } catch (error) {
+    summary = error instanceof Error ? error.message : String(error);
+  }
+  if (!isObject(value)) return [{ path: "$", message: summary }];
+
+  const diagnostics: { path: string; message: string }[] = [];
+  const rows = value.ingredientRows;
+  if (Array.isArray(rows)) {
+    rows.forEach((row, index) => {
+      const path = `ingredientRows[${index}]`;
+      try {
+        // A fresh counter per row: the aggregate row cap belongs to the
+        // whole-payload run above, which owns the authoritative answer.
+        validateIngredientRow(row, path, 1, { count: 0 });
+      } catch (error) {
+        diagnostics.push({
+          path,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+  }
+  const servings = value.servingSizes;
+  if (Array.isArray(servings)) {
+    servings.forEach((serving, index) => {
+      const path = `servingSizes[${index}]`;
+      try {
+        validateServingSize(serving, path);
+      } catch (error) {
+        diagnostics.push({
+          path,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+  }
+  // The whole-payload message is the authority. Keep it even when detailed
+  // row diagnostics exist; otherwise a top-level failure (for example an
+  // unknown field) can disappear from the reviewer's explanation while the
+  // approval gate still rejects it.
+  return [{ path: "$", message: summary }, ...diagnostics];
+}

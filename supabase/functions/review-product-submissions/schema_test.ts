@@ -1,12 +1,15 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.14";
 
-import { validateManualLabelV1 } from "./schema.ts";
+import {
+  collectManualLabelDiagnostics,
+  validateManualLabelV1,
+} from "./schema.ts";
 import fixtureJson from "./fixtures/manual_label_v1_cases.json" with {
   type: "json",
 };
 
 const FIXTURE_SHA256 =
-  "6dd08b64eaab05530e4c3b2e97e1e483bc203c5ed7750affb0cd981db086767a";
+  "3498b58d19399f187aa6d71d78f5bf1aa6583f21ff2479190956cf07fa7bd0de";
 const fixture = fixtureJson as {
   cases: Array<{ name: string; valid: boolean; payload: unknown }>;
 };
@@ -55,6 +58,20 @@ Deno.test("manual_label_v1 accepts and rejects the shared contract cases", async
       );
     }
   }
+});
+
+Deno.test("manual-label diagnostics retain the whole-payload failure", () => {
+  const payload: Record<string, unknown> = {
+    brandName: "Example",
+    unexpected: true,
+    ingredientRows: [{ name: "Vitamin C", ingredientGroup: "vitamins" }],
+  };
+  const diagnostics = collectManualLabelDiagnostics(payload);
+  assertEquals(diagnostics[0].path, "$");
+  assertEquals(
+    diagnostics[0].message,
+    "approved payload contains unknown field unexpected",
+  );
 });
 
 // ---------------------------------------------------------------------------

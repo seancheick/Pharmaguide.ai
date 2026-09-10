@@ -32,6 +32,7 @@ import {
   parseReviewerImageUploadRequest,
 } from "./reviewer_image.ts";
 import {
+  collectManualLabelDiagnostics,
   LABEL_DRAFT_SCHEMA_VERSION,
   validateLabelDraftV1,
   validateManualLabelV1,
@@ -63,6 +64,7 @@ const ACTIONS = new Set([
   "load_review",
   "set_field_verification",
   "review_states",
+  "validate_label",
 ]);
 // A batch is a convenience for one person at one screen, not a bulk pipe.
 const BATCH_MAX_ITEMS = 25;
@@ -539,11 +541,6 @@ async function applyTransition(
   body: JsonObject,
   userClient: SupabaseClient,
   admin: SupabaseClient,
-  // Batch actions require the database to confirm every critical field was
-  // read off the photographs. The single-item path is still gated by the
-  // console checklist; unifying the two changes the approval contract and is
-  // deliberately left as its own decision.
-  requireVerified = false,
 ): Promise<string | null> {
   rejectUnknownKeys(
     body,
@@ -657,13 +654,14 @@ async function applyTransition(
         productImageReviewerObjectId,
       );
     }
-    if (requireVerified) {
-      const { error: verifyError } = await userClient.rpc(
-        "assert_product_submission_fully_verified",
-        { p_submission_id: submissionId, p_payload_sha256: payloadHash },
-      );
-      if (verifyError) throw verifyError;
-    }
+    // Every approval, single or batched, is held to the same rule, and the
+    // database owns it. A browser checklist is a reviewer's aid; it must never
+    // be the only thing between an unread label and the catalog.
+    const { error: verifyError } = await userClient.rpc(
+      "assert_product_submission_fully_verified",
+      { p_submission_id: submissionId, p_payload_sha256: payloadHash },
+    );
+    if (verifyError) throw verifyError;
   } else if (
     body.approved_schema_version !== undefined ||
     body.approved_payload !== undefined
@@ -1155,6 +1153,14 @@ Deno.serve(async (request: Request): Promise<Response> => {
       return json({ review: data });
     }
 
+    if (action === "validate_label") {
+      rejectUnknownKeys(body, new Set(["action", "payload"]));
+      // The console asks the validator that will refuse the approval, so a
+      // reviewer can never be told a label is acceptable by one
+      // implementation and refused by another.
+      return json({ diagnostics: collectManualLabelDiagnostics(body.payload) });
+    }
+
     if (action === "review_states") {
       rejectUnknownKeys(body, new Set(["action", "submission_ids"]));
       const ids = body.submission_ids;
@@ -1221,12 +1227,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
             item.approved_payload = draft.payload;
             item.approved_schema_version = APPROVED_SCHEMA_VERSION;
           }
-          const payloadHash = await applyTransition(
-            item,
-            userClient,
-            admin,
-            true,
-          );
+          const payloadHash = await applyTransition(item, userClient, admin);
           applied += 1;
           results.push({
             submission_id: submissionId,
