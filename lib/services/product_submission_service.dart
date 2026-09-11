@@ -458,6 +458,95 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   Map<String, Object?>? get mismatchDetail => null;
 }
 
+/// A reviewer asked for new photos of [requestedPanels]. Every current photo
+/// that shows none of them is kept, so the user only retakes what was asked
+/// for plus anything that shared a photo with it.
+class ProductSubmissionRetake {
+  final String submissionId;
+  final String upc;
+
+  /// The ready revision the new photos replace.
+  final int fromRevision;
+  final List<String> keptPhotoIds;
+  final Set<ProductSubmissionEvidenceCategory> keptCategories;
+  final Set<ProductSubmissionEvidenceCategory> requestedPanels;
+  final Set<String> earlierPhotoDigests;
+  final ProductSubmissionResolutionCode? reason;
+
+  const ProductSubmissionRetake._({
+    required this.submissionId,
+    required this.upc,
+    required this.fromRevision,
+    required this.keptPhotoIds,
+    required this.keptCategories,
+    required this.requestedPanels,
+    required this.earlierPhotoDigests,
+    required this.reason,
+  });
+
+  factory ProductSubmissionRetake.plan({
+    required String submissionId,
+    required String upc,
+    required int fromRevision,
+    required List<({String photoId, Set<ProductSubmissionEvidenceCategory> categories})>
+    membership,
+    required Set<ProductSubmissionEvidenceCategory> requestedPanels,
+    Set<String> earlierPhotoDigests = const {},
+    ProductSubmissionResolutionCode? reason,
+  }) {
+    if (requestedPanels.isEmpty) {
+      throw ArgumentError('a retake names at least one panel');
+    }
+    // The server requires room for at least one new photo.
+    final kept = membership
+        .where((photo) => photo.categories.intersection(requestedPanels).isEmpty)
+        .take(ProductSubmissionPhoto.maxPerSubmission - 1)
+        .toList(growable: false);
+    return ProductSubmissionRetake._(
+      submissionId: _validateSubmissionId(submissionId),
+      upc: _normalizeUpc(upc),
+      fromRevision: fromRevision,
+      keptPhotoIds: List.unmodifiable(kept.map((photo) => photo.photoId)),
+      keptCategories: Set.unmodifiable({
+        for (final photo in kept) ...photo.categories,
+      }),
+      requestedPanels: Set.unmodifiable(requestedPanels),
+      earlierPhotoDigests: Set.unmodifiable(earlierPhotoDigests),
+      reason: reason,
+    );
+  }
+
+  int get newPhotoCapacity =>
+      ProductSubmissionPhoto.maxPerSubmission - keptPhotoIds.length;
+
+  /// The same completeness rule the server applies at finalize: kept and new
+  /// photos together cover every required panel.
+  bool coversRequired(Iterable<ProductSubmissionPhoto> newPhotos) => {
+    ...keptCategories,
+    for (final photo in newPhotos) ...photo.categories,
+  }.containsAll(MissingProductSubmissionDraft.requiredCategories);
+
+  void validateNewPhotos(List<ProductSubmissionPhoto> photos) {
+    _validatePhotoSet(photos);
+    if (photos.length > newPhotoCapacity) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.tooManyPhotos,
+      );
+    }
+    if (photos.any((photo) => earlierPhotoDigests.contains(photo.contentSha256))) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.duplicatePhotoContent,
+      );
+    }
+    // A retake with nothing new is not a revision (the server refuses it too).
+    if (photos.isEmpty || !coversRequired(photos)) {
+      throw const ProductSubmissionValidationException(
+        ProductSubmissionValidationFailure.missingRequiredPhoto,
+      );
+    }
+  }
+}
+
 /// The one place a submission identity is minted.
 ///
 /// Capture needs an id before a validated draft can exist, because photos are
@@ -510,6 +599,19 @@ String _normalizeUpc(String value) {
   }
 }
 
+/// Capture order is evidence order: seq is the list position, 1..N.
+List<Map<String, Object?>> _photoManifest(List<ProductSubmissionPhoto> photos) => [
+  for (var index = 0; index < photos.length; index++)
+    <String, Object?>{
+      'photo_id': photos[index].photoId,
+      'seq': index + 1,
+      'categories': photos[index].categoryWireValues,
+      'content_type': photos[index].contentType,
+      'byte_size': photos[index].byteSize,
+      'content_sha256': photos[index].contentSha256,
+    },
+];
+
 void _validatePhotoSet(List<ProductSubmissionPhoto> photos) {
   if (photos.length > ProductSubmissionPhoto.maxPerSubmission) {
     throw const ProductSubmissionValidationException(
@@ -533,8 +635,23 @@ void _validatePhotoSet(List<ProductSubmissionPhoto> photos) {
 
 String _newUuidV4() {
   final random = Random.secure();
-  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  return _uuidFromBytes(
+    List<int>.generate(16, (_) => random.nextInt(256)),
+    version: 4,
+  );
+}
+
+/// One retake request key per (submission, replaced revision), so a retry
+/// after a lost response replays the same revision instead of conflicting.
+String _retakeRequestKey(String submissionId, int fromRevision) =>
+    _uuidFromBytes(
+      sha256.convert('retake:$submissionId:$fromRevision'.codeUnits).bytes,
+      version: 5,
+    );
+
+String _uuidFromBytes(List<int> source, {required int version}) {
+  final bytes = List<int>.of(source.take(16));
+  bytes[6] = (bytes[6] & 0x0f) | (version << 4);
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   final hex = bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0'));
   final value = hex.join();
@@ -609,9 +726,12 @@ abstract interface class ProductSubmissionBackend {
     required Map<String, Object?> payload,
   });
 
+  /// [expectedRevision] names the evidence revision being finalized; null is
+  /// the first one.
   Future<bool> finalizeSubmission({
     required String functionName,
     required String submissionId,
+    int? expectedRevision,
   });
 
   Future<List<Map<String, Object?>>> listOwnSubmissions({
@@ -619,6 +739,13 @@ abstract interface class ProductSubmissionBackend {
     required int offset,
     required int limit,
   });
+
+  /// The caller's own evidence for one submission: `revisions` (revision,
+  /// photo_ids) and `photos` (photo_id, categories, content_sha256).
+  Future<Map<String, Object?>> fetchOwnEvidence({required String submissionId});
+
+  /// Opens (or replays) an evidence revision; returns its number.
+  Future<int> openEvidenceRevision({required Map<String, Object?> payload});
 }
 
 class ProductSubmissionService {
@@ -628,6 +755,9 @@ class ProductSubmissionService {
   static const finalizeFunction = 'finalize_product_submission';
   static const hideFromHistoryFunction = 'hide_product_submission';
   static const intakeFunction = 'get_product_submission_intake';
+  static const openRevisionFunction =
+      'open_product_submission_evidence_revision';
+  static const addEvidenceFunction = 'add_product_submission_evidence';
   static const _submissionPageSize = 100;
 
   final ProductSubmissionBackend backend;
@@ -716,24 +846,13 @@ class ProductSubmissionService {
           '$userId/${draft.submissionId}/${photo.photoId}';
     }
 
-    final manifest = <Map<String, Object?>>[
-      for (var index = 0; index < orderedPhotos.length; index++)
-        <String, Object?>{
-          'photo_id': orderedPhotos[index].photoId,
-          'seq': index + 1,
-          'categories': orderedPhotos[index].categoryWireValues,
-          'content_type': orderedPhotos[index].contentType,
-          'byte_size': orderedPhotos[index].byteSize,
-          'content_sha256': orderedPhotos[index].contentSha256,
-        },
-    ];
     final payload = <String, Object?>{
       'p_submission_id': draft.submissionId,
       'p_kind': draft.kind.wireValue,
       'p_upc': draft.upc,
       'p_mismatch_detail': draft.mismatchDetail,
       'p_no_separate_ingredient_panel': draft.noSeparateIngredientPanel,
-      'p_photos': manifest,
+      'p_photos': _photoManifest(orderedPhotos),
       if (draft.resubmissionOf != null)
         'p_resubmission_of': draft.resubmissionOf,
       // Recorded server-side at first creation; a replay keeps the original.
@@ -831,6 +950,172 @@ class ProductSubmissionService {
     );
   }
 
+  /// What a requested retake starts from: the photos of the current revision
+  /// the reviewer did not ask about, and every earlier photo's digest (the
+  /// server refuses the same bytes twice, so capture can say so first).
+  Future<ProductSubmissionRetake> prepareRetake(
+    ProductSubmissionSummary status,
+  ) async {
+    final upc = status.upc;
+    if (!status.needsNewPhotos || upc == null) {
+      throw StateError('No new photos were requested.');
+    }
+    final evidence = await backend.fetchOwnEvidence(
+      submissionId: status.submissionId,
+    );
+    final revisions = (evidence['revisions'] as List? ?? const [])
+        .cast<Map<String, Object?>>();
+    final photos = (evidence['photos'] as List? ?? const [])
+        .cast<Map<String, Object?>>();
+    final current = revisions.where(
+      (row) => row['revision'] == status.evidenceRevision,
+    );
+    if (current.length != 1) {
+      throw StateError('Current evidence revision unavailable.');
+    }
+    final memberIds = (current.single['photo_ids'] as List? ?? const [])
+        .cast<String>();
+    final byId = {for (final row in photos) row['photo_id'] as String: row};
+    return ProductSubmissionRetake.plan(
+      submissionId: status.submissionId,
+      upc: upc,
+      fromRevision: status.evidenceRevision,
+      reason: status.evidenceRequestReason,
+      requestedPanels: status.evidenceRequestPanels,
+      membership: [
+        for (final id in memberIds)
+          (
+            photoId: id,
+            categories: (byId[id]?['categories'] as List? ?? const [])
+                .map(ProductSubmissionEvidenceCategory.fromWire)
+                .whereType<ProductSubmissionEvidenceCategory>()
+                .toSet(),
+          ),
+      ],
+      earlierPhotoDigests: {
+        for (final row in photos)
+          if (row['content_sha256'] is String) row['content_sha256'] as String,
+      },
+    );
+  }
+
+  /// Sends the new photos for a requested retake. Same order as [submit]:
+  /// open (replayed by a stable key), finalize if a lost response already
+  /// finished it, record the new photos, upload, finalize.
+  Future<ProductSubmissionResult> submitRetake(
+    ProductSubmissionRetake retake,
+    List<ProductSubmissionPhoto> photos, {
+    void Function(ProductSubmissionPhase phase)? onPhaseChanged,
+  }) async {
+    final userId = backend.authenticatedUserId;
+    if (userId == null || userId.isEmpty) {
+      return ProductSubmissionFailure(
+        submissionId: retake.submissionId,
+        kind: ProductSubmissionFailureKind.authenticationRequired,
+      );
+    }
+    try {
+      retake.validateNewPhotos(photos);
+    } on ProductSubmissionValidationException catch (error) {
+      return ProductSubmissionFailure(
+        submissionId: retake.submissionId,
+        kind: ProductSubmissionFailureKind.reportInsertFailed,
+        cause: error,
+      );
+    }
+    final objectPaths = {
+      for (final photo in photos)
+        photo.photoId: '$userId/${retake.submissionId}/${photo.photoId}',
+    };
+
+    onPhaseChanged?.call(ProductSubmissionPhase.savingReport);
+    late final int revision;
+    try {
+      revision = await backend.openEvidenceRevision(
+        payload: {
+          'p_submission_id': retake.submissionId,
+          'p_expected_revision': retake.fromRevision,
+          'p_request_key': _retakeRequestKey(
+            retake.submissionId,
+            retake.fromRevision,
+          ),
+          'p_keep_photo_ids': retake.keptPhotoIds,
+          'p_consent_version': productSubmissionConsentVersion,
+        },
+      );
+      final alreadyReady = await backend.finalizeSubmission(
+        functionName: finalizeFunction,
+        submissionId: retake.submissionId,
+        expectedRevision: revision,
+      );
+      if (alreadyReady) {
+        onPhaseChanged?.call(ProductSubmissionPhase.succeeded);
+        return ProductSubmissionSuccess(
+          submissionId: retake.submissionId,
+          photoObjectPaths: objectPaths,
+        );
+      }
+      await backend.persistSubmission(
+        functionName: addEvidenceFunction,
+        payload: {
+          'p_submission_id': retake.submissionId,
+          'p_expected_revision': revision,
+          'p_photos': _photoManifest(photos),
+        },
+      );
+    } on Object catch (error) {
+      onPhaseChanged?.call(ProductSubmissionPhase.failed);
+      return ProductSubmissionFailure(
+        submissionId: retake.submissionId,
+        kind: ProductSubmissionFailureKind.reportInsertFailed,
+        cause: error,
+      );
+    }
+
+    onPhaseChanged?.call(ProductSubmissionPhase.uploadingPhotos);
+    for (final photo in photos) {
+      try {
+        await backend.uploadPhoto(
+          bucket: photoBucket,
+          objectPath: objectPaths[photo.photoId]!,
+          bytes: photo.bytes,
+          contentType: photo.contentType,
+        );
+      } on Object catch (error) {
+        onPhaseChanged?.call(ProductSubmissionPhase.failed);
+        return ProductSubmissionFailure(
+          submissionId: retake.submissionId,
+          kind: ProductSubmissionFailureKind.photoUploadFailed,
+          cause: error,
+        );
+      }
+    }
+
+    onPhaseChanged?.call(ProductSubmissionPhase.savingReport);
+    try {
+      final finalized = await backend.finalizeSubmission(
+        functionName: finalizeFunction,
+        submissionId: retake.submissionId,
+        expectedRevision: revision,
+      );
+      if (!finalized) {
+        throw StateError('Retake evidence manifest is incomplete.');
+      }
+    } on Object catch (error) {
+      onPhaseChanged?.call(ProductSubmissionPhase.failed);
+      return ProductSubmissionFailure(
+        submissionId: retake.submissionId,
+        kind: ProductSubmissionFailureKind.reportFinalizeFailed,
+        cause: error,
+      );
+    }
+    onPhaseChanged?.call(ProductSubmissionPhase.succeeded);
+    return ProductSubmissionSuccess(
+      submissionId: retake.submissionId,
+      photoObjectPaths: objectPaths,
+    );
+  }
+
   Future<List<ProductSubmissionSummary>> listOwnSubmissions() async {
     final userId = backend.authenticatedUserId;
     if (userId == null || userId.isEmpty) return const [];
@@ -912,12 +1197,48 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
   Future<bool> finalizeSubmission({
     required String functionName,
     required String submissionId,
+    int? expectedRevision,
   }) async {
     final result = await _client.rpc<bool>(
       functionName,
-      params: {'p_submission_id': submissionId},
+      params: {
+        'p_submission_id': submissionId,
+        if (expectedRevision != null) 'p_expected_revision': expectedRevision,
+      },
     );
     return result == true;
+  }
+
+  @override
+  Future<Map<String, Object?>> fetchOwnEvidence({
+    required String submissionId,
+  }) async {
+    final revisions = await _client
+        .from('product_submission_evidence_revisions')
+        .select('revision,photo_ids')
+        .eq('submission_id', submissionId);
+    final photos = await _client
+        .from('product_submission_photos')
+        .select('photo_id,categories,content_sha256')
+        .eq('submission_id', submissionId);
+    return {
+      'revisions': [for (final row in revisions) Map<String, Object?>.from(row)],
+      'photos': [for (final row in photos) Map<String, Object?>.from(row)],
+    };
+  }
+
+  @override
+  Future<int> openEvidenceRevision({
+    required Map<String, Object?> payload,
+  }) async {
+    final revision = await _client.rpc<Object?>(
+      ProductSubmissionService.openRevisionFunction,
+      params: payload,
+    );
+    if (revision is! int || revision < 2) {
+      throw StateError('Evidence revision was not opened.');
+    }
+    return revision;
   }
 
   @override
@@ -932,6 +1253,8 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
           'id,kind,normalized_upc,upload_state,review_status,created_at,'
           'promoted_catalog_version,promoted_at,dismissed_at,'
           'resolution_code,resolution_detail,resolved_dsld_id,'
+          'evidence_revision,evidence_requested_revision,'
+          'evidence_request_reason,evidence_request_panels,'
           'product_submission_mismatch_details!'
           'product_submission_mismatch_details_submission_id_fkey('
           'dsld_id,source_record_id,catalog_source_version,'
@@ -1090,9 +1413,22 @@ class ProductSubmissionSummary {
     this.resolutionDetail,
     this.resolvedDsldId,
     this.mismatchProduct,
+    this.evidenceRevision = 1,
+    this.evidenceRequestedRevision,
+    this.evidenceRequestReason,
+    this.evidenceRequestPanels = const {},
   });
 
   final String submissionId;
+
+  /// The evidence revision the submission currently stands on.
+  final int evidenceRevision;
+
+  /// The revision a reviewer last asked new photos for, why, and of which
+  /// panels. A request is open only while it names the current revision.
+  final int? evidenceRequestedRevision;
+  final ProductSubmissionResolutionCode? evidenceRequestReason;
+  final Set<ProductSubmissionEvidenceCategory> evidenceRequestPanels;
   final ProductSubmissionKind? kind;
   final String? upc;
   final ProductSubmissionUploadState uploadState;
@@ -1137,6 +1473,22 @@ class ProductSubmissionSummary {
       uploadReady &&
       reviewStatus == ProductSubmissionReviewStatus.approved &&
       promotedCatalogVersion != null;
+
+  /// A reviewer is waiting on new photos of this submission's current label.
+  bool get needsNewPhotos =>
+      hasKnownState &&
+      kind == ProductSubmissionKind.missingProduct &&
+      uploadReady &&
+      (reviewStatus == ProductSubmissionReviewStatus.submitted ||
+          reviewStatus == ProductSubmissionReviewStatus.underReview) &&
+      evidenceRequestedRevision == evidenceRevision &&
+      evidenceRequestPanels.isNotEmpty;
+
+  /// New photos were started for a later revision but not finished sending.
+  bool get retakeUnfinished =>
+      hasKnownState &&
+      uploadState == ProductSubmissionUploadState.pending &&
+      evidenceRevision > 1;
 
   bool get hasResubmissionTarget => switch (kind) {
     ProductSubmissionKind.missingProduct => upc != null,
@@ -1195,6 +1547,17 @@ class ProductSubmissionSummary {
       resolutionDetail: row['resolution_detail'] as String?,
       resolvedDsldId: row['resolved_dsld_id'] as String?,
       mismatchProduct: mismatchProduct,
+      evidenceRevision: row['evidence_revision'] is int
+          ? row['evidence_revision']! as int
+          : 1,
+      evidenceRequestedRevision: row['evidence_requested_revision'] as int?,
+      evidenceRequestReason: ProductSubmissionResolutionCode.fromWire(
+        row['evidence_request_reason'],
+      ),
+      evidenceRequestPanels: (row['evidence_request_panels'] as List? ?? const [])
+          .map(ProductSubmissionEvidenceCategory.fromWire)
+          .whereType<ProductSubmissionEvidenceCategory>()
+          .toSet(),
     );
   }
 }

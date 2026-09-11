@@ -572,9 +572,18 @@ class _FakeBackend implements ProductSubmissionBackend {
   }
 
   @override
+  Future<Map<String, Object?>> fetchOwnEvidence({required String submissionId}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> openEvidenceRevision({required Map<String, Object?> payload}) =>
+      throw UnimplementedError();
+
+  @override
   Future<bool> finalizeSubmission({
     required String functionName,
     required String submissionId,
+    int? expectedRevision,
   }) async {
     expect(functionName, ProductSubmissionService.finalizeFunction);
     operations.add('finalize:$submissionId');
