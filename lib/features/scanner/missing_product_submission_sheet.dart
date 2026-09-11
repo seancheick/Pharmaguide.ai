@@ -607,7 +607,7 @@ class _MissingProductSubmissionSheetState
 
   String _skippedCopy(int count) =>
       '$count ${count == 1 ? 'photo' : 'photos'} couldn’t be used — too '
-      'small, already added, or not a photo.';
+      'small, already added, unreadable, or over the photo limit.';
 
   Set<ProductSubmissionEvidenceCategory> _suggestedCategories(PanelHints h) => {
     if (h.showsFactsPanel) ProductSubmissionEvidenceCategory.supplementFacts,

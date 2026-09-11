@@ -27,6 +27,17 @@ psql_test -q < "$repo_dir/supabase/tests/submission_identity/bootstrap.sql"
 # One owner for the chain, shared with the live-stack provisioner.
 source "$repo_dir/supabase/tests/submission_identity/chain.sh"
 while IFS= read -r chain_file; do
+  if [[ "$(basename "$chain_file")" == "20260911120000_product_contribution_ledger.sql" ]]; then
+    # Exercise the real migration with historical rows, then roll everything
+    # back so the normal suite retains its clean, post-migration fixtures.
+    {
+      printf '%s\n' 'BEGIN;'
+      cat "$repo_dir/supabase/tests/submission_identity/helpers.sql"
+      cat "$repo_dir/supabase/tests/submission_identity/ledger_backfill.sql"
+      cat "$chain_file"
+      printf '%s\n' 'SELECT fixture.check_ledger_backfill();' 'ROLLBACK;'
+    } | psql_test -q
+  fi
   psql_test -q < "$chain_file"
 done < <(submission_migration_chain "$repo_dir")
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/helpers.sql"

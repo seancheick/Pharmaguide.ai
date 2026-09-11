@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
@@ -37,7 +39,11 @@ pickProductSubmissionPhotos({
     limit: limit,
     requestFullMetadata: false,
   );
-  return buildProductSubmissionPhotosFromFiles(files.take(limit).toList());
+  final prepared = await buildProductSubmissionPhotosFromFiles(
+    files.take(limit).toList(),
+  );
+  final overflow = files.length > limit ? files.length - limit : 0;
+  return (photos: prepared.photos, unreadable: prepared.unreadable + overflow);
 }
 
 /// One file that cannot be prepared is counted, never fatal to the rest.
@@ -59,6 +65,8 @@ buildProductSubmissionPhotosFromFiles(
           sanitizer: sanitizer,
         ),
       );
+    } on FileSystemException {
+      unreadable += 1;
     } on ProductSubmissionValidationException {
       unreadable += 1;
     }
