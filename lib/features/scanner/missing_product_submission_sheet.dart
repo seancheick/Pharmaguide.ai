@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
-import 'package:pharmaguide/core/components/pg_progress_dots.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -14,6 +13,7 @@ import 'package:pharmaguide/features/contributions/product_submission_consent_co
 import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
+import 'package:pharmaguide/services/photo_panel_hints.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_photo_service.dart';
@@ -44,6 +44,7 @@ Future<bool> showMissingProductSubmissionSheet(
   EvaluatePhotoQuality? qualityGate,
   String Function()? submissionIdFactory,
   String? resubmissionOf,
+  ReadSubmissionPhotoText? readPhotoText,
 }) async {
   late final GtinIdentity identity;
   try {
@@ -69,6 +70,7 @@ Future<bool> showMissingProductSubmissionSheet(
       },
       qualityGate:
           qualityGate ?? (photo) => PhotoQualityGate.evaluate(photo.bytes),
+      readPhotoText: readPhotoText ?? readSubmissionPhotoText,
       pickPhoto:
           pickPhoto ??
           (categories) => pickProductSubmissionPhoto(
@@ -95,6 +97,9 @@ Future<bool> showMissingProductSubmissionSheet(
 /// work).
 enum _CaptureStep { intro, front, facts, ingredients, barcode, extras, review }
 
+/// The answers to a question about what a photo shows.
+enum _HintChoice { keep, retake, move }
+
 /// Private, structured evidence intake for a barcode the catalog cannot
 /// match. There is deliberately no narrative field: the photos, barcode, and
 /// one closed "no separate ingredient panel" assertion are the entire user
@@ -112,6 +117,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
     this.resubmissionOf,
     this.onViewContributions,
     this.draftStore,
+    this.readPhotoText,
   });
 
   final String upc;
@@ -128,6 +134,11 @@ class MissingProductSubmissionSheet extends StatefulWidget {
   /// behind the camera, or a dead connection does not discard the user's
   /// photos. Injected in tests; resolved from app-private storage otherwise.
   final ProductSubmissionDraftStorage? draftStore;
+
+  /// Reads each photo's printed text on the phone so capture can say "that
+  /// looks like the directions" or "the barcode is in this one". Null turns
+  /// the suggestions off; they never block a photo either way.
+  final ReadSubmissionPhotoText? readPhotoText;
 
   @override
   State<MissingProductSubmissionSheet> createState() =>
@@ -150,6 +161,10 @@ class _MissingProductSubmissionSheetState
   bool _captureFromLibrary = false;
   String? _chosenResubmissionOf;
   String? _stepError;
+
+  /// A neutral note about what the last photo covered ("the barcode is in
+  /// this one"). Survives an automatic advance so the user sees it.
+  String? _stepNotice;
   ProductSubmissionPhase? _phase;
   ProductSubmissionFailure? _failure;
   MissingProductSubmissionDraft? _draft;
@@ -227,7 +242,7 @@ class _MissingProductSubmissionSheetState
         _CaptureStep.review => const <ProductSubmissionEvidenceCategory>{},
       };
 
-  bool get _stepSatisfied => switch (_step) {
+  bool _satisfies(_CaptureStep step) => switch (step) {
     _CaptureStep.front => _photosTagged(
       ProductSubmissionEvidenceCategory.frontIdentity,
     ).isNotEmpty,
@@ -243,29 +258,26 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => true,
   };
 
+  bool get _stepSatisfied => _satisfies(_step);
+
+  /// A required panel already covered — by its own photo, a reused one, or
+  /// one whose printed text showed it — is not asked for again. Facts also
+  /// needs its one question answered (is the ingredient list on it?), so it
+  /// is only passed over once that is settled.
+  bool _alreadyCovered(_CaptureStep step) => switch (step) {
+    _CaptureStep.front ||
+    _CaptureStep.ingredients ||
+    _CaptureStep.barcode => _satisfies(step),
+    _CaptureStep.facts => _satisfies(step) && _factsPanelLocationConfirmed,
+    _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => false,
+  };
+
   /// The earliest capture step this set does not yet satisfy, or review when
   /// every required panel is present.
   _CaptureStep _firstUnsatisfiedStep() {
     for (final step in _visibleSteps) {
       if (step == _CaptureStep.intro) continue;
-      final satisfied = switch (step) {
-        _CaptureStep.front => _photosTagged(
-          ProductSubmissionEvidenceCategory.frontIdentity,
-        ).isNotEmpty,
-        _CaptureStep.facts => _photosTagged(
-          ProductSubmissionEvidenceCategory.supplementFacts,
-        ).isNotEmpty,
-        _CaptureStep.ingredients => _photosTagged(
-          ProductSubmissionEvidenceCategory.ingredientDisclosure,
-        ).isNotEmpty,
-        _CaptureStep.barcode => _photosTagged(
-          ProductSubmissionEvidenceCategory.barcode,
-        ).isNotEmpty,
-        _CaptureStep.intro ||
-        _CaptureStep.extras ||
-        _CaptureStep.review => true,
-      };
-      if (!satisfied) return step;
+      if (!_satisfies(step)) return step;
     }
     return _CaptureStep.review;
   }
@@ -304,6 +316,7 @@ class _MissingProductSubmissionSheetState
     setState(() {
       _adding = true;
       _stepError = null;
+      _stepNotice = null;
       _failure = null;
     });
     try {
@@ -331,15 +344,31 @@ class _MissingProductSubmissionSheetState
         if (!mounted || !useAnyway) return;
       }
 
+      final hints = await _readHints(photo);
+      if (!mounted) return;
+      final placed = await _placeByHints(photo, hints);
+      if (!mounted || placed == null) return;
+
       setState(() {
-        _photos.add(photo);
+        _photos.add(placed.photo);
         _draft = null;
+        _stepNotice = placed.notice;
       });
+      // The photo itself answers "is the ingredient list on this panel?".
+      // The answer stays correctable on the review step.
+      if (hints.showsOtherIngredients &&
+          !_factsPanelLocationConfirmed &&
+          placed.photo.categories.contains(
+            ProductSubmissionEvidenceCategory.supplementFacts,
+          )) {
+        _setFactsCoversIngredients(true);
+      }
       // Persist as the set grows: an abandoned capture is recoverable from the
       // first shot, not only once it is complete.
       await _persistCapture();
       if (!mounted) return;
-      if (autoAdvance) await _goForward();
+      // A shot moved to another panel leaves this one still unanswered.
+      if (autoAdvance && !placed.moved) await _goForward(keepNotice: true);
     } on ProductSubmissionValidationException {
       if (!mounted) return;
       setState(
@@ -472,6 +501,132 @@ class _MissingProductSubmissionSheetState
     return result == true;
   }
 
+  Future<PanelHints> _readHints(ProductSubmissionPhoto photo) async {
+    final read = widget.readPhotoText;
+    if (read == null) return PanelHints.none;
+    try {
+      final text = await read(photo).timeout(const Duration(seconds: 5));
+      return readPanelHints(text, submission: GtinIdentity.parse(widget.upc));
+    } on Object {
+      // Text that cannot be read gives no hint. The person and the reviewer
+      // judge the photo, as they always did.
+      return PanelHints.none;
+    }
+  }
+
+  /// Where a photo belongs, going by what is printed in it. Null means the
+  /// user chose to retake it. Every question can be answered "keep it".
+  Future<({ProductSubmissionPhoto photo, String? notice, bool moved})?>
+  _placeByHints(ProductSubmissionPhoto photo, PanelHints hints) async {
+    final conflict = hints.conflictingBarcode;
+    if (conflict != null) {
+      final choice = await _askAboutPhoto(
+        title: 'A different barcode?',
+        body:
+            'This photo shows barcode ${conflict.rawDigits}, but you scanned '
+            '${widget.upc.replaceAll(RegExp(r'[^0-9]'), '')}. Check it is '
+            'the same product before keeping it.',
+        keepLabel: 'Same product — keep it',
+      );
+      if (choice != _HintChoice.keep) return null;
+    }
+
+    var tagged = photo;
+    var moved = false;
+    String? notice;
+    final categories = photo.categories;
+    if (categories.contains(
+          ProductSubmissionEvidenceCategory.supplementFacts,
+        ) &&
+        !hints.showsFactsPanel &&
+        (hints.showsDirectionsOrWarnings || hints.showsOtherIngredients)) {
+      final choice = await _askAboutPhoto(
+        title: 'Is this the Supplement Facts panel?',
+        body:
+            '${hints.showsDirectionsOrWarnings ? 'It looks like the directions or warnings.' : 'It looks like the Other Ingredients list.'} '
+            'The Supplement Facts panel is the box that lists each ingredient '
+            'with its amount.',
+        keepLabel: 'It’s the right panel — keep it',
+      );
+      if (choice != _HintChoice.keep) return null;
+    } else if (categories.contains(
+          ProductSubmissionEvidenceCategory.frontIdentity,
+        ) &&
+        hints.showsFactsHeading) {
+      final choice = await _askAboutPhoto(
+        title: 'This looks like the Supplement Facts panel',
+        body:
+            'Use it as your Supplement Facts photo? You can take the front of '
+            'the package next.',
+        keepLabel: 'Keep it as the front',
+        moveLabel: 'Use it for Supplement Facts',
+      );
+      if (choice == _HintChoice.move) {
+        tagged = photo.withCategories(_stepCategories(_CaptureStep.facts));
+        moved = true;
+        notice =
+            'Saved as your Supplement Facts photo. Now the front of the '
+            'package.';
+      } else if (choice != _HintChoice.keep) {
+        return null;
+      }
+    }
+
+    // Only news when the photo was taken for another panel: on the barcode
+    // step, finding the barcode is the point of the photo.
+    if (hints.showsSubmissionBarcode &&
+        !tagged.categories.contains(
+          ProductSubmissionEvidenceCategory.barcode,
+        ) &&
+        _photosTagged(ProductSubmissionEvidenceCategory.barcode).isEmpty) {
+      tagged = tagged.withCategories({
+        ...tagged.categories,
+        ProductSubmissionEvidenceCategory.barcode,
+      });
+      const found =
+          'Barcode found in this photo, so no separate barcode photo is '
+          'needed.';
+      notice = notice == null ? found : '$notice $found';
+    }
+    return (photo: tagged, notice: notice, moved: moved);
+  }
+
+  Future<_HintChoice?> _askAboutPhoto({
+    required String title,
+    required String body,
+    required String keepLabel,
+    String? moveLabel,
+  }) => showDialog<_HintChoice>(
+    context: context,
+    // A tap outside must not silently discard or keep a photo.
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      scrollable: true,
+      title: Text(title),
+      content: Text(body),
+      actions: [
+        if (moveLabel == null)
+          TextButton(
+            key: const Key('missing-product-hint-retake'),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(_HintChoice.retake),
+            child: const Text('Retake'),
+          )
+        else
+          TextButton(
+            key: const Key('missing-product-hint-move-facts'),
+            onPressed: () => Navigator.of(dialogContext).pop(_HintChoice.move),
+            child: Text(moveLabel),
+          ),
+        FilledButton(
+          key: const Key('missing-product-hint-keep'),
+          onPressed: () => Navigator.of(dialogContext).pop(_HintChoice.keep),
+          child: Text(keepLabel),
+        ),
+      ],
+    ),
+  );
+
   void _removePhoto(ProductSubmissionPhoto photo) {
     if (_submitting) return;
     // A photo the user deleted must not survive on disk.
@@ -550,7 +705,7 @@ class _MissingProductSubmissionSheetState
     Navigator.of(context).pop(false);
   }
 
-  Future<void> _goForward({bool? fromLibrary}) async {
+  Future<void> _goForward({bool? fromLibrary, bool keepNotice = false}) async {
     if (_checkingIntake) return;
     if (_step == _CaptureStep.intro) {
       if (!_intakeCheckBypassed && !await _checkPreviousSubmission()) {
@@ -594,13 +749,36 @@ class _MissingProductSubmissionSheetState
     }
 
     final steps = _visibleSteps;
-    final index = steps.indexOf(_step);
-    if (index < steps.length - 1) {
+    var next = steps.indexOf(_step) + 1;
+    while (next < steps.length - 1 && _alreadyCovered(steps[next])) {
+      next++;
+    }
+    if (next < steps.length) {
+      // The checklist lets a user skip ahead; the optional extras and review
+      // still wait until every required panel is covered.
+      final missing = _firstUnsatisfiedStep();
+      if (missing != _CaptureStep.review &&
+          steps.indexOf(missing) < next &&
+          (steps[next] == _CaptureStep.extras ||
+              steps[next] == _CaptureStep.review)) {
+        next = steps.indexOf(missing);
+      }
       setState(() {
-        _step = steps[index + 1];
+        _step = steps[next];
         _stepError = null;
+        if (!keepNotice) _stepNotice = null;
       });
     }
+  }
+
+  /// The checklist's shortcut to any panel, done or not.
+  void _jumpTo(_CaptureStep step) {
+    if (_submitting || _adding) return;
+    setState(() {
+      _step = step;
+      _stepError = null;
+      _stepNotice = null;
+    });
   }
 
   Future<bool> _checkPreviousSubmission() async {
@@ -713,6 +891,7 @@ class _MissingProductSubmissionSheetState
       setState(() {
         _step = steps[index - 1];
         _stepError = null;
+        _stepNotice = null;
       });
     }
   }
@@ -935,15 +1114,20 @@ class _MissingProductSubmissionSheetState
           ),
           if (_step != _CaptureStep.intro) ...[
             const SizedBox(height: V2Spacing.space12),
-            Center(
-              child: PGProgressDots(
-                total: steps.length - 1,
-                current: stepIndex - 1,
-              ),
-            ),
+            _coverageChecklist(context),
           ],
           const SizedBox(height: V2Spacing.space16),
           ..._buildStep(context),
+          if (_stepNotice != null) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                _stepNotice!,
+                style: V2Typography.bodySm(color: context.v2.fg),
+              ),
+            ),
+          ],
           if (_stepError != null) ...[
             const SizedBox(height: V2Spacing.space8),
             Semantics(
@@ -996,9 +1180,12 @@ class _MissingProductSubmissionSheetState
       ..._captureStepBody(
         context,
         guidance: 'Photograph the whole Supplement Facts panel.',
+        // Measured: a panel filling under about a third of the frame loses
+        // its smallest dose lines before anyone can read them.
         tip:
-            'Straight on, no glare. Panel wraps around the bottle? Add a '
-            'second angle after the first shot.',
+            'Fill the frame with the panel, top to bottom, straight on and '
+            'without glare. Wraps around the bottle? Add a second angle '
+            'after the first shot.',
         category: ProductSubmissionEvidenceCategory.supplementFacts,
       ),
       const SizedBox(height: V2Spacing.space8),
@@ -1067,6 +1254,94 @@ class _MissingProductSubmissionSheetState
     ],
     _CaptureStep.review => _reviewStepBody(context),
   };
+
+  /// What is covered so far, in the label's own order. Each item jumps to its
+  /// panel, so the order of photos is the user's, not the app's.
+  Widget _coverageChecklist(BuildContext context) {
+    Widget item(
+      String label,
+      ProductSubmissionEvidenceCategory category,
+      _CaptureStep step,
+    ) {
+      final covered = _photosTagged(category).isNotEmpty;
+      final onTap = _submitting || _adding ? null : () => _jumpTo(step);
+      return Semantics(
+        button: true,
+        label: '$label: ${covered ? 'done' : 'still needed'}',
+        onTap: onTap,
+        excludeSemantics: true,
+        child: InkWell(
+          key: Key('missing-product-checklist-${category.wireValue}'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 36),
+            // Four fit on one line of a 390-point phone at default text size.
+            padding: const EdgeInsets.symmetric(
+              horizontal: V2Spacing.space8,
+              vertical: V2Spacing.space4,
+            ),
+            decoration: BoxDecoration(
+              color: covered ? context.v2.accentTint : Colors.transparent,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+              border: Border.all(
+                color: covered ? context.v2.accent : context.v2.outline,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  covered ? Icons.check_circle : Icons.radio_button_unchecked,
+                  size: 16,
+                  color: covered ? context.v2.accentStrong : context.v2.fgMuted,
+                ),
+                const SizedBox(width: V2Spacing.space4),
+                Text(
+                  label,
+                  style: V2Typography.caption(
+                    color: covered
+                        ? context.v2.accentStrong
+                        : context.v2.fgMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: V2Spacing.space8,
+      runSpacing: V2Spacing.space8,
+      children: [
+        item(
+          'Front',
+          ProductSubmissionEvidenceCategory.frontIdentity,
+          _CaptureStep.front,
+        ),
+        item(
+          'Facts',
+          ProductSubmissionEvidenceCategory.supplementFacts,
+          _CaptureStep.facts,
+        ),
+        item(
+          'Ingredients',
+          ProductSubmissionEvidenceCategory.ingredientDisclosure,
+          _factsCarriesIngredients
+              ? _CaptureStep.facts
+              : _CaptureStep.ingredients,
+        ),
+        item(
+          'UPC',
+          ProductSubmissionEvidenceCategory.barcode,
+          _CaptureStep.barcode,
+        ),
+      ],
+    );
+  }
 
   List<Widget> _introStepBody(BuildContext context) {
     Widget chip(String label, {required bool required}) => Container(

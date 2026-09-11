@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/services/gtin.dart';
+import 'package:pharmaguide/services/photo_panel_hints.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
@@ -42,6 +43,7 @@ Widget _harness({
   String? resubmissionOf,
   ProductSubmissionDraftStorage? draftStore,
   String Function()? submissionIdFactory,
+  ReadSubmissionPhotoText? readPhotoText,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -54,6 +56,7 @@ Widget _harness({
         draftStore: draftStore,
         pickPhoto: pickPhoto ?? (tags) async => _photo(tags),
         pickPhotoFromLibrary: pickPhotoFromLibrary,
+        readPhotoText: readPhotoText,
       ),
     ),
   );
@@ -704,9 +707,8 @@ void main() {
       find.byKey(const Key('missing-product-add-ingredient_disclosure')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Barcode'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pumpAndSettle();
+    // The barcode is already covered, so capture does not walk the user back
+    // through a step they finished.
     expect(find.text('Anything else?'), findsOneWidget);
     await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
@@ -739,6 +741,8 @@ void main() {
                 submissionIdFactory: () => _submissionId,
                 qualityGate: (_) async => _okQuality,
                 pickPhoto: (tags) async => _photo(tags),
+                // Like the camera, the on-device text reader is native.
+                readPhotoText: (_) async => '',
               ),
               child: const Text('open'),
             ),
@@ -1205,6 +1209,291 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(sources, ['camera']);
+  });
+
+  group('on-device panel hints', () {
+    const facts = ProductSubmissionEvidenceCategory.supplementFacts;
+
+    Future<void> tapKey(WidgetTester tester, String key) async {
+      // A notice line can push a button below the test screen's fold.
+      await tester.ensureVisible(find.byKey(Key(key)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key(key)));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> submitFromReview(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('missing-product-submit')),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const Key('missing-product-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pump();
+      await tapKey(tester, 'missing-product-submit');
+    }
+
+    testWidgets('a directions photo in the Facts slot is questioned first', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async => photo.categories.contains(facts)
+              ? 'Directions: take one capsule daily.\n'
+                    'Warning: keep out of reach of children.'
+              : '',
+        ),
+      );
+      await tapKey(tester, 'missing-product-start');
+      await tapKey(tester, 'missing-product-add-front_identity');
+      expect(find.text('Supplement Facts'), findsOneWidget);
+
+      await tapKey(tester, 'missing-product-add-supplement_facts');
+      expect(find.text('Is this the Supplement Facts panel?'), findsOneWidget);
+      await tapKey(tester, 'missing-product-hint-retake');
+      // Retake discards the shot: nothing was added to the Facts panel.
+      expect(find.byTooltip('Remove photo'), findsNothing);
+
+      // The hint is a question, never a block: the user can keep the photo.
+      await tapKey(tester, 'missing-product-add-supplement_facts');
+      await tapKey(tester, 'missing-product-hint-keep');
+      expect(find.byTooltip('Remove photo'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a Facts photo showing Other Ingredients answers the panel question',
+      (tester) async {
+        final backend = _Backend(authenticatedUserId: _userId);
+        await tester.pumpWidget(
+          _harness(
+            backend: backend,
+            readPhotoText: (photo) async => photo.categories.contains(facts)
+                ? 'Supplement Facts\nServing Size 1 Capsule\n'
+                      'Other Ingredients: cellulose, rice flour'
+                : '',
+          ),
+        );
+        await tapKey(tester, 'missing-product-start');
+        await tapKey(tester, 'missing-product-add-front_identity');
+        await tapKey(tester, 'missing-product-add-supplement_facts');
+        await tapKey(tester, 'missing-product-next');
+
+        expect(
+          find.byKey(const Key('missing-product-facts-combined')),
+          findsNothing,
+        );
+        expect(find.text('Barcode'), findsOneWidget);
+        await tapKey(tester, 'missing-product-add-barcode');
+        await tapKey(tester, 'missing-product-next');
+        // The answer the photo gave stays correctable on review.
+        expect(
+          find.byKey(const Key('missing-product-facts-change-to-separate')),
+          findsOneWidget,
+        );
+        await submitFromReview(tester);
+
+        expect(backend.persistedCueFlag, isTrue);
+        expect(
+          backend.manifest[1]['categories'],
+          unorderedEquals(['supplement_facts', 'ingredient_disclosure']),
+        );
+      },
+    );
+
+    testWidgets('a photo showing the scanned barcode covers the barcode step', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async => photo.categories.contains(facts)
+              ? 'Supplement Facts\nServing Size 1 Capsule\n0 50428 38139 7'
+              : '',
+        ),
+      );
+      await tapKey(tester, 'missing-product-start');
+      await tapKey(tester, 'missing-product-add-front_identity');
+      await tapKey(tester, 'missing-product-add-supplement_facts');
+      expect(
+        find.textContaining('Barcode found in this photo'),
+        findsOneWidget,
+      );
+
+      await tapKey(tester, 'missing-product-next');
+      await tapKey(tester, 'missing-product-facts-combined');
+      // No separate barcode photo is asked for.
+      expect(find.text('Anything else?'), findsOneWidget);
+      await tapKey(tester, 'missing-product-next');
+      await submitFromReview(tester);
+
+      expect(backend.manifest, hasLength(2));
+      expect(
+        backend.manifest[1]['categories'],
+        unorderedEquals([
+          'supplement_facts',
+          'ingredient_disclosure',
+          'barcode',
+        ]),
+      );
+    });
+
+    testWidgets('the barcode photo itself gets no "barcode found" note', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async =>
+              photo.categories.contains(
+                ProductSubmissionEvidenceCategory.barcode,
+              )
+              ? '0 50428 38139 7'
+              : '',
+        ),
+      );
+      await tapKey(tester, 'missing-product-start');
+      await tapKey(tester, 'missing-product-add-front_identity');
+      await tapKey(tester, 'missing-product-add-supplement_facts');
+      await tapKey(tester, 'missing-product-next');
+      await tapKey(tester, 'missing-product-facts-combined');
+      await tapKey(tester, 'missing-product-add-barcode');
+      expect(find.text('Anything else?'), findsOneWidget);
+      expect(find.textContaining('Barcode found'), findsNothing);
+    });
+
+    testWidgets('a photo showing a different barcode is questioned', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async => '0 36000 29145 2',
+        ),
+      );
+      await tapKey(tester, 'missing-product-start');
+      await tapKey(tester, 'missing-product-add-front_identity');
+      expect(find.text('A different barcode?'), findsOneWidget);
+      expect(find.textContaining('036000291452'), findsOneWidget);
+      await tapKey(tester, 'missing-product-hint-retake');
+      expect(find.text('Front of the package'), findsOneWidget);
+      expect(find.byTooltip('Remove photo'), findsNothing);
+
+      await tapKey(tester, 'missing-product-add-front_identity');
+      await tapKey(tester, 'missing-product-hint-keep');
+      expect(find.text('Supplement Facts'), findsOneWidget);
+    });
+
+    testWidgets('a Facts photo taken as the front can be moved to Facts', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      var reads = 0;
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async =>
+              reads++ == 0 ? 'Supplement Facts\nServing Size 2 Tablets' : '',
+        ),
+      );
+      await tapKey(tester, 'missing-product-start');
+      await tapKey(tester, 'missing-product-add-front_identity');
+      expect(
+        find.text('This looks like the Supplement Facts panel'),
+        findsOneWidget,
+      );
+      await tapKey(tester, 'missing-product-hint-move-facts');
+
+      // Still asking for the front; the shot was kept where it belongs.
+      expect(find.text('Front of the package'), findsOneWidget);
+      expect(
+        find.textContaining('Saved as your Supplement Facts photo'),
+        findsOneWidget,
+      );
+      await tapKey(tester, 'missing-product-add-front_identity');
+      // Facts already has its photo; the user lands there to add another
+      // angle or answer where the ingredient list is.
+      expect(find.text('Supplement Facts'), findsOneWidget);
+      expect(find.byTooltip('Remove photo'), findsOneWidget);
+      await tapKey(tester, 'missing-product-next');
+      expect(
+        find.byKey(const Key('missing-product-facts-combined')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the photo is kept when the text reader fails', (tester) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (_) async => throw StateError('no recognizer'),
+        ),
+      );
+      await tapKey(tester, 'missing-product-start');
+      await tapKey(tester, 'missing-product-add-front_identity');
+      expect(find.text('Supplement Facts'), findsOneWidget);
+    });
+  });
+
+  testWidgets('the checklist shows what is covered and jumps to a panel', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Front: still needed'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Supplement Facts'), findsOneWidget);
+    expect(find.bySemanticsLabel('Front: done'), findsOneWidget);
+    expect(find.bySemanticsLabel('Facts: still needed'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-checklist-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Front of the package'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('skipping ahead still comes back for a missing panel', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+
+    // From Facts, straight to the barcode; Facts is still empty.
+    await tester.tap(
+      find.byKey(const Key('missing-product-checklist-barcode')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Barcode'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+    await tester.pumpAndSettle();
+
+    // Not the optional extras or a review the user cannot submit.
+    expect(find.text('Supplement Facts'), findsOneWidget);
   });
 }
 
