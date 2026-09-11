@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/contribution_points.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// One overridable construction point so widgets and push handlers share a
 /// single service instance (tests override this with a fake backend).
@@ -51,16 +53,13 @@ final productSubmissionsProvider =
       ];
     });
 
-/// Display-only impact score derived from catalog outcomes: 10 points for
-/// each contribution that has shipped in the catalog.
-///
-/// Deliberately NOT a stored ledger — derived means no backend, no drift,
-/// and transparent math. The hard rule: before points become redeemable
-/// for anything, this must convert to an append-only server ledger,
-/// because a derived formula can retroactively re-price history.
-int contributionPoints(List<ProductSubmissionSummary> submissions) {
-  return submissions.where((submission) => submission.isComplete).length * 10;
-}
+/// The signed-in user's points, read from the append-only server ledger that
+/// catalog promotion writes. Re-read whenever the submission list is, so
+/// pull-to-refresh and status pushes refresh points too.
+final contributionPointsProvider = FutureProvider.autoDispose<int>((ref) async {
+  await ref.watch(productSubmissionsProvider.future);
+  return readOwnContributionPoints(Supabase.instance.client);
+});
 
 /// Count shown as the Settings-row badge: submissions still awaiting an
 /// outcome.
@@ -79,7 +78,6 @@ final pendingSubmissionCountProvider = Provider.autoDispose<int>((ref) {
       )
       .length;
 });
-
 
 /// Where unfinished captures are kept. Overridden in tests with an in-memory
 /// implementation so no widget pump waits on the file system.
@@ -107,7 +105,8 @@ final pendingProductSubmissionDraftsProvider =
       if (storage == null) return const [];
       // Only the signed-in account's own captures. A shared phone must not
       // show one person's label photos to the next.
-      final userId = ref.watch(productSubmissionServiceProvider)
+      final userId = ref
+          .watch(productSubmissionServiceProvider)
           .backend
           .authenticatedUserId;
       if (userId == null || userId.isEmpty) return const [];

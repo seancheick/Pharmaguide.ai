@@ -18,6 +18,7 @@ Widget _harness(
   Future<void> Function(ProductSubmissionSummary status)? onResubmit,
   Future<void> Function(ProductSubmissionSummary status)? onHide,
   List<PendingProductSubmission> pendingDrafts = const [],
+  Future<int> Function()? points,
 }) {
   final database = db ?? CoreDatabase.memory();
   if (db == null) addTearDown(database.close);
@@ -29,6 +30,10 @@ Widget _harness(
       coreDatabaseProvider.overrideWithValue(database),
       pendingProductSubmissionDraftsProvider.overrideWith(
         (ref) async => pendingDrafts,
+      ),
+      // The ledger is server state; the screen only displays it.
+      contributionPointsProvider.overrideWith(
+        (ref) => points == null ? Future.value(0) : points(),
       ),
     ],
     child: MaterialApp(
@@ -434,7 +439,7 @@ void main() {
           ),
           'upload_state': 'pending',
         },
-      ]),
+      ], points: () async => 10),
     );
     await tester.pumpAndSettle();
 
@@ -537,20 +542,41 @@ void main() {
     expect(find.byKey(const Key('contributions-stat-points')), findsOneWidget);
   });
 
-  test('contribution points award ten only after catalog promotion', () {
-    ProductSubmissionSummary summary(Map<String, Object?> row) =>
-        ProductSubmissionSummary.fromRow(row);
+  testWidgets('points are what the ledger says, not a count of submissions', (
+    tester,
+  ) async {
+    // One promoted submission on screen, but the ledger holds 30: history
+    // from submissions no longer listed must not be re-priced by the app.
+    await tester.pumpWidget(
+      _harness([
+        _row(
+          id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a13',
+          reviewStatus: 'approved',
+          catalogVersion: '2026.08.25.1',
+        ),
+      ], points: () async => 30),
+    );
+    await tester.pumpAndSettle();
     expect(
-      contributionPoints([
-        summary({
-          ..._row(id: 'a', reviewStatus: 'submitted'),
-          'upload_state': 'pending',
-        }),
-        summary(_row(id: 'b', reviewStatus: 'rejected')),
-        summary(_row(id: 'c', reviewStatus: 'approved')),
-        summary(_row(id: 'd', reviewStatus: 'approved', catalogVersion: 'v1')),
-      ]),
-      10,
+      find.descendant(
+        of: find.byKey(const Key('contributions-stat-points')),
+        matching: find.text('30'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('an unreadable ledger shows a dash, never zero', (tester) async {
+    await tester.pumpWidget(
+      _harness(const [], points: () async => throw StateError('offline')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('contributions-stat-points')),
+        matching: find.text('—'),
+      ),
+      findsOneWidget,
     );
   });
 
@@ -611,7 +637,10 @@ void main() {
 
     expect(find.byKey(const Key('missing-product-start')), findsOneWidget);
     expect(find.text('Take a photo'), findsOneWidget);
-    expect(find.byKey(const Key('missing-product-start-library')), findsOneWidget);
+    expect(
+      find.byKey(const Key('missing-product-start-library')),
+      findsOneWidget,
+    );
     expect(find.textContaining('030772032565'), findsOneWidget);
   });
 }

@@ -43,6 +43,9 @@ fi
 if [[ -f "$repo_dir/supabase/tests/submission_identity/workstation.sql" ]]; then
   psql_test -q < "$repo_dir/supabase/tests/submission_identity/workstation.sql" >/dev/null
 fi
+if [[ -f "$repo_dir/supabase/tests/submission_identity/ledger.sql" ]]; then
+  psql_test -q < "$repo_dir/supabase/tests/submission_identity/ledger.sql" >/dev/null
+fi
 if [[ "${1:-}" != "--no-concurrency" ]]; then
   source "$repo_dir/supabase/tests/submission_identity/concurrency.sh"
 fi

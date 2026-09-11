@@ -212,7 +212,12 @@ class _ProductSubmissionsScreenState
                   style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space16),
-                _ImpactGrid(statuses: statuses),
+                _ImpactGrid(
+                  statuses: statuses,
+                  // Null while loading or unreadable: shown as a dash, since
+                  // zero would tell the user they have earned nothing.
+                  points: ref.watch(contributionPointsProvider).value,
+                ),
                 const SizedBox(height: V2Spacing.space24),
                 _UnfinishedCaptures(onFinish: _finishPending),
                 Text(
@@ -335,9 +340,10 @@ class _UnfinishedCaptures extends ConsumerWidget {
 }
 
 class _ImpactGrid extends StatelessWidget {
-  const _ImpactGrid({required this.statuses});
+  const _ImpactGrid({required this.statuses, required this.points});
 
   final List<ProductSubmissionSummary> statuses;
+  final int? points;
 
   @override
   Widget build(BuildContext context) {
@@ -367,12 +373,11 @@ class _ImpactGrid extends StatelessWidget {
               !s.isComplete,
         )
         .length;
-    final points = contributionPoints(statuses);
     Widget card({
       required Key key,
       required IconData icon,
       required Color accent,
-      required int value,
+      required String value,
       required String label,
       VoidCallback? onTap,
       String? tapHint,
@@ -407,7 +412,7 @@ class _ImpactGrid extends StatelessWidget {
                           children: [
                             Icon(icon, color: accent, size: 20),
                             Text(
-                              '$value',
+                              value,
                               style: V2Typography.title(color: context.v2.fg),
                             ),
                           ],
@@ -462,7 +467,7 @@ class _ImpactGrid extends StatelessWidget {
                 key: const Key('contributions-stat-pending'),
                 icon: Icons.schedule_rounded,
                 accent: context.v2.caution,
-                value: pending,
+                value: '$pending',
                 label: 'Pending review',
               ),
             ),
@@ -472,7 +477,7 @@ class _ImpactGrid extends StatelessWidget {
                 key: const Key('contributions-stat-approved'),
                 icon: Icons.verified_outlined,
                 accent: context.v2.safe,
-                value: approved,
+                value: '$approved',
                 label: 'Catalog additions',
               ),
             ),
@@ -482,7 +487,7 @@ class _ImpactGrid extends StatelessWidget {
                 key: const Key('contributions-stat-total'),
                 icon: Icons.upload_outlined,
                 accent: context.v2.accent,
-                value: submitted,
+                value: '$submitted',
                 label: 'Total submissions',
                 tapHint: 'Shows the submission outcome breakdown',
                 onTap: () => _showSubmissionBreakdown(
@@ -501,7 +506,7 @@ class _ImpactGrid extends StatelessWidget {
                 key: const Key('contributions-stat-points'),
                 icon: Icons.star_outline_rounded,
                 accent: context.v2.accentStrong,
-                value: points,
+                value: points == null ? '—' : '$points',
                 label: 'Points earned',
                 tapHint: 'Explains how contribution points are earned',
                 onTap: () => _showPointsExplanation(context),
