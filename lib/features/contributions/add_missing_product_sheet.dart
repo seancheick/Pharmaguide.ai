@@ -199,42 +199,53 @@ class _AddMissingProductIdentitySheetState
             },
             onSubmitted: (_) => _continue(),
           ),
+          const SizedBox(height: V2Spacing.space12),
+          // Says what the two buttons do, so "Photo library" is not mistaken
+          // for choosing the label photos, which comes after Continue.
+          Text(
+            'Or read the number from a photo',
+            style: V2Typography.caption(color: context.v2.fgMuted),
+          ),
           const SizedBox(height: V2Spacing.space8),
-          Wrap(
-            spacing: V2Spacing.space8,
-            runSpacing: V2Spacing.space8,
-            children: [
-              FilledButton.tonalIcon(
+          // Two equal halves spanning exactly the Continue button's width,
+          // at its height; stacked when large text would squeeze the labels.
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final library = _readButton(
                 key: const Key('add-product-read-upc'),
-                onPressed: (_reading || _takingPhoto)
-                    ? null
-                    : () => _readFromPhoto(fromCamera: false),
-                icon: _reading
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.photo_library_outlined),
-                label: Text(
-                  _reading ? 'Reading library photo…' : 'Read from library',
-                ),
-              ),
-              FilledButton.tonalIcon(
+                busy: _reading,
+                icon: Icons.photo_library_outlined,
+                label: 'Photo library',
+                fromCamera: false,
+              );
+              final camera = _readButton(
                 key: const Key('add-product-take-upc'),
-                onPressed: (_reading || _takingPhoto)
-                    ? null
-                    : () => _readFromPhoto(fromCamera: true),
-                icon: _takingPhoto
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.photo_camera_outlined),
-                label: Text(
-                  _takingPhoto ? 'Reading camera photo…' : 'Take a photo',
-                ),
-              ),
-            ],
+                busy: _takingPhoto,
+                icon: Icons.photo_camera_outlined,
+                label: 'Take photo',
+                fromCamera: true,
+              );
+              final stacked =
+                  constraints.maxWidth < 300 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.3;
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    library,
+                    const SizedBox(height: V2Spacing.space8),
+                    camera,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: library),
+                  const SizedBox(width: V2Spacing.space8),
+                  Expanded(child: camera),
+                ],
+              );
+            },
           ),
           if (_candidates.length > 1) ...[
             const SizedBox(height: V2Spacing.space12),
@@ -280,4 +291,32 @@ class _AddMissingProductIdentitySheetState
       ),
     );
   }
+
+  Widget _readButton({
+    required Key key,
+    required bool busy,
+    required IconData icon,
+    required String label,
+    required bool fromCamera,
+  }) => SizedBox(
+    height: 48,
+    child: FilledButton.tonalIcon(
+      key: key,
+      onPressed: (_reading || _takingPhoto)
+          ? null
+          : () => _readFromPhoto(fromCamera: fromCamera),
+      icon: busy
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(icon),
+      // A half-width button has no room for "Reading library photo…".
+      label: Text(
+        busy ? 'Reading…' : label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  );
 }

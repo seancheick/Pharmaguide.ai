@@ -459,10 +459,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                                   onPressed: _openManualBarcodeSheet,
                                 ),
                                 const SizedBox(height: V2Spacing.space12),
+                                // Filled like the button above: an outline
+                                // pill over the live camera is see-through.
+                                // Scanning is this screen's main action;
+                                // these are two equal fallbacks.
                                 PGPillButton(
                                   label: 'Add medication',
                                   icon: Icons.medication_outlined,
-                                  variant: PGPillVariant.secondary,
+                                  variant: PGPillVariant.primary,
                                   expand: true,
                                   onPressed: () =>
                                       context.push(Routes.medicationEntry),

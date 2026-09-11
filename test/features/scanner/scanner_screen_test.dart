@@ -238,6 +238,46 @@ void main() {
     expect(find.text('Scan again'), findsNothing);
   });
 
+  testWidgets('both camera fallbacks are solid, readable over the feed', (
+    tester,
+  ) async {
+    // An outline button over a live camera shows the video through it; the
+    // two fallbacks share the one filled style so both stay legible.
+    SharedPreferences.setMockInitialValues({});
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    final previousPlatform = MobileScannerPlatform.instance;
+    MobileScannerPlatform.instance = _FakeMobileScannerPlatform();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+      MobileScannerPlatform.instance = previousPlatform;
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+        ],
+        child: const MaterialApp(home: ScannerScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    PGPillVariant variantOf(String label) => tester
+        .widget<PGPillButton>(
+          find.ancestor(
+            of: find.text(label),
+            matching: find.byType(PGPillButton),
+          ),
+        )
+        .variant;
+    expect(variantOf('Enter code manually'), PGPillVariant.primary);
+    expect(variantOf('Add medication'), PGPillVariant.primary);
+  });
+
   group('PGScanNotFound', () {
     testWidgets('offers search-by-name fallback for missing catalog barcodes', (
       tester,
