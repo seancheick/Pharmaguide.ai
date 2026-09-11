@@ -27,6 +27,7 @@ import {
   assertDraftEvidenceBinding,
   parseEvidenceBinding,
 } from "./evidence.ts";
+import { parseEvidenceRequest } from "./retake.ts";
 import {
   detectReviewerImageContentType,
   parseReviewerImageUploadRequest,
@@ -65,6 +66,7 @@ const ACTIONS = new Set([
   "set_field_verification",
   "review_states",
   "validate_label",
+  "request_evidence",
 ]);
 // A batch is a convenience for one person at one screen, not a bulk pipe.
 const BATCH_MAX_ITEMS = 25;
@@ -680,10 +682,18 @@ async function applyTransition(
   });
   if (error || data !== true) throw error;
 
-  // The durable delivery row is already committed by the RPC. Draining it
-  // must survive the response being returned, so it runs under
-  // EdgeRuntime.waitUntil; a failed send stays pending and is retried by
-  // the stale sweep on the next review action.
+  await scheduleSubmissionPushDrain(admin, submissionId);
+  return payloadHash;
+}
+
+// The durable delivery row is already committed by the RPC that decided.
+// Draining it must survive the response being returned, so it runs under
+// EdgeRuntime.waitUntil; a failed send stays pending and is retried by the
+// stale sweep on the next review action.
+async function scheduleSubmissionPushDrain(
+  admin: SupabaseClient,
+  submissionId: string,
+): Promise<void> {
   const drain = drainSubmissionPushDeliveries(admin, submissionId)
     .catch((pushError) => {
       console.error(JSON.stringify({
@@ -697,8 +707,6 @@ async function applyTransition(
   } else {
     await drain;
   }
-
-  return payloadHash;
 }
 
 Deno.serve(async (request: Request): Promise<Response> => {
@@ -796,7 +804,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
             "reviewed_at,promoted_catalog_version,promoted_at," +
             "declared_no_separate_ingredient_panel," +
             "resolution_code,resolution_detail,resolved_dsld_id," +
-            "duplicate_of," +
+            "duplicate_of,evidence_requested_at,evidence_requested_revision," +
+            "evidence_request_reason,evidence_request_panels," +
             "product_submission_mismatch_details!" +
             "product_submission_mismatch_details_submission_id_fkey(" +
             "dsld_id,source_record_id," +
@@ -1045,6 +1054,24 @@ Deno.serve(async (request: Request): Promise<Response> => {
       if (error || typeof data !== "number") throw error;
       audit(reviewerId, action, "success", 1);
       return json({ match_check_id: data });
+    }
+
+    if (action === "request_evidence") {
+      const evidenceRequest = parseEvidenceRequest(body);
+      const { data, error } = await userClient.rpc(
+        "request_product_submission_evidence",
+        {
+          p_submission_id: evidenceRequest.submissionId,
+          p_reason: evidenceRequest.reason,
+          p_panels: evidenceRequest.panels,
+          p_expected_revision: evidenceRequest.expectedEvidenceRevision,
+          p_manifest_sha256: evidenceRequest.evidenceManifestSha256,
+        },
+      );
+      if (error || data !== true) throw error;
+      await scheduleSubmissionPushDrain(admin, evidenceRequest.submissionId);
+      audit(reviewerId, action, "success", 1);
+      return json({ requested: true });
     }
 
     if (action === "load_review") {

@@ -100,6 +100,20 @@ void main() {
     expect(source, isNot(contains('body.object_path')));
   });
 
+  test('a retake request is the reviewer\'s own, never the service key\'s', () {
+    expect(source, contains("'request_evidence'"));
+    expect(source, contains('parseEvidenceRequest(body)'));
+    expect(
+      source,
+      contains("userClient.rpc(\n        'request_product_submission_evidence'"),
+      reason: 'auth.uid() is the reviewer only on the reviewer\'s client.',
+    );
+    expect(
+      source,
+      isNot(contains("admin.rpc(\n        'request_product_submission_evidence'")),
+    );
+  });
+
   test('product pictures are rights-bound, byte-verified, and singular', () {
     expect(source, contains("'product-submission-reviewer-images'"));
     expect(source, contains("if (action === 'create_reviewer_image_upload')"));
