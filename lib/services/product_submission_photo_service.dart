@@ -21,7 +21,49 @@ Future<ProductSubmissionPhoto?> pickProductSubmissionPhoto({
     requestFullMetadata: false,
   );
   if (file == null) return null;
-  return buildProductSubmissionPhotoFromFile(file: file, categories: categories);
+  return buildProductSubmissionPhotoFromFile(
+    file: file,
+    categories: categories,
+  );
+}
+
+/// Several library images at once, each prepared exactly like a single pick.
+Future<({List<ProductSubmissionPhoto> photos, int unreadable})>
+pickProductSubmissionPhotos({
+  required ImagePicker picker,
+  required int limit,
+}) async {
+  final files = await picker.pickMultiImage(
+    limit: limit,
+    requestFullMetadata: false,
+  );
+  return buildProductSubmissionPhotosFromFiles(files.take(limit).toList());
+}
+
+/// One file that cannot be prepared is counted, never fatal to the rest.
+/// Every photo comes back tagged as the front until the user sorts it.
+@visibleForTesting
+Future<({List<ProductSubmissionPhoto> photos, int unreadable})>
+buildProductSubmissionPhotosFromFiles(
+  List<XFile> files, {
+  SanitizeProductSubmissionPhoto sanitizer = _sanitizeProductSubmissionPhoto,
+}) async {
+  final photos = <ProductSubmissionPhoto>[];
+  var unreadable = 0;
+  for (final file in files) {
+    try {
+      photos.add(
+        await buildProductSubmissionPhotoFromFile(
+          file: file,
+          categories: const {ProductSubmissionEvidenceCategory.frontIdentity},
+          sanitizer: sanitizer,
+        ),
+      );
+    } on ProductSubmissionValidationException {
+      unreadable += 1;
+    }
+  }
+  return (photos: photos, unreadable: unreadable);
 }
 
 @visibleForTesting

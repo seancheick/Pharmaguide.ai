@@ -44,6 +44,7 @@ Widget _harness({
   ProductSubmissionDraftStorage? draftStore,
   String Function()? submissionIdFactory,
   ReadSubmissionPhotoText? readPhotoText,
+  PickMissingProductPhotos? pickPhotosFromLibrary,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -57,6 +58,7 @@ Widget _harness({
         pickPhoto: pickPhoto ?? (tags) async => _photo(tags),
         pickPhotoFromLibrary: pickPhotoFromLibrary,
         readPhotoText: readPhotoText,
+        pickPhotosFromLibrary: pickPhotosFromLibrary,
       ),
     ),
   );
@@ -1469,6 +1471,205 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Front of the package'), findsOneWidget);
     semantics.dispose();
+  });
+
+  group('several photos from the library', () {
+    const front = ProductSubmissionEvidenceCategory.frontIdentity;
+
+    bool selected(WidgetTester tester, String key) =>
+        tester.widget<FilterChip>(find.byKey(Key(key))).selected;
+
+    testWidgets('are sorted by what their printed text shows', (tester) async {
+      final photos = [
+        _photo({front}),
+        _photo({front}),
+        _photo({front}),
+      ];
+      final text = {
+        photos[0].photoId:
+            'Supplement Facts\nServing Size 1 Capsule\n'
+            'Other Ingredients: cellulose\n0 50428 38139 7',
+        photos[1].photoId: 'NATURE BRAND\nVitamin D3',
+        photos[2].photoId:
+            'Directions: take one daily. Warning: keep out '
+            'of reach of children.',
+      };
+      int? askedFor;
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async => text[photo.photoId] ?? '',
+          pickPhotosFromLibrary: (limit) async {
+            askedFor = limit;
+            return (photos: photos, unreadable: 0);
+          },
+        ),
+      );
+      await tester.tap(find.byKey(const Key('missing-product-start-library')));
+      await tester.pumpAndSettle();
+
+      expect(askedFor, ProductSubmissionPhoto.maxPerSubmission);
+      expect(find.text('Which panel is each photo?'), findsOneWidget);
+      expect(
+        selected(tester, 'missing-product-sort-0-supplement_facts'),
+        isTrue,
+      );
+      expect(
+        selected(tester, 'missing-product-sort-0-ingredient_disclosure'),
+        isTrue,
+      );
+      expect(selected(tester, 'missing-product-sort-0-barcode'), isTrue);
+      expect(
+        selected(tester, 'missing-product-sort-1-front_identity'),
+        isFalse,
+      );
+      expect(
+        selected(tester, 'missing-product-sort-2-directions_warnings'),
+        isTrue,
+      );
+      // A photo nobody has named yet cannot be added.
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('missing-product-sort-done')),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(
+        find.byKey(const Key('missing-product-sort-1-front_identity')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-sort-done')));
+      await tester.pumpAndSettle();
+
+      // Every required panel is covered: straight to review.
+      expect(find.text('Review & submit'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('missing-product-submit')),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const Key('missing-product-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+
+      expect(backend.persistedCueFlag, isTrue);
+      expect(backend.manifest, hasLength(3));
+      expect(
+        backend.manifest[0]['categories'],
+        unorderedEquals([
+          'supplement_facts',
+          'ingredient_disclosure',
+          'barcode',
+        ]),
+      );
+      expect(backend.manifest[1]['categories'], ['front_identity']);
+      expect(backend.manifest[2]['categories'], ['directions_warnings']);
+    });
+
+    testWidgets('unusable photos are skipped, counted, or left out', (
+      tester,
+    ) async {
+      final kept = _photo({front});
+      final tiny = _photo({front});
+      final unnamed = _photo({front});
+      final duplicate = ProductSubmissionPhoto(
+        photoId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        categories: const {front},
+        bytes: kept.bytes,
+        contentType: 'image/jpeg',
+      );
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async =>
+              photo.photoId == kept.photoId ? 'Supplement Facts' : '',
+          qualityGate: (photo) async => photo.photoId == tiny.photoId
+              ? const PhotoQualityResult(
+                  verdict: PhotoQualityVerdict.tooSmall,
+                  shortSide: 300,
+                  blurScore: 500,
+                )
+              : _okQuality,
+          pickPhotosFromLibrary: (_) async =>
+              (photos: [kept, tiny, duplicate, unnamed], unreadable: 1),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('missing-product-start-library')));
+      await tester.pumpAndSettle();
+
+      // The tiny and duplicate photos never reach the sort sheet.
+      expect(
+        find.byKey(const Key('missing-product-sort-1-remove')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('missing-product-sort-2-remove')),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(const Key('missing-product-sort-1-remove')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-sort-done')));
+      await tester.pumpAndSettle();
+
+      // The front is still missing, so capture asks for it.
+      expect(find.text('Front of the package'), findsOneWidget);
+      expect(find.textContaining('3 photos couldn’t be used'), findsOneWidget);
+    });
+
+    testWidgets('photos beyond the submission limit are counted, not added', (
+      tester,
+    ) async {
+      final photos = [
+        for (var i = 0; i < ProductSubmissionPhoto.maxPerSubmission + 2; i++)
+          _photo({front}),
+      ];
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (_) async => 'Supplement Facts',
+          // A picker that ignores the limit it was given.
+          pickPhotosFromLibrary: (_) async => (photos: photos, unreadable: 0),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('missing-product-start-library')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Add ${ProductSubmissionPhoto.maxPerSubmission} photos'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('missing-product-sort-done')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('2 photos couldn’t be used'), findsOneWidget);
+    });
+
+    testWidgets('an empty pick falls back to one photo at a time', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          pickPhotosFromLibrary: (_) async =>
+              (photos: const <ProductSubmissionPhoto>[], unreadable: 0),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('missing-product-start-library')));
+      await tester.pumpAndSettle();
+      expect(find.text('Front of the package'), findsOneWidget);
+      expect(find.text('Choose a photo'), findsOneWidget);
+    });
   });
 
   testWidgets('skipping ahead still comes back for a missing panel', (

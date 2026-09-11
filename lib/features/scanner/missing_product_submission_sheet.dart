@@ -27,6 +27,13 @@ typedef PickMissingProductPhoto =
 typedef EvaluatePhotoQuality =
     Future<PhotoQualityResult> Function(ProductSubmissionPhoto photo);
 
+/// Several library photos at once, at most [limit]; `unreadable` counts the
+/// files that could not be prepared.
+typedef PickMissingProductPhotos =
+    Future<({List<ProductSubmissionPhoto> photos, int unreadable})> Function(
+      int limit,
+    );
+
 /// Opens the one production intake flow used by camera and manual barcode
 /// misses. Authentication remains a caller decision so the helper never
 /// guesses whether to redirect or silently drop a submission attempt.
@@ -45,6 +52,7 @@ Future<bool> showMissingProductSubmissionSheet(
   String Function()? submissionIdFactory,
   String? resubmissionOf,
   ReadSubmissionPhotoText? readPhotoText,
+  PickMissingProductPhotos? pickPhotosFromLibrary,
 }) async {
   late final GtinIdentity identity;
   try {
@@ -71,6 +79,9 @@ Future<bool> showMissingProductSubmissionSheet(
       qualityGate:
           qualityGate ?? (photo) => PhotoQualityGate.evaluate(photo.bytes),
       readPhotoText: readPhotoText ?? readSubmissionPhotoText,
+      pickPhotosFromLibrary:
+          pickPhotosFromLibrary ??
+          (limit) => pickProductSubmissionPhotos(picker: picker, limit: limit),
       pickPhoto:
           pickPhoto ??
           (categories) => pickProductSubmissionPhoto(
@@ -118,6 +129,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
     this.onViewContributions,
     this.draftStore,
     this.readPhotoText,
+    this.pickPhotosFromLibrary,
   });
 
   final String upc;
@@ -139,6 +151,10 @@ class MissingProductSubmissionSheet extends StatefulWidget {
   /// looks like the directions" or "the barcode is in this one". Null turns
   /// the suggestions off; they never block a photo either way.
   final ReadSubmissionPhotoText? readPhotoText;
+
+  /// Starting from the library picks several photos in one go and sorts
+  /// them by panel. Null keeps the one-photo-per-panel library path.
+  final PickMissingProductPhotos? pickPhotosFromLibrary;
 
   @override
   State<MissingProductSubmissionSheet> createState() =>
@@ -501,6 +517,315 @@ class _MissingProductSubmissionSheetState
     return result == true;
   }
 
+  /// Picks several library photos, drops the ones that cannot be used, and
+  /// lets the user confirm which panel each shows. True when photos were
+  /// added; capture then lands on the first panel still missing.
+  Future<bool> _addSeveralFromLibrary() async {
+    final room = ProductSubmissionPhoto.maxPerSubmission - _photos.length;
+    if (room <= 0 || _adding) return false;
+    setState(() {
+      _adding = true;
+      _stepError = null;
+      _stepNotice = null;
+    });
+    try {
+      final picked = await widget.pickPhotosFromLibrary!(room);
+      if (!mounted) return false;
+      // A picker that ignores the limit still never overfills a submission,
+      // and what it dropped is counted, not silently lost.
+      final overflow = picked.photos.length - room;
+      var skipped = picked.unreadable + (overflow > 0 ? overflow : 0);
+      final seen = {for (final photo in _photos) photo.contentSha256};
+      final usable = <({ProductSubmissionPhoto photo, bool blurry})>[];
+      for (final photo in picked.photos.take(room)) {
+        if (!seen.add(photo.contentSha256)) {
+          skipped += 1;
+          continue;
+        }
+        final quality = await widget.qualityGate(photo);
+        if (!mounted) return false;
+        if (quality.isHardBlock) {
+          skipped += 1;
+          continue;
+        }
+        usable.add((photo: photo, blurry: quality.isSoftWarning));
+      }
+      if (usable.isEmpty) {
+        if (skipped > 0) setState(() => _stepError = _skippedCopy(skipped));
+        return false;
+      }
+      // One at a time: eight full-size recognizers at once is a memory spike
+      // on an older phone, for a few seconds saved.
+      final hints = <PanelHints>[];
+      for (final item in usable) {
+        hints.add(await _readHints(item.photo));
+        if (!mounted) return false;
+      }
+      final sorted = await _sortLibraryPhotos([
+        for (var i = 0; i < usable.length; i++)
+          (photo: usable[i].photo, blurry: usable[i].blurry, hints: hints[i]),
+      ]);
+      if (!mounted || sorted == null || sorted.isEmpty) return false;
+
+      setState(() {
+        _photos.addAll(sorted);
+        _draft = null;
+        final combined = sorted.any(
+          (photo) => photo.categories.containsAll(const {
+            ProductSubmissionEvidenceCategory.supplementFacts,
+            ProductSubmissionEvidenceCategory.ingredientDisclosure,
+          }),
+        );
+        if (combined) {
+          _factsCarriesIngredients = true;
+          _factsPanelLocationConfirmed = true;
+        } else if (_photosTagged(
+              ProductSubmissionEvidenceCategory.ingredientDisclosure,
+            ).isNotEmpty &&
+            _photosTagged(
+              ProductSubmissionEvidenceCategory.supplementFacts,
+            ).isNotEmpty) {
+          // Named on separate photos: the user has said where the list is.
+          _factsPanelLocationConfirmed = true;
+        }
+        _stepNotice = skipped > 0 ? _skippedCopy(skipped) : null;
+        _step = _firstUnsatisfiedStep();
+      });
+      await _persistCapture();
+      return true;
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _stepError = 'We couldn’t open those photos. Try again.',
+        );
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  String _skippedCopy(int count) =>
+      '$count ${count == 1 ? 'photo' : 'photos'} couldn’t be used — too '
+      'small, already added, or not a photo.';
+
+  Set<ProductSubmissionEvidenceCategory> _suggestedCategories(PanelHints h) => {
+    if (h.showsFactsPanel) ProductSubmissionEvidenceCategory.supplementFacts,
+    if (h.showsOtherIngredients)
+      ProductSubmissionEvidenceCategory.ingredientDisclosure,
+    if (!h.showsFactsPanel &&
+        !h.showsOtherIngredients &&
+        h.showsDirectionsOrWarnings)
+      ProductSubmissionEvidenceCategory.directionsWarnings,
+    if (h.showsSubmissionBarcode) ProductSubmissionEvidenceCategory.barcode,
+  };
+
+  /// The user names the panel(s) each photo shows, starting from what its
+  /// printed text suggested. Nothing is added until every kept photo has a
+  /// name; null means cancelled.
+  Future<List<ProductSubmissionPhoto>?> _sortLibraryPhotos(
+    List<({ProductSubmissionPhoto photo, bool blurry, PanelHints hints})> items,
+  ) {
+    final choices = [
+      for (final item in items) _suggestedCategories(item.hints),
+    ];
+    final kept = List<bool>.filled(items.length, true);
+    const panels = <(ProductSubmissionEvidenceCategory, String)>[
+      (ProductSubmissionEvidenceCategory.frontIdentity, 'Front'),
+      (ProductSubmissionEvidenceCategory.supplementFacts, 'Facts'),
+      (ProductSubmissionEvidenceCategory.ingredientDisclosure, 'Ingredients'),
+      (ProductSubmissionEvidenceCategory.barcode, 'UPC'),
+      (ProductSubmissionEvidenceCategory.directionsWarnings, 'Directions'),
+      (ProductSubmissionEvidenceCategory.lotExpiry, 'Lot & expiry'),
+    ];
+    return showModalBottomSheet<List<ProductSubmissionPhoto>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheet) {
+          final ready = [
+            for (var i = 0; i < items.length; i++)
+              if (kept[i]) i,
+          ];
+          final canAdd =
+              ready.isNotEmpty && ready.every((i) => choices[i].isNotEmpty);
+          return SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.85,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      V2Spacing.space16,
+                      0,
+                      V2Spacing.space16,
+                      V2Spacing.space4,
+                    ),
+                    child: Text(
+                      'Which panel is each photo?',
+                      style: V2Typography.title(color: sheetContext.v2.fg),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: V2Spacing.space16,
+                    ),
+                    child: Text(
+                      'We marked what we could read. Tap to change — one '
+                      'photo can show more than one panel.',
+                      style: V2Typography.bodySm(
+                        color: sheetContext.v2.fgMuted,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: V2Spacing.space8),
+                  Flexible(
+                    child: ListView(
+                      key: const Key('missing-product-sort-sheet'),
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: V2Spacing.space16,
+                      ),
+                      children: [
+                        for (final i in ready)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: V2Spacing.space12,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                    V2Spacing.radiusCard,
+                                  ),
+                                  child: Image.memory(
+                                    items[i].photo.bytes,
+                                    width: 64,
+                                    height: 64,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => Container(
+                                      width: 64,
+                                      height: 64,
+                                      color: sheetContext.v2.surfaceLow,
+                                      child: const Icon(
+                                        Icons.broken_image_outlined,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: V2Spacing.space8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Wrap(
+                                        spacing: V2Spacing.space4,
+                                        runSpacing: V2Spacing.space4,
+                                        children: [
+                                          for (final (category, label)
+                                              in panels)
+                                            FilterChip(
+                                              key: Key(
+                                                'missing-product-sort-$i-'
+                                                '${category.wireValue}',
+                                              ),
+                                              label: Text(label),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              selected: choices[i].contains(
+                                                category,
+                                              ),
+                                              onSelected: (on) => setSheet(
+                                                () => on
+                                                    ? choices[i].add(category)
+                                                    : choices[i].remove(
+                                                        category,
+                                                      ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      if (items[i].hints.conflictingBarcode
+                                          case final other?)
+                                        _sortWarning(
+                                          sheetContext,
+                                          'Shows barcode ${other.rawDigits}, '
+                                          'not the one you scanned.',
+                                        ),
+                                      if (items[i].blurry)
+                                        _sortWarning(
+                                          sheetContext,
+                                          'Looks blurry. Keep it only if the '
+                                          'smallest line is readable.',
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  key: Key('missing-product-sort-$i-remove'),
+                                  tooltip: 'Leave this photo out',
+                                  onPressed: () =>
+                                      setSheet(() => kept[i] = false),
+                                  icon: const Icon(Icons.close),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      V2Spacing.space16,
+                      V2Spacing.space8,
+                      V2Spacing.space16,
+                      V2Spacing.space16,
+                    ),
+                    child: Row(
+                      children: [
+                        TextButton(
+                          key: const Key('missing-product-sort-cancel'),
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        const Spacer(),
+                        FilledButton(
+                          key: const Key('missing-product-sort-done'),
+                          onPressed: canAdd
+                              ? () => Navigator.of(sheetContext).pop([
+                                  for (final i in ready)
+                                    items[i].photo.withCategories(choices[i]),
+                                ])
+                              : null,
+                          child: Text(
+                            'Add ${ready.length} '
+                            '${ready.length == 1 ? 'photo' : 'photos'}',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _sortWarning(BuildContext context, String text) => Padding(
+    padding: const EdgeInsets.only(top: V2Spacing.space4),
+    child: Text(text, style: V2Typography.caption(color: context.v2.caution)),
+  );
+
   Future<PanelHints> _readHints(ProductSubmissionPhoto photo) async {
     final read = widget.readPhotoText;
     if (read == null) return PanelHints.none;
@@ -713,6 +1038,12 @@ class _MissingProductSubmissionSheetState
       }
       if (!mounted) return;
       _captureFromLibrary = fromLibrary ?? widget.preferLibrary;
+      if (_captureFromLibrary &&
+          widget.pickPhotosFromLibrary != null &&
+          await _addSeveralFromLibrary()) {
+        return;
+      }
+      if (!mounted) return;
     }
     if (!mounted) return;
     if (!_stepSatisfied) {
@@ -1394,7 +1725,8 @@ class _MissingProductSubmissionSheetState
         height: 48,
         child: FilledButton.icon(
           key: const Key('missing-product-start'),
-          onPressed: _checkingIntake
+          // Also closed while library photos are being read and sorted.
+          onPressed: _checkingIntake || _adding
               ? null
               : () => _goForward(fromLibrary: false),
           icon: const Icon(Icons.photo_camera_outlined),
@@ -1409,7 +1741,7 @@ class _MissingProductSubmissionSheetState
         height: 44,
         child: OutlinedButton.icon(
           key: const Key('missing-product-start-library'),
-          onPressed: _checkingIntake
+          onPressed: _checkingIntake || _adding
               ? null
               : () => _goForward(fromLibrary: true),
           icon: const Icon(Icons.photo_library_outlined),
