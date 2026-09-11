@@ -48,6 +48,27 @@ Widget _harness(
 }
 
 void main() {
+  testWidgets('owner can save a recognizable name without changing the UPC', (
+    tester,
+  ) async {
+    final rows = [
+      _row(
+        id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+        reviewStatus: 'rejected',
+      ),
+    ];
+    await tester.pumpWidget(_harness(rows));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Name this product'));
+    await tester.tap(find.text('Name this product'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'Seed · DS-01');
+    await tester.tap(find.text('Save name'));
+    await tester.pumpAndSettle();
+    expect(find.text('Seed · DS-01'), findsOneWidget);
+    expect(find.textContaining('050428381397'), findsOneWidget);
+    expect(rows.single['review_status'], 'rejected');
+  });
   testWidgets('shows review and shipped states without exposing other users', (
     tester,
   ) async {
@@ -165,6 +186,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('too blurry or dark'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('The lot number sticker covered the panel.'),
+      200,
+    );
     expect(
       find.text('The lot number sticker covered the panel.'),
       findsOneWidget,
@@ -383,6 +408,7 @@ void main() {
           ProductsCoreCompanion.insert(
             dsldId: 'PG_SUB_AAAA',
             productName: 'Promoted Product',
+            brandName: const Value('Seed'),
             exportVersion: 'test',
             exportedAt: '2026-08-24T00:00:00Z',
             productStatus: const Value('active'),
@@ -415,7 +441,7 @@ void main() {
       find.byKey(const Key('submission-view-product-PG_SUB_AAAA')),
       findsOneWidget,
     );
-    expect(find.text('Promoted Product'), findsOneWidget);
+    expect(find.text('Seed · Promoted Product'), findsOneWidget);
     expect(
       find.byKey(const Key('submission-view-product-PG_SUB_NOT_INSTALLED')),
       findsNothing,
@@ -441,6 +467,24 @@ void main() {
 
     expect(find.text('Product name unavailable'), findsOneWidget);
     expect(find.text('UPC 050428381397'), findsOneWidget);
+  });
+
+  testWidgets('rejected submission retains its human-readable display name', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(id: 'named-rejected', reviewStatus: 'rejected'),
+          'display_name': 'Seed · DS-01 Daily Synbiotic',
+          'resolution_code': 'photo_quality',
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Seed · DS-01 Daily Synbiotic'), findsOneWidget);
+    expect(find.text('Product name unavailable'), findsNothing);
+    expect(find.text('Name this product'), findsOneWidget);
   });
 
   testWidgets('failed cards offer a confirmed non-destructive history hide', (
@@ -768,8 +812,12 @@ class _Backend implements ProductSubmissionBackend {
   Future<void> persistSubmission({
     required String functionName,
     required Map<String, Object?> payload,
-  }) {
-    throw UnimplementedError();
+  }) async {
+    expect(functionName, 'set_product_submission_display_name');
+    final row = rows.singleWhere(
+      (row) => row['id'] == payload['p_submission_id'],
+    );
+    row['display_name'] = payload['p_display_name'];
   }
 
   @override

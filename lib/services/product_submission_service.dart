@@ -787,6 +787,26 @@ class ProductSubmissionService {
 
   final ProductSubmissionBackend backend;
 
+  /// Private display label only; never changes verified catalog identity.
+  Future<void> setDisplayName(String submissionId, String name) async {
+    if (backend.authenticatedUserId == null) {
+      throw StateError('Sign in to name a submission.');
+    }
+    final value = name.trim();
+    if (value.isEmpty ||
+        value.runes.length > 160 ||
+        RegExp(r'[\x00-\x1f\x7f]').hasMatch(value)) {
+      throw const FormatException('Enter a product name of 1–160 characters.');
+    }
+    await backend.persistSubmission(
+      functionName: 'set_product_submission_display_name',
+      payload: {
+        'p_submission_id': _validateSubmissionId(submissionId),
+        'p_display_name': value,
+      },
+    );
+  }
+
   const ProductSubmissionService({required this.backend});
 
   factory ProductSubmissionService.production({SupabaseClient? client}) {
@@ -1291,7 +1311,7 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
     final rows = await _client
         .from(table)
         .select(
-          'id,kind,normalized_upc,upload_state,review_status,created_at,'
+          'id,kind,normalized_upc,upload_state,review_status,created_at,display_name,'
           'promoted_catalog_version,promoted_at,dismissed_at,'
           'resolution_code,resolution_detail,resolved_dsld_id,'
           'evidence_revision,evidence_requested_revision,'
@@ -1454,6 +1474,7 @@ class ProductSubmissionSummary {
     this.resolutionDetail,
     this.resolvedDsldId,
     this.mismatchProduct,
+    this.displayName,
     this.evidenceRevision = 1,
     this.evidenceRequestedRevision,
     this.evidenceRequestReason,
@@ -1461,6 +1482,9 @@ class ProductSubmissionSummary {
   });
 
   final String submissionId;
+
+  /// An owner-entered label, not an attestation of product identity.
+  final String? displayName;
 
   /// The evidence revision the submission currently stands on.
   final int evidenceRevision;
@@ -1588,6 +1612,11 @@ class ProductSubmissionSummary {
       resolutionDetail: row['resolution_detail'] as String?,
       resolvedDsldId: row['resolved_dsld_id'] as String?,
       mismatchProduct: mismatchProduct,
+      displayName:
+          row['display_name'] is String &&
+              (row['display_name']! as String).trim().isNotEmpty
+          ? (row['display_name']! as String).trim()
+          : null,
       evidenceRevision: row['evidence_revision'] is int
           ? row['evidence_revision']! as int
           : 1,

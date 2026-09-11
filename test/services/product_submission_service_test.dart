@@ -9,6 +9,28 @@ const _rejectedSubmissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a10';
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
+  test('display name is trimmed and never changes identity fields', () async {
+    final backend = _FakeBackend(authenticatedUserId: _userId);
+    await ProductSubmissionService(
+      backend: backend,
+    ).setDisplayName(_submissionId, ' Seed · DS-01 ');
+    expect(
+      backend.persistedFunctionName,
+      'set_product_submission_display_name',
+    );
+    expect(backend.persistedPayload, {
+      'p_submission_id': _submissionId,
+      'p_display_name': 'Seed · DS-01',
+    });
+    for (final name in ['', 'x\nname', 'x' * 161]) {
+      await expectLater(
+        ProductSubmissionService(
+          backend: backend,
+        ).setDisplayName(_submissionId, name),
+        throwsFormatException,
+      );
+    }
+  });
   group('owner-scoped intake', () {
     test(
       'sends validated original barcode and parses only known actions',
@@ -564,6 +586,7 @@ class _FakeBackend implements ProductSubmissionBackend {
       anyOf(
         ProductSubmissionService.createFunction,
         ProductSubmissionService.hideFromHistoryFunction,
+        'set_product_submission_display_name',
       ),
     );
     persistedFunctionName = functionName;

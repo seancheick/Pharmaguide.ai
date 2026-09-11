@@ -10,12 +10,12 @@ import { GoogleAuth } from "npm:google-auth-library@9.15.1";
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 
 // Generic-by-design copy: a push may surface on a lock screen, so it never
-// carries product names, statuses, or any payload-derived text. The app
+// carries product names or any payload-derived text. Outcome copy comes
+// only from the allowlisted strings below, never raw review text. The app
 // fetches the verified state itself. Exported as constants so the
 // safety-invariants suite can assert nothing is interpolated into them.
 export const SUBMISSION_UPDATE_TITLE = "PharmaGuide";
-export const SUBMISSION_UPDATE_BODY =
-  "Your product submission has an update.";
+export const SUBMISSION_UPDATE_BODY = "Your product submission has an update.";
 
 export interface FcmAccess {
   token: string;
@@ -76,7 +76,12 @@ export async function sendFcmMessage(
     },
   );
   if (response.ok) {
-    return { delivered: true, invalidToken: false, retryable: false, detail: "" };
+    return {
+      delivered: true,
+      invalidToken: false,
+      retryable: false,
+      detail: "",
+    };
   }
   const body = await response.text();
   const invalidToken =
@@ -95,15 +100,43 @@ export async function sendFcmMessage(
 export function buildSubmissionUpdateMessage({
   token,
   submissionId,
+  status = {},
 }: {
   token: string;
   submissionId: string;
+  status?: Record<string, unknown>;
 }): Record<string, unknown> {
+  let body = SUBMISSION_UPDATE_BODY;
+  if (status.review_status === "approved") {
+    body = typeof status.promoted_catalog_version === "string" &&
+        status.promoted_catalog_version.trim().length > 0
+      ? "Your submitted product is now in PharmaGuide."
+      : "Your product submission was approved.";
+  } else if (status.review_status === "rejected") {
+    body = [
+        "photo_quality",
+        "missing_panel",
+        "label_unreadable",
+        "product_identity_mismatch",
+      ].includes(
+        String(status.resolution_code),
+      )
+      ? "Your submission needs new photos. Tap to see what’s missing."
+      : "We couldn’t accept your submission. Tap for details.";
+  } else if (
+    ["submitted", "under_review"].includes(String(status.review_status)) &&
+    Number.isInteger(status.evidence_revision) &&
+    status.evidence_revision === status.evidence_requested_revision &&
+    Array.isArray(status.evidence_request_panels) &&
+    status.evidence_request_panels.length > 0
+  ) {
+    body = "Your submission needs new photos. Tap to see what’s missing.";
+  }
   return {
     token,
     notification: {
       title: SUBMISSION_UPDATE_TITLE,
-      body: SUBMISSION_UPDATE_BODY,
+      body,
     },
     data: {
       type: "submission_update",

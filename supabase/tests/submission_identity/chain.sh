@@ -35,4 +35,6 @@ submission_migration_chain() {
   printf '%s\n' "$repo_dir/supabase/migrations/20260910193000_harden_submission_verification_search_path.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260911120000_product_contribution_ledger.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260911180000_submission_retake_requests.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20260911192610_submission_display_names.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20260911193721_confirm_submission_display_name_save.sql"
 }

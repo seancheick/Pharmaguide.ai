@@ -60,6 +60,7 @@ fi
 if [[ -f "$repo_dir/supabase/tests/submission_identity/retake.sql" ]]; then
   psql_test -q < "$repo_dir/supabase/tests/submission_identity/retake.sql" >/dev/null
 fi
+psql_test -q < "$repo_dir/supabase/tests/submission_identity/display_names.sql" >/dev/null
 if [[ "${1:-}" != "--no-concurrency" ]]; then
   source "$repo_dir/supabase/tests/submission_identity/concurrency.sh"
 fi

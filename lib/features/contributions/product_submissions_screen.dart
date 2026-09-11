@@ -15,6 +15,7 @@ import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 typedef ResubmitProductSubmission =
     Future<void> Function(ProductSubmissionSummary status);
@@ -918,6 +919,68 @@ class _SubmissionIdentity extends ConsumerWidget {
 
   final ProductSubmissionSummary status;
 
+  Future<void> _rename(BuildContext context, WidgetRef ref) async {
+    var name = status.displayName ?? '';
+    final formKey = GlobalKey<FormState>();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Name this product'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            initialValue: name,
+            maxLength: 160,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Brand and product name',
+              hintText: 'Seed · DS-01 Daily Synbiotic',
+              helperText:
+                  'For your history only. This does not change the review.',
+              helperMaxLines: 3,
+            ),
+            onChanged: (value) => name = value,
+            validator: (value) =>
+                (value ?? '').trim().isEmpty ? 'Enter a product name.' : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, name.trim());
+              }
+            },
+            child: const Text('Save name'),
+          ),
+        ],
+      ),
+    );
+    if (value == null || !context.mounted) return;
+    try {
+      await ref
+          .read(productSubmissionServiceProvider)
+          .setDisplayName(status.submissionId, value);
+      if (context.mounted) ref.invalidate(productSubmissionsProvider);
+    } on Object catch (_, stack) {
+      CrashReportingService().recordError(
+        StateError('Submission name save failed'),
+        stack,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Couldn’t save the name. Please try again.'),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final catalogId = status.resolvedDsldId ?? status.mismatchProduct?.dsldId;
@@ -925,23 +988,41 @@ class _SubmissionIdentity extends ConsumerWidget {
       return _SubmissionIdentityText(
         name: _fallbackSubmissionName(status),
         upc: status.upc,
+        onRename: () => _rename(context, ref),
       );
     }
     return FutureBuilder(
       future: ref.read(coreDatabaseProvider).findById(catalogId),
-      builder: (context, snapshot) => _SubmissionIdentityText(
-        name: snapshot.data?.productName ?? _fallbackSubmissionName(status),
-        upc: status.upc,
-      ),
+      builder: (context, snapshot) {
+        final product = snapshot.data;
+        final brand = product?.brandName?.trim() ?? '';
+        final name = product?.productName.trim() ?? '';
+        return _SubmissionIdentityText(
+          name: name.isEmpty
+              ? _fallbackSubmissionName(status)
+              : brand.isEmpty ||
+                    name.toLowerCase() == brand.toLowerCase() ||
+                    name.toLowerCase().startsWith('${brand.toLowerCase()} ')
+              ? name
+              : '$brand · $name',
+          upc: status.upc,
+          onRename: product == null ? () => _rename(context, ref) : null,
+        );
+      },
     );
   }
 }
 
 class _SubmissionIdentityText extends StatelessWidget {
-  const _SubmissionIdentityText({required this.name, required this.upc});
+  const _SubmissionIdentityText({
+    required this.name,
+    required this.upc,
+    this.onRename,
+  });
 
   final String name;
   final String? upc;
+  final VoidCallback? onRename;
 
   @override
   Widget build(BuildContext context) {
@@ -961,6 +1042,12 @@ class _SubmissionIdentityText extends StatelessWidget {
             style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ],
+        if (onRename != null)
+          TextButton.icon(
+            onPressed: onRename,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Name this product'),
+          ),
       ],
     );
   }
@@ -968,6 +1055,7 @@ class _SubmissionIdentityText extends StatelessWidget {
 
 String _fallbackSubmissionName(ProductSubmissionSummary status) {
   if (status.kind == null) return 'Submission details unavailable';
+  if (status.displayName != null) return status.displayName!;
   if (status.kind == ProductSubmissionKind.labelMismatch) {
     return 'Catalog correction';
   }

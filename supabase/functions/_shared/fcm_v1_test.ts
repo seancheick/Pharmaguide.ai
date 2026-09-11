@@ -7,6 +7,63 @@ import {
   SUBMISSION_UPDATE_TITLE,
 } from "./fcm_v1.ts";
 
+Deno.test("submission outcome copy distinguishes approval from publication", () => {
+  const cases = [
+    [
+      { review_status: "approved", promoted_catalog_version: null },
+      "Your product submission was approved.",
+    ],
+    [
+      { review_status: "approved", promoted_catalog_version: "v1" },
+      "Your submitted product is now in PharmaGuide.",
+    ],
+    [{
+      review_status: "rejected",
+      resolution_code: "product_identity_mismatch",
+    }, "Your submission needs new photos. Tap to see what’s missing."],
+    [
+      { review_status: "rejected", resolution_code: "not_a_supplement" },
+      "We couldn’t accept your submission. Tap for details.",
+    ],
+  ] as const;
+  for (const [status, expected] of cases) {
+    const message = buildSubmissionUpdateMessage({
+      token: "token",
+      submissionId: "id",
+      status,
+    });
+    const notification = message.notification as Record<string, unknown>;
+    if (notification.body !== expected) {
+      throw new Error("incorrect outcome copy");
+    }
+  }
+});
+
+Deno.test("retake copy requires a current request and never leaks product details", () => {
+  for (const requested of [1, 2, null]) {
+    const message = buildSubmissionUpdateMessage({
+      token: "token",
+      submissionId: "id",
+      status: {
+        review_status: "under_review",
+        evidence_revision: 2,
+        evidence_requested_revision: requested,
+        evidence_request_panels: ["barcode"],
+        display_name: "PRIVATE PRODUCT",
+        resolution_detail: "PRIVATE REASON",
+      },
+    });
+    const copy = JSON.stringify(message.notification);
+    if (copy.includes("PRIVATE")) throw new Error("private text leaked");
+    const expected = requested === 2
+      ? "Your submission needs new photos. Tap to see what’s missing."
+      : SUBMISSION_UPDATE_BODY;
+    if ((message.notification as Record<string, unknown>).body !== expected) {
+      throw new Error("stale request copy");
+    }
+  }
+});
+
 Deno.test("missing service account fails closed", async () => {
   let rejected = false;
   try {
@@ -65,9 +122,12 @@ Deno.test("sendFcmMessage classifies UNREGISTERED as invalid token", async () =>
     { token: "x" },
     () =>
       Promise.resolve(
-        new Response('{"error":{"status":"NOT_FOUND","details":"UNREGISTERED"}}', {
-          status: 404,
-        }),
+        new Response(
+          '{"error":{"status":"NOT_FOUND","details":"UNREGISTERED"}}',
+          {
+            status: 404,
+          },
+        ),
       ),
   );
   if (gone.delivered || !gone.invalidToken) {

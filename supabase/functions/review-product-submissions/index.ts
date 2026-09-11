@@ -448,6 +448,21 @@ async function drainSubmissionPushDeliveries(
   const rows = latest;
   if (rows.length === 0) return;
 
+  // Read current state, not an old queued transition. Never interpolate label
+  // names or reviewer prose into lock-screen copy.
+  const { data: currentStates, error: stateError } = await admin
+    .from("product_submissions")
+    .select(
+      "id,review_status,resolution_code,promoted_catalog_version,evidence_revision,evidence_requested_revision,evidence_request_panels",
+    )
+    .in("id", rows.map((row) => row.submission_id));
+  if (stateError) throw stateError;
+  const stateById = new Map(
+    ((currentStates ?? []) as unknown as JsonObject[]).map((
+      state,
+    ) => [state.id, state]),
+  );
+
   let access;
   try {
     access = await fcmAccessToken();
@@ -490,6 +505,7 @@ async function drainSubmissionPushDeliveries(
           buildSubmissionUpdateMessage({
             token: tokenRow.fcm_token,
             submissionId: rowSubmissionId,
+            status: stateById.get(rowSubmissionId),
           }),
         );
         if (outcome.invalidToken) {
