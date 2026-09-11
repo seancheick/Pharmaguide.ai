@@ -43,6 +43,8 @@ final productSubmissionsProvider =
         for (final submission in all)
           if (submission.dismissedAt == null &&
               (submission.uploadReady ||
+                  // A retake in progress is the open submission itself.
+                  submission.retakeUnfinished ||
                   submission.kind == null ||
                   submission.canonicalGtin14 == null ||
                   !openBarcodes.contains((
@@ -111,7 +113,11 @@ final pendingProductSubmissionDraftsProvider =
           .authenticatedUserId;
       if (userId == null || userId.isEmpty) return const [];
       try {
-        return await storage.list(userId);
+        // A retake capture is finished from its own submission's card.
+        return [
+          for (final pending in await storage.list(userId))
+            if (pending.retakeOfRevision == null) pending,
+        ];
       } on Object {
         return const [];
       }

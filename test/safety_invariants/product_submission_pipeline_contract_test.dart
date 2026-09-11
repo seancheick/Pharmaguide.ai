@@ -891,7 +891,9 @@ void main() {
       ]) {
         expect(
           queue,
-          contains('revoke all on function public.$signature from public, anon, service_role'),
+          contains(
+            'revoke all on function public.$signature from public, anon, service_role',
+          ),
         );
       }
       expect(queue, contains('extraction worker access required'));
@@ -906,7 +908,9 @@ void main() {
       );
       expect(
         queue,
-        contains('public.record_product_submission_extraction_internal( job.submission_id'),
+        contains(
+          'public.record_product_submission_extraction_internal( job.submission_id',
+        ),
       );
     });
 
@@ -921,7 +925,10 @@ void main() {
     });
 
     test('spend is integer micro-cents', () {
-      expect(queue, contains('microcents bigint not null check (microcents >= 0)'));
+      expect(
+        queue,
+        contains('microcents bigint not null check (microcents >= 0)'),
+      );
       expect(queue, isNot(contains('numeric(')));
     });
   });
@@ -1091,10 +1098,15 @@ void main() {
       );
       expect(
         retake,
-        contains('grant execute on function public.$signature to authenticated'),
+        contains(
+          'grant execute on function public.$signature to authenticated',
+        ),
       );
       expect(retake, contains("raise exception 'reviewer access required'"));
-      expect(retake, contains("raise exception 'evidence request panels required'"));
+      expect(
+        retake,
+        contains("raise exception 'evidence request panels required'"),
+      );
       expect(
         retake,
         contains(

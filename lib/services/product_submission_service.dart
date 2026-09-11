@@ -34,6 +34,7 @@ enum ProductSubmissionEvidenceCategory {
   supplementFacts('supplement_facts'),
   ingredientDisclosure('ingredient_disclosure'),
   directionsWarnings('directions_warnings'),
+
   /// A barcode photo or a clear photo/screenshot of the printed UPC/GTIN.
   /// Review still verifies the identity before approval.
   barcode('barcode'),
@@ -488,7 +489,9 @@ class ProductSubmissionRetake {
     required String submissionId,
     required String upc,
     required int fromRevision,
-    required List<({String photoId, Set<ProductSubmissionEvidenceCategory> categories})>
+    required List<
+      ({String photoId, Set<ProductSubmissionEvidenceCategory> categories})
+    >
     membership,
     required Set<ProductSubmissionEvidenceCategory> requestedPanels,
     Set<String> earlierPhotoDigests = const {},
@@ -499,7 +502,9 @@ class ProductSubmissionRetake {
     }
     // The server requires room for at least one new photo.
     final kept = membership
-        .where((photo) => photo.categories.intersection(requestedPanels).isEmpty)
+        .where(
+          (photo) => photo.categories.intersection(requestedPanels).isEmpty,
+        )
         .take(ProductSubmissionPhoto.maxPerSubmission - 1)
         .toList(growable: false);
     return ProductSubmissionRetake._(
@@ -533,7 +538,9 @@ class ProductSubmissionRetake {
         ProductSubmissionValidationFailure.tooManyPhotos,
       );
     }
-    if (photos.any((photo) => earlierPhotoDigests.contains(photo.contentSha256))) {
+    if (photos.any(
+      (photo) => earlierPhotoDigests.contains(photo.contentSha256),
+    )) {
       throw const ProductSubmissionValidationException(
         ProductSubmissionValidationFailure.duplicatePhotoContent,
       );
@@ -600,7 +607,9 @@ String _normalizeUpc(String value) {
 }
 
 /// Capture order is evidence order: seq is the list position, 1..N.
-List<Map<String, Object?>> _photoManifest(List<ProductSubmissionPhoto> photos) => [
+List<Map<String, Object?>> _photoManifest(
+  List<ProductSubmissionPhoto> photos,
+) => [
   for (var index = 0; index < photos.length; index++)
     <String, Object?>{
       'photo_id': photos[index].photoId,
@@ -641,13 +650,28 @@ String _newUuidV4() {
   );
 }
 
-/// One retake request key per (submission, replaced revision), so a retry
-/// after a lost response replays the same revision instead of conflicting.
-String _retakeRequestKey(String submissionId, int fromRevision) =>
-    _uuidFromBytes(
-      sha256.convert('retake:$submissionId:$fromRevision'.codeUnits).bytes,
-      version: 5,
-    );
+/// One retake request key per (submission, replaced revision, new photos).
+/// Resending the same capture after a lost response replays its revision;
+/// a fresh set of photos (say, after cleanup abandoned an unfinished
+/// retake and put the request back) opens a new one instead of replaying
+/// the abandoned revision forever.
+String _retakeRequestKey(
+  String submissionId,
+  int fromRevision,
+  List<ProductSubmissionPhoto> photos,
+) => _uuidFromBytes(
+  sha256
+      .convert(
+        [
+          'retake',
+          submissionId,
+          '$fromRevision',
+          for (final photo in photos) photo.photoId,
+        ].join(':').codeUnits,
+      )
+      .bytes,
+  version: 5,
+);
 
 String _uuidFromBytes(List<int> source, {required int version}) {
   final bytes = List<int>.of(source.take(16));
@@ -741,7 +765,8 @@ abstract interface class ProductSubmissionBackend {
   });
 
   /// The caller's own evidence for one submission: `revisions` (revision,
-  /// photo_ids) and `photos` (photo_id, categories, content_sha256).
+  /// photo_ids) and `photos` (photo_id, categories, content_sha256,
+  /// revision).
   Future<Map<String, Object?>> fetchOwnEvidence({required String submissionId});
 
   /// Opens (or replays) an evidence revision; returns its number.
@@ -957,7 +982,16 @@ class ProductSubmissionService {
     ProductSubmissionSummary status,
   ) async {
     final upc = status.upc;
-    if (!status.needsNewPhotos || upc == null) {
+    // An unfinished retake replays from the revision the request named, so
+    // it keeps the same photos and reuses the same request key.
+    final fromRevision = status.needsNewPhotos
+        ? status.evidenceRevision
+        : status.retakeUnfinished
+        ? status.evidenceRequestedRevision
+        : null;
+    if (fromRevision == null ||
+        upc == null ||
+        status.evidenceRequestPanels.isEmpty) {
       throw StateError('No new photos were requested.');
     }
     final evidence = await backend.fetchOwnEvidence(
@@ -967,9 +1001,7 @@ class ProductSubmissionService {
         .cast<Map<String, Object?>>();
     final photos = (evidence['photos'] as List? ?? const [])
         .cast<Map<String, Object?>>();
-    final current = revisions.where(
-      (row) => row['revision'] == status.evidenceRevision,
-    );
+    final current = revisions.where((row) => row['revision'] == fromRevision);
     if (current.length != 1) {
       throw StateError('Current evidence revision unavailable.');
     }
@@ -979,7 +1011,7 @@ class ProductSubmissionService {
     return ProductSubmissionRetake.plan(
       submissionId: status.submissionId,
       upc: upc,
-      fromRevision: status.evidenceRevision,
+      fromRevision: fromRevision,
       reason: status.evidenceRequestReason,
       requestedPanels: status.evidenceRequestPanels,
       membership: [
@@ -992,9 +1024,15 @@ class ProductSubmissionService {
                 .toSet(),
           ),
       ],
+      // Photos already recorded in the open revision are this retake's own,
+      // resent as they are; everything else (abandoned retakes included)
+      // the server refuses to accept twice.
       earlierPhotoDigests: {
         for (final row in photos)
-          if (row['content_sha256'] is String) row['content_sha256'] as String,
+          if (row['content_sha256'] is String &&
+              !(status.retakeUnfinished &&
+                  row['revision'] == status.evidenceRevision))
+            row['content_sha256'] as String,
       },
     );
   }
@@ -1038,6 +1076,7 @@ class ProductSubmissionService {
           'p_request_key': _retakeRequestKey(
             retake.submissionId,
             retake.fromRevision,
+            photos,
           ),
           'p_keep_photo_ids': retake.keptPhotoIds,
           'p_consent_version': productSubmissionConsentVersion,
@@ -1219,10 +1258,12 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
         .eq('submission_id', submissionId);
     final photos = await _client
         .from('product_submission_photos')
-        .select('photo_id,categories,content_sha256')
+        .select('photo_id,categories,content_sha256,revision')
         .eq('submission_id', submissionId);
     return {
-      'revisions': [for (final row in revisions) Map<String, Object?>.from(row)],
+      'revisions': [
+        for (final row in revisions) Map<String, Object?>.from(row),
+      ],
       'photos': [for (final row in photos) Map<String, Object?>.from(row)],
     };
   }
@@ -1554,10 +1595,11 @@ class ProductSubmissionSummary {
       evidenceRequestReason: ProductSubmissionResolutionCode.fromWire(
         row['evidence_request_reason'],
       ),
-      evidenceRequestPanels: (row['evidence_request_panels'] as List? ?? const [])
-          .map(ProductSubmissionEvidenceCategory.fromWire)
-          .whereType<ProductSubmissionEvidenceCategory>()
-          .toSet(),
+      evidenceRequestPanels:
+          (row['evidence_request_panels'] as List? ?? const [])
+              .map(ProductSubmissionEvidenceCategory.fromWire)
+              .whereType<ProductSubmissionEvidenceCategory>()
+              .toSet(),
     );
   }
 }

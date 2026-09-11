@@ -45,6 +45,7 @@ Widget _harness({
   String Function()? submissionIdFactory,
   ReadSubmissionPhotoText? readPhotoText,
   PickMissingProductPhotos? pickPhotosFromLibrary,
+  ProductSubmissionRetake? retake,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -54,6 +55,7 @@ Widget _harness({
         submissionIdFactory: submissionIdFactory ?? () => _submissionId,
         qualityGate: qualityGate ?? (_) async => _okQuality,
         resubmissionOf: resubmissionOf,
+        retake: retake,
         draftStore: draftStore,
         pickPhoto: pickPhoto ?? (tags) async => _photo(tags),
         pickPhotoFromLibrary: pickPhotoFromLibrary,
@@ -1696,6 +1698,176 @@ void main() {
     // Not the optional extras or a review the user cannot submit.
     expect(find.text('Supplement Facts'), findsOneWidget);
   });
+
+  group('requested retake', () {
+    const front = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb01';
+    const facts = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb02';
+    const ingredients = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb03';
+    const barcode = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb04';
+
+    ProductSubmissionRetake factsRetake({Set<String> digests = const {}}) =>
+        ProductSubmissionRetake.plan(
+          submissionId: _submissionId,
+          upc: _upc,
+          fromRevision: 1,
+          reason: ProductSubmissionResolutionCode.photoQuality,
+          requestedPanels: {ProductSubmissionEvidenceCategory.supplementFacts},
+          earlierPhotoDigests: digests,
+          membership: [
+            (
+              photoId: front,
+              categories: {ProductSubmissionEvidenceCategory.frontIdentity},
+            ),
+            (
+              photoId: facts,
+              categories: {ProductSubmissionEvidenceCategory.supplementFacts},
+            ),
+            (
+              photoId: ingredients,
+              categories: {
+                ProductSubmissionEvidenceCategory.ingredientDisclosure,
+              },
+            ),
+            (
+              photoId: barcode,
+              categories: {ProductSubmissionEvidenceCategory.barcode},
+            ),
+          ],
+        );
+
+    Future<void> submitFromReview(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('missing-product-submit')),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const Key('missing-product-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('asks only for the requested panel and keeps the rest', (
+      tester,
+    ) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(backend: backend, retake: factsRetake()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('New photos needed'), findsOneWidget);
+      expect(
+        find.textContaining('new photo of the Supplement Facts panel'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Your other photos are kept'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+      // Straight to the one panel asked for; the kept front counts as taken.
+      expect(find.text('Supplement Facts'), findsOneWidget);
+      expect(backend.intakeCalls, 0, reason: 'the submission already exists');
+
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-supplement_facts')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-next')));
+      await tester.pumpAndSettle();
+      // The ingredient list is kept, so there is nothing to ask about it,
+      // and the kept barcode is not asked for again.
+      expect(
+        find.byKey(const Key('missing-product-facts-combined')),
+        findsNothing,
+      );
+      expect(find.text('Anything else?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('missing-product-next')));
+      await tester.pumpAndSettle();
+      expect(find.text('Review & submit'), findsOneWidget);
+
+      await submitFromReview(tester);
+
+      expect(find.text('Thanks — it’s in review'), findsOneWidget);
+      expect(backend.openPayloads.single['p_submission_id'], _submissionId);
+      expect(backend.openPayloads.single['p_keep_photo_ids'], [
+        front,
+        ingredients,
+        barcode,
+      ]);
+      expect(backend.persistedKind, isNull, reason: 'no second submission');
+      expect(backend.manifest.single['categories'], ['supplement_facts']);
+    });
+
+    testWidgets('refuses a photo the reviewer already has', (tester) async {
+      final repeat = _photo({
+        ProductSubmissionEvidenceCategory.supplementFacts,
+      });
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          retake: factsRetake(digests: {repeat.contentSha256}),
+          pickPhoto: (_) async => repeat,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-supplement_facts')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('That exact photo is already in this submission.'),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Remove photo'), findsNothing);
+    });
+
+    testWidgets('an unfinished retake resumes under its own submission', (
+      tester,
+    ) async {
+      final store = _MemoryDraftStorage();
+      await store.save(
+        userId: _userId,
+        submissionId: _submissionId,
+        upc: _upc,
+        photos: [
+          _photo({ProductSubmissionEvidenceCategory.supplementFacts}),
+        ],
+        consentVersion: productSubmissionConsentVersion,
+        evidenceRevision: 2,
+      );
+      final backend = _Backend(authenticatedUserId: _userId);
+
+      // A new capture of the same barcode never adopts it.
+      await tester.pumpWidget(_harness(backend: backend, draftStore: store));
+      await tester.pumpAndSettle();
+      expect(find.text('Finish your photos?'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        _harness(backend: backend, draftStore: store, retake: factsRetake()),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Finish your photos?'), findsOneWidget);
+      await tester.tap(find.text('Finish sending'));
+      await tester.pumpAndSettle();
+      expect(find.text('Review & submit'), findsOneWidget);
+
+      await submitFromReview(tester);
+
+      expect(find.text('Thanks — it’s in review'), findsOneWidget);
+      expect(store.captures, isEmpty, reason: 'the receipt retires the draft');
+    });
+  });
 }
 
 /// The storage contract without a file system, so widget pumps settle.
@@ -1728,6 +1900,7 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
       resubmissionOf: resubmissionOf,
       noSeparateIngredientPanel: noSeparateIngredientPanel,
       photos: List.unmodifiable(photos),
+      evidenceRevision: evidenceRevision,
     );
     records[submissionId] = PendingProductSubmission(
       submissionId: submissionId,
@@ -1752,6 +1925,7 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
     // Same identity owner the real store uses, so the fake cannot drift.
     final wanted = GtinIdentity.parse(upc).canonicalGtin14;
     for (final record in await list(userId)) {
+      if (record.retakeOfRevision != null) continue;
       if (GtinIdentity.parse(record.upc).canonicalGtin14 == wanted) {
         return record;
       }
@@ -1841,12 +2015,19 @@ class _Backend implements ProductSubmissionBackend {
   }
 
   @override
-  Future<Map<String, Object?>> fetchOwnEvidence({required String submissionId}) =>
-      throw UnimplementedError();
+  Future<Map<String, Object?>> fetchOwnEvidence({
+    required String submissionId,
+  }) => throw UnimplementedError();
+
+  final List<Map<String, Object?>> openPayloads = [];
 
   @override
-  Future<int> openEvidenceRevision({required Map<String, Object?> payload}) =>
-      throw UnimplementedError();
+  Future<int> openEvidenceRevision({
+    required Map<String, Object?> payload,
+  }) async {
+    openPayloads.add(payload);
+    return (payload['p_expected_revision']! as int) + 1;
+  }
 
   @override
   Future<bool> finalizeSubmission({
@@ -1857,6 +2038,8 @@ class _Backend implements ProductSubmissionBackend {
     final expected = manifest.map(
       (photo) => '$_userId/$submissionId/${photo['photo_id'] as String}',
     );
+    // A retake revision has nothing new until its photos are recorded.
+    if (expectedRevision != null && manifest.isEmpty) return false;
     return expected.every(uploaded.contains);
   }
 

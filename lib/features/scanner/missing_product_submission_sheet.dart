@@ -51,6 +51,7 @@ Future<bool> showMissingProductSubmissionSheet(
   EvaluatePhotoQuality? qualityGate,
   String Function()? submissionIdFactory,
   String? resubmissionOf,
+  ProductSubmissionRetake? retake,
   ReadSubmissionPhotoText? readPhotoText,
   PickMissingProductPhotos? pickPhotosFromLibrary,
 }) async {
@@ -72,6 +73,7 @@ Future<bool> showMissingProductSubmissionSheet(
       service: service ?? ProductSubmissionService.production(),
       submissionIdFactory: submissionIdFactory,
       resubmissionOf: resubmissionOf,
+      retake: retake,
       onViewContributions: () {
         Navigator.of(sheetContext).pop(false);
         context.push(Routes.productSubmissions);
@@ -126,6 +128,7 @@ class MissingProductSubmissionSheet extends StatefulWidget {
     this.pickPhotoFromLibrary,
     this.submissionIdFactory,
     this.resubmissionOf,
+    this.retake,
     this.onViewContributions,
     this.draftStore,
     this.readPhotoText,
@@ -140,6 +143,11 @@ class MissingProductSubmissionSheet extends StatefulWidget {
   final EvaluatePhotoQuality qualityGate;
   final String Function()? submissionIdFactory;
   final String? resubmissionOf;
+
+  /// A reviewer asked for new photos of this existing submission. The same
+  /// capture runs, but the photos being kept already count as taken, so it
+  /// only asks for the panels that are missing.
+  final ProductSubmissionRetake? retake;
   final VoidCallback? onViewContributions;
 
   /// Where an unfinished capture is kept so a crash, the OS reclaiming the app
@@ -189,6 +197,9 @@ class _MissingProductSubmissionSheetState
   void initState() {
     super.initState();
     _chosenResubmissionOf = widget.resubmissionOf;
+    // A retake's submission already exists; there is no earlier attempt to
+    // look up.
+    _intakeCheckBypassed = widget.retake != null;
     // Opening app-private storage crosses a platform channel. Resolve it off
     // the capture path and offer recovery when it lands, so no step transition
     // ever waits on the file system.
@@ -216,7 +227,37 @@ class _MissingProductSubmissionSheetState
   /// that capture's id instead: submitting under a fresh one would open a
   /// second contribution for photos the server may already have seen.
   late String _draftSubmissionId =
-      widget.submissionIdFactory?.call() ?? newProductSubmissionId();
+      widget.retake?.submissionId ??
+      widget.submissionIdFactory?.call() ??
+      newProductSubmissionId();
+
+  /// Photos a retake keeps occupy slots of the eight-photo limit.
+  int get _photoCapacity =>
+      widget.retake?.newPhotoCapacity ??
+      ProductSubmissionPhoto.maxPerSubmission;
+
+  /// Same bytes as a photo already sent (a retake's earlier photos too).
+  bool _alreadySent(ProductSubmissionPhoto photo) =>
+      _photos.any((p) => p.contentSha256 == photo.contentSha256) ||
+      (widget.retake?.earlierPhotoDigests.contains(photo.contentSha256) ??
+          false);
+
+  /// Taken now, or kept from the photos a reviewer already has.
+  bool _covered(ProductSubmissionEvidenceCategory category) =>
+      _photosTagged(category).isNotEmpty ||
+      (widget.retake?.keptCategories.contains(category) ?? false);
+
+  /// Whether the ingredient list shares the facts panel only decides what to
+  /// photograph when neither of the two is already kept.
+  bool get _factsPanelLocationSettled =>
+      _factsPanelLocationConfirmed ||
+      (widget.retake?.keptCategories.any(
+            (category) =>
+                category == ProductSubmissionEvidenceCategory.supplementFacts ||
+                category ==
+                    ProductSubmissionEvidenceCategory.ingredientDisclosure,
+          ) ??
+          false);
 
   List<_CaptureStep> get _visibleSteps => [
     _CaptureStep.intro,
@@ -259,18 +300,16 @@ class _MissingProductSubmissionSheetState
       };
 
   bool _satisfies(_CaptureStep step) => switch (step) {
-    _CaptureStep.front => _photosTagged(
+    _CaptureStep.front => _covered(
       ProductSubmissionEvidenceCategory.frontIdentity,
-    ).isNotEmpty,
-    _CaptureStep.facts => _photosTagged(
+    ),
+    _CaptureStep.facts => _covered(
       ProductSubmissionEvidenceCategory.supplementFacts,
-    ).isNotEmpty,
-    _CaptureStep.ingredients => _photosTagged(
+    ),
+    _CaptureStep.ingredients => _covered(
       ProductSubmissionEvidenceCategory.ingredientDisclosure,
-    ).isNotEmpty,
-    _CaptureStep.barcode => _photosTagged(
-      ProductSubmissionEvidenceCategory.barcode,
-    ).isNotEmpty,
+    ),
+    _CaptureStep.barcode => _covered(ProductSubmissionEvidenceCategory.barcode),
     _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => true,
   };
 
@@ -284,7 +323,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.front ||
     _CaptureStep.ingredients ||
     _CaptureStep.barcode => _satisfies(step),
-    _CaptureStep.facts => _satisfies(step) && _factsPanelLocationConfirmed,
+    _CaptureStep.facts => _satisfies(step) && _factsPanelLocationSettled,
     _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => false,
   };
 
@@ -300,14 +339,9 @@ class _MissingProductSubmissionSheetState
 
   bool get _canSubmit => _consent && !_submitting && _coverageComplete;
 
-  bool get _coverageComplete {
-    final covered = <ProductSubmissionEvidenceCategory>{
-      for (final photo in _photos) ...photo.categories,
-    };
-    return covered.containsAll(
-      MissingProductSubmissionDraft.requiredCategories,
-    );
-  }
+  bool get _coverageComplete =>
+      _photos.isNotEmpty &&
+      MissingProductSubmissionDraft.requiredCategories.every(_covered);
 
   /// Camera-first capture. Simple required steps advance after a passing
   /// shot. Facts deliberately stays open so a wrapped panel can receive
@@ -318,7 +352,7 @@ class _MissingProductSubmissionSheetState
     bool autoAdvance = false,
   }) async {
     if (_submitting || _adding) return;
-    if (_photos.length >= ProductSubmissionPhoto.maxPerSubmission) {
+    if (_photos.length >= _photoCapacity) {
       setState(
         () => _stepError =
             'Up to ${ProductSubmissionPhoto.maxPerSubmission} photos per '
@@ -338,7 +372,7 @@ class _MissingProductSubmissionSheetState
     try {
       final photo = await pick(categories);
       if (!mounted || photo == null) return;
-      if (_photos.any((p) => p.contentSha256 == photo.contentSha256)) {
+      if (_alreadySent(photo)) {
         setState(
           () => _stepError = 'That exact photo is already in this submission.',
         );
@@ -521,7 +555,7 @@ class _MissingProductSubmissionSheetState
   /// lets the user confirm which panel each shows. True when photos were
   /// added; capture then lands on the first panel still missing.
   Future<bool> _addSeveralFromLibrary() async {
-    final room = ProductSubmissionPhoto.maxPerSubmission - _photos.length;
+    final room = _photoCapacity - _photos.length;
     if (room <= 0 || _adding) return false;
     setState(() {
       _adding = true;
@@ -535,7 +569,10 @@ class _MissingProductSubmissionSheetState
       // and what it dropped is counted, not silently lost.
       final overflow = picked.photos.length - room;
       var skipped = picked.unreadable + (overflow > 0 ? overflow : 0);
-      final seen = {for (final photo in _photos) photo.contentSha256};
+      final seen = {
+        for (final photo in _photos) photo.contentSha256,
+        ...?widget.retake?.earlierPhotoDigests,
+      };
       final usable = <({ProductSubmissionPhoto photo, bool blurry})>[];
       for (final photo in picked.photos.take(room)) {
         if (!seen.add(photo.contentSha256)) {
@@ -903,7 +940,7 @@ class _MissingProductSubmissionSheetState
         !tagged.categories.contains(
           ProductSubmissionEvidenceCategory.barcode,
         ) &&
-        _photosTagged(ProductSubmissionEvidenceCategory.barcode).isEmpty) {
+        !_covered(ProductSubmissionEvidenceCategory.barcode)) {
       tagged = tagged.withCategories({
         ...tagged.categories,
         ProductSubmissionEvidenceCategory.barcode,
@@ -1051,7 +1088,7 @@ class _MissingProductSubmissionSheetState
       return;
     }
 
-    if (_step == _CaptureStep.facts && !_factsPanelLocationConfirmed) {
+    if (_step == _CaptureStep.facts && !_factsPanelLocationSettled) {
       final combined = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -1234,6 +1271,20 @@ class _MissingProductSubmissionSheetState
       _failure = null;
     });
 
+    final retake = widget.retake;
+    if (retake != null) {
+      await _persistCapture();
+      final result = await widget.service.submitRetake(
+        retake,
+        List.unmodifiable(_photos),
+        onPhaseChanged: (phase) {
+          if (mounted) setState(() => _phase = phase);
+        },
+      );
+      await _finishSubmit(result);
+      return;
+    }
+
     late final MissingProductSubmissionDraft draft;
     try {
       draft =
@@ -1274,9 +1325,13 @@ class _MissingProductSubmissionSheetState
         if (mounted) setState(() => _phase = phase);
       },
     );
+    await _finishSubmit(result);
+  }
+
+  Future<void> _finishSubmit(ProductSubmissionResult result) async {
     // The server's receipt is the only thing that retires a local draft.
     if (result is ProductSubmissionSuccess) {
-      await _discardDraft(draft.submissionId);
+      await _discardDraft(result.submissionId);
     }
     if (!mounted) return;
     setState(() {
@@ -1319,6 +1374,7 @@ class _MissingProductSubmissionSheetState
         consentVersion: productSubmissionConsentVersion,
         resubmissionOf: _chosenResubmissionOf,
         noSeparateIngredientPanel: _factsCarriesIngredients,
+        evidenceRevision: (widget.retake?.fromRevision ?? 0) + 1,
       );
     } on Object {
       // Best effort by design: never fail capture over local bookkeeping.
@@ -1344,28 +1400,50 @@ class _MissingProductSubmissionSheetState
     final userId = widget.service.backend.authenticatedUserId;
     if (store == null || !mounted || userId == null || userId.isEmpty) return;
     if (_step != _CaptureStep.intro || _photos.isNotEmpty) return;
-    final PendingProductSubmission? pending;
-    try {
-      pending = await store.findByUpc(userId, widget.upc);
-    } on Object {
-      return;
+    final String savedId;
+    final int photoCount;
+    final retake = widget.retake;
+    if (retake != null) {
+      // A retake's capture is saved under its own submission, never found by
+      // barcode, and only counts for the request it answered.
+      final RestoredCapture? saved;
+      try {
+        saved = await store.restore(userId, retake.submissionId);
+      } on Object {
+        return;
+      }
+      if (saved == null || !mounted) return;
+      if (saved.retakeOfRevision != retake.fromRevision) {
+        await store.discard(userId, retake.submissionId);
+        return;
+      }
+      savedId = retake.submissionId;
+      photoCount = saved.photos.length;
+    } else {
+      final PendingProductSubmission? pending;
+      try {
+        pending = await store.findByUpc(userId, widget.upc);
+      } on Object {
+        return;
+      }
+      if (pending == null || !mounted) return;
+      // A saved capture belonging to a different attempt for this same
+      // barcode is not this one's evidence. Sending it would carry the wrong
+      // lineage (or none), and the server's open-submission guard would
+      // reject it. Leave it alone; Contributions still lists it under its own
+      // attempt.
+      if (pending.resubmissionOf != _chosenResubmissionOf) return;
+      savedId = pending.submissionId;
+      photoCount = pending.photoCount;
     }
-    if (pending == null || !mounted) return;
-    // A local the closure can read without a null check.
-    final recovered = pending;
-    // A saved capture belonging to a different attempt for this same barcode
-    // is not this one's evidence. Sending it would carry the wrong lineage
-    // (or none), and the server's open-submission guard would reject it. Leave
-    // it alone; Contributions still lists it under its own attempt.
-    if (recovered.resubmissionOf != _chosenResubmissionOf) return;
     final resume = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         scrollable: true,
         title: const Text('Finish your photos?'),
         content: Text(
-          'You already took ${recovered.photoCount} '
-          '${recovered.photoCount == 1 ? 'photo' : 'photos'} of this product '
+          'You already took $photoCount '
+          '${photoCount == 1 ? 'photo' : 'photos'} of this product '
           'and they were never sent. You can pick up where you left off.',
         ),
         actions: [
@@ -1382,15 +1460,15 @@ class _MissingProductSubmissionSheetState
     );
     if (!mounted) return;
     if (resume != true) {
-      await store.discard(userId, recovered.submissionId);
+      await store.discard(userId, savedId);
       return;
     }
-    final restored = await store.restore(userId, recovered.submissionId);
+    final restored = await store.restore(userId, savedId);
     if (!mounted) return;
     if (restored == null) {
       // The kept bytes no longer match their manifest, so they are not the
       // user's evidence any more. Say so plainly rather than sending them.
-      await store.discard(userId, recovered.submissionId);
+      await store.discard(userId, savedId);
       setState(
         () => _stepError =
             'Those saved photos could not be reopened. Please take them again.',
@@ -1594,7 +1672,7 @@ class _MissingProductSubmissionSheetState
       ProductSubmissionEvidenceCategory category,
       _CaptureStep step,
     ) {
-      final covered = _photosTagged(category).isNotEmpty;
+      final covered = _covered(category);
       final onTap = _submitting || _adding ? null : () => _jumpTo(step);
       return Semantics(
         button: true,
@@ -1695,31 +1773,48 @@ class _MissingProductSubmissionSheetState
       ),
     );
 
+    final retake = widget.retake;
     return [
-      Text(
-        'A few clear photos add this product for everyone. We’ll guide you '
-        'through each label panel.',
-        style: V2Typography.bodySm(color: context.v2.fgMuted),
-      ),
-      const SizedBox(height: V2Spacing.space12),
-      Wrap(
-        spacing: V2Spacing.space8,
-        runSpacing: V2Spacing.space8,
-        children: [
-          chip('Front label', required: true),
-          chip('Supplement Facts', required: true),
-          chip('Other Ingredients', required: true),
-          chip('Barcode', required: true),
-          chip('Warnings', required: false),
-          chip('Lot & expiry', required: false),
+      if (retake != null) ...[
+        Text(
+          productSubmissionRetakeRequest(retake.reason, retake.requestedPanels),
+          key: const Key('missing-product-retake-request'),
+          style: V2Typography.bodySm(color: context.v2.fg),
+        ),
+        if (retake.keptPhotoIds.isNotEmpty) ...[
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'Your other photos are kept, so you only need to take what’s '
+            'missing.',
+            style: V2Typography.caption(color: context.v2.fgSubtle),
+          ),
         ],
-      ),
-      const SizedBox(height: V2Spacing.space16),
-      Text(
-        'You can take each label photo now or choose photos already saved on '
-        'your phone. They go privately to a human reviewer.',
-        style: V2Typography.caption(color: context.v2.fgSubtle),
-      ),
+      ] else ...[
+        Text(
+          'A few clear photos add this product for everyone. We’ll guide you '
+          'through each label panel.',
+          style: V2Typography.bodySm(color: context.v2.fgMuted),
+        ),
+        const SizedBox(height: V2Spacing.space12),
+        Wrap(
+          spacing: V2Spacing.space8,
+          runSpacing: V2Spacing.space8,
+          children: [
+            chip('Front label', required: true),
+            chip('Supplement Facts', required: true),
+            chip('Other Ingredients', required: true),
+            chip('Barcode', required: true),
+            chip('Warnings', required: false),
+            chip('Lot & expiry', required: false),
+          ],
+        ),
+        const SizedBox(height: V2Spacing.space16),
+        Text(
+          'You can take each label photo now or choose photos already saved on '
+          'your phone. They go privately to a human reviewer.',
+          style: V2Typography.caption(color: context.v2.fgSubtle),
+        ),
+      ],
       const SizedBox(height: V2Spacing.space16),
       SizedBox(
         height: 48,
@@ -2013,7 +2108,8 @@ class _MissingProductSubmissionSheetState
   }
 
   String _stepTitle(_CaptureStep step) => switch (step) {
-    _CaptureStep.intro => 'Add this product',
+    _CaptureStep.intro =>
+      widget.retake == null ? 'Add this product' : 'New photos needed',
     _CaptureStep.front => 'Front of the package',
     _CaptureStep.facts => 'Supplement Facts',
     _CaptureStep.ingredients => 'Other Ingredients',

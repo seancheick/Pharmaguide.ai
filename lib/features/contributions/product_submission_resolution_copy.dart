@@ -29,3 +29,46 @@ String? productSubmissionResolutionGuidance(
   ProductSubmissionResolutionCode.other => detail,
   null => null,
 };
+
+/// What a reviewer's request for new photos asks of the user, in the words
+/// the status card and the capture sheet both show.
+String productSubmissionRetakeRequest(
+  ProductSubmissionResolutionCode? reason,
+  Set<ProductSubmissionEvidenceCategory> panels,
+) {
+  // Label order (front, facts, ingredients, …) whatever order they arrive in.
+  final names = [
+    for (final category
+        in panels.toList()..sort((a, b) => a.index.compareTo(b.index)))
+      _panelName(category),
+  ];
+  final list = names.length < 2
+      ? names.join()
+      : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
+  final why = switch (reason) {
+    ProductSubmissionResolutionCode.photoQuality =>
+      ' The last one was too blurry or dark to read — more light and a '
+          'steady hand usually fix it.',
+    ProductSubmissionResolutionCode.labelUnreadable =>
+      ' The last one wasn’t readable enough to check. Hold the label flat '
+          'and in focus.',
+    ProductSubmissionResolutionCode.missingPanel =>
+      ' It wasn’t in the photos you sent.',
+    _ => '',
+  };
+  final photos = names.length < 2 ? 'a new photo' : 'new photos';
+  return 'A reviewer needs $photos of the $list.$why';
+}
+
+String _panelName(
+  ProductSubmissionEvidenceCategory category,
+) => switch (category) {
+  ProductSubmissionEvidenceCategory.frontIdentity => 'front of the package',
+  ProductSubmissionEvidenceCategory.supplementFacts => 'Supplement Facts panel',
+  ProductSubmissionEvidenceCategory.ingredientDisclosure =>
+    'Other Ingredients list',
+  ProductSubmissionEvidenceCategory.barcode => 'barcode',
+  ProductSubmissionEvidenceCategory.directionsWarnings =>
+    'directions and warnings',
+  ProductSubmissionEvidenceCategory.lotExpiry => 'lot number and expiry date',
+};

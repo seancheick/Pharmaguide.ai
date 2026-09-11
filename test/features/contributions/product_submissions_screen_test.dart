@@ -17,6 +17,7 @@ Widget _harness(
   CoreDatabase? db,
   Future<void> Function(ProductSubmissionSummary status)? onResubmit,
   Future<void> Function(ProductSubmissionSummary status)? onHide,
+  Future<void> Function(ProductSubmissionSummary status)? onRetake,
   List<PendingProductSubmission> pendingDrafts = const [],
   Future<int> Function()? points,
 }) {
@@ -37,7 +38,11 @@ Widget _harness(
       ),
     ],
     child: MaterialApp(
-      home: ProductSubmissionsScreen(onResubmit: onResubmit, onHide: onHide),
+      home: ProductSubmissionsScreen(
+        onResubmit: onResubmit,
+        onHide: onHide,
+        onRetake: onRetake,
+      ),
     ),
   );
 }
@@ -248,6 +253,64 @@ void main() {
 
     expect(retried?.submissionId, '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11');
     expect(retried?.upc, '050428381397');
+  });
+
+  testWidgets('a reviewer request asks for named panels on the same card', (
+    tester,
+  ) async {
+    const asked = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11';
+    const answered = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a12';
+    const unfinished = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a13';
+    ProductSubmissionSummary? retaken;
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(id: asked, reviewStatus: 'under_review'),
+          'evidence_revision': 1,
+          'evidence_requested_revision': 1,
+          'evidence_request_reason': 'label_unreadable',
+          'evidence_request_panels': ['supplement_facts', 'barcode'],
+        },
+        {
+          ..._row(id: answered, reviewStatus: 'under_review'),
+          'evidence_revision': 2,
+          'evidence_requested_revision': 1,
+          'evidence_request_panels': ['barcode'],
+        },
+        // Same barcode as the open cards above: an unfinished retake is that
+        // submission, never an abandoned duplicate shell to hide.
+        {
+          ..._row(id: unfinished, reviewStatus: 'under_review'),
+          'upload_state': 'pending',
+          'evidence_revision': 2,
+          'evidence_requested_revision': 1,
+          'evidence_request_panels': ['barcode'],
+        },
+      ], onRetake: (status) async => retaken = status),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('New photos needed'), findsOneWidget);
+    expect(
+      find.textContaining('Supplement Facts panel and barcode'),
+      findsOneWidget,
+    );
+    expect(find.text('Retake photos'), findsOneWidget);
+    // Not the rejection path: the review and the submission stay.
+    expect(find.text('Try again with new photos'), findsNothing);
+    await tester.tap(find.byKey(const Key('submission-retake-$asked')));
+    await tester.pump();
+    expect(retaken?.submissionId, asked);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('submission-retake-$unfinished')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('New photos not sent yet'), findsOneWidget);
+    expect(find.text('Finish sending new photos'), findsOneWidget);
+    // Photos already sent for the request leave it answered: no button.
+    expect(find.byKey(const Key('submission-retake-$answered')), findsNothing);
   });
 
   testWidgets('missing-product retry reopens capture for the rejected UPC', (
@@ -684,8 +747,9 @@ class _Backend implements ProductSubmissionBackend {
   }
 
   @override
-  Future<Map<String, Object?>> fetchOwnEvidence({required String submissionId}) =>
-      throw UnimplementedError();
+  Future<Map<String, Object?>> fetchOwnEvidence({
+    required String submissionId,
+  }) => throw UnimplementedError();
 
   @override
   Future<int> openEvidenceRevision({required Map<String, Object?> payload}) =>

@@ -49,7 +49,10 @@ void main() {
         row(status: 'approved'),
         row(upload: 'pending', revision: 2),
       ]) {
-        expect(ProductSubmissionSummary.fromRow(answered).needsNewPhotos, isFalse);
+        expect(
+          ProductSubmissionSummary.fromRow(answered).needsNewPhotos,
+          isFalse,
+        );
       }
       expect(
         ProductSubmissionSummary.fromRow(
@@ -92,24 +95,63 @@ void main() {
     });
   });
 
-  test('prepareRetake plans from the current revision the owner can read', () async {
-    final backend = _RetakeBackend();
-    final plan = await ProductSubmissionService(backend: backend).prepareRetake(
-      ProductSubmissionSummary.fromRow({
-        'id': _submissionId,
-        'kind': 'missing_product',
-        'normalized_upc': '050428381397',
-        'upload_state': 'ready',
-        'review_status': 'under_review',
-        'evidence_revision': 1,
-        'evidence_requested_revision': 1,
-        'evidence_request_panels': ['supplement_facts'],
-      }),
-    );
-    expect(plan.fromRevision, 1);
-    expect(plan.keptPhotoIds, [_front, _barcode]);
-    expect(plan.earlierPhotoDigests, hasLength(3));
-  });
+  test(
+    'prepareRetake plans from the current revision the owner can read',
+    () async {
+      final backend = _RetakeBackend();
+      final plan = await ProductSubmissionService(backend: backend)
+          .prepareRetake(
+            ProductSubmissionSummary.fromRow({
+              'id': _submissionId,
+              'kind': 'missing_product',
+              'normalized_upc': '050428381397',
+              'upload_state': 'ready',
+              'review_status': 'under_review',
+              'evidence_revision': 1,
+              'evidence_requested_revision': 1,
+              'evidence_request_panels': ['supplement_facts'],
+            }),
+          );
+      expect(plan.fromRevision, 1);
+      expect(plan.keptPhotoIds, [_front, _barcode]);
+      expect(plan.earlierPhotoDigests, hasLength(3));
+    },
+  );
+
+  test(
+    'an unfinished retake replans from the revision the request named',
+    () async {
+      final backend = _RetakeBackend()
+        ..revisions[2] = [_front, _barcode, _newFacts]
+        ..photos.add({
+          'photo_id': _newFacts,
+          'categories': ['supplement_facts', 'ingredient_disclosure'],
+          'content_sha256': _newFactsPhoto().contentSha256,
+          'revision': 2,
+        });
+      final plan = await ProductSubmissionService(backend: backend)
+          .prepareRetake(
+            ProductSubmissionSummary.fromRow({
+              'id': _submissionId,
+              'kind': 'missing_product',
+              'normalized_upc': '050428381397',
+              'upload_state': 'pending',
+              'review_status': 'under_review',
+              'evidence_revision': 2,
+              'evidence_requested_revision': 1,
+              'evidence_request_panels': ['supplement_facts'],
+            }),
+          );
+      expect(plan.fromRevision, 1);
+      expect(plan.keptPhotoIds, [_front, _barcode]);
+      // Its own already-recorded photo may be resent as it is.
+      expect(
+        plan.earlierPhotoDigests,
+        isNot(contains(_newFactsPhoto().contentSha256)),
+      );
+      expect(plan.earlierPhotoDigests, hasLength(3));
+    },
+  );
 
   group('submitRetake', () {
     test('opens, records, uploads and finalizes the next revision', () async {
@@ -128,7 +170,10 @@ void main() {
         'finalize:2',
       ]);
       expect(backend.openPayloads.single['p_expected_revision'], 1);
-      expect(backend.openPayloads.single['p_keep_photo_ids'], [_front, _barcode]);
+      expect(backend.openPayloads.single['p_keep_photo_ids'], [
+        _front,
+        _barcode,
+      ]);
       expect(
         backend.openPayloads.single['p_consent_version'],
         productSubmissionConsentVersion,
@@ -147,6 +192,40 @@ void main() {
       );
       expect(backend.revisions.keys, [1, 2]);
     });
+
+    test(
+      'fresh photos after an abandoned retake open a new revision',
+      () async {
+        final backend = _RetakeBackend()..failUploads = 1;
+        final service = ProductSubmissionService(backend: backend);
+        final plan = _plan({ProductSubmissionEvidenceCategory.supplementFacts});
+        await service.submitRetake(plan, [_newFactsPhoto()]);
+        // Cleanup abandons the unfinished revision and restores revision 1,
+        // which puts the reviewer's request back in front of the user.
+        backend
+          ..current = 1
+          ..ready = true;
+
+        final fresh = ProductSubmissionPhoto(
+          photoId: '10000000-0000-4000-8000-000000000005',
+          categories: {
+            ProductSubmissionEvidenceCategory.supplementFacts,
+            ProductSubmissionEvidenceCategory.ingredientDisclosure,
+          },
+          bytes: Uint8List.fromList([5, 5, 5, 5]),
+          contentType: 'image/jpeg',
+        );
+        final result = await service.submitRetake(plan, [fresh]);
+
+        expect(result, isA<ProductSubmissionSuccess>());
+        expect(
+          backend.openPayloads.last['p_request_key'],
+          isNot(backend.openPayloads.first['p_request_key']),
+        );
+        expect(backend.revisions.keys, [1, 2, 3]);
+        expect(backend.current, 3);
+      },
+    );
 
     test('an interrupted upload resumes with the same photos', () async {
       final backend = _RetakeBackend()..failUploads = 1;
@@ -167,39 +246,45 @@ void main() {
       expect(backend.ready, isTrue);
     });
 
-    test('refuses repeated bytes or a gap before touching the network', () async {
-      final backend = _RetakeBackend();
-      final service = ProductSubmissionService(backend: backend);
-      final plan = ProductSubmissionRetake.plan(
-        submissionId: _submissionId,
-        upc: '050428381397',
-        fromRevision: 1,
-        requestedPanels: {ProductSubmissionEvidenceCategory.supplementFacts},
-        membership: _membership,
-        earlierPhotoDigests: {_newFactsPhoto().contentSha256},
-      );
-      final repeated = await service.submitRetake(plan, [_newFactsPhoto()]);
-      expect(repeated, isA<ProductSubmissionFailure>());
+    test(
+      'refuses repeated bytes or a gap before touching the network',
+      () async {
+        final backend = _RetakeBackend();
+        final service = ProductSubmissionService(backend: backend);
+        final plan = ProductSubmissionRetake.plan(
+          submissionId: _submissionId,
+          upc: '050428381397',
+          fromRevision: 1,
+          requestedPanels: {ProductSubmissionEvidenceCategory.supplementFacts},
+          membership: _membership,
+          earlierPhotoDigests: {_newFactsPhoto().contentSha256},
+        );
+        final repeated = await service.submitRetake(plan, [_newFactsPhoto()]);
+        expect(repeated, isA<ProductSubmissionFailure>());
 
-      final gap = await service.submitRetake(
-        _plan({ProductSubmissionEvidenceCategory.supplementFacts}),
-        [
-          ProductSubmissionPhoto(
-            photoId: _newFacts,
-            categories: {ProductSubmissionEvidenceCategory.supplementFacts},
-            bytes: Uint8List.fromList([9, 9, 9]),
-            contentType: 'image/jpeg',
-          ),
-        ],
-      );
-      expect(gap, isA<ProductSubmissionFailure>());
-      expect(backend.operations, isEmpty);
-    });
+        final gap = await service.submitRetake(
+          _plan({ProductSubmissionEvidenceCategory.supplementFacts}),
+          [
+            ProductSubmissionPhoto(
+              photoId: _newFacts,
+              categories: {ProductSubmissionEvidenceCategory.supplementFacts},
+              bytes: Uint8List.fromList([9, 9, 9]),
+              contentType: 'image/jpeg',
+            ),
+          ],
+        );
+        expect(gap, isA<ProductSubmissionFailure>());
+        expect(backend.operations, isEmpty);
+      },
+    );
   });
 }
 
 final _membership = [
-  (photoId: _front, categories: {ProductSubmissionEvidenceCategory.frontIdentity}),
+  (
+    photoId: _front,
+    categories: {ProductSubmissionEvidenceCategory.frontIdentity},
+  ),
   (
     photoId: _facts,
     categories: {
@@ -249,6 +334,27 @@ class _RetakeBackend implements ProductSubmissionBackend {
   bool ready = true;
   int failUploads = 0;
 
+  final photos = <Map<String, Object?>>[
+    {
+      'photo_id': _front,
+      'categories': ['front_identity'],
+      'content_sha256': 'a' * 64,
+      'revision': 1,
+    },
+    {
+      'photo_id': _facts,
+      'categories': ['supplement_facts', 'ingredient_disclosure'],
+      'content_sha256': 'b' * 64,
+      'revision': 1,
+    },
+    {
+      'photo_id': _barcode,
+      'categories': ['barcode'],
+      'content_sha256': 'c' * 64,
+      'revision': 1,
+    },
+  ];
+
   @override
   Future<Map<String, Object?>> fetchOwnEvidence({
     required String submissionId,
@@ -257,15 +363,7 @@ class _RetakeBackend implements ProductSubmissionBackend {
       for (final entry in revisions.entries)
         {'revision': entry.key, 'photo_ids': entry.value},
     ],
-    'photos': [
-      {'photo_id': _front, 'categories': ['front_identity'], 'content_sha256': 'a' * 64},
-      {
-        'photo_id': _facts,
-        'categories': ['supplement_facts', 'ingredient_disclosure'],
-        'content_sha256': 'b' * 64,
-      },
-      {'photo_id': _barcode, 'categories': ['barcode'], 'content_sha256': 'c' * 64},
-    ],
+    'photos': photos,
   };
 
   @override

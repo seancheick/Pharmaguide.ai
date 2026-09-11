@@ -105,12 +105,16 @@ void main() {
     expect(source, contains('parseEvidenceRequest(body)'));
     expect(
       source,
-      contains("userClient.rpc(\n        'request_product_submission_evidence'"),
+      contains(
+        "userClient.rpc(\n        'request_product_submission_evidence'",
+      ),
       reason: 'auth.uid() is the reviewer only on the reviewer\'s client.',
     );
     expect(
       source,
-      isNot(contains("admin.rpc(\n        'request_product_submission_evidence'")),
+      isNot(
+        contains("admin.rpc(\n        'request_product_submission_evidence'"),
+      ),
     );
   });
 

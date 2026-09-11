@@ -247,6 +247,22 @@ void main() {
     expect((await store.list(_userA)).single.evidenceRevision, 2);
   });
 
+  test('a retake capture resumes only through its own submission', () async {
+    await _save(store, evidenceRevision: 2);
+
+    expect((await store.list(_userA)).single.retakeOfRevision, 1);
+    expect(
+      await store.findByUpc(_userA, _upc),
+      isNull,
+      reason: 'a new capture of this barcode must not adopt a retake',
+    );
+    final restored = await store.restore(_userA, _submissionId);
+    expect(restored!.retakeOfRevision, 1);
+
+    await _save(store);
+    expect((await store.findByUpc(_userA, _upc))!.retakeOfRevision, isNull);
+  });
+
   test(
     'saving twice replaces the capture rather than duplicating it',
     () async {

@@ -41,7 +41,16 @@ class PendingProductSubmission {
   /// Always false. A draft lives here precisely because the round trip has not
   /// completed; the server's own receipt is the only acceptance.
   bool get acceptedByServer => false;
+
+  /// The ready revision a requested retake replaces, or null for a new
+  /// submission. See [ProductSubmissionDraftStorage.save].
+  int? get retakeOfRevision => _retakeOf(evidenceRevision);
 }
+
+/// `evidence_revision` is 1 for a new submission and `replaced + 1` for a
+/// retake capture; the server numbers the revision itself when it opens.
+int? _retakeOf(int evidenceRevision) =>
+    evidenceRevision > 1 ? evidenceRevision - 1 : null;
 
 /// What the capture flow needs from durable storage.
 ///
@@ -55,6 +64,10 @@ abstract class ProductSubmissionDraftStorage {
   /// Deliberately takes photos rather than a validated draft: a capture is
   /// worth keeping from the first shot, and a draft cannot exist until every
   /// required panel is present. Coverage is the submit gate, not the save gate.
+  ///
+  /// A retake capture passes `evidenceRevision: replaced + 1` under the
+  /// existing submission's id; it only ever resumes through its own
+  /// submission, never as a new product capture.
   ///
   /// Every operation carries [userId] because a phone is shared and an account
   /// can be switched. These are private label photos belonging to whoever took
@@ -87,6 +100,7 @@ class RestoredCapture {
   final String? resubmissionOf;
   final bool noSeparateIngredientPanel;
   final List<ProductSubmissionPhoto> photos;
+  final int evidenceRevision;
 
   const RestoredCapture({
     required this.submissionId,
@@ -94,7 +108,10 @@ class RestoredCapture {
     required this.resubmissionOf,
     required this.noSeparateIngredientPanel,
     required this.photos,
+    this.evidenceRevision = 1,
   });
+
+  int? get retakeOfRevision => _retakeOf(evidenceRevision);
 }
 
 /// Durable storage for captures that have not completed the submit sequence.
@@ -243,6 +260,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     final wanted = _canonicalOrNull(upc);
     if (wanted == null) return null;
     for (final pending in await list(userId)) {
+      if (pending.retakeOfRevision != null) continue;
       if (_canonicalOrNull(pending.upc) == wanted) return pending;
     }
     return null;
@@ -307,6 +325,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       noSeparateIngredientPanel:
           manifest['no_separate_ingredient_panel'] == true,
       photos: photos,
+      evidenceRevision: manifest['evidence_revision'] as int,
     );
   }
 

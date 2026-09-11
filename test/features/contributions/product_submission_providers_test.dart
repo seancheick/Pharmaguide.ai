@@ -63,8 +63,9 @@ class _ListBackend implements ProductSubmissionBackend {
   }) async => throw UnimplementedError();
 
   @override
-  Future<Map<String, Object?>> fetchOwnEvidence({required String submissionId}) =>
-      throw UnimplementedError();
+  Future<Map<String, Object?>> fetchOwnEvidence({
+    required String submissionId,
+  }) => throw UnimplementedError();
 
   @override
   Future<int> openEvidenceRevision({required Map<String, Object?> payload}) =>

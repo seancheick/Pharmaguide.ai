@@ -26,12 +26,20 @@ typedef HideProductSubmission =
 /// old bottom sheet — a sheet stops working at fifty submissions, and the
 /// impact header is the contributor's "my work mattered" moment.
 class ProductSubmissionsScreen extends ConsumerStatefulWidget {
-  const ProductSubmissionsScreen({super.key, this.onResubmit, this.onHide});
+  const ProductSubmissionsScreen({
+    super.key,
+    this.onResubmit,
+    this.onHide,
+    this.onRetake,
+  });
 
   /// Injected so the status surface stays independent of the capture route.
   /// The production lineage-aware handler is wired with Task 4.
   final ResubmitProductSubmission? onResubmit;
   final HideProductSubmission? onHide;
+
+  /// Answers a reviewer's request for new photos on the same submission.
+  final ResubmitProductSubmission? onRetake;
 
   @override
   ConsumerState<ProductSubmissionsScreen> createState() =>
@@ -120,6 +128,35 @@ class _ProductSubmissionsScreenState
       case null:
         return;
     }
+    if (mounted) ref.invalidate(productSubmissionsProvider);
+  }
+
+  /// Same submission, same review: only the photos the reviewer asked about
+  /// are retaken. An unfinished retake resumes with the photos saved on this
+  /// phone.
+  Future<void> _retake(ProductSubmissionSummary status) async {
+    final service = ref.read(productSubmissionServiceProvider);
+    final upc = status.upc;
+    if (upc == null) return;
+    final ProductSubmissionRetake plan;
+    try {
+      plan = await service.prepareRetake(status);
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t open this request. Try again in a moment.'),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await showMissingProductSubmissionSheet(
+      context,
+      upc: upc,
+      service: service,
+      retake: plan,
+    );
     if (mounted) ref.invalidate(productSubmissionsProvider);
   }
 
@@ -232,6 +269,7 @@ class _ProductSubmissionsScreenState
                     _SubmissionCard(
                       status: status,
                       onResubmit: widget.onResubmit ?? _resubmit,
+                      onRetake: widget.onRetake ?? _retake,
                       onHide: _hide,
                     ),
                     const SizedBox(height: V2Spacing.space12),
@@ -716,10 +754,16 @@ class _HowItWorksStep extends StatelessWidget {
 }
 
 class _SubmissionCard extends ConsumerWidget {
-  const _SubmissionCard({required this.status, this.onResubmit, this.onHide});
+  const _SubmissionCard({
+    required this.status,
+    this.onResubmit,
+    this.onRetake,
+    this.onHide,
+  });
 
   final ProductSubmissionSummary status;
   final ResubmitProductSubmission? onResubmit;
+  final ResubmitProductSubmission? onRetake;
   final HideProductSubmission? onHide;
 
   @override
@@ -785,6 +829,21 @@ class _SubmissionCard extends ConsumerWidget {
                         onPressed: () => onResubmit!(status),
                         icon: const Icon(Icons.refresh_rounded, size: 18),
                         label: const Text('Try again with new photos'),
+                      ),
+                    ),
+                  if ((status.needsNewPhotos || status.retakeUnfinished) &&
+                      onRetake != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: Key('submission-retake-${status.submissionId}'),
+                        onPressed: () => onRetake!(status),
+                        icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                        label: Text(
+                          status.retakeUnfinished
+                              ? 'Finish sending new photos'
+                              : 'Retake photos',
+                        ),
                       ),
                     ),
                 ],
@@ -967,6 +1026,12 @@ class _StatusDisplay {
 /// User-facing translation of the closed resolution vocabulary. Returns
 /// null when there is nothing actionable to add to the status label.
 String? _resolutionGuidance(ProductSubmissionSummary status) {
+  if (status.needsNewPhotos || status.retakeUnfinished) {
+    return productSubmissionRetakeRequest(
+      status.evidenceRequestReason,
+      status.evidenceRequestPanels,
+    );
+  }
   if (status.reviewStatus == ProductSubmissionReviewStatus.rejected ||
       status.reviewStatus == ProductSubmissionReviewStatus.duplicate) {
     return productSubmissionResolutionGuidance(
@@ -987,6 +1052,20 @@ _StatusDisplay _statusDisplay(V2Palette p, ProductSubmissionSummary status) {
   }
   if (status.isComplete) {
     return _StatusDisplay('Added to catalog', Icons.task_alt_rounded, p.safe);
+  }
+  if (status.retakeUnfinished) {
+    return _StatusDisplay(
+      'New photos not sent yet',
+      Icons.cloud_upload_outlined,
+      p.caution,
+    );
+  }
+  if (status.needsNewPhotos) {
+    return _StatusDisplay(
+      'New photos needed',
+      Icons.add_a_photo_outlined,
+      p.caution,
+    );
   }
   if (status.uploadState != ProductSubmissionUploadState.ready) {
     return _StatusDisplay(
