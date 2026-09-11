@@ -1067,4 +1067,58 @@ void main() {
       }
     });
   });
+
+  group('retake request migration', () {
+    late String retake;
+
+    setUpAll(() {
+      final file = File(
+        'supabase/migrations/20260911180000_submission_retake_requests.sql',
+      );
+      expect(file.existsSync(), isTrue, reason: 'Retakes must stay shipped.');
+      retake = _normalized(file.readAsStringSync());
+    });
+
+    test('only a reviewer asks, naming panels, and the owner is told once', () {
+      const signature =
+          'request_product_submission_evidence(uuid, text, text[], integer, text)';
+      expect(
+        retake,
+        contains(
+          'revoke all on function public.$signature from public, anon, '
+          'service_role',
+        ),
+      );
+      expect(
+        retake,
+        contains('grant execute on function public.$signature to authenticated'),
+      );
+      expect(retake, contains("raise exception 'reviewer access required'"));
+      expect(retake, contains("raise exception 'evidence request panels required'"));
+      expect(
+        retake,
+        contains(
+          'if submission.evidence_requested_revision is distinct from '
+          'submission.evidence_revision then insert into '
+          'public.product_submission_push_deliveries',
+        ),
+        reason: 'One notification per revision, not per correction.',
+      );
+    });
+
+    test('owners read revision membership, never keys or manifests', () {
+      expect(
+        retake,
+        contains(
+          'grant select (submission_id, revision, photo_ids, ready_at, '
+          'abandoned_at) on public.product_submission_evidence_revisions '
+          'to authenticated',
+        ),
+      );
+      expect(retake, contains('submission.user_id = (select auth.uid())'));
+      expect(retake, isNot(contains('grant select on table')));
+      expect(retake, isNot(contains('grant insert')));
+      expect(retake, isNot(contains('grant update')));
+    });
+  });
 }

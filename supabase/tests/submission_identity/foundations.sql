@@ -105,7 +105,7 @@ DO $$ DECLARE sid uuid; BEGIN
  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(1)::text,false);
  PERFORM fixture.throws(format('SELECT fixture.retake(%L)',sid),'55000','reviewer request');
  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
- PERFORM public.request_product_submission_evidence(sid,'photo_quality',1,fixture.manifest_hash(sid));
+ PERFORM public.request_product_submission_evidence(sid,'photo_quality',ARRAY['supplement_facts'],1,fixture.manifest_hash(sid));
  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(1)::text,false);
  PERFORM fixture.retake(sid);
  PERFORM fixture.assert(public.get_product_submission_intake('missing_product','012345678905')->>'action'='open_existing','current app must understand pending retake');
