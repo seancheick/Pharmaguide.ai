@@ -63,6 +63,7 @@ const ACTIONS = new Set([
   "batch_transition",
   "save_review",
   "load_review",
+  "set_review_image",
   "set_field_verification",
   "review_states",
   "validate_label",
@@ -1099,7 +1100,39 @@ Deno.serve(async (request: Request): Promise<Response> => {
       );
       if (error) throw error;
       audit(reviewerId, action, "success", 1);
-      return json({ review: data });
+      const review = data as JsonObject;
+      const images = (review.reviewer_images ?? []) as JsonObject[];
+      review.reviewer_images = await Promise.all(images.map(async (image) => {
+        const { data: signed, error: signingError } = await admin.storage
+          .from(REVIEWER_IMAGE_BUCKET).createSignedUrl(String(image.object_path), SIGNED_URL_TTL_SECONDS);
+        if (signingError) throw signingError;
+        return { object_id: image.object_id, signed_url: signed?.signedUrl ?? null };
+      }));
+      return json({ review });
+    }
+
+    if (action === "set_review_image") {
+      rejectUnknownKeys(body, new Set(["action","submission_id","expected_evidence_revision",
+        "evidence_manifest_sha256","kind","image_id"]));
+      const submissionId = requiredUuid(body.submission_id,"submission id");
+      const imageId = requiredUuid(body.image_id,"image id");
+      const binding = parseEvidenceBinding(body);
+      if (body.kind !== "photo" && body.kind !== "reviewer") throw new Error("picture kind required");
+      if (body.kind === "reviewer") {
+        const {data: owned, error: ownershipError} = await admin
+          .from("product_submission_reviewer_images").select("object_id")
+          .eq("submission_id", submissionId).eq("object_id", imageId)
+          .eq("reviewer_id", reviewerId)
+          .eq("evidence_revision", binding.expectedEvidenceRevision).maybeSingle();
+        if (ownershipError || !owned) throw new Error("current reviewer image required");
+        await verifyReviewerImageIntegrity(admin, submissionId, imageId);
+      }
+      const {data, error} = await userClient.rpc("set_product_submission_review_image", {
+        p_submission_id:submissionId,p_expected_evidence_revision:binding.expectedEvidenceRevision,
+        p_evidence_manifest_sha256:binding.evidenceManifestSha256,p_kind:body.kind,p_image_id:imageId,
+      });
+      if (error || data !== true) throw error ?? new Error("picture was not saved");
+      return json({saved:true});
     }
 
     if (action === "save_review") {
