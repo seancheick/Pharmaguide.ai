@@ -17,6 +17,7 @@ import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet
 import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
+import 'package:pharmaguide/features/scanner/product_version_label_sheet.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
@@ -172,6 +173,7 @@ class _ProductSubmissionsScreenState
           retake: retake,
         );
       } else {
+        var comparingLabels = false;
         while (true) {
           if (!mounted) return;
           final choice = switch (resolution) {
@@ -180,6 +182,7 @@ class _ProductSubmissionsScreenState
               await showProductVersionPickerSheet(
                 context,
                 candidates: candidates,
+                forComparison: comparingLabels,
               ),
             UpcNotFound() => null,
           };
@@ -201,9 +204,19 @@ class _ProductSubmissionsScreenState
             canReport: metadata != null,
           );
           if (!mounted) return;
-          if (action == KnownProductAction.compare) continue;
+          if (action == KnownProductAction.compare) {
+            comparingLabels = true;
+            continue;
+          }
           if (product == null || action == null) return;
           if (action == KnownProductAction.view) {
+            if (comparingLabels) {
+              final confirmed = await showProductVersionLabelSheet(
+                context,
+                product: product,
+              );
+              if (!mounted || confirmed != true) return;
+            }
             await context.push(Routes.productDetail(product.dsldId));
           } else if (action == KnownProductAction.report) {
             if (metadata != null) {

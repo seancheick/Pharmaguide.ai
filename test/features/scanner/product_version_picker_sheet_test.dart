@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 
 ProductsCoreData _product(
@@ -53,7 +54,7 @@ void main() {
     expect(find.textContaining('40'), findsNothing);
   });
 
-  testWidgets('separates two editions by what is on the Facts panel', (
+  testWidgets('package summary never presents internal tags as label facts', (
     tester,
   ) async {
     // Same barcode, same bottle art, different label. The picture cannot tell
@@ -65,7 +66,7 @@ void main() {
         score: 60,
         quantity: 30,
         servingsPerContainer: 30,
-        keyIngredientTags: 'Folic Acid, Iron, DHA',
+        keyIngredientTags: '["folic_acid","iron","dha"]',
       ),
       _product(
         'PG_SUB_1',
@@ -90,8 +91,8 @@ void main() {
 
     expect(find.textContaining('30 servings'), findsOneWidget);
     expect(find.textContaining('60 servings'), findsOneWidget);
-    expect(find.textContaining('Folic Acid'), findsOneWidget);
-    expect(find.textContaining('Folate'), findsOneWidget);
+    expect(find.textContaining('folic_acid'), findsNothing);
+    expect(find.textContaining('Folate'), findsNothing);
   });
 
   testWidgets('none of these is an answer, not a dismissal', (tester) async {
@@ -143,12 +144,28 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [
+          detailBlobProvider('two').overrideWith(
+            (ref) async => {
+              'display_ingredients': [
+                {
+                  'label_display_name': 'Fish oil',
+                  'label_order': 0,
+                  'nested_depth': 0,
+                  'raw_source_path': 'ingredientRows[0]',
+                  'display_disposition': 'scored',
+                  'form_display_state': 'known',
+                },
+              ],
+            },
+          ),
+        ],
         child: MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () async => choice =
-                    await showProductVersionPickerSheet(
+                onPressed: () async =>
+                    choice = await showProductVersionPickerSheet(
                       context,
                       candidates: candidates,
                     ),
@@ -165,7 +182,43 @@ void main() {
     await tester.tap(find.text('Omega 3 — 120 count'));
     await tester.pumpAndSettle();
 
+    expect(choice, isNull);
+    expect(find.text('Fish oil'), findsOneWidget);
+    await tester.tap(find.text('This matches my label'));
+    await tester.pumpAndSettle();
+
     expect(choice, isA<ProductVersionSelected>());
     expect((choice! as ProductVersionSelected).product.dsldId, 'two');
+  });
+
+  testWidgets('unavailable label cannot confirm a version', (tester) async {
+    final candidates = [
+      _product('one', 'First label', score: 95, quantity: 60),
+      _product('two', 'Second label', score: 40, quantity: 60),
+    ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          detailBlobProvider('one').overrideWith((ref) async => null),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ProductVersionPickerSheet(candidates: candidates),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('First label'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'This matches my label'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(find.textContaining('Don’t guess'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

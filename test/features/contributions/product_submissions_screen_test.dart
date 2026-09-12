@@ -15,6 +15,11 @@ import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.da
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
+import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
+
+// Shared by the native simulator smoke test; never contacts the real backend.
+Widget submissionHistoryHarness(List<Map<String, Object?>> rows) =>
+    _harness(rows);
 
 Widget _harness(
   List<Map<String, Object?>> rows, {
@@ -46,6 +51,7 @@ Widget _harness(
     child: router != null
         ? MaterialApp.router(routerConfig: router)
         : MaterialApp(
+            theme: V2Theme.light,
             home: ProductSubmissionsScreen(
               onResubmit: onResubmit,
               onHide: onHide,
