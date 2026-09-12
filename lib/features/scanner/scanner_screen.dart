@@ -162,32 +162,34 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       };
       if (!mounted) return;
 
-      final product = choice is ProductVersionSelected ? choice.product : null;
-      if (product != null) {
-        CrashReportingService().setScanResult('found');
-        // Persist the scan before we navigate so any mounted Home shell can
-        // leave first-launch mode and refresh Recents immediately.
-        await ref
-            .read(userDatabaseProvider)
-            .recordScanEvent(
-              dsldId: product.dsldId,
-              upcSku: product.upcSku,
-              productName: product.productName,
-            );
-        CrashReportingService().log('scan_complete_camera');
-        // Home v2 picks up new scans via its own
-        // `_v2RecentScansProvider.autoDispose` on tab refocus + pull-
-        // to-refresh; no external invalidation needed after the v1
-        // home screen retirement.
-        await _showVerdictFlashAndNavigate(product);
-      } else if (choice is ProductVersionUnmatched) {
-        // Either the catalog has never seen this barcode, or it has seen it
-        // on labels that are not this bottle. Both mean the product is
-        // missing, and both deserve the same offer to add it.
-        CrashReportingService().setScanResult('not_found');
-        unawaited(_showProductNotFound(identity, manualEntry: manualEntry));
-      } else {
-        setState(() => _hasScanned = false);
+      // Exhaustive over the sealed answer, so a new kind of answer is a
+      // compile error here rather than silently treated as a dismissal.
+      switch (choice) {
+        case ProductVersionSelected(:final product):
+          CrashReportingService().setScanResult('found');
+          // Persist the scan before we navigate so any mounted Home shell can
+          // leave first-launch mode and refresh Recents immediately.
+          await ref
+              .read(userDatabaseProvider)
+              .recordScanEvent(
+                dsldId: product.dsldId,
+                upcSku: product.upcSku,
+                productName: product.productName,
+              );
+          CrashReportingService().log('scan_complete_camera');
+          // Home v2 picks up new scans via its own
+          // `_v2RecentScansProvider.autoDispose` on tab refocus + pull-
+          // to-refresh; no external invalidation needed after the v1
+          // home screen retirement.
+          await _showVerdictFlashAndNavigate(product);
+        case ProductVersionUnmatched():
+          // Either the catalog has never seen this barcode, or it has seen it
+          // on labels that are not this bottle. Both mean the product is
+          // missing, and both deserve the same offer to add it.
+          CrashReportingService().setScanResult('not_found');
+          unawaited(_showProductNotFound(identity, manualEntry: manualEntry));
+        case null:
+          setState(() => _hasScanned = false);
       }
       // Bare catch is intentional: DB layer can throw Error subtypes
       // (e.g. StateError on corrupt data). Letting an Error propagate

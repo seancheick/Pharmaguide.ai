@@ -167,12 +167,18 @@ class ScanScreen extends ConsumerWidget {
       // A barcode can be reused for a formula we have never seen, so saying
       // none of these is the bottle means the product is missing, not that
       // the person changed their mind.
-      if (choice is ProductVersionUnmatched) {
-        await _showManualLookupNotFound(context, ref, barcode);
-        return;
+      final ProductsCoreData product;
+      // Exhaustive over the sealed answer, so a new kind of answer is a
+      // compile error here rather than silently treated as a dismissal.
+      switch (choice) {
+        case ProductVersionSelected(product: final chosen):
+          product = chosen;
+        case ProductVersionUnmatched():
+          await _showManualLookupNotFound(context, ref, barcode);
+          return;
+        case null:
+          return;
       }
-      if (choice is! ProductVersionSelected) return;
-      final product = choice.product;
 
       await ref
           .read(userDatabaseProvider)
@@ -1249,7 +1255,8 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
     // than inviting the user to try again forever.
     final String message;
     if (SupabaseConfig.isPlaceholder) {
-      message = 'This build has no backend configuration. Rebuild with '
+      message =
+          'This build has no backend configuration. Rebuild with '
           '`make run` so the Supabase keys are included.';
     } else if (isExpiredLink) {
       message = 'That sign-in link has expired. Request a new one.';
