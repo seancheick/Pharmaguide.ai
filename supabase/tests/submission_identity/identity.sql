@@ -106,12 +106,49 @@ DO $$ BEGIN
   PERFORM fixture.throws('SELECT public.create_product_submission(gen_random_uuid(), ''missing_product'', ''012345678905'', p_photos => fixture.photos(), p_consent_version => ''fixture.consent.v1'')', '42501', 'authentication required');
   PERFORM set_config('request.jwt.claim.sub', fixture.user_id(1)::text, false);
   PERFORM fixture.throws('SELECT public.review_product_submission(gen_random_uuid(), ''approved'')', '42501', 'reviewer access required');
-  PERFORM fixture.assert(NOT has_function_privilege('service_role',
-    'public.review_product_submission(uuid,public.product_submission_review_status,text,text,jsonb,text,text,uuid,text,text,text,uuid,uuid,integer,text)', 'EXECUTE'),
+  PERFORM fixture.assert(EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n
+    ON n.oid = p.pronamespace WHERE n.nspname = 'public'
+    AND p.proname = 'review_product_submission') AND NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'review_product_submission'
+    AND has_function_privilege('service_role', p.oid, 'EXECUTE')),
     'service role must not receive human approval authority');
   PERFORM fixture.assert(NOT has_function_privilege('authenticated',
     'public.review_product_submission_human_internal(uuid,uuid,public.product_submission_review_status,text,text,jsonb,text,text,uuid,text,text,text)', 'EXECUTE'),
     'internal reviewer function must not be exposed');
+END $$ $case$);
+
+SELECT fixture.test('catalog relations require the recorded target and keep distinct review keys', $case$
+DO $$ DECLARE sid uuid; other uuid; BEGIN
+  sid := fixture.seed(1, '012345678905', 'under_review', NULL);
+  PERFORM set_config('request.jwt.claim.sub', fixture.user_id(3)::text, false);
+  PERFORM fixture.prepare_review(sid);
+  INSERT INTO public.product_submission_match_checks(submission_id, reviewer_id,
+    canonical_gtin14, outcome, index_built_at, candidate_dsld_ids, matched_dsld_id)
+  VALUES(sid, fixture.user_id(3), '00012345678905', 'catalog_match', now(), ARRAY[]::text[], '178392');
+  PERFORM fixture.throws(format($sql$
+    SELECT public.review_product_submission(%L, 'approved',
+      p_approved_schema_version=>'manual_label_v1', p_approved_payload=>'{"fixture":true}',
+      p_approved_payload_canonical=>'{"fixture":true}',
+      p_payload_sha256=>encode(extensions.digest('{"fixture":true}', 'sha256'),'hex'),
+      p_expected_evidence_revision=>1, p_evidence_manifest_sha256=>fixture.manifest_hash(%L),
+      p_edition_of_dsld_id=>'999')
+    $sql$, sid, sid), '55000', 'recorded catalog match must name');
+  PERFORM public.review_product_submission(sid, 'approved',
+    p_approved_schema_version=>'manual_label_v1', p_approved_payload=>'{"fixture":true}',
+    p_approved_payload_canonical=>'{"fixture":true}',
+    p_payload_sha256=>encode(extensions.digest('{"fixture":true}', 'sha256'),'hex'),
+    p_expected_evidence_revision=>1, p_evidence_manifest_sha256=>fixture.manifest_hash(sid),
+    p_product_image_photo_id=>'10000000-0000-0000-0000-000000000001',
+    p_edition_of_dsld_id=>'178392');
+  PERFORM fixture.assert((SELECT edition_of_dsld_id='178392' AND correction_target_dsld_id IS NULL
+    FROM public.product_submissions WHERE id=sid), 'edition must not become an overwrite');
+  PERFORM fixture.assert(public.product_submission_review_target_key(sid)='missing_product:00012345678905',
+    'edition adds a product rather than replacing its parent');
+  other := fixture.seed(2, '036000291452', 'under_review', NULL);
+  UPDATE public.product_submissions SET correction_target_dsld_id='178392' WHERE id=other;
+  PERFORM fixture.assert(public.product_submission_review_target_key(other)='label_mismatch:178392',
+    'correction must contend with label reports for the same target');
 END $$ $case$);
 
 SELECT fixture.test('authenticated create preserves own ready replay and cross-owner receipts', $case$

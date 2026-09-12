@@ -34,7 +34,7 @@ DO $$ DECLARE sid uuid; other uuid; r jsonb; BEGIN
  other:=fixture.seed(2,'012345678905','under_review');
  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
  r:=public.load_product_submission_reviewer_draft(sid);
- PERFORM fixture.assert(r->'identity_check'='{"recorded":false,"satisfies_approval":false}'::jsonb,'no history is explicit');
+ PERFORM fixture.assert(r->'identity_check'='{"recorded":false,"satisfies_approval":false,"catalog_match_live":false}'::jsonb,'no history is explicit');
  INSERT INTO public.product_submission_match_checks(submission_id,reviewer_id,outcome,canonical_gtin14,index_built_at,evidence_revision)
  VALUES(sid,fixture.user_id(3),'no_match_verified','00012345678905',now(),1);
  r:=public.load_product_submission_reviewer_draft(sid);
@@ -42,7 +42,7 @@ DO $$ DECLARE sid uuid; other uuid; r jsonb; BEGIN
  PERFORM fixture.assert((r->'identity_check'->>'satisfies_approval')::boolean,'server confirms current identity binding');
  PERFORM fixture.assert(r->'identity_check'->>'evidence_revision'='1','revision binding returned');
  PERFORM fixture.assert(NOT (r->'identity_check' ? 'reviewer_id'),'no reviewer account exposed');
- PERFORM fixture.assert(public.load_product_submission_reviewer_draft(other)->'identity_check'='{"recorded":false,"satisfies_approval":false}'::jsonb,'no cross-submission history');
+ PERFORM fixture.assert(public.load_product_submission_reviewer_draft(other)->'identity_check'='{"recorded":false,"satisfies_approval":false,"catalog_match_live":false}'::jsonb,'no cross-submission history');
  INSERT INTO public.product_submission_match_checks(submission_id,reviewer_id,outcome,canonical_gtin14,index_built_at,evidence_revision,matched_dsld_id)
  VALUES(sid,fixture.user_id(3),'catalog_match','00012345678905',now(),1,'123');
  r:=public.load_product_submission_reviewer_draft(sid);

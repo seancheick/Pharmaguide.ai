@@ -5,9 +5,8 @@
 # provisioner. A second copy would drift, and the drift would show up as one
 # runner testing a schema the other never loads.
 #
-# `supabase db reset` cannot own this while the repository still contains
-# duplicate 20260614 prefixes, so the chain is selected explicitly rather than
-# discovered. Adding a submission migration means adding it here.
+# The harness loads only this subsystem and its dependencies rather than the
+# entire application. Adding a submission migration means adding it here.
 
 # Emits one absolute migration path per line. $1 is the repository root.
 submission_migration_chain() {
@@ -40,6 +39,8 @@ submission_migration_chain() {
   printf '%s\n' "$repo_dir/supabase/migrations/20260911195341_persist_reviewer_product_picture.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260912095500_read_submission_drafts_through_reviewer_rpc.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260912120000_one_owner_for_the_identity_check.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20260912140000_correction_or_edition_for_a_matched_barcode.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20260912160000_one_owner_for_the_review_target_key.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260912191139_project_submission_names_into_history.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260912194118_revoke_legacy_unchecked_review_access.sql"
 }
