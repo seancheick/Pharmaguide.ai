@@ -1791,8 +1791,8 @@ class _MissingProductSubmissionSheetState
         ],
       ] else ...[
         Text(
-          'A few clear photos add this product for everyone. We’ll guide you '
-          'through each label panel.',
+          'Not found in this device’s catalog. Submit clear photos for review; '
+          'we’ll check whether it already exists or needs an updated label.',
           style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space12),

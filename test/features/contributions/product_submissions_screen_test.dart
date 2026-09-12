@@ -1029,6 +1029,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('missing-product-start')), findsOneWidget);
+    expect(
+      find.textContaining('Not found in this device’s catalog'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('we’ll check whether it already exists'),
+      findsOneWidget,
+    );
     expect(find.text('Take a photo'), findsOneWidget);
     expect(
       find.byKey(const Key('missing-product-start-library')),

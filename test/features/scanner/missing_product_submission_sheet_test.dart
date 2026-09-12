@@ -463,7 +463,14 @@ void main() {
 
     // Intro explains the job and owns the only Start affordance.
     expect(find.text('Add this product'), findsOneWidget);
-    expect(find.textContaining('A few clear photos'), findsOneWidget);
+    expect(
+      find.text(
+        'Not found in this device’s catalog. Submit clear photos for '
+        'review; we’ll check whether it already exists or needs an updated label.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('add this product for everyone'), findsNothing);
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
 
@@ -1762,6 +1769,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('New photos needed'), findsOneWidget);
+      expect(
+        find.textContaining('Not found in this device’s catalog'),
+        findsNothing,
+      );
       expect(
         find.textContaining('new photo of the Supplement Facts panel'),
         findsOneWidget,
