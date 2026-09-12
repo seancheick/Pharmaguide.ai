@@ -8,11 +8,16 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/features/contributions/known_product_submission_sheet.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
 import 'package:pharmaguide/features/contributions/add_missing_product_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
+import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -50,6 +55,8 @@ class ProductSubmissionsScreen extends ConsumerStatefulWidget {
 class _ProductSubmissionsScreenState
     extends ConsumerState<ProductSubmissionsScreen>
     with WidgetsBindingObserver {
+  bool _intakeOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -76,32 +83,145 @@ class _ProductSubmissionsScreenState
     await ref.read(productSubmissionsProvider.future);
   }
 
-  Future<void> _addFromPhotos() async {
-    final upc = await showAddMissingProductIdentitySheet(context);
-    if (!mounted || upc == null) return;
-    await showMissingProductSubmissionSheet(
-      context,
-      upc: upc,
-      preferLibrary: true,
-      service: ref.read(productSubmissionServiceProvider),
-    );
-    if (!mounted) return;
-    ref.invalidate(productSubmissionsProvider);
-    ref.invalidate(pendingProductSubmissionDraftsProvider);
-  }
+  Future<void> _addFromPhotos() => _openMissingProduct(preferLibrary: true);
 
-  /// Reopen capture for a barcode this device still holds photos for. The
-  /// sheet recognises the saved capture and offers to finish it.
-  Future<void> _finishPending(PendingProductSubmission pending) async {
-    await showMissingProductSubmissionSheet(
-      context,
-      upc: pending.upc,
-      service: ref.read(productSubmissionServiceProvider),
-      resubmissionOf: pending.resubmissionOf,
-    );
-    if (!mounted) return;
-    ref.invalidate(productSubmissionsProvider);
-    ref.invalidate(pendingProductSubmissionDraftsProvider);
+  /// Check a saved barcode before resuming its original capture.
+  Future<void> _finishPending(PendingProductSubmission pending) =>
+      _openMissingProduct(
+        upc: pending.upc,
+        resubmissionOf: pending.resubmissionOf,
+      );
+
+  /// Every missing-product entry checks the installed catalog before capture.
+  /// Keep saved draft identity and photos intact even if the catalog changed.
+  Future<void> _openMissingProduct({
+    String? upc,
+    bool preferLibrary = false,
+    String? resubmissionOf,
+    ProductSubmissionSummary? retakeStatus,
+  }) async {
+    if (_intakeOpen) return;
+    setState(() => _intakeOpen = true);
+    try {
+      upc ??= await showAddMissingProductIdentitySheet(context);
+      if (!mounted || upc == null) return;
+      final barcode = upc;
+      final GtinIdentity identity;
+      try {
+        identity = GtinIdentity.parse(barcode);
+      } on FormatException {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text(invalidGtinMessage)));
+        }
+        return;
+      }
+      final UpcResolution resolution;
+      try {
+        resolution = await ref
+            .read(coreDatabaseProvider)
+            .resolveByGtin(identity);
+      } on Object {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Couldn’t check your installed catalog. Please try again.',
+              ),
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => _openMissingProduct(
+                  upc: barcode,
+                  preferLibrary: preferLibrary,
+                  resubmissionOf: resubmissionOf,
+                  retakeStatus: retakeStatus,
+                ),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      final service = ref.read(productSubmissionServiceProvider);
+      if (resolution is UpcNotFound) {
+        ProductSubmissionRetake? retake;
+        if (retakeStatus != null) {
+          try {
+            retake = await service.prepareRetake(retakeStatus);
+          } on Object {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Couldn’t open this request. Try again in a moment.',
+                  ),
+                ),
+              );
+            }
+            return;
+          }
+          if (!mounted) return;
+        }
+        await showMissingProductSubmissionSheet(
+          context,
+          upc: barcode,
+          preferLibrary: preferLibrary,
+          service: service,
+          resubmissionOf: resubmissionOf,
+          retake: retake,
+        );
+      } else {
+        while (true) {
+          if (!mounted) return;
+          final product = switch (resolution) {
+            UpcUnique(:final product) => product,
+            UpcAmbiguous(:final candidates) =>
+              await showProductVersionPickerSheet(
+                context,
+                candidates: candidates,
+              ),
+            UpcNotFound() => null,
+          };
+          if (!mounted) return;
+          final metadata = product == null
+              ? null
+              : labelMismatchMetadataFrom(
+                  null,
+                  dsldId: product.dsldId,
+                  upc: barcode,
+                );
+          final action = await showKnownProductSubmissionSheet(
+            context,
+            product: product,
+            canCompare: resolution is UpcAmbiguous,
+            canReport: metadata != null,
+          );
+          if (!mounted) return;
+          if (action == KnownProductAction.compare) continue;
+          if (product == null || action == null) return;
+          if (action == KnownProductAction.view) {
+            await context.push(Routes.productDetail(product.dsldId));
+          } else if (action == KnownProductAction.report) {
+            if (metadata != null) {
+              await showLabelMismatchSheet(
+                context,
+                product: metadata,
+                isAuthenticated: service.backend.authenticatedUserId != null,
+                reportService: service,
+              );
+            }
+          }
+          break;
+        }
+      }
+      if (!mounted) return;
+      ref.invalidate(productSubmissionsProvider);
+      ref.invalidate(pendingProductSubmissionDraftsProvider);
+    } finally {
+      if (mounted) setState(() => _intakeOpen = false);
+    }
   }
 
   Future<void> _resubmit(ProductSubmissionSummary status) async {
@@ -110,10 +230,8 @@ class _ProductSubmissionsScreenState
       case ProductSubmissionKind.missingProduct:
         final upc = status.upc;
         if (upc == null) return;
-        await showMissingProductSubmissionSheet(
-          context,
+        await _openMissingProduct(
           upc: upc,
-          service: service,
           resubmissionOf: status.submissionId,
         );
       case ProductSubmissionKind.labelMismatch:
@@ -122,7 +240,7 @@ class _ProductSubmissionsScreenState
         await showLabelMismatchSheet(
           context,
           product: product,
-          isAuthenticated: true,
+          isAuthenticated: service.backend.authenticatedUserId != null,
           reportService: service,
           resubmissionOf: status.submissionId,
         );
@@ -136,29 +254,9 @@ class _ProductSubmissionsScreenState
   /// are retaken. An unfinished retake resumes with the photos saved on this
   /// phone.
   Future<void> _retake(ProductSubmissionSummary status) async {
-    final service = ref.read(productSubmissionServiceProvider);
     final upc = status.upc;
     if (upc == null) return;
-    final ProductSubmissionRetake plan;
-    try {
-      plan = await service.prepareRetake(status);
-    } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Couldn’t open this request. Try again in a moment.'),
-        ),
-      );
-      return;
-    }
-    if (!mounted) return;
-    await showMissingProductSubmissionSheet(
-      context,
-      upc: upc,
-      service: service,
-      retake: plan,
-    );
-    if (mounted) ref.invalidate(productSubmissionsProvider);
+    await _openMissingProduct(upc: upc, retakeStatus: status);
   }
 
   Future<void> _hide(ProductSubmissionSummary status) async {
@@ -214,7 +312,7 @@ class _ProductSubmissionsScreenState
             child: IconButton.filledTonal(
               key: const Key('contributions-add-product'),
               tooltip: 'Add a missing product',
-              onPressed: _addFromPhotos,
+              onPressed: _intakeOpen ? null : _addFromPhotos,
               iconSize: 26,
               constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               icon: const Icon(Icons.add_rounded),

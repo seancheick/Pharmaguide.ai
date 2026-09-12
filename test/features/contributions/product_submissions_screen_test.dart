@@ -4,11 +4,14 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/contributions/product_submissions_screen.dart';
 import 'package:pharmaguide/features/product_detail/widgets/label_mismatch_sheet.dart';
+import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
+import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
@@ -20,13 +23,15 @@ Widget _harness(
   Future<void> Function(ProductSubmissionSummary status)? onRetake,
   List<PendingProductSubmission> pendingDrafts = const [],
   Future<int> Function()? points,
+  _Backend? backend,
+  GoRouter? router,
 }) {
   final database = db ?? CoreDatabase.memory();
   if (db == null) addTearDown(database.close);
   return ProviderScope(
     overrides: [
       productSubmissionServiceProvider.overrideWithValue(
-        ProductSubmissionService(backend: _Backend(rows)),
+        ProductSubmissionService(backend: backend ?? _Backend(rows)),
       ),
       coreDatabaseProvider.overrideWithValue(database),
       pendingProductSubmissionDraftsProvider.overrideWith(
@@ -37,17 +42,298 @@ Widget _harness(
         (ref) => points == null ? Future.value(0) : points(),
       ),
     ],
-    child: MaterialApp(
-      home: ProductSubmissionsScreen(
-        onResubmit: onResubmit,
-        onHide: onHide,
-        onRetake: onRetake,
-      ),
-    ),
+    child: router != null
+        ? MaterialApp.router(routerConfig: router)
+        : MaterialApp(
+            home: ProductSubmissionsScreen(
+              onResubmit: onResubmit,
+              onHide: onHide,
+              onRetake: onRetake,
+            ),
+          ),
   );
 }
 
 void main() {
+  testWidgets('known UPC offers the catalog product before photos', (
+    tester,
+  ) async {
+    final db = CoreDatabase.memory();
+    addTearDown(db.close);
+    await db
+        .into(db.productsCore)
+        .insert(
+          ProductsCoreCompanion.insert(
+            dsldId: '278454',
+            productName: 'Catalog supplement',
+            exportVersion: 'test',
+            exportedAt: '2026-09-12T00:00:00Z',
+            brandName: const Value('Catalog brand'),
+            upcSku: const Value('030772032565'),
+          ),
+        );
+    await tester.pumpWidget(_harness(const [], db: db));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('contributions-add-product')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('add-product-gtin-field')),
+      '0030772032565',
+    );
+    await tester.tap(find.byKey(const Key('add-product-continue')));
+    await tester.pumpAndSettle();
+    expect(find.text('Catalog supplement'), findsOneWidget);
+    expect(find.text('Catalog brand'), findsOneWidget);
+    expect(find.text('View product'), findsOneWidget);
+    expect(find.text('Report incorrect label'), findsOneWidget);
+    expect(find.byKey(const Key('missing-product-start')), findsNothing);
+  });
+
+  for (final barcode in ['030772032565', '0030772032565', '00030772032565']) {
+    testWidgets(
+      'equivalent barcode $barcode opens the selected product route',
+      (tester) async {
+        final db = await _catalog();
+        final router = GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, _) => const ProductSubmissionsScreen(),
+            ),
+            GoRoute(
+              path: '/product/:id',
+              builder: (_, state) =>
+                  Scaffold(body: Text('Product ${state.pathParameters['id']}')),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(_harness(const [], db: db, router: router));
+        await tester.pumpAndSettle();
+        await _enterBarcode(tester, barcode);
+        await tester.tap(find.text('View product'));
+        await tester.pumpAndSettle();
+        expect(find.text('Product 278454'), findsOneWidget);
+        expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+      },
+    );
+  }
+
+  testWidgets(
+    'known product opens existing report with identity and fresh consent',
+    (tester) async {
+      final db = await _catalog();
+      await tester.pumpWidget(_harness(const [], db: db));
+      await tester.pumpAndSettle();
+      await _enterBarcode(tester, '030772032565');
+      await tester.tap(find.text('Report incorrect label'));
+      await tester.pumpAndSettle();
+      final sheet = tester.widget<LabelMismatchSheet>(
+        find.byType(LabelMismatchSheet),
+      );
+      expect(sheet.product.dsldId, '278454');
+      expect(sheet.product.upc, '030772032565');
+      expect(sheet.resubmissionOf, isNull);
+      expect(sheet.isAuthenticated, isTrue);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('label-mismatch-consent')),
+        250,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.byKey(const Key('label-mismatch-consent')),
+            )
+            .value,
+        isFalse,
+      );
+    },
+  );
+
+  testWidgets('signing out before report uses existing sign-in gate', (
+    tester,
+  ) async {
+    final db = await _catalog();
+    final backend = _Backend([]);
+    await tester.pumpWidget(_harness(const [], db: db, backend: backend));
+    await tester.pumpAndSettle();
+    await _enterBarcode(tester, '030772032565');
+    backend.userId = null;
+    await tester.tap(find.text('Report incorrect label'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<LabelMismatchSheet>(find.byType(LabelMismatchSheet))
+          .isAuthenticated,
+      isFalse,
+    );
+    expect(find.text('Sign in to report a mismatch'), findsWidgets);
+    expect(find.byKey(const Key('label-mismatch-consent')), findsNothing);
+  });
+
+  testWidgets(
+    'ambiguous cancellation preserves choice and permits comparison',
+    (tester) async {
+      final db = await _catalog(ambiguous: true);
+      await tester.pumpWidget(_harness(const [], db: db));
+      await tester.pumpAndSettle();
+      await _enterBarcode(tester, '030772032565');
+      expect(find.text('Which bottle matches yours?'), findsOneWidget);
+      Navigator.of(
+        tester.element(find.text('Which bottle matches yours?')),
+      ).pop();
+      await tester.pumpAndSettle();
+      expect(find.text('No bottle selected'), findsOneWidget);
+      expect(find.text('Report incorrect label'), findsNothing);
+      expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+      await tester.tap(find.text('Compare labels'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Second bottle'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Report incorrect label'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<LabelMismatchSheet>(find.byType(LabelMismatchSheet))
+            .product
+            .dsldId,
+        '278455',
+      );
+    },
+  );
+
+  testWidgets('catalog failure is retryable and never a missing product', (
+    tester,
+  ) async {
+    final db = _FailOnceDatabase();
+    addTearDown(db.close);
+    await _insertCatalogProduct(db);
+    await tester.pumpWidget(_harness(const [], db: db));
+    await tester.pumpAndSettle();
+    await _enterBarcode(tester, '030772032565');
+    expect(
+      find.textContaining('Couldn’t check your installed catalog'),
+      findsOneWidget,
+    );
+    expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(find.text('This barcode is in your catalog'), findsOneWidget);
+    expect(db.lookups, 2);
+  });
+
+  testWidgets('saved pending capture is checked without changing its draft', (
+    tester,
+  ) async {
+    final db = await _catalog();
+    final pending = _pending('030772032565');
+    await tester.pumpWidget(
+      _harness(const [], db: db, pendingDrafts: [pending]),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Finish sending'));
+    await tester.pumpAndSettle();
+    expect(find.text('This barcode is in your catalog'), findsOneWidget);
+    expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('3 photos ready to send'), findsOneWidget);
+    expect(pending.submissionId, '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a20');
+    expect(pending.resubmissionOf, '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11');
+  });
+
+  testWidgets('no-match pending resume retains original lineage', (
+    tester,
+  ) async {
+    final pending = _pending('030772032565');
+    await tester.pumpWidget(_harness(const [], pendingDrafts: [pending]));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Finish sending'));
+    await tester.pumpAndSettle();
+    final sheet = tester.widget<MissingProductSubmissionSheet>(
+      find.byType(MissingProductSubmissionSheet),
+    );
+    expect(sheet.upc, pending.upc);
+    expect(sheet.resubmissionOf, pending.resubmissionOf);
+  });
+
+  for (final retake in [false, true]) {
+    testWidgets(
+      'known product guards ${retake ? 'retake' : 'rejected retry'} before evidence preparation',
+      (tester) async {
+        final db = await _catalog(upc: '050428381397');
+        await tester.pumpWidget(
+          _harness([
+            {
+              ..._row(
+                id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+                reviewStatus: retake ? 'under_review' : 'rejected',
+              ),
+              if (retake) ...{
+                'evidence_revision': 1,
+                'evidence_requested_revision': 1,
+                'evidence_request_reason': 'label_unreadable',
+                'evidence_request_panels': ['barcode'],
+              } else
+                'resolution_code': 'photo_quality',
+            },
+          ], db: db),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text(retake ? 'Retake photos' : 'Try again with new photos'),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('This barcode is in your catalog'), findsOneWidget);
+        expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+      },
+    );
+  }
+
+  testWidgets(
+    'unsupported catalog report identity stays viewable without capture',
+    (tester) async {
+      final db = CoreDatabase.memory();
+      addTearDown(db.close);
+      await _insertCatalogProduct(db, id: 'PG_SUB_AAAA');
+      await tester.pumpWidget(_harness(const [], db: db));
+      await tester.pumpAndSettle();
+      await _enterBarcode(tester, '030772032565');
+      expect(find.text('View product'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Reporting isn’t available for this catalog record yet',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Report incorrect label'),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+    },
+  );
+
+  testWidgets('repeated taps open only one intake sheet', (tester) async {
+    await tester.pumpWidget(_harness(const []));
+    await tester.pumpAndSettle();
+    final button = tester.widget<IconButton>(
+      find.byKey(const Key('contributions-add-product')),
+    );
+    button.onPressed!();
+    button.onPressed!();
+    await tester.pumpAndSettle();
+    expect(find.text('Add a product from photos'), findsOneWidget);
+    Navigator.of(tester.element(find.text('Add a product from photos'))).pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Add a product from photos'), findsNothing);
+  });
+
   testWidgets('owner can save a recognizable name without changing the UPC', (
     tester,
   ) async {
@@ -752,6 +1038,75 @@ void main() {
   });
 }
 
+Future<void> _enterBarcode(WidgetTester tester, String barcode) async {
+  await tester.tap(find.byKey(const Key('contributions-add-product')));
+  await tester.pumpAndSettle();
+  await tester.enterText(
+    find.byKey(const Key('add-product-gtin-field')),
+    barcode,
+  );
+  await tester.tap(find.byKey(const Key('add-product-continue')));
+  await tester.pumpAndSettle();
+}
+
+Future<CoreDatabase> _catalog({
+  bool ambiguous = false,
+  String upc = '030772032565',
+}) async {
+  final db = CoreDatabase.memory();
+  addTearDown(db.close);
+  await _insertCatalogProduct(db, upc: upc);
+  if (ambiguous) {
+    await _insertCatalogProduct(
+      db,
+      id: '278455',
+      name: 'Second bottle',
+      upc: upc,
+    );
+  }
+  return db;
+}
+
+Future<void> _insertCatalogProduct(
+  CoreDatabase db, {
+  String id = '278454',
+  String name = 'Catalog supplement',
+  String upc = '030772032565',
+}) => db
+    .into(db.productsCore)
+    .insert(
+      ProductsCoreCompanion.insert(
+        dsldId: id,
+        productName: name,
+        brandName: const Value('Catalog brand'),
+        upcSku: Value(upc),
+        exportVersion: 'test',
+        exportedAt: '2026-09-12T00:00:00Z',
+      ),
+    );
+
+PendingProductSubmission _pending(String upc) => PendingProductSubmission(
+  submissionId: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a20',
+  upc: upc,
+  resubmissionOf: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+  noSeparateIngredientPanel: false,
+  consentVersion: 'pharmaguide.submission_consent.2026-08-25.v1',
+  evidenceRevision: 1,
+  photoCount: 3,
+  capturedAt: DateTime.utc(2026, 9, 9),
+);
+
+class _FailOnceDatabase extends CoreDatabase {
+  _FailOnceDatabase() : super.memory();
+  int lookups = 0;
+
+  @override
+  Future<UpcResolution> resolveByGtin(GtinIdentity identity) {
+    if (++lookups == 1) throw const FormatException('Catalog unreadable');
+    return super.resolveByGtin(identity);
+  }
+}
+
 Map<String, Object?> _row({
   required String id,
   required String reviewStatus,
@@ -779,7 +1134,8 @@ class _Backend implements ProductSubmissionBackend {
 
   final List<Map<String, Object?>> rows;
   @override
-  String? get authenticatedUserId => 'user-id';
+  String? get authenticatedUserId => userId;
+  String? userId = 'user-id';
 
   @override
   Future<List<Map<String, Object?>>> listOwnSubmissions({

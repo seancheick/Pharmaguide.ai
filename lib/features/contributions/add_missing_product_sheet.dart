@@ -154,9 +154,11 @@ class _AddMissingProductIdentitySheetState
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
-            'No live barcode scan is needed. Enter the UPC/GTIN from the '
-            'package or store listing, then choose the label photos you '
-            'already have.',
+            'Enter the UPC/GTIN from the package or store listing. We’ll '
+            'check your installed catalog first. For a missing product, '
+            'include clear photos showing the brand and full product name, '
+            'complete Supplement Facts, directions and warnings, and the '
+            'barcode or printed UPC.',
             style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
           const SizedBox(height: V2Spacing.space12),
