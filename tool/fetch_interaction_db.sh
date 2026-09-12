@@ -125,6 +125,25 @@ if [ "${1:-}" = "--validate" ]; then
   exit 0
 fi
 
+# The release importer stages the manifest and DB together. Refuse an outdated
+# hydration pin rather than silently downgrading that staged artifact. Standalone
+# --validate above intentionally checks content only (including test fixtures).
+python3 - "$PIN_FILE" "$REPO_ROOT/assets/db/interaction_db_manifest.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    pin = json.load(f)
+with open(sys.argv[2]) as f:
+    manifest = json.load(f)
+for pin_key, manifest_key in [
+    ('sha256', 'checksum_sha256'),
+    ('interaction_db_version', 'interaction_db_version'),
+    ('schema_version', 'schema_version'),
+]:
+    if not pin.get(pin_key) or pin[pin_key] != manifest.get(manifest_key):
+        sys.exit('Interaction DB pin/manifest mismatch: ' + pin_key
+                 + '. Publish the staged artifact and update the download pin before hydration.')
+PY
+
 # --- 1. up-to-date? skip. ---
 if [ -f "$DEST" ] && [ "$(sha256_of "$DEST")" = "$SHA256" ]; then
   info "already up to date (sha256 matches pin) — no download."

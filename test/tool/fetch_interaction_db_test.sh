@@ -31,6 +31,25 @@ expect() {
 # 1. the real hydrated DB validates
 expect 0 "real DB passes --validate" -- bash "$SCRIPT" --validate "$REAL_DB"
 
+# Hydration must not replace a staged database using an older download pin.
+# Exercise the actual no-network fast path in an isolated miniature checkout.
+mkdir -p "$TMP/checkout/tool" "$TMP/checkout/assets/db"
+cp "$SCRIPT" "$TMP/checkout/tool/"
+cp "$REPO_ROOT/tool/interaction_db.release.json" "$TMP/checkout/tool/"
+cp "$REAL_DB" "$TMP/checkout/assets/db/interaction_db.sqlite"
+cp "$REPO_ROOT/assets/db/interaction_db_manifest.json" "$TMP/checkout/assets/db/"
+expect 0 "aligned pin and manifest hydrate locally" -- bash "$TMP/checkout/tool/fetch_interaction_db.sh"
+python3 - "$TMP/checkout/assets/db/interaction_db_manifest.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    manifest = json.load(f)
+manifest['checksum_sha256'] = '0' * 64
+with open(sys.argv[1], 'w') as f:
+    json.dump(manifest, f)
+PY
+expect 1 "stale pin rejected before local activation" -- bash "$TMP/checkout/tool/fetch_interaction_db.sh"
+expect 0 "rejected hydration preserves staged database" -- cmp "$REAL_DB" "$TMP/checkout/assets/db/interaction_db.sqlite"
+
 # 2. an LFS pointer is rejected (header check)
 printf 'version https://git-lfs.github.com/spec/v1\noid sha256:deadbeef\nsize 23269376\n' > "$TMP/pointer.sqlite"
 expect 1 "133-byte LFS pointer rejected" -- bash "$SCRIPT" --validate "$TMP/pointer.sqlite"
