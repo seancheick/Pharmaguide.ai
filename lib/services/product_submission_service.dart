@@ -1190,6 +1190,7 @@ class ProductSubmissionService {
       if (page.length < _submissionPageSize) break;
       offset += page.length;
     }
+    if (backend.authenticatedUserId != userId) return const [];
     return rows.map(ProductSubmissionSummary.fromRow).toList(growable: false);
   }
 
@@ -1308,6 +1309,8 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
     required int offset,
     required int limit,
   }) async {
+    final owner = authenticatedUserId;
+    if (owner == null) return [];
     final rows = await _client
         .from(table)
         .select(
@@ -1324,8 +1327,91 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
         .order('created_at', ascending: false)
         .order('id', ascending: false)
         .range(offset, offset + limit - 1);
-    return [for (final row in rows) Map<String, Object?>.from(row)];
+    final result = [for (final row in rows) Map<String, Object?>.from(row)];
+    if (result.isNotEmpty) {
+      try {
+        final ids = [for (final row in result) row['id']! as String];
+        final revisions = await _client
+            .from('product_submission_evidence_revisions')
+            .select('submission_id,revision,photo_ids')
+            .inFilter('submission_id', ids);
+        final photos = await _client
+            .from('product_submission_photos')
+            .select('submission_id,photo_id,seq,categories,object_path')
+            .eq('user_id', owner)
+            .inFilter('submission_id', ids)
+            .order('seq');
+        final pathsById = {
+          for (final row in result)
+            row['id']! as String: submissionHistoryPhotoPaths(
+              row,
+              revisions,
+              photos,
+            ),
+        };
+        final paths = pathsById.values
+            .expand((paths) => paths)
+            .toSet()
+            .toList();
+        if (paths.isNotEmpty) {
+          final signed = await _client.storage
+              .from(ProductSubmissionService.photoBucket)
+              .createSignedUrlsResult(paths, 300);
+          final urls = {
+            for (final item in signed.whereType<SignedUrlSuccess>())
+              item.path: item.signedUrl,
+          };
+          for (final row in result) {
+            row['photo_urls'] = [
+              for (final path in pathsById[row['id']]!)
+                if (urls[path] != null) urls[path]!,
+            ];
+          }
+        }
+      } on Object {
+        // Expired/purged evidence must not hide the history or its saved name.
+        // Signed URLs are short lived and never persisted or sent to telemetry.
+      }
+    }
+    if (authenticatedUserId != owner) return [];
+    return result;
   }
+}
+
+/// Current evidence membership owns which photographs belong to this history
+/// item. Keep retained front photos, but never show a superseded Facts panel.
+List<String> submissionHistoryPhotoPaths(
+  Map<String, Object?> submission,
+  List<Map<String, dynamic>> revisions,
+  List<Map<String, dynamic>> photos,
+) {
+  final current = revisions.where(
+    (r) =>
+        r['submission_id'] == submission['id'] &&
+        r['revision'] == (submission['evidence_revision'] ?? 1),
+  );
+  if (current.length != 1) return const [];
+  final members = (current.single['photo_ids'] as List? ?? const []).toSet();
+  final selected = photos
+      .where(
+        (p) =>
+            p['submission_id'] == submission['id'] &&
+            members.contains(p['photo_id']) &&
+            p['object_path'] is String,
+      )
+      .toList();
+  selected.sort((a, b) {
+    final frontA = (a['categories'] as List? ?? const []).contains(
+      'front_identity',
+    );
+    final frontB = (b['categories'] as List? ?? const []).contains(
+      'front_identity',
+    );
+    return frontA != frontB
+        ? (frontA ? -1 : 1)
+        : (a['seq'] as int).compareTo(b['seq'] as int);
+  });
+  return [for (final photo in selected) photo['object_path'] as String];
 }
 
 /// Closed vocabulary of user-facing review outcomes (schema v2). The copy
@@ -1475,6 +1561,7 @@ class ProductSubmissionSummary {
     this.resolvedDsldId,
     this.mismatchProduct,
     this.displayName,
+    this.photoUrls = const [],
     this.evidenceRevision = 1,
     this.evidenceRequestedRevision,
     this.evidenceRequestReason,
@@ -1483,8 +1570,11 @@ class ProductSubmissionSummary {
 
   final String submissionId;
 
-  /// An owner-entered label, not an attestation of product identity.
+  /// Recognition label projected from review, not a matching/scoring input.
   final String? displayName;
+
+  /// Short-lived owner-authorized evidence URLs; never persisted.
+  final List<String> photoUrls;
 
   /// The evidence revision the submission currently stands on.
   final int evidenceRevision;
@@ -1617,6 +1707,9 @@ class ProductSubmissionSummary {
               (row['display_name']! as String).trim().isNotEmpty
           ? (row['display_name']! as String).trim()
           : null,
+      photoUrls: List.unmodifiable(
+        (row['photo_urls'] as List? ?? const []).whereType<String>(),
+      ),
       evidenceRevision: row['evidence_revision'] is int
           ? row['evidence_revision']! as int
           : 1,

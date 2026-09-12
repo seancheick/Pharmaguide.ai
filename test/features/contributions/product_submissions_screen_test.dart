@@ -56,6 +56,46 @@ Widget _harness(
 }
 
 void main() {
+  testWidgets(
+    'add button fits a narrow toolbar with an accessible tap target',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(_harness(const []));
+      await tester.pumpAndSettle();
+      final rect = tester.getRect(
+        find.byKey(const Key('contributions-add-product')),
+      );
+      expect(rect.width, 48);
+      expect(rect.height, 48);
+      expect(rect.right, lessThanOrEqualTo(308));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'unnamed history offers submitted photos instead of a naming task',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness([
+          {
+            ..._row(id: 'photo-history', reviewStatus: 'rejected'),
+            'photo_urls': ['https://example.invalid/front.jpg'],
+          },
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Name this product'), findsNothing);
+      expect(find.text('View submitted photos'), findsOneWidget);
+      await tester.ensureVisible(find.text('View submitted photos'));
+      await tester.tap(find.text('View submitted photos'));
+      await tester.pumpAndSettle();
+      expect(find.text('Photo 1 of 1'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('known UPC offers the catalog product before photos', (
     tester,
   ) async {
@@ -403,27 +443,26 @@ void main() {
     expect(find.text('Add a product from photos'), findsNothing);
   });
 
-  testWidgets('owner can save a recognizable name without changing the UPC', (
-    tester,
-  ) async {
-    final rows = [
-      _row(
-        id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
-        reviewStatus: 'rejected',
-      ),
-    ];
-    await tester.pumpWidget(_harness(rows));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Name this product'));
-    await tester.tap(find.text('Name this product'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField), 'Seed · DS-01');
-    await tester.tap(find.text('Save name'));
-    await tester.pumpAndSettle();
-    expect(find.text('Seed · DS-01'), findsOneWidget);
-    expect(find.textContaining('050428381397'), findsOneWidget);
-    expect(rows.single['review_status'], 'rejected');
-  });
+  testWidgets(
+    'review name is shown without asking the contributor to name it',
+    (tester) async {
+      final rows = [
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+            reviewStatus: 'rejected',
+          ),
+          'display_name': 'Seed · DS-01',
+        },
+      ];
+      await tester.pumpWidget(_harness(rows));
+      await tester.pumpAndSettle();
+      expect(find.text('Name this product'), findsNothing);
+      expect(find.text('Seed · DS-01'), findsOneWidget);
+      expect(find.textContaining('050428381397'), findsOneWidget);
+      expect(rows.single['review_status'], 'rejected');
+    },
+  );
   testWidgets('shows review and shipped states without exposing other users', (
     tester,
   ) async {
@@ -839,7 +878,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Seed · DS-01 Daily Synbiotic'), findsOneWidget);
     expect(find.text('Product name unavailable'), findsNothing);
-    expect(find.text('Name this product'), findsOneWidget);
+    expect(find.text('Name this product'), findsNothing);
   });
 
   testWidgets('failed cards offer a confirmed non-destructive history hide', (

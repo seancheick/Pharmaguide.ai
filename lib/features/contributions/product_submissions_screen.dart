@@ -20,7 +20,6 @@ import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
-import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 typedef ResubmitProductSubmission =
     Future<void> Function(ProductSubmissionSummary status);
@@ -309,15 +308,14 @@ class _ProductSubmissionsScreenState
         ),
         centerTitle: true,
         actions: [
-          Semantics(
-            button: true,
-            label: 'Add a missing product',
-            child: IconButton.filledTonal(
+          Padding(
+            padding: const EdgeInsets.only(right: V2Spacing.space12),
+            child: IconButton(
               key: const Key('contributions-add-product'),
               tooltip: 'Add a missing product',
               onPressed: _intakeOpen ? null : _addFromPhotos,
-              iconSize: 26,
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              iconSize: 24,
+              style: IconButton.styleFrom(fixedSize: const Size(48, 48)),
               icon: const Icon(Icons.add_rounded),
             ),
           ),
@@ -1020,68 +1018,6 @@ class _SubmissionIdentity extends ConsumerWidget {
 
   final ProductSubmissionSummary status;
 
-  Future<void> _rename(BuildContext context, WidgetRef ref) async {
-    var name = status.displayName ?? '';
-    final formKey = GlobalKey<FormState>();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Name this product'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            initialValue: name,
-            maxLength: 160,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Brand and product name',
-              hintText: 'Seed · DS-01 Daily Synbiotic',
-              helperText:
-                  'For your history only. This does not change the review.',
-              helperMaxLines: 3,
-            ),
-            onChanged: (value) => name = value,
-            validator: (value) =>
-                (value ?? '').trim().isEmpty ? 'Enter a product name.' : null,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(dialogContext, name.trim());
-              }
-            },
-            child: const Text('Save name'),
-          ),
-        ],
-      ),
-    );
-    if (value == null || !context.mounted) return;
-    try {
-      await ref
-          .read(productSubmissionServiceProvider)
-          .setDisplayName(status.submissionId, value);
-      if (context.mounted) ref.invalidate(productSubmissionsProvider);
-    } on Object catch (_, stack) {
-      CrashReportingService().recordError(
-        StateError('Submission name save failed'),
-        stack,
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Couldn’t save the name. Please try again.'),
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final catalogId = status.resolvedDsldId ?? status.mismatchProduct?.dsldId;
@@ -1089,7 +1025,7 @@ class _SubmissionIdentity extends ConsumerWidget {
       return _SubmissionIdentityText(
         name: _fallbackSubmissionName(status),
         upc: status.upc,
-        onRename: () => _rename(context, ref),
+        photoUrls: status.photoUrls,
       );
     }
     return FutureBuilder(
@@ -1099,15 +1035,17 @@ class _SubmissionIdentity extends ConsumerWidget {
         final brand = product?.brandName?.trim() ?? '';
         final name = product?.productName.trim() ?? '';
         return _SubmissionIdentityText(
-          name: name.isEmpty
-              ? _fallbackSubmissionName(status)
-              : brand.isEmpty ||
-                    name.toLowerCase() == brand.toLowerCase() ||
-                    name.toLowerCase().startsWith('${brand.toLowerCase()} ')
-              ? name
-              : '$brand · $name',
+          name:
+              status.displayName ??
+              (name.isEmpty
+                  ? _fallbackSubmissionName(status)
+                  : brand.isEmpty ||
+                        name.toLowerCase() == brand.toLowerCase() ||
+                        name.toLowerCase().startsWith('${brand.toLowerCase()} ')
+                  ? name
+                  : '$brand · $name'),
           upc: status.upc,
-          onRename: product == null ? () => _rename(context, ref) : null,
+          photoUrls: status.photoUrls,
         );
       },
     );
@@ -1118,12 +1056,12 @@ class _SubmissionIdentityText extends StatelessWidget {
   const _SubmissionIdentityText({
     required this.name,
     required this.upc,
-    this.onRename,
+    this.photoUrls = const [],
   });
 
   final String name;
   final String? upc;
-  final VoidCallback? onRename;
+  final List<String> photoUrls;
 
   @override
   Widget build(BuildContext context) {
@@ -1143,12 +1081,55 @@ class _SubmissionIdentityText extends StatelessWidget {
             style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ],
-        if (onRename != null)
-          TextButton.icon(
-            onPressed: onRename,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Name this product'),
+        if (photoUrls.isNotEmpty) ...[
+          const SizedBox(height: V2Spacing.space8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              photoUrls.first,
+              width: 80,
+              height: 96,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => const SizedBox(
+                width: 80,
+                height: 64,
+                child: Icon(Icons.photo_outlined),
+              ),
+            ),
           ),
+          TextButton.icon(
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (context) => Dialog.fullscreen(
+                child: Scaffold(
+                  appBar: AppBar(title: Text(name)),
+                  body: ListView(
+                    padding: const EdgeInsets.all(V2Spacing.space16),
+                    children: [
+                      for (var i = 0; i < photoUrls.length; i++) ...[
+                        Text('Photo ${i + 1} of ${photoUrls.length}'),
+                        Image.network(
+                          photoUrls[i],
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'Photo unavailable. Close and refresh your contributions to try again.',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: V2Spacing.space16),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.photo_library_outlined, size: 18),
+            label: const Text('View submitted photos'),
+          ),
+        ],
       ],
     );
   }
