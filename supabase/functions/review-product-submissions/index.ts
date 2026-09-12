@@ -29,6 +29,7 @@ import {
 } from "./evidence.ts";
 import { parseEvidenceRequest } from "./retake.ts";
 import { loadSubmissionDrafts } from "./drafts.ts";
+import { parseCatalogRelation } from "./catalog_relation.ts";
 import {
   detectReviewerImageContentType,
   parseReviewerImageUploadRequest,
@@ -554,6 +555,8 @@ async function applyTransition(
       "product_image_reviewer_object_id",
       "expected_evidence_revision",
       "evidence_manifest_sha256",
+      "correction_target_dsld_id",
+      "edition_of_dsld_id",
     ]),
   );
   const submissionId = requiredUuid(body.submission_id, "submission id");
@@ -562,6 +565,7 @@ async function applyTransition(
   if (!TRANSITION_STATUSES.has(toStatus)) {
     throw new Error("invalid transition status");
   }
+  const catalogRelation = parseCatalogRelation(body, toStatus);
   const reviewNotes = body.review_notes === undefined ||
       body.review_notes === null
     ? null
@@ -672,6 +676,8 @@ async function applyTransition(
     p_product_image_reviewer_object_id: productImageReviewerObjectId,
     p_expected_evidence_revision: evidenceBinding.expectedEvidenceRevision,
     p_evidence_manifest_sha256: evidenceBinding.evidenceManifestSha256,
+    p_correction_target_dsld_id: catalogRelation.correctionTargetDsldId,
+    p_edition_of_dsld_id: catalogRelation.editionOfDsldId,
   });
   if (error || data !== true) throw error;
 

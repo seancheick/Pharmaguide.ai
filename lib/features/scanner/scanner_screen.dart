@@ -152,16 +152,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
       setState(() => _isLookingUp = false);
 
-      final product = switch (resolution) {
-        UpcUnique(:final product) => product,
+      final choice = switch (resolution) {
+        UpcUnique(:final product) => ProductVersionSelected(product),
         UpcAmbiguous(:final candidates) => await showProductVersionPickerSheet(
           context,
           candidates: candidates,
         ),
-        UpcNotFound() => null,
+        UpcNotFound() => const ProductVersionUnmatched(),
       };
       if (!mounted) return;
 
+      final product = choice is ProductVersionSelected ? choice.product : null;
       if (product != null) {
         CrashReportingService().setScanResult('found');
         // Persist the scan before we navigate so any mounted Home shell can
@@ -179,7 +180,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         // to-refresh; no external invalidation needed after the v1
         // home screen retirement.
         await _showVerdictFlashAndNavigate(product);
-      } else if (resolution is UpcNotFound) {
+      } else if (choice is ProductVersionUnmatched) {
+        // Either the catalog has never seen this barcode, or it has seen it
+        // on labels that are not this bottle. Both mean the product is
+        // missing, and both deserve the same offer to add it.
         CrashReportingService().setScanResult('not_found');
         unawaited(_showProductNotFound(identity, manualEntry: manualEntry));
       } else {
