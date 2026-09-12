@@ -295,3 +295,16 @@ DO $$ BEGIN
     'service_role could enumerate reviewer readiness');
 END $$;
 $case$);
+SELECT fixture.test('every unchecked review overload stays private', $case$
+DO $$ BEGIN
+  PERFORM fixture.assert(EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public' AND p.proname='review_product_submission_unchecked'
+  ),'internal implementation exists');
+  PERFORM fixture.assert(NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    CROSS JOIN (VALUES ('anon'),('authenticated'),('service_role')) roles(name)
+    WHERE n.nspname='public' AND p.proname='review_product_submission_unchecked'
+      AND has_function_privilege(roles.name,p.oid,'EXECUTE')
+  ),'no API role can bypass the guarded RPC using any overload');
+END $$ $case$);
