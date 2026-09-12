@@ -149,14 +149,6 @@ void main() {
               expectedSeverity: Severity.avoid,
             ),
             (
-              canonicalId: 'cbd',
-              medicationName: 'Warfarin',
-              rxcui: '11289',
-              drugClasses: ['class:anticoagulants'],
-              expectedInteractionId: 'DSI_ANTICOAG_CBD',
-              expectedSeverity: Severity.caution,
-            ),
-            (
               canonicalId: 'horse_chestnut_seed',
               medicationName: 'Warfarin',
               rxcui: '11289',
@@ -262,6 +254,45 @@ void main() {
         reason:
             'PPI → magnesium is a suppressed medication-depletion record, '
             'not an active pairwise Quick Check interaction',
+      );
+    },
+  );
+
+  test(
+    'bundled CBD interaction remains available without a catalog product',
+    () async {
+      // Catalog membership is not the interaction-rule contract. The current
+      // catalog has no CBD product; a retained stack item must still be checked.
+      final tmpDir = await Directory.systemTemp.createTemp('quick-check-cbd');
+      addTearDown(() => tmpDir.delete(recursive: true));
+      final interactionFile = await _materializeAsset(
+        'assets/db/interaction_db.sqlite',
+        tmpDir,
+      );
+      final interactionDb = InteractionDatabase.open(interactionFile.path);
+      addTearDown(interactionDb.close);
+      final results = await runQuickCheckPair(
+        QuickCheckItem.supplement(
+          const ProductsCoreData(
+            dsldId: 'test-retained-cbd',
+            productName: 'Retained CBD test item',
+            keyIngredientTags: '["cbd"]',
+            exportVersion: 'test',
+            exportedAt: '2026-09-12T00:00:00Z',
+          ),
+        ),
+        QuickCheckItem.medication(
+          name: 'Warfarin',
+          rxcui: '11289',
+          drugClasses: const ['class:anticoagulants'],
+        ),
+        interactionDb,
+      );
+      expect(
+        results
+            .singleWhere((result) => result.id == 'DSI_ANTICOAG_CBD')
+            .severity,
+        Severity.caution,
       );
     },
   );
