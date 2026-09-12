@@ -183,11 +183,11 @@ PODS:
   - SDWebImageWebPCoder (0.15.0):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
-  - Sentry/HybridSDK (8.58.3)
-  - sentry_flutter (9.22.0):
+  - Sentry/HybridSDK (8.58.4)
+  - sentry_flutter (9.28.0):
     - Flutter
     - FlutterMacOS
-    - Sentry/HybridSDK (= 8.58.3)
+    - Sentry/HybridSDK (= 8.58.4)
   - share_plus (0.0.1):
     - Flutter
   - shared_preferences_foundation (0.0.1):
@@ -195,6 +195,7 @@ PODS:
     - FlutterMacOS
   - sign_in_with_apple (0.0.1):
     - Flutter
+    - FlutterMacOS
   - sqflite_darwin (0.0.4):
     - Flutter
     - FlutterMacOS
@@ -248,7 +249,7 @@ DEPENDENCIES:
   - sentry_flutter (from `.symlinks/plugins/sentry_flutter/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
-  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
+  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/darwin`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
   - sqlite3_flutter_libs (from `.symlinks/plugins/sqlite3_flutter_libs/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
@@ -328,7 +329,7 @@ EXTERNAL SOURCES:
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   sign_in_with_apple:
-    :path: ".symlinks/plugins/sign_in_with_apple/ios"
+    :path: ".symlinks/plugins/sign_in_with_apple/darwin"
   sqflite_darwin:
     :path: ".symlinks/plugins/sqflite_darwin/darwin"
   sqlite3_flutter_libs:
@@ -381,11 +382,11 @@ SPEC CHECKSUMS:
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
-  Sentry: 108fdbb76299c4189af12246bf0308c09c278922
-  sentry_flutter: 23107cf6ac9e0b93600711a4a3ae3d4c1de01b9e
+  Sentry: 5321d74bdd28d6f6f8beaa1ca06f1fdc746bff49
+  sentry_flutter: 61eb447644fde824d383cccef65653714d7686ea
   share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
   shared_preferences_foundation: 5086985c1d43c5ba4d5e69a4e8083a389e2909e6
-  sign_in_with_apple: f3bf75217ea4c2c8b91823f225d70230119b8440
+  sign_in_with_apple: fb98447f3dfb81e2926945ea43a8c9c7205eaca9
   sqflite_darwin: 5a7236e3b501866c1c9befc6771dfd73ffb8702d
   sqlite3: a51c07cf16e023d6c48abd5e5791a61a47354921
   sqlite3_flutter_libs: f9114e4bbe1f2e03dd543373c53d23245982ca13
