@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
+import 'package:pharmaguide/features/scanner/product_version_label_sheet.dart';
 
 ProductsCoreData _product(
   String id,
@@ -27,6 +28,64 @@ ProductsCoreData _product(
 );
 
 void main() {
+  testWidgets('nutrition-only editions use the canonical nutrition renderer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          detailBlobProvider('protein').overrideWith(
+            (ref) async => {
+              'display_ingredients': [
+                {
+                  'label_display_name': 'Protein',
+                  'exact_dose_text': '20 g',
+                  'display_type': 'nutrition_fact',
+                  'label_order': 0,
+                  'nested_depth': 0,
+                  'raw_source_path': 'ingredientRows[0]',
+                  'display_disposition': 'label_context',
+                },
+              ],
+            },
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showProductVersionLabelSheet(
+                  context,
+                  product: _product(
+                    'protein',
+                    'Protein powder',
+                    score: 80,
+                    quantity: 30,
+                  ),
+                ),
+                child: const Text('Open label'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open label'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'This matches my label'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    await tester.tap(find.text('Nutrition Facts'));
+    await tester.pumpAndSettle();
+    expect(find.text('Protein'), findsOneWidget);
+    expect(find.text('20 g'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('explains the collision using bottle details, not scores', (
     tester,
   ) async {

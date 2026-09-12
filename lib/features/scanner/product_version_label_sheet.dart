@@ -6,6 +6,7 @@ import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart'
     show productDetailIngredientSourcesFromBlob;
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
 
 Future<bool?> showProductVersionLabelSheet(
   BuildContext context, {
@@ -27,11 +28,16 @@ class _ProductVersionLabelSheet extends ConsumerWidget {
     final sources = productDetailIngredientSourcesFromBlob(
       detail.asData?.value,
     );
-    final hasLabel = hasIngredientDisclosureTarget(
-      ingredients: const [],
-      displayIngredients: sources.displayIngredients,
-      blends: sources.blends,
+    final nutritionRows = labelNutritionRowsForDisplayLedger(
+      sources.displayIngredients,
     );
+    final hasLabel =
+        nutritionRows.isNotEmpty ||
+        hasIngredientDisclosureTarget(
+          ingredients: const [],
+          displayIngredients: sources.displayIngredients,
+          blends: sources.blends,
+        );
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
@@ -65,6 +71,14 @@ class _ProductVersionLabelSheet extends ConsumerWidget {
                   inactiveIngredients: sources.inactiveIngredients,
                   ulAnalysis: null,
                   blends: sources.blends,
+                  nutritionContent: nutritionRows.isEmpty
+                      ? null
+                      : buildNutritionSection(
+                          caloriesPerServing: null,
+                          nutritionDetail: null,
+                          labelRows: nutritionRows,
+                          embedded: true,
+                        ),
                 ),
               ),
             ),
