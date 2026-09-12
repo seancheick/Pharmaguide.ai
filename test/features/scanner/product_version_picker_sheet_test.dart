@@ -9,6 +9,8 @@ ProductsCoreData _product(
   String name, {
   required double score,
   required double quantity,
+  int? servingsPerContainer,
+  String? keyIngredientTags,
 }) => ProductsCoreData(
   dsldId: id,
   productName: name,
@@ -17,6 +19,8 @@ ProductsCoreData _product(
   netContentsQuantity: quantity,
   netContentsUnit: 'Softgels',
   qualityScoreV4100: score,
+  servingsPerContainer: servingsPerContainer,
+  keyIngredientTags: keyIngredientTags,
   exportVersion: 'test',
   exportedAt: '2026-08-19T00:00:00Z',
 );
@@ -47,5 +51,119 @@ void main() {
     expect(find.textContaining('120 Softgels'), findsOneWidget);
     expect(find.textContaining('95'), findsNothing);
     expect(find.textContaining('40'), findsNothing);
+  });
+
+  testWidgets('separates two editions by what is on the Facts panel', (
+    tester,
+  ) async {
+    // Same barcode, same bottle art, different label. The picture cannot tell
+    // these apart; the panel can.
+    final candidates = [
+      _product(
+        '178392',
+        'Prenatal',
+        score: 60,
+        quantity: 30,
+        servingsPerContainer: 30,
+        keyIngredientTags: 'Folic Acid, Iron, DHA',
+      ),
+      _product(
+        'PG_SUB_1',
+        'Prenatal',
+        score: 70,
+        quantity: 30,
+        servingsPerContainer: 60,
+        keyIngredientTags: 'Folate, Iron, Choline',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: ProductVersionPickerSheet(candidates: candidates),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('30 servings'), findsOneWidget);
+    expect(find.textContaining('60 servings'), findsOneWidget);
+    expect(find.textContaining('Folic Acid'), findsOneWidget);
+    expect(find.textContaining('Folate'), findsOneWidget);
+  });
+
+  testWidgets('none of these is an answer, not a dismissal', (tester) async {
+    final candidates = [
+      _product('one', 'Omega 3 — 60 count', score: 95, quantity: 60),
+      _product('two', 'Omega 3 — 120 count', score: 40, quantity: 120),
+    ];
+    ProductVersionChoice? choice;
+    var opened = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  opened = true;
+                  choice = await showProductVersionPickerSheet(
+                    context,
+                    candidates: candidates,
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(opened, isTrue);
+
+    await tester.tap(find.text('None of these is my bottle'));
+    await tester.pumpAndSettle();
+
+    expect(choice, isA<ProductVersionUnmatched>());
+  });
+
+  testWidgets('picking a bottle answers with that product', (tester) async {
+    final candidates = [
+      _product('one', 'Omega 3 — 60 count', score: 95, quantity: 60),
+      _product('two', 'Omega 3 — 120 count', score: 40, quantity: 120),
+    ];
+    ProductVersionChoice? choice;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async => choice =
+                    await showProductVersionPickerSheet(
+                      context,
+                      candidates: candidates,
+                    ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Omega 3 — 120 count'));
+    await tester.pumpAndSettle();
+
+    expect(choice, isA<ProductVersionSelected>());
+    expect((choice! as ProductVersionSelected).product.dsldId, 'two');
   });
 }

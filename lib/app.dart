@@ -155,15 +155,24 @@ class ScanScreen extends ConsumerWidget {
         await _showManualLookupNotFound(context, ref, barcode);
         return;
       }
-      final product = switch (resolution) {
-        UpcUnique(:final product) => product,
+      final choice = switch (resolution) {
+        UpcUnique(:final product) => ProductVersionSelected(product),
         UpcAmbiguous(:final candidates) => await showProductVersionPickerSheet(
           context,
           candidates: candidates,
         ),
-        UpcNotFound() => null,
+        UpcNotFound() => const ProductVersionUnmatched(),
       };
-      if (!context.mounted || product == null) return;
+      if (!context.mounted) return;
+      // A barcode can be reused for a formula we have never seen, so saying
+      // none of these is the bottle means the product is missing, not that
+      // the person changed their mind.
+      if (choice is ProductVersionUnmatched) {
+        await _showManualLookupNotFound(context, ref, barcode);
+        return;
+      }
+      if (choice is! ProductVersionSelected) return;
+      final product = choice.product;
 
       await ref
           .read(userDatabaseProvider)

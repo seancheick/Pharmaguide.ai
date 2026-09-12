@@ -4,7 +4,28 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
-Future<ProductsCoreData?> showProductVersionPickerSheet(
+/// What the person said their bottle is.
+///
+/// "None of these" is a real answer, not a dismissal: a barcode can be reused
+/// for a formula the catalog has never seen, and treating that silence as
+/// "cancelled" loses both the scan and the chance to add the product.
+sealed class ProductVersionChoice {
+  const ProductVersionChoice();
+}
+
+/// This bottle is that catalog record.
+class ProductVersionSelected extends ProductVersionChoice {
+  const ProductVersionSelected(this.product);
+
+  final ProductsCoreData product;
+}
+
+/// None of the candidates is the bottle in the person's hand.
+class ProductVersionUnmatched extends ProductVersionChoice {
+  const ProductVersionUnmatched();
+}
+
+Future<ProductVersionChoice?> showProductVersionPickerSheet(
   BuildContext context, {
   required List<ProductsCoreData> candidates,
 }) {
@@ -12,7 +33,7 @@ Future<ProductsCoreData?> showProductVersionPickerSheet(
     candidates.length > 1,
     'Bottle confirmation requires multiple matches.',
   );
-  return PGModal.bottomSheet<ProductsCoreData>(
+  return PGModal.bottomSheet<ProductVersionChoice>(
     context: context,
     builder: (_) => ProductVersionPickerSheet(candidates: candidates),
   );
@@ -43,7 +64,8 @@ class ProductVersionPickerSheet extends StatelessWidget {
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
-            'This barcode appears on more than one label. Compare the name, bottle size, and photo.',
+            'This barcode is on more than one label. Check the serving count \n'
+            'and what is in it against your bottle, not just the picture.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: V2Spacing.space16),
@@ -79,10 +101,28 @@ class ProductVersionPickerSheet extends StatelessWidget {
                     title: Text(product.productName),
                     subtitle: details.isEmpty ? null : Text(details),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).pop(product),
+                    onTap: () => Navigator.of(context)
+                        .pop(ProductVersionSelected(product)),
                   ),
                 );
               },
+            ),
+          ),
+          const Divider(height: 1),
+          Semantics(
+            button: true,
+            label: 'None of these is my bottle',
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: V2Spacing.space8,
+              ),
+              leading: const Icon(Icons.help_outline),
+              title: const Text('None of these is my bottle'),
+              subtitle: const Text(
+                "Send photos of yours and we'll add it",
+              ),
+              onTap: () => Navigator.of(context)
+                  .pop(const ProductVersionUnmatched()),
             ),
           ),
         ],
@@ -107,5 +147,22 @@ String _bottleDetails(ProductsCoreData product) {
 
   final form = product.formFactor?.trim();
   if (form != null && form.isNotEmpty) details.add(form);
+
+  // What is printed on the Facts panel, which is what actually separates two
+  // editions of the same product. Two bottles can look identical and share a
+  // barcode while their panels do not.
+  final servings = product.servingsPerContainer;
+  if (servings != null && servings > 0) details.add('$servings servings');
+
+  final tags = product.keyIngredientTags?.trim();
+  if (tags != null && tags.isNotEmpty) {
+    final named = tags
+        .split(RegExp(r'[,|]'))
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .take(3)
+        .join(', ');
+    if (named.isNotEmpty) details.add(named);
+  }
   return details.join(' · ');
 }
