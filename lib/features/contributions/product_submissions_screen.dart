@@ -1089,6 +1089,7 @@ class _SubmissionIdentityText extends StatelessWidget {
               photoUrls.first,
               width: 80,
               height: 96,
+              cacheWidth: 240,
               fit: BoxFit.contain,
               excludeFromSemantics: true,
               errorBuilder: (_, _, _) => const SizedBox(

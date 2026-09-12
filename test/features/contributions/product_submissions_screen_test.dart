@@ -89,6 +89,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Name this product'), findsNothing);
       expect(find.text('View submitted photos'), findsOneWidget);
+      final thumbnail = tester.widget<Image>(find.byType(Image));
+      expect((thumbnail.image as ResizeImage).width, 240);
       await tester.ensureVisible(find.text('View submitted photos'));
       await tester.tap(find.text('View submitted photos'));
       await tester.pumpAndSettle();
