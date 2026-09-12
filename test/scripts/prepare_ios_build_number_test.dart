@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   late Directory tempDir;
   late File pubspec;
+  late File appVersion;
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync(
@@ -12,6 +13,14 @@ void main() {
     );
     pubspec = File('${tempDir.path}/pubspec.yaml')
       ..writeAsStringSync('name: test_app\nversion: 1.0.0+14\n');
+    // The build number is also compiled into the app for the About screen.
+    // The script that reserves a build number owns both copies.
+    appVersion = File('${tempDir.path}/lib/core/utils/app_version.dart')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        "const String kAppVersion = '1.0.0';\n"
+        'const int kAppBuildNumber = 14;\n',
+      );
   });
 
   tearDown(() {
@@ -81,8 +90,42 @@ void main() {
 
       expect(result.exitCode, 0, reason: '${result.stderr}');
       expect(pubspec.readAsStringSync(), contains('version: 1.0.0+15'));
+      expect(
+        appVersion.readAsStringSync(),
+        contains('const int kAppBuildNumber = 15;'),
+      );
     },
   );
+
+  test(
+    'brings the compiled build number back in line when reusing a build',
+    () async {
+      // Pubspec already reserved 14, but the constant was left behind — the
+      // drift that turned CI red when pubspec was bumped by hand.
+      appVersion.writeAsStringSync(
+        "const String kAppVersion = '1.0.0';\n"
+        'const int kAppBuildNumber = 13;\n',
+      );
+
+      final result = await prepare(latestSuccessfulBuild: 13);
+
+      expect(result.exitCode, 0, reason: '${result.stderr}');
+      expect(pubspec.readAsStringSync(), contains('version: 1.0.0+14'));
+      expect(
+        appVersion.readAsStringSync(),
+        contains('const int kAppBuildNumber = 14;'),
+      );
+    },
+  );
+
+  test('refuses to reserve a build it cannot compile into the app', () async {
+    appVersion.deleteSync();
+
+    final result = await prepare(latestSuccessfulBuild: 14);
+
+    expect(result.exitCode, isNot(0));
+    expect(result.stderr, contains('kAppBuildNumber'));
+  });
 
   test(
     'preserves a reserved build number while retrying a failed export',
