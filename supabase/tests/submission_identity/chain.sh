@@ -38,4 +38,5 @@ submission_migration_chain() {
   printf '%s\n' "$repo_dir/supabase/migrations/20260911192610_submission_display_names.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260911193721_confirm_submission_display_name_save.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260911195341_persist_reviewer_product_picture.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20260912095500_read_submission_drafts_through_reviewer_rpc.sql"
 }
