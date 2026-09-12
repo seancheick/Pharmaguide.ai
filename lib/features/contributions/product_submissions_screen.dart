@@ -175,8 +175,8 @@ class _ProductSubmissionsScreenState
       } else {
         while (true) {
           if (!mounted) return;
-          final product = switch (resolution) {
-            UpcUnique(:final product) => product,
+          final choice = switch (resolution) {
+            UpcUnique(:final product) => ProductVersionSelected(product),
             UpcAmbiguous(:final candidates) =>
               await showProductVersionPickerSheet(
                 context,
@@ -184,7 +184,10 @@ class _ProductSubmissionsScreenState
               ),
             UpcNotFound() => null,
           };
-          if (!mounted) return;
+          if (!mounted || choice == null) return;
+          final product = choice is ProductVersionSelected
+              ? choice.product
+              : null;
           final metadata = product == null
               ? null
               : labelMismatchMetadataFrom(

@@ -174,20 +174,24 @@ void main() {
   });
 
   testWidgets(
-    'ambiguous cancellation preserves choice and permits comparison',
+    'ambiguous unmatched answer permits comparison without missing capture',
     (tester) async {
       final db = await _catalog(ambiguous: true);
       await tester.pumpWidget(_harness(const [], db: db));
       await tester.pumpAndSettle();
       await _enterBarcode(tester, '030772032565');
       expect(find.text('Which bottle matches yours?'), findsOneWidget);
-      Navigator.of(
-        tester.element(find.text('Which bottle matches yours?')),
-      ).pop();
+      await tester.tap(find.text('None of these match'));
       await tester.pumpAndSettle();
       expect(find.text('No bottle selected'), findsOneWidget);
       expect(find.text('Report incorrect label'), findsNothing);
       expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('No bottle selected'), findsNothing);
+      await _enterBarcode(tester, '030772032565');
+      await tester.tap(find.text('None of these match'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Compare labels'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Second bottle'));
@@ -203,6 +207,32 @@ void main() {
       );
     },
   );
+
+  testWidgets('ambiguous cancellation closes intake without a guessed target', (
+    tester,
+  ) async {
+    final db = await _catalog(ambiguous: true);
+    await tester.pumpWidget(_harness(const [], db: db));
+    await tester.pumpAndSettle();
+    await _enterBarcode(tester, '030772032565');
+    Navigator.of(
+      tester.element(find.text('Which bottle matches yours?')),
+    ).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('No bottle selected'), findsNothing);
+    expect(find.text('Report incorrect label'), findsNothing);
+    expect(find.byType(LabelMismatchSheet), findsNothing);
+    expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byKey(const Key('contributions-add-product')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+  });
 
   testWidgets('catalog failure is retryable and never a missing product', (
     tester,

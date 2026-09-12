@@ -111,15 +111,15 @@ class ProductVersionPickerSheet extends StatelessWidget {
           const Divider(height: 1),
           Semantics(
             button: true,
-            label: 'None of these is my bottle',
+            label: 'None of these match',
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(
                 vertical: V2Spacing.space8,
               ),
               leading: const Icon(Icons.help_outline),
-              title: const Text('None of these is my bottle'),
+              title: const Text('None of these match'),
               subtitle: const Text(
-                "Send photos of yours and we'll add it",
+                'My bottle has a different label.',
               ),
               onTap: () => Navigator.of(context)
                   .pop(const ProductVersionUnmatched()),

@@ -126,7 +126,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(opened, isTrue);
 
-    await tester.tap(find.text('None of these is my bottle'));
+    expect(find.text('My bottle has a different label.'), findsOneWidget);
+    expect(find.textContaining("we'll add it"), findsNothing);
+    await tester.tap(find.text('None of these match'));
     await tester.pumpAndSettle();
 
     expect(choice, isA<ProductVersionUnmatched>());
