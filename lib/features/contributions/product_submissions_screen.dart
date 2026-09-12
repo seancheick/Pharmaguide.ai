@@ -100,7 +100,7 @@ class _ProductSubmissionsScreenState
     String? resubmissionOf,
     ProductSubmissionSummary? retakeStatus,
   }) async {
-    if (_intakeOpen) return;
+    if (!mounted || _intakeOpen) return;
     setState(() => _intakeOpen = true);
     try {
       upc ??= await showAddMissingProductIdentitySheet(context);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
@@ -221,6 +222,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('This barcode is in your catalog'), findsOneWidget);
     expect(db.lookups, 2);
+  });
+
+  testWidgets('catalog Retry is harmless after contributions is popped', (
+    tester,
+  ) async {
+    final db = _FailOnceDatabase();
+    addTearDown(db.close);
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) => const Scaffold(body: Text('Home')),
+        ),
+        GoRoute(
+          path: '/contributions',
+          builder: (_, _) => const ProductSubmissionsScreen(),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_harness(const [], db: db, router: router));
+    await tester.pumpAndSettle();
+    unawaited(router.push<void>('/contributions'));
+    await tester.pumpAndSettle();
+    await _enterBarcode(tester, '030772032565');
+    expect(find.text('Retry'), findsOneWidget);
+
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.byType(ProductSubmissionsScreen), findsNothing);
+    expect(find.text('Retry'), findsOneWidget);
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(db.lookups, 1);
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.byType(MissingProductSubmissionSheet), findsNothing);
   });
 
   testWidgets('saved pending capture is checked without changing its draft', (
