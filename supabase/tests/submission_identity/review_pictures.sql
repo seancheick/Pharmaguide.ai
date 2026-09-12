@@ -27,3 +27,27 @@ DO $$ DECLARE sid uuid; r jsonb; BEGIN
  PERFORM fixture.assert(r->'draft'='null'::jsonb,'no personal draft');
  PERFORM fixture.assert(r->'approved_label'->'approved_payload'->>'brandName'='Approved','approved label is independent of personal drafts');
 END $$ $case$);
+
+SELECT fixture.test('saved identity history reopens without exposing reviewer accounts', $case$
+DO $$ DECLARE sid uuid; other uuid; r jsonb; BEGIN
+ sid:=fixture.seed(1,'012345678905','under_review');
+ other:=fixture.seed(2,'012345678905','under_review');
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
+ r:=public.load_product_submission_reviewer_draft(sid);
+ PERFORM fixture.assert(r->'identity_check'='{"recorded":false,"satisfies_approval":false}'::jsonb,'no history is explicit');
+ INSERT INTO public.product_submission_match_checks(submission_id,reviewer_id,outcome,canonical_gtin14,index_built_at,evidence_revision)
+ VALUES(sid,fixture.user_id(3),'no_match_verified','00012345678905',now(),1);
+ r:=public.load_product_submission_reviewer_draft(sid);
+ PERFORM fixture.assert(r->'identity_check'->>'outcome'='no_match_verified','recorded check survives reopen');
+ PERFORM fixture.assert((r->'identity_check'->>'satisfies_approval')::boolean,'server confirms current identity binding');
+ PERFORM fixture.assert(r->'identity_check'->>'evidence_revision'='1','revision binding returned');
+ PERFORM fixture.assert(NOT (r->'identity_check' ? 'reviewer_id'),'no reviewer account exposed');
+ PERFORM fixture.assert(public.load_product_submission_reviewer_draft(other)->'identity_check'='{"recorded":false,"satisfies_approval":false}'::jsonb,'no cross-submission history');
+ INSERT INTO public.product_submission_match_checks(submission_id,reviewer_id,outcome,canonical_gtin14,index_built_at,evidence_revision,matched_dsld_id)
+ VALUES(sid,fixture.user_id(3),'catalog_match','00012345678905',now(),1,'123');
+ r:=public.load_product_submission_reviewer_draft(sid);
+ PERFORM fixture.assert(r->'identity_check'->>'outcome'='catalog_match','latest outcome wins same-timestamp tie');
+ PERFORM fixture.assert(NOT (r->'identity_check'->>'satisfies_approval')::boolean,'later catalog match invalidates earlier no match');
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(1)::text,false);
+ PERFORM fixture.throws(format('SELECT public.load_product_submission_reviewer_draft(%L)',sid),'42501','reviewer access');
+END $$ $case$);
