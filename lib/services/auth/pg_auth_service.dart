@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'dart:math' show Random;
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
@@ -262,7 +263,7 @@ class PGAuthService {
         return const PGAuthCancelled();
       }
       CrashReportingService().recordError(e, st, hint: 'pg_auth:apple_authz');
-      return PGAuthError(_friendlyAppleError(e));
+      return PGAuthError(friendlyAppleError(e));
     } on AuthException catch (e, st) {
       CrashReportingService().recordError(
         e,
@@ -411,7 +412,8 @@ class PGAuthService {
   static String _sha256Hex(String input) =>
       sha256.convert(utf8.encode(input)).toString();
 
-  static String _friendlyAppleError(SignInWithAppleAuthorizationException e) {
+  @visibleForTesting
+  static String friendlyAppleError(SignInWithAppleAuthorizationException e) {
     switch (e.code) {
       case AuthorizationErrorCode.canceled:
         return 'Sign in canceled.';
@@ -422,6 +424,9 @@ class PGAuthService {
       case AuthorizationErrorCode.failed:
       case AuthorizationErrorCode.invalidResponse:
       case AuthorizationErrorCode.unknown:
+      default:
+        // New native authorization failures are not successful sign-ins or
+        // cancellations. Never expose the provider's raw error text.
         return 'Apple sign-in failed. Try again.';
     }
   }
