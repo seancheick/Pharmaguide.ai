@@ -211,13 +211,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   Future<void> _showVerdictFlashAndNavigate(ProductsCoreData product) async {
     // Severity-gated haptics stay on the production path; reveal plays
     // no second haptic (playHaptic: false).
-    final safetyStatus = catalogProductSafetyStatusId(
-      catalogProductSafetyStatus(product),
-    );
-    unawaited(PGHaptics.forVerdict(safetyStatus, context));
+    final safetyStatus = catalogProductSafetyStatus(product);
+    unawaited(PGHaptics.forSafetyStatus(safetyStatus, context));
 
     setState(() {
-      _revealKind = verdictRevealKind(safetyStatus);
+      _revealKind = scanRevealKind(safetyStatus);
       _revealCaption = product.productName.trim().isEmpty
           ? null
           : product.productName.trim();

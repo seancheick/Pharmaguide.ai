@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 
 /// Return the flash color associated with a scanned product's verdict
@@ -45,19 +46,18 @@ Color verdictFlashColor(V2Palette p, String? verdict) {
 /// Policy (v2): no per-tier judgement at scan time — only "recognized,
 /// looks clean" vs "recognized, worth reviewing on the product page".
 ///
-///   SAFE / GOOD / RECOMMENDED → success (green)
-///   everything else (incl. null/unknown) → attention (amber)
+///   no known catalog concern                  → success (green)
+///   blocked / unsafe / caution / not assessed → attention (amber)
 ///
-/// `MONITOR` is a severity value, not a shipped product verdict. Fail closed
-/// if it ever arrives here rather than silently turning an invalid contract
-/// value into a green confirmation.
-PGVerdictKind verdictRevealKind(String? verdict) {
-  switch (verdict?.trim().toUpperCase()) {
-    case 'RECOMMENDED':
-    case 'SAFE':
-    case 'GOOD':
-      return PGVerdictKind.success;
-    default:
-      return PGVerdictKind.attention;
-  }
-}
+/// Reads the typed catalog safety status, never a verdict string. The scan
+/// flow passed the status id (`NO_KNOWN_CATALOG_CONCERN`) into a switch that
+/// only knew verdicts, so every clean product flashed amber. The exhaustive
+/// switch turns a new status into a compile error, not a silent amber.
+PGVerdictKind scanRevealKind(CatalogProductSafetyStatus status) =>
+    switch (status) {
+      CatalogProductSafetyStatus.noKnownCatalogConcern => PGVerdictKind.success,
+      CatalogProductSafetyStatus.blocked ||
+      CatalogProductSafetyStatus.unsafe ||
+      CatalogProductSafetyStatus.caution ||
+      CatalogProductSafetyStatus.notAssessed => PGVerdictKind.attention,
+    };

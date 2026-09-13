@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 
 /// Haptic feedback helper — maps app events to the right iOS/Android
 /// impact intensity. Centralized so UX feedback is consistent and we can
@@ -113,43 +114,25 @@ abstract final class PGHaptics {
     }
   }
 
-  /// Map a product **verdict string** (SAFE / CAUTION / POOR / BLOCKED /
-  /// NOT_SCORED / NUTRITION_ONLY, plus retired aliases) to the appropriate haptic
-  /// pattern for a scan-result verdict-flash event. Distinct from
-  /// [forSeverity] because verdicts are *outcome* signals (the user
-  /// completed an action and is about to see the result) where
-  /// successful outcomes deserve a stronger celebratory pattern than
-  /// a single light tap.
+  /// Scan-result haptic for a product's catalog safety status.
   ///
-  /// Mapping:
-  /// - SAFE / GOOD / RECOMMENDED   → [successPattern] (Apple Pay-style di-DUP)
-  /// - CAUTION / REVIEW / MODERATE → [warning] (medium)
-  /// - POOR / UNSAFE               → [danger] (heavy)
-  /// - BLOCKED                     → [errorPattern] (di-da-DUP error)
-  /// - NOT_SCORED / NUTRITION_ONLY → [success] (light tap — outcome is
-  ///                                 "found, but not fully scored")
-  /// - unknown / null    → no haptic
-  static Future<void> forVerdict(String? verdict, [BuildContext? context]) {
-    final v = (verdict ?? '').trim().toUpperCase();
-    switch (v) {
-      case 'RECOMMENDED':
-      case 'SAFE':
-      case 'GOOD':
-        return successPattern(context);
-      case 'CAUTION':
-      case 'MODERATE':
-      case 'REVIEW':
-        return warning();
-      case 'POOR':
-      case 'UNSAFE':
-        return danger();
-      case 'BLOCKED':
-        return errorPattern();
-      case 'NOT_SCORED':
-      case 'NUTRITION_ONLY':
-        return success(context);
-      default:
-        return Future<void>.value();
-    }
-  }
+  /// Takes the typed status, never a verdict string: the scan flows passed
+  /// the status id, which a verdict switch could not read, so a clean product
+  /// played nothing. The success patterns pass [context] through.
+  ///
+  ///   no known catalog concern → successPattern (di-DUP)
+  ///   caution                  → warning
+  ///   unsafe                   → danger
+  ///   blocked                  → errorPattern (di-da-DUP)
+  ///   not assessed             → success (single light)
+  static Future<void> forSafetyStatus(
+    CatalogProductSafetyStatus status, [
+    BuildContext? context,
+  ]) => switch (status) {
+    CatalogProductSafetyStatus.noKnownCatalogConcern => successPattern(context),
+    CatalogProductSafetyStatus.caution => warning(),
+    CatalogProductSafetyStatus.unsafe => danger(),
+    CatalogProductSafetyStatus.blocked => errorPattern(),
+    CatalogProductSafetyStatus.notAssessed => success(context),
+  };
 }

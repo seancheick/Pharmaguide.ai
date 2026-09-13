@@ -4,25 +4,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 
 void main() {
-  group('verdictRevealKind', () {
-    test('safe-tier verdicts → success', () {
-      expect(verdictRevealKind('SAFE'), PGVerdictKind.success);
-      expect(verdictRevealKind('GOOD'), PGVerdictKind.success);
-      expect(verdictRevealKind('RECOMMENDED'), PGVerdictKind.success);
+  group('scanRevealKind', () {
+    test('a clean catalog product confirms as success (dsld 299750)', () {
+      // Liposomal Vitamin C, SAFE 91/100, flashed amber: the scan flow passed
+      // its safety status id to a switch that only knew verdict strings.
+      expect(
+        scanRevealKind(CatalogProductSafetyStatus.noKnownCatalogConcern),
+        PGVerdictKind.success,
+      );
     });
 
-    test(
-      'attention-tier, invalid contract values, and unknown → attention',
-      () {
-        expect(verdictRevealKind('CAUTION'), PGVerdictKind.attention);
-        expect(verdictRevealKind('BLOCKED'), PGVerdictKind.attention);
-        expect(verdictRevealKind('NOT_SCORED'), PGVerdictKind.attention);
-        expect(verdictRevealKind('MONITOR'), PGVerdictKind.attention);
-        expect(verdictRevealKind(null), PGVerdictKind.attention);
-      },
-    );
+    test('every other safety status asks for attention', () {
+      for (final status in CatalogProductSafetyStatus.values) {
+        if (status == CatalogProductSafetyStatus.noKnownCatalogConcern) {
+          continue;
+        }
+        expect(
+          scanRevealKind(status),
+          PGVerdictKind.attention,
+          reason: '$status',
+        );
+      }
+    });
   });
 
   group('verdictFlashColor', () {

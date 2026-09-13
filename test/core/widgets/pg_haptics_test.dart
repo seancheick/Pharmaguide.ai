@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 
 /// Captures `HapticFeedback.*` platform-channel calls so tests can assert the
@@ -108,58 +109,32 @@ void main() {
     );
   });
 
-  group('PGHaptics.forVerdict mapping', () {
-    test('SAFE → successPattern (di-DUP)', () async {
-      await PGHaptics.forVerdict('SAFE');
-      expect(recorder.calls, [
-        'HapticFeedbackType.lightImpact',
-        'HapticFeedbackType.mediumImpact',
-      ]);
-    });
+  group('PGHaptics.forSafetyStatus mapping', () {
+    test(
+      'a clean catalog product plays the success pattern (di-DUP)',
+      () async {
+        await PGHaptics.forSafetyStatus(
+          CatalogProductSafetyStatus.noKnownCatalogConcern,
+        );
+        expect(recorder.calls, [
+          'HapticFeedbackType.lightImpact',
+          'HapticFeedbackType.mediumImpact',
+        ]);
+      },
+    );
 
-    test('RECOMMENDED → successPattern (di-DUP)', () async {
-      await PGHaptics.forVerdict('RECOMMENDED');
-      expect(recorder.calls, [
-        'HapticFeedbackType.lightImpact',
-        'HapticFeedbackType.mediumImpact',
-      ]);
-    });
-
-    test('GOOD → successPattern', () async {
-      await PGHaptics.forVerdict('GOOD');
-      expect(recorder.calls, [
-        'HapticFeedbackType.lightImpact',
-        'HapticFeedbackType.mediumImpact',
-      ]);
-    });
-
-    test('MODERATE → warning', () async {
-      await PGHaptics.forVerdict('MODERATE');
+    test('caution → warning', () async {
+      await PGHaptics.forSafetyStatus(CatalogProductSafetyStatus.caution);
       expect(recorder.calls, ['HapticFeedbackType.mediumImpact']);
     });
 
-    test('CAUTION → warning', () async {
-      await PGHaptics.forVerdict('CAUTION');
-      expect(recorder.calls, ['HapticFeedbackType.mediumImpact']);
-    });
-
-    test('REVIEW → warning', () async {
-      await PGHaptics.forVerdict('REVIEW');
-      expect(recorder.calls, ['HapticFeedbackType.mediumImpact']);
-    });
-
-    test('POOR → danger', () async {
-      await PGHaptics.forVerdict('POOR');
+    test('unsafe → danger', () async {
+      await PGHaptics.forSafetyStatus(CatalogProductSafetyStatus.unsafe);
       expect(recorder.calls, ['HapticFeedbackType.heavyImpact']);
     });
 
-    test('UNSAFE → danger', () async {
-      await PGHaptics.forVerdict('UNSAFE');
-      expect(recorder.calls, ['HapticFeedbackType.heavyImpact']);
-    });
-
-    test('BLOCKED → errorPattern (di-da-DUP)', () async {
-      await PGHaptics.forVerdict('BLOCKED');
+    test('blocked → errorPattern (di-da-DUP)', () async {
+      await PGHaptics.forSafetyStatus(CatalogProductSafetyStatus.blocked);
       expect(recorder.calls, [
         'HapticFeedbackType.mediumImpact',
         'HapticFeedbackType.mediumImpact',
@@ -167,32 +142,9 @@ void main() {
       ]);
     });
 
-    test('NOT_SCORED → success (single light)', () async {
-      await PGHaptics.forVerdict('NOT_SCORED');
+    test('not assessed → success (single light)', () async {
+      await PGHaptics.forSafetyStatus(CatalogProductSafetyStatus.notAssessed);
       expect(recorder.calls, ['HapticFeedbackType.lightImpact']);
-    });
-
-    test('NUTRITION_ONLY → success (single light)', () async {
-      await PGHaptics.forVerdict('NUTRITION_ONLY');
-      expect(recorder.calls, ['HapticFeedbackType.lightImpact']);
-    });
-
-    test('null verdict → no haptic', () async {
-      await PGHaptics.forVerdict(null);
-      expect(recorder.calls, isEmpty);
-    });
-
-    test('unknown verdict → no haptic', () async {
-      await PGHaptics.forVerdict('GIBBERISH');
-      expect(recorder.calls, isEmpty);
-    });
-
-    test('whitespace and case insensitive', () async {
-      await PGHaptics.forVerdict('  safe  ');
-      expect(recorder.calls, [
-        'HapticFeedbackType.lightImpact',
-        'HapticFeedbackType.mediumImpact',
-      ]);
     });
   });
 

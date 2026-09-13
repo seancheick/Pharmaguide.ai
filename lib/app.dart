@@ -194,15 +194,15 @@ class ScanScreen extends ConsumerWidget {
       // after the v1 home screen retirement.
 
       if (context.mounted) {
-        // Verdict-result haptic — mirrors the in-camera flow at
-        // `scanner_screen.dart:129`. Without this, the manual-entry-
+        // Safety-status haptic — mirrors the in-camera scan flow in
+        // `scanner_screen.dart`. Without this, the manual-entry-
         // via-permission-gate path silently swallows the safety-
         // critical tactile signal for CONTRAINDICATED / UNSAFE
         // verdicts. Severity tiers always fire even under reduce-
         // motion; success patterns suppress (passes context).
         unawaited(
-          PGHaptics.forVerdict(
-            catalogProductSafetyStatusId(catalogProductSafetyStatus(product)),
+          PGHaptics.forSafetyStatus(
+            catalogProductSafetyStatus(product),
             context,
           ),
         );
