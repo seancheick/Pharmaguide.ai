@@ -48,6 +48,16 @@ class BlendGroup {
   /// Unit for [totalAmount], e.g. `"mg"`. Empty string when no total.
   final String unit;
 
+  /// Pipeline-formatted total when the blend discloses a total that is not
+  /// a weight, e.g. `"50 billion CFU"` for a probiotic blend. Wins over
+  /// [totalAmount]/[unit] for display. Null when the pipeline emitted none.
+  final String? displayTotalLabel;
+
+  /// What kind of total the label discloses: `total_cfu` when a live-count
+  /// total is printed for the blend (individual strain counts may still be
+  /// hidden). Null for weight totals or no total.
+  final String? totalDisclosure;
+
   /// Children in pipeline order (same order as the supplement-facts
   /// label). Each entry is the raw ingredient map from the actives
   /// list — renderer can pass it directly to its tile widget.
@@ -65,6 +75,8 @@ class BlendGroup {
     required this.unit,
     required this.children,
     this.childCount = 0,
+    this.displayTotalLabel,
+    this.totalDisclosure,
   });
 }
 
@@ -217,6 +229,8 @@ GroupedActives groupActivesByBlend({
         unit: blend['unit']?.toString() ?? '',
         children: displayChildren,
         childCount: rawChildCount > 0 ? rawChildCount : displayChildren.length,
+        displayTotalLabel: _nonEmpty(blend['display_total_label']),
+        totalDisclosure: _nonEmpty(blend['total_disclosure']),
       ),
     );
   }
@@ -330,4 +344,9 @@ List<Map<String, dynamic>> _undisclosed(List<Map<String, dynamic>> ings) {
         return !(qty is num && qty > 0);
       })
       .toList(growable: false);
+}
+
+String? _nonEmpty(Object? raw) {
+  final value = raw?.toString().trim() ?? '';
+  return value.isEmpty ? null : value;
 }

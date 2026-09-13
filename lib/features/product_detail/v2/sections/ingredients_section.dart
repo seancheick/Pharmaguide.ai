@@ -746,11 +746,12 @@ class _BlendHeaderRow extends StatelessWidget {
         ? '$childCount ${childCount == 1 ? 'ingredient' : 'ingredients'}'
         : null;
     final exactAmount = exactAmountLabel?.trim() ?? '';
+    // A live-count total ("50 billion CFU") is a disclosed total even though
+    // it is not a weight; the pipeline formats it and it wins here.
     final amountLabel = exactAmount.isNotEmpty
         ? exactAmount
-        : hasTotal
-        ? '${blend.totalAmount} ${blend.unit}'
-        : null;
+        : blend.displayTotalLabel ??
+              (hasTotal ? '${blend.totalAmount} ${blend.unit}' : null);
     final totalLabel = amountLabel ?? 'Amount not disclosed';
     final hasUndisclosedChildren = blend.children.any((child) {
       final quantity = child['quantity'];
@@ -759,9 +760,13 @@ class _BlendHeaderRow extends StatelessWidget {
       return exactDose.isEmpty ||
           exactDose.toLowerCase().contains('not disclosed');
     });
+    final totalCfuDisclosed = blend.totalDisclosure == 'total_cfu';
     final helperLabel = [
       if (countLabel != null) countLabel,
-      if (hasUndisclosedChildren)
+      if (hasUndisclosedChildren && totalCfuDisclosed)
+        'Total potency is disclosed; individual strain amounts are not. '
+            'Per-strain doses cannot be checked against studied doses.',
+      if (hasUndisclosedChildren && !totalCfuDisclosed)
         'Individual ingredient amounts are not disclosed on the label. '
             'This limits dose-specific evaluation of the blend.',
     ].join(' · ');
