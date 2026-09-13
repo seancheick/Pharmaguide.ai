@@ -841,26 +841,6 @@ class _ProductDetailV2ConnectedState
                   // Keep one evidence surface. Probiotic label/research
                   // context is embedded in the clinical evidence card so it
                   // cannot compete with a second, repetitive research card.
-                  if (showDeepDive &&
-                      (showClinicalEvidence ||
-                          researchCanonicalIds.isNotEmpty ||
-                          probioticDetail != null)) ...[
-                    KeyedSubtree(
-                      key: _evidenceSectionKey,
-                      child: KeyedSubtree(
-                        key: _anchors.researchKey,
-                        child: ResearchSupportSection(
-                          evidenceData: evidenceData,
-                          canonicalIds: researchCanonicalIds,
-                          probioticDetail: probioticDetail,
-                          onTapProbioticSources: (urls) =>
-                              showProfileRelevanceCitationsSheet(context, urls),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
                   // ---- Quality breakdown --------------------------
                   // The label identity comes first; scoring explains the
                   // already-visible product rather than interrupting it.
@@ -886,6 +866,29 @@ class _ProductDetailV2ConnectedState
                     buildTradeoffsSection(
                       detailBlob: detailBlob,
                       appReferenceData: appRdaReferenceData,
+                    ),
+                    const SizedBox(height: V2Spacing.space12),
+                  ],
+
+                  // ---- Clinical evidence, research and probiotic label ----
+                  // After the breakdown and tradeoffs on purpose: the score
+                  // and its reasons come first; these cards are long.
+                  if (showDeepDive &&
+                      (showClinicalEvidence ||
+                          researchCanonicalIds.isNotEmpty ||
+                          probioticDetail != null)) ...[
+                    KeyedSubtree(
+                      key: _evidenceSectionKey,
+                      child: KeyedSubtree(
+                        key: _anchors.researchKey,
+                        child: ResearchSupportSection(
+                          evidenceData: evidenceData,
+                          canonicalIds: researchCanonicalIds,
+                          probioticDetail: probioticDetail,
+                          onTapProbioticSources: (urls) =>
+                              showProfileRelevanceCitationsSheet(context, urls),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: V2Spacing.space12),
                   ],

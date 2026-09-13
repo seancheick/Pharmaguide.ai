@@ -67,6 +67,12 @@ class PGProbioticSection extends StatefulWidget {
   final void Function(List<String> sourceUrls)? onTapSources;
   final bool embedded;
 
+  /// Replaces the "No verified strain-specific research matches" chip when
+  /// research is on file but not yet clinician-verified. It must never read
+  /// as an affirmative match; it only stops "no research" from being said
+  /// about strains whose studies are simply still under review.
+  final String? researchNote;
+
   const PGProbioticSection({
     super.key,
     this.totalCfuLabel,
@@ -80,6 +86,7 @@ class PGProbioticSection extends StatefulWidget {
     this.title = 'Probiotic label & research',
     this.onTapSources,
     this.embedded = false,
+    this.researchNote,
   });
 
   @override
@@ -108,6 +115,11 @@ class _PGProbioticSectionState extends State<PGProbioticSection> {
         widget.hasSurvivabilityCoating ||
         widget.prebioticPresent ||
         widget.hasPostbioticStrains;
+    final uniformStatus =
+        widget.strains.length > 1 &&
+        widget.strains.every(
+          (s) => s.researchStatus == widget.strains.first.researchStatus,
+        );
     final visibleStrains =
         _showAllStrains || widget.strains.length <= _collapsedStrainLimit
         ? widget.strains
@@ -173,7 +185,8 @@ class _PGProbioticSectionState extends State<PGProbioticSection> {
                     : Icons.search_off_outlined,
                 label: verifiedCount > 0
                     ? '$verifiedCount of $namedCount matched to verified research'
-                    : 'No verified strain-specific research matches',
+                    : (widget.researchNote ??
+                          'No verified strain-specific research matches'),
                 color: verifiedCount > 0 ? context.v2.safe : context.v2.fgMuted,
               ),
             ],
@@ -195,6 +208,9 @@ class _PGProbioticSectionState extends State<PGProbioticSection> {
               strain: visibleStrains[i],
               isLast: i == visibleStrains.length - 1,
               onTapSources: widget.onTapSources,
+              // One status shared by every strain is said once, in the chip
+              // above; repeating it under each of 24 rows says nothing new.
+              showStatus: !uniformStatus,
             ),
           if (widget.strains.length > _collapsedStrainLimit) ...[
             const SizedBox(height: V2Spacing.space8),
@@ -359,11 +375,13 @@ class _StrainRow extends StatelessWidget {
   final PGStrain strain;
   final bool isLast;
   final void Function(List<String> sourceUrls)? onTapSources;
+  final bool showStatus;
 
   const _StrainRow({
     required this.strain,
     required this.isLast,
     required this.onTapSources,
+    this.showStatus = true,
   });
 
   @override
@@ -399,26 +417,28 @@ class _StrainRow extends StatelessWidget {
                     strain.name,
                     style: V2Typography.bodySm(color: context.v2.fg),
                   ),
-                  const SizedBox(height: V2Spacing.space4),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        strain.researchStatus.icon,
-                        size: 18,
-                        color: strain.researchStatus.color(context.v2),
-                      ),
-                      const SizedBox(width: V2Spacing.space8),
-                      Expanded(
-                        child: Text(
-                          strain.researchStatus.label,
-                          style: V2Typography.bodySm(
-                            color: strain.researchStatus.color(context.v2),
-                          ).copyWith(fontWeight: FontWeight.w600),
+                  if (showStatus) ...[
+                    const SizedBox(height: V2Spacing.space4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          strain.researchStatus.icon,
+                          size: 18,
+                          color: strain.researchStatus.color(context.v2),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: V2Spacing.space8),
+                        Expanded(
+                          child: Text(
+                            strain.researchStatus.label,
+                            style: V2Typography.bodySm(
+                              color: strain.researchStatus.color(context.v2),
+                            ).copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (supportLine.isNotEmpty) ...[
                     const SizedBox(height: V2Spacing.space4),
                     Text(

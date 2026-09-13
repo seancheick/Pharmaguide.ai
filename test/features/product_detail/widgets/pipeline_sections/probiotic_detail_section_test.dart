@@ -391,9 +391,15 @@ void main() {
         findsNothing,
         reason: 'none of these three rows carries clinician sign-off',
       );
+      // All three rows share one status, so it is said once in the header
+      // chip rather than repeated under every strain.
       expect(
         find.text('No verified strain-specific research found'),
-        findsNWidgets(3),
+        findsNothing,
+      );
+      expect(
+        find.text('No verified strain-specific research matches'),
+        findsOneWidget,
       );
     });
 

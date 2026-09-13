@@ -69,9 +69,11 @@ Widget buildTradeoffsSection({
       .map(_toTradeoff)
       .where((t) => t.headline.trim().isNotEmpty)
       .toList(growable: false);
+  final drags = _scoreDrags(detailBlob, existing: penaltyConsiderations);
   final considerations = _collapseAllergenSources(
     _collapseAdditiveConcerns([
       ...penaltyConsiderations,
+      ...drags,
       ..._buildUlConsiderations(
         safetyFlags: rdaReferenceIsCurrent
             ? healthFacts.ulSafetyFlags
@@ -91,6 +93,46 @@ Widget buildTradeoffsSection({
     considerationLeading: safetySummary,
   );
 }
+
+/// The pillar reasons the scorer names as holding the score back
+/// (`v4_score_explanation.drags`). A product with no penalties still has a
+/// number under 100, and the card must say why — "no third-party testing on
+/// file", "individual strain amounts are not disclosed" — rather than show a
+/// column of positives beside an 81. Penalty rows that already say the same
+/// thing are not repeated.
+List<PGTradeoff> _scoreDrags(
+  Map<String, dynamic> blob, {
+  required List<PGTradeoff> existing,
+}) {
+  final explanation = _mapValue(blob['v4_score_explanation']);
+  final drags = explanation?['drags'];
+  if (drags is! List) return const [];
+  final seen = existing.map((t) => t.headline.trim().toLowerCase()).toSet();
+  final out = <PGTradeoff>[];
+  for (final raw in drags) {
+    final drag = _mapValue(raw);
+    if (drag == null) continue;
+    final reason = drag['reason']?.toString().trim() ?? '';
+    if (reason.isEmpty || !seen.add(reason.toLowerCase())) continue;
+    out.add(
+      PGTradeoff(
+        headline: reason,
+        caption: _pillarCaption(drag['pillar']?.toString()),
+      ),
+    );
+  }
+  return out;
+}
+
+String? _pillarCaption(String? pillar) => switch ((pillar ?? '').trim()) {
+  'formulation' => 'Holds back: formulation',
+  'dose' => 'Holds back: dose',
+  'evidence' => 'Holds back: evidence',
+  'transparency' => 'Holds back: transparency',
+  'verification' => 'Holds back: testing and brand',
+  'safety_hygiene' => 'Holds back: safety hygiene',
+  _ => null,
+};
 
 Map<String, dynamic>? _mapValue(Object? raw) {
   if (raw is! Map) return null;
@@ -423,7 +465,9 @@ class _SafetySummaryBullet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dotColor = isHighSeverity ? context.v2.contraindicated : context.v2.avoid;
+    final dotColor = isHighSeverity
+        ? context.v2.contraindicated
+        : context.v2.avoid;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

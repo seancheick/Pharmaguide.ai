@@ -119,8 +119,25 @@ Widget buildProbioticSection({
     'has_postbiotic_strains',
   );
 
+  // Strains whose research is recorded but not yet clinician-verified stay
+  // unbadged (the gate below), but the card must not then announce "no
+  // research" about them: the studies exist and are waiting for sign-off.
+  final pendingCount = clinicalStrains
+      .where(
+        (cs) =>
+            cs.safeString('review_status').trim().toLowerCase() ==
+            'pending_review',
+      )
+      .length;
+  final researchNote = pendingCount == 0
+      ? null
+      : 'Research on file for $pendingCount '
+            '${pendingCount == 1 ? 'strain' : 'strains'}, awaiting clinician '
+            'verification';
+
   return PGProbioticSection(
     embedded: embedded,
+    researchNote: researchNote,
     totalCfuLabel: totalCfuLabel.isNotEmpty ? totalCfuLabel : null,
     totalStrainCount: strainNames.isNotEmpty ? strainNames.length : null,
     hasSurvivabilityCoating: hasSurvivability,

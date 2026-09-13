@@ -826,12 +826,15 @@ void main() {
             tester.getTopLeft(probioticTitle).dy -
             tester.getTopLeft(ingredientsTitle).dy;
         expect(sectionGap, greaterThan(0));
-        // The card belongs directly after the ingredient ledger, before the
-        // remaining deep-dive sections. This guards against it drifting back
-        // to the bottom of the page.
-        // The probiotic context now follows the clinical-evidence heading
-        // inside the same card, so the title includes that compact header.
-        expect(sectionGap, lessThan(700));
+        // Since 2026-09-13 the clinical-evidence card (with the probiotic
+        // context inside it) sits BELOW the quality breakdown: the score and
+        // its reasons come first, the long cards after. Guard that order.
+        final breakdown = find.byType(PGScoreBreakdownCard);
+        expect(breakdown, findsOneWidget);
+        expect(
+          tester.getTopLeft(clinicalTitle).dy,
+          greaterThan(tester.getTopLeft(breakdown).dy),
+        );
       },
     );
 
