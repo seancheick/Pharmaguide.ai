@@ -149,7 +149,7 @@ void main() {
         ],
       );
       await pump(tester, report);
-      expect(find.textContaining('Strong Evidence'), findsOneWidget);
+      expect(find.textContaining('Strong supporting evidence'), findsOneWidget);
     });
   });
 

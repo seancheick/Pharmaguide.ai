@@ -253,7 +253,7 @@ void main() {
     expect(banner.tone, PGBannerTone.caution);
     expect(banner.title, 'Use caution — Motrin');
     expect(banner.body, contains('generally avoided from 20 weeks'));
-    expect(banner.body, contains('Strong Evidence'));
+    expect(banner.body, contains('Strong supporting evidence'));
   });
 
   testWidgets('food advisory note uses info tone and food-note title', (
@@ -434,7 +434,7 @@ void main() {
     expect(find.byKey(const Key('stack-safety-banner')), findsOneWidget);
     expect(find.text('Warfarin × Fish Oil'), findsOneWidget);
     expect(
-      find.text('Supplement interaction · Strong Evidence'),
+      find.text('Supplement interaction · Strong supporting evidence'),
       findsOneWidget,
     );
     // Long clinical copy stays in the sheet.
@@ -480,7 +480,7 @@ void main() {
       expect(find.text('Vitamin D above upper limit'), findsOneWidget);
       // Each finding carries its OWN metadata…
       expect(
-        find.text('Supplement interaction · Strong Evidence'),
+        find.text('Supplement interaction · Strong supporting evidence'),
         findsNWidgets(2),
       );
       expect(find.text('Nutrient upper limit'), findsOneWidget);

@@ -151,7 +151,7 @@ void main() {
       expect(find.text('Iron × Calcium'), findsOneWidget);
       expect(find.text('Take them at different meals.'), findsOneWidget);
       expect(
-        find.text('SUPPLEMENT INTERACTION · STRONG EVIDENCE'),
+        find.text('SUPPLEMENT INTERACTION · STRONG SUPPORTING EVIDENCE'),
         findsOneWidget,
       );
       expect(find.text('NUTRIENT UPPER LIMIT'), findsOneWidget);

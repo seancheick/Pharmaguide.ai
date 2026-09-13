@@ -120,10 +120,13 @@ enum EvidenceLevel {
   // missing / unrecognized value. `wireId` is the exact string the pipeline
   // emits on the interaction_db `evidence_level` column; the enum name stays
   // camelCase (Dart lint) so `no_data` needs the explicit wireId.
-  established(label: 'Strong Evidence', wireId: 'established'),
-  probable(label: 'Good Evidence', wireId: 'probable'),
-  moderate(label: 'Moderate Evidence', wireId: 'moderate'),
-  limited(label: 'Limited Evidence', wireId: 'limited'),
+  // "supporting" is deliberate: these grade the evidence behind a SAFETY
+  // finding. A bare "Strong Evidence" beside a product reads as evidence
+  // that the product works, which is a different claim this app never makes.
+  established(label: 'Strong supporting evidence', wireId: 'established'),
+  probable(label: 'Good supporting evidence', wireId: 'probable'),
+  moderate(label: 'Moderate supporting evidence', wireId: 'moderate'),
+  limited(label: 'Limited supporting evidence', wireId: 'limited'),
   theoretical(label: 'Theoretical', wireId: 'theoretical'),
   noData(label: 'No Evidence Data', wireId: 'no_data'),
   ungraded(label: 'Evidence not graded', wireId: 'ungraded');
