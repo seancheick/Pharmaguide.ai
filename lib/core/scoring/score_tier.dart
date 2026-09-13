@@ -22,12 +22,17 @@ enum ScoreTier { elite, excellent, strong, acceptable, weak, poor }
 /// Tier-Description-Color table.
 extension ScoreTierMeta on ScoreTier {
   /// User-facing label rendered next to the score.
+  ///
+  /// Renamed 2026-09-13 to the catalog's ladder (Exceptional / Excellent /
+  /// Very good / Good / Needs improvement / Poor): "Acceptable" read as a
+  /// grudging pass, and "Strong" collided with the evidence-strength
+  /// vocabulary shown beside it. Enum members keep their old ids.
   String get label => switch (this) {
-    ScoreTier.elite => 'Elite',
+    ScoreTier.elite => 'Exceptional',
     ScoreTier.excellent => 'Excellent',
-    ScoreTier.strong => 'Strong',
-    ScoreTier.acceptable => 'Acceptable',
-    ScoreTier.weak => 'Weak',
+    ScoreTier.strong => 'Very good',
+    ScoreTier.acceptable => 'Good',
+    ScoreTier.weak => 'Needs improvement',
     ScoreTier.poor => 'Poor',
   };
 
@@ -105,12 +110,14 @@ extension ScoreTierMeta on ScoreTier {
 }
 
 ScoreTier? _catalogTierFromLabel(String? value) {
+  // Current catalog names first, then the names catalogs shipped before
+  // 2026-09-13, so a cached older catalog still resolves to the right tier.
   return switch ((value ?? '').trim().toLowerCase()) {
-    'elite' => ScoreTier.elite,
+    'exceptional' || 'elite' => ScoreTier.elite,
     'excellent' => ScoreTier.excellent,
-    'strong' => ScoreTier.strong,
-    'acceptable' => ScoreTier.acceptable,
-    'weak' => ScoreTier.weak,
+    'very good' || 'strong' => ScoreTier.strong,
+    'good' || 'acceptable' => ScoreTier.acceptable,
+    'needs improvement' || 'weak' => ScoreTier.weak,
     'poor' => ScoreTier.poor,
     _ => null,
   };

@@ -96,7 +96,7 @@ void main() {
       await pump(tester, V2Theme.light, 85, confidence: 'moderate');
 
       expect(find.text('85/100'), findsOneWidget);
-      expect(find.text('Strong'), findsOneWidget);
+      expect(find.text('Very good'), findsOneWidget);
       expect(find.textContaining('Score confidence:'), findsNothing);
     });
 
@@ -106,7 +106,7 @@ void main() {
       await pump(tester, V2Theme.light, 85, confidence: 'low');
 
       expect(find.text('85/100'), findsOneWidget);
-      expect(find.text('Strong'), findsNothing);
+      expect(find.text('Very good'), findsNothing);
       expect(find.text('Score confidence: Limited'), findsOneWidget);
       expect(
         find.descendant(

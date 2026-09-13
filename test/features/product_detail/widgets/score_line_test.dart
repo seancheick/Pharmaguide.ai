@@ -26,7 +26,7 @@ void main() {
     testWidgets('97 + Elite → Elite (deep green)', (tester) async {
       await _pump(tester, 97, qualityTier: 'Elite');
       expect(find.text('97/100'), findsOneWidget);
-      expect(find.text('Elite'), findsOneWidget);
+      expect(find.text('Exceptional'), findsOneWidget);
       expect(find.textContaining('High-quality ingredients'), findsOneWidget);
     });
 
@@ -40,21 +40,21 @@ void main() {
     testWidgets('82 + Strong → Strong (teal)', (tester) async {
       await _pump(tester, 82, qualityTier: 'Strong');
       expect(find.text('82/100'), findsOneWidget);
-      expect(find.text('Strong'), findsOneWidget);
+      expect(find.text('Very good'), findsOneWidget);
       expect(find.textContaining('Reliable option'), findsOneWidget);
     });
 
     testWidgets('75 + Acceptable → Acceptable', (tester) async {
       await _pump(tester, 75, qualityTier: 'Acceptable');
       expect(find.text('75/100'), findsOneWidget);
-      expect(find.text('Acceptable'), findsOneWidget);
+      expect(find.text('Good'), findsOneWidget);
       expect(find.textContaining('Adequate formulation'), findsOneWidget);
     });
 
     testWidgets('60 + Weak → Weak', (tester) async {
       await _pump(tester, 60, qualityTier: 'Weak');
       expect(find.text('60/100'), findsOneWidget);
-      expect(find.text('Weak'), findsOneWidget);
+      expect(find.text('Needs improvement'), findsOneWidget);
       expect(find.textContaining('Notable concerns'), findsOneWidget);
     });
 
@@ -70,8 +70,8 @@ void main() {
     ) async {
       await _pump(tester, 80, qualityTier: 'Acceptable');
       expect(find.text('80/100'), findsOneWidget);
-      expect(find.text('Acceptable'), findsOneWidget);
-      expect(find.text('Strong'), findsNothing);
+      expect(find.text('Good'), findsOneWidget);
+      expect(find.text('Very good'), findsNothing);
     });
   });
 
@@ -85,7 +85,7 @@ void main() {
     testWidgets('100 → Elite, displays 100/100', (tester) async {
       await _pump(tester, 100);
       expect(find.text('100/100'), findsOneWidget);
-      expect(find.text('Elite'), findsOneWidget);
+      expect(find.text('Exceptional'), findsOneWidget);
     });
 
     testWidgets('out-of-range high (105) clamps tier but keeps display', (
@@ -96,7 +96,7 @@ void main() {
       // value so a data-quality issue is visible.
       await _pump(tester, 105);
       expect(find.text('105/100'), findsOneWidget);
-      expect(find.text('Elite'), findsOneWidget);
+      expect(find.text('Exceptional'), findsOneWidget);
     });
 
     testWidgets('out-of-range low (-5) clamps tier but keeps display', (

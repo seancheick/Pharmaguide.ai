@@ -88,7 +88,21 @@ void main() {
       );
     });
 
-    test('all pipeline labels parse case-insensitively', () {
+    test('current catalog labels parse case-insensitively', () {
+      expect(
+        [
+          'exceptional',
+          'EXCELLENT',
+          'Very good',
+          'good',
+          'Needs improvement',
+          'poor',
+        ].map((label) => catalogTier(qualityTier: label, legacyScore: 0)),
+        ScoreTier.values,
+      );
+    });
+
+    test('labels from catalogs shipped before 2026-09-13 still resolve', () {
       expect(
         [
           'elite',
@@ -219,11 +233,11 @@ void main() {
     test('locked label copy matches spec', () {
       // Pin the user-visible labels — any future "let's rename
       // Excellent to Premium" needs to update this test deliberately.
-      expect(ScoreTier.elite.label, 'Elite');
+      expect(ScoreTier.elite.label, 'Exceptional');
       expect(ScoreTier.excellent.label, 'Excellent');
-      expect(ScoreTier.strong.label, 'Strong');
-      expect(ScoreTier.acceptable.label, 'Acceptable');
-      expect(ScoreTier.weak.label, 'Weak');
+      expect(ScoreTier.strong.label, 'Very good');
+      expect(ScoreTier.acceptable.label, 'Good');
+      expect(ScoreTier.weak.label, 'Needs improvement');
       expect(ScoreTier.poor.label, 'Poor');
     });
 

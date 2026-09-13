@@ -2271,11 +2271,14 @@ enum _SearchFilter {
       case _SearchFilter.needsReview:
         final safety = catalogProductSafetyStatus(p);
         final assessment = catalogAssessmentStatus(p);
-        final tier = p.qualityTier?.trim().toLowerCase();
+        final tier = catalogTier(
+          qualityTier: p.qualityTier,
+          legacyScore: (p.qualityScoreV4100 ?? 0).round(),
+        );
         return safety == CatalogProductSafetyStatus.caution ||
             assessment != CatalogAssessmentStatus.complete ||
-            tier == 'weak' ||
-            tier == 'poor';
+            tier == ScoreTier.weak ||
+            tier == ScoreTier.poor;
       case _SearchFilter.blockedUnsafe:
         return catalogProductIsBlocked(p);
     }

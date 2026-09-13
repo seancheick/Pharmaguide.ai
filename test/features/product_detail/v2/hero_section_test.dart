@@ -168,8 +168,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('80/100'), findsOneWidget);
-    expect(find.text('Acceptable'), findsOneWidget);
-    expect(find.text('Strong'), findsNothing);
+    expect(find.text('Good'), findsOneWidget);
+    expect(find.text('Very good'), findsNothing);
   });
 
   testWidgets(
@@ -182,7 +182,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Limited assessment'), findsNothing);
-      expect(find.text('Weak'), findsNothing);
+      expect(find.text('Needs improvement'), findsNothing);
     },
   );
 

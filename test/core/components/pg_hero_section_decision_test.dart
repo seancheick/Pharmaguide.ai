@@ -223,7 +223,7 @@ void main() {
       );
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Product quality score unavailable.'), findsNothing);
-      expect(find.text('Strong'), findsNothing);
+      expect(find.text('Very good'), findsNothing);
       expect(
         find.text(
           'No clinical evidence matched • '
@@ -248,7 +248,7 @@ void main() {
         ),
       );
       expect(find.text('85/100'), findsOneWidget);
-      expect(find.text('Strong'), findsOneWidget);
+      expect(find.text('Very good'), findsOneWidget);
       // See the limited-assessment case above — the band is not a hero field.
       expect(find.textContaining('Score confidence'), findsNothing);
     });

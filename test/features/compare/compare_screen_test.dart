@@ -186,7 +186,7 @@ void main() {
     expect(find.text('Score confidence: Limited'), findsOneWidget);
     expect(find.text('85/100'), findsNWidgets(2));
     // Only the moderate-confidence side retains its tier adjective.
-    expect(find.text('Acceptable'), findsOneWidget);
+    expect(find.text('Good'), findsOneWidget);
 
     await tearDownDbs(tester);
   });
