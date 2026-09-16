@@ -26,6 +26,8 @@ class PGTradeoff {
 /// list. Columns hide when empty so a product with only pros shows
 /// only the green column.
 class PGTradeoffsSection extends StatelessWidget {
+  static const double _sideBySideMinWidth = 520;
+
   final List<PGTradeoff> pros;
   final List<PGTradeoff> considerations;
   final Widget? considerationLeading;
@@ -59,33 +61,51 @@ class PGTradeoffsSection extends StatelessWidget {
         children: [
           Text(title, style: V2Typography.titleSm(color: context.v2.fg)),
           const SizedBox(height: V2Spacing.space16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (pros.isNotEmpty)
-                Expanded(
-                  child: _TradeoffColumn(
-                    eyebrow: 'What\'s good',
-                    eyebrowColor: context.v2.safe,
-                    items: pros,
-                    dotColor: context.v2.safe,
-                    overflowSingularNoun: 'bonus',
-                  ),
-                ),
-              if (pros.isNotEmpty && hasConsiderations)
-                const SizedBox(width: V2Spacing.space16),
-              if (hasConsiderations)
-                Expanded(
-                  child: _TradeoffColumn(
-                    eyebrow: 'What to consider',
-                    eyebrowColor: context.v2.caution,
-                    items: considerations,
-                    dotColor: context.v2.caution,
-                    overflowSingularNoun: 'concern',
-                    leading: considerationLeading,
-                  ),
-                ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final good = pros.isEmpty
+                  ? null
+                  : _TradeoffColumn(
+                      eyebrow: 'What\'s good',
+                      eyebrowColor: context.v2.safe,
+                      items: pros,
+                      dotColor: context.v2.safe,
+                      overflowSingularNoun: 'bonus',
+                    );
+              final consider = !hasConsiderations
+                  ? null
+                  : _TradeoffColumn(
+                      eyebrow: 'What to consider',
+                      eyebrowColor: context.v2.caution,
+                      items: considerations,
+                      dotColor: context.v2.caution,
+                      overflowSingularNoun: 'concern',
+                      leading: considerationLeading,
+                    );
+              // Two columns only when each still gets a readable measure;
+              // on phones a half-width column wraps every consideration
+              // into a narrow strip.
+              if (constraints.maxWidth < _sideBySideMinWidth) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ?good,
+                    if (good != null && consider != null)
+                      const SizedBox(height: V2Spacing.space16),
+                    ?consider,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (good != null) Expanded(child: good),
+                  if (good != null && consider != null)
+                    const SizedBox(width: V2Spacing.space16),
+                  if (consider != null) Expanded(child: consider),
+                ],
+              );
+            },
           ),
         ],
       ),
