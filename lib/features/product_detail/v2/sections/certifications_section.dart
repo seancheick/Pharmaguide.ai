@@ -40,14 +40,12 @@ List<PGCertification> _certificationsFromDetail(
   // checks appear in LabelConfidence (S4) when relevant. Production
   // suppresses the entire section when none are true.
   //
-  // `gmp` is a nested object ({claimed, gmp_certified_or_compliant,
-  // nsf_gmp, fda_registered, text_matched}), NOT a bool — safeBool('gmp')
-  // always read false. A "GMP Certified" badge requires an actual
-  // certification/compliance/program signal; a bare manufacturer `claimed`
-  // does not earn it (under-claim over over-claim on a safety product).
-  if (_gmpCertified(certificationDetail)) {
-    certs.add(const PGCertification(label: 'GMP Certified', verified: true));
-  }
+  // `gmp` is a nested object. The badge renders the Verification pillar's
+  // audited-facility decision (`audited_facility`, copied by the pipeline);
+  // label GMP wording is self-asserted and earns neither pillar points nor a
+  // badge. The app never re-derives GMP from the label flags.
+  final gmpBadge = _auditedGmpBadge(certificationDetail);
+  if (gmpBadge != null) certs.add(gmpBadge);
   if (certificationDetail.safeBool('purity_verified')) {
     certs.add(const PGCertification(label: 'Purity Verified', verified: true));
   }
@@ -89,14 +87,20 @@ List<PGCertification> _certificationsFromDetail(
   return certs;
 }
 
-/// True when the nested `gmp` object carries a real GMP certification /
-/// compliance / program signal. Deliberately EXCLUDED so the "GMP Certified"
-/// badge is never overstated on a safety product:
-///   • `claimed` — a bare manufacturer self-assertion.
-///   • `fda_registered` — FDA *facility registration*, which the FDA
-///     explicitly states is NOT approval or certification. It may be shown as
-///     neutral transparency elsewhere, but never as a GMP certification badge.
-bool _gmpCertified(Map<String, dynamic> certificationDetail) {
+/// "Audited GMP facility" when the pipeline's Verification pillar credited an
+/// audited source: a verified certification whose program audits GMP, or a
+/// manufacturer facility record naming a certified/audited facility.
+PGCertification? _auditedGmpBadge(Map<String, dynamic> certificationDetail) {
   final gmp = certificationDetail.safeMap('gmp');
-  return gmp.safeBool('gmp_certified_or_compliant') || gmp.safeBool('nsf_gmp');
+  if (!gmp.safeBool('audited_facility')) return null;
+  final caption = switch (gmp['audited_facility_basis']?.toString()) {
+    'verified_certification' => 'Implied by a verified certification',
+    'manufacturer_facility' => 'Manufacturer facility record',
+    _ => null,
+  };
+  return PGCertification(
+    label: 'Audited GMP facility',
+    verified: true,
+    caption: caption,
+  );
 }
