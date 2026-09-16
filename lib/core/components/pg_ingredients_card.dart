@@ -272,7 +272,7 @@ class _PGActiveIngredientsSectionState
     _expanded = revealRequested || _logicalIngredientCount <= 5;
     _visibleTileCount = revealRequested
         ? widget.tiles.length
-        : _initialVisibleCount(widget.tiles.length);
+        : _completeGroup(_initialVisibleCount(widget.tiles.length));
     widget.revealSignal?.addListener(_handleRevealSignal);
   }
 
@@ -295,7 +295,9 @@ class _PGActiveIngredientsSectionState
       } else {
         final wasFullyRevealed = _visibleTileCount >= oldWidget.tiles.length;
         if (wasFullyRevealed) {
-          _visibleTileCount = _initialVisibleCount(widget.tiles.length);
+          _visibleTileCount = _completeGroup(
+            _initialVisibleCount(widget.tiles.length),
+          );
         } else if (_visibleTileCount > widget.tiles.length) {
           _visibleTileCount = widget.tiles.length;
         }
@@ -326,7 +328,7 @@ class _PGActiveIngredientsSectionState
     setState(() {
       final next = _visibleTileCount + _revealChunkSize;
       _visibleTileCount = next < widget.tiles.length
-          ? next
+          ? _completeGroup(next)
           : widget.tiles.length;
     });
   }
@@ -464,10 +466,44 @@ class _PGActiveIngredientsSectionState
 
   static int _initialVisibleCount(int total) =>
       total < _revealChunkSize ? total : _revealChunkSize;
+
+  /// Extends a reveal boundary past the rows nested under the last visible
+  /// parent, so "Show more" never splits a blend from its strains.
+  int _completeGroup(int visibleCount) {
+    var end = visibleCount;
+    while (end < widget.tiles.length &&
+        widget.tiles[end] is PGNestedIngredientRow) {
+      end++;
+    }
+    return end;
+  }
+}
+
+/// A label row listed under a parent (a strain in a blend, a form under its
+/// nutrient): one indent step behind a hairline rail, whatever the source
+/// depth, so skipped intermediate rows never double-indent.
+class PGNestedIngredientRow extends StatelessWidget {
+  final Widget child;
+
+  const PGNestedIngredientRow({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: V2Spacing.space8),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: context.v2.outline, width: 1)),
+      ),
+      child: child,
+    );
+  }
 }
 
 int _logicalIngredientRowsIn(Widget widget) {
   if (widget is PGActiveIngredientTile) return 1;
+  if (widget is PGNestedIngredientRow) {
+    return _logicalIngredientRowsIn(widget.child);
+  }
   if (widget is Padding && widget.child != null) {
     return _logicalIngredientRowsIn(widget.child!);
   }

@@ -52,12 +52,13 @@ class PGInactiveRow extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              // Dot sits on the first line so two-line names stay aligned.
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 8,
                   height: 8,
-                  margin: const EdgeInsets.only(right: 10),
+                  margin: const EdgeInsets.only(top: 8, right: 10),
                   decoration: BoxDecoration(
                     color: ingredient.tone.color(context.v2),
                     shape: BoxShape.circle,
@@ -69,16 +70,17 @@ class PGInactiveRow extends StatelessWidget {
                     children: [
                       Text(
                         ingredient.name,
+                        // Full label name: capsule-shell rows run three lines.
                         style: V2Typography.bodyMedium(color: context.v2.fg),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                       if (ingredient.roleHelper != null &&
                           ingredient.roleHelper!.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
                           ingredient.roleHelper!,
-                          style: V2Typography.caption(color: context.v2.fgMuted),
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

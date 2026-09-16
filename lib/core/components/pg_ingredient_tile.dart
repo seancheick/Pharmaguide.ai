@@ -48,12 +48,17 @@ class PGActiveIngredientTile extends StatelessWidget {
   /// false when the parent already renders a hierarchy connector.
   final bool showNestedIndent;
 
+  /// Compact row for ingredients listed inside a blend (strains, botanicals):
+  /// smaller name type and tighter padding under the blend's left rail.
+  final bool dense;
+
   const PGActiveIngredientTile({
     super.key,
     required this.ingredient,
     this.showBottomDivider = true,
     this.onTap,
     this.showNestedIndent = true,
+    this.dense = false,
   });
 
   @override
@@ -118,8 +123,8 @@ class PGActiveIngredientTile extends StatelessWidget {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 44),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: V2Spacing.space8,
+                    padding: EdgeInsets.symmetric(
+                      vertical: dense ? V2Spacing.space4 : V2Spacing.space8,
                       horizontal: V2Spacing.space4,
                     ),
                     child: Column(
@@ -132,10 +137,12 @@ class PGActiveIngredientTile extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 i.name,
-                                style: V2Typography.bodyMedium(
-                                  color: context.v2.fg,
-                                ),
-                                maxLines: 1,
+                                style: dense
+                                    ? V2Typography.bodySm(color: context.v2.fg)
+                                    : V2Typography.bodyMedium(
+                                        color: context.v2.fg,
+                                      ),
+                                maxLines: dense ? 2 : 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),

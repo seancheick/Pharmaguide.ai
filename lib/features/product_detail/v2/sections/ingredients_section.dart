@@ -405,7 +405,9 @@ List<Map<String, dynamic>> _canonicalInactiveRows(
             : Map<String, dynamic>.from(inactiveRows[matchIndex]);
         if (matchIndex >= 0) consumed.add(matchIndex);
 
-        final literalLabel = _canonicalRowLiteralLabel(labelRow);
+        final literalLabel = cleanLabelDisplayName(
+          _canonicalRowLiteralLabel(labelRow),
+        );
         merged['name'] = literalLabel;
         merged['label_display'] = literalLabel;
         merged['raw_source_text'] ??= labelRow['raw_source_text'];
@@ -438,6 +440,56 @@ String _canonicalRowLiteralLabel(Map<String, dynamic> row) {
     if (value != null && value.isNotEmpty) return value;
   }
   return 'Other ingredient';
+}
+
+/// Display cleanup for a label-literal name: drops sentence punctuation the
+/// label parser carried over ("rice extract blend.") and capitalizes a plain
+/// lower-case first word ("organic rice fiber"). Stereochemistry and unit-like
+/// prefixes ("d-alpha", "dl-malic", "pH") keep their case.
+String cleanLabelDisplayName(String name) {
+  var text = name.trim().replaceFirst(RegExp(r'[.,;:]+$'), '').trimRight();
+  final firstWord = text.split(RegExp(r'\s')).first;
+  if (RegExp(r'^[a-z]{3,}$').hasMatch(firstWord)) {
+    text = text[0].toUpperCase() + text.substring(1);
+  }
+  return text;
+}
+
+/// A blend's amount written in more than one unit for the same serving
+/// ("206 mg" and "37 Billion AFU"). Returns them as one label, live counts
+/// first, or null when the variants are real serving alternatives (a serving
+/// note, a selected serving, differing serving sizes, or a repeated unit).
+String? _sameServingAmountLabel(List<Map<String, dynamic>> variants) {
+  if (variants.length < 2) return null;
+  String servingIdentity(Map<String, dynamic> variant) => [
+    variant['serving_size_order'],
+    variant['serving_size_quantity'],
+    variant['serving_size_unit']?.toString().trim().toLowerCase() ?? '',
+  ].join('|');
+  final identity = servingIdentity(variants.first);
+  final amounts = <String>[];
+  final units = <String>{};
+  for (final variant in variants) {
+    final note = variant['serving_note']?.toString().trim() ?? '';
+    final dose = variant['exact_dose_text']?.toString().trim() ?? '';
+    if (servingIdentity(variant) != identity ||
+        note.isNotEmpty ||
+        variant['is_canonical'] == true ||
+        dose.isEmpty) {
+      return null;
+    }
+    final unit = dose
+        .replaceFirst(RegExp(r'^[\d.,\s]+'), '')
+        .trim()
+        .toLowerCase();
+    if (unit.isEmpty || !units.add(unit)) return null;
+    amounts.add(dose);
+  }
+  final liveCount = RegExp(r'\b(cfu|afu)\b', caseSensitive: false);
+  return [
+    ...amounts.where(liveCount.hasMatch),
+    ...amounts.where((amount) => !liveCount.hasMatch(amount)),
+  ].join(' · ');
 }
 
 enum _LedgerSection { nutrition, active, other }
@@ -478,6 +530,7 @@ List<Widget> _buildLabelLedgerTiles({
   int? disclosureTargetIndex,
 }) {
   final tiles = <Widget>[];
+  var previousWasNested = false;
   for (var index = 0; index < ingredients.length; index++) {
     final ingredient = ingredients[index];
     final rawDepth = ingredient['nested_depth'];
@@ -487,8 +540,24 @@ List<Widget> _buildLabelLedgerTiles({
     final parent = ingredient['parent_label']?.toString().trim();
     final hasParent = depth > 0 && parent != null && parent.isNotEmpty;
     final rowKey = index == disclosureTargetIndex ? disclosureTargetKey : null;
-    if (!hasParent &&
-        ingredient['display_type']?.toString() == 'structural_container') {
+    final isContainer =
+        ingredient['display_type']?.toString() == 'structural_container';
+    if (hasParent && isContainer) {
+      // A blend nested in a blend ("Lactobacilli Blend") names a group of
+      // label rows; it is not itself an ingredient.
+      tiles.add(
+        PGNestedIngredientRow(
+          key: rowKey,
+          child: _SubBlendLabel(
+            name: _canonicalRowLiteralLabel(ingredient),
+            amount: ingredient['exact_dose_text']?.toString().trim() ?? '',
+          ),
+        ),
+      );
+      previousWasNested = true;
+      continue;
+    }
+    if (!hasParent && isContainer) {
       final total = ingredient['quantity'];
       final childNames = ingredient['children'];
       final sourcePath = ingredient['raw_source_path']?.toString().trim();
@@ -507,6 +576,17 @@ List<Widget> _buildLabelLedgerTiles({
                       sourcePath,
                 )
                 .toList(growable: false);
+      final rawVariants = ingredient['serving_variants'];
+      final variants = rawVariants is List
+          ? rawVariants.whereType<Map<String, dynamic>>().toList(
+              growable: false,
+            )
+          : const <Map<String, dynamic>>[];
+      final exactDose = ingredient['exact_dose_text']?.toString().trim() ?? '';
+      final unitAlternates = _sameServingAmountLabel(variants);
+      if (tiles.isNotEmpty) {
+        tiles.add(const SizedBox(height: V2Spacing.space8));
+      }
       tiles.add(
         _BlendHeaderRow(
           key: rowKey,
@@ -522,29 +602,32 @@ List<Widget> _buildLabelLedgerTiles({
             children: blendChildren,
             childCount: childNames is List ? childNames.length : 0,
           ),
-          exactAmountLabel: ingredient['exact_dose_text']?.toString(),
+          exactAmountLabel: exactDose.isNotEmpty ? exactDose : unitAlternates,
         ),
       );
-      final rawVariants = ingredient['serving_variants'];
-      if (rawVariants is List && rawVariants.length > 1) {
-        final variants = rawVariants.whereType<Map<String, dynamic>>().toList(
-          growable: false,
-        );
-        if (variants.length > 1) {
-          tiles.add(_ServingVariantList(variants: variants));
-        }
+      if (variants.length > 1 && unitAlternates == null) {
+        tiles.add(_ServingVariantList(variants: variants));
       }
+      previousWasNested = false;
       continue;
     }
+    // A top-level row after a blend's strain list starts a new group.
+    if (!hasParent && previousWasNested) {
+      tiles.add(const SizedBox(height: V2Spacing.space8));
+    }
+    previousWasNested = hasParent;
     final tile = _tileFor(
       key: rowKey,
       context: context,
       ingredient: ingredient,
       ulAnalysis: ulAnalysis,
-      showBottomDivider: index != ingredients.length - 1,
+      // Rows inside a blend sit on the blend's rail; dividers there turn a
+      // 16-strain blend into a wall of lines.
+      showBottomDivider: !hasParent && index != ingredients.length - 1,
       showNestedIndent: !hasParent,
+      dense: hasParent,
     );
-    tiles.add(hasParent ? _HierarchyChild(child: tile) : tile);
+    tiles.add(hasParent ? PGNestedIngredientRow(child: tile) : tile);
   }
   return tiles;
 }
@@ -619,7 +702,7 @@ List<Widget> _buildActiveTiles({
     );
     for (final child in blend.children) {
       tiles.add(
-        _HierarchyChild(
+        PGNestedIngredientRow(
           child: child['is_label_context'] == true
               ? _LabelChildRow(component: child)
               : _tileFor(
@@ -627,7 +710,9 @@ List<Widget> _buildActiveTiles({
                   context: context,
                   ingredient: child,
                   ulAnalysis: ulAnalysis,
+                  showBottomDivider: false,
                   showNestedIndent: false,
+                  dense: true,
                 ),
         ),
       );
@@ -692,7 +777,7 @@ Widget _ingredientEntry({
         ),
       ),
       for (final component in components)
-        _HierarchyChild(child: _LabelChildRow(component: component)),
+        PGNestedIngredientRow(child: _LabelChildRow(component: component)),
       if (showBottomDivider)
         Divider(height: 0.5, thickness: 0.5, color: context.v2.outline),
     ],
@@ -709,6 +794,7 @@ Widget _tileFor({
   required List<Map<String, dynamic>>? ulAnalysis,
   bool showBottomDivider = true,
   bool showNestedIndent = true,
+  bool dense = false,
 }) {
   final ulEntry = matchUlEntry(ingredient, ulAnalysis);
   final typed = activeFromMap(ingredient, ulEntry: ulEntry);
@@ -717,6 +803,7 @@ Widget _tileFor({
     ingredient: typed,
     showBottomDivider: showBottomDivider,
     showNestedIndent: showNestedIndent,
+    dense: dense,
     onTap: () => showIngredientExplainSheet(
       context,
       ingredient: ingredient,
@@ -797,29 +884,23 @@ class _BlendHeaderRow extends StatelessWidget {
               ],
             ),
             const SizedBox(height: V2Spacing.space4),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    blend.name,
-                    style: V2Typography.bodyMedium(color: context.v2.fg),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: V2Spacing.space8),
-                Flexible(
-                  child: Text(
-                    totalLabel,
-                    textAlign: TextAlign.end,
-                    style: V2Typography.monoData(color: context.v2.fgMuted),
-                  ),
-                ),
-              ],
+            // Name gets the full width (long blend names wrap instead of
+            // being cut off), with the amount on its own line beneath it.
+            Text(
+              blend.name,
+              style: V2Typography.bodyMedium(color: context.v2.fg),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              totalLabel,
+              style: amountLabel == null
+                  ? V2Typography.bodySm(color: context.v2.fgMuted)
+                  : V2Typography.label(color: context.v2.fg).copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
             ),
             if (helperLabel.isNotEmpty) ...[
-              const SizedBox(height: 2),
+              const SizedBox(height: V2Spacing.space4),
               Text(
                 helperLabel,
                 style: V2Typography.caption(color: context.v2.fgMuted),
@@ -922,19 +1003,33 @@ class _ServingVariantRow extends StatelessWidget {
   }
 }
 
-class _HierarchyChild extends StatelessWidget {
-  final Widget child;
+class _SubBlendLabel extends StatelessWidget {
+  final String name;
+  final String amount;
 
-  const _HierarchyChild({required this.child});
+  const _SubBlendLabel({required this.name, required this.amount});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(left: V2Spacing.space8),
-      decoration: BoxDecoration(
-        border: Border(left: BorderSide(color: context.v2.outline, width: 1)),
+    return Semantics(
+      container: true,
+      header: true,
+      label: [name, if (amount.isNotEmpty) amount].join(', '),
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space4,
+          V2Spacing.space8,
+          V2Spacing.space4,
+          V2Spacing.space4,
+        ),
+        child: Text(
+          amount.isEmpty ? name : '$name · $amount',
+          style: V2Typography.caption(
+            color: context.v2.fgMuted,
+          ).copyWith(fontWeight: FontWeight.w600),
+        ),
       ),
-      child: child,
     );
   }
 }
