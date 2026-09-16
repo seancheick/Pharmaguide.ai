@@ -976,6 +976,12 @@ class _TopRow extends StatelessWidget {
                       autofocus: true,
                       maxLines: 1,
                       textInputAction: TextInputAction.search,
+                      // Brand names and product codes ("DS-01", "CoQ10") are
+                      // not dictionary words; iOS autocorrect turned "ds-01"
+                      // into "did-01" and the search found nothing.
+                      autocorrect: false,
+                      smartDashesType: SmartDashesType.disabled,
+                      smartQuotesType: SmartQuotesType.disabled,
                       decoration: InputDecoration(
                         hintText: 'Search supplements',
                         hintStyle: V2Typography.bodyXl(
@@ -2150,12 +2156,12 @@ List<_SearchSuggestion> _buildSuggestions(
     }
   }
 
-  for (final term in _candidateIngredientTerms(normalizedQuery, products)) {
+  for (final term in _candidateCategoryTerms(normalizedQuery, products)) {
     add(
       _SearchSuggestion(
         label: term,
         query: term,
-        scopeLabel: 'Ingredient',
+        scopeLabel: 'Category',
         iconKind: _SuggestionIconKind.ingredient,
         iconColor: palette.accentStrong,
       ),
@@ -2191,7 +2197,9 @@ List<_SearchSuggestion> _buildSuggestions(
   return out.take(4).toList(growable: false);
 }
 
-List<String> _candidateIngredientTerms(
+/// Catalog categories matching the query. Product-name fragments are not
+/// categories (or ingredients) — they are suggested later as plain searches.
+List<String> _candidateCategoryTerms(
   String normalizedQuery,
   List<ProductsCoreData> products,
 ) {
@@ -2212,7 +2220,6 @@ List<String> _candidateIngredientTerms(
           ? null
           : _formatCategoryLabel(product.primaryCategory!),
     );
-    add(_compactProductQuery(product.productName, normalizedQuery));
     if (out.length >= 4) return out;
   }
   return out;
@@ -2245,7 +2252,13 @@ String _formatSuggestionLabel(String raw) {
   return cleaned
       .split(' ')
       .map((word) {
-        if (word.length <= 2 && word == word.toUpperCase()) return word;
+        // Codes and acronyms keep their label casing: DS-01, NAC, B12,
+        // CoQ10, pH. Only plain words are re-cased.
+        final hasLower = word.contains(RegExp(r'[a-z]'));
+        final isCode = !hasLower && word.length <= 5;
+        final hasInnerCapital =
+            hasLower && word.substring(1).contains(RegExp(r'[A-Z]'));
+        if (isCode || hasInnerCapital) return word;
         final lower = word.toLowerCase();
         return '${lower[0].toUpperCase()}${lower.substring(1)}';
       })

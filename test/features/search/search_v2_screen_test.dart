@@ -224,6 +224,83 @@ void main() {
     expect(recents.items, ['Magnesium']);
   });
 
+  group('suggested search labels', () {
+    Future<List<String>> suggestionTexts(
+      WidgetTester tester, {
+      required String query,
+      String productName = 'DS-01 Daily Synbiotic',
+    }) async {
+      final coreDb = CoreDatabase.memory();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+      });
+      await seedSearchProduct(
+        coreDb,
+        productName: productName,
+        brandName: 'Seed',
+        primaryCategory: 'probiotic',
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            recentSearchesServiceProvider.overrideWithValue(
+              _FakeRecentSearchesService(),
+            ),
+          ],
+          child: MaterialApp(home: SearchV2Screen(initialQuery: query)),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump();
+      return tester
+          .widgetList<RichText>(find.byType(RichText))
+          .map((widget) => widget.text.toPlainText())
+          .toList();
+    }
+
+    // 2026-09-16 walkthrough: iOS autocorrect rewrote "ds-01" as "did-01"
+    // and the search found nothing. Product codes and brand names are not
+    // dictionary words.
+    testWidgets('search field does not autocorrect product codes', (
+      tester,
+    ) async {
+      await suggestionTexts(tester, query: 'ds-01');
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.autocorrect, isFalse);
+      expect(field.smartDashesType, SmartDashesType.disabled);
+    });
+
+    // 2026-09-16 walkthrough: typing "ds-01" suggested "Ds-01 Daily
+    // Synbiotic in Ingredient" — the product code lost its casing and a
+    // product name was labelled an ingredient.
+    testWidgets('product names keep their casing and no ingredient scope', (
+      tester,
+    ) async {
+      final texts = await suggestionTexts(tester, query: 'ds-01');
+
+      expect(texts, contains('DS-01 Daily Synbiotic'));
+      expect(texts.where((text) => text.contains('Ds-01')), isEmpty);
+      expect(texts.where((text) => text.contains('in Ingredient')), isEmpty);
+    });
+
+    testWidgets('a product category is suggested as a category', (
+      tester,
+    ) async {
+      final texts = await suggestionTexts(
+        tester,
+        query: 'probio',
+        productName: 'Probiotic 10 Billion',
+      );
+
+      expect(texts, contains('Probiotic in Category'));
+      expect(texts.where((text) => text.contains('in Ingredient')), isEmpty);
+    });
+  });
+
   testWidgets('query state renders suggestions above suggested products', (
     tester,
   ) async {
@@ -455,14 +532,9 @@ void main() {
     expect(find.text('120 capsules'), findsWidgets);
     expect(find.text('Magnesium Search Result 21'), findsNothing);
 
-    await tester.scrollUntilVisible(
-      find.text('Loading more'),
-      500,
-      scrollable: _verticalScrollable(),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-
+    // The "Loading more" footer is transient: with an in-memory database
+    // the next page can land inside the same frame the footer scrolls in,
+    // so wait for the paged-in row itself.
     await tester.scrollUntilVisible(
       find.text('Magnesium Search Result 21'),
       500,
