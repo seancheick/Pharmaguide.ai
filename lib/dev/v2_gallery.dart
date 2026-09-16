@@ -549,7 +549,7 @@ class V2Gallery extends StatelessWidget {
                   PGCertification(
                     label: 'USP Verified',
                     verified: false,
-                    caption: 'Not enrolled in this program',
+                    caption: 'Claimed on label',
                   ),
                 ],
               ),

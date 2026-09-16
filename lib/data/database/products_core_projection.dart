@@ -1,6 +1,6 @@
 // GENERATED FILE — DO NOT EDIT.
 // Source: PharmaGuide_Pipeline/scripts/core_export_model.py
-// App projection for export schema 2.4.0.
+// App projection for export schema 2.5.0.
 
 const String appCoreProjectionModelVersion = '1.1.0';
 const String appCoreProjectionModelSha256 =

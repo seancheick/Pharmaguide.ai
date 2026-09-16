@@ -10,8 +10,10 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 class PGCertification {
   final String label;
 
-  /// True when verified by a documented third-party source. Drives the
-  /// leading check vs cancel icon + green/grey tone.
+  /// True when verified by a documented third-party source (green check).
+  /// False means claimed but not independently verified — e.g. a program
+  /// printed on the label — and renders a neutral info icon, never a cross:
+  /// an unverified claim is not a failed check.
   final bool verified;
 
   /// Optional 1-line caption ("Tested for 200+ contaminants").
@@ -25,8 +27,8 @@ class PGCertification {
 }
 
 /// Lists certifications + quality checks as a flat row of items. Each
-/// item: green check (verified) or muted-grey cancel (not verified) +
-/// label + optional caption.
+/// item: green check (verified) or muted info icon (claimed, not
+/// independently verified) + label + optional caption.
 class PGCertificationSection extends StatelessWidget {
   final List<PGCertification> certifications;
   final String title;
@@ -72,7 +74,7 @@ class _CertificationRow extends StatelessWidget {
     final tone = cert.verified ? context.v2.safe : context.v2.fgSubtle;
     final icon = cert.verified
         ? Icons.check_circle_rounded
-        : Icons.cancel_outlined;
+        : Icons.info_outline_rounded;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

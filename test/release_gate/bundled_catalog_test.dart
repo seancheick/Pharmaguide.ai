@@ -96,6 +96,32 @@ void main() {
     });
 
     test(
+      'catalog importer accepts claimed/verified certification schema 2.5.0',
+      () {
+        final importer = File(
+          'scripts/import_catalog_artifact.sh',
+        ).readAsStringSync();
+        final supportedSchemas = RegExp(
+          r'APP_SUPPORTED_SCHEMAS=\(([^)]*)\)',
+        ).firstMatch(importer)?.group(1);
+
+        expect(
+          supportedSchemas,
+          contains('"2.5.0"'),
+          reason:
+              'Schema 2.5.0 adds certification_detail.claimed_programs and '
+              'verified_programs and makes the legacy program list verified-only. '
+              'This app renders both shapes and treats pre-2.5 entries as claims.',
+        );
+        expect(
+          importer,
+          contains(r'"$SCHEMA_VERSION" == "2.5.0"'),
+          reason: 'Schema 2.5.0 keeps the 2.4 core projection hash gate.',
+        );
+      },
+    );
+
+    test(
       'catalog importer binds schema 2.4 to the generated app projection',
       () {
         final importer = File(

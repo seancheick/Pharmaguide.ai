@@ -587,11 +587,13 @@ void main() {
         detailBlob: {
           'quality_pillars_v4': _connectedV4Pillars(),
           'certification_detail': {
-            'third_party_programs': {
-              'programs': [
-                {'name': 'USP Verified', 'verified': true},
-              ],
-            },
+            'verified_programs': [
+              {
+                'name': 'USP Verified',
+                'program': 'USP Verified',
+                'record_id': 'USP_VERIFIED_1',
+              },
+            ],
           },
         },
       );

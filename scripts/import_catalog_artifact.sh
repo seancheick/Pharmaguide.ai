@@ -116,6 +116,7 @@ APP_SUPPORTED_SCHEMAS=(
   "2.2.0"
   "2.3.0"
   "2.4.0"
+  "2.5.0"
 )
 
 # Interaction DB schema versions and their paired SQLite user_version values.
@@ -335,10 +336,11 @@ fi
 ok "schema_version $SCHEMA_VERSION is supported"
 
 # ---------------------------------------------------------------------------
-# Gate 1b: schema-2.4 projection model matches the generated app reader
+# Gate 1b: schema-2.4+ projection model matches the generated app reader
+# (2.5.0 adds claimed/verified certification detail; same core projection)
 # ---------------------------------------------------------------------------
 
-if [[ "$SCHEMA_VERSION" == "2.4.0" ]]; then
+if [[ "$SCHEMA_VERSION" == "2.4.0" || "$SCHEMA_VERSION" == "2.5.0" ]]; then
   if ! CANDIDATE_CORE_PROJECTION_MODEL_SHA256="$(
     read_manifest_path core_projection_manifest.model_sha256
   )"; then

@@ -10,6 +10,12 @@ import 'package:pharmaguide/features/product_detail/v2/sections/certifications_s
 // pillar gives it no points, so the app gives it no verified badge. Before,
 // 399 products showed "GMP Certified" from label wording alone while 6,866
 // products with pillar GMP credit showed no badge.
+//
+// Export schema 2.5.0 separates claimed from verified certifications:
+// `claimed_programs` (every label claim, with its canonical registry program)
+// and `verified_programs` (registry-verified product certifications). A
+// program is verified only when it comes from the registry; everything else,
+// including every pre-2.5 catalog entry, is a label claim.
 void main() {
   Widget build(Map<String, dynamic>? cd) =>
       buildCertificationsSection(certificationDetail: cd);
@@ -61,5 +67,143 @@ void main() {
         expect(build(<String, dynamic>{'gmp': labelOnly}), isA<SizedBox>());
       });
     }
+  });
+
+  group('claimed vs verified programs', () {
+    const verifiedCaption = 'Verified in the official listing';
+    const claimedCaption = 'Claimed on label';
+
+    test('new catalog: verified programs, then remaining claims', () {
+      final certs = certsOf(
+        build(<String, dynamic>{
+          'claimed_programs': [
+            {'name': 'NSF Contents Certified', 'program': 'NSF Certified'},
+            {'name': 'Informed Choice', 'program': 'Informed Choice'},
+          ],
+          'verified_programs': [
+            {
+              'name': 'NSF Certified',
+              'program': 'NSF Certified',
+              'record_id': 'NSF_CERTIFIE_1',
+              'scope': 'sku',
+              'source_url': 'https://info.nsf.org/Certified/Dietary/',
+            },
+          ],
+          'third_party_programs': {
+            'programs': [
+              {
+                'name': 'NSF Certified',
+                'verified': true,
+                'source': 'registry',
+                'record_id': 'NSF_CERTIFIE_1',
+              },
+            ],
+          },
+          'purity_verified': true,
+          'heavy_metal_tested': true,
+          'label_accuracy_verified': true,
+        }),
+      );
+
+      final programs = certs
+          .where(
+            (c) => c.caption == verifiedCaption || c.caption == claimedCaption,
+          )
+          .map((c) => (c.label, c.verified, c.caption))
+          .toList();
+      expect(programs, [
+        ('NSF Certified', true, verifiedCaption),
+        ('Informed Choice', false, claimedCaption),
+      ]);
+      expect(
+        certs.map((c) => c.label),
+        containsAll(<String>[
+          'Purity Verified',
+          'Heavy Metal Tested',
+          'Label Accuracy Verified',
+        ]),
+      );
+    });
+
+    test(
+      'new catalog: a claim-only product shows claims, no quality badge',
+      () {
+        final certs = certsOf(
+          build(<String, dynamic>{
+            'claimed_programs': [
+              {'name': 'USP Verified', 'program': 'USP Verified'},
+            ],
+            'verified_programs': <Object>[],
+            'third_party_programs': {'programs': <Object>[]},
+            'purity_verified': false,
+          }),
+        );
+        expect(certs.map((c) => (c.label, c.verified, c.caption)), [
+          ('USP Verified', false, claimedCaption),
+        ]);
+      },
+    );
+
+    test('old catalog: legacy "verified": true entries are claims', () {
+      final certs = certsOf(
+        build(<String, dynamic>{
+          'third_party_programs': {
+            'programs': [
+              {'name': 'Informed Choice', 'verified': true},
+              {'name': 'USP Verified', 'verified': true, 'source': 'rules_db'},
+              'NSF Sport',
+            ],
+          },
+          // Pre-2.5 flags were derived from claims: never shown as verified.
+          'purity_verified': 1,
+          'heavy_metal_tested': 1,
+          'label_accuracy_verified': 1,
+        }),
+      );
+      expect(certs.map((c) => (c.label, c.verified, c.caption)), [
+        ('Informed Choice', false, claimedCaption),
+        ('USP Verified', false, claimedCaption),
+        ('NSF Sport', false, claimedCaption),
+      ]);
+    });
+
+    test(
+      'legacy list entry verified only with registry source + record id',
+      () {
+        final certs = certsOf(
+          build(<String, dynamic>{
+            'third_party_programs': {
+              'programs': [
+                {
+                  'name': 'NSF Sport',
+                  'verified': true,
+                  'source': 'registry',
+                  'record_id': 'NSF_SPORT_1',
+                },
+                {'name': 'IFOS', 'verified': true, 'source': 'registry'},
+                {'name': 'BSCG', 'verified': true, 'source': 'manufacturer'},
+              ],
+            },
+          }),
+        );
+        expect(certs.map((c) => (c.label, c.verified)), [
+          ('NSF Sport', true),
+          ('IFOS', false),
+          ('BSCG', false),
+        ]);
+      },
+    );
+
+    test('a claim-only product still offers the certifications section', () {
+      expect(
+        hasRenderableCertifications(<String, dynamic>{
+          'claimed_programs': [
+            {'name': 'USP Verified', 'program': 'USP Verified'},
+          ],
+          'verified_programs': <Object>[],
+        }),
+        isTrue,
+      );
+    });
   });
 }
