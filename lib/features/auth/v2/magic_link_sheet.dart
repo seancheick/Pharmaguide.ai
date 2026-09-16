@@ -56,12 +56,20 @@ Future<void> showMagicLinkSheet(BuildContext context) {
 /// CTA + success morph. Calls `supabase.auth.signInWithOtp()` with
 /// the [kAuthRedirectUrl] deep link.
 ///
-/// Production wires the deep-link side of the round trip in Phase
-/// 9.1b. For now, success state lands once Supabase confirms the
-/// email send; the actual sign-in completes when the user taps the
-/// link in their inbox.
+/// The email carries both a link and a one-time code. Tapping the link
+/// only works on the device running the app, so the sent state also
+/// takes the code (`verifyOTP`) for emails opened on a laptop or other
+/// phone. Either path emits `signedIn`, which the app's auth listener
+/// turns into navigation.
 class MagicLinkSheet extends StatefulWidget {
-  const MagicLinkSheet({super.key});
+  const MagicLinkSheet({super.key, this.sendLink, this.verifyCode});
+
+  /// Sends the sign-in email. Null uses Supabase `signInWithOtp`.
+  final Future<void> Function(String email)? sendLink;
+
+  /// Exchanges the emailed code for a session. Null uses Supabase
+  /// `verifyOTP`.
+  final Future<void> Function(String email, String code)? verifyCode;
 
   @override
   State<MagicLinkSheet> createState() => _MagicLinkSheetState();
@@ -71,9 +79,12 @@ enum _SheetState { editing, sending, sent, error }
 
 class _MagicLinkSheetState extends State<MagicLinkSheet> {
   final _controller = TextEditingController();
+  final _codeController = TextEditingController();
   final _focusNode = FocusNode();
   _SheetState _state = _SheetState.editing;
   String? _errorMessage;
+  bool _isVerifying = false;
+  String? _codeError;
 
   // Simple RFC-style email regex — Supabase will validate properly,
   // this is just to keep the obvious typos out of the network call.
@@ -91,11 +102,19 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
   @override
   void dispose() {
     _controller.dispose();
+    _codeController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
   bool get _isValidEmail => _emailRegex.hasMatch(_controller.text.trim());
+
+  // Supabase email OTPs are 6 digits by default and configurable up to 10.
+  static final _codeRegex = RegExp(r'^\d{6,10}$');
+
+  String get _code => _codeController.text.replaceAll(RegExp(r'\s'), '');
+
+  bool get _isValidCode => _codeRegex.hasMatch(_code);
 
   Future<void> _send() async {
     final email = _controller.text.trim();
@@ -110,7 +129,7 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
     // Skip the network when Supabase isn't configured — surface a
     // friendly inline state instead of letting the SDK fail in a
     // confusing way during early dev / placeholder builds.
-    if (SupabaseConfig.isPlaceholder) {
+    if (widget.sendLink == null && SupabaseConfig.isPlaceholder) {
       setState(() {
         _state = _SheetState.error;
         _errorMessage =
@@ -126,10 +145,15 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
     });
 
     try {
-      await supabase.auth.signInWithOtp(
-        email: email,
-        emailRedirectTo: kAuthRedirectUrl,
-      );
+      final sendLink = widget.sendLink;
+      if (sendLink != null) {
+        await sendLink(email);
+      } else {
+        await supabase.auth.signInWithOtp(
+          email: email,
+          emailRedirectTo: kAuthRedirectUrl,
+        );
+      }
       unawaited(HapticFeedback.lightImpact());
       if (!mounted) return;
       setState(() => _state = _SheetState.sent);
@@ -144,6 +168,49 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
       setState(() {
         _state = _SheetState.error;
         _errorMessage =
+            "We couldn't reach the network. Check your connection and "
+            "try again.";
+      });
+    }
+  }
+
+  Future<void> _verify() async {
+    if (!_isValidCode || _isVerifying) return;
+    final email = _controller.text.trim();
+    final code = _code;
+    setState(() {
+      _isVerifying = true;
+      _codeError = null;
+    });
+    try {
+      final verifyCode = widget.verifyCode;
+      if (verifyCode != null) {
+        await verifyCode(email, code);
+      } else {
+        await supabase.auth.verifyOTP(
+          email: email,
+          token: code,
+          type: OtpType.email,
+        );
+      }
+      unawaited(HapticFeedback.lightImpact());
+      if (!mounted) return;
+      setState(() => _isVerifying = false);
+      await Navigator.of(context).maybePop();
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      final msg = e.message.toLowerCase();
+      setState(() {
+        _isVerifying = false;
+        _codeError = (msg.contains('rate') || msg.contains('too many'))
+            ? 'Too many requests. Wait a minute and try again.'
+            : 'That code is wrong or has expired. Check the latest email.';
+      });
+    } on Object catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isVerifying = false;
+        _codeError =
             "We couldn't reach the network. Check your connection and "
             "try again.";
       });
@@ -206,7 +273,15 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
                   ),
                   const SizedBox(height: V2Spacing.space16),
                   if (_state == _SheetState.sent)
-                    _SentBody(email: _controller.text.trim())
+                    _SentBody(
+                      email: _controller.text.trim(),
+                      codeController: _codeController,
+                      isCodeValid: _isValidCode,
+                      isVerifying: _isVerifying,
+                      codeError: _codeError,
+                      onCodeChanged: () => setState(() => _codeError = null),
+                      onVerify: _verify,
+                    )
                   else
                     _EditBody(
                       controller: _controller,
@@ -371,7 +446,22 @@ class _EmailField extends StatelessWidget {
 
 class _SentBody extends StatelessWidget {
   final String email;
-  const _SentBody({required this.email});
+  final TextEditingController codeController;
+  final bool isCodeValid;
+  final bool isVerifying;
+  final String? codeError;
+  final VoidCallback onCodeChanged;
+  final Future<void> Function() onVerify;
+
+  const _SentBody({
+    required this.email,
+    required this.codeController,
+    required this.isCodeValid,
+    required this.isVerifying,
+    required this.codeError,
+    required this.onCodeChanged,
+    required this.onVerify,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -406,12 +496,35 @@ class _SentBody extends StatelessWidget {
         ),
         const SizedBox(height: V2Spacing.space8),
         Text(
-          'We sent a sign-in link to $email. Tap the link to come back '
-          'and finish signing in. It expires in 1 hour.',
+          'We sent a sign-in link and code to $email. Tap the link on '
+          'this phone, or enter the code below if you opened the email '
+          'somewhere else. Both expire in 1 hour.',
           textAlign: TextAlign.center,
           style: V2Typography.body(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space24),
+        _CodeField(
+          controller: codeController,
+          enabled: !isVerifying,
+          hasError: codeError != null,
+          onChanged: onCodeChanged,
+          onSubmitted: (_) => onVerify(),
+        ),
+        if (codeError != null) ...[
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            codeError!,
+            textAlign: TextAlign.center,
+            style: V2Typography.bodySm(color: context.v2.caution),
+          ),
+        ],
+        const SizedBox(height: V2Spacing.space16),
+        PGPillButton(
+          label: isVerifying ? 'Verifying…' : 'Verify code',
+          expand: true,
+          onPressed: (isVerifying || !isCodeValid) ? null : onVerify,
+        ),
+        const SizedBox(height: V2Spacing.space12),
         PGPillButton(
           label: 'Done',
           variant: PGPillVariant.secondary,
@@ -419,6 +532,66 @@ class _SentBody extends StatelessWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ],
+    );
+  }
+}
+
+class _CodeField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool enabled;
+  final bool hasError;
+  final VoidCallback onChanged;
+  final ValueChanged<String> onSubmitted;
+
+  const _CodeField({
+    required this.controller,
+    required this.enabled,
+    required this.hasError,
+    required this.onChanged,
+    required this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = hasError
+        ? context.v2.caution.withValues(alpha: 0.45)
+        : context.v2.outline;
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
+          borderSide: BorderSide(color: color, width: width),
+        );
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: TextInputType.number,
+      autofillHints: const [AutofillHints.oneTimeCode],
+      autocorrect: false,
+      enableSuggestions: false,
+      textAlign: TextAlign.center,
+      textInputAction: TextInputAction.done,
+      maxLength: 12,
+      style: V2Typography.titleSm(color: context.v2.fg),
+      cursorColor: context.v2.accent,
+      onChanged: (_) => onChanged(),
+      onSubmitted: onSubmitted,
+      decoration: InputDecoration(
+        hintText: 'Code from email',
+        hintStyle: V2Typography.body(color: context.v2.fgSubtle),
+        counterText: '',
+        filled: true,
+        fillColor: context.v2.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: V2Spacing.space16,
+          vertical: V2Spacing.space12,
+        ),
+        border: border(borderColor),
+        enabledBorder: border(borderColor),
+        focusedBorder: border(
+          hasError ? context.v2.caution : context.v2.accent,
+          1.3,
+        ),
+      ),
     );
   }
 }
