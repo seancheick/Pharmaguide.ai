@@ -104,4 +104,78 @@ void main() {
 
     expect(find.textContaining('Supabase is not configured'), findsOneWidget);
   });
+
+  // Sign in with Google branding guidelines: the button must carry the
+  // standard color Google "G" (never a monochrome or look-alike glyph) on the
+  // light (#FFFFFF / #747775 / #1F1F1F) or dark (#131314 / #8E918F / #E3E3E3)
+  // theme. https://developers.google.com/identity/branding-guidelines
+  group('Continue with Google follows Google branding', () {
+    Future<void> pumpScreen(WidgetTester tester, ThemeData theme) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: AuthInvitationV2Screen(onSkip: () {}),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+    }
+
+    Finder googleButton() => find
+        .ancestor(
+          of: find.text('Continue with Google'),
+          matching: find.byType(InkWell),
+        )
+        .first;
+
+    BoxDecoration googleDecoration(WidgetTester tester) {
+      final container = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: googleButton(),
+              matching: find.byType(Container),
+            ),
+          )
+          .firstWhere((c) => c.decoration is BoxDecoration);
+      return container.decoration! as BoxDecoration;
+    }
+
+    String googleLogoAsset(WidgetTester tester) {
+      final image = tester.widget<Image>(
+        find.descendant(of: googleButton(), matching: find.byType(Image)),
+      );
+      return (image.image as AssetImage).assetName;
+    }
+
+    testWidgets('light theme shows the standard color G on Google light', (
+      tester,
+    ) async {
+      await pumpScreen(tester, ThemeData(brightness: Brightness.light));
+
+      expect(googleLogoAsset(tester), 'assets/images/google_g_light.png');
+      expect(find.byIcon(Icons.g_mobiledata_rounded), findsNothing);
+      final decoration = googleDecoration(tester);
+      expect(decoration.color, const Color(0xFFFFFFFF));
+      expect((decoration.border! as Border).top.color, const Color(0xFF747775));
+      expect(
+        tester.widget<Text>(find.text('Continue with Google')).style?.color,
+        const Color(0xFF1F1F1F),
+      );
+    });
+
+    testWidgets('dark theme shows the standard color G on Google dark', (
+      tester,
+    ) async {
+      await pumpScreen(tester, ThemeData(brightness: Brightness.dark));
+
+      expect(googleLogoAsset(tester), 'assets/images/google_g_dark.png');
+      expect(find.byIcon(Icons.g_mobiledata_rounded), findsNothing);
+      final decoration = googleDecoration(tester);
+      expect(decoration.color, const Color(0xFF131314));
+      expect((decoration.border! as Border).top.color, const Color(0xFF8E918F));
+      expect(
+        tester.widget<Text>(find.text('Continue with Google')).style?.color,
+        const Color(0xFFE3E3E3),
+      );
+    });
+  });
 }

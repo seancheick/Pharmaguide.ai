@@ -358,14 +358,12 @@ class _AuthButtonStack extends StatelessWidget {
 
     final apple = _AuthButton(
       label: 'Continue with Apple',
-      icon: Icons.apple_rounded,
       style: _AuthButtonStyle.appleDark,
       onPressed: onApple,
     );
     final google = _AuthButton(
       label: 'Continue with Google',
-      icon: Icons.g_mobiledata_rounded,
-      style: _AuthButtonStyle.googleLight,
+      style: _AuthButtonStyle.google,
       onPressed: onGoogle,
     );
 
@@ -428,21 +426,33 @@ class _EarlyAccessBadge extends StatelessWidget {
   }
 }
 
-/// Provider-styled auth button — Apple and Google have specific brand
-/// requirements (black-on-white or white-on-black for Apple; white
-/// surface with the multi-color G for Google). We honor the spirit
-/// here in v2 tones while auth itself is handled by PGAuthService.
-enum _AuthButtonStyle { appleDark, googleLight }
+/// Provider-styled auth button; auth itself is handled by PGAuthService.
+///
+/// Apple uses the v2 inverse tones. Google follows the Sign in with Google
+/// branding guidelines (developers.google.com/identity/branding-guidelines):
+/// the standard color "G" — never a monochrome or look-alike glyph — on the
+/// Google light or dark theme. The G tiles in assets/images were cropped from
+/// Google's pre-approved signin-assets.zip icon buttons, so each tile's
+/// background is exactly its theme's fill and must not sit on another color.
+enum _AuthButtonStyle { appleDark, google }
+
+/// Sign in with Google theme colors, verbatim from the branding guidelines.
+abstract final class _GoogleBrand {
+  static const lightFill = Color(0xFFFFFFFF);
+  static const lightStroke = Color(0xFF747775);
+  static const lightText = Color(0xFF1F1F1F);
+  static const darkFill = Color(0xFF131314);
+  static const darkStroke = Color(0xFF8E918F);
+  static const darkText = Color(0xFFE3E3E3);
+}
 
 class _AuthButton extends StatelessWidget {
   final String label;
-  final IconData icon;
   final _AuthButtonStyle style;
   final VoidCallback onPressed;
 
   const _AuthButton({
     required this.label,
-    required this.icon,
     required this.style,
     required this.onPressed,
   });
@@ -450,9 +460,30 @@ class _AuthButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isApple = style == _AuthButtonStyle.appleDark;
-    final bg = isApple ? context.v2.fg : context.v2.surface;
-    final fg = isApple ? context.v2.surface : context.v2.fg;
-    final borderColor = isApple ? Colors.transparent : context.v2.outline;
+    // Same brightness source that resolves context.v2.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color bg;
+    final Color fg;
+    final Color borderColor;
+    final Widget leading;
+    if (isApple) {
+      bg = context.v2.fg;
+      fg = context.v2.surface;
+      borderColor = Colors.transparent;
+      leading = Icon(Icons.apple_rounded, size: 22, color: fg);
+    } else {
+      bg = isDark ? _GoogleBrand.darkFill : _GoogleBrand.lightFill;
+      fg = isDark ? _GoogleBrand.darkText : _GoogleBrand.lightText;
+      borderColor = isDark ? _GoogleBrand.darkStroke : _GoogleBrand.lightStroke;
+      leading = Image.asset(
+        isDark
+            ? 'assets/images/google_g_dark.png'
+            : 'assets/images/google_g_light.png',
+        width: 20,
+        height: 20,
+        excludeFromSemantics: true,
+      );
+    }
 
     return Material(
       color: Colors.transparent,
@@ -470,7 +501,7 @@ class _AuthButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 22, color: fg),
+              leading,
               const SizedBox(width: V2Spacing.space12),
               Text(label, style: V2Typography.label(color: fg)),
             ],
