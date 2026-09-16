@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/components/pg_evidence_section.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
 import 'package:pharmaguide/core/models/research_pair_evidence.dart';
+import 'package:pharmaguide/core/scoring/v4_pillars.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
@@ -106,6 +108,7 @@ class ResearchEvidenceSection extends ConsumerWidget {
 /// [buildResearchEvidenceSheetSection] rather than re-rendering evidence.
 class ResearchSupportSection extends ConsumerWidget {
   final Map<String, dynamic>? evidenceData;
+  final Map<String, dynamic>? qualityPillarsV4;
   final List<String> canonicalIds;
   final Map<String, dynamic>? probioticDetail;
   final void Function(List<String> sourceUrls)? onTapProbioticSources;
@@ -114,12 +117,17 @@ class ResearchSupportSection extends ConsumerWidget {
     super.key,
     required this.evidenceData,
     required this.canonicalIds,
+    this.qualityPillarsV4,
     this.probioticDetail,
     this.onTapProbioticSources,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final evidencePillar = parseV4Pillars(
+      qualityPillarsV4,
+    ).where((pillar) => pillar.key == 'evidence').firstOrNull;
+    final pillarPresentation = _evidencePillarPresentation(evidencePillar);
     final research = canonicalIds.isEmpty
         ? const <ResearchPairEvidence>[]
         : ref
@@ -136,6 +144,9 @@ class ResearchSupportSection extends ConsumerWidget {
     if (hasRenderableClinicalEvidence(evidenceData)) {
       return buildEvidenceSection(
         evidenceData: evidenceData,
+        presentationTier: pillarPresentation?.tier,
+        summaryLine: pillarPresentation?.summaryLine,
+        helperLine: pillarPresentation?.helperLine,
         relatedResearch: research.isEmpty
             ? null
             : buildResearchEvidenceSheetSection(context, research),
@@ -172,6 +183,42 @@ class ResearchSupportSection extends ConsumerWidget {
 
     return const SizedBox.shrink();
   }
+}
+
+class _EvidencePillarPresentation {
+  final PGEvidenceTier tier;
+  final String summaryLine;
+  final String? helperLine;
+
+  const _EvidencePillarPresentation({
+    required this.tier,
+    required this.summaryLine,
+    this.helperLine,
+  });
+}
+
+_EvidencePillarPresentation? _evidencePillarPresentation(
+  V4PillarValue? pillar,
+) {
+  if (pillar == null || pillar.score == null) return null;
+
+  final status = statusForPillar(pillar.score, pillar.max);
+  final tier = switch (status) {
+    V4PillarStatus.strong => PGEvidenceTier.strong,
+    V4PillarStatus.mixed => PGEvidenceTier.moderate,
+    V4PillarStatus.limited || V4PillarStatus.noPoints => PGEvidenceTier.limited,
+  };
+  final score = pillar.score!;
+  final scoreLabel = score == score.roundToDouble()
+      ? score.toInt().toString()
+      : score.toStringAsFixed(1);
+  return _EvidencePillarPresentation(
+    tier: tier,
+    summaryLine:
+        'Evidence pillar: ${v4PillarStatusLabel(status).toUpperCase()} · '
+        '$scoreLabel/${pillar.max}',
+    helperLine: pillar.reason,
+  );
 }
 
 class _ResearchEvidenceCard extends StatelessWidget {

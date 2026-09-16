@@ -58,6 +58,7 @@ class PGEvidenceSection extends StatelessWidget {
   final List<PGCitation> citations;
   final String title;
   final String? summaryPrefix;
+  final String? summaryLine;
   final String? helperLine;
 
   /// Optional factual enrichment line beneath the tier summary, e.g.
@@ -87,6 +88,7 @@ class PGEvidenceSection extends StatelessWidget {
     this.citations = const [],
     this.title = 'Clinical evidence',
     this.summaryPrefix,
+    this.summaryLine,
     this.helperLine,
     this.subtitle,
     this.footnote,
@@ -139,6 +141,9 @@ class PGEvidenceSection extends StatelessWidget {
   }
 
   String _summaryLine() {
+    final override = summaryLine?.trim();
+    if (override != null && override.isNotEmpty) return override;
+
     final parts = <String>[];
     if (totalStudies > 0) {
       parts.add('$totalStudies stud${totalStudies == 1 ? 'y' : 'ies'}');

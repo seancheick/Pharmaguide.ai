@@ -55,6 +55,7 @@ Widget _supportHarness({
   required List<ResearchPairEvidence> evidence,
   List<String> canonicalIds = const ['vitamin_k'],
   Map<String, dynamic>? probioticDetail,
+  Map<String, dynamic>? qualityPillarsV4,
 }) {
   return ProviderScope(
     overrides: [
@@ -69,6 +70,7 @@ Widget _supportHarness({
             evidenceData: evidenceData,
             canonicalIds: canonicalIds,
             probioticDetail: probioticDetail,
+            qualityPillarsV4: qualityPillarsV4,
           ),
         ),
       ),
@@ -208,6 +210,57 @@ void main() {
         },
       ],
     };
+
+    testWidgets(
+      'pipeline Evidence pillar owns the card verdict while ingredient support remains visible',
+      (tester) async {
+        await tester.pumpWidget(
+          _supportHarness(
+            evidenceData: const {
+              'match_count': 1,
+              'clinical_matches': [
+                {
+                  'ingredient': 'Vitamin K',
+                  'evidence_level': 'ingredient-human',
+                  'study_type': 'systematic_review_meta',
+                  'effect_direction': 'positive_strong',
+                  'references_structured': [
+                    {
+                      'type': 'pubmed',
+                      'pmid': '111',
+                      'title': 'Vitamin K human study',
+                    },
+                  ],
+                },
+              ],
+            },
+            evidence: const [],
+            qualityPillarsV4: const {
+              'evidence': {
+                'score': 8,
+                'max': 20,
+                'reason':
+                    'Evidence is limited because support is ingredient-level, not product-specific.',
+              },
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Evidence pillar: LIMITED · 8/20'), findsOneWidget);
+        expect(
+          find.text(
+            'Evidence is limited because support is ingredient-level, not product-specific.',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Vitamin K: strong ingredient evidence'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Ingredient support: STRONG'), findsNothing);
+      },
+    );
 
     testWidgets(
       'clinical evidence + research collapse into one card and one sheet',

@@ -431,6 +431,9 @@ Widget buildEvidenceSection({
   required Map<String, dynamic>? evidenceData,
   Widget? relatedResearch,
   Widget? cardExtra,
+  PGEvidenceTier? presentationTier,
+  String? summaryLine,
+  String? helperLine,
 }) {
   if (evidenceData == null) return const SizedBox.shrink();
 
@@ -479,11 +482,18 @@ Widget buildEvidenceSection({
   ];
 
   return PGEvidenceSection(
-    tier: _toPGEvidenceTier(productionTier),
+    tier: presentationTier ?? _toPGEvidenceTier(productionTier),
     totalStudies: totalStudies,
     hasMetaAnalysis: hasMeta,
     summaryPrefix: evidenceSummaryPrefix(scope),
-    helperLine: evidenceHelperLine(displayMatches),
+    summaryLine: summaryLine,
+    // When the score pillar owns the headline, its explanation must own the
+    // helper copy too. If an older blob omits that reason, let
+    // PGEvidenceSection derive neutral copy from the overridden tier rather
+    // than re-introducing a contradictory study-derived verdict here.
+    helperLine: presentationTier == null
+        ? (helperLine ?? evidenceHelperLine(displayMatches))
+        : helperLine,
     subtitle: switch (scope) {
       EvidenceScope.product =>
         'Exact-product evidence: identified in this evidence record.',

@@ -534,6 +534,7 @@ class _ProductDetailV2ConnectedState
       blobError: blobError,
     );
     final evidenceData = _blobMap(detailBlob, 'evidence_data');
+    final qualityPillarsV4 = _blobMap(detailBlob, 'quality_pillars_v4');
     final probioticDetail = _blobMap(detailBlob, 'probiotic_detail');
     final showClinicalEvidence =
         showDeepDive && hasRenderableClinicalEvidence(evidenceData);
@@ -855,10 +856,7 @@ class _ProductDetailV2ConnectedState
                         buildScoreBreakdownSection(
                           heroScore: score100,
                           qualityTier: _product?.qualityTier,
-                          qualityPillarsV4: _blobMap(
-                            detailBlob,
-                            'quality_pillars_v4',
-                          ),
+                          qualityPillarsV4: qualityPillarsV4,
                           qualityScoreCapV4: _blobMap(
                             detailBlob,
                             'quality_score_cap_v4',
@@ -890,6 +888,7 @@ class _ProductDetailV2ConnectedState
                             key: _anchors.researchKey,
                             child: ResearchSupportSection(
                               evidenceData: evidenceData,
+                              qualityPillarsV4: qualityPillarsV4,
                               canonicalIds: researchCanonicalIds,
                               probioticDetail: probioticDetail,
                               onTapProbioticSources: (urls) =>
