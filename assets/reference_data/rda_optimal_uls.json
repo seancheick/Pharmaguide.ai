@@ -3,11 +3,11 @@
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
     "schema_version": "5.1.1",
-    "last_updated": "2026-08-25",
+    "last_updated": "2026-09-15",
     "reference_data_contract": {
       "contract_version": "1",
-      "reference_version": "5.1.1-2026-08-25",
-      "semantic_fingerprint": "sha256:b6ef7a762e5779e1907871e7ceb2e8317fb5ca83c9014ac1d16b036f474808df"
+      "reference_version": "5.1.2-2026-09-15",
+      "semantic_fingerprint": "sha256:8ae520e97d7912894d9daa988a14e7dcf30759ab85b30a44a9cfcf105b346069"
     },
     "total_entries": 77,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
@@ -1129,7 +1129,10 @@
       "synthesis_precursors": null,
       "unofficial_ul": null,
       "nutrient_class": "floor",
-      "ul_basis": "not_applicable"
+      "ul_basis": "not_applicable",
+      "aliases": [
+        "thiamine"
+      ]
     },
     {
       "standard_name": "Riboflavin",
@@ -5747,7 +5750,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added from verified evening primrose oil / GLA clinical dosing sources. No official DRI; rda_ai anchor is the conservative lower bound for disclosed supplemental GLA.",
+      "notes": "Added from verified evening primrose oil / GLA clinical dosing sources. No official DRI; rda_ai anchor is the conservative lower bound for disclosed supplemental GLA. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -5921,7 +5924,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added from verified evening primrose oil clinical dosing sources. No official DRI; rda_ai anchor is a conservative lower-bound supplemental oil dose.",
+      "notes": "Added from verified evening primrose oil clinical dosing sources. No official DRI; rda_ai anchor is a conservative lower-bound supplemental oil dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -6097,7 +6100,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added from content-verified chlorophyllin human intervention sources. No official DRI; rda_ai anchor is 100 mg three times daily from the aflatoxin-DNA adduct intervention.",
+      "notes": "Added from content-verified chlorophyllin human intervention sources. No official DRI; rda_ai anchor is 100 mg three times daily from the aflatoxin-DNA adduct intervention. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -8644,7 +8647,7 @@
       "unit": "g",
       "ul": null,
       "ul_note": "No official UL. Tolerability soft-cap ~6.4 g per single dose (harmless paresthesia), not a toxicity limit.",
-      "optimal_range": "3.2-6.4",
+      "optimal_range": "1.6-6.4",
       "highest_ul": null,
       "ul_status": "not_established_insufficient_data",
       "is_conditionally_essential": false,
@@ -8662,19 +8665,21 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose corrected from 3.2 g after content verification against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
         "26175657",
         "22270875",
-        "27797728"
+        "27797728",
+        "22143432",
+        "23832078"
       ],
       "data": [
         {
           "group": "Male",
           "age_range": "14-18",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8682,7 +8687,7 @@
         {
           "group": "Male",
           "age_range": "19-30",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8690,7 +8695,7 @@
         {
           "group": "Male",
           "age_range": "31-50",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8698,7 +8703,7 @@
         {
           "group": "Male",
           "age_range": "51-70",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8706,7 +8711,7 @@
         {
           "group": "Male",
           "age_range": "71+",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8714,7 +8719,7 @@
         {
           "group": "Female",
           "age_range": "14-18",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8722,7 +8727,7 @@
         {
           "group": "Female",
           "age_range": "19-30",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8730,7 +8735,7 @@
         {
           "group": "Female",
           "age_range": "31-50",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8738,7 +8743,7 @@
         {
           "group": "Female",
           "age_range": "51-70",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8746,7 +8751,7 @@
         {
           "group": "Female",
           "age_range": "71+",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8754,7 +8759,7 @@
         {
           "group": "Pregnancy",
           "age_range": "14-18",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8762,7 +8767,7 @@
         {
           "group": "Pregnancy",
           "age_range": "19-30",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8770,7 +8775,7 @@
         {
           "group": "Pregnancy",
           "age_range": "31-50",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8778,7 +8783,7 @@
         {
           "group": "Lactation",
           "age_range": "14-18",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8786,7 +8791,7 @@
         {
           "group": "Lactation",
           "age_range": "19-30",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8794,7 +8799,7 @@
         {
           "group": "Lactation",
           "age_range": "31-50",
-          "rda_ai": 3.2,
+          "rda_ai": 1.6,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -8831,7 +8836,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -8999,7 +9004,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -9151,7 +9156,7 @@
       "unit": "g",
       "ul": null,
       "ul_note": "No official UL; safe at and beyond 3 g/day in trials. '6 g' is a tolerability soft-cap.",
-      "optimal_range": "3",
+      "optimal_range": "1.5-3",
       "highest_ul": null,
       "ul_status": "not_established_insufficient_data",
       "is_conditionally_essential": false,
@@ -9169,18 +9174,19 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose corrected from 3.0 g after content verification against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
         "23374455",
-        "41305674"
+        "41305674",
+        "32281915"
       ],
       "data": [
         {
           "group": "Male",
           "age_range": "14-18",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9188,7 +9194,7 @@
         {
           "group": "Male",
           "age_range": "19-30",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9196,7 +9202,7 @@
         {
           "group": "Male",
           "age_range": "31-50",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9204,7 +9210,7 @@
         {
           "group": "Male",
           "age_range": "51-70",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9212,7 +9218,7 @@
         {
           "group": "Male",
           "age_range": "71+",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9220,7 +9226,7 @@
         {
           "group": "Female",
           "age_range": "14-18",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9228,7 +9234,7 @@
         {
           "group": "Female",
           "age_range": "19-30",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9236,7 +9242,7 @@
         {
           "group": "Female",
           "age_range": "31-50",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9244,7 +9250,7 @@
         {
           "group": "Female",
           "age_range": "51-70",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9252,7 +9258,7 @@
         {
           "group": "Female",
           "age_range": "71+",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9260,7 +9266,7 @@
         {
           "group": "Pregnancy",
           "age_range": "14-18",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9268,7 +9274,7 @@
         {
           "group": "Pregnancy",
           "age_range": "19-30",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9276,7 +9282,7 @@
         {
           "group": "Pregnancy",
           "age_range": "31-50",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9284,7 +9290,7 @@
         {
           "group": "Lactation",
           "age_range": "14-18",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9292,7 +9298,7 @@
         {
           "group": "Lactation",
           "age_range": "19-30",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9300,7 +9306,7 @@
         {
           "group": "Lactation",
           "age_range": "31-50",
-          "rda_ai": 3.0,
+          "rda_ai": 1.5,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9343,7 +9349,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -9495,7 +9501,7 @@
       "unit": "mg",
       "ul": null,
       "ul_note": "No official UL; doses to 6 g/day well tolerated in trials.",
-      "optimal_range": "1500-6000",
+      "optimal_range": "2000-6000",
       "highest_ul": null,
       "ul_status": "not_established_insufficient_data",
       "is_conditionally_essential": false,
@@ -9513,18 +9519,19 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose corrected from 1500 mg after content verification against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
         "16309928",
-        "18417375"
+        "18417375",
+        "37447322"
       ],
       "data": [
         {
           "group": "Male",
           "age_range": "14-18",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9532,7 +9539,7 @@
         {
           "group": "Male",
           "age_range": "19-30",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9540,7 +9547,7 @@
         {
           "group": "Male",
           "age_range": "31-50",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9548,7 +9555,7 @@
         {
           "group": "Male",
           "age_range": "51-70",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9556,7 +9563,7 @@
         {
           "group": "Male",
           "age_range": "71+",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9564,7 +9571,7 @@
         {
           "group": "Female",
           "age_range": "14-18",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9572,7 +9579,7 @@
         {
           "group": "Female",
           "age_range": "19-30",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9580,7 +9587,7 @@
         {
           "group": "Female",
           "age_range": "31-50",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9588,7 +9595,7 @@
         {
           "group": "Female",
           "age_range": "51-70",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9596,7 +9603,7 @@
         {
           "group": "Female",
           "age_range": "71+",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9604,7 +9611,7 @@
         {
           "group": "Pregnancy",
           "age_range": "14-18",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9612,7 +9619,7 @@
         {
           "group": "Pregnancy",
           "age_range": "19-30",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9620,7 +9627,7 @@
         {
           "group": "Pregnancy",
           "age_range": "31-50",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9628,7 +9635,7 @@
         {
           "group": "Lactation",
           "age_range": "14-18",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9636,7 +9643,7 @@
         {
           "group": "Lactation",
           "age_range": "19-30",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9644,7 +9651,7 @@
         {
           "group": "Lactation",
           "age_range": "31-50",
-          "rda_ai": 1500.0,
+          "rda_ai": 2000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9665,7 +9672,7 @@
       "unit": "mg",
       "ul": null,
       "ul_note": "No official UL; oral HA well tolerated.",
-      "optimal_range": "80-200",
+      "optimal_range": "120-200",
       "highest_ul": null,
       "ul_status": "not_established_insufficient_data",
       "is_conditionally_essential": false,
@@ -9683,18 +9690,20 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose corrected from 80 mg after content verification against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
-        "32047830",
-        "37686801"
+        "34203487",
+        "25834304",
+        "41422283",
+        "23226979"
       ],
       "data": [
         {
           "group": "Male",
           "age_range": "14-18",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9702,7 +9711,7 @@
         {
           "group": "Male",
           "age_range": "19-30",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9710,7 +9719,7 @@
         {
           "group": "Male",
           "age_range": "31-50",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9718,7 +9727,7 @@
         {
           "group": "Male",
           "age_range": "51-70",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9726,7 +9735,7 @@
         {
           "group": "Male",
           "age_range": "71+",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9734,7 +9743,7 @@
         {
           "group": "Female",
           "age_range": "14-18",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9742,7 +9751,7 @@
         {
           "group": "Female",
           "age_range": "19-30",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9750,7 +9759,7 @@
         {
           "group": "Female",
           "age_range": "31-50",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9758,7 +9767,7 @@
         {
           "group": "Female",
           "age_range": "51-70",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9766,7 +9775,7 @@
         {
           "group": "Female",
           "age_range": "71+",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9774,7 +9783,7 @@
         {
           "group": "Pregnancy",
           "age_range": "14-18",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9782,7 +9791,7 @@
         {
           "group": "Pregnancy",
           "age_range": "19-30",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9790,7 +9799,7 @@
         {
           "group": "Pregnancy",
           "age_range": "31-50",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9798,7 +9807,7 @@
         {
           "group": "Lactation",
           "age_range": "14-18",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9806,7 +9815,7 @@
         {
           "group": "Lactation",
           "age_range": "19-30",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9814,7 +9823,7 @@
         {
           "group": "Lactation",
           "age_range": "31-50",
-          "rda_ai": 80.0,
+          "rda_ai": 120,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -9853,7 +9862,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -10022,7 +10031,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -10196,7 +10205,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -10369,7 +10378,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -10521,7 +10530,7 @@
       "unit": "mg",
       "ul": null,
       "ul_note": "Dosed as the compound (~2000 mg delivers ~144 mg elemental Mg). Elemental Mg counts toward the 350 mg/day supplemental-Mg UL when stacked with other magnesium.",
-      "optimal_range": "1500-2000",
+      "optimal_range": "1000-2000",
       "highest_ul": null,
       "ul_status": "not_established_insufficient_data",
       "is_conditionally_essential": false,
@@ -10540,7 +10549,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose corrected from 1500 mg after content verification against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -10551,7 +10560,7 @@
         {
           "group": "Male",
           "age_range": "14-18",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10559,7 +10568,7 @@
         {
           "group": "Male",
           "age_range": "19-30",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10567,7 +10576,7 @@
         {
           "group": "Male",
           "age_range": "31-50",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10575,7 +10584,7 @@
         {
           "group": "Male",
           "age_range": "51-70",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10583,7 +10592,7 @@
         {
           "group": "Male",
           "age_range": "71+",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10591,7 +10600,7 @@
         {
           "group": "Female",
           "age_range": "14-18",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10599,7 +10608,7 @@
         {
           "group": "Female",
           "age_range": "19-30",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10607,7 +10616,7 @@
         {
           "group": "Female",
           "age_range": "31-50",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10615,7 +10624,7 @@
         {
           "group": "Female",
           "age_range": "51-70",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10623,7 +10632,7 @@
         {
           "group": "Female",
           "age_range": "71+",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10631,7 +10640,7 @@
         {
           "group": "Pregnancy",
           "age_range": "14-18",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10639,7 +10648,7 @@
         {
           "group": "Pregnancy",
           "age_range": "19-30",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10647,7 +10656,7 @@
         {
           "group": "Pregnancy",
           "age_range": "31-50",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10655,7 +10664,7 @@
         {
           "group": "Lactation",
           "age_range": "14-18",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10663,7 +10672,7 @@
         {
           "group": "Lactation",
           "age_range": "19-30",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10671,7 +10680,7 @@
         {
           "group": "Lactation",
           "age_range": "31-50",
-          "rda_ai": 1500.0,
+          "rda_ai": 1000,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -10709,12 +10718,13 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
         "35479740",
-        "36482258"
+        "36482258",
+        "38789831"
       ],
       "data": [
         {
@@ -10879,12 +10889,13 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
         "34415830",
-        "31860387"
+        "31860387",
+        "26782228"
       ],
       "data": [
         {
@@ -11052,7 +11063,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -11224,7 +11235,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -11395,7 +11406,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -11565,7 +11576,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose supported only by uncontrolled evidence (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -11736,7 +11747,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -11908,7 +11919,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -12060,7 +12071,7 @@
       "unit": "mg",
       "ul": null,
       "ul_note": "No toxicity UL, but doses >=4000 mg/day raise total/LDL cholesterol (meta-analysis) — a cardiovascular caution. 2500 mg is the ergogenic dose; 3-6 g studied for homocysteine.",
-      "optimal_range": "2500-6000",
+      "optimal_range": "1500-6000",
       "highest_ul": null,
       "ul_status": "not_established_insufficient_data",
       "is_conditionally_essential": false,
@@ -12078,18 +12089,21 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose corrected from 2500 mg after content verification against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
         "31809615",
-        "36501070"
+        "36501070",
+        "30064450",
+        "16365055",
+        "14652361"
       ],
       "data": [
         {
           "group": "Male",
           "age_range": "14-18",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12097,7 +12111,7 @@
         {
           "group": "Male",
           "age_range": "19-30",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12105,7 +12119,7 @@
         {
           "group": "Male",
           "age_range": "31-50",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12113,7 +12127,7 @@
         {
           "group": "Male",
           "age_range": "51-70",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12121,7 +12135,7 @@
         {
           "group": "Male",
           "age_range": "71+",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12129,7 +12143,7 @@
         {
           "group": "Female",
           "age_range": "14-18",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12137,7 +12151,7 @@
         {
           "group": "Female",
           "age_range": "19-30",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12145,7 +12159,7 @@
         {
           "group": "Female",
           "age_range": "31-50",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12153,7 +12167,7 @@
         {
           "group": "Female",
           "age_range": "51-70",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12161,7 +12175,7 @@
         {
           "group": "Female",
           "age_range": "71+",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12169,7 +12183,7 @@
         {
           "group": "Pregnancy",
           "age_range": "14-18",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12177,7 +12191,7 @@
         {
           "group": "Pregnancy",
           "age_range": "19-30",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12185,7 +12199,7 @@
         {
           "group": "Pregnancy",
           "age_range": "31-50",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12193,7 +12207,7 @@
         {
           "group": "Lactation",
           "age_range": "14-18",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12201,7 +12215,7 @@
         {
           "group": "Lactation",
           "age_range": "19-30",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12209,7 +12223,7 @@
         {
           "group": "Lactation",
           "age_range": "31-50",
-          "rda_ai": 2500.0,
+          "rda_ai": 1500,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12223,7 +12237,8 @@
       "id": "glycine",
       "aliases": [
         "glycine",
-        "aminoacetic acid"
+        "aminoacetic acid",
+        "l-glycine"
       ],
       "unit": "mg",
       "ul": null,
@@ -12248,7 +12263,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -12416,7 +12431,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -12584,7 +12599,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -12753,7 +12768,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose content-verified against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
@@ -12904,7 +12919,7 @@
       "unit": "mg",
       "ul": null,
       "ul_note": "No UL; contains lactose and milk proteins.",
-      "optimal_range": "10000-60000",
+      "optimal_range": "3200-60000",
       "highest_ul": null,
       "ul_status": "not_established_insufficient_data",
       "is_conditionally_essential": false,
@@ -12922,18 +12937,21 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose corrected from 10000 mg after content verification against PubMed on 2026-09-15.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
         "38361147",
-        "27462401"
+        "27462401",
+        "16825268",
+        "17095643",
+        "28285432"
       ],
       "data": [
         {
           "group": "Male",
           "age_range": "14-18",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12941,7 +12959,7 @@
         {
           "group": "Male",
           "age_range": "19-30",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12949,7 +12967,7 @@
         {
           "group": "Male",
           "age_range": "31-50",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12957,7 +12975,7 @@
         {
           "group": "Male",
           "age_range": "51-70",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12965,7 +12983,7 @@
         {
           "group": "Male",
           "age_range": "71+",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12973,7 +12991,7 @@
         {
           "group": "Female",
           "age_range": "14-18",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12981,7 +12999,7 @@
         {
           "group": "Female",
           "age_range": "19-30",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12989,7 +13007,7 @@
         {
           "group": "Female",
           "age_range": "31-50",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -12997,7 +13015,7 @@
         {
           "group": "Female",
           "age_range": "51-70",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -13005,7 +13023,7 @@
         {
           "group": "Female",
           "age_range": "71+",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -13013,7 +13031,7 @@
         {
           "group": "Pregnancy",
           "age_range": "14-18",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -13021,7 +13039,7 @@
         {
           "group": "Pregnancy",
           "age_range": "19-30",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -13029,7 +13047,7 @@
         {
           "group": "Pregnancy",
           "age_range": "31-50",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -13037,7 +13055,7 @@
         {
           "group": "Lactation",
           "age_range": "14-18",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -13045,7 +13063,7 @@
         {
           "group": "Lactation",
           "age_range": "19-30",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -13053,7 +13071,7 @@
         {
           "group": "Lactation",
           "age_range": "31-50",
-          "rda_ai": 10000.0,
+          "rda_ai": 3200,
           "ul": null,
           "rda_ai_status": null,
           "ul_status": "not_determined"
@@ -13093,7 +13111,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose.",
+      "notes": "Added in dosing-overhaul Batch 7 (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose not established by the cited sources (PubMed review 2026-09-15); not used for graduated dose credit.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
