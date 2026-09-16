@@ -670,383 +670,411 @@ class _ProductDetailV2ConnectedState
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        body: CustomScrollView(
-          controller: _anchors.scrollController,
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
-            _buildAppBar(),
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(
-                V2Spacing.space16,
-                0,
-                V2Spacing.space16,
-                mq.padding.bottom + V2Spacing.space24,
+        body: Stack(
+          children: [
+            CustomScrollView(
+              controller: _anchors.scrollController,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
               ),
-              sliver: SliverList.list(
-                children: [
-                  // ---- 1. Hero (WIRED) -----------------------------
-                  buildHeroSection(
-                    context: context,
-                    dsldId: widget.dsldId,
-                    product: _product,
-                    productName: productName,
-                    brandName: brandName,
-                    formFactor: formFactor,
-                    score100: score100,
-                    isBlocked: isBlocked,
-                    isNotScored: isNotScored,
-                    trustTags: trustTags,
-                    scoreConfidenceDetail: _blobMap(
-                      detailBlob,
-                      'v4_confidence_detail',
-                    ),
-                    bottomBanner: heroBottomBanner,
+              slivers: [
+                _buildAppBar(),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    V2Spacing.space16,
+                    0,
+                    V2Spacing.space16,
+                    mq.padding.bottom + V2Spacing.space24,
                   ),
-                  const SizedBox(height: V2Spacing.space12),
+                  sliver: SliverList.list(
+                    children: [
+                      // ---- 1. Hero (WIRED) -----------------------------
+                      buildHeroSection(
+                        context: context,
+                        dsldId: widget.dsldId,
+                        product: _product,
+                        productName: productName,
+                        brandName: brandName,
+                        formFactor: formFactor,
+                        score100: score100,
+                        isBlocked: isBlocked,
+                        isNotScored: isNotScored,
+                        trustTags: trustTags,
+                        scoreConfidenceDetail: _blobMap(
+                          detailBlob,
+                          'v4_confidence_detail',
+                        ),
+                        bottomBanner: heroBottomBanner,
+                      ),
+                      const SizedBox(height: V2Spacing.space12),
 
-                  // ---- 2. ProfileRelevance (personalized) ----------
-                  if (personalizedChecksFailed) ...[
-                    const PGSeverityBanner(
-                      key: Key('personalized-checks-error-banner'),
-                      tone: PGBannerTone.caution,
-                      title: 'Personalized checks are incomplete',
-                      body:
-                          'We couldn\'t complete every interaction and profile '
-                          'check for this product. This is not an all-clear; '
-                          'try again before relying on these results.',
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                      // ---- 2. ProfileRelevance (personalized) ----------
+                      if (personalizedChecksFailed) ...[
+                        const PGSeverityBanner(
+                          key: Key('personalized-checks-error-banner'),
+                          tone: PGBannerTone.caution,
+                          title: 'Personalized checks are incomplete',
+                          body:
+                              'We couldn\'t complete every interaction and profile '
+                              'check for this product. This is not an all-clear; '
+                              'try again before relying on these results.',
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
 
-                  // ---- 2b. Blocked allergen alert ------------------
-                  // A blocked verdict hides ProfileRelevance, but an
-                  // allergen match is an independent safety signal that
-                  // must still surface (a "contains" match matters
-                  // regardless of why the product is blocked).
-                  if (blockedAllergenAlert != null) ...[
-                    ProfileRelevanceSection(
-                      summary: blockedAllergenAlert,
-                      onCompleteProfile: () =>
-                          context.push(Routes.profileSetup),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  if (showProfileRelevance) ...[
-                    if (profileRelevanceSummary.shouldRender) ...[
-                      KeyedSubtree(
-                        key: _anchors.interactionsKey,
-                        child: ProfileRelevanceSection(
-                          summary: profileRelevanceSummary,
+                      // ---- 2b. Blocked allergen alert ------------------
+                      // A blocked verdict hides ProfileRelevance, but an
+                      // allergen match is an independent safety signal that
+                      // must still surface (a "contains" match matters
+                      // regardless of why the product is blocked).
+                      if (blockedAllergenAlert != null) ...[
+                        ProfileRelevanceSection(
+                          summary: blockedAllergenAlert,
                           onCompleteProfile: () =>
                               context.push(Routes.profileSetup),
                         ),
-                      ),
-                      const SizedBox(height: V2Spacing.space12),
-                    ],
-                    if (buildGeneralNotesSection(
-                          warnings: [
-                            ...partitionedWarnings.general,
-                            ...profileBenefitNotes,
-                          ],
-                          freeFromClaims: freeFromClaims
-                              .where(
-                                (claim) =>
-                                    !freeFromConflicts.contains(claim.concern),
-                              )
-                              .toList(growable: false),
-                          onTapCitations: (urls) =>
-                              showProfileRelevanceCitationsSheet(context, urls),
-                        )
-                        case final generalNotes?) ...[
-                      generalNotes,
-                      const SizedBox(height: V2Spacing.space12),
-                    ],
-                  ],
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
 
-                  // ---- 4.5 Allergen summary fallback ---------------
-                  // Renders ONLY when the product has free-text
-                  // allergenSummary AND the blob has no structured
-                  // allergens (which would have already populated
-                  // ReviewBeforeUse rows). Suppressed on blocked.
-                  // Gated on the blob actually lacking structured
-                  // allergen data — NOT on matchedAllergens.isEmpty,
-                  // which is also true when the user simply has no
-                  // allergens in their profile.
-                  if (shouldShowAllergenSummaryBanner(
-                    isBlocked: isBlocked,
-                    allergenSummary: _product?.allergenSummary,
-                    noStructuredAllergens:
-                        blobAllergens == null || blobAllergens.isEmpty,
-                  )) ...[
-                    buildAllergenSummaryBannerSection(
-                      context: context,
-                      allergenSummary: _product?.allergenSummary,
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 4.6 Allergen data unavailable hedge --------
-                  // unknown != safe: a user with declared allergens must
-                  // not read "no allergen data" as a silent clean bill.
-                  if (shouldShowAllergenDataUnavailableHedge(
-                    isBlocked: isBlocked,
-                    userHasAllergens: profile.allergensForEvaluator.isNotEmpty,
-                    noStructuredAllergens:
-                        blobAllergens == null || blobAllergens.isEmpty,
-                    allergenSummary: _product?.allergenSummary,
-                  )) ...[
-                    buildAllergenDataUnavailableHedge(context),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // Catalog label record moved to the collapsed
-                  // "Product data & sources" section at the page bottom; the
-                  // "Doesn't match your bottle?" action stays next to the
-                  // ingredient list below.
-
-                  // ---- 6. Ingredients (WIRED, 11.7d.2) -------------
-                  if (showDeepDive) ...[
-                    KeyedSubtree(
-                      key: _anchors.ingredientsKey,
-                      child: buildIngredientsSection(
-                        key: ValueKey('ingredient-ledger-${widget.dsldId}'),
-                        context: context,
-                        ingredients: ingredientSources.ingredients,
-                        displayIngredients:
-                            ingredientSources.displayIngredients,
-                        inactiveIngredients:
-                            ingredientSources.inactiveIngredients,
-                        ulAnalysis: productUlAnalysis
-                            ?.whereType<Map<String, dynamic>>()
-                            .toList(growable: false),
-                        blends: ingredientSources.blends,
-                        nutritionContent: buildNutritionSection(
-                          caloriesPerServing: _product?.caloriesPerServing,
-                          nutritionDetail: _blobMap(
-                            detailBlob,
-                            'nutrition_detail',
+                      if (showProfileRelevance) ...[
+                        if (profileRelevanceSummary.shouldRender) ...[
+                          KeyedSubtree(
+                            key: _anchors.interactionsKey,
+                            child: ProfileRelevanceSection(
+                              summary: profileRelevanceSummary,
+                              onCompleteProfile: () =>
+                                  context.push(Routes.profileSetup),
+                            ),
                           ),
-                          labelRows: labelNutritionRows,
-                          embedded: true,
+                          const SizedBox(height: V2Spacing.space12),
+                        ],
+                        if (buildGeneralNotesSection(
+                              warnings: [
+                                ...partitionedWarnings.general,
+                                ...profileBenefitNotes,
+                              ],
+                              freeFromClaims: freeFromClaims
+                                  .where(
+                                    (claim) => !freeFromConflicts.contains(
+                                      claim.concern,
+                                    ),
+                                  )
+                                  .toList(growable: false),
+                              onTapCitations: (urls) =>
+                                  showProfileRelevanceCitationsSheet(
+                                    context,
+                                    urls,
+                                  ),
+                            )
+                            case final generalNotes?) ...[
+                          generalNotes,
+                          const SizedBox(height: V2Spacing.space12),
+                        ],
+                      ],
+
+                      // ---- 4.5 Allergen summary fallback ---------------
+                      // Renders ONLY when the product has free-text
+                      // allergenSummary AND the blob has no structured
+                      // allergens (which would have already populated
+                      // ReviewBeforeUse rows). Suppressed on blocked.
+                      // Gated on the blob actually lacking structured
+                      // allergen data — NOT on matchedAllergens.isEmpty,
+                      // which is also true when the user simply has no
+                      // allergens in their profile.
+                      if (shouldShowAllergenSummaryBanner(
+                        isBlocked: isBlocked,
+                        allergenSummary: _product?.allergenSummary,
+                        noStructuredAllergens:
+                            blobAllergens == null || blobAllergens.isEmpty,
+                      )) ...[
+                        buildAllergenSummaryBannerSection(
+                          context: context,
+                          allergenSummary: _product?.allergenSummary,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
 
-                  // ---- 6.1 Clinical evidence + probiotic context --------
-                  // Keep one evidence surface. Probiotic label/research
-                  // context is embedded in the clinical evidence card so it
-                  // cannot compete with a second, repetitive research card.
-                  // ---- Quality breakdown --------------------------
-                  // The label identity comes first; scoring explains the
-                  // already-visible product rather than interrupting it.
-                  if (showScoreBreakdown) ...[
-                    buildScoreBreakdownSection(
-                      heroScore: score100,
-                      qualityTier: _product?.qualityTier,
-                      qualityPillarsV4: _blobMap(
-                        detailBlob,
-                        'quality_pillars_v4',
-                      ),
-                      qualityScoreCapV4: _blobMap(
-                        detailBlob,
-                        'quality_score_cap_v4',
-                      ),
-                      onPillarTap: onPillarTap,
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                      // ---- 4.6 Allergen data unavailable hedge --------
+                      // unknown != safe: a user with declared allergens must
+                      // not read "no allergen data" as a silent clean bill.
+                      if (shouldShowAllergenDataUnavailableHedge(
+                        isBlocked: isBlocked,
+                        userHasAllergens:
+                            profile.allergensForEvaluator.isNotEmpty,
+                        noStructuredAllergens:
+                            blobAllergens == null || blobAllergens.isEmpty,
+                        allergenSummary: _product?.allergenSummary,
+                      )) ...[
+                        buildAllergenDataUnavailableHedge(context),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
 
-                  // ---- 7. Tradeoffs (WIRED, 11.7d.3) ---------------
-                  if (showDeepDive) ...[
-                    buildTradeoffsSection(
-                      detailBlob: detailBlob,
-                      appReferenceData: appRdaReferenceData,
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                      // Catalog label record moved to the collapsed
+                      // "Product data & sources" section at the page bottom; the
+                      // "Doesn't match your bottle?" action stays next to the
+                      // ingredient list below.
 
-                  // ---- Clinical evidence, research and probiotic label ----
-                  // After the breakdown and tradeoffs on purpose: the score
-                  // and its reasons come first; these cards are long.
-                  if (showDeepDive &&
-                      (showClinicalEvidence ||
-                          researchCanonicalIds.isNotEmpty ||
-                          probioticDetail != null)) ...[
-                    KeyedSubtree(
-                      key: _evidenceSectionKey,
-                      child: KeyedSubtree(
-                        key: _anchors.researchKey,
-                        child: ResearchSupportSection(
-                          evidenceData: evidenceData,
-                          canonicalIds: researchCanonicalIds,
-                          probioticDetail: probioticDetail,
-                          onTapProbioticSources: (urls) =>
-                              showProfileRelevanceCitationsSheet(context, urls),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 8. Populations (WIRED, 11.7d.4) -------------
-                  if (showDeepDive) ...[
-                    buildPopulationsSection(
-                      warnings: guardedWarnings,
-                      userConditions: profile.conditionsForEvaluator.toSet(),
-                      userDrugClasses: profile.drugClassesForEvaluator.toSet(),
-                      ageBracket: profile.ageBracket,
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // Nutrition moved up beside the ingredient list (bottle data
-                  // belongs together); still conditional via buildNutritionSection.
-
-                  // ---- 10. Certifications (WIRED, 11.7e) -----------
-                  if (showDeepDive) ...[
-                    KeyedSubtree(
-                      key: _certificationsSectionKey,
-                      child: buildCertificationsSection(
-                        certificationDetail: certificationDetail,
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
-
-                  // ---- 11.5 Synergy (WIRED, 11.11) -----------------
-                  // "Works well with" — T22 high-confidence clusters
-                  // (Sprint 21 54-cluster data). Hidden when no
-                  // tier ≤ 2 clusters pass — never renders as empty.
-                  if (showDeepDive) ...[
-                    ..._sectionWithTrailingGap(
-                      buildSynergySection(detailBlob: detailBlob),
-                    ),
-                  ],
-
-                  // ---- 13. Formulation (WIRED, 11.7e) --------------
-                  if (showDeepDive) ...[
-                    ..._sectionWithTrailingGap(
-                      buildFormulationSection(
-                        context: context,
-                        formulationDetail: _blobMap(
-                          detailBlob,
-                          'formulation_detail',
-                        ),
-                        ingredientQualityData: _blobMap(
-                          detailBlob,
-                          'ingredient_quality_data',
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  // ---- 15. ManufacturerViolations (WIRED, 11.7e) ---
-                  if (showDeepDive) ...[
-                    ..._sectionWithTrailingGap(
-                      buildManufacturerViolationsSection(
-                        manufacturerDetail: _blobMap(
-                          detailBlob,
-                          'manufacturer_detail',
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  // ---- 16. BetterAlternatives (WIRED, 11.7e) -------
-                  // Anchor wraps the section so the sticky CTA's
-                  // ensureVisible call still lands on layoutable content
-                  // when the section hides (SizedBox.shrink keeps the
-                  // GlobalKey attached).
-                  KeyedSubtree(
-                    key: _anchors.alternativesKey,
-                    child: BetterAlternativesSection(
-                      currentDsldId: widget.dsldId,
-                      isBlocked: isBlocked,
-                      isNotScored: isNotScored,
-                      score100: score100,
-                      qualityTier: _product?.qualityTier,
-                      profileIncomplete:
-                          profileRelevanceSummary.profileIncomplete,
-                    ),
-                  ),
-                  const SizedBox(height: V2Spacing.space12),
-
-                  // ---- Product data & sources (collapsed) ---------
-                  // Catalog provenance (record IDs, versions, fingerprint,
-                  // source dates) is debugging/provenance detail — collapsed
-                  // by default at the page bottom, out of the primary scroll.
-                  if (showDeepDive && labelRecordPresent) ...[
-                    Container(
-                      key: const Key('product-data-sources-card'),
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: context.v2.surface,
-                        borderRadius: BorderRadius.circular(
-                          V2Spacing.radiusCard,
-                        ),
-                        border: Border.all(color: context.v2.outline),
-                        boxShadow: V2Shadows.sm,
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: Theme(
-                          data: Theme.of(
-                            context,
-                          ).copyWith(dividerColor: Colors.transparent),
-                          child: ExpansionTile(
-                            tilePadding: const EdgeInsets.symmetric(
-                              horizontal: V2Spacing.space16,
-                            ),
-                            childrenPadding: const EdgeInsets.fromLTRB(
-                              V2Spacing.space12,
-                              0,
-                              V2Spacing.space12,
-                              V2Spacing.space12,
-                            ),
-                            title: Text(
-                              'Product data & sources',
-                              style: V2Typography.titleSm(color: context.v2.fg),
-                            ),
-                            children: [
-                              buildLabelMatchSection(
-                                labelRecord: detailBlob?['label_record'],
-                                upc: _product?.upcSku,
-                                onOpenSourceLabel: (uri) async {
-                                  await launchUrl(
-                                    uri,
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                },
-                                showMismatchAction: false,
+                      // ---- 6. Ingredients (WIRED, 11.7d.2) -------------
+                      if (showDeepDive) ...[
+                        KeyedSubtree(
+                          key: _anchors.ingredientsKey,
+                          child: buildIngredientsSection(
+                            key: ValueKey('ingredient-ledger-${widget.dsldId}'),
+                            context: context,
+                            ingredients: ingredientSources.ingredients,
+                            displayIngredients:
+                                ingredientSources.displayIngredients,
+                            inactiveIngredients:
+                                ingredientSources.inactiveIngredients,
+                            ulAnalysis: productUlAnalysis
+                                ?.whereType<Map<String, dynamic>>()
+                                .toList(growable: false),
+                            blends: ingredientSources.blends,
+                            nutritionContent: buildNutritionSection(
+                              caloriesPerServing: _product?.caloriesPerServing,
+                              nutritionDetail: _blobMap(
+                                detailBlob,
+                                'nutrition_detail',
                               ),
-                            ],
+                              labelRows: labelNutritionRows,
+                              embedded: true,
+                            ),
                           ),
                         ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // ---- 6.1 Clinical evidence + probiotic context --------
+                      // Keep one evidence surface. Probiotic label/research
+                      // context is embedded in the clinical evidence card so it
+                      // cannot compete with a second, repetitive research card.
+                      // ---- Quality breakdown --------------------------
+                      // The label identity comes first; scoring explains the
+                      // already-visible product rather than interrupting it.
+                      if (showScoreBreakdown) ...[
+                        buildScoreBreakdownSection(
+                          heroScore: score100,
+                          qualityTier: _product?.qualityTier,
+                          qualityPillarsV4: _blobMap(
+                            detailBlob,
+                            'quality_pillars_v4',
+                          ),
+                          qualityScoreCapV4: _blobMap(
+                            detailBlob,
+                            'quality_score_cap_v4',
+                          ),
+                          onPillarTap: onPillarTap,
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // ---- 7. Tradeoffs (WIRED, 11.7d.3) ---------------
+                      if (showDeepDive) ...[
+                        buildTradeoffsSection(
+                          detailBlob: detailBlob,
+                          appReferenceData: appRdaReferenceData,
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // ---- Clinical evidence, research and probiotic label ----
+                      // After the breakdown and tradeoffs on purpose: the score
+                      // and its reasons come first; these cards are long.
+                      if (showDeepDive &&
+                          (showClinicalEvidence ||
+                              researchCanonicalIds.isNotEmpty ||
+                              probioticDetail != null)) ...[
+                        KeyedSubtree(
+                          key: _evidenceSectionKey,
+                          child: KeyedSubtree(
+                            key: _anchors.researchKey,
+                            child: ResearchSupportSection(
+                              evidenceData: evidenceData,
+                              canonicalIds: researchCanonicalIds,
+                              probioticDetail: probioticDetail,
+                              onTapProbioticSources: (urls) =>
+                                  showProfileRelevanceCitationsSheet(
+                                    context,
+                                    urls,
+                                  ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // ---- 8. Populations (WIRED, 11.7d.4) -------------
+                      if (showDeepDive) ...[
+                        buildPopulationsSection(
+                          warnings: guardedWarnings,
+                          userConditions: profile.conditionsForEvaluator
+                              .toSet(),
+                          userDrugClasses: profile.drugClassesForEvaluator
+                              .toSet(),
+                          ageBracket: profile.ageBracket,
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // Nutrition moved up beside the ingredient list (bottle data
+                      // belongs together); still conditional via buildNutritionSection.
+
+                      // ---- 10. Certifications (WIRED, 11.7e) -----------
+                      if (showDeepDive) ...[
+                        KeyedSubtree(
+                          key: _certificationsSectionKey,
+                          child: buildCertificationsSection(
+                            certificationDetail: certificationDetail,
+                          ),
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // ---- 11.5 Synergy (WIRED, 11.11) -----------------
+                      // "Works well with" — T22 high-confidence clusters
+                      // (Sprint 21 54-cluster data). Hidden when no
+                      // tier ≤ 2 clusters pass — never renders as empty.
+                      if (showDeepDive) ...[
+                        ..._sectionWithTrailingGap(
+                          buildSynergySection(detailBlob: detailBlob),
+                        ),
+                      ],
+
+                      // ---- 13. Formulation (WIRED, 11.7e) --------------
+                      if (showDeepDive) ...[
+                        ..._sectionWithTrailingGap(
+                          buildFormulationSection(
+                            context: context,
+                            formulationDetail: _blobMap(
+                              detailBlob,
+                              'formulation_detail',
+                            ),
+                            ingredientQualityData: _blobMap(
+                              detailBlob,
+                              'ingredient_quality_data',
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // ---- 15. ManufacturerViolations (WIRED, 11.7e) ---
+                      if (showDeepDive) ...[
+                        ..._sectionWithTrailingGap(
+                          buildManufacturerViolationsSection(
+                            manufacturerDetail: _blobMap(
+                              detailBlob,
+                              'manufacturer_detail',
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // ---- 16. BetterAlternatives (WIRED, 11.7e) -------
+                      // Anchor wraps the section so the sticky CTA's
+                      // ensureVisible call still lands on layoutable content
+                      // when the section hides (SizedBox.shrink keeps the
+                      // GlobalKey attached).
+                      KeyedSubtree(
+                        key: _anchors.alternativesKey,
+                        child: BetterAlternativesSection(
+                          currentDsldId: widget.dsldId,
+                          isBlocked: isBlocked,
+                          isNotScored: isNotScored,
+                          score100: score100,
+                          qualityTier: _product?.qualityTier,
+                          profileIncomplete:
+                              profileRelevanceSummary.profileIncomplete,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                      const SizedBox(height: V2Spacing.space12),
 
-                  // Feedback belongs after the product content and provenance,
-                  // not inside the primary decision flow.
-                  if (showDeepDive &&
-                      labelRecordPresent &&
-                      labelMismatchMeta != null) ...[
-                    LabelMismatchAction(product: labelMismatchMeta),
-                    const SizedBox(height: V2Spacing.space12),
-                  ],
+                      // ---- Product data & sources (collapsed) ---------
+                      // Catalog provenance (record IDs, versions, fingerprint,
+                      // source dates) is debugging/provenance detail — collapsed
+                      // by default at the page bottom, out of the primary scroll.
+                      if (showDeepDive && labelRecordPresent) ...[
+                        Container(
+                          key: const Key('product-data-sources-card'),
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            color: context.v2.surface,
+                            borderRadius: BorderRadius.circular(
+                              V2Spacing.radiusCard,
+                            ),
+                            border: Border.all(color: context.v2.outline),
+                            boxShadow: V2Shadows.sm,
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: Theme(
+                              data: Theme.of(
+                                context,
+                              ).copyWith(dividerColor: Colors.transparent),
+                              child: ExpansionTile(
+                                tilePadding: const EdgeInsets.symmetric(
+                                  horizontal: V2Spacing.space16,
+                                ),
+                                childrenPadding: const EdgeInsets.fromLTRB(
+                                  V2Spacing.space12,
+                                  0,
+                                  V2Spacing.space12,
+                                  V2Spacing.space12,
+                                ),
+                                title: Text(
+                                  'Product data & sources',
+                                  style: V2Typography.titleSm(
+                                    color: context.v2.fg,
+                                  ),
+                                ),
+                                children: [
+                                  buildLabelMatchSection(
+                                    labelRecord: detailBlob?['label_record'],
+                                    upc: _product?.upcSku,
+                                    onOpenSourceLabel: (uri) async {
+                                      await launchUrl(
+                                        uri,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    },
+                                    showMismatchAction: false,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
 
-                  // ---- 17. TransparencyFooter (WIRED, 11.7f) -------
-                  // Reads catalogInfoProvider for the real freshness
-                  // label — "Updated <Mon DD, YYYY>" — same source the
-                  // v2 home screen's citation strip uses.
-                  const TransparencyFooterSection(),
-                ],
+                      // Feedback belongs after the product content and provenance,
+                      // not inside the primary decision flow.
+                      if (showDeepDive &&
+                          labelRecordPresent &&
+                          labelMismatchMeta != null) ...[
+                        LabelMismatchAction(product: labelMismatchMeta),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // ---- 17. TransparencyFooter (WIRED, 11.7f) -------
+                      // Reads catalogInfoProvider for the real freshness
+                      // label — "Updated <Mon DD, YYYY>" — same source the
+                      // v2 home screen's citation strip uses.
+                      const TransparencyFooterSection(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            // The floating app bar snaps away on scroll; without this strip
+            // card text scrolls up under the clock with nothing behind it.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: mq.padding.top,
+              child: ColoredBox(
+                key: const Key('product-detail-status-bar-backdrop'),
+                color: Theme.of(context).scaffoldBackgroundColor,
               ),
             ),
           ],

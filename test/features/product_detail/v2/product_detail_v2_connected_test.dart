@@ -312,6 +312,37 @@ void main() {
     });
   });
 
+  testWidgets('status bar keeps an opaque backdrop over scrolled content', (
+    tester,
+  ) async {
+    // 2026-09-16 walkthrough: once the floating app bar hid, card text
+    // scrolled up under the clock with nothing behind it.
+    tester.view.padding = const FakeViewPadding(top: 54 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await _pumpConnectedScreen(
+      tester,
+      initialSection: null,
+      detailBlob: {
+        'ingredients': const <Map<String, dynamic>>[],
+        'display_ingredients': [_activeLedgerRow('Active row', 0)],
+        'quality_pillars_v4': _connectedV4Pillars(),
+      },
+    );
+
+    final backdrop = find.byKey(
+      const Key('product-detail-status-bar-backdrop'),
+    );
+    expect(backdrop, findsOneWidget);
+    expect(tester.getTopLeft(backdrop).dy, 0);
+    expect(tester.getSize(backdrop).height, 54);
+    final context = tester.element(backdrop);
+    expect(
+      tester.widget<ColoredBox>(backdrop).color,
+      Theme.of(context).scaffoldBackgroundColor,
+    );
+  });
+
   group('productDetailIngredientSourcesFromBlob', () {
     test('ledger key presence is authoritative and mixed rows fail closed', () {
       final absent = productDetailIngredientSourcesFromBlob(const {
