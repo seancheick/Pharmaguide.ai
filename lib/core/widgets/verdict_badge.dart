@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
@@ -61,6 +62,7 @@ abstract final class VerdictBadge {
       case 'REVIEW':
         return p.caution;
       case 'POOR':
+        return poorQualityTone(p);
       case 'MODERATE':
         return p.avoid;
       case 'UNSAFE':
@@ -81,6 +83,12 @@ abstract final class VerdictBadge {
         return p.caution;
     }
   }
+
+  /// POOR is the quality verdict of the lowest shipped quality tier (pipeline
+  /// quality score 1.9.0), never a safety finding. It wears the Poor
+  /// quality-tier color, never the safety "avoid" or "contraindicated" tones.
+  static Color poorQualityTone(V2Palette p) =>
+      ScoreTier.poor.textColor(ThemeData.estimateBrightnessForColor(p.surface));
 
   /// Human-friendly label. Avoids all-caps for verdicts longer than 12 chars.
   ///

@@ -13,7 +13,9 @@
 //                          warning verdicts still render (under-warning is
 //                          the bigger clinical risk).
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
@@ -28,6 +30,17 @@ void main() {
       expect(
         searchVerdictTone(V2Palette.light, ' safe '),
         V2Palette.light.safe,
+      );
+    });
+
+    test('POOR wears the Poor quality tier color, not a safety tone', () {
+      expect(
+        searchVerdictTone(V2Palette.light, 'POOR'),
+        ScoreTier.poor.textColor(Brightness.light),
+      );
+      expect(
+        searchVerdictTone(V2Palette.dark, 'POOR'),
+        ScoreTier.poor.textColor(Brightness.dark),
       );
     });
 

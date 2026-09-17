@@ -2331,6 +2331,7 @@ Color searchVerdictTone(V2Palette p, String verdict) {
     case 'REVIEW':
       return p.caution;
     case 'POOR':
+      return VerdictBadge.poorQualityTone(p);
     case 'AVOID':
       return p.avoid;
     case 'BLOCKED':

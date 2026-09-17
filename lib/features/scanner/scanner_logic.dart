@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
+import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 
 /// Return the flash color associated with a scanned product's verdict
 /// string. Case-insensitive; null and unrecognized values stay neutral.
@@ -12,7 +13,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 /// Policy:
 ///   SAFE / GOOD / RECOMMENDED   → safe
 ///   CAUTION / REVIEW / MODERATE → caution
-///   POOR                        → avoid
+///   POOR                        → Poor quality-tier color (quality, not safety)
 ///   BLOCKED / UNSAFE            → contraindicated
 ///   NOT_SCORED / NUTRITION_ONLY → neutral
 ///   null / unknown              → neutral (not green)
@@ -30,7 +31,7 @@ Color verdictFlashColor(V2Palette p, String? verdict) {
     case 'REVIEW':
       return p.caution;
     case 'POOR':
-      return p.avoid;
+      return VerdictBadge.poorQualityTone(p);
     case 'BLOCKED':
     case 'UNSAFE':
       return p.contraindicated;
