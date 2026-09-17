@@ -28,8 +28,9 @@ void main() {
       expect(build(null), isA<SizedBox>());
     });
 
-    test('pillar-audited facility renders "Audited GMP facility"', () {
+    test('registry-linked manufacturer renders a manufacturer-level badge', () {
       final section = build(<String, dynamic>{
+        'verified_programs': <Object>[],
         'gmp': {
           'claimed': false,
           'audited_facility': true,
@@ -37,21 +38,52 @@ void main() {
         },
       });
       final gmp = certsOf(section).single;
-      expect(gmp.label, 'Audited GMP facility');
+      expect(gmp.label, 'GMP-registered manufacturer');
       expect(gmp.verified, isTrue);
-      expect(gmp.caption, 'Manufacturer facility record');
+      expect(
+        gmp.caption,
+        'Manufacturer listed in an audited GMP facility registry',
+      );
     });
 
-    test('a verified certification basis is named in the caption', () {
-      final section = build(<String, dynamic>{
-        'gmp': {
-          'audited_facility': 1,
-          'audited_facility_basis': 'verified_certification',
-        },
-      });
+    test(
+      'pre-2.5 manufacturer-facility GMP (free-text inference) earns no badge',
+      () {
+        expect(
+          build(<String, dynamic>{
+            'gmp': {
+              'audited_facility': true,
+              'audited_facility_basis': 'manufacturer_facility',
+            },
+          }),
+          isA<SizedBox>(),
+        );
+      },
+    );
+
+    test('a verified certification basis renders "Audited GMP facility"', () {
+      final gmp = certsOf(
+        build(<String, dynamic>{
+          'gmp': {
+            'audited_facility': 1,
+            'audited_facility_basis': 'verified_certification',
+          },
+        }),
+      ).single;
+      expect(gmp.label, 'Audited GMP facility');
+      expect(gmp.caption, 'Implied by a verified product certification');
+    });
+
+    test('an unknown basis earns no badge', () {
       expect(
-        certsOf(section).single.caption,
-        'Implied by a verified certification',
+        build(<String, dynamic>{
+          'verified_programs': <Object>[],
+          'gmp': {
+            'audited_facility': true,
+            'audited_facility_basis': 'label_claim',
+          },
+        }),
+        isA<SizedBox>(),
       );
     });
 

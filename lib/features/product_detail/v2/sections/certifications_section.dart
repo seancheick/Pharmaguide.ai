@@ -129,20 +129,31 @@ List<PGCertification> _programCertifications(Map<String, dynamic> detail) {
   ];
 }
 
-/// "Audited GMP facility" when the pipeline's Verification pillar credited an
-/// audited source: a verified certification whose program audits GMP, or a
-/// manufacturer facility record naming a certified/audited facility.
+/// GMP badge from the pipeline's Verification pillar decision:
+/// - `verified_certification`: a verified product certification that audits
+///   GMP → "Audited GMP facility";
+/// - `manufacturer_facility`: the manufacturer is listed in an audited GMP
+///   facility registry (export schema 2.5.0+, sourced registry link) →
+///   "GMP-registered manufacturer". Pre-2.5 catalogs inferred this basis from
+///   free-text manufacturer summaries, so it earns no badge there.
+/// Any other basis earns no badge.
 PGCertification? _auditedGmpBadge(Map<String, dynamic> certificationDetail) {
   final gmp = certificationDetail.safeMap('gmp');
   if (!gmp.safeBool('audited_facility')) return null;
-  final caption = switch (gmp['audited_facility_basis']?.toString()) {
-    'verified_certification' => 'Implied by a verified certification',
-    'manufacturer_facility' => 'Manufacturer facility record',
+  final hasVerificationContract =
+      certificationDetail['verified_programs'] is List;
+  return switch (gmp['audited_facility_basis']?.toString()) {
+    'verified_certification' => const PGCertification(
+      label: 'Audited GMP facility',
+      verified: true,
+      caption: 'Implied by a verified product certification',
+    ),
+    'manufacturer_facility' when hasVerificationContract =>
+      const PGCertification(
+        label: 'GMP-registered manufacturer',
+        verified: true,
+        caption: 'Manufacturer listed in an audited GMP facility registry',
+      ),
     _ => null,
   };
-  return PGCertification(
-    label: 'Audited GMP facility',
-    verified: true,
-    caption: caption,
-  );
 }
