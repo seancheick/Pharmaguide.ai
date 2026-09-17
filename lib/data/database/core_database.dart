@@ -32,7 +32,7 @@ final class UpcAmbiguous extends UpcResolution {
 /// READ-ONLY database backed by the pre-built `pharmaguide_core.db` file
 /// downloaded from Supabase (or the bundled asset on first launch).
 ///
-/// v4-only reader. The current catalog contract is export schema 2.4.0:
+/// v4-only reader. The current catalog contract is export schema 2.5.0:
 /// `quality_score_v4_100` is the shipped /100 score and
 /// `quality_score_status` controls score eligibility. Catalog safety and
 /// quality assessment completion are independent nullable fields so older

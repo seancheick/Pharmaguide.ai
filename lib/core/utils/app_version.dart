@@ -20,7 +20,7 @@ const int kAppBuildNumber = 18;
 
 /// Highest catalog export-manifest `schema_version` MAJOR this app build
 /// can read. Mirrors APP_SUPPORTED_SCHEMAS in
-/// scripts/import_catalog_artifact.sh (currently up to 2.4.0). Prepared schema
+/// scripts/import_catalog_artifact.sh (currently up to 2.5.0). Prepared schema
 /// 3 fixtures exercise parsers, but activation remains intentionally gated.
 const int kMaxSupportedCatalogSchemaMajor = 2;
 
