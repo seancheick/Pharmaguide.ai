@@ -406,12 +406,25 @@ class _MissingProductSubmissionSheetState
       });
       // The photo itself answers "is the ingredient list on this panel?".
       // The answer stays correctable on the review step.
-      if (hints.showsOtherIngredients &&
-          !_factsPanelLocationConfirmed &&
+      if (!_factsPanelLocationConfirmed &&
           placed.photo.categories.contains(
             ProductSubmissionEvidenceCategory.supplementFacts,
           )) {
-        _setFactsCoversIngredients(true);
+        if (hints.showsOtherIngredients) {
+          _setFactsCoversIngredients(true, reason: 'ocr_found_oi');
+        } else if (hints.showsFactsPanel) {
+          // The panel itself was legible enough to detect, and no "Other
+          // Ingredients" heading turned up on it. Most supplements have no
+          // separate list at all — treating a miss as that common case,
+          // not as a question, is the fix. A genuinely cropped or
+          // wraparound photo still reaches a human reviewer with the
+          // image in hand, who can ask for another photo; it never
+          // reaches the catalog on this assumption alone.
+          _setFactsCoversIngredients(
+            true,
+            reason: 'facts_no_oi_assumed_absent',
+          );
+        }
       }
       // Persist as the set grows: an abandoned capture is recoverable from the
       // first shot, not only once it is complete.
@@ -1011,8 +1024,21 @@ class _MissingProductSubmissionSheetState
   /// place. Existing shots gain or lose the ingredient tag; standalone
   /// ingredient-step captures are left untouched. Nothing is ever deleted
   /// by answering a question.
-  void _setFactsCoversIngredients(bool value, {_CaptureStep? nextStep}) {
+  /// [reason] is a short fixed tag for why this was decided — never PII,
+  /// never label content — logged so Phase B's OCR work can be prioritized
+  /// against real hit rates instead of guesswork.
+  void _setFactsCoversIngredients(
+    bool value, {
+    _CaptureStep? nextStep,
+    String? reason,
+  }) {
     if (_submitting) return;
+    if (reason != null) {
+      CrashReportingService().log(
+        'facts_ingredients_decision: $reason -> '
+        '${value ? 'combined' : 'separate'}',
+      );
+    }
     setState(() {
       _factsCarriesIngredients = value;
       _factsPanelLocationConfirmed = true;
@@ -1113,7 +1139,10 @@ class _MissingProductSubmissionSheetState
         ),
       );
       if (!mounted || combined == null) return;
-      _setFactsCoversIngredients(combined);
+      _setFactsCoversIngredients(
+        combined,
+        reason: combined ? 'user_said_combined' : 'user_said_separate',
+      );
     }
 
     final steps = _visibleSteps;
@@ -1992,6 +2021,7 @@ class _MissingProductSubmissionSheetState
                   : () => _setFactsCoversIngredients(
                       false,
                       nextStep: _CaptureStep.ingredients,
+                      reason: 'user_corrected_to_separate',
                     ),
               child: const Text('They’re on a separate panel'),
             ),

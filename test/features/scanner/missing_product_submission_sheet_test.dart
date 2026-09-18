@@ -1318,6 +1318,70 @@ void main() {
       },
     );
 
+    testWidgets(
+      'a readable Facts photo with no Other Ingredients heading is '
+      'assumed to have none, not questioned',
+      (tester) async {
+        final backend = _Backend(authenticatedUserId: _userId);
+        await tester.pumpWidget(
+          _harness(
+            backend: backend,
+            readPhotoText: (photo) async => photo.categories.contains(facts)
+                ? 'Supplement Facts\nServing Size 1 Capsule\n'
+                      'Servings Per Container 60'
+                : '',
+          ),
+        );
+        await tapKey(tester, 'missing-product-start');
+        await tapKey(tester, 'missing-product-add-front_identity');
+        await tapKey(tester, 'missing-product-add-supplement_facts');
+        await tapKey(tester, 'missing-product-next');
+
+        // No taxonomy question — straight to Barcode, same as a confirmed
+        // combined panel.
+        expect(
+          find.byKey(const Key('missing-product-facts-combined')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const Key('missing-product-facts-separate')),
+          findsNothing,
+        );
+        expect(find.text('Barcode'), findsOneWidget);
+        await tapKey(tester, 'missing-product-add-barcode');
+        await tapKey(tester, 'missing-product-next');
+        // Still correctable on review, same escape hatch as a real
+        // OCR-confirmed combined panel.
+        expect(
+          find.byKey(const Key('missing-product-facts-change-to-separate')),
+          findsOneWidget,
+        );
+        await submitFromReview(tester);
+
+        expect(
+          backend.manifest[1]['categories'],
+          unorderedEquals(['supplement_facts', 'ingredient_disclosure']),
+        );
+      },
+    );
+
+    testWidgets(
+      'a Facts photo with nothing legible still asks — the assumption '
+      'requires reading the panel, not just failing to read one',
+      (tester) async {
+        final backend = _Backend(authenticatedUserId: _userId);
+        await tester.pumpWidget(
+          _harness(backend: backend, readPhotoText: (_) async => ''),
+        );
+        await tapKey(tester, 'missing-product-start');
+        await tapKey(tester, 'missing-product-add-front_identity');
+        await tapKey(tester, 'missing-product-add-supplement_facts');
+        await tapKey(tester, 'missing-product-next');
+
+        expect(find.text('One quick check'), findsOneWidget);
+      },
+    );
+
     testWidgets('a photo showing the scanned barcode covers the barcode step', (
       tester,
     ) async {
@@ -1338,8 +1402,10 @@ void main() {
         findsOneWidget,
       );
 
+      // No Other Ingredients heading was detected on this panel either, so
+      // the assumption already answered the panel question — no dialog,
+      // straight past it.
       await tapKey(tester, 'missing-product-next');
-      await tapKey(tester, 'missing-product-facts-combined');
       // No separate barcode photo is asked for.
       expect(find.text('Anything else?'), findsOneWidget);
       await tapKey(tester, 'missing-product-next');
@@ -1431,14 +1497,18 @@ void main() {
         findsOneWidget,
       );
       await tapKey(tester, 'missing-product-add-front_identity');
-      // Facts already has its photo; the user lands there to add another
-      // angle or answer where the ingredient list is.
-      expect(find.text('Supplement Facts'), findsOneWidget);
-      expect(find.byTooltip('Remove photo'), findsOneWidget);
+      // Facts already has its photo, and with no Other Ingredients heading
+      // on it, the assumption already answered that question too — the
+      // flow moves straight past Facts to Barcode instead of parking the
+      // user on a step that already has everything it needs.
+      expect(find.text('Barcode'), findsOneWidget);
+      await tapKey(tester, 'missing-product-add-barcode');
       await tapKey(tester, 'missing-product-next');
+      await submitFromReview(tester);
+
       expect(
-        find.byKey(const Key('missing-product-facts-combined')),
-        findsOneWidget,
+        backend.manifest[0]['categories'],
+        unorderedEquals(['supplement_facts', 'ingredient_disclosure']),
       );
     });
 
