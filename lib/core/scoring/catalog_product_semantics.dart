@@ -120,16 +120,58 @@ bool catalogProductIsBlocked(ProductsCoreData? product) {
       status == CatalogProductSafetyStatus.unsafe;
 }
 
+/// Whether the catalog assessment is incomplete while a number still exists.
+///
+/// This is the `scored` + `partial` combination, and it is a real, honest
+/// state: the engine computed a total while a pillar the rubric requires was
+/// never assessed. On the 2026.09.19 catalog that is 4,117 products whose
+/// Evidence pillar contributed 0 of 20 because no reviewed record matched any
+/// active on the label — not because a review concluded zero.
+///
+/// Such a product is NOT "not scored": it has five assessed pillars worth
+/// showing. What it must never do is publish a definitive tier, because the
+/// unassessed pillar leaves the true total spanning a 20-point band that
+/// crosses a tier boundary for 98.9% of them.
+///
+/// Distinct from [catalogProductIsNotScored], which means there is no usable
+/// number at all.
+bool catalogProductAssessmentIncomplete(ProductsCoreData? product) {
+  if (product == null) return false;
+  if (catalogProductIsNotScored(product)) return false;
+  return catalogAssessmentStatus(product) != CatalogAssessmentStatus.complete;
+}
+
+/// Whether a completed public quality verdict may be shown for this product.
+///
+/// The single predicate every eligibility surface should ask — ranking,
+/// recommendations, sharing, "high quality" filters, stack scoring. A product
+/// qualifies only when it is not blocked, has a usable number, AND the
+/// assessment behind that number actually finished.
+bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
+  if (product == null) return false;
+  if (catalogProductIsBlocked(product)) return false;
+  if (catalogProductIsNotScored(product)) return false;
+  return catalogAssessmentStatus(product) == CatalogAssessmentStatus.complete;
+}
+
+/// Whether the catalog has no usable quality number for this product.
+///
+/// Narrow by design. A `partial` assessment is deliberately NOT not-scored:
+/// conflating them was the root defect — it hid five genuinely assessed
+/// pillars behind a "not enough verified data to score" message that blamed
+/// the label for a review PharmaGuide had not performed. Completion is asked
+/// separately via [catalogProductAssessmentIncomplete].
 bool catalogProductIsNotScored(ProductsCoreData? product) {
   if (product == null) return false;
 
   final assessmentStatus = product.qualityAssessmentStatus?.trim();
   final hasAssessmentStatus = assessmentStatus?.isNotEmpty == true;
   if (hasAssessmentStatus &&
-      catalogAssessmentStatus(product) != CatalogAssessmentStatus.complete) {
-    // The independent completion state is authoritative. A stale "scored"
-    // field or numeric value must not turn a partial/failed assessment into a
-    // completed one.
+      catalogAssessmentStatus(product) == CatalogAssessmentStatus.failed) {
+    // A FAILED assessment yields nothing trustworthy to show. `partial`
+    // deliberately does NOT return here: it falls through to the score-status
+    // checks below and stays "scored" whenever a number exists, so its five
+    // assessed pillars still render.
     return true;
   }
 

@@ -216,11 +216,16 @@ void main() {
               score: 82,
               expectedNotScored: true,
             ),
+            // scored + partial is NOT "not scored": the number exists and the
+            // five assessed pillars are worth showing. It still publishes no
+            // verdict - that is now enforced by
+            // catalogProductHasCompletePublicScore, asserted below, rather
+            // than by pretending the product was never analysed.
             (
               scoreStatus: 'scored',
               assessmentStatus: 'partial',
               score: 82,
-              expectedNotScored: true,
+              expectedNotScored: false,
             ),
             (
               scoreStatus: 'future_state',
@@ -257,6 +262,36 @@ void main() {
         expect(
           catalogProductIsNotScored(product),
           testCase.expectedNotScored,
+          reason:
+              'score_status=${testCase.scoreStatus}, '
+              'assessment=${testCase.assessmentStatus}, '
+              'score=${testCase.score}',
+        );
+      }
+    });
+
+    test('no contradiction ever yields a completed public verdict', () {
+      // The fail-closed intent of the matrix above, asserted on the predicate
+      // that actually gates every public score surface. Only a scored +
+      // complete row with a real number may publish a verdict.
+      final cases =
+          <({String? scoreStatus, String? assessmentStatus, double? score})>[
+            (scoreStatus: 'scored', assessmentStatus: 'failed', score: 82),
+            (scoreStatus: 'scored', assessmentStatus: 'partial', score: 82),
+            (scoreStatus: 'future_state', assessmentStatus: 'complete', score: 82),
+            (scoreStatus: 'scored', assessmentStatus: 'complete', score: null),
+            (scoreStatus: 'not_scored', assessmentStatus: 'complete', score: 82),
+          ];
+      for (final testCase in cases) {
+        expect(
+          catalogProductHasCompletePublicScore(
+            _row(
+              qualityScoreStatus: testCase.scoreStatus,
+              qualityAssessmentStatus: testCase.assessmentStatus,
+              qualityScore: testCase.score,
+            ),
+          ),
+          isFalse,
           reason:
               'score_status=${testCase.scoreStatus}, '
               'assessment=${testCase.assessmentStatus}, '

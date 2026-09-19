@@ -24,6 +24,12 @@ enum HeroScoreDisplay {
   /// consumer-neutral: release diagnostics belong to the catalog gate.
   notScored,
 
+  /// The assessment itself is unfinished: a pillar the rubric requires was
+  /// never assessed, so no completed verdict exists to publish. Distinct from
+  /// [notScored] - we DO have analysis, just not all of it - and the pillar
+  /// breakdown still shows every dimension that was assessed.
+  assessmentIncomplete,
+
   /// BLOCKED — the score slot stays empty; the bottom banner owns the
   /// verdict.
   none,
@@ -40,9 +46,16 @@ HeroScoreDisplay heroScoreDisplayFor({
   required bool isNotScored,
   required bool lowCoverage,
   bool limitedAssessment = false,
+  bool assessmentIncomplete = false,
 }) {
   if (isBlocked) return HeroScoreDisplay.none;
   if (isNotScored || score == null) return HeroScoreDisplay.notScored;
+  // An unfinished assessment may not publish a verdict. The number exists and
+  // the pillar breakdown below still renders every pillar we DID assess, but
+  // the headline tier would assert a completed judgement the rubric has not
+  // made. Deliberately NOT limitedScore: that keeps the number for comparison,
+  // and an incomplete assessment has nothing to compare.
+  if (assessmentIncomplete) return HeroScoreDisplay.assessmentIncomplete;
   if (lowCoverage) return HeroScoreDisplay.notScored;
   if (limitedAssessment) return HeroScoreDisplay.limitedScore;
   return HeroScoreDisplay.tierScore;
@@ -128,6 +141,10 @@ class PGHeroSection extends StatelessWidget {
   /// True when no consumer product-quality score is available.
   final bool isNotScored;
 
+  /// True when a number exists but the assessment behind it is unfinished.
+  /// Suppresses the headline tier; the pillar breakdown still renders.
+  final bool assessmentIncomplete;
+
   /// True when the product is BLOCKED — suppresses the score line
   /// entirely. Production renders a separate banner; pass that as
   /// [bottomBanner] to keep the layout intact. Also suppresses the
@@ -173,6 +190,7 @@ class PGHeroSection extends StatelessWidget {
     this.score,
     this.qualityTier,
     this.isNotScored = false,
+    this.assessmentIncomplete = false,
     this.isBlocked = false,
     this.lowCoverage = false,
     this.limitedAssessment = false,
@@ -197,6 +215,7 @@ class PGHeroSection extends StatelessWidget {
       score: score,
       isBlocked: isBlocked,
       isNotScored: isNotScored,
+      assessmentIncomplete: assessmentIncomplete,
       lowCoverage: lowCoverage,
       limitedAssessment: confidenceLabel == 'Limited',
     );
@@ -335,6 +354,20 @@ class PGHeroSection extends StatelessWidget {
             Text(
               limitedAssessmentDetail,
               style: V2Typography.caption(color: context.v2.fgMuted),
+            ),
+          ] else if (scoreDisplay ==
+              HeroScoreDisplay.assessmentIncomplete) ...[
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'Assessment incomplete',
+              style: V2Typography.bodyMedium(color: context.v2.fg),
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              // Generic and true. The specific missing dimension is named by
+              // the pillar that owns it, not restated here.
+              'We haven\'t finished assessing this product yet.',
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[
             const SizedBox(height: V2Spacing.space8),

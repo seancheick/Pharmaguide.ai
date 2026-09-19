@@ -231,7 +231,7 @@ class _ProductDetailV2ConnectedState
         catalogVersion = null;
       }
       final isBlocked = catalogProductIsBlocked(product);
-      final canShareScore = !isBlocked && !catalogProductIsNotScored(product);
+      final canShareScore = catalogProductHasCompletePublicScore(product);
       // Trust tags are gated on `isBlocked`, NOT on `canShareScore`.
       //
       // The two guards protect different things. A not-scored product still
@@ -402,6 +402,9 @@ class _ProductDetailV2ConnectedState
     final trustTags = buildHeroTrustTags(_product);
     final isBlocked = productIsBlocked(_product);
     final isNotScored = productIsNotScored(_product);
+    // scored + partial: a number exists, but a pillar the rubric requires was
+    // never assessed. The breakdown still renders; the headline tier does not.
+    final assessmentIncomplete = productAssessmentIncomplete(_product);
 
     // -------------------------------------------------------------
     // Async detail blob (same provider production uses)
@@ -700,6 +703,7 @@ class _ProductDetailV2ConnectedState
                         score100: score100,
                         isBlocked: isBlocked,
                         isNotScored: isNotScored,
+                        assessmentIncomplete: assessmentIncomplete,
                         trustTags: trustTags,
                         scoreConfidenceDetail: _blobMap(
                           detailBlob,
@@ -979,6 +983,7 @@ class _ProductDetailV2ConnectedState
                           currentDsldId: widget.dsldId,
                           isBlocked: isBlocked,
                           isNotScored: isNotScored,
+                          assessmentIncomplete: assessmentIncomplete,
                           score100: score100,
                           qualityTier: _product?.qualityTier,
                           profileIncomplete:

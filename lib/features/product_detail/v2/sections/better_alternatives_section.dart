@@ -43,12 +43,16 @@ const double _lowQualityThreshold = 60.0;
 bool shouldShowBetterAlternatives({
   required bool isBlocked,
   required bool isNotScored,
+  bool assessmentIncomplete = false,
   required double? score100,
   required bool profileIncomplete,
   String? qualityTier,
 }) {
   if (isBlocked) return true;
-  if (isNotScored || score100 == null) return false;
+  // An unfinished assessment has no completed verdict to improve on, so
+  // "better alternatives" would be comparing against a number that is still
+  // missing a pillar's worth of unearned points.
+  if (isNotScored || assessmentIncomplete || score100 == null) return false;
   if (score100 < _lowQualityThreshold) return true;
   // S4 — incomplete profile: still surface *generic* higher-quality
   // options for the shared Acceptable quality tier. Do not invent a local score
@@ -69,6 +73,9 @@ class BetterAlternativesSection extends ConsumerWidget {
   final String currentDsldId;
   final bool isBlocked;
   final bool isNotScored;
+
+  /// True when a number exists but the assessment behind it is unfinished.
+  final bool assessmentIncomplete;
   final double? score100;
   final String? qualityTier;
   final bool profileIncomplete;
@@ -81,6 +88,7 @@ class BetterAlternativesSection extends ConsumerWidget {
     required this.currentDsldId,
     required this.isBlocked,
     required this.isNotScored,
+    this.assessmentIncomplete = false,
     required this.score100,
     required this.profileIncomplete,
     this.qualityTier,
@@ -112,6 +120,7 @@ class BetterAlternativesSection extends ConsumerWidget {
     if (!shouldShowBetterAlternatives(
       isBlocked: isBlocked,
       isNotScored: isNotScored,
+      assessmentIncomplete: assessmentIncomplete,
       score100: score100,
       profileIncomplete: profileIncomplete,
       qualityTier: qualityTier,

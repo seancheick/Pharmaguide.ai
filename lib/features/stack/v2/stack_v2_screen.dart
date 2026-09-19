@@ -76,8 +76,7 @@ StackCatalogScoreDisplay? stackCatalogScoreDisplayFor(
   ProductsCoreData? product,
 ) {
   if (product == null ||
-      catalogProductIsBlocked(product) ||
-      catalogProductIsNotScored(product) ||
+      !catalogProductHasCompletePublicScore(product) ||
       isLowCoverage(product.mappedCoverage)) {
     return null;
   }

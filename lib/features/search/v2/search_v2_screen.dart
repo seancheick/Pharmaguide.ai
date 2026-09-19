@@ -1608,7 +1608,7 @@ class _SearchProductListTile extends StatelessWidget {
     final scoreChip = searchScoreChipDisplayFor(
       score: score,
       isBlocked: catalogProductIsBlocked(product),
-      isNotScored: catalogProductIsNotScored(product),
+      isNotScored: !catalogProductHasCompletePublicScore(product),
       mappedCoverage: product.mappedCoverage,
       scoreConfidence: product.qualityScoreConfidence,
     );
@@ -1739,7 +1739,7 @@ class _SearchProductGridTile extends StatelessWidget {
     final scoreChip = searchScoreChipDisplayFor(
       score: score,
       isBlocked: catalogProductIsBlocked(product),
-      isNotScored: catalogProductIsNotScored(product),
+      isNotScored: !catalogProductHasCompletePublicScore(product),
       mappedCoverage: product.mappedCoverage,
       scoreConfidence: product.qualityScoreConfidence,
     );
@@ -1899,8 +1899,7 @@ class _SearchProductImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canShowScore =
-        !catalogProductIsBlocked(product) &&
-        !catalogProductIsNotScored(product) &&
+        catalogProductHasCompletePublicScore(product) &&
         !isLowCoverage(product.mappedCoverage);
     return Container(
       width: size,
@@ -2279,7 +2278,10 @@ enum _SearchFilter {
       case _SearchFilter.all:
         return true;
       case _SearchFilter.highQuality:
-        return (p.qualityScoreV4100 ?? 0) >= 80 &&
+        // A score of 80+ that is still missing an unassessed pillar is not a
+        // demonstrated high-quality product.
+        return catalogProductHasCompletePublicScore(p) &&
+            (p.qualityScoreV4100 ?? 0) >= 80 &&
             !hasLimitedAssessmentConfidence(p.qualityScoreConfidence);
       case _SearchFilter.needsReview:
         final safety = catalogProductSafetyStatus(p);

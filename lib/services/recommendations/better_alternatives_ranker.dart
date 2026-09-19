@@ -309,8 +309,11 @@ double? effectiveQualityScore(ProductsCoreData p) => p.qualityScoreV4100;
 /// True when the current or legacy catalog contract does not permit a public
 /// score. Independent safety/assessment fields win over stale legacy values.
 bool isCatalogScoreSuppressed(ProductsCoreData p) =>
-    catalogProductIsBlocked(p) ||
-    catalogProductIsNotScored(p) ||
+    // An unfinished assessment may not be ranked against completed ones: its
+    // total is missing a pillar's worth of points it was never given the
+    // chance to earn, so comparing it as a 100-point result is not a fair
+    // comparison in either direction.
+    !catalogProductHasCompletePublicScore(p) ||
     p.qualityScoreStatus?.trim().toLowerCase() == 'suppressed_safety';
 
 /// Hard filters every candidate must pass before audience and tier

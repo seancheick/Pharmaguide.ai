@@ -41,6 +41,11 @@ bool productIsBlocked(ProductsCoreData? product) =>
 bool productIsNotScored(ProductsCoreData? product) =>
     catalogProductIsNotScored(product);
 
+/// Whether a number exists but the assessment behind it is unfinished.
+/// Delegates to the one canonical owner; this file adds no logic of its own.
+bool productAssessmentIncomplete(ProductsCoreData? product) =>
+    catalogProductAssessmentIncomplete(product);
+
 /// Whether the product's label coverage is below the 0.3 trust floor
 /// (`isLowCoverage` in core/scoring/coverage.dart — the shared
 /// SAFETY-RULE contract). Distinct from [productIsNotScored]: a

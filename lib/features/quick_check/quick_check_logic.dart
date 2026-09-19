@@ -50,9 +50,10 @@ class QuickCheckItem {
   });
 
   factory QuickCheckItem.supplement(ProductsCoreData product) {
+    // A completed public verdict is required to show a number here: blocked,
+    // unscored AND assessment-incomplete products all fail this one predicate.
     final canShowScore =
-        !catalogProductIsBlocked(product) &&
-        !catalogProductIsNotScored(product) &&
+        catalogProductHasCompletePublicScore(product) &&
         !isLowCoverage(product.mappedCoverage) &&
         product.qualityScoreV4100 != null;
     return QuickCheckItem._(

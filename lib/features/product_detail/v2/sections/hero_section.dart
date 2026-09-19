@@ -185,6 +185,7 @@ Widget buildHeroSection({
   required double? score100,
   required bool isBlocked,
   required bool isNotScored,
+  required bool assessmentIncomplete,
   required List<HeroTrustTag> trustTags,
   Map<String, dynamic>? scoreConfidenceDetail,
   Widget? bottomBanner,
@@ -227,6 +228,7 @@ Widget buildHeroSection({
     score: score100?.round(),
     qualityTier: product?.qualityTier,
     isNotScored: isNotScored,
+    assessmentIncomplete: assessmentIncomplete,
     isBlocked: isBlocked,
     // Defensive release guard: an incomplete record must never receive a
     // positive quality verdict. Consumer copy stays neutral; the underlying
