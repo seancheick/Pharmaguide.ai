@@ -214,4 +214,65 @@ void main() {
     expect(kV4PillarActionLabels.containsKey('dose'), isFalse);
     expect(kV4PillarActionLabels.containsKey('safety_hygiene'), isFalse);
   });
+
+  group('evidence display state', () {
+    V4PillarValue evidencePillar({double? score, String? displayState}) =>
+        parseV4Pillars({
+          'formulation': {'score': 10, 'max': 20},
+          'dose': {'score': 10, 'max': 20},
+          'evidence': {
+            'score': score,
+            'max': 20,
+            'reason': 'r',
+            if (displayState != null) 'display_state': displayState,
+          },
+          'transparency': {'score': 10, 'max': 15},
+          'verification': {'score': 10, 'max': 15},
+          'safety_hygiene': {'score': 5, 'max': 10},
+        }).firstWhere((p) => p.key == 'evidence');
+
+    test('an unreviewed ingredient is not reported as "No points"', () {
+      final p = evidencePillar(score: 0, displayState: 'not_yet_reviewed');
+
+      expect(p.displayState, 'not_yet_reviewed');
+      expect(p.status, V4PillarStatus.notYetAssessed);
+      expect(p.status, isNot(V4PillarStatus.noPoints));
+      expect(v4PillarStatusLabel(p.status), 'Not yet assessed');
+      expect(v4PillarStatusHasNoVerdict(p.status), isTrue);
+    });
+
+    test('a reviewed zero stays a reviewed zero', () {
+      final p = evidencePillar(score: 0, displayState: 'assessed');
+
+      expect(p.status, V4PillarStatus.noPoints);
+      expect(v4PillarStatusHasNoVerdict(p.status), isFalse);
+    });
+
+    test('unresolved applicability is neither unreviewed nor a verdict', () {
+      final p =
+          evidencePillar(score: 0, displayState: 'applicability_unestablished');
+
+      expect(p.status, V4PillarStatus.applicabilityNotEstablished);
+      expect(p.status, isNot(V4PillarStatus.notYetAssessed));
+      expect(v4PillarStatusHasNoVerdict(p.status), isTrue);
+    });
+
+    test('an older blob with no display_state still scores numerically', () {
+      expect(evidencePillar(score: 0).status, V4PillarStatus.noPoints);
+      expect(evidencePillar(score: 18).status, V4PillarStatus.strong);
+      expect(evidencePillar(score: 13).status, V4PillarStatus.mixed);
+    });
+
+    test('an unrecognised state falls back rather than throwing', () {
+      final p = evidencePillar(score: 18, displayState: 'something_new');
+
+      expect(p.status, V4PillarStatus.strong);
+    });
+
+    test('earned credit is never presented as unassessed', () {
+      final p = evidencePillar(score: 15, displayState: 'assessed');
+
+      expect(v4PillarStatusHasNoVerdict(p.status), isFalse);
+    });
+  });
 }

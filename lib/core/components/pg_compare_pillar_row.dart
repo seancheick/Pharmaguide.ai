@@ -38,6 +38,12 @@ class PGComparePillarRow extends StatelessWidget {
   /// Product B's raw pillar score. Null renders an empty bar + em dash.
   final double? scoreB;
 
+  /// Each side's pipeline `display_state`, carried verbatim. When a side
+  /// reached no verdict its number is withheld here too, so Compare cannot
+  /// show "0/20" for a pillar the breakdown calls "Not yet assessed".
+  final String? displayStateA;
+  final String? displayStateB;
+
   const PGComparePillarRow({
     super.key,
     required this.label,
@@ -45,9 +51,18 @@ class PGComparePillarRow extends StatelessWidget {
     required this.maxB,
     this.scoreA,
     this.scoreB,
+    this.displayStateA,
+    this.displayStateB,
   });
 
-  Widget _side(BuildContext context, double? score, int max) {
+  Widget _side(
+    BuildContext context,
+    double? score,
+    int max, {
+    String? displayState,
+  }) {
+    final status = statusForPillar(score, max, displayState: displayState);
+    final hasVerdict = !v4PillarStatusHasNoVerdict(status);
     final tone = PGScoreBreakdownCard.pillarTone(score, max, context.v2);
     final fill = (score == null || max <= 0)
         ? 0.0
@@ -72,7 +87,9 @@ class PGComparePillarRow extends StatelessWidget {
         ),
         const SizedBox(height: V2Spacing.space4),
         Text(
-          score == null ? '—' : '${PGScoreBreakdownCard.fmtScore(score)}/$max',
+          score == null || !hasVerdict
+              ? '—'
+              : '${PGScoreBreakdownCard.fmtScore(score)}/$max',
           style: V2Typography.monoData(
             color: score == null ? context.v2.fgSubtle : tone,
           ),
@@ -84,7 +101,7 @@ class PGComparePillarRow extends StatelessWidget {
         if (score != null) ...[
           const SizedBox(height: 2),
           Text(
-            v4PillarStatusLabel(statusForPillar(score, max)),
+            v4PillarStatusLabel(status),
             style: V2Typography.caption(color: tone),
           ),
         ],
@@ -102,9 +119,15 @@ class PGComparePillarRow extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _side(context, scoreA, maxA)),
+            Expanded(
+              child: _side(context, scoreA, maxA,
+                  displayState: displayStateA),
+            ),
             const SizedBox(width: V2Spacing.space16),
-            Expanded(child: _side(context, scoreB, maxB)),
+            Expanded(
+              child: _side(context, scoreB, maxB,
+                  displayState: displayStateB),
+            ),
           ],
         ),
       ],

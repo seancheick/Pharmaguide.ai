@@ -34,14 +34,41 @@ const Map<String, String> kV4PillarActionLabels = {
   'verification': 'View certifications',
 };
 
-/// Consumer presentation status for one pillar, derived from its fraction of max.
-enum V4PillarStatus { strong, mixed, limited, noPoints }
+/// Consumer presentation status for one pillar.
+///
+/// The first four are derived from the score's fraction of max. The last three
+/// are NOT derivable from a number — they come from the pipeline's own
+/// `display_state`, because a zero that means "we reviewed this and found no
+/// affirmative benefit" and a zero that means "we have not reviewed this yet"
+/// are the same number and completely different claims.
+enum V4PillarStatus {
+  strong,
+  mixed,
+  limited,
+  noPoints,
+  notYetAssessed,
+  applicabilityNotEstablished,
+  notApplicable,
+}
 
 /// Map a pillar's score/max to a presentation status. `>= 85%` Strong,
 /// `>= 60%` Mixed, exact zero No points, else Limited. An unavailable score or
 /// invalid max degrades to Limited so we never overstate a pillar we could not
 /// read (fail-safe).
-V4PillarStatus statusForPillar(double? score, num max) {
+V4PillarStatus statusForPillar(double? score, num max, {String? displayState}) {
+  // The pipeline decides what a zero MEANS. `display_state` is authored by the
+  // scorer that produced the score (generic_evidence / probiotic_evidence via
+  // quality_score), so the app renders that verdict rather than guessing from
+  // the number. Anything unrecognised — including a null from an older blob —
+  // falls through to the numeric thresholds below, so old exports keep working.
+  switch (displayState) {
+    case 'not_yet_reviewed':
+      return V4PillarStatus.notYetAssessed;
+    case 'applicability_unestablished':
+      return V4PillarStatus.applicabilityNotEstablished;
+    case 'not_applicable':
+      return V4PillarStatus.notApplicable;
+  }
   if (score == null || !score.isFinite || !max.isFinite || max <= 0) {
     return V4PillarStatus.limited;
   }
@@ -58,7 +85,18 @@ String v4PillarStatusLabel(V4PillarStatus status) => switch (status) {
   V4PillarStatus.mixed => 'Mixed',
   V4PillarStatus.limited => 'Limited',
   V4PillarStatus.noPoints => 'No points',
+  V4PillarStatus.notYetAssessed => 'Not yet assessed',
+  V4PillarStatus.applicabilityNotEstablished => 'Applicability not established',
+  V4PillarStatus.notApplicable => 'Not applicable',
 };
+
+/// True when this status means the pipeline reached no conclusion, so a
+/// numeric "0/20" must not be shown. It is an absence of assessment, not a
+/// finding — showing the number reads to a user as "no clinical evidence".
+bool v4PillarStatusHasNoVerdict(V4PillarStatus status) =>
+    status == V4PillarStatus.notYetAssessed ||
+    status == V4PillarStatus.applicabilityNotEstablished ||
+    status == V4PillarStatus.notApplicable;
 
 /// One pipeline-authored explanation fact for a pillar. Pure display data —
 /// the pipeline owns the copy; the app renders [valueDisplay] verbatim and never
@@ -103,6 +141,10 @@ class V4PillarValue {
   /// One-line `reason` from the blob, trimmed. Null when empty/missing.
   final String? reason;
 
+  /// The pipeline's own `display_state` for this pillar, verbatim. Null on
+  /// older blobs that predate it. Never computed here.
+  final String? displayState;
+
   /// Pipeline-authored explanation facts (schema v1). Empty for old blobs and
   /// pillars without facts.
   final List<V4PillarFact> facts;
@@ -113,8 +155,14 @@ class V4PillarValue {
     required this.max,
     this.score,
     this.reason,
+    this.displayState,
     this.facts = const [],
   });
+
+  /// This pillar's presentation status, resolved from the pipeline's state
+  /// when it carries one and from the score otherwise.
+  V4PillarStatus get status =>
+      statusForPillar(score, max, displayState: displayState);
 }
 
 /// True when [pillars] carries ALL six spec pillars — the contract every
@@ -156,6 +204,9 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
           max: max,
           score: score,
           reason: (reason != null && reason.isNotEmpty) ? reason : null,
+          displayState: m['display_state'] is String
+              ? (m['display_state'] as String).trim()
+              : null,
           facts: _parseFacts(m['explanation']),
         ),
       );

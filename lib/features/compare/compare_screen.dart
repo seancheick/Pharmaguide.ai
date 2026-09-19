@@ -242,6 +242,11 @@ class _CompareBody extends StatelessWidget {
                         pillarsA[i].max,
                     scoreA: pillarsA[i].score,
                     scoreB: _pillarForKey(pillarsB, pillarsA[i].key)?.score,
+                    displayStateA: pillarsA[i].displayState,
+                    displayStateB: _pillarForKey(
+                      pillarsB,
+                      pillarsA[i].key,
+                    )?.displayState,
                   ),
                 ],
                 if (delta != null) ...[

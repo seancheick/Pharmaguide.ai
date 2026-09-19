@@ -13,6 +13,11 @@ class PGPillar {
   final double? score;
   final int max;
   final String? reason;
+
+  /// The pipeline's `display_state` for this pillar, carried verbatim from
+  /// [V4PillarValue]. Null for older blobs. The card must not re-derive what a
+  /// zero means from the number.
+  final String? displayState;
   final List<V4PillarFact> facts;
   final String? actionLabel;
   final VoidCallback? onAction;
@@ -35,6 +40,7 @@ class PGPillar {
     required this.max,
     this.score,
     this.reason,
+    this.displayState,
     this.facts = const [],
     this.actionLabel,
     this.onAction,
@@ -431,8 +437,16 @@ class _PGPillarRow extends StatelessWidget {
         ? (score / pillar.max).clamp(0.0, 1.0)
         : 0.0;
     final tone = PGScoreBreakdownCard.pillarTone(score, pillar.max, context.v2);
-    final status = statusForPillar(score, pillar.max);
+    // pillar.status, not statusForPillar(score, max): the pipeline's own
+    // display_state decides what a zero means, and this surface must not
+    // re-derive it from the number.
+    final status = statusForPillar(
+      score,
+      pillar.max,
+      displayState: pillar.displayState,
+    );
     final statusLabel = v4PillarStatusLabel(status);
+    final hasVerdict = !v4PillarStatusHasNoVerdict(status);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -485,12 +499,16 @@ class _PGPillarRow extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: V2Spacing.space8),
-                        if (hasScore)
+                        // "0/20" beside "Not yet assessed" reads as a measured
+                        // finding of no evidence. When the pipeline reached no
+                        // verdict the status label carries the meaning and the
+                        // number is withheld.
+                        if (hasScore && hasVerdict)
                           Text(
                             '${PGScoreBreakdownCard.fmtScore(score)}/${pillar.max}',
                             style: V2Typography.monoData(color: tone),
                           )
-                        else
+                        else if (!hasScore)
                           Text(
                             'No data',
                             style: V2Typography.caption(

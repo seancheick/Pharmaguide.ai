@@ -202,12 +202,30 @@ _EvidencePillarPresentation? _evidencePillarPresentation(
 ) {
   if (pillar == null || pillar.score == null) return null;
 
-  final status = statusForPillar(pillar.score, pillar.max);
+  final status = pillar.status;
   final tier = switch (status) {
     V4PillarStatus.strong => PGEvidenceTier.strong,
     V4PillarStatus.mixed => PGEvidenceTier.moderate,
     V4PillarStatus.limited || V4PillarStatus.noPoints => PGEvidenceTier.limited,
+    // No conclusion was reached. Deliberately NOT PGEvidenceTier.none, whose
+    // label is "NO DIRECT EVIDENCE" — that is a finding, and this is the
+    // absence of one.
+    V4PillarStatus.notYetAssessed ||
+    V4PillarStatus.applicabilityNotEstablished ||
+    V4PillarStatus.notApplicable => PGEvidenceTier.limited,
   };
+
+  // A pillar with no verdict must not show "0/20". The number is real, but
+  // beside a status like "Not yet assessed" it reads as a measured finding of
+  // no evidence, which is the opposite of what the pipeline determined.
+  if (v4PillarStatusHasNoVerdict(status)) {
+    return _EvidencePillarPresentation(
+      tier: tier,
+      summaryLine: 'Evidence pillar: ${v4PillarStatusLabel(status).toUpperCase()}',
+      helperLine: pillar.reason,
+    );
+  }
+
   final score = pillar.score!;
   final scoreLabel = score == score.roundToDouble()
       ? score.toInt().toString()

@@ -139,6 +139,7 @@ List<PGPillar> _buildV4Pillars(
           'safety_hygiene' => _formulaQualityChecksReason(p.reason),
           _ => p.reason,
         },
+        displayState: p.displayState,
         facts: p.facts,
         actionLabel: onAction == null ? null : actionLabel,
         onAction: onAction,
