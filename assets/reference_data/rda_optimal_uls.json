@@ -3,7 +3,7 @@
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
     "schema_version": "5.1.1",
-    "last_updated": "2026-09-15",
+    "last_updated": "2026-09-20",
     "reference_data_contract": {
       "contract_version": "1",
       "reference_version": "5.1.2-2026-09-15",
@@ -626,6 +626,12 @@
       "ul_applies_to_forms": [
         "Cholecalciferol (Vitamin D3)",
         "Ergocalciferol (Vitamin D2)"
+      ],
+      "aliases": [
+        "vitamin_d3",
+        "vitamin_d2",
+        "cholecalciferol",
+        "ergocalciferol"
       ]
     },
     {
@@ -964,7 +970,15 @@
       "synthesis_precursors": null,
       "unofficial_ul": null,
       "nutrient_class": "floor",
-      "ul_basis": "not_applicable"
+      "ul_basis": "not_applicable",
+      "aliases": [
+        "vitamin_k1",
+        "vitamin_k2",
+        "phylloquinone",
+        "menaquinone",
+        "mk-7",
+        "mk-4"
+      ]
     },
     {
       "standard_name": "Thiamin",
@@ -1131,7 +1145,9 @@
       "nutrient_class": "floor",
       "ul_basis": "not_applicable",
       "aliases": [
-        "thiamine"
+        "thiamine",
+        "vitamin_b1_thiamine",
+        "vitamin_b1"
       ]
     },
     {
@@ -1296,7 +1312,11 @@
       "synthesis_precursors": null,
       "unofficial_ul": null,
       "nutrient_class": "floor",
-      "ul_basis": "not_applicable"
+      "ul_basis": "not_applicable",
+      "aliases": [
+        "vitamin_b2_riboflavin",
+        "vitamin_b2"
+      ]
     },
     {
       "standard_name": "Niacin",
@@ -1473,7 +1493,14 @@
       "ul_status": "established",
       "unofficial_ul": null,
       "nutrient_class": "ceiling",
-      "ul_basis": "supplemental_only"
+      "ul_basis": "supplemental_only",
+      "aliases": [
+        "vitamin_b3_niacin",
+        "vitamin_b3",
+        "niacinamide",
+        "nicotinamide",
+        "nicotinic_acid"
+      ]
     },
     {
       "standard_name": "Vitamin B6",
@@ -1648,7 +1675,14 @@
       "ul_applies_to_forms": [
         "pyridoxal 5-phosphate"
       ],
-      "ul_scope_source": "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/"
+      "ul_scope_source": "https://ods.od.nih.gov/factsheets/VitaminB6-HealthProfessional/",
+      "aliases": [
+        "vitamin_b6_pyridoxine",
+        "pyridoxine",
+        "pyridoxal",
+        "pyridoxamine",
+        "p5p"
+      ]
     },
     {
       "standard_name": "Folate",
@@ -1822,6 +1856,13 @@
       "ul_basis": "synthetic_only",
       "ul_applies_to_forms": [
         "Folic Acid"
+      ],
+      "aliases": [
+        "vitamin_b9_folate",
+        "folic_acid",
+        "methylfolate",
+        "l-methylfolate",
+        "5-mthf"
       ]
     },
     {
@@ -1991,7 +2032,13 @@
       "synthesis_precursors": null,
       "unofficial_ul": null,
       "nutrient_class": "floor",
-      "ul_basis": "not_applicable"
+      "ul_basis": "not_applicable",
+      "aliases": [
+        "vitamin_b12_cobalamin",
+        "cobalamin",
+        "cyanocobalamin",
+        "methylcobalamin"
+      ]
     },
     {
       "standard_name": "Biotin",
@@ -2160,7 +2207,11 @@
       "synthesis_precursors": null,
       "unofficial_ul": null,
       "nutrient_class": "floor",
-      "ul_basis": "not_applicable"
+      "ul_basis": "not_applicable",
+      "aliases": [
+        "vitamin_b7_biotin",
+        "vitamin_b7"
+      ]
     },
     {
       "standard_name": "Pantothenic Acid",
@@ -2325,7 +2376,13 @@
       "synthesis_precursors": null,
       "unofficial_ul": null,
       "nutrient_class": "floor",
-      "ul_basis": "not_applicable"
+      "ul_basis": "not_applicable",
+      "aliases": [
+        "vitamin_b5_pantothenic",
+        "vitamin_b5",
+        "pantothenate",
+        "d-calcium pantothenate"
+      ]
     },
     {
       "standard_name": "Choline",

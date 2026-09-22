@@ -1,8 +1,8 @@
 {
   "_metadata": {
     "schema_version": "5.4.0",
-    "content_version": "2026.09.19",
-    "content_hash": "sha256:f85e11b5937602ae4ef0b9aad5c1eb812401050418749437aa6927763ecb8a14",
+    "content_version": "2026.09.22",
+    "content_hash": "sha256:52417b894d54297d352e599c4f1e7d2ea456be0eaa723017f7e4d00fa0ac4b67",
     "minimum_runtime_contract": 1,
     "total_entries": 31,
     "withheld_entries": 49,
@@ -76,7 +76,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Coenzyme Q10",
-        "canonical_id": "coenzyme_q10"
+        "canonical_id": "coq10"
       },
       "depletion_type": "depletion",
       "severity": "mild",
@@ -256,7 +256,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin B12",
-        "canonical_id": "vitamin_b12"
+        "canonical_id": "vitamin_b12_cobalamin"
       },
       "depletion_type": "depletion",
       "severity": "significant",
@@ -430,7 +430,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Thiamin",
-        "canonical_id": "thiamin"
+        "canonical_id": "vitamin_b1_thiamine"
       },
       "depletion_type": "depletion",
       "severity": "significant",
@@ -488,7 +488,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Folate",
-        "canonical_id": "folate"
+        "canonical_id": "vitamin_b9_folate"
       },
       "depletion_type": "functional_antagonism",
       "severity": "mild",
@@ -771,7 +771,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Folate",
-        "canonical_id": "folate"
+        "canonical_id": "vitamin_b9_folate"
       },
       "depletion_type": "depletion",
       "severity": "significant",
@@ -815,7 +815,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin B12",
-        "canonical_id": "vitamin_b12"
+        "canonical_id": "vitamin_b12_cobalamin"
       },
       "depletion_type": "depletion",
       "severity": "moderate",
@@ -1058,7 +1058,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin B6",
-        "canonical_id": "vitamin_b6"
+        "canonical_id": "vitamin_b6_pyridoxine"
       },
       "depletion_type": "depletion",
       "severity": "significant",
@@ -1105,7 +1105,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Folate",
-        "canonical_id": "folate"
+        "canonical_id": "vitamin_b9_folate"
       },
       "depletion_type": "functional_antagonism",
       "severity": "significant",
@@ -1322,7 +1322,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Folate",
-        "canonical_id": "folate"
+        "canonical_id": "vitamin_b9_folate"
       },
       "depletion_type": "depletion",
       "severity": "significant",
@@ -1364,7 +1364,7 @@
       },
       "depleted_nutrient": {
         "standard_name": "Vitamin B12",
-        "canonical_id": "vitamin_b12"
+        "canonical_id": "vitamin_b12_cobalamin"
       },
       "depletion_type": "depletion",
       "severity": "moderate",
