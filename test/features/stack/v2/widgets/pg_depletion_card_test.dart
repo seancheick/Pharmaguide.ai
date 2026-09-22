@@ -114,10 +114,39 @@ void main() {
       find.textContaining('does not confirm your blood level'),
       findsOneWidget,
     );
+    // The reviewed alert_body is the clinical sentence on the card itself.
+    expect(
+      find.textContaining('the chance of low B12 rises with higher doses'),
+      findsOneWidget,
+    );
     expect(find.text('What to monitor'), findsOneWidget);
     expect(find.textContaining('comparison amount'), findsNothing);
     expect(find.textContaining('covered'), findsNothing);
     expect(find.textContaining('adequate'), findsNothing);
+  });
+
+  testWidgets('a reviewed body replaces the generic clinical sentence', (
+    tester,
+  ) async {
+    await _pump(tester, [
+      _dep(
+        type: 'depletion',
+        nutrient: 'Vitamin B12',
+        drug: 'Proton pump inhibitors',
+        alertBody:
+            'With long-term PPI use, reduced stomach acid may lower absorption '
+            'of vitamin B12 from food. Not everyone develops low levels.',
+      ),
+    ]);
+    expect(
+      find.textContaining('No Vitamin B12 source detected'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Not everyone develops low levels'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('has been associated with lower'), findsNothing);
   });
 
   testWidgets('warfarin row is an interaction using reviewed consistency copy', (

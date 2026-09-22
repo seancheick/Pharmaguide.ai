@@ -107,8 +107,13 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('comparison amount'), findsNothing);
-    expect(find.textContaining('Metformin'), findsWidgets);
-    expect(find.textContaining('Warfarin'), findsWidgets);
+    // Each row names its medication. The clinical sentence is the pipeline's
+    // reviewed alert_body, so the name may appear in lower case in the headline.
+    Finder names(String drug) => find.byWidgetPredicate(
+      (w) => w is Text && (w.data ?? '').toLowerCase().contains(drug),
+    );
+    expect(names('metformin'), findsWidgets);
+    expect(names('warfarin'), findsWidgets);
 
     await expectLater(
       find.byType(MaterialApp),

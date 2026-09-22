@@ -189,12 +189,10 @@ class _DepletionRow extends StatelessWidget {
     return 'Tracked here for about $years years';
   }
 
+  // The pipeline's reviewed alert_body owns the clinical sentence; the supply
+  // line (what this device sees in the stack) is the only client-side part.
   String _summaryCopy() {
     final d = dep;
-    final reviewed = d.alertBody?.trim() ?? '';
-    if (d.depletionType == 'functional_antagonism' && reviewed.isNotEmpty) {
-      return reviewed;
-    }
     return medNutrientBodyCopy(
       relationshipType: d.depletionType,
       nutrient: d.nutrientName,
@@ -205,6 +203,7 @@ class _DepletionRow extends StatelessWidget {
       ),
       detectedAmount: d.detectedAmount,
       detectedUnit: d.detectedUnit,
+      reviewedContext: d.alertBody,
     );
   }
 
@@ -432,14 +431,14 @@ class _DetailSection extends StatelessWidget {
             _labelled(context, 'What can happen', d.clinicalImpact!),
             const SizedBox(height: V2Spacing.space8),
           ],
-          if ((d.alertBody?.trim().isNotEmpty ?? false) ||
-              d.mechanism.isNotEmpty) ...[
+          // The card already shows the reviewed alert_body; "Why" is the
+          // mechanism, with alert_body only when no mechanism is authored.
+          if (d.mechanism.isNotEmpty ||
+              (d.alertBody?.trim().isNotEmpty ?? false)) ...[
             _labelled(
               context,
               'Why',
-              d.alertBody?.trim().isNotEmpty ?? false
-                  ? d.alertBody!.trim()
-                  : d.mechanism,
+              d.mechanism.isNotEmpty ? d.mechanism : d.alertBody!.trim(),
             ),
             const SizedBox(height: V2Spacing.space8),
           ],
