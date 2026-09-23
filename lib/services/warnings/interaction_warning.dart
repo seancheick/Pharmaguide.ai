@@ -497,6 +497,7 @@ class InteractionWarning {
     Set<String> userProfileFlags = const <String>{},
     String? productForm,
     String? nutrientForm,
+    Set<String> nutrientForms = const <String>{},
     num? dosePerDay,
   }) {
     if (profileGate != null) {
@@ -510,6 +511,7 @@ class InteractionWarning {
         ProductContext(
           productForm: productForm,
           nutrientForm: nutrientForm,
+          nutrientForms: nutrientForms,
           dosePerDay: dosePerDay,
         ),
       );

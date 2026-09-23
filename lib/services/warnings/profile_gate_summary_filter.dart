@@ -52,6 +52,10 @@ ProductContext resolveProfileGateProductContext({
       _stringValue(productForm) ?? facts?.productForm,
     ),
     nutrientForm: _nutrientFormForIngredient(ingredient),
+    nutrientForms: {
+      for (final row in _ingredientRowsForWarning(facts, warning, ingredient))
+        ..._nutrientFormsForIngredient(row),
+    },
     dosePerDay: _dosePerDayForIngredient(ingredient),
   );
 }
@@ -98,6 +102,7 @@ Map<String, dynamic> filterConditionSummaryByProfileGate({
         userProfileFlags: userProfile.profileFlags,
         productForm: context.productForm,
         nutrientForm: context.nutrientForm,
+        nutrientForms: context.nutrientForms,
         dosePerDay: context.dosePerDay,
       );
     });
@@ -107,6 +112,23 @@ Map<String, dynamic> filterConditionSummaryByProfileGate({
     // else: every backing warning is gated off — drop the aggregation.
   }
   return out;
+}
+
+/// Every context row naming the warning's ingredient (UL, label and quality
+/// rows describe one ingredient; only some carry its declared forms).
+List<Map<String, dynamic>> _ingredientRowsForWarning(
+  ProductHealthFacts? facts,
+  InteractionWarning warning,
+  Map<String, dynamic>? fallback,
+) {
+  final target = _contextKey(warning.ingredientName ?? '');
+  final exact = facts == null || target.isEmpty
+      ? const <Map<String, dynamic>>[]
+      : facts.ingredientContextRows
+            .where((row) => _ingredientKeys(row).contains(target))
+            .toList(growable: false);
+  if (exact.isNotEmpty) return exact;
+  return fallback == null ? const [] : [fallback];
 }
 
 Map<String, dynamic>? _findIngredientForWarning(
@@ -193,6 +215,39 @@ String? _nutrientFormForIngredient(Map<String, dynamic>? row) {
   }
 
   return null;
+}
+
+/// Every form the row declares, normalized. A profile gate's form exclusion
+/// must see all of them: reading only the first form hid the vitamin A
+/// pregnancy warning on "Vitamin A (as Beta-Carotene, Retinyl Acetate)".
+Set<String> _nutrientFormsForIngredient(Map<String, dynamic>? row) {
+  if (row == null) return const <String>{};
+  final forms = <String>{};
+  for (final field in const [
+    'nutrient_form',
+    'form_detected',
+    'matched_form',
+  ]) {
+    final normalized = _normalizeNutrientForm(_stringValue(row[field]));
+    if (normalized != null) forms.add(normalized);
+  }
+  for (final (key, fields) in const [
+    ('matched_forms', ['form_key', 'raw_form_text']),
+    ('extracted_forms', ['display_form', 'raw_form_text']),
+  ]) {
+    final entries = row[key];
+    if (entries is! List) continue;
+    for (final entry in entries.whereType<Map<Object?, Object?>>()) {
+      for (final field in fields) {
+        final normalized = _normalizeNutrientForm(_stringValue(entry[field]));
+        if (normalized != null) {
+          forms.add(normalized);
+          break;
+        }
+      }
+    }
+  }
+  return forms;
 }
 
 num? _dosePerDayForIngredient(Map<String, dynamic>? row) {
@@ -296,6 +351,7 @@ Map<String, dynamic> filterDrugClassSummaryByProfileGate({
         userProfileFlags: userProfile.profileFlags,
         productForm: context.productForm,
         nutrientForm: context.nutrientForm,
+        nutrientForms: context.nutrientForms,
         dosePerDay: context.dosePerDay,
       );
     });
