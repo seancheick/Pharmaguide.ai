@@ -409,7 +409,6 @@ List<Map<String, dynamic>> _canonicalInactiveRows(
           _canonicalRowLiteralLabel(labelRow),
         );
         merged['name'] = literalLabel;
-        merged['label_display'] = literalLabel;
         merged['raw_source_text'] ??= labelRow['raw_source_text'];
         return merged;
       })
@@ -417,12 +416,7 @@ List<Map<String, dynamic>> _canonicalInactiveRows(
 }
 
 String _inactiveRowDisplayLabel(Map<String, dynamic> row) {
-  for (final field in const [
-    'label_display',
-    'name',
-    'raw_source_text',
-    'display_label',
-  ]) {
+  for (final field in const ['name', 'raw_source_text', 'display_label']) {
     final normalized = _normalizedDisclosureLabel(row[field]);
     if (normalized.isNotEmpty) return normalized;
   }
