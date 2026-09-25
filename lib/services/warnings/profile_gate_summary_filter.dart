@@ -143,7 +143,6 @@ Set<String> _ingredientKeys(Map<String, dynamic> row) {
   for (final field in const [
     'name',
     'standard_name',
-    'standardName',
     'display_label',
     'raw_source_text',
     'ingredient',

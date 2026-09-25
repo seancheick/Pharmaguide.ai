@@ -109,7 +109,6 @@ String? readCanonicalId(Map<String, dynamic> row) {
     'canonical_id',
     'mapped_name',
     'standard_name',
-    'standardName',
     'normalized_key',
   ];
   for (final field in fields) {
@@ -166,7 +165,6 @@ String? readDisplayName(Map<String, dynamic> row) {
     'display_name',
     'name',
     'standard_name',
-    'standardName',
     'ingredient',
   ];
   for (final field in fields) {
