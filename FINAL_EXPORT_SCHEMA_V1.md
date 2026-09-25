@@ -535,7 +535,6 @@ Source: `scored.unmapped_actives` / `scored.unmapped_actives_total` / `scored.un
   "harmful_severity": null,
   "is_safety_concern": false,
   "is_banned": false,
-  "is_allergen": false,
   "identifiers": {"cui": "C0042839", "unii": "81G40H8B0T"},
   "display_label": "Vitamin A (Palmitate)",
   "display_dose_label": "2000 IU",
