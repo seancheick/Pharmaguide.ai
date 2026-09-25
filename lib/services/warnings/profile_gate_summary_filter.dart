@@ -200,7 +200,6 @@ num? _dosePerDayForIngredient(Map<String, dynamic>? row) {
     'per_day_mid',
     'per_day_max',
     'converted_quantity',
-    'dosage',
     'quantity',
     'normalized_amount',
     'normalizedAmount',

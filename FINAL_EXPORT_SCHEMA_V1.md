@@ -533,8 +533,6 @@ Source: `scored.unmapped_actives` / `scored.unmapped_actives_total` / `scored.un
   "normalized_unit": null,
   "role": "active",
   "parent_key": "vitamin_a",
-  "dosage": 2000.0,
-  "dosage_unit": "IU",
   "is_mapped": true,
   "is_harmful": false,
   "harmful_severity": null,
