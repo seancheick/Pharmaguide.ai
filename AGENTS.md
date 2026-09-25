@@ -1,111 +1,149 @@
-# PharmaGuide Agent Instructions
+# PharmaGuide Flutter app — agent constitution
 
-> This file is read by OpenCode, Continue, Cline, Aider, and Gemini CLI.
-> It tells any AI agent how to work in this codebase.
+Shared by Claude, Codex and every other agent (OpenCode, Continue, Cline, Aider, Gemini CLI). Claude
+loads it through `@AGENTS.md` in CLAUDE.md. **This is the one canonical rule file**; CLAUDE.md holds
+only Claude-specific extras. Deeper context lives in `knowledge/` — read it on demand.
 
-## Identity
+## Project
 
-You are working on PharmaGuide, a consumer supplement safety app built with Flutter/Dart.
-This is a health-adjacent product. Accuracy matters more than speed.
-Hallucination is not permitted. Do not invent health logic, clinical meaning, contraindications, scoring behavior, or pipeline contracts. Prefer accuracy, speed, and explicit logic in that order.
+- Consumer supplement-safety app: offline-first, privacy-first, medical-grade accuracy. Never
+  invent health logic, clinical meaning, contraindications, scores, evidence levels or pipeline
+  contracts.
+- Dart/Flutter · Riverpod · GoRouter · Drift (SQLite).
+  - `assets/db/pharmaguide_core.db`: read-only catalog, replaced via OTA. Query it for counts;
+    never hard-code them.
+  - `user_data.db`: read-write profile/stack/cache, never touched by OTA.
+  - Supabase: detail blobs, auth, OTA catalog, and signed-in supplement-stack sync through the
+    audited path.
+- The data comes from the pipeline repo at `/Users/seancheick/Downloads/dsld_clean`
+  (github PharmaGuide_Pipeline). Its AGENTS.md is the other half of the contract below.
 
-## Operating Principles
+## Commands — `make`, never a raw `flutter run` or `flutter build`
 
-### 1. Think Before Coding
-
-- Do not assume silently. State assumptions explicitly when they matter.
-- If multiple interpretations are plausible, surface them instead of picking one invisibly.
-- If uncertain, ask or verify rather than guessing.
-- Push back when a simpler or safer approach is better.
-- If confused, stop and name the confusion clearly.
-
-### 2. Simplicity First
-
-- Write the minimum code that solves the problem.
-- Do not add configurability, abstraction, or flexibility that was not requested.
-- Do not build single-use abstractions unless they clearly reduce complexity.
-- If a solution feels bloated, simplify it before moving on.
-- Strong software is preferred over working fluff.
-
-### 3. Surgical Changes
-
-- Touch only what is required for the task.
-- Do not refactor adjacent code unless the task requires it.
-- Do not change comments, formatting, or unrelated logic as a side effect.
-- Remove only the dead code or unused imports created by your own changes.
-- If unrelated dead code is noticed, mention it rather than deleting it unprompted.
-
-### 4. Goal-Driven Execution
-
-- Define clear success criteria before editing.
-- Prefer verifiable outcomes over subjective “done” states.
-- For bug fixes, reproduce with a test when practical, then make it pass.
-- For refactors, keep behavior stable and verify before and after.
-- For multi-step work, keep a brief plan with a verification step for each stage.
-
-## Architecture
-
-- **Language:** Dart / Flutter
-- **State:** Riverpod (explicit, testable providers)
-- **Navigation:** GoRouter
-- **Database:** Drift ORM (SQLite) — two databases:
-  - `pharmaguide_core.db` — read-only product/ingredient data
-  - `user_data.db` — read-write user preferences, never uploaded
-- **Backend:** Supabase — detail blobs, auth, OTA catalog, and signed-in *supplement stack* sync through the audited path only. Profile, medications, allergens, conditions, goals, and FitScore never leave the device.
-- **Tests:** `flutter test`
-- **Lint:** `flutter analyze`
-
-## Rules (Non-Negotiable)
-
-**Product safety rules live in `CLAUDE.md` § Safety Rules and § Hard-won rules — that file is
-canonical, and you must read it before touching anything that renders a verdict, a score, a
-warning, or a sync path.** Only the three stable rendering invariants are mirrored below, as a
-tripwire for agents that do not load CLAUDE.md. Everything volatile — what may sync to Supabase,
-what copy voice is allowed, which SSOT owns dose safety — is deliberately NOT restated here:
-this file once said health data never leaves the device, long after audited supplement-stack sync
-shipped, and a contradiction between two rule files is more dangerous than one rule file.
-
-Mirrored invariants (if these ever disagree with CLAUDE.md, CLAUDE.md wins — and fix this file):
-
-- **Severity order is sacred:** contraindicated > avoid > caution > monitor > safe
-- **Never display "safe" when `mapped_coverage < 0.3`**
-- **FitScore is never persisted** — recomputed fresh from the current profile every time
-
-Agent-behavior rules, which are this file's job:
-
-1. **Read before edit.** Always read a file before changing it. Re-read any file a claim depends on — a stale mental model is how wrong-layer fixes happen.
-2. **Minimal diffs.** Change only what the task requires. No drive-by cleanups.
-3. **Keep the blast radius small.** Prefer the fewest files that fully solve the task; if a change fans out widely, say why before making it. (This replaces a hard "max 3 files" cap, which forced real fixes to ship half-done.)
-4. **Verify after every change.** `flutter analyze` plus the relevant `flutter test` — see CLAUDE.md § Definition of Done for which rung to run.
-5. **Never invent health data.** No made-up contraindications, scores, evidence levels, or safety claims.
-6. **Never mark a task done without running verification commands** and pasting their output.
-
-## Workflow
-
-For every task:
-
-```
-1. PLAN   — Name the files to change and why. (SPRINT_TRACKER.md is 2,900 lines —
-            open it only when the task IS a tracked sprint item, not by default.)
-2. TARGET — Confirm exact files. No new files unless absolutely necessary.
-3. EDIT   — Make the smallest safe change. One concern per edit.
-4. VERIFY — Run flutter analyze + flutter test. Fix any failures.
-5. REPORT — State what changed, what passed, what's left.
+```bash
+make run              # flutter run with every --dart-define from .env
+make test             # flutter test
+make check            # analyze + full tests (the CI gate)
+make gen              # build_runner
+make verify-supabase  # anon key is live
+make verify-bundle    # bundled DB matches Supabase storage (pre-release)
+make help             # every target
 ```
 
-## What NOT to do
+- Without the Makefile `DART_DEFINES` (Supabase, Sentry, Google client IDs), a build is broken.
+- A fresh worktree runs no tests until you copy `assets/db/interaction_db.sqlite` and run `make gen`
+  (both are gitignored).
+- CI is often red on the dart-format step alone: pre-existing debt, not a broken build.
 
-- Don't refactor unrelated code
-- Don't add packages without explicit need
-- Don't bulk-edit JSON data files
-- Don't create documentation files unless asked
-- Don't guess at health/safety behavior — ask if unsure
-- Don't mark tasks complete without test evidence
+## Safety rules (non-negotiable)
 
-## Project Files
+- Never store profile data, medications, allergens, conditions, goals or FitScore in Supabase.
+  Signed-in supplement-stack sync goes only through the audited stack-sync path; medication rows
+  never sync.
+- FitScore is never persisted; it is recomputed from the current profile every time.
+- Never display "safe" when `mapped_coverage < 0.3`.
+- Severity order is sacred: contraindicated > avoid > caution > monitor > safe.
+- Always show `evidence_level` on interaction warnings.
+- All JSON parsing handles null or missing fields safely.
+- Never add a free-text-to-Sentry box: `captureFeedback` messages are not key-scrubbed. Send
+  structured category + impact only; prose goes to mailto.
+- **Copy voice:**
+  - App-authored strings are calm-advisory. No "Stop" / "Avoid" / "Do not" / all-caps; use
+    "Worth a conversation with your doctor" / "PharmaGuide does not recommend".
+  - Pipeline- and clinician-authored text (Dr Pham's, banned-ingredient warnings) passes through
+    verbatim, and app copy never mirrors its imperatives.
 
-- `CLAUDE.md` — **canonical** project safety rules, architecture, and Definition of Done
-- `SPRINT_TRACKER.md` — sprint board (large; read on demand, not per task)
-- `lib/` — App source code
-- `test/` — Test files
-- `assets/` — Static assets
+## One brain — the pipeline decides, the app renders
+
+- Never add app-side logic that overrides a pipeline verdict (`skip_ul_check`, `over_ul`,
+  `ul_gate_eligible`). If a bad value came from the pipeline, fix it in the pipeline. An app-side
+  correction is a defect even when the screen looks right.
+- Dose safety has central owners: `doseSuppressionGuardsPass`, `Severity.isHard` / `isActionable`
+  (`lib/core/constants/severity.dart`), `dose_units`, `canonicalizeIngredientName`. Reuse them;
+  never re-derive.
+- **Owner Check** before creating any field, provider, state, util or file:
+  - `rg` the name and its stem in `lib/`, and in the pipeline repo for data fields. Extend what
+    exists.
+  - Record it in the plan or handoff as `Owner: path::symbol — evidence: <command>` or
+    `No owner: searched …`, followed by `Will NOT create: …`.
+- Don't weaken the identity guard to make a test pass. Unresolved-identity rows never drive scoring
+  or evidence. Identity matching keys on the unique `source_path`, never on raw label text.
+
+## Cross-repo contract (pipeline → app)
+
+| Seam | Pipeline owner | App reader |
+|---|---|---|
+| Public quality score | `scripts/score_supplements_v4.py::score_product_v4` → `scripts/scoring_v4/scored_artifact.py` (config `scripts/scoring_v4/config/quality_score.json`) | `quality_score_v4_100` column in `products_core_table.dart`; the app never recomputes it |
+| Core DB columns | `scripts/core_export_model.py` | `lib/data/database/tables/products_core_table.dart`, `lib/data/database/products_core_projection.dart` |
+| Detail-blob keys | `scripts/audit_contract_sync.py::BLOB_TOP_LEVEL` | `lib/data/supabase/detail_blob_service.dart`, `lib/data/providers/detail_blob_provider.dart` |
+| Enums / structures | pipeline code | `knowledge/pipeline-reference.md` (check it against the pipeline code) |
+
+- **Consuming a new field:** it must already be declared on the pipeline side. Parse it null-safely.
+- **Removing a reader:** check whether the pipeline still emits the field or has retired it, and
+  change both repos together.
+- Blob flags are real JSON booleans; SQLite core flags are 0/1.
+- A stale bundled catalog is not a current pipeline defect. Reproduce a data bug through the
+  current pipeline output before fixing it.
+
+## Truth order and autonomy
+
+1. Current code, the bundled DB and the live blob.
+2. Pipeline contracts and `knowledge/architecture-decisions.md`.
+3. Tests.
+4. Docs, memory and chat, as evidence only.
+
+Parallel sessions and automated `chore(catalog)` commits move HEAD mid-conversation, so `git fetch`
+and re-read before any claim.
+
+- **Decide from these rules and act; don't queue decisions.** Inspect, probe and check history.
+  Ask Sean only for a semantic decision: health or safety behavior, a new persisted or synced field,
+  a new verdict meaning, copy policy, or a release.
+- **Bugs you find:** fix them with a failing test first, in their own commit, then return to the
+  task. Don't turn a fix into a redesign. On an infrastructure branch, record app defects with
+  evidence and spawn a separate fix instead.
+- **Outside-voice claims** (Codex, other models, reviews) are hypotheses. Reproduce them before
+  agreeing or refuting.
+
+## Diagnosis protocol ("why does the app show X?")
+
+A value crosses six layers: pipeline artifact → Supabase (blob / OTA) → bundled
+`pharmaguide_core.db` → Drift query → Riverpod provider → widget. `user_data.db` is a separate
+read-write lane.
+
+1. Name the layer and the file or provider before making any claim.
+2. Run one live probe on one real product first: `sqlite3 assets/db/pharmaguide_core.db` for the
+   row, or a widget test for the render. Print the driver field; the first flag is rarely the
+   driver.
+3. If you were wrong once, re-read the production file. Never patch the probe.
+
+## Changes and dead code
+
+- Make the smallest safe change in the fewest files; if it fans out widely, say why. No drive-by
+  refactors, no new packages or docs without need, no bulk edits of JSON data.
+- **Delete dead code and fields once proven dead; don't park them.** Zero references alone isn't
+  proof. Also check generated code, providers wired by name, routes, platform code, assets, and
+  the pipeline contract. Remove the code, its tests and its docs together.
+
+## Definition of done
+
+1. Re-read the final diff.
+2. Adversarial pass: null blob, offline, empty stack, unknown verdict, `mapped_coverage < 0.3`,
+   signed out.
+3. Climb the ladder and paste the output: `flutter analyze` → focused `flutter test test/<area>` →
+   broad affected sweep → `make check` → `make verify-bundle` before a release. Focused-green alone
+   is not proof.
+4. Rendering, theme and layout changes need a device or simulator screenshot; green widget tests
+   have shipped invisible text.
+5. "Done" without command output is not done.
+
+## Knowledge placement
+
+| Knowledge | Lives in |
+|---|---|
+| Current task state | `.claude/state/CURRENT_HANDOFF.md` |
+| Decisions | `knowledge/architecture-decisions.md` |
+| Lessons | a regression test first, then `knowledge/lessons-learned.md` |
+| Personal preferences | agent memory |
+| History | git |
+
+`SPRINT_TRACKER.md` is large: open it only when the task is a tracked sprint item.

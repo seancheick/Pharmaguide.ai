@@ -81,3 +81,6 @@ coverage/
 
 # Hydrated at build time from a GitHub Release (see tool/fetch_interaction_db.sh) — not in git.
 assets/db/interaction_db.sqlite
+
+# Claude Code worktree handoff state (settings.local.json is covered by the global git ignore)
+.claude/state/
