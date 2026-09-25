@@ -45,12 +45,11 @@ PGActiveIngredient activeFromMap(
 
 /// Convert a raw inactive-ingredient map into a typed [PGInactiveIngredient].
 ///
-/// Defensive against missing fields — falls back through label_display →
-/// name → raw_source_text → display_label, returns empty roleHelper when no
-/// roles ship.
+/// Defensive against missing fields — falls back through name →
+/// raw_source_text → display_label, returns empty roleHelper when no roles
+/// ship.
 PGInactiveIngredient inactiveFromMap(Map<String, dynamic> ingredient) {
   final name = _firstNonEmpty([
-    ingredient['label_display'],
     ingredient['name'],
     ingredient['raw_source_text'],
     ingredient['display_label'],
