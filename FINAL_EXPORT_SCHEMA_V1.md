@@ -526,8 +526,6 @@ Source: `scored.unmapped_actives` / `scored.unmapped_actives_total` / `scored.un
   "category": "vitamins",
   "bio_score": 14,
   "natural": false,
-  "score": 14,
-  "_score_note": "v3.6.0+: `score` is a deprecated alias of `bio_score` (no natural-source bonus). Pre-v3.6.0 blobs had `score = bio_score + 3*natural` (range 0-18). New consumers should read `bio_score` directly (range 0-15, pure form quality). Sourcing signal lives in section_breakdown.ingredient_quality.sub.A5e.",
   "notes": "The most common preformed Vitamin A in supplements...",
   "normalized_amount": null,
   "normalized_unit": null,
