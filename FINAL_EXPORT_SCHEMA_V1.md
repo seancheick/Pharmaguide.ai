@@ -525,7 +525,6 @@ Source: `scored.unmapped_actives` / `scored.unmapped_actives_total` / `scored.un
   "form_match_status": "mapped",
   "category": "vitamins",
   "bio_score": 14,
-  "natural": false,
   "notes": "The most common preformed Vitamin A in supplements...",
   "normalized_amount": null,
   "normalized_unit": null,
