@@ -46,8 +46,14 @@ import 'package:flutter_test/flutter_test.dart';
 // Repinned 2026-08-23 after the export boundary became fail-closed: only
 // records with verified citation review now publish, while the artifact
 // metadata accounts for every withheld needs-revision or rejected record.
+// Repinned 2026-09-26 to complete a vocabulary-only repin. dsld_clean e560a5ea
+// (2026-09-19) moved depleted_nutrient.canonical_id to the IQM vocabulary and
+// repinned its half; catalog bundle 6322b91 shipped that artifact, leaving this
+// pin as the stale half. In the published artifact the only change is 10
+// records' canonical_id coenzyme_q10 -> coq10; no wording, disposition or
+// source changed (diff of the bundled asset, 50b2442 vs 6322b91).
 const _pinnedContentHash =
-    'sha256:f85e11b5937602ae4ef0b9aad5c1eb812401050418749437aa6927763ecb8a14';
+    'sha256:52417b894d54297d352e599c4f1e7d2ea456be0eaa723017f7e4d00fa0ac4b67';
 
 void main() {
   test('bundled artifact matches the pinned pipeline content_hash', () {
