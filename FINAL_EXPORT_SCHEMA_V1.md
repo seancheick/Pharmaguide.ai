@@ -525,22 +525,16 @@ Source: `scored.unmapped_actives` / `scored.unmapped_actives_total` / `scored.un
   "form_match_status": "mapped",
   "category": "vitamins",
   "bio_score": 14,
-  "natural": false,
-  "score": 14,
-  "_score_note": "v3.6.0+: `score` is a deprecated alias of `bio_score` (no natural-source bonus). Pre-v3.6.0 blobs had `score = bio_score + 3*natural` (range 0-18). New consumers should read `bio_score` directly (range 0-15, pure form quality). Sourcing signal lives in section_breakdown.ingredient_quality.sub.A5e.",
   "notes": "The most common preformed Vitamin A in supplements...",
   "normalized_amount": null,
   "normalized_unit": null,
   "role": "active",
   "parent_key": "vitamin_a",
-  "dosage": 2000.0,
-  "dosage_unit": "IU",
   "is_mapped": true,
   "is_harmful": false,
   "harmful_severity": null,
   "is_safety_concern": false,
   "is_banned": false,
-  "is_allergen": false,
   "identifiers": {"cui": "C0042839", "unii": "81G40H8B0T"},
   "display_label": "Vitamin A (Palmitate)",
   "display_dose_label": "2000 IU",
@@ -589,8 +583,6 @@ per concern.
   "match_method": "alias",
   "matched_alias": "silicon dioxide",
   "notes": "Amorphous silicon dioxide used as anti-caking agent...",
-  "mechanism_of_harm": "FDA GRAS at <2% w/w...",
-  "common_uses": ["flow agent", "anti-caking", "tablet glidant"],
   "population_warnings": ["No specific population concerns at <2% w/w"],
   "is_harmful": true,
   "harmful_severity": "low",
@@ -797,7 +789,7 @@ delete commit per field, with a regression test pin).
 
 **Empty-string defaults:** several inactive fields (`category`,
 `additive_type`, `severity_level`, `match_method`, `matched_alias`,
-`notes`, `mechanism_of_harm`) currently emit `""` when unpopulated.
+`notes`) currently emit `""` when unpopulated.
 Convert to `null` once Flutter handles both — eliminates the empty-vs-null
 ambiguity.
 
@@ -805,8 +797,8 @@ ambiguity.
 
 - Active ingredient `notes` come from IQM form notes. These are polished educational text.
 - Inactive ingredient `notes` now come from `other_ingredients.json` reference data.
-  `additive_type` and `common_uses` are reliable. If the ingredient matched
-  `harmful_additives.json`, safety-specific `notes` and `mechanism_of_harm` take priority.
+  `additive_type` is reliable. If the ingredient matched `harmful_additives.json`,
+  safety-specific `notes` take priority.
 - `evidence_data` is included when enrichment produced clinical match output for the product.
 - `rda_ul_data` is included when enrichment emitted an RDA/UL analysis block. It may still
   contain `collection_enabled: false` with a reason. When absent entirely, the app treats it

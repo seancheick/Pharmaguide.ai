@@ -46,7 +46,6 @@ double? readDoseAmount(Map<String, dynamic> row) {
     'quantity',
     'amount',
     'dose_amount',
-    'dosage',
   ];
   for (final field in fields) {
     final parsed = asFiniteDouble(row[field]);
@@ -85,7 +84,6 @@ String readDoseUnit(Map<String, dynamic> row) {
     'normalizedUnit',
     'unit',
     'dose_unit',
-    'dosage_unit',
   ];
   for (final field in fields) {
     final raw = row[field];
