@@ -961,12 +961,13 @@ LabelMismatchProductMetadata _resumeLabelMismatchMetadata(
 void _surfaceAuthError(PGAuthResult result) {
   if (result is PGAuthError) {
     // Use the root scaffold messenger (set in main.dart) so the
-    // toast isn't tied to a transient screen scope.
+    // toast isn't tied to a transient screen scope. Six seconds: the
+    // toast has no close button, and some messages say what to check.
     PGToast.showWith(
       scaffoldMessengerKey.currentState,
       result.message,
       variant: PGToastVariant.error,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(seconds: 6),
     );
   }
   // Success / Handoff / Cancel — no toast. Auth listener handles

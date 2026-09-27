@@ -421,9 +421,15 @@ class PGAuthService {
         return 'Apple sign-in is not set up on this device.';
       case AuthorizationErrorCode.notInteractive:
         return 'Apple sign-in requires user interaction.';
+      case AuthorizationErrorCode.unknown:
+        // ASAuthorizationError 1000 comes from the device (usually its Apple
+        // Account), so "Try again" only repeats it: Sentry PHARMAGUIDE-17
+        // logged 35 attempts from 3 people. Say what to check instead.
+        return 'Apple sign-in isn’t available on this device right now. '
+            'Check your Apple Account in Settings, or continue with Google '
+            'or email.';
       case AuthorizationErrorCode.failed:
       case AuthorizationErrorCode.invalidResponse:
-      case AuthorizationErrorCode.unknown:
       default:
         // New native authorization failures are not successful sign-ins or
         // cancellations. Never expose the provider's raw error text.
