@@ -2013,7 +2013,9 @@ class _MissingProductSubmissionSheetState
               ? null
               : () => _addPhoto(
                   _stepCategories(_step),
-                  fromLibrary: true,
+                  // The link offers the OTHER source: "Use camera instead"
+                  // in library mode, the library otherwise.
+                  fromLibrary: !_captureFromLibrary,
                   autoAdvance: _step != _CaptureStep.facts,
                 ),
           child: Text(

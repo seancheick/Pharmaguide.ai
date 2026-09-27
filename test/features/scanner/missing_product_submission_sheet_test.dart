@@ -172,6 +172,36 @@ void main() {
     expect(find.text('Camera access is off'), findsNothing);
   });
 
+  testWidgets('in library mode, "Use camera instead" opens the camera', (
+    tester,
+  ) async {
+    var cameraPicks = 0;
+    var libraryPicks = 0;
+    await tester.pumpWidget(
+      _harness(
+        backend: _Backend(authenticatedUserId: _userId),
+        pickPhoto: (tags) async {
+          cameraPicks++;
+          return _photo(tags);
+        },
+        pickPhotoFromLibrary: (tags) async {
+          libraryPicks++;
+          return _photo(tags);
+        },
+      ),
+    );
+    await tester.tap(find.byKey(const Key('missing-product-start-library')));
+    await tester.pumpAndSettle();
+    expect(find.text('Use camera instead'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-library-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    expect(cameraPicks, 1);
+    expect(libraryPicks, 0);
+  });
+
   testWidgets('existing receipt opens contributions and closes capture', (
     tester,
   ) async {
