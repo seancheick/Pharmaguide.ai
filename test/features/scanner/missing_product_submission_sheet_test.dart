@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
@@ -130,6 +130,47 @@ Future<void> _captureRequiredEvidence(WidgetTester tester) async {
 
 void main() {
   setUp(() => _photoCounter = 0);
+
+  testWidgets('denied camera access says how to fix it, and the library works', (
+    tester,
+  ) async {
+    var libraryPicks = 0;
+    await tester.pumpWidget(
+      _harness(
+        backend: _Backend(authenticatedUserId: _userId),
+        // What image_picker throws on iOS and Android when the camera
+        // permission is off. Retrying can never succeed.
+        pickPhoto: (_) async => throw PlatformException(
+          code: 'camera_access_denied',
+          message: 'The user did not allow camera access.',
+        ),
+        pickPhotoFromLibrary: (tags) async {
+          libraryPicks++;
+          return _photo(tags);
+        },
+      ),
+    );
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Camera access is off'), findsOneWidget);
+    expect(
+      find.byKey(const Key('missing-product-open-settings')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('couldn’t open that photo'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-library-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    expect(libraryPicks, 1);
+    expect(find.text('Camera access is off'), findsNothing);
+  });
 
   testWidgets('existing receipt opens contributions and closes capture', (
     tester,

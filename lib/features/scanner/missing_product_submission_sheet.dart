@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
@@ -113,6 +115,18 @@ enum _CaptureStep { intro, front, facts, ingredients, barcode, extras, review }
 /// The answers to a question about what a photo shows.
 enum _HintChoice { keep, retake, move }
 
+/// A photo source the OS will not open for us until the user changes a
+/// setting. Retrying cannot help, so capture says how to fix it instead.
+enum _BlockedSource { camera, photos }
+
+/// image_picker's error codes for a permission the user turned off (or that
+/// is restricted on this device), on both iOS and Android.
+_BlockedSource? _blockedSourceFor(String code) => switch (code) {
+  'camera_access_denied' || 'camera_access_restricted' => _BlockedSource.camera,
+  'photo_access_denied' || 'photo_access_restricted' => _BlockedSource.photos,
+  _ => null,
+};
+
 /// Private, structured evidence intake for a barcode the catalog cannot
 /// match. There is deliberately no narrative field: the photos, barcode, and
 /// one closed "no separate ingredient panel" assertion are the entire user
@@ -185,6 +199,7 @@ class _MissingProductSubmissionSheetState
   bool _captureFromLibrary = false;
   String? _chosenResubmissionOf;
   String? _stepError;
+  _BlockedSource? _blockedSource;
 
   /// A neutral note about what the last photo covered ("the barcode is in
   /// this one"). Survives an automatic advance so the user sees it.
@@ -368,6 +383,7 @@ class _MissingProductSubmissionSheetState
       _stepError = null;
       _stepNotice = null;
       _failure = null;
+      _blockedSource = null;
     });
     try {
       final photo = await pick(categories);
@@ -439,11 +455,34 @@ class _MissingProductSubmissionSheetState
             'That photo could not be prepared. Choose a clear JPG, PNG, '
             'HEIC, or WebP image under 15 MB.',
       );
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      final blocked = _blockedSourceFor(error.code);
+      setState(() {
+        if (blocked != null) {
+          _blockedSource = blocked;
+        } else if (error.code == 'no_available_camera') {
+          _stepError =
+              'No camera is available here. Choose a photo from your '
+              'library instead.';
+        } else {
+          _stepError = 'We couldn’t open that photo. Try again.';
+        }
+      });
     } on Object {
       if (!mounted) return;
       setState(() => _stepError = 'We couldn’t open that photo. Try again.');
     } finally {
       if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  Future<void> _openSystemSettings() async {
+    try {
+      await AppSettings.openAppSettings();
+    } on Object {
+      // No settings page to open (tests, unsupported platform): the card's
+      // words still say where the switch is.
     }
   }
 
@@ -574,6 +613,7 @@ class _MissingProductSubmissionSheetState
       _adding = true;
       _stepError = null;
       _stepNotice = null;
+      _blockedSource = null;
     });
     try {
       final picked = await widget.pickPhotosFromLibrary!(room);
@@ -643,6 +683,18 @@ class _MissingProductSubmissionSheetState
       });
       await _persistCapture();
       return true;
+    } on PlatformException catch (error) {
+      if (mounted) {
+        final blocked = _blockedSourceFor(error.code);
+        setState(() {
+          if (blocked != null) {
+            _blockedSource = blocked;
+          } else {
+            _stepError = 'We couldn’t open those photos. Try again.';
+          }
+        });
+      }
+      return false;
     } on Object {
       if (mounted) {
         setState(
@@ -1576,6 +1628,13 @@ class _MissingProductSubmissionSheetState
               ),
             ),
           ],
+          if (_blockedSource case final blocked?) ...[
+            const SizedBox(height: V2Spacing.space8),
+            _BlockedSourceCard(
+              source: blocked,
+              onOpenSettings: () => unawaited(_openSystemSettings()),
+            ),
+          ],
           const SizedBox(height: V2Spacing.space16),
           Row(
             children: [
@@ -2304,6 +2363,74 @@ class _OptionalCategoryTile extends StatelessWidget {
                 enabled: enabled,
                 onRemove: onRemove,
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown in place of a dead-end "try again" when the OS will not open the
+/// camera or the photo library for us.
+class _BlockedSourceCard extends StatelessWidget {
+  const _BlockedSourceCard({
+    required this.source,
+    required this.onOpenSettings,
+  });
+
+  final _BlockedSource source;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final camera = source == _BlockedSource.camera;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        key: Key('missing-product-blocked-${source.name}'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(V2Spacing.space16),
+        decoration: BoxDecoration(
+          color: context.v2.cautionTint,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  camera
+                      ? Icons.no_photography_outlined
+                      : Icons.hide_image_outlined,
+                  size: 20,
+                  color: context.v2.caution,
+                ),
+                const SizedBox(width: V2Spacing.space8),
+                Expanded(
+                  child: Text(
+                    camera ? 'Camera access is off' : 'Photo access is off',
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space4),
+            Text(
+              camera
+                  ? 'Turn on camera access for PharmaGuide in Settings, or '
+                        'choose photos you already have.'
+                  : 'Turn on photo access for PharmaGuide in Settings, or '
+                        'take new photos with the camera.',
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space12),
+            OutlinedButton.icon(
+              key: const Key('missing-product-open-settings'),
+              onPressed: onOpenSettings,
+              icon: const Icon(Icons.settings_outlined, size: 18),
+              label: const Text('Open Settings'),
+            ),
           ],
         ),
       ),
