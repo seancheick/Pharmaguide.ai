@@ -149,9 +149,7 @@ class _ScannerNotFoundSheet extends StatelessWidget {
               Center(
                 child: TextButton(
                   key: const Key('scanner-not-found-add-medication'),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 44),
-                  ),
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
                   onPressed: () => Navigator.of(
                     context,
                   ).pop(ScannerNotFoundAction.addMedication),
