@@ -179,6 +179,16 @@ dart run build_runner build --delete-conflicting-outputs
 
 ---
 
+### Symptom: `make run` on a simulator fails with "doesn't support any of Runner.app's architectures" (Xcode 27, Apple silicon)
+
+**Root Cause:** The Google ML Kit pods (label-text hints for submissions) ship no arm64-simulator slice and set `EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64`, so simulator builds are x86_64 only. Xcode 27 no longer offers the Intel (Rosetta) simulators those builds used to run on. Separately, a universal `flutter build ios --simulator` (Flutter 3.44.6) fails at `lipo -verify_arch` under Xcode 27.
+
+**Fix:** Test on a physical iPhone. For a simulator walk-through only, use a throwaway worktree with `google_mlkit_text_recognition` removed from `pubspec.yaml` and `readLatinTextFromFile` stubbed to return no text; the capture sheet treats a missing reader as "no hints". Never commit that copy.
+
+**Prevention:** Recheck when ML Kit ships an arm64-simulator slice, or gate ML Kit out of simulator builds.
+
+---
+
 ## Template for New Entries
 
 ```
