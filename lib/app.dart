@@ -820,7 +820,7 @@ GoRouter _buildRouter({
 // Wire the v2 AuthInvitation CTAs to the real Supabase plumbing in
 // PGAuthService. Apple/Google resolve with a direct, awaited result, so
 // they navigate the instant that result comes back — see
-// `_navigatePostAuthIfOnAuthPath` below. The magic-link deep-link
+// `navigatePostAuthIfOnAuthPath` below. The magic-link deep-link
 // return has no BuildContext to call back into, so it stays on the
 // `_AuthEventListener`'s `onAuthStateChange` subscription. Both paths
 // funnel into the same guarded navigation helper, so whichever fires
@@ -853,7 +853,7 @@ void _handlePostSignIn(PGAuthResult result) {
   // noticing the same event, and any delay/miss there left the user
   // stranded on the sign-in screen despite a successful sign-in.
   final router = _appRouter;
-  if (router != null) _navigatePostAuthIfOnAuthPath(router);
+  if (router != null) navigatePostAuthIfOnAuthPath(router);
 }
 
 /// Phase 11.7L.B.9 — pick the right landing screen after sign-in.
@@ -870,14 +870,25 @@ Future<String> _postAuthDestination({bool isPreview = false}) async {
   return isPreview ? '/dev/v2/home' : Routes.home;
 }
 
+/// Path of the page the user is looking at. `currentConfiguration.uri`
+/// ignores pushed pages: the sign-in page that in-app gates push over a tab
+/// read as that tab, so a successful sign-in left the user on it.
+String _visiblePath(GoRouter router) {
+  // `state` throws until the router has resolved its first route.
+  if (router.routerDelegate.currentConfiguration.isEmpty) return '';
+  return router.state.uri.path;
+}
+
 /// Shared post-sign-in navigation, called from both the direct
 /// Apple/Google handlers above and `_AuthEventListener._onAuth` below.
 /// Only navigates while the user is still sitting on an auth-adjacent
 /// screen, so calling it twice for the same sign-in (once direct, once
-/// from the stream event) is harmless — the second call finds the
-/// router already moved on and no-ops.
-void _navigatePostAuthIfOnAuthPath(GoRouter router) {
-  final loc = router.routerDelegate.currentConfiguration.uri.path;
+/// from the stream event) is harmless — the second call either finds the
+/// router already moved on, or repeats the same go() and finds the
+/// one-shot pending submission already consumed.
+@visibleForTesting
+void navigatePostAuthIfOnAuthPath(GoRouter router) {
+  final loc = _visiblePath(router);
   final onAuthPath =
       loc.startsWith('/dev/v2/auth') ||
       loc == Routes.splashIntro ||
@@ -1273,9 +1284,8 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
     // session, so it would spin forever. Send the user back to the auth
     // entry point where they can request a fresh link.
     final router = _appRouter;
-    if (router != null) {
-      final loc = router.routerDelegate.currentConfiguration.uri.path;
-      if (loc == '/auth/callback') router.go(Routes.authInvitation);
+    if (router != null && _visiblePath(router) == '/auth/callback') {
+      router.go(Routes.authInvitation);
     }
   }
 
@@ -1346,7 +1356,7 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
       case AuthChangeEvent.tokenRefreshed
           when data.session?.user.lastSignInAt != null:
         final router = _appRouter;
-        if (router != null) _navigatePostAuthIfOnAuthPath(router);
+        if (router != null) navigatePostAuthIfOnAuthPath(router);
       default:
         break;
     }
