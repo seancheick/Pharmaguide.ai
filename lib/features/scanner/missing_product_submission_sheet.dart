@@ -1412,11 +1412,20 @@ class _MissingProductSubmissionSheetState
       }
       return true;
     } on Object catch (error, stackTrace) {
-      CrashReportingService().recordError(
-        error,
-        stackTrace,
-        hint: 'submission:intake_check',
-      );
+      // Offline or a stalled connection is expected, and the user is offered
+      // Try again / Continue below (Sentry PHARMAGUIDE-25 was the 10 s
+      // timeout on offline phones). Anything else is a defect worth a report.
+      if (CrashReportingService.isTransientNetworkError(error)) {
+        CrashReportingService().log(
+          'submission intake check unavailable: network',
+        );
+      } else {
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          hint: 'submission:intake_check',
+        );
+      }
       if (mounted) {
         setState(() {
           _intakeCheckFailed = true;

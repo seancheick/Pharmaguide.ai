@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/photo_panel_hints.dart';
 import 'package:pharmaguide/services/photo_quality_gate.dart';
@@ -577,6 +578,52 @@ void main() {
     pending.complete({'action': 'start_new'});
     await tester.pumpAndSettle();
     expect(find.text('Front of the package'), findsNothing);
+  });
+
+  testWidgets('an intake timeout is a breadcrumb, not a reported error', (
+    tester,
+  ) async {
+    // Sentry PHARMAGUIDE-25: two offline users hit the 10 s timeout on Start.
+    // The sheet already offers Try again / Continue; nothing is broken.
+    await CrashReportingService().initialize();
+    CrashReportingService().clearBuffersForTest();
+    final pending = Completer<Map<String, Object?>>();
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..pendingIntake = pending;
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pump(const Duration(seconds: 11));
+    await tester.pump();
+
+    expect(
+      CrashReportingService().recordedErrors.where(
+        (e) => e.hint == 'submission:intake_check',
+      ),
+      isEmpty,
+    );
+    expect(
+      CrashReportingService().breadcrumbs.map((b) => b.message),
+      contains(contains('intake check')),
+    );
+    pending.complete({'action': 'start_new'});
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('an unexpected intake failure is still reported', (tester) async {
+    await CrashReportingService().initialize();
+    CrashReportingService().clearBuffersForTest();
+    final backend = _Backend(authenticatedUserId: _userId)
+      ..intakeError = const FormatException('Invalid intake response');
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+
+    expect(
+      CrashReportingService().recordedErrors.where(
+        (e) => e.hint == 'submission:intake_check',
+      ),
+      hasLength(1),
+    );
   });
 
   testWidgets('one intake check runs while Start is tapped repeatedly', (
