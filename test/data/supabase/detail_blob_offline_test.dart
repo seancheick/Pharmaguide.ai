@@ -11,6 +11,7 @@
 // wasted retries go away. Hash-verification failures — a tampered/stale-object
 // signal — must keep reporting as errors.
 
+import 'dart:async';
 import 'dart:io' show SocketException;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show StorageException;
 
 void main() {
   group('DetailBlobUnavailableException.isOffline', () {
@@ -139,6 +141,54 @@ void main() {
       CrashReportingService().breadcrumbs.map((entry) => entry.message),
       contains(contains('while offline')),
     );
+  });
+
+  group('the report says why a blob was unavailable', () {
+    // Sentry PHARMAGUIDE-22: eleven "fetch or decoding failed" events with
+    // the cause dropped, so nobody could tell a storage 404 from a timeout
+    // or a bad payload.
+    test('a storage error carries its status', () {
+      const e = DetailBlobUnavailableException(
+        'fetch or decoding failed',
+        StorageException('Object not found', statusCode: '404'),
+      );
+      expect(
+        e.toString(),
+        'DetailBlobUnavailableException: fetch or decoding failed '
+        '(storage HTTP 404)',
+      );
+    });
+
+    test('a timeout, a server status and bad JSON are told apart', () {
+      String label(Object cause) => DetailBlobUnavailableException(
+        'fetch or decoding failed',
+        cause,
+      ).toString();
+      expect(label(TimeoutException('slow')), endsWith('(timeout)'));
+      expect(
+        label(const DetailBlobHttpStatusException(503)),
+        endsWith('(HTTP 503)'),
+      );
+      expect(label(const FormatException('bad')), endsWith('(invalid JSON)'));
+    });
+
+    test('the label never repeats the raw error text', () {
+      const e = DetailBlobUnavailableException(
+        'fetch or decoding failed',
+        StorageException('raw provider text', statusCode: '400'),
+      );
+      expect(e.toString(), isNot(contains('raw provider text')));
+    });
+
+    test('the offline short circuit keeps the text beforeSend matches', () {
+      expect(
+        const DetailBlobUnavailableException(
+          DetailBlobUnavailableException.offlineReason,
+        ).toString(),
+        'DetailBlobUnavailableException: '
+        '${DetailBlobUnavailableException.offlineReason}',
+      );
+    });
   });
 
   group('beforeSend drops the offline detail-blob short circuit', () {

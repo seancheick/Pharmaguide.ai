@@ -10,6 +10,7 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show StorageException;
 
 /// Thrown when a public-CDN fetch is denied with a status that indicates
 /// the bucket prefix is not (yet) publicly readable — the caller should
@@ -66,7 +67,25 @@ class DetailBlobUnavailableException implements Exception {
       reason == offlineReason || detailBlobCauseIsNetworkFailure(cause);
 
   @override
-  String toString() => 'DetailBlobUnavailableException: $reason';
+  String toString() {
+    final why = cause;
+    return why == null
+        ? 'DetailBlobUnavailableException: $reason'
+        : 'DetailBlobUnavailableException: $reason (${_causeLabel(why)})';
+  }
+
+  /// Why the fetch failed, from the cause's type and status only, never its
+  /// text: Sentry PHARMAGUIDE-22 dropped the cause, so eleven reports could
+  /// not tell a storage 404 from a timeout or a bad payload.
+  static String _causeLabel(Object cause) => switch (cause) {
+    TimeoutException() => 'timeout',
+    DetailBlobHttpStatusException(:final statusCode) => 'HTTP $statusCode',
+    StorageException(:final statusCode) =>
+      'storage HTTP ${statusCode ?? 'unknown'}',
+    http.ClientException() => 'connection failed',
+    FormatException() => 'invalid JSON',
+    _ => cause.runtimeType.toString(),
+  };
 }
 
 /// True when [cause] means the request never reached the network.
