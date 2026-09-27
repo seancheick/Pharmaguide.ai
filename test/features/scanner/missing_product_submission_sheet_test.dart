@@ -66,84 +66,175 @@ Widget _harness({
   );
 }
 
+/// The title of the step on screen. Every step's title carries this key, so
+/// "which step are we on?" never matches the same word in the checklist.
+String? _stepTitle(WidgetTester tester) {
+  // The title scrolls with the step's content; it names the step even when
+  // the user has scrolled past it.
+  final title = find.byKey(
+    const Key('missing-product-step-title'),
+    skipOffstage: false,
+  );
+  return title.evaluate().isEmpty ? null : tester.widget<Text>(title).data;
+}
+
+Finder get _sheetScroll => find
+    .descendant(
+      of: find.byKey(const Key('missing-product-scroll')),
+      matching: find.byType(Scrollable),
+    )
+    .first;
+
+/// Review's consent sits at the end of its scrolling content, right above
+/// the pinned Submit button. The drags leave a fling running, so settle and
+/// reveal the whole tile before anything taps it.
+Future<void> _scrollToConsent(WidgetTester tester) async {
+  final consent = find.byKey(const Key('missing-product-consent'));
+  await tester.scrollUntilVisible(consent, 300, scrollable: _sheetScroll);
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(consent);
+  await tester.pumpAndSettle();
+}
+
+/// Taps something in the sheet's scrolling content, scrolling down to it
+/// first when it sits below the test screen's fold.
+Future<void> _tapInSheet(WidgetTester tester, Finder target) async {
+  if (target.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(target, 200, scrollable: _sheetScroll);
+    await tester.pumpAndSettle();
+  }
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
+  await tester.tap(target);
+  await tester.pumpAndSettle();
+}
+
 /// Drives the camera-first flow through the required captures with the
-/// facts shots carrying the ingredient list (answered via the one-tap
-/// question), landing on the review step. Front advances automatically;
-/// Facts stays open so a wrapped panel can receive another angle.
+/// facts shots carrying the ingredient list (answered by the question under
+/// the facts photo), landing on the review step with the consent in view.
+/// Start opens the camera for the front, which advances by itself; Facts
+/// stays open so a wrapped panel can receive another angle.
 Future<void> _captureRequiredEvidence(WidgetTester tester) async {
+  // Start is the front shot: no second "open camera" tap.
   await tester.tap(find.byKey(const Key('missing-product-start')));
   await tester.pumpAndSettle();
+  expect(_stepTitle(tester), 'Supplement Facts');
+  expect(find.text('Front photo saved.'), findsOneWidget);
 
-  // Front: one shot, auto-advances to the facts step.
-  await tester.tap(find.byKey(const Key('missing-product-add-front_identity')));
-  await tester.pumpAndSettle();
-  expect(find.text('Supplement Facts'), findsOneWidget);
-
-  // Facts: the first shot stays put, a second angle appends, and only
-  // Continue opens the combined-panel question.
+  // Facts: the first shot stays put and asks its one question right under
+  // the photo; a second angle appends without answering it.
   await tester.tap(
     find.byKey(const Key('missing-product-add-supplement_facts')),
   );
   await tester.pumpAndSettle();
-  expect(find.text('Supplement Facts'), findsOneWidget);
+  expect(_stepTitle(tester), 'Supplement Facts');
   expect(find.text('Add another angle'), findsOneWidget);
-  expect(find.byKey(const Key('missing-product-facts-combined')), findsNothing);
-
-  await tester.tap(
-    find.byKey(const Key('missing-product-add-supplement_facts')),
-  );
-  await tester.pumpAndSettle();
-  expect(find.text('Supplement Facts'), findsOneWidget);
-  expect(find.byTooltip('Remove photo'), findsNWidgets(2));
-  expect(find.byKey(const Key('missing-product-facts-combined')), findsNothing);
-
-  await tester.tap(find.byKey(const Key('missing-product-next')));
-  await tester.pumpAndSettle();
   expect(
     find.byKey(const Key('missing-product-facts-combined')),
     findsOneWidget,
   );
+  expect(find.byKey(const Key('missing-product-next')), findsNothing);
+
+  await tester.tap(
+    find.byKey(const Key('missing-product-add-supplement_facts')),
+  );
+  await tester.pumpAndSettle();
+  expect(_stepTitle(tester), 'Supplement Facts');
+  expect(find.byTooltip('Remove photo'), findsNWidgets(2));
+
+  // The answer is the continue.
   await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
   await tester.pumpAndSettle();
-  expect(find.text('Barcode'), findsOneWidget);
+  expect(_stepTitle(tester), 'Barcode');
 
-  // The barcode is required identity evidence and advances automatically.
+  // The barcode is required identity evidence and advances automatically —
+  // straight to review; optional panels are offered there.
   await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
   await tester.pumpAndSettle();
-  expect(find.text('Anything else?'), findsOneWidget);
-
-  // Extras are skippable; move straight to review.
-  await tester.tap(find.byKey(const Key('missing-product-next')));
-  await tester.pumpAndSettle();
-  expect(find.text('Review & submit'), findsOneWidget);
-  await tester.scrollUntilVisible(
-    find.byKey(const Key('missing-product-submit')),
-    300,
-    scrollable: find
-        .descendant(
-          of: find.byKey(const Key('missing-product-scroll')),
-          matching: find.byType(Scrollable),
-        )
-        .first,
-  );
+  expect(_stepTitle(tester), 'Review & submit');
+  await _scrollToConsent(tester);
 }
 
 void main() {
   setUp(() => _photoCounter = 0);
 
-  testWidgets('denied camera access says how to fix it, and the library works', (
+  testWidgets(
+    'denied camera access says how to fix it, and the library works',
+    (tester) async {
+      var libraryPicks = 0;
+      await tester.pumpWidget(
+        _harness(
+          backend: _Backend(authenticatedUserId: _userId),
+          // What image_picker throws on iOS and Android when the camera
+          // permission is off. Retrying can never succeed.
+          pickPhoto: (_) async => throw PlatformException(
+            code: 'camera_access_denied',
+            message: 'The user did not allow camera access.',
+          ),
+          pickPhotoFromLibrary: (tags) async {
+            libraryPicks++;
+            return _photo(tags);
+          },
+        ),
+      );
+      // Start opens the camera for the front.
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+
+      expect(_stepTitle(tester), 'Front of the package');
+      expect(find.text('Camera access is off'), findsOneWidget);
+      expect(
+        find.byKey(const Key('missing-product-open-settings')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('couldn’t open that photo'), findsNothing);
+      // The primary button becomes the source that still works; the camera
+      // stays one tap away for after the Settings change.
+      expect(find.text('Choose a photo'), findsOneWidget);
+      expect(find.text('Use camera instead'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const Key('missing-product-add-front_identity')),
+      );
+      await tester.pumpAndSettle();
+      expect(libraryPicks, 1);
+      expect(_stepTitle(tester), 'Supplement Facts');
+      expect(find.text('Camera access is off'), findsNothing);
+    },
+  );
+
+  testWidgets('a blocked library on a library-first start still explains '
+      'itself, and the camera becomes the primary', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        backend: _Backend(authenticatedUserId: _userId),
+        pickPhotosFromLibrary: (_) async =>
+            throw PlatformException(code: 'photo_access_denied'),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('missing-product-start-library')));
+    await tester.pumpAndSettle();
+
+    expect(_stepTitle(tester), 'Front of the package');
+    expect(find.text('Photo access is off'), findsOneWidget);
+    expect(find.text('Take photo'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    expect(_photoCounter, 1);
+    expect(_stepTitle(tester), 'Supplement Facts');
+  });
+
+  testWidgets('a device without a camera carries on from the library', (
     tester,
   ) async {
     var libraryPicks = 0;
     await tester.pumpWidget(
       _harness(
         backend: _Backend(authenticatedUserId: _userId),
-        // What image_picker throws on iOS and Android when the camera
-        // permission is off. Retrying can never succeed.
-        pickPhoto: (_) async => throw PlatformException(
-          code: 'camera_access_denied',
-          message: 'The user did not allow camera access.',
-        ),
+        pickPhoto: (_) async =>
+            throw PlatformException(code: 'no_available_camera'),
         pickPhotoFromLibrary: (tags) async {
           libraryPicks++;
           return _photo(tags);
@@ -152,24 +243,15 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
+
+    expect(find.textContaining('No camera is available'), findsOneWidget);
+    expect(find.text('Choose a photo'), findsOneWidget);
     await tester.tap(
       find.byKey(const Key('missing-product-add-front_identity')),
     );
     await tester.pumpAndSettle();
-
-    expect(find.text('Camera access is off'), findsOneWidget);
-    expect(
-      find.byKey(const Key('missing-product-open-settings')),
-      findsOneWidget,
-    );
-    expect(find.textContaining('couldn’t open that photo'), findsNothing);
-
-    await tester.tap(
-      find.byKey(const Key('missing-product-library-front_identity')),
-    );
-    await tester.pumpAndSettle();
     expect(libraryPicks, 1);
-    expect(find.text('Camera access is off'), findsNothing);
+    expect(_stepTitle(tester), 'Supplement Facts');
   });
 
   testWidgets('in library mode, "Use camera instead" opens the camera', (
@@ -267,12 +349,15 @@ void main() {
       expect(backend.persistedSubmissionIds, isEmpty);
       await tester.tap(find.text('Not now'));
       await tester.pumpAndSettle();
-      expect(find.text('Front of the package'), findsNothing);
+      expect(_stepTitle(tester), 'Add this product');
+      expect(_photoCounter, 0);
       await tester.tap(find.byKey(const Key('missing-product-start')));
       await tester.pumpAndSettle();
+      // "Take new photos" continues into the camera for a fresh front shot.
       await tester.tap(find.text('Take new photos'));
       await tester.pumpAndSettle();
-      expect(find.text('Front of the package'), findsOneWidget);
+      expect(_photoCounter, 1);
+      expect(_stepTitle(tester), 'Supplement Facts');
       expect(backend.persistedSubmissionIds, isEmpty);
       expect(backend.persistedLineage, isNull);
     },
@@ -362,35 +447,20 @@ void main() {
 
     expect(find.text('Try this product again'), findsOneWidget);
     expect(_photoCounter, 0);
+    // Choosing retry continues straight into the front shot.
     await tester.tap(find.text('Try again with new photos'));
     await tester.pumpAndSettle();
-    // Capture a fresh, complete photo set after explicitly choosing retry.
-    await tester.tap(
-      find.byKey(const Key('missing-product-add-front_identity')),
-    );
-    await tester.pumpAndSettle();
+    expect(_photoCounter, 1);
+    // Capture the rest of a fresh, complete photo set.
     await tester.tap(
       find.byKey(const Key('missing-product-add-supplement_facts')),
     );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('missing-product-submit')),
-      300,
-      scrollable: find
-          .descendant(
-            of: find.byKey(const Key('missing-product-scroll')),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
+    await _scrollToConsent(tester);
     await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -456,8 +526,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Front of the package'), findsOneWidget);
-    expect(_photoCounter, 0);
+    // Continuing does what Start promised: the front shot. Nothing is sent
+    // until the user submits.
+    expect(_photoCounter, 1);
+    expect(_stepTitle(tester), 'Supplement Facts');
+    expect(backend.persistedSubmissionIds, isEmpty);
   });
 
   testWidgets('intake timeout leaves capture closed and offers retry', (
@@ -491,10 +564,13 @@ void main() {
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pump();
     expect(backend.intakeCalls, 1);
-    expect(find.text('Front of the package'), findsNothing);
+    expect(_stepTitle(tester), 'Add this product');
     pending.complete({'action': 'start_new'});
     await tester.pumpAndSettle();
-    expect(find.text('Front of the package'), findsOneWidget);
+    // One check, one camera: the double tap never opens a second picker.
+    expect(backend.intakeCalls, 1);
+    expect(_photoCounter, 1);
+    expect(_stepTitle(tester), 'Supplement Facts');
   });
 
   testWidgets('invalid GTIN never opens the capture flow', (tester) async {
@@ -526,56 +602,56 @@ void main() {
     expect(backend.persistedSubmissionIds, isEmpty);
   });
 
-  testWidgets('front advances automatically while facts waits for Continue', (
+  testWidgets('start is the front shot; facts asks its one question in place', (
     tester,
   ) async {
     final backend = _Backend(authenticatedUserId: _userId);
     await tester.pumpWidget(_harness(backend: backend));
 
-    // Intro explains the job and owns the only Start affordance.
-    expect(find.text('Add this product'), findsOneWidget);
+    // Intro explains the job and owns the only Start affordance. It scopes
+    // the miss to this device and promises review, not publication.
+    expect(_stepTitle(tester), 'Add this product');
     expect(
       find.text(
-        'Not found in this device’s catalog. Submit clear photos for '
-        'review; we’ll check whether it already exists or needs an updated label.',
+        'Take a few clear label photos and we’ll check whether it already '
+        'exists or needs an updated label.',
       ),
       findsOneWidget,
     );
     expect(find.textContaining('add this product for everyone'), findsNothing);
+    expect(find.text('Start with the front'), findsOneWidget);
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
 
-    // No photo yet: there is nothing to continue with — the forward
-    // button does not exist until the step is satisfied.
-    expect(find.text('Front of the package'), findsOneWidget);
+    // The start button took the front photo and moved on, saying so.
+    expect(_photoCounter, 1);
+    expect(_stepTitle(tester), 'Supplement Facts');
+    expect(find.text('Front photo saved.'), findsOneWidget);
+    // No photo yet: there is nothing to continue with.
     expect(find.byKey(const Key('missing-product-next')), findsNothing);
-
-    await tester.tap(
-      find.byKey(const Key('missing-product-add-front_identity')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Supplement Facts'), findsOneWidget);
-    await tester.tap(
-      find.byKey(const Key('missing-product-add-supplement_facts')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Supplement Facts'), findsOneWidget);
     expect(
       find.byKey(const Key('missing-product-facts-combined')),
       findsNothing,
     );
-    await tester.tap(find.byKey(const Key('missing-product-next')));
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-supplement_facts')),
+    );
     await tester.pumpAndSettle();
+    // Facts stays open (another angle may follow) and asks right here.
+    expect(_stepTitle(tester), 'Supplement Facts');
+    expect(
+      find.text('Is the “Other Ingredients” list on this panel too?'),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
     await tester.pumpAndSettle();
-    expect(find.text('Barcode'), findsOneWidget);
+    expect(_stepTitle(tester), 'Barcode');
     expect(find.byKey(const Key('missing-product-next')), findsNothing);
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
-    expect(find.text('Anything else?'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pumpAndSettle();
-    expect(find.text('Review & submit'), findsOneWidget);
+    expect(_stepTitle(tester), 'Review & submit');
+    await _scrollToConsent(tester);
 
     expect(find.byKey(const Key('missing-product-consent')), findsOneWidget);
     expect(
@@ -623,6 +699,7 @@ void main() {
           .onPressed,
       isNull,
     );
+    await _scrollToConsent(tester);
     await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -660,21 +737,17 @@ void main() {
       await tester.tap(find.byKey(const Key('missing-product-start')));
       await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(const Key('missing-product-add-front_identity')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(
         find.byKey(const Key('missing-product-add-supplement_facts')),
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('missing-product-next')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
       await tester.pumpAndSettle();
 
-      expect(
+      // Below the example on a short screen: reachable by scrolling.
+      await tester.scrollUntilVisible(
         find.byKey(const Key('missing-product-reuse-barcode')),
-        findsOneWidget,
+        200,
+        scrollable: _sheetScroll,
       );
       await tester.tap(find.byKey(const Key('missing-product-reuse-barcode')));
       await tester.pumpAndSettle();
@@ -695,21 +768,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Anything else?'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('missing-product-next')));
-      await tester.pumpAndSettle();
-      expect(find.text('Review & submit'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('missing-product-submit')),
-        300,
-        scrollable: find
-            .descendant(
-              of: find.byKey(const Key('missing-product-scroll')),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
+      expect(_stepTitle(tester), 'Review & submit');
+      await _scrollToConsent(tester);
       expect(find.byKey(const Key('missing-product-submit')), findsOneWidget);
+      await _scrollToConsent(tester);
       await tester.tap(find.byKey(const Key('missing-product-consent')));
       await tester.pump();
       expect(find.byKey(const Key('missing-product-submit')), findsOneWidget);
@@ -735,31 +797,24 @@ void main() {
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const Key('missing-product-add-front_identity')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
       find.byKey(const Key('missing-product-add-supplement_facts')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Supplement Facts'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pumpAndSettle();
+    expect(_stepTitle(tester), 'Supplement Facts');
     await tester.tap(find.byKey(const Key('missing-product-facts-separate')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Other Ingredients'), findsOneWidget);
+    expect(_stepTitle(tester), 'Other Ingredients');
     await tester.tap(
       find.byKey(const Key('missing-product-add-ingredient_disclosure')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Barcode'), findsOneWidget);
+    expect(_stepTitle(tester), 'Barcode');
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
-    expect(find.text('Anything else?'), findsOneWidget);
+    expect(_stepTitle(tester), 'Review & submit');
 
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pumpAndSettle();
+    await _scrollToConsent(tester);
     await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -772,6 +827,44 @@ void main() {
     expect(backend.manifest[3]['categories'], ['barcode']);
   });
 
+  testWidgets('an ingredients step can say the list was on the facts photo', (
+    tester,
+  ) async {
+    final backend = _Backend(authenticatedUserId: _userId);
+    await tester.pumpWidget(_harness(backend: backend));
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-supplement_facts')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-facts-separate')));
+    await tester.pumpAndSettle();
+    expect(_stepTitle(tester), 'Other Ingredients');
+
+    // It was on the facts panel after all: no second photo needed.
+    await _tapInSheet(
+      tester,
+      find.byKey(const Key('missing-product-ingredients-on-facts')),
+    );
+    expect(_stepTitle(tester), 'Barcode');
+    await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+    await tester.pumpAndSettle();
+    await _scrollToConsent(tester);
+    await tester.tap(find.byKey(const Key('missing-product-consent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+
+    expect(backend.persistedCueFlag, isTrue);
+    expect(backend.manifest, hasLength(3));
+    // Re-tagged in place, never deleted.
+    expect(backend.manifest[1]['categories'], [
+      'supplement_facts',
+      'ingredient_disclosure',
+    ]);
+  });
+
   testWidgets('a combined-panel answer can be corrected before submission', (
     tester,
   ) async {
@@ -779,21 +872,30 @@ void main() {
     await tester.pumpWidget(_harness(backend: backend));
     await _captureRequiredEvidence(tester);
 
+    // Back up from the consent to the note under the photos.
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('missing-product-facts-change-to-separate')),
+      -200,
+      scrollable: _sheetScroll,
+    );
+    await tester.ensureVisible(
+      find.byKey(const Key('missing-product-facts-change-to-separate')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const Key('missing-product-facts-change-to-separate')),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Other Ingredients'), findsOneWidget);
+    expect(_stepTitle(tester), 'Other Ingredients');
     await tester.tap(
       find.byKey(const Key('missing-product-add-ingredient_disclosure')),
     );
     await tester.pumpAndSettle();
     // The barcode is already covered, so capture does not walk the user back
     // through a step they finished.
-    expect(find.text('Anything else?'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('missing-product-next')));
-    await tester.pumpAndSettle();
+    expect(_stepTitle(tester), 'Review & submit');
+    await _scrollToConsent(tester);
     await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -834,13 +936,15 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    // Start takes the front; the facts step offers the dead-end link.
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const Key('missing-product-add-front_identity')),
-    );
-    await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('missing-product-no-facts-link')),
+      200,
+      scrollable: _sheetScroll,
+    );
     await tester.tap(find.byKey(const Key('missing-product-no-facts-link')));
     await tester.pumpAndSettle();
     expect(
@@ -879,16 +983,12 @@ void main() {
             verdicts.isEmpty ? _okQuality : verdicts.removeAt(0),
       ),
     );
+    // Start opens the camera for the front. Too small: hard block with
+    // retake guidance; no photo, no advance.
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
-
-    // Too small: hard block with retake guidance; no photo, no advance.
-    await tester.tap(
-      find.byKey(const Key('missing-product-add-front_identity')),
-    );
-    await tester.pumpAndSettle();
     expect(find.textContaining('too small to read'), findsOneWidget);
-    expect(find.text('Front of the package'), findsOneWidget);
+    expect(_stepTitle(tester), 'Front of the package');
 
     // Blurry: readability self-check; keeping it advances the flow.
     await tester.tap(
@@ -898,7 +998,7 @@ void main() {
     expect(find.text('That photo looks blurry'), findsOneWidget);
     await tester.tap(find.byKey(const Key('missing-product-blur-use-anyway')));
     await tester.pumpAndSettle();
-    expect(find.text('Supplement Facts'), findsOneWidget);
+    expect(_stepTitle(tester), 'Supplement Facts');
   });
 
   testWidgets('retry reuses one immutable submission id', (tester) async {
@@ -908,6 +1008,7 @@ void main() {
     );
     await tester.pumpWidget(_harness(backend: backend));
     await _captureRequiredEvidence(tester);
+    await _scrollToConsent(tester);
     await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
 
@@ -937,6 +1038,7 @@ void main() {
     );
     await tester.pumpWidget(_harness(backend: backend));
     await _captureRequiredEvidence(tester);
+    await _scrollToConsent(tester);
     await tester.tap(find.byKey(const Key('missing-product-consent')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -977,6 +1079,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Straight to review with the evidence already in hand.
+      expect(_stepTitle(tester), 'Review & submit');
+      await _scrollToConsent(tester);
       expect(find.byKey(const Key('missing-product-consent')), findsOneWidget);
       expect(backend.persistedSubmissionIds, isEmpty);
     });
@@ -997,6 +1101,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Finish sending'));
         await tester.pumpAndSettle();
+        await _scrollToConsent(tester);
         await tester.tap(find.byKey(const Key('missing-product-consent')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -1018,6 +1123,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Finish sending'));
       await tester.pumpAndSettle();
+      await _scrollToConsent(tester);
       await tester.tap(find.byKey(const Key('missing-product-consent')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -1052,6 +1158,7 @@ void main() {
       await tester.pumpWidget(_harness(backend: backend, draftStore: store));
       await tester.pumpAndSettle();
       await _captureRequiredEvidence(tester);
+      await _scrollToConsent(tester);
       await tester.tap(find.byKey(const Key('missing-product-consent')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -1074,10 +1181,6 @@ void main() {
         await tester.pumpAndSettle();
 
         // One photo in, then the app dies. Nothing was submitted.
-        await tester.tap(
-          find.byKey(const Key('missing-product-add-front_identity')),
-        );
-        await tester.pumpAndSettle();
         expect(backend.persistedSubmissionIds, isEmpty);
         final saved = (await store.list(_userId)).single;
         expect(saved.photoCount, 1);
@@ -1104,10 +1207,6 @@ void main() {
       await tester.tap(find.byKey(const Key('missing-product-start')));
       await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(const Key('missing-product-add-front_identity')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(
         find.byKey(const Key('missing-product-add-supplement_facts')),
       );
       await tester.pumpAndSettle();
@@ -1131,6 +1230,7 @@ void main() {
       await tester.pumpWidget(_harness(backend: backend, draftStore: store));
       await tester.pumpAndSettle();
       await _captureRequiredEvidence(tester);
+      await _scrollToConsent(tester);
       await tester.tap(find.byKey(const Key('missing-product-consent')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -1186,10 +1286,6 @@ void main() {
       await tester.pumpWidget(_harness(backend: backend, draftStore: store));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('missing-product-start')));
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const Key('missing-product-add-front_identity')),
-      );
       await tester.pumpAndSettle();
 
       expect(store.savedForUsers, everyElement(_userId));
@@ -1261,60 +1357,97 @@ void main() {
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const Key('missing-product-add-front_identity')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
       find.byKey(const Key('missing-product-add-supplement_facts')),
     );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('missing-product-next')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
-    expect(find.text('Anything else?'), findsOneWidget);
+    // Optional panels are offered on review, not as a step of their own.
+    expect(_stepTitle(tester), 'Review & submit');
 
-    sources.clear();
-    await tester.tap(
-      find.byKey(const Key('missing-product-add-library-directions_warnings')),
+    final library = find.byKey(
+      const Key('missing-product-add-library-directions_warnings'),
     );
+    await tester.scrollUntilVisible(library, 200, scrollable: _sheetScroll);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(library);
+    await tester.pumpAndSettle();
+    sources.clear();
+    await tester.tap(library);
     await tester.pumpAndSettle();
 
     expect(sources, ['library']);
+    // Still on review: an optional photo never moves the flow.
+    expect(find.byKey(const Key('missing-product-submit')), findsOneWidget);
     // The camera route stays exactly where it was, so a contributor holding
     // the bottle is not pushed through the photo library instead.
     sources.clear();
+    // The new photo joined the grid above, so the row moved: bring it back.
+    await tester.ensureVisible(
+      find.byKey(const Key('missing-product-add-directions_warnings')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const Key('missing-product-add-directions_warnings')),
     );
     await tester.pumpAndSettle();
     expect(sources, ['camera']);
+    // Both land in the review grid, labelled with their panel.
+    expect(find.text('Directions', skipOffstage: false), findsNWidgets(2));
   });
+
+  testWidgets(
+    'a blocked camera on an optional panel still says how to fix it',
+    (tester) async {
+      var blocked = false;
+      await tester.pumpWidget(
+        _harness(
+          backend: _Backend(authenticatedUserId: _userId),
+          pickPhoto: (tags) async => blocked
+              ? throw PlatformException(code: 'camera_access_denied')
+              : _photo(tags),
+        ),
+      );
+      await _captureRequiredEvidence(tester);
+      blocked = true;
+      final add = find.byKey(
+        const Key('missing-product-add-directions_warnings'),
+      );
+      await tester.scrollUntilVisible(add, -200, scrollable: _sheetScroll);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(add);
+      await tester.pumpAndSettle();
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Camera access is off', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(find.textContaining('couldn’t open that photo'), findsNothing);
+    },
+  );
 
   group('on-device panel hints', () {
     const facts = ProductSubmissionEvidenceCategory.supplementFacts;
 
     Future<void> tapKey(WidgetTester tester, String key) async {
-      // A notice line can push a button below the test screen's fold.
-      await tester.ensureVisible(find.byKey(Key(key)));
+      final target = find.byKey(Key(key));
+      // A notice line can push content below the test screen's fold; the
+      // pinned footer actions and dialog buttons are always on stage.
+      if (target.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(target, 200, scrollable: _sheetScroll);
+      }
+      await tester.ensureVisible(target);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(Key(key)));
+      await tester.tap(target);
       await tester.pumpAndSettle();
     }
 
     Future<void> submitFromReview(WidgetTester tester) async {
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('missing-product-submit')),
-        300,
-        scrollable: find
-            .descendant(
-              of: find.byKey(const Key('missing-product-scroll')),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
+      await _scrollToConsent(tester);
       await tester.tap(find.byKey(const Key('missing-product-consent')));
       await tester.pump();
       await tapKey(tester, 'missing-product-submit');
@@ -1334,7 +1467,6 @@ void main() {
         ),
       );
       await tapKey(tester, 'missing-product-start');
-      await tapKey(tester, 'missing-product-add-front_identity');
       expect(find.text('Supplement Facts'), findsOneWidget);
 
       await tapKey(tester, 'missing-product-add-supplement_facts');
@@ -1363,20 +1495,23 @@ void main() {
           ),
         );
         await tapKey(tester, 'missing-product-start');
-        await tapKey(tester, 'missing-product-add-front_identity');
         await tapKey(tester, 'missing-product-add-supplement_facts');
-        await tapKey(tester, 'missing-product-next');
-
+        // The photo answered the question: Continue, not a question.
         expect(
           find.byKey(const Key('missing-product-facts-combined')),
           findsNothing,
         );
-        expect(find.text('Barcode'), findsOneWidget);
-        await tapKey(tester, 'missing-product-add-barcode');
         await tapKey(tester, 'missing-product-next');
+
+        expect(_stepTitle(tester), 'Barcode');
+        await tapKey(tester, 'missing-product-add-barcode');
+        expect(_stepTitle(tester), 'Review & submit');
         // The answer the photo gave stays correctable on review.
         expect(
-          find.byKey(const Key('missing-product-facts-change-to-separate')),
+          find.byKey(
+            const Key('missing-product-facts-change-to-separate'),
+            skipOffstage: false,
+          ),
           findsOneWidget,
         );
         await submitFromReview(tester);
@@ -1389,52 +1524,50 @@ void main() {
       },
     );
 
-    testWidgets(
-      'a readable Facts photo with no Other Ingredients heading is '
-      'assumed to have none, not questioned',
-      (tester) async {
-        final backend = _Backend(authenticatedUserId: _userId);
-        await tester.pumpWidget(
-          _harness(
-            backend: backend,
-            readPhotoText: (photo) async => photo.categories.contains(facts)
-                ? 'Supplement Facts\nServing Size 1 Capsule\n'
-                      'Servings Per Container 60'
-                : '',
-          ),
-        );
-        await tapKey(tester, 'missing-product-start');
-        await tapKey(tester, 'missing-product-add-front_identity');
-        await tapKey(tester, 'missing-product-add-supplement_facts');
-        await tapKey(tester, 'missing-product-next');
+    testWidgets('a readable Facts photo with no Other Ingredients heading is '
+        'assumed to have none, not questioned', (tester) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          readPhotoText: (photo) async => photo.categories.contains(facts)
+              ? 'Supplement Facts\nServing Size 1 Capsule\n'
+                    'Servings Per Container 60'
+              : '',
+        ),
+      );
+      await tapKey(tester, 'missing-product-start');
+      await tapKey(tester, 'missing-product-add-supplement_facts');
 
-        // No taxonomy question — straight to Barcode, same as a confirmed
-        // combined panel.
-        expect(
-          find.byKey(const Key('missing-product-facts-combined')),
-          findsNothing,
-        );
-        expect(
-          find.byKey(const Key('missing-product-facts-separate')),
-          findsNothing,
-        );
-        expect(find.text('Barcode'), findsOneWidget);
-        await tapKey(tester, 'missing-product-add-barcode');
-        await tapKey(tester, 'missing-product-next');
-        // Still correctable on review, same escape hatch as a real
-        // OCR-confirmed combined panel.
-        expect(
-          find.byKey(const Key('missing-product-facts-change-to-separate')),
-          findsOneWidget,
-        );
-        await submitFromReview(tester);
+      // No taxonomy question — Continue goes straight to Barcode, same as
+      // a confirmed combined panel.
+      expect(
+        find.byKey(const Key('missing-product-facts-combined')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('missing-product-facts-separate')),
+        findsNothing,
+      );
+      await tapKey(tester, 'missing-product-next');
+      expect(_stepTitle(tester), 'Barcode');
+      await tapKey(tester, 'missing-product-add-barcode');
+      // Still correctable on review, same escape hatch as a real
+      // OCR-confirmed combined panel.
+      expect(
+        find.byKey(
+          const Key('missing-product-facts-change-to-separate'),
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+      await submitFromReview(tester);
 
-        expect(
-          backend.manifest[1]['categories'],
-          unorderedEquals(['supplement_facts', 'ingredient_disclosure']),
-        );
-      },
-    );
+      expect(
+        backend.manifest[1]['categories'],
+        unorderedEquals(['supplement_facts', 'ingredient_disclosure']),
+      );
+    });
 
     testWidgets(
       'a Facts photo with nothing legible still asks — the assumption '
@@ -1445,11 +1578,14 @@ void main() {
           _harness(backend: backend, readPhotoText: (_) async => ''),
         );
         await tapKey(tester, 'missing-product-start');
-        await tapKey(tester, 'missing-product-add-front_identity');
         await tapKey(tester, 'missing-product-add-supplement_facts');
-        await tapKey(tester, 'missing-product-next');
 
-        expect(find.text('One quick check'), findsOneWidget);
+        // Asked right under the photo, with no way past it but an answer.
+        expect(
+          find.text('Is the “Other Ingredients” list on this panel too?'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('missing-product-next')), findsNothing);
       },
     );
 
@@ -1466,7 +1602,6 @@ void main() {
         ),
       );
       await tapKey(tester, 'missing-product-start');
-      await tapKey(tester, 'missing-product-add-front_identity');
       await tapKey(tester, 'missing-product-add-supplement_facts');
       expect(
         find.textContaining('Barcode found in this photo'),
@@ -1474,12 +1609,11 @@ void main() {
       );
 
       // No Other Ingredients heading was detected on this panel either, so
-      // the assumption already answered the panel question — no dialog,
+      // the assumption already answered the panel question — no question,
       // straight past it.
       await tapKey(tester, 'missing-product-next');
       // No separate barcode photo is asked for.
-      expect(find.text('Anything else?'), findsOneWidget);
-      await tapKey(tester, 'missing-product-next');
+      expect(_stepTitle(tester), 'Review & submit');
       await submitFromReview(tester);
 
       expect(backend.manifest, hasLength(2));
@@ -1509,12 +1643,10 @@ void main() {
         ),
       );
       await tapKey(tester, 'missing-product-start');
-      await tapKey(tester, 'missing-product-add-front_identity');
       await tapKey(tester, 'missing-product-add-supplement_facts');
-      await tapKey(tester, 'missing-product-next');
       await tapKey(tester, 'missing-product-facts-combined');
       await tapKey(tester, 'missing-product-add-barcode');
-      expect(find.text('Anything else?'), findsOneWidget);
+      expect(_stepTitle(tester), 'Review & submit');
       expect(find.textContaining('Barcode found'), findsNothing);
     });
 
@@ -1529,7 +1661,6 @@ void main() {
         ),
       );
       await tapKey(tester, 'missing-product-start');
-      await tapKey(tester, 'missing-product-add-front_identity');
       expect(find.text('A different barcode?'), findsOneWidget);
       expect(find.textContaining('036000291452'), findsOneWidget);
       await tapKey(tester, 'missing-product-hint-retake');
@@ -1554,7 +1685,6 @@ void main() {
         ),
       );
       await tapKey(tester, 'missing-product-start');
-      await tapKey(tester, 'missing-product-add-front_identity');
       expect(
         find.text('This looks like the Supplement Facts panel'),
         findsOneWidget,
@@ -1572,9 +1702,8 @@ void main() {
       // on it, the assumption already answered that question too — the
       // flow moves straight past Facts to Barcode instead of parking the
       // user on a step that already has everything it needs.
-      expect(find.text('Barcode'), findsOneWidget);
+      expect(_stepTitle(tester), 'Barcode');
       await tapKey(tester, 'missing-product-add-barcode');
-      await tapKey(tester, 'missing-product-next');
       await submitFromReview(tester);
 
       expect(
@@ -1592,26 +1721,35 @@ void main() {
         ),
       );
       await tapKey(tester, 'missing-product-start');
-      await tapKey(tester, 'missing-product-add-front_identity');
       expect(find.text('Supplement Facts'), findsOneWidget);
     });
   });
 
-  testWidgets('the checklist shows what is covered and jumps to a panel', (
-    tester,
-  ) async {
+  testWidgets('a cancelled camera leaves Start on the front step, and the '
+      'checklist shows what is covered and jumps to a panel', (tester) async {
     final semantics = tester.ensureSemantics();
     final backend = _Backend(authenticatedUserId: _userId);
-    await tester.pumpWidget(_harness(backend: backend));
+    var picks = 0;
+    await tester.pumpWidget(
+      _harness(
+        backend: backend,
+        // The first camera session is cancelled.
+        pickPhoto: (tags) async => picks++ == 0 ? null : _photo(tags),
+      ),
+    );
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
+    // Cancelling lands on the front step with its example — not back on the
+    // intro, and with nothing to continue with.
+    expect(_stepTitle(tester), 'Front of the package');
     expect(find.bySemanticsLabel('Front: still needed'), findsOneWidget);
+    expect(find.byKey(const Key('missing-product-next')), findsNothing);
 
     await tester.tap(
       find.byKey(const Key('missing-product-add-front_identity')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Supplement Facts'), findsOneWidget);
+    expect(_stepTitle(tester), 'Supplement Facts');
     expect(find.bySemanticsLabel('Front: done'), findsOneWidget);
     expect(find.bySemanticsLabel('Facts: still needed'), findsOneWidget);
 
@@ -1619,7 +1757,7 @@ void main() {
       find.byKey(const Key('missing-product-checklist-front_identity')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Front of the package'), findsOneWidget);
+    expect(_stepTitle(tester), 'Front of the package');
     semantics.dispose();
   });
 
@@ -1707,6 +1845,7 @@ void main() {
             )
             .first,
       );
+      await _scrollToConsent(tester);
       await tester.tap(find.byKey(const Key('missing-product-consent')));
       await tester.pump();
       await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -1829,22 +1968,18 @@ void main() {
     await tester.pumpWidget(_harness(backend: backend));
     await tester.tap(find.byKey(const Key('missing-product-start')));
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const Key('missing-product-add-front_identity')),
-    );
-    await tester.pumpAndSettle();
 
     // From Facts, straight to the barcode; Facts is still empty.
     await tester.tap(
       find.byKey(const Key('missing-product-checklist-barcode')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Barcode'), findsOneWidget);
+    expect(_stepTitle(tester), 'Barcode');
     await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
     await tester.pumpAndSettle();
 
-    // Not the optional extras or a review the user cannot submit.
-    expect(find.text('Supplement Facts'), findsOneWidget);
+    // Not a review the user cannot submit: back for the missing panel.
+    expect(_stepTitle(tester), 'Supplement Facts');
   });
 
   group('requested retake', () {
@@ -1894,6 +2029,7 @@ void main() {
             )
             .first,
       );
+      await _scrollToConsent(tester);
       await tester.tap(find.byKey(const Key('missing-product-consent')));
       await tester.pump();
       await tester.tap(find.byKey(const Key('missing-product-submit')));
@@ -1919,29 +2055,26 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('Your other photos are kept'), findsOneWidget);
+      // Start names the one panel asked for.
+      expect(find.text('Start with Supplement Facts'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('missing-product-start')));
       await tester.pumpAndSettle();
-      // Straight to the one panel asked for; the kept front counts as taken.
-      expect(find.text('Supplement Facts'), findsOneWidget);
+      // Straight to the camera for that panel; the kept front counts as
+      // taken.
+      expect(_stepTitle(tester), 'Supplement Facts');
+      expect(find.byTooltip('Remove photo'), findsOneWidget);
       expect(backend.intakeCalls, 0, reason: 'the submission already exists');
 
-      await tester.tap(
-        find.byKey(const Key('missing-product-add-supplement_facts')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('missing-product-next')));
-      await tester.pumpAndSettle();
       // The ingredient list is kept, so there is nothing to ask about it,
       // and the kept barcode is not asked for again.
       expect(
         find.byKey(const Key('missing-product-facts-combined')),
         findsNothing,
       );
-      expect(find.text('Anything else?'), findsOneWidget);
       await tester.tap(find.byKey(const Key('missing-product-next')));
       await tester.pumpAndSettle();
-      expect(find.text('Review & submit'), findsOneWidget);
+      expect(_stepTitle(tester), 'Review & submit');
 
       await submitFromReview(tester);
 

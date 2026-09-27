@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
@@ -7,12 +8,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_eyebrow.dart';
+import 'package:pharmaguide/core/theme/v2/v2_motion.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/contributions/product_submission_consent_copy.dart';
 import 'package:pharmaguide/features/contributions/product_submission_resolution_copy.dart';
+import 'package:pharmaguide/features/scanner/submission_panel_example.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/photo_panel_hints.dart';
@@ -40,9 +43,9 @@ typedef PickMissingProductPhotos =
 /// misses. Authentication remains a caller decision so the helper never
 /// guesses whether to redirect or silently drop a submission attempt.
 ///
-/// Capture is camera-first: the shutter goes straight to the system camera
-/// (its native confirm is the per-shot confirm), and a quiet link offers
-/// the photo library for shots taken earlier.
+/// Capture is camera-first: Start opens the system camera for the first
+/// panel (its native confirm is the per-shot confirm), each passing shot
+/// moves on by itself, and every step offers the photo library second.
 Future<bool> showMissingProductSubmissionSheet(
   BuildContext context, {
   required String upc,
@@ -107,10 +110,11 @@ Future<bool> showMissingProductSubmissionSheet(
 
 /// One guided capture step. `categories` is what a photo taken on this step
 /// is tagged with; the ingredients step disappears when the facts capture
-/// already carries the ingredient list (asked as a one-tap question when
-/// the user continues from Facts — never a checkbox that could invalidate
-/// work).
-enum _CaptureStep { intro, front, facts, ingredients, barcode, extras, review }
+/// already carries the ingredient list (asked as a one-tap question right
+/// under the facts photo — never a checkbox that could invalidate work).
+/// Optional panels (directions, lot) are offered on review, not as a step
+/// every contributor has to pass through.
+enum _CaptureStep { intro, front, facts, ingredients, barcode, review }
 
 /// The answers to a question about what a photo shows.
 enum _HintChoice { keep, retake, move }
@@ -197,6 +201,15 @@ class _MissingProductSubmissionSheetState
   bool _intakeCheckFailed = false;
   bool _intakeCheckBypassed = false;
   bool _captureFromLibrary = false;
+
+  /// Which start button was pressed, so retrying a failed history check
+  /// keeps the user's choice of camera or library.
+  bool _startFromLibrary = false;
+
+  /// A photo came back and is being checked (size, blur, printed text).
+  /// Takes a second or two; the primary button says so instead of going
+  /// quietly grey.
+  bool _processing = false;
   String? _chosenResubmissionOf;
   String? _stepError;
   _BlockedSource? _blockedSource;
@@ -204,9 +217,27 @@ class _MissingProductSubmissionSheetState
   /// A neutral note about what the last photo covered ("the barcode is in
   /// this one"). Survives an automatic advance so the user sees it.
   String? _stepNotice;
+
+  /// "Front photo saved." — the confirmation a shot gets when capture moves
+  /// straight on to the next panel, so the step change reads as success.
+  String? _savedNote;
+
+  /// Which optional panel is being added, so only its row shows progress.
+  ProductSubmissionEvidenceCategory? _addingOptional;
   ProductSubmissionPhase? _phase;
   ProductSubmissionFailure? _failure;
   MissingProductSubmissionDraft? _draft;
+
+  /// One downsized decode per photo. `photo.bytes` is a fresh copy on every
+  /// read, so building `Image.memory(photo.bytes)` made a new cache key —
+  /// and a new full-size decode — on every rebuild of the sheet.
+  final Map<String, ImageProvider> _thumbnails = {};
+
+  ImageProvider _thumbnailFor(ProductSubmissionPhoto photo) =>
+      _thumbnails.putIfAbsent(
+        photo.photoId,
+        () => ResizeImage(MemoryImage(photo.bytes), width: 360),
+      );
 
   @override
   void initState() {
@@ -280,7 +311,6 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.facts,
     if (!_factsCarriesIngredients) _CaptureStep.ingredients,
     _CaptureStep.barcode,
-    _CaptureStep.extras,
     _CaptureStep.review,
   ];
 
@@ -310,7 +340,6 @@ class _MissingProductSubmissionSheetState
           ProductSubmissionEvidenceCategory.barcode,
         },
         _CaptureStep.intro ||
-        _CaptureStep.extras ||
         _CaptureStep.review => const <ProductSubmissionEvidenceCategory>{},
       };
 
@@ -325,7 +354,7 @@ class _MissingProductSubmissionSheetState
       ProductSubmissionEvidenceCategory.ingredientDisclosure,
     ),
     _CaptureStep.barcode => _covered(ProductSubmissionEvidenceCategory.barcode),
-    _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => true,
+    _CaptureStep.intro || _CaptureStep.review => true,
   };
 
   bool get _stepSatisfied => _satisfies(_step);
@@ -339,7 +368,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.ingredients ||
     _CaptureStep.barcode => _satisfies(step),
     _CaptureStep.facts => _satisfies(step) && _factsPanelLocationSettled,
-    _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => false,
+    _CaptureStep.intro || _CaptureStep.review => false,
   };
 
   /// The earliest capture step this set does not yet satisfy, or review when
@@ -378,16 +407,19 @@ class _MissingProductSubmissionSheetState
     final pick = fromLibrary
         ? (widget.pickPhotoFromLibrary ?? widget.pickPhoto)
         : widget.pickPhoto;
+    final capturedStep = _step;
     setState(() {
       _adding = true;
       _stepError = null;
       _stepNotice = null;
+      _savedNote = null;
       _failure = null;
       _blockedSource = null;
     });
     try {
       final photo = await pick(categories);
       if (!mounted || photo == null) return;
+      setState(() => _processing = true);
       if (_alreadySent(photo)) {
         setState(
           () => _stepError = 'That exact photo is already in this submission.',
@@ -406,12 +438,17 @@ class _MissingProductSubmissionSheetState
         return;
       }
       if (quality.isSoftWarning) {
+        // Waiting on the user's answer, not on the phone: no "checking".
+        setState(() => _processing = false);
         final useAnyway = await _confirmBlurryPhoto();
         if (!mounted || !useAnyway) return;
+        setState(() => _processing = true);
       }
 
       final hints = await _readHints(photo);
       if (!mounted) return;
+      // Placement may ask the user about the photo; checking is done.
+      setState(() => _processing = false);
       final placed = await _placeByHints(photo, hints);
       if (!mounted || placed == null) return;
 
@@ -447,7 +484,12 @@ class _MissingProductSubmissionSheetState
       await _persistCapture();
       if (!mounted) return;
       // A shot moved to another panel leaves this one still unanswered.
-      if (autoAdvance && !placed.moved) await _goForward(keepNotice: true);
+      if (autoAdvance && !placed.moved) {
+        // The panel this shot was for scrolls away with the advance; say it
+        // landed so the next screen reads as progress, not a reset.
+        setState(() => _savedNote = '${_panelName(capturedStep)} photo saved.');
+        await _goForward(keepNotice: true);
+      }
     } on ProductSubmissionValidationException {
       if (!mounted) return;
       setState(
@@ -461,7 +503,12 @@ class _MissingProductSubmissionSheetState
       setState(() {
         if (blocked != null) {
           _blockedSource = blocked;
+          // The primary button should be the one that works: carry on from
+          // the source that is still open ("Use camera instead" stays one
+          // tap away for after the Settings change).
+          _captureFromLibrary = blocked == _BlockedSource.camera;
         } else if (error.code == 'no_available_camera') {
+          _captureFromLibrary = true;
           _stepError =
               'No camera is available here. Choose a photo from your '
               'library instead.';
@@ -473,7 +520,12 @@ class _MissingProductSubmissionSheetState
       if (!mounted) return;
       setState(() => _stepError = 'We couldn’t open that photo. Try again.');
     } finally {
-      if (mounted) setState(() => _adding = false);
+      if (mounted) {
+        setState(() {
+          _adding = false;
+          _processing = false;
+        });
+      }
     }
   }
 
@@ -553,7 +605,7 @@ class _MissingProductSubmissionSheetState
                   ),
                 ),
                 title: Text('Photo ${_photos.indexOf(photo) + 1}'),
-                subtitle: Text(photo.categoryWireValues.join(', ')),
+                subtitle: Text(_photoLabel(photo)),
                 onTap: () => Navigator.of(sheetContext).pop(photo),
               ),
           ],
@@ -618,6 +670,7 @@ class _MissingProductSubmissionSheetState
     try {
       final picked = await widget.pickPhotosFromLibrary!(room);
       if (!mounted) return false;
+      if (picked.photos.isNotEmpty) setState(() => _processing = true);
       // A picker that ignores the limit still never overfills a submission,
       // and what it dropped is counted, not silently lost.
       final overflow = picked.photos.length - room;
@@ -651,6 +704,7 @@ class _MissingProductSubmissionSheetState
         hints.add(await _readHints(item.photo));
         if (!mounted) return false;
       }
+      setState(() => _processing = false);
       final sorted = await _sortLibraryPhotos([
         for (var i = 0; i < usable.length; i++)
           (photo: usable[i].photo, blurry: usable[i].blurry, hints: hints[i]),
@@ -689,6 +743,7 @@ class _MissingProductSubmissionSheetState
         setState(() {
           if (blocked != null) {
             _blockedSource = blocked;
+            _captureFromLibrary = blocked == _BlockedSource.camera;
           } else {
             _stepError = 'We couldn’t open those photos. Try again.';
           }
@@ -703,7 +758,12 @@ class _MissingProductSubmissionSheetState
       }
       return false;
     } finally {
-      if (mounted) setState(() => _adding = false);
+      if (mounted) {
+        setState(() {
+          _adding = false;
+          _processing = false;
+        });
+      }
     }
   }
 
@@ -736,7 +796,7 @@ class _MissingProductSubmissionSheetState
       (ProductSubmissionEvidenceCategory.frontIdentity, 'Front'),
       (ProductSubmissionEvidenceCategory.supplementFacts, 'Facts'),
       (ProductSubmissionEvidenceCategory.ingredientDisclosure, 'Ingredients'),
-      (ProductSubmissionEvidenceCategory.barcode, 'UPC'),
+      (ProductSubmissionEvidenceCategory.barcode, 'Barcode'),
       (ProductSubmissionEvidenceCategory.directionsWarnings, 'Directions'),
       (ProductSubmissionEvidenceCategory.lotExpiry, 'Lot & expiry'),
     ];
@@ -1145,8 +1205,39 @@ class _MissingProductSubmissionSheetState
     Navigator.of(context).pop(false);
   }
 
+  /// The intro's start buttons. Camera-first means the button that says
+  /// "Start with the front" opens the camera for the front — not a page that
+  /// asks the same thing again. Cancelling the camera leaves the user on that
+  /// panel's step, with its example and the same button.
+  Future<void> _start({required bool fromLibrary}) async {
+    if (_checkingIntake || _adding) return;
+    _startFromLibrary = fromLibrary;
+    await _goForward(fromLibrary: fromLibrary);
+    if (!mounted || fromLibrary || _step == _CaptureStep.intro) return;
+    if (_step == _CaptureStep.review || _stepSatisfied) return;
+    await _addPhoto(
+      _stepCategories(_step),
+      autoAdvance: _step != _CaptureStep.facts,
+    );
+  }
+
+  /// The facts step's one question, answered right under the photo. The
+  /// answer re-tags the facts shots in place (it can never delete a photo)
+  /// and is also the step's "continue".
+  Future<void> _answerFactsQuestion({required bool combined}) async {
+    if (_submitting || _adding) return;
+    _setFactsCoversIngredients(
+      combined,
+      reason: combined ? 'user_said_combined' : 'user_said_separate',
+    );
+    await _goForward();
+  }
+
   Future<void> _goForward({bool? fromLibrary, bool keepNotice = false}) async {
     if (_checkingIntake) return;
+    // A library-first start that the OS refused raises its card on the way
+    // out of the intro; the first capture step is where it belongs.
+    final fromIntro = _step == _CaptureStep.intro;
     if (_step == _CaptureStep.intro) {
       if (!_intakeCheckBypassed && !await _checkPreviousSubmission()) {
         return;
@@ -1165,59 +1256,44 @@ class _MissingProductSubmissionSheetState
       setState(() => _stepError = _requiredCopy(_step));
       return;
     }
+    // Facts waits for its question (shown under the photo) to be answered;
+    // the answer decides whether an ingredients step exists at all.
+    if (_step == _CaptureStep.facts && !_factsPanelLocationSettled) return;
 
-    if (_step == _CaptureStep.facts && !_factsPanelLocationSettled) {
-      final combined = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('One quick check'),
-          content: const Text(
-            'Is the “Other Ingredients” list part of the panel you just '
-            'photographed?',
-          ),
-          actions: [
-            TextButton(
-              key: const Key('missing-product-facts-separate'),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('It’s separate'),
-            ),
-            FilledButton(
-              key: const Key('missing-product-facts-combined'),
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('It’s on this panel'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || combined == null) return;
-      _setFactsCoversIngredients(
-        combined,
-        reason: combined ? 'user_said_combined' : 'user_said_separate',
-      );
-    }
+    final next = _nextStep();
+    setState(() {
+      _step = next;
+      _stepError = null;
+      if (!fromIntro) _blockedSource = null;
+      if (!keepNotice) {
+        _stepNotice = null;
+        _savedNote = null;
+      }
+    });
+  }
 
+  /// Where moving on from the current step lands: the next step not already
+  /// covered — except that review waits until every required panel is (the
+  /// checklist lets a user skip ahead). The one answer both Continue's label
+  /// and the move itself use.
+  _CaptureStep _nextStep() {
     final steps = _visibleSteps;
-    var next = steps.indexOf(_step) + 1;
+    final at = steps.indexOf(_step);
+    // A step that stopped existing (ingredients, once they are on the facts
+    // photo) resumes wherever capture actually stands.
+    if (at < 0) return _firstUnsatisfiedStep();
+    var next = at + 1;
     while (next < steps.length - 1 && _alreadyCovered(steps[next])) {
       next++;
     }
-    if (next < steps.length) {
-      // The checklist lets a user skip ahead; the optional extras and review
-      // still wait until every required panel is covered.
-      final missing = _firstUnsatisfiedStep();
-      if (missing != _CaptureStep.review &&
-          steps.indexOf(missing) < next &&
-          (steps[next] == _CaptureStep.extras ||
-              steps[next] == _CaptureStep.review)) {
-        next = steps.indexOf(missing);
-      }
-      setState(() {
-        _step = steps[next];
-        _stepError = null;
-        if (!keepNotice) _stepNotice = null;
-      });
+    if (next >= steps.length) return _CaptureStep.review;
+    final missing = _firstUnsatisfiedStep();
+    if (missing != _CaptureStep.review &&
+        steps.indexOf(missing) < next &&
+        steps[next] == _CaptureStep.review) {
+      return missing;
     }
+    return steps[next];
   }
 
   /// The checklist's shortcut to any panel, done or not.
@@ -1227,6 +1303,8 @@ class _MissingProductSubmissionSheetState
       _step = step;
       _stepError = null;
       _stepNotice = null;
+      _savedNote = null;
+      _blockedSource = null;
     });
   }
 
@@ -1341,6 +1419,8 @@ class _MissingProductSubmissionSheetState
         _step = steps[index - 1];
         _stepError = null;
         _stepNotice = null;
+        _savedNote = null;
+        _blockedSource = null;
       });
     }
   }
@@ -1573,256 +1653,199 @@ class _MissingProductSubmissionSheetState
 
   @override
   Widget build(BuildContext context) {
+    // One fixed height for the whole flow: steps swap inside a stable frame
+    // instead of the sheet jumping to each step's content height, and the
+    // footer's primary button sits in the same place for every panel. A
+    // guided capture should settle into a rhythm: tap, shoot, tap, shoot.
+    final height = math.min(MediaQuery.sizeOf(context).height * 0.82, 720.0);
     if (_submitted) {
-      return _SubmissionComplete(onDone: () => Navigator.of(context).pop(true));
+      return SafeArea(
+        top: false,
+        child: SizedBox(
+          height: height,
+          child: _SubmissionComplete(
+            onDone: () => Navigator.of(context).pop(true),
+          ),
+        ),
+      );
     }
-    final steps = _visibleSteps;
-    final stepIndex = steps.indexOf(_step);
-
     return SafeArea(
       top: false,
-      child: ListView(
-        key: const Key('missing-product-scroll'),
-        shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(
-          V2Spacing.space24,
-          V2Spacing.space8,
-          V2Spacing.space24,
-          V2Spacing.space24,
-        ),
-        children: [
-          const PGEyebrow('Catalog contribution'),
-          const SizedBox(height: V2Spacing.space8),
-          Text(
-            _stepTitle(_step),
-            style: V2Typography.title(color: context.v2.fg),
-          ),
-          const SizedBox(height: V2Spacing.space8),
-          Text(
-            'For barcode ${widget.upc.replaceAll(RegExp(r'[^0-9]'), '')}',
-            style: V2Typography.monoData(color: context.v2.fgMuted),
-          ),
-          if (_step != _CaptureStep.intro) ...[
-            const SizedBox(height: V2Spacing.space12),
-            _coverageChecklist(context),
-          ],
-          const SizedBox(height: V2Spacing.space16),
-          ..._buildStep(context),
-          if (_stepNotice != null) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Semantics(
-              liveRegion: true,
-              child: Text(
-                _stepNotice!,
-                style: V2Typography.bodySm(color: context.v2.fg),
-              ),
-            ),
-          ],
-          if (_stepError != null) ...[
-            const SizedBox(height: V2Spacing.space8),
-            Semantics(
-              liveRegion: true,
-              child: Text(
-                _stepError!,
-                style: V2Typography.bodySm(color: context.v2.contraindicated),
-              ),
-            ),
-          ],
-          if (_blockedSource case final blocked?) ...[
-            const SizedBox(height: V2Spacing.space8),
-            _BlockedSourceCard(
-              source: blocked,
-              onOpenSettings: () => unawaited(_openSystemSettings()),
-            ),
-          ],
-          const SizedBox(height: V2Spacing.space16),
-          Row(
-            children: [
-              if (stepIndex > 1)
-                TextButton(
-                  key: const Key('missing-product-back'),
-                  onPressed: _submitting ? null : _goBack,
-                  child: const Text('Back'),
-                ),
-              const Spacer(),
-              // Forward is normally automatic (each passing shot advances);
-              // the button remains for revisits and the optional-extras
-              // step, where there is nothing to auto-advance on.
-              if (_step != _CaptureStep.intro &&
-                  _step != _CaptureStep.review &&
-                  _stepSatisfied)
-                FilledButton(
-                  key: const Key('missing-product-next'),
-                  onPressed: _submitting || _adding ? null : _goForward,
-                  child: Text(
-                    _step == _CaptureStep.extras ? 'Review photos' : 'Continue',
+      child: SizedBox(
+        height: height,
+        child: Column(
+          children: [
+            _header(context),
+            Expanded(
+              // A new step starts at its top: keyed by step, the list does
+              // not carry the last step's scroll offset (e.g. from the
+              // bottom of review into the ingredients step).
+              child: KeyedSubtree(
+                key: ValueKey(_step),
+                child: ListView(
+                  key: const Key('missing-product-scroll'),
+                  padding: const EdgeInsets.fromLTRB(
+                    V2Spacing.space24,
+                    V2Spacing.space8,
+                    V2Spacing.space24,
+                    V2Spacing.space24,
                   ),
+                  children: [
+                    ..._statusNotes(context),
+                    ...switch (_step) {
+                      _CaptureStep.intro => _introContent(context),
+                      _CaptureStep.review => _reviewContent(context),
+                      _ => _captureContent(context),
+                    },
+                  ],
                 ),
-            ],
+              ),
+            ),
+            _footer(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Duration _motion(BuildContext context, Duration duration) =>
+      MediaQuery.disableAnimationsOf(context) ? Duration.zero : duration;
+
+  /// Back and Close; once capture has started, the panel checklist
+  /// underneath doubles as the progress bar.
+  Widget _header(BuildContext context) {
+    final canGoBack = _visibleSteps.indexOf(_step) > 1;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                if (canGoBack)
+                  TextButton.icon(
+                    key: const Key('missing-product-back'),
+                    onPressed: _submitting ? null : _goBack,
+                    icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                    label: const Text('Back'),
+                  ),
+                const Spacer(),
+                IconButton(
+                  key: const Key('missing-product-close'),
+                  // Photos taken so far are kept on the phone; opening this
+                  // barcode again offers to finish them.
+                  tooltip: 'Close',
+                  onPressed: _submitting
+                      ? null
+                      : () => Navigator.of(context).pop(false),
+                  icon: Icon(Icons.close_rounded, color: context.v2.fgMuted),
+                ),
+              ],
+            ),
           ),
+          if (_step != _CaptureStep.intro)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                V2Spacing.space16,
+                0,
+                V2Spacing.space16,
+                V2Spacing.space4,
+              ),
+              child: _coverageChecklist(context),
+            ),
         ],
       ),
     );
   }
 
-  List<Widget> _buildStep(BuildContext context) => switch (_step) {
-    _CaptureStep.intro => _introStepBody(context),
-    _CaptureStep.front => _captureStepBody(
-      context,
-      guidance: 'Photograph the front of the package.',
-      tip: 'Fill the frame so the brand and product name are readable.',
-      category: ProductSubmissionEvidenceCategory.frontIdentity,
-    ),
-    _CaptureStep.facts => [
-      ..._captureStepBody(
-        context,
-        guidance: 'Photograph the whole Supplement Facts panel.',
-        // Measured: a panel filling under about a third of the frame loses
-        // its smallest dose lines before anyone can read them.
-        tip:
-            'Fill the frame with the panel, top to bottom, straight on and '
-            'without glare. Wraps around the bottle? Add a second angle '
-            'after the first shot.',
-        category: ProductSubmissionEvidenceCategory.supplementFacts,
-      ),
-      const SizedBox(height: V2Spacing.space8),
-      Center(
-        child: TextButton(
-          key: const Key('missing-product-no-facts-link'),
-          onPressed: _submitting || _adding ? null : _showNoFactsPanelDeadEnd,
-          child: Text(
-            'Can’t find a Supplement Facts panel?',
-            style: V2Typography.bodySm(color: context.v2.fgMuted),
-          ),
-        ),
-      ),
-    ],
-    _CaptureStep.ingredients => _captureStepBody(
-      context,
-      guidance: 'Photograph the “Other Ingredients” list.',
-      tip:
-          'Usually right below the Supplement Facts panel. Every '
-          'ingredient matters for safety checks.',
-      category: ProductSubmissionEvidenceCategory.ingredientDisclosure,
-    ),
-    _CaptureStep.barcode => _captureStepBody(
-      context,
-      guidance: 'Add proof of the UPC on this same package.',
-      tip:
-          'A barcode photo is ideal. If the bars are not visible, choose a '
-          'clear photo or screenshot showing the printed UPC digits. A '
-          'reviewer will verify the identity before anything is published.',
-      category: ProductSubmissionEvidenceCategory.barcode,
-    ),
-    _CaptureStep.extras => [
-      Text(
-        'Optional — these help reviewers verify dosing and freshness. '
-        'Skip any you like.',
-        style: V2Typography.bodySm(color: context.v2.fgMuted),
-      ),
-      const SizedBox(height: V2Spacing.space12),
-      _OptionalCategoryTile(
-        label: 'Directions & warnings',
-        category: ProductSubmissionEvidenceCategory.directionsWarnings,
-        photos: _photosTagged(
-          ProductSubmissionEvidenceCategory.directionsWarnings,
-        ),
-        enabled: !_submitting && !_adding,
-        onAdd: () => _addPhoto(const {
-          ProductSubmissionEvidenceCategory.directionsWarnings,
-        }),
-        onAddFromLibrary: () => _addPhoto(const {
-          ProductSubmissionEvidenceCategory.directionsWarnings,
-        }, fromLibrary: true),
-        onRemove: _removePhoto,
-      ),
-      _OptionalCategoryTile(
-        label: 'Lot number & expiration',
-        category: ProductSubmissionEvidenceCategory.lotExpiry,
-        photos: _photosTagged(ProductSubmissionEvidenceCategory.lotExpiry),
-        enabled: !_submitting && !_adding,
-        onAdd: () =>
-            _addPhoto(const {ProductSubmissionEvidenceCategory.lotExpiry}),
-        onAddFromLibrary: () => _addPhoto(const {
-          ProductSubmissionEvidenceCategory.lotExpiry,
-        }, fromLibrary: true),
-        onRemove: _removePhoto,
-      ),
-    ],
-    _CaptureStep.review => _reviewStepBody(context),
-  };
-
-  /// What is covered so far, in the label's own order. Each item jumps to its
-  /// panel, so the order of photos is the user's, not the app's.
+  /// What is covered so far, in the label's own order: a segmented progress
+  /// bar whose segments fill as panels are covered — including the ones a
+  /// single photo covers twice. Each segment jumps to its panel, so the order
+  /// of photos is the user's, not the app's.
   Widget _coverageChecklist(BuildContext context) {
+    final v2 = context.v2;
     Widget item(
       String label,
       ProductSubmissionEvidenceCategory category,
-      _CaptureStep step,
-    ) {
+      _CaptureStep target, {
+      required bool current,
+    }) {
       final covered = _covered(category);
-      final onTap = _submitting || _adding ? null : () => _jumpTo(step);
-      return Semantics(
-        button: true,
-        label: '$label: ${covered ? 'done' : 'still needed'}',
-        onTap: onTap,
-        excludeSemantics: true,
-        child: InkWell(
-          key: Key('missing-product-checklist-${category.wireValue}'),
+      final onTap = _submitting || _adding ? null : () => _jumpTo(target);
+      final tone = covered || current ? v2.accentStrong : v2.fgMuted;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          selected: current,
+          label: '$label: ${covered ? 'done' : 'still needed'}',
           onTap: onTap,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 36),
-            // Four fit on one line of a 390-point phone at default text size.
-            padding: const EdgeInsets.symmetric(
-              horizontal: V2Spacing.space8,
-              vertical: V2Spacing.space4,
-            ),
-            decoration: BoxDecoration(
-              color: covered ? context.v2.accentTint : Colors.transparent,
-              borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-              border: Border.all(
-                color: covered ? context.v2.accent : context.v2.outline,
+          excludeSemantics: true,
+          child: InkWell(
+            key: Key('missing-product-checklist-${category.wireValue}'),
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(V2Spacing.space8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 3,
+                  vertical: V2Spacing.space8,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedContainer(
+                      duration: _motion(context, V2Motion.base),
+                      curve: V2Motion.smooth,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: covered
+                            ? v2.accentStrong
+                            : current
+                            ? v2.accentStrong.withValues(alpha: 0.35)
+                            : v2.fg.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (covered) ...[
+                            Icon(Icons.check_rounded, size: 14, color: tone),
+                            const SizedBox(width: 2),
+                          ],
+                          Text(label, style: V2Typography.caption(color: tone)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  covered ? Icons.check_circle : Icons.radio_button_unchecked,
-                  size: 16,
-                  color: covered ? context.v2.accentStrong : context.v2.fgMuted,
-                ),
-                const SizedBox(width: V2Spacing.space4),
-                Text(
-                  label,
-                  style: V2Typography.caption(
-                    color: covered
-                        ? context.v2.accentStrong
-                        : context.v2.fgMuted,
-                  ),
-                ),
-              ],
             ),
           ),
         ),
       );
     }
 
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: V2Spacing.space8,
-      runSpacing: V2Spacing.space8,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         item(
           'Front',
           ProductSubmissionEvidenceCategory.frontIdentity,
           _CaptureStep.front,
+          current: _step == _CaptureStep.front,
         ),
         item(
           'Facts',
           ProductSubmissionEvidenceCategory.supplementFacts,
           _CaptureStep.facts,
+          current: _step == _CaptureStep.facts,
         ),
         item(
           'Ingredients',
@@ -1830,360 +1853,745 @@ class _MissingProductSubmissionSheetState
           _factsCarriesIngredients
               ? _CaptureStep.facts
               : _CaptureStep.ingredients,
+          current: _step == _CaptureStep.ingredients,
         ),
         item(
-          'UPC',
+          'Barcode',
           ProductSubmissionEvidenceCategory.barcode,
           _CaptureStep.barcode,
+          current: _step == _CaptureStep.barcode,
         ),
       ],
     );
   }
 
-  List<Widget> _introStepBody(BuildContext context) {
-    Widget chip(String label, {required bool required}) => Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: V2Spacing.space12,
-        vertical: V2Spacing.space4,
+  List<Widget> _statusNotes(BuildContext context) => [
+    if (_savedNote case final saved?) ...[
+      _StatusNote(
+        key: const Key('missing-product-saved'),
+        text: saved,
+        icon: Icons.check_circle_rounded,
+        tone: context.v2.safe,
+        fill: context.v2.safeTint,
       ),
-      decoration: BoxDecoration(
-        color: required ? context.v2.accentTint : Colors.transparent,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-        border: Border.all(
-          color: required ? context.v2.accent : context.v2.outline,
-        ),
+      const SizedBox(height: V2Spacing.space12),
+    ],
+    if (_stepNotice case final notice?) ...[
+      _StatusNote(
+        text: notice,
+        icon: Icons.info_outline_rounded,
+        tone: context.v2.accentStrong,
+        fill: context.v2.accentTint,
       ),
-      child: Text(
-        label,
-        style: V2Typography.caption(
-          color: required ? context.v2.accentStrong : context.v2.fgMuted,
-        ),
-      ),
-    );
+      const SizedBox(height: V2Spacing.space12),
+    ],
+  ];
 
+  Widget? _blockedCard() => switch (_blockedSource) {
+    final blocked? => _BlockedSourceCard(
+      source: blocked,
+      onOpenSettings: () => unawaited(_openSystemSettings()),
+    ),
+    null => null,
+  };
+
+  List<Widget> _introContent(BuildContext context) {
     final retake = widget.retake;
+    final blocked = _blockedCard();
     return [
+      const PGEyebrow('Catalog contribution'),
+      const SizedBox(height: V2Spacing.space8),
+      Text(
+        _stepTitle(_CaptureStep.intro),
+        key: const Key('missing-product-step-title'),
+        style: V2Typography.title(color: context.v2.fg),
+      ),
+      const SizedBox(height: V2Spacing.space4),
+      // Which barcode this is for, before anything else: the identity
+      // anchor for "is this the product I scanned?".
+      Text(
+        'For barcode ${widget.upc.replaceAll(RegExp(r'[^0-9]'), '')}',
+        style: V2Typography.monoData(color: context.v2.fgMuted),
+      ),
+      const SizedBox(height: V2Spacing.space12),
       if (retake != null) ...[
         Text(
           productSubmissionRetakeRequest(retake.reason, retake.requestedPanels),
           key: const Key('missing-product-retake-request'),
-          style: V2Typography.bodySm(color: context.v2.fg),
+          style: V2Typography.body(color: context.v2.fg),
         ),
         if (retake.keptPhotoIds.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space8),
           Text(
             'Your other photos are kept, so you only need to take what’s '
             'missing.',
-            style: V2Typography.caption(color: context.v2.fgSubtle),
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
+          ),
+        ],
+      ] else
+        Text(
+          'Take a few clear label photos and we’ll check whether it already '
+          'exists or needs an updated label.',
+          style: V2Typography.body(color: context.v2.fgMuted),
+        ),
+      const SizedBox(height: V2Spacing.space24),
+      _PanelPlan(
+        rows: [
+          (
+            label: 'Front label',
+            hint: 'Brand and product name',
+            kept: _covered(ProductSubmissionEvidenceCategory.frontIdentity),
+          ),
+          (
+            label: 'Supplement Facts panel',
+            hint: null,
+            kept: _covered(ProductSubmissionEvidenceCategory.supplementFacts),
+          ),
+          (
+            label: 'Other Ingredients',
+            hint: 'Often part of the Supplement Facts panel',
+            kept: _covered(
+              ProductSubmissionEvidenceCategory.ingredientDisclosure,
+            ),
+          ),
+          (
+            label: 'Barcode',
+            hint: null,
+            kept: _covered(ProductSubmissionEvidenceCategory.barcode),
+          ),
+        ],
+      ),
+      const SizedBox(height: V2Spacing.space16),
+      Row(
+        children: [
+          Icon(Icons.lock_outline_rounded, size: 16, color: context.v2.fgMuted),
+          const SizedBox(width: V2Spacing.space8),
+          Expanded(
+            child: Text(
+              'Photos are sent privately for review.',
+              style: V2Typography.bodySm(color: context.v2.fgMuted),
+            ),
+          ),
+        ],
+      ),
+      if (blocked != null) ...[
+        const SizedBox(height: V2Spacing.space16),
+        blocked,
+      ],
+    ];
+  }
+
+  /// The evidence category a capture step is about.
+  ProductSubmissionEvidenceCategory _stepCategory(_CaptureStep step) =>
+      switch (step) {
+        _CaptureStep.facts => ProductSubmissionEvidenceCategory.supplementFacts,
+        _CaptureStep.ingredients =>
+          ProductSubmissionEvidenceCategory.ingredientDisclosure,
+        _CaptureStep.barcode => ProductSubmissionEvidenceCategory.barcode,
+        _CaptureStep.intro ||
+        _CaptureStep.front ||
+        _CaptureStep.review => ProductSubmissionEvidenceCategory.frontIdentity,
+      };
+
+  List<Widget> _captureContent(BuildContext context) {
+    final category = _stepCategory(_step);
+    final photos = _photosTagged(category);
+    final busy = _submitting || _adding;
+    final reusable = _photos.any(
+      (photo) => !photo.categories.contains(category),
+    );
+    final blocked = _blockedCard();
+    return [
+      Text(
+        _stepTitle(_step),
+        key: const Key('missing-product-step-title'),
+        style: V2Typography.title(color: context.v2.fg),
+      ),
+      const SizedBox(height: V2Spacing.space8),
+      Text(
+        _stepGuidance(_step),
+        style: V2Typography.body(color: context.v2.fgMuted),
+      ),
+      const SizedBox(height: V2Spacing.space16),
+      if (blocked != null) ...[
+        blocked,
+        const SizedBox(height: V2Spacing.space16),
+      ],
+      if (photos.isEmpty) ...[
+        SubmissionPanelExample(category: category, barcodeDigits: widget.upc),
+        if (_step == _CaptureStep.barcode) ...[
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'No bars on the package? A clear photo or screenshot of the '
+            'printed number works too.',
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
         ],
       ] else ...[
-        Text(
-          'Not found in this device’s catalog. Submit clear photos for review; '
-          'we’ll check whether it already exists or needs an updated label.',
-          style: V2Typography.bodySm(color: context.v2.fgMuted),
-        ),
-        const SizedBox(height: V2Spacing.space12),
-        Wrap(
-          spacing: V2Spacing.space8,
-          runSpacing: V2Spacing.space8,
-          children: [
-            chip('Front label', required: true),
-            chip('Supplement Facts', required: true),
-            chip('Other Ingredients', required: true),
-            chip('Barcode', required: true),
-            chip('Warnings', required: false),
-            chip('Lot & expiry', required: false),
-          ],
-        ),
-        const SizedBox(height: V2Spacing.space16),
-        Text(
-          'You can take each label photo now or choose photos already saved on '
-          'your phone. They go privately to a human reviewer.',
-          style: V2Typography.caption(color: context.v2.fgSubtle),
-        ),
-      ],
-      const SizedBox(height: V2Spacing.space16),
-      SizedBox(
-        height: 48,
-        child: FilledButton.icon(
-          key: const Key('missing-product-start'),
-          // Also closed while library photos are being read and sorted.
-          onPressed: _checkingIntake || _adding
-              ? null
-              : () => _goForward(fromLibrary: false),
-          icon: const Icon(Icons.photo_camera_outlined),
-          label: Text(
-            _checkingIntake ? 'Checking your submissions…' : 'Take a photo',
-          ),
-        ),
-      ),
-      const SizedBox(height: V2Spacing.space8),
-      SizedBox(
-        width: double.infinity,
-        height: 44,
-        child: OutlinedButton.icon(
-          key: const Key('missing-product-start-library'),
-          onPressed: _checkingIntake || _adding
-              ? null
-              : () => _goForward(fromLibrary: true),
-          icon: const Icon(Icons.photo_library_outlined),
-          label: const Text('Choose from library'),
-        ),
-      ),
-      if (_intakeCheckFailed) ...[
-        const SizedBox(height: V2Spacing.space8),
-        Row(
-          children: [
-            TextButton(
-              key: const Key('missing-product-intake-retry'),
-              onPressed: _checkingIntake
-                  ? null
-                  : () => _goForward(fromLibrary: _captureFromLibrary),
-              child: const Text('Try again'),
-            ),
-            const Spacer(),
-            TextButton(
-              key: const Key('missing-product-continue-without-history-check'),
-              onPressed: _checkingIntake
-                  ? null
-                  : () {
-                      setState(() {
-                        _intakeCheckBypassed = true;
-                        _intakeCheckFailed = false;
-                        _stepError = null;
-                      });
-                      _goForward(fromLibrary: _captureFromLibrary);
-                    },
-              child: const Text('Continue anyway'),
-            ),
-          ],
-        ),
-      ],
-    ];
-  }
-
-  List<Widget> _captureStepBody(
-    BuildContext context, {
-    required String guidance,
-    required String tip,
-    required ProductSubmissionEvidenceCategory category,
-  }) {
-    final photos = _photosTagged(category);
-    final reusablePhotos = _photos.any(
-      (photo) => !photo.categories.contains(category),
-    );
-    return [
-      Text(guidance, style: V2Typography.bodyMedium(color: context.v2.fg)),
-      const SizedBox(height: V2Spacing.space4),
-      Text(tip, style: V2Typography.bodySm(color: context.v2.fgMuted)),
-      const SizedBox(height: V2Spacing.space12),
-      if (photos.isNotEmpty) ...[
+        // "Add another" is the last tile of the row it adds to: no extra
+        // height, so the question and Continue below stay in view.
         _PhotoThumbnailStrip(
           photos: photos,
+          thumbnailFor: _thumbnailFor,
           enabled: !_submitting,
           onRemove: _removePhoto,
-        ),
-        const SizedBox(height: V2Spacing.space8),
-      ],
-      SizedBox(
-        height: 48,
-        child: FilledButton.icon(
-          key: Key('missing-product-add-${category.wireValue}'),
-          onPressed: _submitting || _adding
-              ? null
-              : () => _addPhoto(
-                  _stepCategories(_step),
-                  fromLibrary: _captureFromLibrary,
-                  autoAdvance: _step != _CaptureStep.facts,
-                ),
-          icon: const Icon(Icons.photo_camera_outlined, size: 20),
-          label: Text(
-            photos.isEmpty
-                ? (_captureFromLibrary ? 'Choose a photo' : 'Open camera')
-                : 'Add another angle',
-          ),
-        ),
-      ),
-      const SizedBox(height: V2Spacing.space4),
-      Center(
-        child: TextButton(
-          key: Key('missing-product-library-${category.wireValue}'),
-          onPressed: _submitting || _adding
-              ? null
-              : () => _addPhoto(
-                  _stepCategories(_step),
-                  // The link offers the OTHER source: "Use camera instead"
-                  // in library mode, the library otherwise.
-                  fromLibrary: !_captureFromLibrary,
-                  autoAdvance: _step != _CaptureStep.facts,
-                ),
-          child: Text(
-            _captureFromLibrary
-                ? 'Use camera instead'
-                : 'Choose from library instead',
-            style: V2Typography.caption(color: context.v2.fgSubtle),
-          ),
-        ),
-      ),
-      if (reusablePhotos) ...[
-        const SizedBox(height: V2Spacing.space4),
-        Center(
-          child: TextButton.icon(
-            key: Key('missing-product-reuse-${category.wireValue}'),
-            onPressed: _submitting || _adding
+          addTile: _AddPhotoTile(
+            key: Key('missing-product-add-${category.wireValue}'),
+            label: _processing
+                ? 'Checking photo…'
+                : _step == _CaptureStep.facts
+                ? 'Add another angle'
+                : 'Add another photo',
+            icon: _captureFromLibrary
+                ? Icons.add_photo_alternate_outlined
+                : Icons.add_a_photo_outlined,
+            busy: _processing,
+            onPressed: busy
                 ? null
-                : () => _reusePhotoForCategory(
-                    category,
+                : () => _addPhoto(
+                    _stepCategories(_step),
+                    fromLibrary: _captureFromLibrary,
                     autoAdvance: _step != _CaptureStep.facts,
                   ),
-            icon: const Icon(Icons.collections_bookmark_outlined, size: 18),
-            label: const Text('Use a photo already added'),
           ),
         ),
+        if (_step == _CaptureStep.facts) ...[
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'Panel wraps around the bottle? Add another angle.',
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
+          ),
+        ],
       ],
+      const SizedBox(height: V2Spacing.space8),
+      if (_step == _CaptureStep.ingredients &&
+          _photosTagged(
+            ProductSubmissionEvidenceCategory.supplementFacts,
+          ).isNotEmpty)
+        _QuietLink(
+          key: const Key('missing-product-ingredients-on-facts'),
+          label: 'It’s on the Supplement Facts panel',
+          onPressed: busy ? null : _ingredientsAreOnFacts,
+        ),
+      if (reusable)
+        _QuietLink(
+          key: Key('missing-product-reuse-${category.wireValue}'),
+          label: 'Use a photo already added',
+          icon: Icons.collections_bookmark_outlined,
+          onPressed: busy
+              ? null
+              : () => _reusePhotoForCategory(
+                  category,
+                  autoAdvance: _step != _CaptureStep.facts,
+                ),
+        ),
+      if (_step == _CaptureStep.facts)
+        _QuietLink(
+          key: const Key('missing-product-no-facts-link'),
+          label: 'Can’t find a Supplement Facts panel?',
+          onPressed: busy ? null : _showNoFactsPanelDeadEnd,
+        ),
     ];
   }
 
-  List<Widget> _reviewStepBody(BuildContext context) => [
-    Text(
-      '${_photos.length} photo${_photos.length == 1 ? '' : 's'} ready for '
-      'review.',
-      style: V2Typography.bodySm(color: context.v2.fgMuted),
-    ),
-    const SizedBox(height: V2Spacing.space8),
-    _PhotoThumbnailStrip(
-      photos: _photos,
-      enabled: !_submitting,
-      onRemove: _removePhoto,
-    ),
-    if (_factsCarriesIngredients) ...[
+  /// The user photographed the facts panel and then landed on "Other
+  /// Ingredients" — which was on that panel after all. Re-tag the facts
+  /// photos (never delete) and move on from there.
+  Future<void> _ingredientsAreOnFacts() async {
+    if (_submitting || _adding) return;
+    _setFactsCoversIngredients(true, reason: 'user_corrected_to_combined');
+    await _goForward();
+  }
+
+  List<Widget> _reviewContent(BuildContext context) {
+    final busy = _submitting || _adding;
+    final missing = [
+      for (final step in _visibleSteps)
+        if (step != _CaptureStep.intro &&
+            step != _CaptureStep.review &&
+            !_satisfies(step))
+          step,
+    ];
+    final blocked = _blockedCard();
+    return [
+      Text(
+        _stepTitle(_CaptureStep.review),
+        key: const Key('missing-product-step-title'),
+        style: V2Typography.title(color: context.v2.fg),
+      ),
       const SizedBox(height: V2Spacing.space8),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(V2Spacing.space12),
-        decoration: BoxDecoration(
-          color: context.v2.surfaceLow,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: context.v2.outline),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Other Ingredients marked as visible in the Supplement Facts '
-              'photo.',
-              style: V2Typography.bodySm(color: context.v2.fg),
-            ),
-            TextButton(
-              key: const Key('missing-product-facts-change-to-separate'),
-              onPressed: _submitting
-                  ? null
-                  : () => _setFactsCoversIngredients(
-                      false,
-                      nextStep: _CaptureStep.ingredients,
-                      reason: 'user_corrected_to_separate',
-                    ),
-              child: const Text('They’re on a separate panel'),
-            ),
-          ],
-        ),
+      Text(
+        '${_photos.length} photo${_photos.length == 1 ? '' : 's'} ready to '
+        'send.',
+        style: V2Typography.body(color: context.v2.fgMuted),
       ),
-    ],
-    const SizedBox(height: V2Spacing.space8),
-    Center(
-      child: TextButton(
-        key: const Key('missing-product-wrong-barcode'),
-        onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
-        child: Text(
-          'Not the product you scanned? Cancel and rescan.',
-          style: V2Typography.caption(color: context.v2.fgSubtle),
+      const SizedBox(height: V2Spacing.space16),
+      _ReviewPhotoGrid(
+        photos: _photos,
+        thumbnailFor: _thumbnailFor,
+        labelFor: _photoLabel,
+        enabled: !_submitting,
+        onRemove: _removePhoto,
+      ),
+      if (missing.isNotEmpty) ...[
+        const SizedBox(height: V2Spacing.space12),
+        _MissingPanelsCard(
+          names: [for (final step in missing) _panelName(step)],
+          onAdd: busy ? null : () => _jumpTo(missing.first),
         ),
-      ),
-    ),
-    const SizedBox(height: V2Spacing.space8),
-    ExpansionTile(
-      key: const Key('missing-product-privacy'),
-      tilePadding: EdgeInsets.zero,
-      title: Text(
-        'What we collect',
-        style: V2Typography.bodyMedium(color: context.v2.fg),
-      ),
-      children: [
+      ],
+      if (_factsCarriesIngredients) ...[
+        const SizedBox(height: V2Spacing.space12),
         Container(
-          padding: const EdgeInsets.all(V2Spacing.space16),
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space16,
+            V2Spacing.space12,
+            V2Spacing.space8,
+            V2Spacing.space4,
+          ),
           decoration: BoxDecoration(
-            color: context.v2.cautionTint,
+            color: context.v2.surfaceLow,
             borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           ),
-          child: Text(
-            missingProductPrivacyCopy,
-            style: V2Typography.bodySm(color: context.v2.fg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Other Ingredients marked as visible in the Supplement Facts '
+                'photo.',
+                style: V2Typography.bodySm(color: context.v2.fg),
+              ),
+              TextButton(
+                key: const Key('missing-product-facts-change-to-separate'),
+                onPressed: _submitting
+                    ? null
+                    : () => _setFactsCoversIngredients(
+                        false,
+                        nextStep: _CaptureStep.ingredients,
+                        reason: 'user_corrected_to_separate',
+                      ),
+                child: const Text('They’re on a separate panel'),
+              ),
+            ],
           ),
         ),
       ],
-    ),
-    CheckboxListTile(
-      key: const Key('missing-product-consent'),
-      contentPadding: EdgeInsets.zero,
-      controlAffinity: ListTileControlAffinity.leading,
-      value: _consent,
-      onChanged: _submitting
-          ? null
-          : (value) => setState(() {
-              _consent = value ?? false;
-              _failure = null;
-            }),
-      title: Text(
-        missingProductConsentCopy,
-        style: V2Typography.bodySm(color: context.v2.fg),
+      _QuietLink(
+        key: const Key('missing-product-wrong-barcode'),
+        label: 'Not the product you scanned? Cancel and rescan.',
+        onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
       ),
-    ),
-    if (_failure != null) ...[
-      const SizedBox(height: V2Spacing.space8),
-      Semantics(
-        liveRegion: true,
-        child: Text(
-          _failureCopy(_failure!),
-          style: V2Typography.bodySm(color: context.v2.contraindicated),
+      const SizedBox(height: V2Spacing.space16),
+      PGEyebrow('Optional', color: context.v2.fgMuted),
+      const SizedBox(height: V2Spacing.space4),
+      Text(
+        'Directions and lot details help reviewers check dosing and '
+        'freshness.',
+        style: V2Typography.bodySm(color: context.v2.fgMuted),
+      ),
+      const SizedBox(height: V2Spacing.space12),
+      for (final (category, label) in const [
+        (
+          ProductSubmissionEvidenceCategory.directionsWarnings,
+          'Directions & warnings',
+        ),
+        (
+          ProductSubmissionEvidenceCategory.lotExpiry,
+          'Lot number & expiration',
+        ),
+      ])
+        _OptionalCategoryTile(
+          label: label,
+          category: category,
+          count: _photosTagged(category).length,
+          enabled: !busy,
+          busy: _processing && _addingOptional == category,
+          onAdd: () => _addOptional(category),
+          onAddFromLibrary: () => _addOptional(category, fromLibrary: true),
+        ),
+      if (blocked != null) ...[
+        blocked,
+        const SizedBox(height: V2Spacing.space12),
+      ],
+      ExpansionTile(
+        key: const Key('missing-product-privacy'),
+        tilePadding: EdgeInsets.zero,
+        title: Text(
+          'What we collect',
+          style: V2Typography.bodyMedium(color: context.v2.fg),
+        ),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(V2Spacing.space16),
+            decoration: BoxDecoration(
+              color: context.v2.cautionTint,
+              borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+            ),
+            child: Text(
+              missingProductPrivacyCopy,
+              style: V2Typography.bodySm(color: context.v2.fg),
+            ),
+          ),
+        ],
+      ),
+      CheckboxListTile(
+        key: const Key('missing-product-consent'),
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: _consent,
+        onChanged: _submitting
+            ? null
+            : (value) => setState(() {
+                _consent = value ?? false;
+                _failure = null;
+              }),
+        title: Text(
+          missingProductConsentCopy,
+          style: V2Typography.bodySm(color: context.v2.fg),
         ),
       ),
-    ],
-    const SizedBox(height: V2Spacing.space16),
-    SizedBox(
-      height: 48,
-      child: FilledButton(
+    ];
+  }
+
+  Future<void> _addOptional(
+    ProductSubmissionEvidenceCategory category, {
+    bool fromLibrary = false,
+  }) async {
+    setState(() => _addingOptional = category);
+    await _addPhoto({category}, fromLibrary: fromLibrary);
+    if (mounted) setState(() => _addingOptional = null);
+  }
+
+  String _photoLabel(ProductSubmissionPhoto photo) => [
+    for (final (category, name) in const [
+      (ProductSubmissionEvidenceCategory.frontIdentity, 'Front'),
+      (ProductSubmissionEvidenceCategory.supplementFacts, 'Facts'),
+      (ProductSubmissionEvidenceCategory.ingredientDisclosure, 'Ingredients'),
+      (ProductSubmissionEvidenceCategory.barcode, 'Barcode'),
+      (ProductSubmissionEvidenceCategory.directionsWarnings, 'Directions'),
+      (ProductSubmissionEvidenceCategory.lotExpiry, 'Lot & expiry'),
+    ])
+      if (photo.categories.contains(category)) name,
+  ].join(' · ');
+
+  /// The pinned action area. Errors sit here, right above the button they
+  /// are about, so they are never scrolled out of sight.
+  Widget _footer(BuildContext context) {
+    final actions = switch (_step) {
+      _CaptureStep.intro => _introActions(context),
+      _CaptureStep.review => _reviewActions(context),
+      _ => _captureActions(context),
+    };
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).bottomSheetTheme.backgroundColor,
+        border: Border(top: BorderSide(color: context.v2.outline)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space12,
+          V2Spacing.space24,
+          V2Spacing.space12,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_stepError case final error?) ...[
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  error,
+                  textAlign: TextAlign.center,
+                  style: V2Typography.bodySm(color: context.v2.contraindicated),
+                ),
+              ),
+              const SizedBox(height: V2Spacing.space8),
+            ],
+            ...actions,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _primaryButton({
+    required Key key,
+    required String label,
+    required VoidCallback? onPressed,
+    IconData? icon,
+    bool busy = false,
+  }) {
+    final Widget? leading = busy
+        ? SizedBox.square(
+            dimension: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: context.v2.fgMuted,
+            ),
+          )
+        : icon == null
+        ? null
+        : Icon(icon, size: 20);
+    return SizedBox(
+      height: 52,
+      child: leading == null
+          ? FilledButton(key: key, onPressed: onPressed, child: Text(label))
+          : FilledButton.icon(
+              key: key,
+              onPressed: onPressed,
+              icon: leading,
+              label: Text(label),
+            ),
+    );
+  }
+
+  Widget _secondaryButton({
+    required Key key,
+    required String label,
+    required VoidCallback? onPressed,
+    IconData? icon,
+  }) => SizedBox(
+    height: 44,
+    child: icon == null
+        ? TextButton(key: key, onPressed: onPressed, child: Text(label))
+        : TextButton.icon(
+            key: key,
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18),
+            label: Text(label),
+          ),
+  );
+
+  List<Widget> _introActions(BuildContext context) {
+    if (_intakeCheckFailed) {
+      return [
+        _primaryButton(
+          key: const Key('missing-product-intake-retry'),
+          label: _checkingIntake ? 'Checking your submissions…' : 'Try again',
+          icon: Icons.refresh_rounded,
+          onPressed: _checkingIntake
+              ? null
+              : () => _start(fromLibrary: _startFromLibrary),
+        ),
+        const SizedBox(height: V2Spacing.space4),
+        _secondaryButton(
+          key: const Key('missing-product-continue-without-history-check'),
+          label: 'Continue anyway',
+          onPressed: _checkingIntake
+              ? null
+              : () {
+                  setState(() {
+                    _intakeCheckBypassed = true;
+                    _intakeCheckFailed = false;
+                    _stepError = null;
+                  });
+                  unawaited(_start(fromLibrary: _startFromLibrary));
+                },
+        ),
+      ];
+    }
+    // Also closed while library photos are being read and sorted.
+    final busy = _checkingIntake || _adding;
+    final cameraLabel = widget.preferLibrary
+        ? 'Take photos instead'
+        : _startLabel;
+    final camera = widget.preferLibrary
+        ? _secondaryButton(
+            key: const Key('missing-product-start'),
+            label: cameraLabel,
+            icon: Icons.photo_camera_outlined,
+            onPressed: busy ? null : () => _start(fromLibrary: false),
+          )
+        : _primaryButton(
+            key: const Key('missing-product-start'),
+            // Text, not a spinner: the check can end in a question, and a
+            // spinner behind it would say the app is still working.
+            label: _checkingIntake && !_startFromLibrary
+                ? 'Checking your submissions…'
+                : cameraLabel,
+            icon: Icons.photo_camera_outlined,
+            onPressed: busy ? null : () => _start(fromLibrary: false),
+          );
+    final library = widget.preferLibrary
+        ? _primaryButton(
+            key: const Key('missing-product-start-library'),
+            label: _checkingIntake && _startFromLibrary
+                ? 'Checking your submissions…'
+                : 'Choose from your photos',
+            icon: Icons.photo_library_outlined,
+            onPressed: busy ? null : () => _start(fromLibrary: true),
+          )
+        : _secondaryButton(
+            key: const Key('missing-product-start-library'),
+            label: 'Choose from your photos',
+            icon: Icons.photo_library_outlined,
+            onPressed: busy ? null : () => _start(fromLibrary: true),
+          );
+    return widget.preferLibrary
+        ? [library, const SizedBox(height: V2Spacing.space4), camera]
+        : [camera, const SizedBox(height: V2Spacing.space4), library];
+  }
+
+  /// The first panel capture will ask for, named on the start button.
+  String get _startLabel {
+    for (final step in _visibleSteps) {
+      if (step == _CaptureStep.intro || _alreadyCovered(step)) continue;
+      return switch (step) {
+        _CaptureStep.front => 'Start with the front',
+        _CaptureStep.facts => 'Start with Supplement Facts',
+        _CaptureStep.ingredients => 'Start with Other Ingredients',
+        _CaptureStep.barcode => 'Start with the barcode',
+        _CaptureStep.intro || _CaptureStep.review => 'Continue',
+      };
+    }
+    return 'Continue';
+  }
+
+  List<Widget> _captureActions(BuildContext context) {
+    final category = _stepCategory(_step);
+    final hasPhotos = _photosTagged(category).isNotEmpty;
+    final busy = _submitting || _adding;
+    if (_step == _CaptureStep.facts &&
+        hasPhotos &&
+        !_factsPanelLocationSettled) {
+      return [
+        Text(
+          'Is the “Other Ingredients” list on this panel too?',
+          textAlign: TextAlign.center,
+          style: V2Typography.bodyMedium(color: context.v2.fg),
+        ),
+        const SizedBox(height: V2Spacing.space12),
+        _primaryButton(
+          key: const Key('missing-product-facts-combined'),
+          label: 'Yes, it’s on this panel',
+          onPressed: busy ? null : () => _answerFactsQuestion(combined: true),
+        ),
+        const SizedBox(height: V2Spacing.space8),
+        SizedBox(
+          height: 48,
+          child: OutlinedButton(
+            key: const Key('missing-product-facts-separate'),
+            onPressed: busy
+                ? null
+                : () => _answerFactsQuestion(combined: false),
+            child: const Text('No, it’s separate'),
+          ),
+        ),
+      ];
+    }
+    if (_stepSatisfied) {
+      return [
+        _primaryButton(
+          key: const Key('missing-product-next'),
+          label: _continueLabel,
+          onPressed: busy ? null : _goForward,
+        ),
+      ];
+    }
+    final fromLibrary = _captureFromLibrary;
+    return [
+      _primaryButton(
+        key: Key('missing-product-add-${category.wireValue}'),
+        label: _processing
+            ? 'Checking photo…'
+            : fromLibrary
+            ? 'Choose a photo'
+            : 'Take photo',
+        icon: fromLibrary
+            ? Icons.photo_library_outlined
+            : Icons.photo_camera_outlined,
+        busy: _processing,
+        onPressed: busy
+            ? null
+            : () => _addPhoto(
+                _stepCategories(_step),
+                fromLibrary: fromLibrary,
+                autoAdvance: _step != _CaptureStep.facts,
+              ),
+      ),
+      const SizedBox(height: V2Spacing.space4),
+      _secondaryButton(
+        key: Key('missing-product-library-${category.wireValue}'),
+        // The link offers the OTHER source: the camera in library mode, the
+        // library otherwise.
+        label: fromLibrary ? 'Use camera instead' : 'Choose from your photos',
+        icon: fromLibrary
+            ? Icons.photo_camera_outlined
+            : Icons.photo_library_outlined,
+        onPressed: busy
+            ? null
+            : () => _addPhoto(
+                _stepCategories(_step),
+                fromLibrary: !fromLibrary,
+                autoAdvance: _step != _CaptureStep.facts,
+              ),
+      ),
+    ];
+  }
+
+  /// "Review photos" when the next stop is review, so the last Continue says
+  /// where it goes.
+  String get _continueLabel =>
+      _nextStep() == _CaptureStep.review ? 'Review photos' : 'Continue';
+
+  List<Widget> _reviewActions(BuildContext context) {
+    final failure = _failure;
+    final duplicate =
+        failure?.cause?.toString().contains('user_open_upc') ?? false;
+    final helper = _submitting
+        ? switch (_phase) {
+            ProductSubmissionPhase.savingReport => 'Saving your report…',
+            ProductSubmissionPhase.uploadingPhotos =>
+              'Uploading ${_photos.length} photo'
+                  '${_photos.length == 1 ? '' : 's'}…',
+            ProductSubmissionPhase.succeeded => 'Done',
+            ProductSubmissionPhase.failed => 'Something went wrong',
+            null => 'Sending…',
+          }
+        : !_coverageComplete
+        ? 'Add the missing photo to submit.'
+        : !_consent
+        ? 'Check the consent box above to submit.'
+        : 'A reviewer checks every label before it can enter the catalog.';
+    return [
+      if (failure != null) ...[
+        Semantics(
+          liveRegion: true,
+          child: Text(
+            _failureCopy(failure),
+            textAlign: TextAlign.center,
+            style: V2Typography.bodySm(color: context.v2.contraindicated),
+          ),
+        ),
+        if (duplicate && widget.onViewContributions != null)
+          _secondaryButton(
+            key: const Key('missing-product-view-contributions'),
+            label: 'View your contributions',
+            onPressed: widget.onViewContributions,
+          ),
+        const SizedBox(height: V2Spacing.space8),
+      ],
+      _primaryButton(
         key: const Key('missing-product-submit'),
+        label: _submitting
+            ? 'Sending…'
+            : failure != null
+            ? 'Try again'
+            : 'Submit for review',
+        busy: _submitting,
         onPressed: _canSubmit ? _submit : null,
-        child: _submitting
-            ? const SizedBox.square(
-                dimension: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Text('Submit'),
       ),
-    ),
-    if (_submitting && _phase != null) ...[
       const SizedBox(height: V2Spacing.space8),
-      Center(
-        child: Text(switch (_phase!) {
-          ProductSubmissionPhase.savingReport => 'Saving your report…',
-          ProductSubmissionPhase.uploadingPhotos =>
-            'Uploading ${_photos.length} photo'
-                '${_photos.length == 1 ? '' : 's'}…',
-          ProductSubmissionPhase.succeeded => 'Done',
-          ProductSubmissionPhase.failed => 'Something went wrong',
-        }, style: V2Typography.caption(color: context.v2.fgMuted)),
+      Text(
+        helper,
+        textAlign: TextAlign.center,
+        style: V2Typography.caption(color: context.v2.fgMuted),
       ),
-    ],
-    const SizedBox(height: V2Spacing.space12),
-    Text(
-      'A reviewer must verify the label before anything can enter the '
-      'PharmaGuide catalog.',
-      textAlign: TextAlign.center,
-      style: V2Typography.caption(color: context.v2.fgMuted),
-    ),
-  ];
+    ];
+  }
 
   String _failureCopy(ProductSubmissionFailure failure) {
     if (failure.kind == ProductSubmissionFailureKind.authenticationRequired) {
@@ -2205,8 +2613,32 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.facts => 'Supplement Facts',
     _CaptureStep.ingredients => 'Other Ingredients',
     _CaptureStep.barcode => 'Barcode',
-    _CaptureStep.extras => 'Anything else?',
     _CaptureStep.review => 'Review & submit',
+  };
+
+  /// One line: what to photograph and what makes it usable.
+  String _stepGuidance(_CaptureStep step) => switch (step) {
+    _CaptureStep.front =>
+      'Fill the frame so the brand and product name are easy to read.',
+    // Measured: a panel filling under about a third of the frame loses its
+    // smallest dose lines before anyone can read them.
+    _CaptureStep.facts =>
+      'Fill the frame with the whole panel, straight on and without glare.',
+    _CaptureStep.ingredients =>
+      'Photograph the full list. Every ingredient matters for safety checks.',
+    _CaptureStep.barcode =>
+      'Photograph the barcode so a reviewer can match it to the one you '
+          'scanned.',
+    _CaptureStep.intro || _CaptureStep.review => '',
+  };
+
+  /// The panel a step photographs, as the confirmation names it.
+  String _panelName(_CaptureStep step) => switch (step) {
+    _CaptureStep.front => 'Front',
+    _CaptureStep.facts => 'Supplement Facts',
+    _CaptureStep.ingredients => 'Other Ingredients',
+    _CaptureStep.barcode => 'Barcode',
+    _CaptureStep.intro || _CaptureStep.review => 'Label',
   };
 
   String _requiredCopy(_CaptureStep step) => switch (step) {
@@ -2219,82 +2651,429 @@ class _MissingProductSubmissionSheetState
           'Ingredients list.',
     _CaptureStep.barcode =>
       'Add a clear photo or screenshot showing this package’s UPC digits.',
-    _CaptureStep.intro || _CaptureStep.extras || _CaptureStep.review => '',
+    _CaptureStep.intro || _CaptureStep.review => '',
   };
+}
+
+/// The four panels the intro promises, numbered in the order capture asks
+/// for them. A retake marks the ones a reviewer already has as kept.
+class _PanelPlan extends StatelessWidget {
+  const _PanelPlan({required this.rows});
+
+  final List<({String label, String? hint, bool kept})> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final v2 = context.v2;
+    return Container(
+      decoration: BoxDecoration(
+        color: v2.surfaceLow,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: V2Spacing.space16,
+                vertical: V2Spacing.space8,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: rows[i].kept ? v2.accentStrong : v2.accentTint,
+                      shape: BoxShape.circle,
+                    ),
+                    child: rows[i].kept
+                        ? Icon(
+                            Icons.check_rounded,
+                            size: 16,
+                            color: v2.onAccent,
+                          )
+                        : Text(
+                            '${i + 1}',
+                            style: V2Typography.label(color: v2.accentStrong),
+                          ),
+                  ),
+                  const SizedBox(width: V2Spacing.space12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          rows[i].label,
+                          style: V2Typography.bodyMedium(color: v2.fg),
+                        ),
+                        if (rows[i].hint case final hint?)
+                          Text(
+                            hint,
+                            style: V2Typography.bodySm(color: v2.fgMuted),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (rows[i].kept)
+                    Text(
+                      'Kept',
+                      style: V2Typography.caption(color: v2.fgMuted),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusNote extends StatelessWidget {
+  const _StatusNote({
+    super.key,
+    required this.text,
+    required this.icon,
+    required this.tone,
+    required this.fill,
+  });
+
+  final String text;
+  final IconData icon;
+  final Color tone;
+  final Color fill;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: V2Spacing.space12,
+          vertical: V2Spacing.space8,
+        ),
+        decoration: BoxDecoration(
+          color: fill,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Icon(icon, size: 18, color: tone),
+            ),
+            const SizedBox(width: V2Spacing.space8),
+            Expanded(
+              child: Text(
+                text,
+                style: V2Typography.bodySm(color: context.v2.fg),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A centered tertiary action with a full 44-point tap target and readable
+/// contrast — the old caption-grey links measured about 3.2:1.
+class _QuietLink extends StatelessWidget {
+  const _QuietLink({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextButton.styleFrom(
+      minimumSize: const Size(0, 44),
+      foregroundColor: context.v2.accentStrong,
+    );
+    final text = Text(
+      label,
+      textAlign: TextAlign.center,
+      style: V2Typography.bodySm(color: null),
+    );
+    return Center(
+      child: icon == null
+          ? TextButton(style: style, onPressed: onPressed, child: text)
+          : TextButton.icon(
+              style: style,
+              onPressed: onPressed,
+              icon: Icon(icon, size: 18),
+              label: text,
+            ),
+    );
+  }
 }
 
 class _PhotoThumbnailStrip extends StatelessWidget {
   const _PhotoThumbnailStrip({
     required this.photos,
+    required this.thumbnailFor,
+    required this.enabled,
+    required this.onRemove,
+    this.addTile,
+  });
+
+  static const double size = 104;
+
+  final List<ProductSubmissionPhoto> photos;
+  final ImageProvider Function(ProductSubmissionPhoto photo) thumbnailFor;
+  final bool enabled;
+  final void Function(ProductSubmissionPhoto photo) onRemove;
+  final Widget? addTile;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: size,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: photos.length + (addTile == null ? 0 : 1),
+        separatorBuilder: (_, _) => const SizedBox(width: V2Spacing.space12),
+        itemBuilder: (context, index) => index == photos.length
+            ? addTile!
+            : _Thumbnail(
+                photo: photos[index],
+                image: thumbnailFor(photos[index]),
+                size: size,
+                semanticLabel: 'Captured label photo ${index + 1} preview',
+                enabled: enabled,
+                onRemove: onRemove,
+              ),
+      ),
+    );
+  }
+}
+
+class _AddPhotoTile extends StatelessWidget {
+  const _AddPhotoTile({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.busy,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool busy;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final v2 = context.v2;
+    final tone = onPressed == null && !busy ? v2.fgMuted : v2.accentStrong;
+    return SizedBox.square(
+      dimension: _PhotoThumbnailStrip.size,
+      child: Material(
+        color: v2.accentTint,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          child: Padding(
+            padding: const EdgeInsets.all(V2Spacing.space8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (busy)
+                  const SizedBox.square(
+                    dimension: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(icon, size: 24, color: tone),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: V2Typography.caption(color: tone),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Every photo, labelled with the panel(s) it counts for, so the user can
+/// see at a glance that each required panel is there.
+class _ReviewPhotoGrid extends StatelessWidget {
+  const _ReviewPhotoGrid({
+    required this.photos,
+    required this.thumbnailFor,
+    required this.labelFor,
     required this.enabled,
     required this.onRemove,
   });
 
   final List<ProductSubmissionPhoto> photos;
+  final ImageProvider Function(ProductSubmissionPhoto photo) thumbnailFor;
+  final String Function(ProductSubmissionPhoto photo) labelFor;
   final bool enabled;
   final void Function(ProductSubmissionPhoto photo) onRemove;
 
   @override
   Widget build(BuildContext context) {
-    if (photos.isEmpty) {
-      return Container(
-        height: 72,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border.all(color: context.v2.outline),
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        ),
-        child: Text(
-          'No photo yet',
-          style: V2Typography.caption(color: context.v2.fgSubtle),
-        ),
-      );
-    }
-    return SizedBox(
-      height: 88,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: photos.length,
-        separatorBuilder: (_, _) => const SizedBox(width: V2Spacing.space8),
-        itemBuilder: (context, index) {
-          final photo = photos[index];
-          return Stack(
-            children: [
-              Semantics(
-                container: true,
-                image: true,
-                excludeSemantics: true,
-                label: 'Captured label photo ${index + 1} preview',
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                  child: Image.memory(
-                    photo.bytes,
-                    width: 88,
-                    height: 88,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      width: 88,
-                      height: 88,
-                      color: context.v2.surfaceLow,
-                      child: const Icon(Icons.broken_image_outlined),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = V2Spacing.space12;
+        final tile = (constraints.maxWidth - gap * 2) / 3;
+        return Wrap(
+          spacing: gap,
+          runSpacing: V2Spacing.space12,
+          children: [
+            for (var i = 0; i < photos.length; i++)
+              SizedBox(
+                width: tile,
+                child: Column(
+                  children: [
+                    _Thumbnail(
+                      photo: photos[i],
+                      image: thumbnailFor(photos[i]),
+                      size: tile,
+                      semanticLabel: 'Photo ${i + 1}: ${labelFor(photos[i])}',
+                      enabled: enabled,
+                      onRemove: onRemove,
                     ),
+                    const SizedBox(height: V2Spacing.space4),
+                    Text(
+                      labelFor(photos[i]),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: V2Typography.caption(color: context.v2.fgMuted),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Thumbnail extends StatelessWidget {
+  const _Thumbnail({
+    required this.photo,
+    required this.image,
+    required this.size,
+    required this.semanticLabel,
+    required this.enabled,
+    required this.onRemove,
+  });
+
+  final ProductSubmissionPhoto photo;
+  final ImageProvider image;
+  final double size;
+  final String semanticLabel;
+  final bool enabled;
+  final void Function(ProductSubmissionPhoto photo) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Semantics(
+              container: true,
+              image: true,
+              excludeSemantics: true,
+              label: semanticLabel,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                child: Image(
+                  image: image,
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                  errorBuilder: (_, _, _) => ColoredBox(
+                    color: context.v2.surfaceLow,
+                    child: const Icon(Icons.broken_image_outlined),
                   ),
                 ),
               ),
-              Positioned(
-                top: 2,
-                right: 2,
-                child: IconButton(
-                  key: Key('missing-product-remove-${photo.photoId}'),
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Remove photo',
-                  onPressed: enabled ? () => onRemove(photo) : null,
-                  icon: Icon(Icons.cancel, size: 20, color: context.v2.fgMuted),
-                ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            // A near-solid disc in the text colour, with the glyph in the
+            // background colour, stays readable on any photo in either
+            // appearance; the padded tap target keeps the full 48 points.
+            child: IconButton(
+              key: Key('missing-product-remove-${photo.photoId}'),
+              tooltip: 'Remove photo',
+              onPressed: enabled ? () => onRemove(photo) : null,
+              style: IconButton.styleFrom(
+                backgroundColor: context.v2.fg.withValues(alpha: 0.72),
+                foregroundColor: context.v2.bg,
+                disabledBackgroundColor: context.v2.fg.withValues(alpha: 0.3),
+                fixedSize: const Size(30, 30),
+                minimumSize: const Size(30, 30),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.padded,
               ),
-            ],
-          );
-        },
+              iconSize: 18,
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissingPanelsCard extends StatelessWidget {
+  const _MissingPanelsCard({required this.names, required this.onAdd});
+
+  final List<String> names;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('missing-product-review-missing'),
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space16,
+        V2Spacing.space8,
+        V2Spacing.space8,
+        V2Spacing.space8,
+      ),
+      decoration: BoxDecoration(
+        color: context.v2.cautionTint,
+        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: 18, color: context.v2.caution),
+          const SizedBox(width: V2Spacing.space8),
+          Expanded(
+            child: Text(
+              'Still needed: ${names.join(', ')}',
+              style: V2Typography.bodySm(color: context.v2.fg),
+            ),
+          ),
+          TextButton(onPressed: onAdd, child: const Text('Add')),
+        ],
       ),
     );
   }
@@ -2304,17 +3083,20 @@ class _OptionalCategoryTile extends StatelessWidget {
   const _OptionalCategoryTile({
     required this.label,
     required this.category,
-    required this.photos,
+    required this.count,
     required this.enabled,
+    required this.busy,
     required this.onAdd,
     required this.onAddFromLibrary,
-    required this.onRemove,
   });
 
   final String label;
   final ProductSubmissionEvidenceCategory category;
-  final List<ProductSubmissionPhoto> photos;
+
+  /// Photos already added for this panel; they show in the grid above.
+  final int count;
   final bool enabled;
+  final bool busy;
   final VoidCallback onAdd;
 
   /// Both sources are offered explicitly. These panels are exactly the ones a
@@ -2322,49 +3104,56 @@ class _OptionalCategoryTile extends StatelessWidget {
   /// listing, a lot number from an earlier picture — so inheriting the
   /// camera from an earlier step left them with no way to add it at all.
   final VoidCallback onAddFromLibrary;
-  final void Function(ProductSubmissionPhoto photo) onRemove;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: V2Spacing.space12),
+      padding: const EdgeInsets.only(bottom: V2Spacing.space8),
       child: Container(
-        padding: const EdgeInsets.all(V2Spacing.space12),
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space16,
+          V2Spacing.space4,
+          V2Spacing.space4,
+          V2Spacing.space4,
+        ),
         decoration: BoxDecoration(
-          border: Border.all(color: context.v2.outline),
+          border: Border.all(color: context.v2.fg.withValues(alpha: 0.12)),
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: V2Typography.bodyMedium(color: context.v2.fg),
-                  ),
-                ),
-                IconButton(
-                  key: Key('missing-product-add-library-${category.wireValue}'),
-                  onPressed: enabled ? onAddFromLibrary : null,
-                  icon: const Icon(Icons.photo_library_outlined),
-                  tooltip: 'Choose from library',
-                ),
-                TextButton.icon(
-                  key: Key('missing-product-add-${category.wireValue}'),
-                  onPressed: enabled ? onAdd : null,
-                  icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                  label: Text(photos.isEmpty ? 'Add' : 'Add another'),
-                ),
-              ],
-            ),
-            if (photos.isNotEmpty)
-              _PhotoThumbnailStrip(
-                photos: photos,
-                enabled: enabled,
-                onRemove: onRemove,
+            if (count > 0) ...[
+              Icon(
+                Icons.check_circle_rounded,
+                size: 18,
+                color: context.v2.accentStrong,
               ),
+              const SizedBox(width: V2Spacing.space8),
+            ],
+            Expanded(
+              child: Text(
+                label,
+                style: V2Typography.bodyMedium(color: context.v2.fg),
+              ),
+            ),
+            IconButton(
+              key: Key('missing-product-add-library-${category.wireValue}'),
+              onPressed: enabled ? onAddFromLibrary : null,
+              icon: const Icon(Icons.photo_library_outlined),
+              tooltip: 'Choose from your photos',
+            ),
+            TextButton.icon(
+              key: Key('missing-product-add-${category.wireValue}'),
+              style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+              onPressed: enabled ? onAdd : null,
+              icon: busy
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.photo_camera_outlined, size: 18),
+              label: Text(count == 0 ? 'Add' : 'Add another'),
+            ),
           ],
         ),
       ),
@@ -2447,41 +3236,60 @@ class _SubmissionComplete extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.all(V2Spacing.space24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Icon(Icons.check_circle_outline, size: 48, color: context.v2.safe),
-            const SizedBox(height: V2Spacing.space16),
-            Text(
-              'Thanks — it’s in review',
-              textAlign: TextAlign.center,
-              style: V2Typography.title(color: context.v2.fg),
+    final v2 = context.v2;
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(V2Spacing.space24),
+            child: Column(
+              children: [
+                const SizedBox(height: V2Spacing.space32),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: v2.safeTint,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.check_rounded, size: 44, color: v2.safe),
+                ),
+                const SizedBox(height: V2Spacing.space24),
+                Text(
+                  'Thanks — it’s in review',
+                  textAlign: TextAlign.center,
+                  style: V2Typography.title(color: v2.fg),
+                ),
+                const SizedBox(height: V2Spacing.space8),
+                Text(
+                  'A reviewer checks every label before it can enter the '
+                  'catalog. Track progress under Settings → Product '
+                  'submissions — we’ll also notify you.',
+                  textAlign: TextAlign.center,
+                  style: V2Typography.body(color: v2.fgMuted),
+                ),
+              ],
             ),
-            const SizedBox(height: V2Spacing.space8),
-            Text(
-              'A reviewer checks every label before it can enter the '
-              'catalog. Track progress under Settings → Product '
-              'submissions — we’ll also notify you.',
-              textAlign: TextAlign.center,
-              style: V2Typography.bodySm(color: context.v2.fgMuted),
-            ),
-            const SizedBox(height: V2Spacing.space24),
-            SizedBox(
-              height: 48,
-              child: FilledButton(
-                key: const Key('missing-product-done'),
-                onPressed: onDone,
-                child: const Text('Done'),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space12,
+            V2Spacing.space24,
+            V2Spacing.space12,
+          ),
+          child: SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: FilledButton(
+              key: const Key('missing-product-done'),
+              onPressed: onDone,
+              child: const Text('Done'),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1145,19 +1145,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('missing-product-start')), findsOneWidget);
-    expect(
-      find.textContaining('Not found in this device’s catalog'),
-      findsOneWidget,
-    );
+    // The copy promises review of a local miss, not publication.
     expect(
       find.textContaining('we’ll check whether it already exists'),
       findsOneWidget,
     );
-    expect(find.text('Take a photo'), findsOneWidget);
+    expect(find.textContaining('add this product for everyone'), findsNothing);
+    // "Add a product from photos" leads with the library; the camera stays
+    // one tap away.
+    expect(find.text('Choose from your photos'), findsOneWidget);
     expect(
-      find.byKey(const Key('missing-product-start-library')),
-      findsOneWidget,
+      tester
+          .widget<FilledButton>(
+            find.byKey(const Key('missing-product-start-library')),
+          )
+          .onPressed,
+      isNotNull,
     );
+    expect(find.text('Take photos instead'), findsOneWidget);
     expect(find.textContaining('030772032565'), findsOneWidget);
   });
 }
