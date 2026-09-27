@@ -104,20 +104,39 @@ void main() {
       return result;
     }
 
-    testWidgets('one primary, one secondary, links — and the code shown', (
-      tester,
-    ) async {
+    testWidgets('search leads; adding the product is a full button, not a '
+        'footnote — and the code is shown', (tester) async {
       final result = await pumpSheet(tester);
 
-      expect(find.text('Product not found'), findsOneWidget);
+      expect(find.text('Not in your catalog yet'), findsOneWidget);
       expect(find.text('0123456789012'), findsOneWidget);
-      expect(find.text('Search by name'), findsOneWidget);
-      expect(find.text('Scan again'), findsOneWidget);
-      expect(find.text('Help add this product'), findsOneWidget);
+      expect(find.textContaining('help add it'), findsOneWidget);
       expect(find.text('Add as medication'), findsOneWidget);
       // The code was READ — re-typing it is never offered here; manual
       // entry stays on the idle scanner chrome for the can't-read case.
       expect(find.text('Enter code manually'), findsNothing);
+
+      // One primary, then two equal secondaries in this order.
+      final pills = tester
+          .widgetList<PGPillButton>(find.byType(PGPillButton))
+          .toList();
+      expect(pills.map((pill) => pill.label), [
+        'Search by name',
+        'Help add this product',
+        'Scan again',
+      ]);
+      expect(pills.map((pill) => pill.variant), [
+        PGPillVariant.primary,
+        PGPillVariant.secondary,
+        PGPillVariant.secondary,
+      ]);
+      final help = tester.getSize(
+        find.byKey(const Key('scanner-not-found-help-add')),
+      );
+      final rescan = tester.getSize(
+        find.byKey(const Key('scanner-not-found-rescan')),
+      );
+      expect(help, rescan);
 
       await tester.tap(find.byKey(const Key('scanner-not-found-help-add')));
       await tester.pumpAndSettle();
@@ -132,7 +151,7 @@ void main() {
       expect(find.text('Re-enter code'), findsOneWidget);
       expect(find.text('Scan again'), findsNothing);
       expect(
-        find.textContaining("isn't in your on-device catalog"),
+        find.textContaining('That code isn’t in your on-device catalog'),
         findsOneWidget,
       );
       await tester.tap(find.byKey(const Key('scanner-not-found-rescan')));
@@ -140,7 +159,9 @@ void main() {
       expect(result.value, ScannerNotFoundAction.scanAgain);
     });
 
-    testWidgets('quiet actions do not overflow a narrow phone', (tester) async {
+    testWidgets('every action stays reachable on a narrow phone', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(320, 568);
       tester.view.devicePixelRatio = 1;
       tester.platformDispatcher.textScaleFactorTestValue = 2;
@@ -148,11 +169,22 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-      await pumpSheet(tester);
+      final result = await pumpSheet(tester);
 
       expect(tester.takeException(), isNull);
       expect(find.text('Help add this product'), findsOneWidget);
       expect(find.text('Add as medication'), findsOneWidget);
+      // Three stacked buttons at 2x text outgrow the screen; the sheet
+      // scrolls rather than clipping the last action.
+      await tester.ensureVisible(
+        find.byKey(const Key('scanner-not-found-add-medication')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('scanner-not-found-add-medication')),
+      );
+      await tester.pumpAndSettle();
+      expect(result.value, ScannerNotFoundAction.addMedication);
     });
   });
 
