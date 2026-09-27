@@ -226,6 +226,32 @@ void main() {
     expect(_stepTitle(tester), 'Supplement Facts');
   });
 
+  testWidgets('with camera and library both off, capture says so once and '
+      'never flips back to a source it knows is blocked', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        backend: _Backend(authenticatedUserId: _userId),
+        pickPhoto: (_) async =>
+            throw PlatformException(code: 'camera_access_denied'),
+        pickPhotoFromLibrary: (_) async =>
+            throw PlatformException(code: 'photo_access_denied'),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    expect(find.text('Camera access is off'), findsOneWidget);
+    expect(find.text('Choose a photo'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-front_identity')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Camera and photo access are off'), findsOneWidget);
+    // Still the library, not the camera it already knows is blocked.
+    expect(find.text('Choose a photo'), findsOneWidget);
+    expect(find.text('Take photo'), findsNothing);
+  });
+
   testWidgets('a device without a camera carries on from the library', (
     tester,
   ) async {
@@ -571,6 +597,60 @@ void main() {
     expect(backend.intakeCalls, 1);
     expect(_photoCounter, 1);
     expect(_stepTitle(tester), 'Supplement Facts');
+  });
+
+  testWidgets('the fixed frame holds at the largest text size, even with a '
+      'failure and its actions in the footer', (tester) async {
+    tester.view.physicalSize = const Size(375, 667);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 3.1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final backend = _Backend(
+      authenticatedUserId: _userId,
+      persistError: StateError(
+        'duplicate key value violates unique constraint '
+        '"idx_product_submissions_user_open_upc"',
+      ),
+    );
+    await tester.pumpWidget(_harness(backend: backend));
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const Key('missing-product-start')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(
+      find.byKey(const Key('missing-product-add-supplement_facts')),
+    );
+    await tester.pumpAndSettle();
+    // The question and both answers crowd the footer here.
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+    await tester.pumpAndSettle();
+    await _scrollToConsent(tester);
+    // The consent paragraph is taller than the screen at this size; its box
+    // sits beside the first line, where scrolling to the consent lands.
+    final box = find.descendant(
+      of: find.byKey(const Key('missing-product-consent')),
+      matching: find.byType(Checkbox),
+    );
+    await tester.ensureVisible(box);
+    await tester.pumpAndSettle();
+    await tester.tap(box);
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('missing-product-submit')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    // The failure may sit in the capped footer's scrolled-away top.
+    expect(
+      find.textContaining(
+        'already have an open submission',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('invalid GTIN never opens the capture flow', (tester) async {

@@ -212,7 +212,14 @@ class _MissingProductSubmissionSheetState
   bool _processing = false;
   String? _chosenResubmissionOf;
   String? _stepError;
-  _BlockedSource? _blockedSource;
+
+  /// Sources the OS refused this session. Remembered, so capture never
+  /// falls back onto a source it already knows is off; one leaves the set
+  /// as soon as it opens again (after a trip to Settings).
+  final Set<_BlockedSource> _blockedSources = {};
+
+  /// Whether the blocked-source card is raised for the latest attempt.
+  bool _showBlockedCard = false;
 
   /// A neutral note about what the last photo covered ("the barcode is in
   /// this one"). Survives an automatic advance so the user sees it.
@@ -414,11 +421,15 @@ class _MissingProductSubmissionSheetState
       _stepNotice = null;
       _savedNote = null;
       _failure = null;
-      _blockedSource = null;
+      _showBlockedCard = false;
     });
     try {
       final photo = await pick(categories);
       if (!mounted || photo == null) return;
+      // A photo came back, so this source is open (again).
+      _blockedSources.remove(
+        fromLibrary ? _BlockedSource.photos : _BlockedSource.camera,
+      );
       setState(() => _processing = true);
       if (_alreadySent(photo)) {
         setState(
@@ -502,11 +513,7 @@ class _MissingProductSubmissionSheetState
       final blocked = _blockedSourceFor(error.code);
       setState(() {
         if (blocked != null) {
-          _blockedSource = blocked;
-          // The primary button should be the one that works: carry on from
-          // the source that is still open ("Use camera instead" stays one
-          // tap away for after the Settings change).
-          _captureFromLibrary = blocked == _BlockedSource.camera;
+          _raiseBlocked(blocked);
         } else if (error.code == 'no_available_camera') {
           _captureFromLibrary = true;
           _stepError =
@@ -527,6 +534,17 @@ class _MissingProductSubmissionSheetState
         });
       }
     }
+  }
+
+  /// Records a refused source, raises the card, and moves the primary
+  /// button to a source that still works — never back onto one this session
+  /// already knows is off. (Call inside setState.)
+  void _raiseBlocked(_BlockedSource blocked) {
+    _blockedSources.add(blocked);
+    _showBlockedCard = true;
+    final cameraOff = _blockedSources.contains(_BlockedSource.camera);
+    final photosOff = _blockedSources.contains(_BlockedSource.photos);
+    if (cameraOff != photosOff) _captureFromLibrary = cameraOff;
   }
 
   Future<void> _openSystemSettings() async {
@@ -665,11 +683,12 @@ class _MissingProductSubmissionSheetState
       _adding = true;
       _stepError = null;
       _stepNotice = null;
-      _blockedSource = null;
+      _showBlockedCard = false;
     });
     try {
       final picked = await widget.pickPhotosFromLibrary!(room);
       if (!mounted) return false;
+      _blockedSources.remove(_BlockedSource.photos);
       if (picked.photos.isNotEmpty) setState(() => _processing = true);
       // A picker that ignores the limit still never overfills a submission,
       // and what it dropped is counted, not silently lost.
@@ -742,8 +761,7 @@ class _MissingProductSubmissionSheetState
         final blocked = _blockedSourceFor(error.code);
         setState(() {
           if (blocked != null) {
-            _blockedSource = blocked;
-            _captureFromLibrary = blocked == _BlockedSource.camera;
+            _raiseBlocked(blocked);
           } else {
             _stepError = 'We couldn’t open those photos. Try again.';
           }
@@ -1118,6 +1136,8 @@ class _MissingProductSubmissionSheetState
     if (_submitting) return;
     // A photo the user deleted must not survive on disk.
     unawaited(_persistAfterFrame());
+    // Its thumbnail holds the photo's bytes; let both go with the photo.
+    unawaited(_thumbnails.remove(photo.photoId)?.evict());
     setState(() {
       _photos.remove(photo);
       if (_photosTagged(
@@ -1264,7 +1284,7 @@ class _MissingProductSubmissionSheetState
     setState(() {
       _step = next;
       _stepError = null;
-      if (!fromIntro) _blockedSource = null;
+      if (!fromIntro) _showBlockedCard = false;
       if (!keepNotice) {
         _stepNotice = null;
         _savedNote = null;
@@ -1304,7 +1324,7 @@ class _MissingProductSubmissionSheetState
       _stepError = null;
       _stepNotice = null;
       _savedNote = null;
-      _blockedSource = null;
+      _showBlockedCard = false;
     });
   }
 
@@ -1420,7 +1440,7 @@ class _MissingProductSubmissionSheetState
         _stepError = null;
         _stepNotice = null;
         _savedNote = null;
-        _blockedSource = null;
+        _showBlockedCard = false;
       });
     }
   }
@@ -1701,7 +1721,7 @@ class _MissingProductSubmissionSheetState
                 ),
               ),
             ),
-            _footer(context),
+            _footer(context, maxHeight: height * 0.55),
           ],
         ),
       ),
@@ -1887,13 +1907,12 @@ class _MissingProductSubmissionSheetState
     ],
   ];
 
-  Widget? _blockedCard() => switch (_blockedSource) {
-    final blocked? => _BlockedSourceCard(
-      source: blocked,
-      onOpenSettings: () => unawaited(_openSystemSettings()),
-    ),
-    null => null,
-  };
+  Widget? _blockedCard() => _showBlockedCard && _blockedSources.isNotEmpty
+      ? _BlockedSourceCard(
+          sources: _blockedSources,
+          onOpenSettings: () => unawaited(_openSystemSettings()),
+        )
+      : null;
 
   List<Widget> _introContent(BuildContext context) {
     final retake = widget.retake;
@@ -2239,6 +2258,10 @@ class _MissingProductSubmissionSheetState
         key: const Key('missing-product-consent'),
         contentPadding: EdgeInsets.zero,
         controlAffinity: ListTileControlAffinity.leading,
+        // Beside the first line of the consent, not the middle of it: at
+        // large text sizes the paragraph outgrows the screen, and a centred
+        // box would sit off-screen mid-paragraph.
+        titleAlignment: ListTileTitleAlignment.top,
         value: _consent,
         onChanged: _submitting
             ? null
@@ -2276,8 +2299,10 @@ class _MissingProductSubmissionSheetState
   ].join(' · ');
 
   /// The pinned action area. Errors sit here, right above the button they
-  /// are about, so they are never scrolled out of sight.
-  Widget _footer(BuildContext context) {
+  /// are about, so they are never scrolled out of sight. At the largest text
+  /// sizes the area can outgrow the fixed frame, so it is capped and scrolls
+  /// inside the cap, anchored to the bottom so the buttons stay in view.
+  Widget _footer(BuildContext context, {required double maxHeight}) {
     final actions = switch (_step) {
       _CaptureStep.intro => _introActions(context),
       _CaptureStep.review => _reviewActions(context),
@@ -2288,30 +2313,36 @@ class _MissingProductSubmissionSheetState
         color: Theme.of(context).bottomSheetTheme.backgroundColor,
         border: Border(top: BorderSide(color: context.v2.outline)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          V2Spacing.space24,
-          V2Spacing.space12,
-          V2Spacing.space24,
-          V2Spacing.space12,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_stepError case final error?) ...[
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  error,
-                  textAlign: TextAlign.center,
-                  style: V2Typography.bodySm(color: context.v2.contraindicated),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SingleChildScrollView(
+          reverse: true,
+          padding: const EdgeInsets.fromLTRB(
+            V2Spacing.space24,
+            V2Spacing.space12,
+            V2Spacing.space24,
+            V2Spacing.space12,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_stepError case final error?) ...[
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    error,
+                    textAlign: TextAlign.center,
+                    style: V2Typography.bodySm(
+                      color: context.v2.contraindicated,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: V2Spacing.space8),
+                const SizedBox(height: V2Spacing.space8),
+              ],
+              ...actions,
             ],
-            ...actions,
-          ],
+          ),
         ),
       ),
     );
@@ -3165,20 +3196,40 @@ class _OptionalCategoryTile extends StatelessWidget {
 /// camera or the photo library for us.
 class _BlockedSourceCard extends StatelessWidget {
   const _BlockedSourceCard({
-    required this.source,
+    required this.sources,
     required this.onOpenSettings,
   });
 
-  final _BlockedSource source;
+  final Set<_BlockedSource> sources;
   final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
-    final camera = source == _BlockedSource.camera;
+    final camera = sources.contains(_BlockedSource.camera);
+    final photos = sources.contains(_BlockedSource.photos);
+    final (key, title, body) = switch ((camera, photos)) {
+      (true, true) => (
+        'both',
+        'Camera and photo access are off',
+        'Turn them on for PharmaGuide in Settings to add label photos.',
+      ),
+      (true, false) => (
+        'camera',
+        'Camera access is off',
+        'Turn on camera access for PharmaGuide in Settings, or choose '
+            'photos you already have.',
+      ),
+      _ => (
+        'photos',
+        'Photo access is off',
+        'Turn on photo access for PharmaGuide in Settings, or take new '
+            'photos with the camera.',
+      ),
+    };
     return Semantics(
       liveRegion: true,
       child: Container(
-        key: Key('missing-product-blocked-${source.name}'),
+        key: Key('missing-product-blocked-$key'),
         width: double.infinity,
         padding: const EdgeInsets.all(V2Spacing.space16),
         decoration: BoxDecoration(
@@ -3200,21 +3251,14 @@ class _BlockedSourceCard extends StatelessWidget {
                 const SizedBox(width: V2Spacing.space8),
                 Expanded(
                   child: Text(
-                    camera ? 'Camera access is off' : 'Photo access is off',
+                    title,
                     style: V2Typography.bodyMedium(color: context.v2.fg),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: V2Spacing.space4),
-            Text(
-              camera
-                  ? 'Turn on camera access for PharmaGuide in Settings, or '
-                        'choose photos you already have.'
-                  : 'Turn on photo access for PharmaGuide in Settings, or '
-                        'take new photos with the camera.',
-              style: V2Typography.bodySm(color: context.v2.fgMuted),
-            ),
+            Text(body, style: V2Typography.bodySm(color: context.v2.fgMuted)),
             const SizedBox(height: V2Spacing.space12),
             OutlinedButton.icon(
               key: const Key('missing-product-open-settings'),
