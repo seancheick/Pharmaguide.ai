@@ -90,20 +90,26 @@ class SafetyPushService with WidgetsBindingObserver {
       _tokenRefresh = _messaging.onTokenRefresh.listen((token) {
         unawaited(_register(token));
       });
-      _authState = supabase.auth.onAuthStateChange.listen((state) {
-        if (state.event == AuthChangeEvent.signedOut) {
-          // A signed-out device must stop receiving the previous account's
-          // pushes even when sign-out happened outside our own flow (session
-          // expiry, account deletion, dev tools): invalidating the FCM token
-          // makes every queued row for it come back UNREGISTERED and pruned.
-          _tokenRegistered = false;
-          _registeredToken = null;
-          unawaited(_deleteLocalToken());
-          return;
-        }
-        if (state.session == null) return;
-        unawaited(acquireAndRegisterToken());
-      });
+      _authState = supabase.auth.onAuthStateChange.listen(
+        (state) {
+          if (state.event == AuthChangeEvent.signedOut) {
+            // A signed-out device must stop receiving the previous account's
+            // pushes even when sign-out happened outside our own flow (session
+            // expiry, account deletion, dev tools): invalidating the FCM token
+            // makes every queued row for it come back UNREGISTERED and pruned.
+            _tokenRegistered = false;
+            _registeredToken = null;
+            unawaited(_deleteLocalToken());
+            return;
+          }
+          if (state.session == null) return;
+          unawaited(acquireAndRegisterToken());
+        },
+        // Failed token refreshes arrive here too. The app-level listener in
+        // app.dart decides what to report; unhandled here, each would become
+        // an uncaught fatal (Sentry PHARMAGUIDE-23).
+        onError: (Object _) {},
+      );
       await acquireAndRegisterToken();
       WidgetsBinding.instance.addObserver(this);
       active = this;

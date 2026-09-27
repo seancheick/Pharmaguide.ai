@@ -1208,6 +1208,12 @@ class PharmaGuideApp extends ConsumerWidget {
   }
 }
 
+/// True while the user waits on the magic-link callback spinner, where an
+/// auth error is the answer to a sign-in they started.
+@visibleForTesting
+bool isOnMagicLinkCallback(GoRouter router) =>
+    _visiblePath(router) == '/auth/callback';
+
 /// What the app does with an error on the auth-state stream: whether it is a
 /// defect worth reporting, and whether to tell the user. [onMagicLinkCallback]
 /// is true while the user waits on the magic-link callback page.
@@ -1279,8 +1285,7 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
   /// quietly too ([authStreamErrorResponse]); anything else is recorded.
   void _onAuthError(Object error, StackTrace stackTrace) {
     final router = _appRouter;
-    final onCallback =
-        router != null && _visiblePath(router) == '/auth/callback';
+    final onCallback = router != null && isOnMagicLinkCallback(router);
     final response = authStreamErrorResponse(
       error,
       onMagicLinkCallback: onCallback,

@@ -957,12 +957,16 @@ class _SignOutButtonState extends State<_SignOutButton> {
     super.initState();
     try {
       _currentEmail = Supabase.instance.client.auth.currentUser?.email;
-      _sub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-        if (!mounted) return;
-        setState(() {
-          _currentEmail = Supabase.instance.client.auth.currentUser?.email;
-        });
-      });
+      _sub = Supabase.instance.client.auth.onAuthStateChange.listen(
+        (_) {
+          if (!mounted) return;
+          setState(() {
+            _currentEmail = Supabase.instance.client.auth.currentUser?.email;
+          });
+        },
+        // app.dart's listener owns auth-error reporting (PHARMAGUIDE-23).
+        onError: (Object _) {},
+      );
     } on Object catch (_) {
       // Placeholder build — no auth available.
     }

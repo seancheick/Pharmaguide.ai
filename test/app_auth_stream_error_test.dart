@@ -1,8 +1,43 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/app.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  group('isOnMagicLinkCallback', () {
+    GoRouter router() => GoRouter(
+      initialLocation: Routes.home,
+      routes: [
+        GoRoute(path: Routes.home, builder: (_, __) => const Text('Home')),
+        GoRoute(
+          path: Routes.authInvitation,
+          builder: (_, __) => const Text('Sign in'),
+        ),
+        GoRoute(
+          path: '/auth/callback',
+          builder: (_, __) => const Text('Finishing sign-in'),
+        ),
+      ],
+    );
+
+    testWidgets('true only on the callback page', (tester) async {
+      final r = router();
+      addTearDown(r.dispose);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: r));
+      expect(isOnMagicLinkCallback(r), isFalse);
+
+      r.go('/auth/callback?code=abc');
+      await tester.pumpAndSettle();
+      expect(isOnMagicLinkCallback(r), isTrue);
+
+      r.go(Routes.authInvitation);
+      await tester.pumpAndSettle();
+      expect(isOnMagicLinkCallback(r), isFalse);
+    });
+  });
+
   group('authStreamErrorResponse', () {
     // Sentry PHARMAGUIDE-23: a signed-in phone woke up, GoTrue's background
     // token refresh hit a dead socket, and the app reported it and told the
