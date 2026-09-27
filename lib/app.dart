@@ -1207,6 +1207,32 @@ class PharmaGuideApp extends ConsumerWidget {
   }
 }
 
+/// What the app does with an error on the auth-state stream: whether it is a
+/// defect worth reporting, and whether to tell the user. [onMagicLinkCallback]
+/// is true while the user waits on the magic-link callback page.
+///
+/// GoTrue raises [AuthRetryableFetchException] when a background token
+/// refresh fails and keeps the session to retry on its own. Without a status
+/// code the connection dropped before any response (Sentry PHARMAGUIDE-23: a
+/// dead socket after the phone woke), which is not a defect. Outside the
+/// callback page no sign-in is in progress, so "Sign-in could not be
+/// completed" would be wrong on a signed-in phone. A 5xx still reports.
+@visibleForTesting
+({bool report, bool tellUser}) authStreamErrorResponse(
+  Object error, {
+  required bool onMagicLinkCallback,
+}) {
+  final expiredLink =
+      error is AuthException &&
+      _AuthEventListenerState._isExpiredOrUsedLink(error);
+  final retryable = error is AuthRetryableFetchException;
+  final connectionDropped = retryable && error.statusCode == null;
+  return (
+    report: !expiredLink && !connectionDropped,
+    tellUser: onMagicLinkCallback || !retryable,
+  );
+}
+
 /// Listens to supabase.auth.onAuthStateChange and surfaces signed-in
 /// / signed-out events via the global scaffold messenger. This is the
 /// hook the deep-link round trip lands on after the user taps a
@@ -1248,17 +1274,31 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
   /// `getSessionFromUrl`. That's a routine, user-recoverable condition —
   /// surface a calm "request a new link" snackbar, route off the
   /// /auth/callback spinner so it doesn't hang, and do NOT report it to
-  /// Sentry. Anything else is genuinely unexpected, so record it.
+  /// Sentry. A background refresh that loses its connection is handled
+  /// quietly too ([authStreamErrorResponse]); anything else is recorded.
   void _onAuthError(Object error, StackTrace stackTrace) {
-    final isExpiredLink = error is AuthException && _isExpiredOrUsedLink(error);
-    if (!isExpiredLink) {
+    final router = _appRouter;
+    final onCallback =
+        router != null && _visiblePath(router) == '/auth/callback';
+    final response = authStreamErrorResponse(
+      error,
+      onMagicLinkCallback: onCallback,
+    );
+    if (response.report) {
       CrashReportingService().recordError(
         error,
         stackTrace,
         hint: 'auth_state_stream',
       );
     }
+    if (!response.tellUser) {
+      CrashReportingService().log(
+        'auth: token refresh failed; the session is kept and retried',
+      );
+      return;
+    }
     if (!mounted) return;
+    final isExpiredLink = error is AuthException && _isExpiredOrUsedLink(error);
     // A build made without --dart-define points at a placeholder project, so
     // sign-in cannot succeed however many times it is retried. Release builds
     // deliberately keep running for guest mode, which means this screen is the
@@ -1283,10 +1323,7 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
     // A failed magic-link return lands on the /auth/callback spinner with no
     // session, so it would spin forever. Send the user back to the auth
     // entry point where they can request a fresh link.
-    final router = _appRouter;
-    if (router != null && _visiblePath(router) == '/auth/callback') {
-      router.go(Routes.authInvitation);
-    }
+    if (onCallback) router.go(Routes.authInvitation);
   }
 
   /// True for the expired/already-consumed magic-link shape. GoTrue reports
