@@ -43,8 +43,8 @@ class AuthInvitationV2Screen extends StatefulWidget {
   /// magic-link entry sheet.
   final VoidCallback? onEmail;
 
-  /// Callback when the user taps Skip for now. Production: marks the
-  /// session as guest, preserves onboarding completion, navigates home.
+  /// Callback when the user taps Skip for now or the close button.
+  /// Production: back to whatever opened sign-in (`leaveAuthInvitation`).
   final VoidCallback? onSkip;
 
   const AuthInvitationV2Screen({
@@ -148,85 +148,106 @@ class _AuthInvitationV2ScreenState extends State<AuthInvitationV2Screen>
           radius: 1.0,
           intensity: 0.05,
           child: SafeArea(
-            child: AnimatedBuilder(
-              animation: _ctrl,
-              builder: (context, _) {
-                // Delays spaced 0.18 apart so each element starts as
-                // the previous one is just finishing — sequential
-                // cascade, not blended fade-up.
-                final mark = _stagger(0.0);
-                final headline = _stagger(0.18);
-                final subhead = _stagger(0.36);
-                final buttons = _stagger(0.54);
-                final skip = _stagger(0.72);
-
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: IntrinsicHeight(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: V2Spacing.space24,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const SizedBox(height: V2Spacing.space48),
-                                _Faded(
-                                  opacity: mark.opacity,
-                                  lift: mark.lift,
-                                  child: _BrandMark(pulse: _heartbeatScale),
-                                ),
-                                const SizedBox(height: V2Spacing.space32),
-                                _Faded(
-                                  opacity: headline.opacity,
-                                  lift: headline.lift,
-                                  child: const _Headline(),
-                                ),
-                                const SizedBox(height: V2Spacing.space16),
-                                _Faded(
-                                  opacity: subhead.opacity,
-                                  lift: subhead.lift,
-                                  child: const _Subhead(),
-                                ),
-                                const Spacer(),
-                                _Faded(
-                                  opacity: buttons.opacity,
-                                  lift: buttons.lift,
-                                  child: _AuthButtonStack(
-                                    onApple: () => _noopOrCall(widget.onApple),
-                                    onGoogle: () =>
-                                        _noopOrCall(widget.onGoogle),
-                                    onEmail: () => _noopOrCall(widget.onEmail),
-                                  ),
-                                ),
-                                const SizedBox(height: V2Spacing.space24),
-                                _Faded(
-                                  opacity: skip.opacity,
-                                  lift: skip.lift,
-                                  child: _SkipFooter(
-                                    onSkip: () => _noopOrCall(widget.onSkip),
-                                  ),
-                                ),
-                                const SizedBox(height: V2Spacing.space24),
-                              ],
-                            ),
-                          ),
-                        ),
+            child: Stack(
+              children: [
+                _buildContent(),
+                // A pushed sign-in page needs an obvious way out besides
+                // the edge swipe (HIG: modal views have an obvious exit).
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(V2Spacing.space4),
+                    child: IconButton(
+                      tooltip: 'Close',
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: context.v2.fgMuted,
                       ),
-                    );
-                  },
-                );
-              },
+                      onPressed: () => _noopOrCall(widget.onSkip),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildContent() {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        // Delays spaced 0.18 apart so each element starts as
+        // the previous one is just finishing — sequential
+        // cascade, not blended fade-up.
+        final mark = _stagger(0.0);
+        final headline = _stagger(0.18);
+        final subhead = _stagger(0.36);
+        final buttons = _stagger(0.54);
+        final skip = _stagger(0.72);
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: V2Spacing.space24,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: V2Spacing.space48),
+                        _Faded(
+                          opacity: mark.opacity,
+                          lift: mark.lift,
+                          child: _BrandMark(pulse: _heartbeatScale),
+                        ),
+                        const SizedBox(height: V2Spacing.space32),
+                        _Faded(
+                          opacity: headline.opacity,
+                          lift: headline.lift,
+                          child: const _Headline(),
+                        ),
+                        const SizedBox(height: V2Spacing.space16),
+                        _Faded(
+                          opacity: subhead.opacity,
+                          lift: subhead.lift,
+                          child: const _Subhead(),
+                        ),
+                        const Spacer(),
+                        _Faded(
+                          opacity: buttons.opacity,
+                          lift: buttons.lift,
+                          child: _AuthButtonStack(
+                            onApple: () => _noopOrCall(widget.onApple),
+                            onGoogle: () => _noopOrCall(widget.onGoogle),
+                            onEmail: () => _noopOrCall(widget.onEmail),
+                          ),
+                        ),
+                        const SizedBox(height: V2Spacing.space24),
+                        _Faded(
+                          opacity: skip.opacity,
+                          lift: skip.lift,
+                          child: _SkipFooter(
+                            onSkip: () => _noopOrCall(widget.onSkip),
+                          ),
+                        ),
+                        const SizedBox(height: V2Spacing.space24),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -306,7 +327,7 @@ class _Headline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      'Save your stack before\nyour first scan.',
+      'Keep your stack on\nevery device.',
       style: V2Typography.displayXs(color: context.v2.fg),
       textAlign: TextAlign.center,
     );
@@ -322,9 +343,9 @@ class _Subhead extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: V2Spacing.space8),
       child: Text(
-        'PharmaGuide works best when your supplements, medications, '
-        'and profile stay connected. Sign in to keep your stack and '
-        'safety checks in sync across devices.',
+        'Sign in to back up your supplement stack and sync it across '
+        'your devices. Your profile, medications and allergies stay '
+        'saved on this device only.',
         // Stepped down from bodyXl (18pt) → body (16pt) per Sean
         // 2026-05-15 — 18pt felt slightly oversized against the
         // serif headline above.
@@ -524,24 +545,22 @@ class _SkipFooter extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onSkip,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: V2Spacing.space8,
-              horizontal: V2Spacing.space16,
-            ),
-            child: Text(
-              'Skip for now',
-              style: V2Typography.label(color: context.v2.accent),
-            ),
+        // A real button (role + 44pt target), not a tappable Text.
+        TextButton(
+          onPressed: onSkip,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(0, 44),
+            foregroundColor: context.v2.accent,
+          ),
+          child: Text(
+            'Skip for now',
+            style: V2Typography.label(color: context.v2.accent),
           ),
         ),
-        const SizedBox(height: V2Spacing.space8),
+        const SizedBox(height: V2Spacing.space4),
         Text(
-          "Skip for now if you'd rather try first. Guest mode includes "
-          "3 scans per day, with no AI, saved stack, or cloud sync.",
+          'As a guest you get 3 scans a day, and your stack is saved on '
+          'this device only.',
           style: V2Typography.bodySm(color: context.v2.fgSubtle),
           textAlign: TextAlign.center,
         ),

@@ -518,6 +518,19 @@ List<RouteBase> withDevPreviewRoutes(
   ];
 }
 
+/// Leaves the sign-in page without signing in. In-app gates push it over a
+/// product, a report or a tab, so "Skip" and "Close" return there; going
+/// Home lost the page the user was on. Home only when nothing is underneath
+/// (e.g. the expired magic-link bounce `go`es here).
+void leaveAuthInvitation(BuildContext context) {
+  final router = GoRouter.of(context);
+  if (router.canPop()) {
+    router.pop();
+  } else {
+    router.go(Routes.home);
+  }
+}
+
 /// Single-instance app router. Created on first `_buildRouter` call and
 /// memoized so the global `_AuthEventListener` can call `.go(...)` after
 /// the auth round-trip lands (magic link return / Apple / Google native
@@ -646,10 +659,9 @@ GoRouter _buildRouter({
             onApple: () => _handleSignInApple(context),
             onGoogle: () => _handleSignInGoogle(context),
             onEmail: () => showMagicLinkSheet(context),
-            // Auth skip means "try as guest." Profile completion stays
-            // available through Home/Profile nudges; it should not be
-            // another forced step after the user explicitly skipped auth.
-            onSkip: () => context.go(Routes.home),
+            // Skip and close mean "not now": back to whatever opened
+            // sign-in, or Home when nothing is underneath.
+            onSkip: () => leaveAuthInvitation(context),
           ),
         ),
       ),

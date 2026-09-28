@@ -1,28 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/app.dart' show leaveAuthInvitation;
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
 
 void main() {
-  testWidgets('Skip for now routes guest users straight home', (tester) async {
-    final router = GoRouter(
-      initialLocation: Routes.authInvitation,
-      routes: [
-        GoRoute(
-          path: Routes.authInvitation,
-          builder: (context, __) =>
-              AuthInvitationV2Screen(onSkip: () => context.go(Routes.home)),
+  // In-app gates push this page over whatever the user was doing (a product,
+  // a report). Skip used to go(home) and lose that page, and there was no
+  // close button. Leaving returns to the page underneath; Home only when
+  // nothing is underneath (e.g. an expired magic-link bounce).
+  GoRouter routerWithGate({required bool pushed}) => GoRouter(
+    initialLocation: pushed ? '/product/p1' : Routes.authInvitation,
+    routes: [
+      GoRoute(
+        path: Routes.home,
+        builder: (_, __) => const Scaffold(body: Text('Home v2')),
+      ),
+      GoRoute(
+        path: '/product/p1',
+        builder: (context, __) => Scaffold(
+          body: TextButton(
+            onPressed: () => context.push(Routes.authInvitation),
+            child: const Text('Product p1'),
+          ),
         ),
-        GoRoute(
-          path: Routes.home,
-          builder: (_, __) => const Scaffold(body: Text('Home v2')),
-        ),
-      ],
-    );
+      ),
+      GoRoute(
+        path: Routes.authInvitation,
+        builder: (context, __) =>
+            AuthInvitationV2Screen(onSkip: () => leaveAuthInvitation(context)),
+      ),
+    ],
+  );
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+  for (final (label, finder) in [
+    ('Skip for now', find.text('Skip for now')),
+    ('close', find.byTooltip('Close')),
+  ]) {
+    testWidgets('$label returns to the page that opened sign-in', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: routerWithGate(pushed: true)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Product p1'));
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      await tester.ensureVisible(finder);
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Product p1'), findsOneWidget);
+      expect(find.text('Home v2'), findsNothing);
+    });
+  }
+
+  testWidgets('Skip goes home when nothing is underneath', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp.router(routerConfig: routerWithGate(pushed: false)),
+    );
     await tester.pump(const Duration(milliseconds: 1500));
 
     final skip = find.text('Skip for now');
@@ -33,18 +72,22 @@ void main() {
     expect(find.text('Home v2'), findsOneWidget);
   });
 
-  testWidgets('guest limitation copy states current access policy', (
-    tester,
-  ) async {
+  // Guests keep a stack on this device (Sean 2026-09-28) and there is no
+  // AI feature, so the old "no AI, saved stack, or cloud sync" line was
+  // wrong twice. An account adds sync; health details never upload.
+  testWidgets('copy says what an account adds, truthfully', (tester) async {
     await tester.pumpWidget(
       MaterialApp(home: AuthInvitationV2Screen(onSkip: () {})),
     );
     await tester.pump(const Duration(milliseconds: 1500));
 
-    expect(find.textContaining('3 scans per day'), findsOneWidget);
+    expect(find.textContaining('first scan'), findsNothing);
+    expect(find.textContaining('no AI'), findsNothing);
+    expect(find.textContaining('3 scans a day'), findsOneWidget);
+    expect(find.textContaining('saved on this device'), findsWidgets);
     expect(
-      find.textContaining('no AI, saved stack, or cloud sync'),
-      findsOneWidget,
+      tester.getSize(find.widgetWithText(TextButton, 'Skip for now')).height,
+      greaterThanOrEqualTo(44),
     );
   });
 
