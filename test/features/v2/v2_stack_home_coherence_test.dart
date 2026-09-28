@@ -866,17 +866,17 @@ void main() {
       );
     });
 
-    testWidgets('Wishlist asks guests to sign in without reading saved rows', (
-      tester,
-    ) async {
+    // Guests keep an on-device wishlist (Sean 2026-09-28): no sign-in wall.
+    testWidgets('Wishlist shows a guest their saved rows', (tester) async {
       await pumpWithStack(
         tester,
         const StackV2Screen(showNavBar: false, initialSegment: 2),
-        seedUser: (userDb) => userDb.addFavorite('stale-product'),
+        seedUser: (userDb) => userDb.addFavorite('guest-saved'),
       );
+      await tester.pumpAndSettle();
 
-      expect(find.text('Sign in to save products'), findsOneWidget);
-      expect(find.text('1 saved'), findsNothing);
+      expect(find.text('Sign in to save products'), findsNothing);
+      expect(find.text('1 saved'), findsOneWidget);
     });
 
     testWidgets('Wishlist renders a saved product with a neutral brand heart', (

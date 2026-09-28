@@ -16,7 +16,6 @@ import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.da
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
-import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/stack/stack_reminder_scheduler.dart';
@@ -35,16 +34,6 @@ class StackAddBlockedException implements Exception {
   @override
   String toString() =>
       'StackAddBlockedException(dsldId=$dsldId, verdict=$verdict)';
-}
-
-/// Thrown when a guest tries to save stack state. Guest mode allows
-/// catalog lookups only; saved stack/profile/history are signed-in
-/// early-access features.
-class StackRequiresSignInException implements Exception {
-  const StackRequiresSignInException();
-
-  @override
-  String toString() => 'StackRequiresSignInException()';
 }
 
 class StackReminderLimitException implements Exception {
@@ -108,7 +97,6 @@ class StackActions {
         ),
       );
     }
-    _requireSignedIn();
     final userDb = _ref.read(userDatabaseProvider);
     final history = _ref.read(healthEventRepositoryProvider);
     final id = _newId(product.dsldId);
@@ -173,7 +161,6 @@ class StackActions {
     String? dosage,
     String? frequency,
   }) async {
-    _requireSignedIn();
     assert(
       (rxcui != null && rxcui.isNotEmpty) || drugClasses.isNotEmpty,
       'medication needs at least one of rxcui or drugClasses to participate '
@@ -318,7 +305,6 @@ class StackActions {
     Value<DateTime?> startedAt = const Value.absent(),
     Value<int?> reminderMinutes = const Value.absent(),
   }) async {
-    _requireSignedIn();
     final userDb = _ref.read(userDatabaseProvider);
     final entry =
         await (userDb.select(userDb.userStacksLocal)
@@ -445,12 +431,6 @@ class StackActions {
     final service = _ref.read(stackSyncServiceProvider);
     unawaited(service.pushAll());
     _ref.invalidate(pendingSyncCountProvider);
-  }
-
-  void _requireSignedIn() {
-    if (_ref.read(authStateProvider) == AuthMode.guest) {
-      throw const StackRequiresSignInException();
-    }
   }
 }
 

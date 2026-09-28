@@ -119,21 +119,46 @@ void main() {
       }
     });
 
-    test('guest users cannot save stack entries', () async {
-      final actions = container.read(stackActionsProvider);
-      final product = _product(dsldId: 'DS_OK', verdict: 'RECOMMENDED');
+    // Guests keep a stack on this device (Sean 2026-09-28). The data never
+    // left the device anyway; an account adds sync, and the first sign-in
+    // adopts and pushes the supplement rows (medications never sync).
+    test('guest users keep a local stack', () async {
+      final userDb = UserDatabase.memory();
+      final interactionDb = InteractionDatabase.memory();
+      addTearDown(userDb.close);
+      addTearDown(interactionDb.close);
+      // A supplement add triggers a (guest-skipped) sync attempt; keep the
+      // real connectivity plugin check out of the test.
+      final connectivity = ConnectivityService();
+      addTearDown(connectivity.dispose);
+      final localContainer = ProviderContainer(
+        overrides: [
+          userDatabaseProvider.overrideWithValue(userDb),
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          connectivityServiceProvider.overrideWithValue(connectivity),
+        ],
+      );
+      addTearDown(localContainer.dispose);
+      expect(localContainer.read(authStateProvider), AuthMode.guest);
 
-      expect(
-        () => actions.addProduct(product),
-        throwsA(isA<StackRequiresSignInException>()),
+      final actions = localContainer.read(stackActionsProvider);
+      await actions.addProduct(
+        _product(dsldId: 'DS_OK', verdict: 'RECOMMENDED'),
       );
-      expect(
-        () => actions.addMedication(
-          name: 'Metformin',
-          drugClasses: const ['class:biguanides'],
-        ),
-        throwsA(isA<StackRequiresSignInException>()),
+      final medId = await actions.addMedication(
+        name: 'Metformin',
+        drugClasses: const ['class:biguanides'],
       );
+      // Medications carry a user-authored dose (supplement doses are
+      // catalog-owned), and a guest can edit it like anyone else.
+      await actions.updateTracking(
+        entryId: medId,
+        dosage: const Value('500 mg'),
+      );
+
+      final rows = await userDb.getActiveStack();
+      expect(rows.map((r) => r.type).toSet(), {'supplement', 'medication'});
+      expect(rows.firstWhere((r) => r.id == medId).dosage, '500 mg');
     });
 
     test('StackAddBlockedException toString includes both fields', () {

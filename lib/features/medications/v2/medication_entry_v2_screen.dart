@@ -437,11 +437,6 @@ class _MedicationEntryV2ScreenState
             ? null
             : _frequencyController.text.trim(),
       );
-    } on StackRequiresSignInException {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      await context.push(Routes.authInvitation);
-      return;
     } on Object catch (e, st) {
       // Any other failure (network, RxNorm resolve, DB write) must not leave
       // the button wedged: _canSave is `!_saving && …`, so a stuck

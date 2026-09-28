@@ -66,7 +66,8 @@ Widget _wrap({required UserDatabase userDb, required bool signedIn}) {
 
 void main() {
   group('PGFavoriteButton', () {
-    testWidgets('guest tap navigates to auth invitation', (tester) async {
+    // The wishlist is on-device only, so guests keep one (Sean 2026-09-28).
+    testWidgets('guest tap saves to the on-device wishlist', (tester) async {
       final userDb = UserDatabase.memory();
       addTearDown(userDb.close);
 
@@ -76,8 +77,9 @@ void main() {
       await tester.tap(find.byKey(const Key('product-favorite-heart')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Auth invitation'), findsOneWidget);
-      expect(await userDb.getFavorites(), isEmpty);
+      expect(find.text('Auth invitation'), findsNothing);
+      expect(await userDb.isFavorite(_dsldId), isTrue);
+      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
     });
 
     testWidgets('signed-in tap saves then removes', (tester) async {

@@ -1,13 +1,13 @@
 // Wishlist / favorites — domain contracts.
 //
-// Guests cannot persist; signed-in users get idempotent add/remove;
-// toggle flips membership. On-device only (no sync).
+// Guests and signed-in users alike get idempotent add/remove; toggle flips
+// membership. On-device only (no sync), so no account is needed (Sean
+// 2026-09-28).
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
-import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 
@@ -27,30 +27,16 @@ void main() {
     await userDb.close();
   });
 
-  group('FavoritesActions auth gate', () {
-    test('guest add throws StackRequiresSignInException', () async {
+  group('FavoritesActions as a guest', () {
+    test('guest wishlist saves, reads back and toggles off', () async {
       final actions = container.read(favoritesActionsProvider);
-      expect(
-        () => actions.add('dsld-1'),
-        throwsA(isA<StackRequiresSignInException>()),
-      );
+      await actions.add('dsld-1');
+      expect((await userDb.getFavorites()).map((r) => r.dsldId), ['dsld-1']);
+      expect(await container.read(favoritesProvider.future), hasLength(1));
+      expect(await container.read(isFavoriteProvider('dsld-1').future), isTrue);
+
+      await actions.toggle('dsld-1');
       expect(await userDb.getFavorites(), isEmpty);
-    });
-
-    test('guest remove throws StackRequiresSignInException', () async {
-      final actions = container.read(favoritesActionsProvider);
-      expect(
-        () => actions.remove('dsld-1'),
-        throwsA(isA<StackRequiresSignInException>()),
-      );
-    });
-
-    test('guest toggle throws StackRequiresSignInException', () async {
-      final actions = container.read(favoritesActionsProvider);
-      expect(
-        () => actions.toggle('dsld-1'),
-        throwsA(isA<StackRequiresSignInException>()),
-      );
     });
   });
 
@@ -88,21 +74,18 @@ void main() {
       expect(await userDb.isFavorite('dsld-1'), isFalse);
     });
 
-    test(
-      'isFavoriteProvider is false for guests even if DB has rows',
-      () async {
-        // Simulate leftover local rows from a prior signed-in session on
-        // the same install (clear-on-sign-out is separate; heart must not
-        // claim a guest has a wishlist).
-        await userDb.addFavorite('dsld-stale');
-        container.read(authStateProvider.notifier).onSignedOut();
+    // Like the stack ("Sign out · Keep local health data on this device"),
+    // the wishlist stays on the device after sign-out. A different account
+    // signing in clears it (AccountSwitchGuard → clearAllLocalUserData).
+    test('wishlist rows stay on the device after sign-out', () async {
+      await userDb.addFavorite('dsld-kept');
+      container.read(authStateProvider.notifier).onSignedOut();
 
-        final saved = await container.read(
-          isFavoriteProvider('dsld-stale').future,
-        );
-        expect(saved, isFalse);
-      },
-    );
+      final saved = await container.read(
+        isFavoriteProvider('dsld-kept').future,
+      );
+      expect(saved, isTrue);
+    });
 
     test('isFavoriteProvider true after add while signed in', () async {
       final actions = container.read(favoritesActionsProvider);
@@ -112,7 +95,7 @@ void main() {
     });
 
     test(
-      'favoritesProvider cannot leak rows across an auth boundary',
+      'favoritesProvider re-reads after an account switch clears rows',
       () async {
         await userDb.addFavorite('previous-user-product');
         final subscription = container.listen(favoritesProvider, (_, __) {});
@@ -126,8 +109,7 @@ void main() {
         );
 
         container.read(authStateProvider.notifier).onSignedOut();
-        expect(await container.read(favoritesProvider.future), isEmpty);
-
+        // What AccountSwitchGuard does when a different account signs in.
         await userDb.clearAllLocalUserData();
         container.read(authStateProvider.notifier).onSignedIn();
         expect(await container.read(favoritesProvider.future), isEmpty);

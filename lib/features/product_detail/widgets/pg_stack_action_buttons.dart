@@ -158,10 +158,6 @@ class PGStackActionButtons extends ConsumerWidget {
     final actions = ref.read(stackActionsProvider);
     try {
       await actions.addProduct(product);
-    } on StackRequiresSignInException {
-      if (!context.mounted) return;
-      await context.push(Routes.authInvitation);
-      return;
     } on Exception catch (e, st) {
       CrashReportingService().recordError(e, st, hint: 'stack_action:add_save');
       if (!context.mounted) return;

@@ -49,7 +49,6 @@ import 'package:pharmaguide/features/stack/widgets/stack_coverage_card.dart';
 import 'package:pharmaguide/features/stack/widgets/share_clinician_report_button.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_safety_banner.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_health_fallback_display.dart';
-import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_display_name.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
@@ -1884,35 +1883,7 @@ class _WishlistTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isGuest = ref.watch(authStateProvider) == AuthMode.guest;
     final favoritesAsync = ref.watch(favoritesProvider);
-
-    if (isGuest) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        padding: EdgeInsets.only(
-          top: V2Spacing.space24,
-          bottom:
-              MediaQuery.of(context).padding.bottom +
-              kPGNavBarHeight +
-              V2Spacing.space24,
-        ),
-        children: [
-          _V2StackEmptyPanel(
-            icon: Icons.favorite_border_rounded,
-            eyebrow: 'Wishlist',
-            headline: 'Sign in to save products',
-            body:
-                'Wishlist is available on a free early-access account so your '
-                'saved products stay on this device when you come back.',
-            actionLabel: 'Sign in',
-            onAction: () => context.push(Routes.authInvitation),
-          ),
-        ],
-      );
-    }
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -2062,11 +2033,6 @@ class _WishlistItemRow extends ConsumerWidget {
         try {
           await ref.read(favoritesActionsProvider).remove(dsldId);
           return true;
-        } on StackRequiresSignInException {
-          if (context.mounted) {
-            await context.push(Routes.authInvitation);
-          }
-          return false;
         } on Exception catch (e, st) {
           CrashReportingService().recordError(
             e,
@@ -2161,10 +2127,6 @@ class _WishlistItemRow extends ConsumerWidget {
                           variant: PGToastVariant.info,
                           duration: const Duration(seconds: 2),
                         );
-                      }
-                    } on StackRequiresSignInException {
-                      if (context.mounted) {
-                        await context.push(Routes.authInvitation);
                       }
                     } on Exception catch (e, st) {
                       CrashReportingService().recordError(
