@@ -23,8 +23,7 @@ import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
-import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
-import 'package:pharmaguide/dev/glass_tab_bar_prototype.dart';
+import 'package:pharmaguide/core/widgets/pg_tab_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
 // Phase 11.11 hygiene (2026-05-17): legacy v1 widget imports removed
 // after the route-coherence promotion proved stable. Production
@@ -395,11 +394,6 @@ List<RouteBase> withDevPreviewRoutes(
     // a debug-settings toggle) before v2 ships to production.
     // ---------------------------------------------------------------
     GoRoute(path: '/dev/v2', builder: (_, __) => const V2Gallery()),
-    // iOS 26-style interactive glass tab bar prototype over the real Home.
-    GoRoute(
-      path: '/dev/v2/glass-nav',
-      builder: (_, __) => const GlassTabBarPrototypeScreen(),
-    ),
     // v2 Settings (Profile tab) preview. `?signedIn=1` toggles the
     // hero into the signed-in variant.
     //
@@ -971,29 +965,37 @@ class _AppShell extends StatelessWidget {
       // [kPGNavBarHeight] so its content doesn't sit behind the nav bar.
       extendBody: true,
       body: child,
-      bottomNavigationBar: PGFrostedNavBar(
+      bottomNavigationBar: PGTabBar(
         selectedIndex: _selectedIndex(context),
-        onDestinationSelected: (i) => _onDestinationSelected(context, i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
+        onSelected: (i) => _onDestinationSelected(context, i),
+        tabs: const [
+          PGTab(
             label: 'Home',
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home_rounded,
+            symbol: 'house',
+            selectedSymbol: 'house.fill',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner_outlined),
-            selectedIcon: Icon(Icons.qr_code_scanner_rounded),
+          PGTab(
             label: 'Scan',
+            icon: Icons.qr_code_scanner_outlined,
+            selectedIcon: Icons.qr_code_scanner_rounded,
+            symbol: 'barcode.viewfinder',
+            selectedSymbol: 'barcode.viewfinder',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.layers_outlined),
-            selectedIcon: Icon(Icons.layers_rounded),
+          PGTab(
             label: 'Stack',
+            icon: Icons.layers_outlined,
+            selectedIcon: Icons.layers_rounded,
+            symbol: 'square.stack.3d.up',
+            selectedSymbol: 'square.stack.3d.up.fill',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
+          PGTab(
             label: 'Profile',
+            icon: Icons.person_outline_rounded,
+            selectedIcon: Icons.person_rounded,
+            symbol: 'person.crop.circle',
+            selectedSymbol: 'person.crop.circle.fill',
           ),
         ],
       ),

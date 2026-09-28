@@ -19,6 +19,9 @@ const double kPGNavBarHeight = 88.0;
 /// on its own (setting `backgroundColor` with alpha just shows the scaffold
 /// color through; you need a `BackdropFilter` behind it).
 ///
+/// The shell's bar is `PGTabBar`, which shows Apple's own Liquid Glass tab
+/// bar on iOS 26+ and falls back to this one everywhere else.
+///
 /// Use this inside a `Scaffold.bottomNavigationBar` slot, or stacked over
 /// scrollable content using a `Stack` + `Positioned` at the bottom.
 ///

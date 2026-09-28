@@ -77,6 +77,12 @@ import UserNotifications
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     registerAccessibilityChannel(engineBridge.applicationRegistrar.messenger())
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PGNativeTabBar") {
+      registrar.register(
+        NativeTabBarFactory(messenger: registrar.messenger()),
+        withId: NativeTabBarFactory.viewType
+      )
+    }
   }
 
   /// Reduce Transparency, which Flutter's accessibility features don't
