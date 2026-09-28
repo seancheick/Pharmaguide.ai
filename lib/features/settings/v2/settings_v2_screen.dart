@@ -96,7 +96,7 @@ class SettingsV2Screen extends StatelessWidget {
             ),
             const SizedBox(height: V2Spacing.space32),
             PGSettingsGroup(
-              eyebrow: 'Account & security',
+              eyebrow: 'Account',
               children: [
                 PGSettingsTile(
                   icon: Icons.mail_outline_rounded,
@@ -117,12 +117,6 @@ class SettingsV2Screen extends StatelessWidget {
                     destructive: true,
                     onTap: () => _signOut(context, onSignOut),
                   ),
-                const PGSettingsTile(
-                  icon: Icons.fingerprint_rounded,
-                  title: 'Biometric unlock',
-                  caption: 'Face ID',
-                  trailing: Switch.adaptive(value: true, onChanged: null),
-                ),
               ],
             ),
             const SizedBox(height: V2Spacing.space24),

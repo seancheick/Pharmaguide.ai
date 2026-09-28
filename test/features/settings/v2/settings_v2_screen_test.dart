@@ -63,6 +63,23 @@ void main() {
     expect(find.text('sean@example.com'), findsNothing);
   });
 
+  // The app has no biometric lock (no local_auth), so a switch that reads
+  // "Biometric unlock · Face ID" told people their health data was locked
+  // behind Face ID when nothing was.
+  for (final signedIn in [false, true]) {
+    testWidgets('Profile shows no biometric lock control (signedIn: $signedIn)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(home: SettingsV2Screen(signedIn: signedIn)),
+      );
+
+      expect(find.text('Biometric unlock'), findsNothing);
+      expect(find.text('Face ID'), findsNothing);
+      expect(find.byType(Switch), findsNothing);
+    });
+  }
+
   testWidgets('signed-in profile clears the persistent navigation bar', (
     tester,
   ) async {
