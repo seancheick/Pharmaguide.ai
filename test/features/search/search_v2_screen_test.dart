@@ -102,6 +102,42 @@ void main() {
     expect(bottomPaddings, contains(V2Spacing.space8));
   });
 
+  // The field was a fixed 56pt box with 16pt top and bottom text padding,
+  // leaving 24pt for an 18pt line. At the app's 1.4x text cap the query
+  // needed ~38pt and its lower half was clipped (seen on the simulator).
+  for (final scale in [1.0, 1.4]) {
+    testWidgets('search field shows the whole query at ${scale}x text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            recentSearchesServiceProvider.overrideWithValue(
+              _FakeRecentSearchesService(),
+            ),
+          ],
+          child: MaterialApp(
+            home: MediaQuery.withClampedTextScaling(
+              minScaleFactor: scale,
+              maxScaleFactor: scale,
+              child: const SearchV2Screen(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), 'magnesium glycinate');
+      await tester.pump();
+
+      final editable = tester
+          .state<EditableTextState>(find.byType(EditableText))
+          .renderEditable;
+      final lineHeight = editable.preferredLineHeight;
+      final visible = tester.getSize(find.byType(EditableText)).height;
+      expect(visible, greaterThanOrEqualTo(lineHeight));
+    });
+  }
+
   testWidgets('idle state renders modern recent and discovery sections', (
     tester,
   ) async {

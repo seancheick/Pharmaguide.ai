@@ -946,7 +946,9 @@ class _TopRow extends StatelessWidget {
             child: AnimatedContainer(
               duration: V2Motion.fast,
               curve: V2Motion.smooth,
-              height: 56,
+              // A floor, not a fixed height: at larger text sizes the query
+              // line outgrows 56pt and a fixed box clipped it.
+              constraints: const BoxConstraints(minHeight: 56),
               padding: const EdgeInsets.symmetric(
                 horizontal: V2Spacing.space16,
               ),
@@ -991,7 +993,7 @@ class _TopRow extends StatelessWidget {
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
-                          vertical: V2Spacing.space16,
+                          vertical: V2Spacing.space8,
                         ),
                         isCollapsed: true,
                         isDense: true,
