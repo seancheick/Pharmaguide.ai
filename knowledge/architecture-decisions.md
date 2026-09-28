@@ -159,3 +159,21 @@
 - A signed-out device keeps showing its local stack and wishlist (as the stack already did). A different account signing in clears them (AccountSwitchGuard).
 - A new phone starts fresh unless the user signed in; the supplement stack syncs back.
 - The first sign-in adopts guest rows and pushes the supplement rows. The medication-never-syncs guards are unchanged (release-gate test).
+
+---
+
+## ADR-008: Apple's own tab bar on iOS 26, Flutter bar elsewhere
+
+**Date:** 2026-09-28
+**Status:** ACCEPTED (Sean: "I want the legit one"; see docs/PRODUCT_UX_AUDIT_2026-09-28.md §12.3)
+**Context:** A Flutter imitation of iOS 26 Liquid Glass (lens, blur, springs) didn't read as Apple's material, and its accessibility fallback looked wrong. Flutter 3.44 has no Liquid Glass support, and the HIG says the material ships inside Apple's frameworks and other stacks can only approximate it.
+
+**Decision:**
+- On iOS 26+, the shell's tab bar is a real `UITabBar` hosted as a platform view (`ios/Runner/NativeTabBar.swift`). The system owns the material, the interaction and the accessibility states. `PGTabBar` (`lib/core/widgets/pg_tab_bar.dart`) makes the choice.
+- On Android and iOS 18–25, `PGFrostedNavBar` stays as it was.
+- Glass is added elsewhere only with native iOS 26 controls, and only in the functional layer (scanner controls, the segmented control, floating toolbar actions). There is no Flutter glass imitation, and no glass on content, warnings or evidence.
+
+**Consequences:**
+- Every tab screen composites one platform view on iOS 26. That needs a physical-device scroll check before release; the simulator can't profile.
+- Tabs are declared once, as `PGTab` entries (label, Material icons, SF Symbols), and both bars read from them.
+- Flutter exposes no Reduce Transparency flag, so Flutter-drawn blur reads it from `ReduceTransparency.of(context)` (`AppDelegate.swift` bridge).

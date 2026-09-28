@@ -356,48 +356,50 @@ it (which switches to its filled icon), has a faint iridescent rim and a soft sh
 capsule swells about 3.5%. The lens tracks the finger across tabs and settles into the pill on
 release.
 
-**Prototype** (`/dev/v2/glass-nav`, debug-only, over the real Home screen).
-- `PGGlassTabBar` reproduces each of those beats. The magnification is `RawMagnifier`, Flutter's
-  correct primitive for a positioned, magnified backdrop. The capsule is a blur with a 1.3×
-  saturation lift. Springs follow Apple's response/damping model, and crossing into a tab ticks a
-  selection haptic.
-- Reduce Motion drops the lens. Increase Contrast, Reduce Transparency and Android get an opaque
-  outlined bar. Tabs are labelled, selectable buttons with 44 pt targets.
-- **Reduce Transparency needed a bridge.** Flutter's `AccessibilityFeatures` has no flag for it
-  (dart:ui carries Reduce Motion, Increase Contrast and Bold Text only), so the first prototype
-  ignored it. `AppDelegate.swift` now reports `UIAccessibility.isReduceTransparencyEnabled` and its
-  change notification on `pharmaguide/accessibility`, and `lib/core/theme/reduce_transparency.dart`
-  owns the value. The shipped `PGFrostedNavBar` and `PGFrostedHeader` honour it too, which was a
-  gap in production, not just the prototype. On the simulator, switching it on in Settings turns the
-  glass bar and the shipped bar solid without relaunching, and switching it off restores the blur.
-- Five widget tests. On the simulator, after tuning against the native capture, the press, drag
-  and settle read close to native in side-by-side screenshots.
-- **What it can't do:** real refraction of the iOS material, dynamic light/dark adaptation of the
-  glass to the content underneath, and the exact native spring feel. Those need the platform.
+**First attempt: a Flutter imitation (removed).** A debug-only `PGGlassTabBar` rebuilt each beat
+with `RawMagnifier`, a saturated blur and spring physics. Sean reviewed it and rejected it: it
+didn't read as Apple's glass, and its accessibility fallback (an opaque bar with a dark outline)
+looked wrong. The HIG agrees: Apple ships the material inside its frameworks, and other stacks
+can only approximate it. The prototype, its route and its tests were deleted in 8de2993e.
 
-**Native option.** On iOS 26+, a `UiKitView` hosting a real `UITabBar` (or a SwiftUI
-`GlassEffectContainer`) would get the true material and interaction for free. The costs:
-- an always-on platform view on every tab screen, which pushes Flutter onto its platform-view
-  compositing path (measurable frame cost, and the reason it's rarely done for the main bar);
-- two tab-bar implementations to keep in sync (Android and iOS < 26 still need the Flutter bar);
-- accessibility bridging across the boundary.
+**Shipped: Apple's own tab bar on iOS 26+** (8de2993e).
+- `ios/Runner/NativeTabBar.swift` hosts a real `UITabBar` as a platform view. `PGTabBar`
+  (`lib/core/widgets/pg_tab_bar.dart`) chooses it when the device runs iOS 26 or later, and passes
+  the labels, SF Symbols (house, barcode.viewfinder, square.stack.3d.up, person.crop.circle), the
+  selected tab, the app's light/dark choice and the accent tint. Taps come back over a per-view
+  channel, and route changes update the native selection.
+- The system draws everything: the floating capsule, refraction of the content beneath it, the
+  lens that lifts and follows a finger with its iridescent rim, and the settle into the pill.
+  Touches go straight to UIKit (an eager gesture recognizer), so the lens starts at touch-down.
+- Accessibility comes from the system too. Reduce Transparency makes the capsule solid without an
+  outline, and Increase Contrast, Reduce Motion, VoiceOver and the large-content viewer behave as
+  in Apple's apps.
+- **Fallback:** Android and iOS 18–25 keep the current `PGFrostedNavBar` unchanged.
+- **Reduce Transparency bridge** (7f4ecece): Flutter's `AccessibilityFeatures` has no flag for it,
+  so `AppDelegate.swift` reports it on `pharmaguide/accessibility` and
+  `lib/core/theme/reduce_transparency.dart` owns the value. The Flutter-drawn blur surfaces
+  (`PGFrostedNavBar` on older iOS, `PGFrostedHeader`) turn solid when it's on.
 
-A small spike would settle whether the cost is acceptable. It needs a physical device, because the
-simulator can't profile.
+**Verified on simulators** (screenshots in the worktree's `.claude/state/sim/shots/`):
+- iOS 26.5: native glass in light and dark mode. A press-drag from Home to Stack shows Apple's
+  lens mid-drag, then selects and routes. Reduce Transparency, switched on in Settings, makes the
+  capsule solid live. A Flutter bottom sheet (Privacy dashboard) covers the bar cleanly, and the
+  scanner's buttons clear it.
+- iOS 18.5 (a scratch simulator, since deleted): the app shows the frosted fallback.
+- Seven widget tests cover the version parse, the fallback and its taps, the native view's
+  creation parameters, tap and selection round-trips, and live light/dark updates.
 
-**Where it belongs** (liquid-glass.md: glass only on the functional layer, used sparingly):
-- **Yes:** the bottom tab bar (first); scanner controls over the camera (torch, manual entry;
-  clear glass over live video); the Stack/Nutrients/Wishlist segmented control; compact floating
-  toolbar actions (share, wishlist, compare on the product page).
+**Still owed:** a physical iPhone check. The simulator can't profile, and an always-on platform
+view puts Flutter on its platform-view compositing path, so check scroll smoothness on the Home and
+Stack tabs. VoiceOver also needs a pass on a device.
+
+**Where glass belongs next** (liquid-glass.md: functional layer only, used sparingly):
+- **Yes:** scanner controls over the camera (clear glass over live video), the
+  Stack/Nutrients/Wishlist segmented control, and compact floating toolbar actions on the product
+  page. Use native controls (`UIButton` glass configurations, `UISegmentedControl`) on iOS 26,
+  not Flutter imitations.
 - **No:** content cards, ingredient rows, warnings, evidence panels, interaction cards, the score
   hero, or anything read to make a clinical decision.
-
-**Recommendation.**
-1. Ship the Flutter glass tab bar as the shell's bar (replacing `PGFrostedNavBar`) after a device
-   check on a physical iPhone. It's self-contained, tested, and falls back cleanly.
-2. Run the native `UITabBar` platform-view spike on a device, and adopt it on iOS 26+ only if frame
-   times stay clean.
-3. Then extend glass to the scanner controls and the segmented control. Nothing else.
 
 ### 12.4 New findings from the device walk
 
@@ -417,6 +419,6 @@ simulator can't profile.
 | Command | Result |
 |---|---|
 | `flutter analyze` | No issues found |
-| `flutter test` (full, at ec3cdff1) | +3662 −7: only the 7 pre-existing golden pixel diffs |
+| `flutter test` (full, at 8de2993e) | +3672 −7: only the 7 pre-existing golden pixel diffs |
 | `flutter test test/core test/dev test/app_test.dart test/app_deep_link_test.dart` (at 7f4ecece) | +538 −2: only the 2 pre-existing nutrient-bar goldens |
-| New or changed regression tests | fonts (fails when Newsreader is missing), safety sheet ×2 + provider ×2, app tabs + unknown path, colours ×4, tier copy, guest stack + wishlist ×4, sign-in page ×4, onboarding ×3 (red on the old screen), splash ×2, settings copy ×6, RxNorm disclosure ×3, glass prototype ×6, Reduce Transparency owner ×5 + nav bar ×2 + header ×1 |
+| New or changed regression tests | fonts (fails when Newsreader is missing), safety sheet ×2 + provider ×2, app tabs + unknown path, colours ×4, tier copy, guest stack + wishlist ×4, sign-in page ×4, onboarding ×3 (red on the old screen), splash ×2, settings copy ×6, RxNorm disclosure ×3, native tab bar ×7 (the Flutter glass prototype and its 6 tests were removed), Reduce Transparency owner ×5 + nav bar ×2 + header ×1 |
