@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/app.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 
 void main() {
   group('normalizePharmaGuideDeepLink', () {
@@ -75,6 +76,22 @@ void main() {
       expect(paths.first, '/');
       expect(paths, contains('/dev/v2'));
       expect(paths.skip(1), everyElement(startsWith('/dev/')));
+    });
+  });
+
+  // The 1.3 s animated splash played on every launch. HIG launching:
+  // "Launch instantly"; a splash belongs at the start of onboarding. First
+  // run keeps it; returning users open straight on Home.
+  group('initialAppLocation', () {
+    test('first run plays the splash into onboarding', () {
+      expect(
+        initialAppLocation(hasSeenOnboarding: false),
+        '${Routes.splashIntro}?next=${Uri.encodeComponent(Routes.onboarding)}',
+      );
+    });
+
+    test('returning users open on Home with no splash', () {
+      expect(initialAppLocation(hasSeenOnboarding: true), Routes.home);
     });
   });
 }

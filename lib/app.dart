@@ -531,6 +531,19 @@ void leaveAuthInvitation(BuildContext context) {
   }
 }
 
+/// Where the app opens. The first run plays the brand splash into
+/// onboarding; returning users open straight on Home. The 1.3 s splash used
+/// to play on every launch (HIG launching: "Launch instantly"; a splash
+/// belongs at the start of onboarding). DEV_ROUTE / SCREENSHOT_ROUTE
+/// overrides win, in that order.
+@visibleForTesting
+String initialAppLocation({required bool hasSeenOnboarding}) {
+  if (_devRoute.isNotEmpty) return _devRoute;
+  if (_screenshotRoute.isNotEmpty) return _screenshotRoute;
+  if (hasSeenOnboarding) return Routes.home;
+  return '${Routes.splashIntro}?next=${Uri.encodeComponent(Routes.onboarding)}';
+}
+
 /// Single-instance app router. Created on first `_buildRouter` call and
 /// memoized so the global `_AuthEventListener` can call `.go(...)` after
 /// the auth round-trip lands (magic link return / Apple / Google native
@@ -561,12 +574,9 @@ GoRouter _buildRouter({
   // SCREENSHOT_ROUTE is a lower-priority automation override used by the
   // marketing screenshot capture script to jump directly to a production
   // screen without bypassing explicit DEV_ROUTE previews.
-  final String initialLocation = _devRoute.isNotEmpty
-      ? _devRoute
-      : _screenshotRoute.isNotEmpty
-      ? _screenshotRoute
-      : '${Routes.splashIntro}?next='
-            '${Uri.encodeComponent(hasSeenOnboarding ? Routes.home : Routes.onboarding)}';
+  final initialLocation = initialAppLocation(
+    hasSeenOnboarding: hasSeenOnboarding,
+  );
 
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
