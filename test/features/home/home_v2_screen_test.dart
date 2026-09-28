@@ -98,6 +98,35 @@ void main() {
     expect(find.text('Magnesium Glycinate'), findsNothing);
   });
 
+  // The section padded itself by 24 inside a sliver that already padded 24,
+  // so "Recent scans" and its empty card sat at 48pt while every other
+  // section starts at the 24pt page gutter.
+  for (final withScan in [false, true]) {
+    testWidgets('recent scans aligns to the page gutter (scan: $withScan)', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+        await userDb.close();
+      });
+      if (withScan) await seedRecentScan(coreDb, userDb);
+
+      await pumpHomeV2(tester, coreDb, userDb);
+
+      final header = find.text('Recent scans');
+      await tester.ensureVisible(header);
+      await tester.pump();
+      expect(tester.getTopLeft(header).dx, V2Spacing.space24);
+      final firstCardText = withScan
+          ? find.text('Recent Scan Product')
+          : find.text('Nothing scanned yet');
+      expect(firstCardText, findsOneWidget);
+    });
+  }
+
   testWidgets('recent scan cards do not overflow with long names', (
     tester,
   ) async {

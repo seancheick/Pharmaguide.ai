@@ -127,14 +127,11 @@ class HomeV2Screen extends ConsumerWidget {
         ),
 
         // 5. Recent scans — carousel with real recent-scan data +
-        // Show-all bottom sheet.
+        // Show-all bottom sheet. No horizontal padding here: the section
+        // pads its header and cards itself so the carousel can scroll to
+        // the screen edge; padding both put it at 48pt.
         const SliverPadding(
-          padding: EdgeInsets.fromLTRB(
-            V2Spacing.space24,
-            V2Spacing.space24,
-            V2Spacing.space24,
-            0,
-          ),
+          padding: EdgeInsets.only(top: V2Spacing.space24),
           sliver: SliverToBoxAdapter(child: _RecentScansSection()),
         ),
 
