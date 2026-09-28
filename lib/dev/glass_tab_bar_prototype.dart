@@ -217,11 +217,16 @@ class _PGGlassTabBarState extends State<PGGlassTabBar>
               animation: Listenable.merge([_lensX, _presence]),
               builder: (context, _) {
                 final presence = _presence.value.clamp(0.0, 1.2);
+                // Native: the whole capsule swells ~3.5% while pressed.
+                final swell = 1 + 0.035 * presence.clamp(0.0, 1.0);
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
                     Positioned.fill(
-                      child: _Capsule(glass: glass, isDark: isDark),
+                      child: Transform.scale(
+                        scale: swell,
+                        child: _Capsule(glass: glass, isDark: isDark),
+                      ),
                     ),
                     // Resting pill: fades while the lens is out and settles
                     // back in as it shrinks.
@@ -393,8 +398,9 @@ class _Lens extends StatelessWidget {
     // Grows from the resting pill to a lens that lifts past the capsule.
     final restW = slot - V2Spacing.space8;
     const restH = PGGlassTabBar.barHeight - V2Spacing.space12;
-    final fullW = slot + V2Spacing.space16;
-    const fullH = PGGlassTabBar.barHeight + V2Spacing.space12;
+    // Native capture: the lens is ~1.34x the tab and ~1.36x the bar.
+    final fullW = slot * 1.34;
+    const fullH = PGGlassTabBar.barHeight * 1.36;
     // A little stretch along the drag, like the native material.
     final stretch = 1 + (velocityX.abs() / 3000).clamp(0.0, 0.12);
     final w = (restW + (fullW - restW) * presence) * stretch;
@@ -413,7 +419,9 @@ class _Lens extends StatelessWidget {
           clipBehavior: Clip.hardEdge,
           decoration: MagnifierDecoration(
             opacity: presence.clamp(0.0, 1.0),
-            shape: StadiumBorder(side: BorderSide(color: rim, width: 1)),
+            shape: StadiumBorder(
+              side: BorderSide(color: rim.withValues(alpha: 0.5), width: 0.5),
+            ),
             shadows: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.16),
@@ -422,19 +430,23 @@ class _Lens extends StatelessWidget {
               ),
             ],
           ),
-          // Specular highlight: light catching the upper edge of the glass.
-          child: DecoratedBox(
-            decoration: ShapeDecoration(
-              shape: const StadiumBorder(),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0, 0.45, 1],
-                colors: [
-                  Colors.white.withValues(alpha: isDark ? 0.10 : 0.28),
-                  Colors.white.withValues(alpha: 0),
-                  Colors.white.withValues(alpha: isDark ? 0.03 : 0.08),
-                ],
+          // Specular highlight (light catching the upper edge) plus the
+          // faint chromatic edge the native lens shows.
+          child: CustomPaint(
+            foregroundPainter: _ChromaticRim(isDark: isDark),
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                shape: const StadiumBorder(),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0, 0.45, 1],
+                  colors: [
+                    Colors.white.withValues(alpha: isDark ? 0.10 : 0.28),
+                    Colors.white.withValues(alpha: 0),
+                    Colors.white.withValues(alpha: isDark ? 0.03 : 0.08),
+                  ],
+                ),
               ),
             ),
           ),
@@ -442,6 +454,42 @@ class _Lens extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A thin sweep of cool and warm tints around the lens edge — the faint
+/// iridescence of the native material. Kept at low alpha: a hint, not a
+/// rainbow.
+class _ChromaticRim extends CustomPainter {
+  final bool isDark;
+  const _ChromaticRim({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final a = isDark ? 0.45 : 0.75;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..shader = SweepGradient(
+        colors: [
+          Colors.white.withValues(alpha: a),
+          const Color(0xFF8FE3FF).withValues(alpha: a * 0.8),
+          Colors.white.withValues(alpha: a),
+          const Color(0xFFFFB8E6).withValues(alpha: a * 0.7),
+          Colors.white.withValues(alpha: a),
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        rect.deflate(0.7),
+        Radius.circular(size.height / 2),
+      ),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ChromaticRim oldDelegate) => oldDelegate.isDark != isDark;
 }
 
 class _TabItem extends StatelessWidget {
@@ -476,7 +524,7 @@ class _TabItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              selected ? tab.selectedIcon : tab.icon,
+              selected || highlighted ? tab.selectedIcon : tab.icon,
               size: 24,
               color: color,
             ),
