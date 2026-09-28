@@ -76,5 +76,33 @@ import UserNotifications
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    registerAccessibilityChannel(engineBridge.applicationRegistrar.messenger())
+  }
+
+  /// Reduce Transparency, which Flutter's accessibility features don't
+  /// carry. lib/core/theme/reduce_transparency.dart reads it at start and
+  /// gets every change, so blur surfaces turn solid like native materials.
+  private func registerAccessibilityChannel(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "pharmaguide/accessibility",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      if call.method == "reduceTransparency" {
+        result(UIAccessibility.isReduceTransparencyEnabled)
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    NotificationCenter.default.addObserver(
+      forName: UIAccessibility.reduceTransparencyStatusDidChangeNotification,
+      object: nil,
+      queue: .main
+    ) { _ in
+      channel.invokeMethod(
+        "reduceTransparencyChanged",
+        arguments: UIAccessibility.isReduceTransparencyEnabled
+      )
+    }
   }
 }

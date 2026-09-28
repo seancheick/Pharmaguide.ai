@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 
 /// Canonical nav bar total height used by [PGFrostedNavBar]. Modal bottom
@@ -67,57 +68,65 @@ class PGFrostedNavBar extends StatelessWidget {
     // neutral-cool hue that contrasts noticeably against the warm cream
     // bg without looking gray.
     final tinted = Color.lerp(surface, palette.fg, isDark ? 0.0 : 0.08)!;
-    final decoration = BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          // Top: more transparent so the blur of content behind shows
-          // through, selling the "light passes through" feel.
-          tinted.withValues(alpha: isDark ? 0.40 : 0.48),
-          // Bottom: more solid so labels stay perfectly legible against
-          // any content beneath.
-          tinted.withValues(alpha: isDark ? 0.70 : 0.78),
+    // Reduce Transparency: the same tint, solid, and nothing to blur.
+    final solid = ReduceTransparency.of(context);
+    final border = Border(top: BorderSide(color: outline, width: 0.5));
+    final decoration = solid
+        ? BoxDecoration(color: tinted, border: border)
+        : BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                // Top: more transparent so the blur of content behind shows
+                // through, selling the "light passes through" feel.
+                tinted.withValues(alpha: isDark ? 0.40 : 0.48),
+                // Bottom: more solid so labels stay perfectly legible against
+                // any content beneath.
+                tinted.withValues(alpha: isDark ? 0.70 : 0.78),
+              ],
+            ),
+            border: border,
+          );
+
+    final bar = DecoratedBox(
+      decoration: decoration,
+      child: Stack(
+        children: [
+          NavigationBar(
+            selectedIndex: selectedIndex,
+            onDestinationSelected: onDestinationSelected,
+            destinations: destinations,
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            indicatorColor: indicator,
+          ),
+          // 1px top highlight — the "lit edge" iOS gets when light
+          // catches the top surface of glass. Bumped from 0.55 →
+          // 0.85 so it actually reads on cream. Sits just under
+          // the hairline outline.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Container(
+                height: 1,
+                color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.85),
+              ),
+            ),
+          ),
         ],
       ),
-      border: Border(top: BorderSide(color: outline, width: 0.5)),
     );
+    if (solid) return bar;
 
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-        child: DecoratedBox(
-          decoration: decoration,
-          child: Stack(
-            children: [
-              NavigationBar(
-                selectedIndex: selectedIndex,
-                onDestinationSelected: onDestinationSelected,
-                destinations: destinations,
-                backgroundColor: Colors.transparent,
-                surfaceTintColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                elevation: 0,
-                indicatorColor: indicator,
-              ),
-              // 1px top highlight — the "lit edge" iOS gets when light
-              // catches the top surface of glass. Bumped from 0.55 →
-              // 0.85 so it actually reads on cream. Sits just under
-              // the hairline outline.
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: Container(
-                    height: 1,
-                    color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.85),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: bar,
       ),
     );
   }

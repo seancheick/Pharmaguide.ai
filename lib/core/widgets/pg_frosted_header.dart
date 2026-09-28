@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/app_motion.dart';
+import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 
 /// Frosted-glass header surface that sits above scrollable content.
 ///
@@ -52,8 +53,10 @@ class PGFrostedHeader extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final platform = theme.platform;
+    // Reduce Transparency takes the solid tonal path Android uses.
     final useGlass =
-        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+        (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) &&
+        !ReduceTransparency.of(context);
 
     final target = scrollProgress.clamp(0.0, 1.0);
 

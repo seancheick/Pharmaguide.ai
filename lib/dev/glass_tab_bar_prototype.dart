@@ -19,8 +19,9 @@
 //
 // Accessibility: each tab is a button with its label and selected state and
 // a hit area of at least 44pt. Reduce Motion drops the lens and its springs:
-// the pill moves at once. Increase Contrast (and Android, which has no glass
-// language) draws an opaque bar with a solid outline and no lens.
+// the pill moves at once. Increase Contrast, Reduce Transparency (and
+// Android, which has no glass language) draw an opaque bar with a solid
+// outline and no lens.
 
 import 'dart:ui' show ImageFilter;
 
@@ -28,6 +29,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
+import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
@@ -116,6 +118,7 @@ class _PGGlassTabBarState extends State<PGGlassTabBar>
     final override = widget.glassOverride;
     if (override != null) return override;
     if (MediaQuery.highContrastOf(context)) return false;
+    if (ReduceTransparency.of(context)) return false;
     return defaultTargetPlatform == TargetPlatform.iOS;
   }
 

@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
+import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
@@ -77,6 +78,7 @@ void main() async {
 Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
   V2Typography.useBundledFontsOnly();
+  unawaited(ReduceTransparency.listen());
 
   // Route Flutter framework errors + platform-level errors to Sentry.
   FlutterError.onError = (details) {

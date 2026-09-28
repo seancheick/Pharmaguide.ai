@@ -12,6 +12,7 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
+import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -1146,7 +1147,7 @@ class PharmaGuideApp extends ConsumerWidget {
           minScaleFactor: 0.9,
           maxScaleFactor: 1.4,
         );
-        return MediaQuery(
+        final scaled = MediaQuery(
           data: mq.copyWith(textScaler: clamped),
           // _AuthEventListener wraps the router so a successful magic
           // link return (Supabase emits signedIn after the deep-link
@@ -1155,6 +1156,10 @@ class PharmaGuideApp extends ConsumerWidget {
           // swaps that for an actual routerGo(home) + guest-stack
           // merge.
           child: _AuthEventListener(child: child!),
+        );
+        return ReduceTransparencyScope(
+          notifier: ReduceTransparency.enabled,
+          child: scaled,
         );
       },
     );

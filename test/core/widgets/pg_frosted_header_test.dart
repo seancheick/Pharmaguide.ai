@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_header.dart';
 
 DecoratedBox _findHeaderDecoratedBox(WidgetTester tester) {
@@ -204,6 +205,31 @@ void main() {
 
       expect(find.byType(BackdropFilter), findsNothing);
 
+      final ourBox = _findHeaderDecoratedBox(tester);
+      final color = (ourBox.decoration as BoxDecoration).color!;
+      expect(color.a, greaterThanOrEqualTo(0.85));
+    });
+
+    testWidgets('iOS Reduce Transparency drops the blur for a solid fill', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: ReduceTransparencyScope(
+            notifier: ValueNotifier(true),
+            child: const Scaffold(
+              body: PGFrostedHeader(
+                scrollProgress: 1.0,
+                child: SizedBox(width: 200, height: 56),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BackdropFilter), findsNothing);
       final ourBox = _findHeaderDecoratedBox(tester);
       final color = (ourBox.decoration as BoxDecoration).color!;
       expect(color.a, greaterThanOrEqualTo(0.85));

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/dev/glass_tab_bar_prototype.dart';
 
@@ -24,33 +26,37 @@ const _tabs = [
 
 Future<List<int>> _pumpBar(
   WidgetTester tester, {
-  bool glass = true,
+  bool? glass = true,
   bool reduceMotion = false,
+  bool reduceTransparency = false,
 }) async {
   final selections = <int>[];
   var index = 0;
   await tester.pumpWidget(
     MaterialApp(
       theme: V2Theme.light,
-      home: MediaQuery(
-        data: MediaQueryData(
-          size: const Size(402, 874),
-          disableAnimations: reduceMotion,
-        ),
-        child: Scaffold(
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: StatefulBuilder(
-                builder: (context, setState) => PGGlassTabBar(
-                  tabs: _tabs,
-                  selectedIndex: index,
-                  glassOverride: glass,
-                  onSelected: (i) => setState(() {
-                    index = i;
-                    selections.add(i);
-                  }),
+      home: ReduceTransparencyScope(
+        notifier: ValueNotifier(reduceTransparency),
+        child: MediaQuery(
+          data: MediaQueryData(
+            size: const Size(402, 874),
+            disableAnimations: reduceMotion,
+          ),
+          child: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: StatefulBuilder(
+                  builder: (context, setState) => PGGlassTabBar(
+                    tabs: _tabs,
+                    selectedIndex: index,
+                    glassOverride: glass,
+                    onSelected: (i) => setState(() {
+                      index = i;
+                      selections.add(i);
+                    }),
+                  ),
                 ),
               ),
             ),
@@ -145,5 +151,19 @@ void main() {
       expect(size.width, greaterThanOrEqualTo(44));
     }
     handle.dispose();
+  });
+
+  testWidgets('iOS Reduce Transparency takes the opaque path', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    await _pumpBar(tester, glass: null, reduceTransparency: true);
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Scan')),
+    );
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(find.byType(RawMagnifier), findsNothing);
+    await gesture.up();
+    await tester.pumpAndSettle();
+    debugDefaultTargetPlatformOverride = null;
   });
 }
