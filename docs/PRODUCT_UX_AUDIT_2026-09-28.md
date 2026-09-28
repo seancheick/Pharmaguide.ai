@@ -374,6 +374,10 @@ can only approximate it. The prototype, its route and its tests were deleted in 
 - Accessibility comes from the system too. Reduce Transparency makes the capsule solid without an
   outline, and Increase Contrast, Reduce Motion, VoiceOver and the large-content viewer behave as
   in Apple's apps.
+- **Sizing:** the bar's frame is UIKit's standard 49 pt plus the home-indicator inset, as
+  `UITabBarController` gives it. The first build used 62 pt, and the iOS 26 capsule stretched to fill
+  it: 75 pt tall against 62 pt in Files, a visibly elongated bar. Width is the system's own: about
+  86 pt per tab, the same spacing as Files, so four tabs span about 360 pt.
 - **Fallback:** Android and iOS 18–25 keep the current `PGFrostedNavBar` unchanged.
 - **Reduce Transparency bridge** (7f4ecece): Flutter's `AccessibilityFeatures` has no flag for it,
   so `AppDelegate.swift` reports it on `pharmaguide/accessibility` and

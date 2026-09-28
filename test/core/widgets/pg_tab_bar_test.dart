@@ -227,4 +227,25 @@ void main() {
     final style = views.calls.where((c) => c.method == 'setStyle').last;
     expect((style.arguments as Map)['dark'], isFalse);
   });
+
+  testWidgets(
+    'the native bar is UIKit height, so the capsule is not stretched',
+    (tester) async {
+      _PlatformViews().install(tester);
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(402, 874),
+            padding: EdgeInsets.only(bottom: 34),
+          ),
+          child: _host(native: true, selected: 0, onSelected: (_) {}),
+        ),
+      );
+      await tester.pump();
+      // 49 pt is UITabBar's standard height above the home indicator (what
+      // UITabBarController gives it). A taller frame stretches the iOS 26
+      // capsule vertically.
+      expect(tester.getSize(find.byType(UiKitView)).height, 49 + 34);
+    },
+  );
 }

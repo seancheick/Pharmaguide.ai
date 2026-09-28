@@ -87,9 +87,10 @@ final bool supportsNativeLiquidGlass =
     Platform.isIOS &&
     (iosMajorVersion(Platform.operatingSystemVersion) ?? 0) >= 26;
 
-/// Height of Apple's tab bar above the home indicator, matching the
-/// iOS 26 floating bar.
-const double _nativeBarHeight = 62;
+/// UITabBar's standard height above the home indicator, the frame
+/// UITabBarController gives it. The iOS 26 capsule fills the frame, so a
+/// taller one stretches it vertically (62 pt looked elongated next to Files).
+const double _nativeBarHeight = 49;
 
 class _NativeTabBar extends StatefulWidget {
   final List<PGTab> tabs;
