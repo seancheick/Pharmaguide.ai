@@ -202,11 +202,6 @@ class HomeV2Screen extends ConsumerWidget {
                     label: 'Scan',
                   ),
                   NavigationDestination(
-                    icon: Icon(Icons.auto_awesome_outlined),
-                    selectedIcon: Icon(Icons.auto_awesome_rounded),
-                    label: 'Chat',
-                  ),
-                  NavigationDestination(
                     icon: Icon(Icons.person_outline_rounded),
                     selectedIcon: Icon(Icons.person_rounded),
                     label: 'Profile',
@@ -1229,7 +1224,7 @@ class _HomeV2PreviewState extends State<HomeV2Preview> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _index = i);
     // Order matches HomeV2Screen.destinations — Scan sits at index 2.
-    final destination = const ['Home', 'Stack', 'Scan', 'Chat', 'Profile'][i];
+    final destination = const ['Home', 'Stack', 'Scan', 'Profile'][i];
     PGToast.showWith(
       messenger,
       '$destination tapped — preview only',

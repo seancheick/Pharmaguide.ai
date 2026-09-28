@@ -286,85 +286,6 @@ class ScanScreen extends ConsumerWidget {
   );
 }
 
-class ChatScreen extends StatelessWidget {
-  const ChatScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            V2Spacing.space24,
-            V2Spacing.space24,
-            V2Spacing.space24,
-            kPGNavBarHeight + V2Spacing.space32,
-          ),
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: context.v2.surface,
-                borderRadius: BorderRadius.circular(V2Spacing.radiusSheet),
-                border: Border.all(color: context.v2.outline),
-                boxShadow: V2Shadows.sm,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(V2Spacing.space24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: context.v2.accentTint,
-                        borderRadius: BorderRadius.circular(
-                          V2Spacing.radiusCard,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.auto_awesome_rounded,
-                        color: context.v2.accent,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(height: V2Spacing.space16),
-                    Text(
-                      'Ask PharmaGuide',
-                      style: V2Typography.titleSm(color: context.v2.fg),
-                    ),
-                    const SizedBox(height: V2Spacing.space8),
-                    Text(
-                      'Clinical-grade chat is still being prepared. For now, use the verified catalog flows below for product and interaction decisions.',
-                      style: V2Typography.body(color: context.v2.fgMuted),
-                    ),
-                    const SizedBox(height: V2Spacing.space24),
-                    PGPillButton(
-                      label: 'Search products',
-                      icon: Icons.search_rounded,
-                      expand: true,
-                      onPressed: () => context.push(Routes.search),
-                    ),
-                    const SizedBox(height: V2Spacing.space12),
-                    PGPillButton(
-                      label: 'Quick Check',
-                      icon: Icons.health_and_safety_outlined,
-                      variant: PGPillVariant.secondary,
-                      expand: true,
-                      onPressed: () => context.push(Routes.quickCheck),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class CatalogUnavailableScreen extends StatelessWidget {
   final String? message;
   final VoidCallback? onRetry;
@@ -641,6 +562,9 @@ GoRouter _buildRouter({
     // screen's Next/Skip handlers so this only fires once per device.
     initialLocation: initialLocation,
     observers: [SentryNavigatorObserver()],
+    // An unknown path (an old `pharmaguide://chat` link, a typo) used to land
+    // on go_router's bare "Page Not Found" with no tab bar. Go home instead.
+    onException: (_, __, router) => router.go(Routes.home),
     redirect: (_, state) => normalizePharmaGuideDeepLink(state.uri),
     routes: withDevPreviewRoutes([
       ShellRoute(
@@ -682,7 +606,6 @@ GoRouter _buildRouter({
               );
             },
           ),
-          GoRoute(path: Routes.chat, builder: (_, __) => const ChatScreen()),
           GoRoute(
             path: Routes.profile,
             // Phase 11.0 — production Profile tab now renders the v2
@@ -992,8 +915,7 @@ class _AppShell extends StatelessWidget {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith(Routes.scan)) return 1;
     if (location.startsWith(Routes.stack)) return 2;
-    if (location.startsWith(Routes.chat)) return 3;
-    if (location.startsWith(Routes.profile)) return 4;
+    if (location.startsWith(Routes.profile)) return 3;
     return 0;
   }
 
@@ -1006,8 +928,6 @@ class _AppShell extends StatelessWidget {
       case 2:
         context.go(Routes.stack);
       case 3:
-        context.go(Routes.chat);
-      case 4:
         context.go(Routes.profile);
     }
   }
@@ -1040,11 +960,6 @@ class _AppShell extends StatelessWidget {
             icon: Icon(Icons.layers_outlined),
             selectedIcon: Icon(Icons.layers_rounded),
             label: 'Stack',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: Icon(Icons.auto_awesome_rounded),
-            label: 'Chat',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),

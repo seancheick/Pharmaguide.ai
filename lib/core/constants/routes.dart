@@ -4,7 +4,6 @@ abstract final class Routes {
   static const home = '/';
   static const scan = '/scan';
   static const stack = '/stack';
-  static const chat = '/chat';
   static const profile = '/profile';
   static const profileSetup = '/profile/setup';
   static const onboarding = '/onboarding';

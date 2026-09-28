@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -64,7 +65,9 @@ void main() {
     }
   }
 
-  testWidgets('App renders with 5 navigation tabs', (tester) async {
+  // Chat was a placeholder ("still being prepared") taking one of five
+  // primary tabs; it is hidden until chat ships.
+  testWidgets('App renders with 4 navigation tabs and no Chat', (tester) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
 
@@ -76,8 +79,9 @@ void main() {
     expect(find.text('Home'), findsWidgets);
     expect(find.text('Scan'), findsWidgets);
     expect(find.text('Stack'), findsWidgets);
-    expect(find.text('Chat'), findsWidgets);
+    expect(find.text('Chat'), findsNothing);
     expect(find.text('Profile'), findsWidgets);
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
@@ -169,20 +173,23 @@ void main() {
     await userDb.close();
   });
 
-  testWidgets('Tapping Chat tab shows the v2 holding surface', (tester) async {
+  // Old `pharmaguide://chat` links, and any unknown path, used to land on
+  // go_router's bare "Page Not Found" with no tab bar and no way back.
+  testWidgets('an unknown path such as /chat lands on Home', (tester) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
 
     await tester.pumpWidget(buildApp(coreDb, userDb));
     await pumpPastSplash(tester);
 
-    await tester.tap(find.text('Chat'));
+    GoRouter.of(tester.element(find.byType(NavigationBar))).go('/chat');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Ask PharmaGuide'), findsOneWidget);
-    expect(find.text('Search products'), findsOneWidget);
-    expect(find.text('Quick Check'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('Ask PharmaGuide'), findsNothing);
+    expect(find.textContaining('Page Not Found'), findsNothing);
+    expect(find.textContaining('no routes for location'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();

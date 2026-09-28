@@ -201,11 +201,6 @@ class _StackV2ScreenState extends State<StackV2Screen> {
                     label: 'Scan',
                   ),
                   NavigationDestination(
-                    icon: Icon(Icons.auto_awesome_outlined),
-                    selectedIcon: Icon(Icons.auto_awesome_rounded),
-                    label: 'Chat',
-                  ),
-                  NavigationDestination(
                     icon: Icon(Icons.person_outline_rounded),
                     selectedIcon: Icon(Icons.person_rounded),
                     label: 'Profile',
