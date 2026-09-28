@@ -351,4 +351,39 @@ void main() {
       expect(find.textContaining('not an all-clear'), findsOneWidget);
     },
   );
+
+  // "Your medication list stays on this device" was true of the saved list,
+  // but the name search sends what you type to the U.S. National Library of
+  // Medicine (RxNorm). The row now says both.
+  testWidgets('privacy row discloses the RxNorm name lookup', (tester) async {
+    final interactionDb = InteractionDatabase.memory();
+    addTearDown(interactionDb.close);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          referenceDataRepositoryProvider.overrideWith(
+            (ref) => _FakeReferenceDataRepository(),
+          ),
+          rxNormApiServiceProvider.overrideWithValue(
+            RxNormApiService(
+              httpGet: _FakeRxNormHttp().call,
+              offlineDb: interactionDb,
+            ),
+          ),
+        ],
+        child: const MaterialApp(home: MedicationEntryV2Screen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final note = find.textContaining('National Library of Medicine');
+    await tester.scrollUntilVisible(
+      note,
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(note, findsOneWidget);
+    expect(find.textContaining('saved on this device only'), findsOneWidget);
+  });
 }

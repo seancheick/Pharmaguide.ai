@@ -584,8 +584,9 @@ class _Header extends StatelessWidget {
         const SizedBox(height: V2Spacing.space12),
         Text(
           'Pick two supplements or medications and we’ll flag known '
-          'interactions worth a clinician conversation. Used only on '
-          'this device.',
+          'interactions worth a clinician conversation. Nothing here is '
+          'saved; medication names are looked up with the U.S. National '
+          'Library of Medicine.',
           style: V2Typography.body(color: context.v2.fgMuted),
         ),
       ],

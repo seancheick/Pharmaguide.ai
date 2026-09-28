@@ -67,17 +67,18 @@ void main() {
   // "Biometric unlock · Face ID" told people their health data was locked
   // behind Face ID when nothing was.
   for (final signedIn in [false, true]) {
-    testWidgets('Profile shows no biometric lock control (signedIn: $signedIn)', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(home: SettingsV2Screen(signedIn: signedIn)),
-      );
+    testWidgets(
+      'Profile shows no biometric lock control (signedIn: $signedIn)',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: SettingsV2Screen(signedIn: signedIn)),
+        );
 
-      expect(find.text('Biometric unlock'), findsNothing);
-      expect(find.text('Face ID'), findsNothing);
-      expect(find.byType(Switch), findsNothing);
-    });
+        expect(find.text('Biometric unlock'), findsNothing);
+        expect(find.text('Face ID'), findsNothing);
+        expect(find.byType(Switch), findsNothing);
+      },
+    );
   }
 
   testWidgets('signed-in profile clears the persistent navigation bar', (
@@ -370,22 +371,64 @@ void main() {
     expect(opened[2].path, 'support@pharmaguide.io');
   });
 
-  testWidgets('rate row explains TestFlight feedback instead of dead tapping', (
+  // Four rows open explanations for features that are not wired yet. Each
+  // must say what is true today and point at something that works now,
+  // instead of promising an action ("Download catalog for travel").
+  for (final (row, caption, mustSay) in [
+    (
+      'Accessibility',
+      'Text size and motion follow your device',
+      'Send beta feedback',
+    ),
+    ('Offline mode', 'Scan, search and checks work offline', 'Works offline'),
+    (
+      'Rate PharmaGuide',
+      'Available after App Store release',
+      'Send beta feedback',
+    ),
+    (
+      'Export my data',
+      'Coming soon · clinician PDF available now',
+      'Clinician report',
+    ),
+  ]) {
+    testWidgets('$row explains what works today', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+      await tester.scrollUntilVisible(
+        find.text(row),
+        320,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(find.text(row));
+      expect(find.text(caption), findsOneWidget);
+      await tester.pump();
+      await tester.tap(find.text(row));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining(mustSay), findsWidgets);
+      expect(find.textContaining('Download catalog for travel'), findsNothing);
+      expect(find.textContaining('clamp extreme'), findsNothing);
+    });
+  }
+
+  // Medication name search sends the typed text to the U.S. National
+  // Library of Medicine (RxNorm); "stays on this device" was only true of
+  // the saved list.
+  testWidgets('privacy dashboard discloses the RxNorm name lookup', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
 
     await tester.scrollUntilVisible(
-      find.text('Rate PharmaGuide'),
-      320,
+      find.text('Privacy dashboard'),
+      240,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(find.text('Rate PharmaGuide'));
-    await tester.pump();
-    await tester.tap(find.text('Rate PharmaGuide'));
+    await tester.tap(find.text('Privacy dashboard'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('TestFlight builds'), findsOneWidget);
+    expect(find.textContaining('National Library of Medicine'), findsOneWidget);
   });
 }
 

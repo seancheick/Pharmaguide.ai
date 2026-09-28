@@ -23,6 +23,9 @@ void main() {
       find.text('ACE inhibitors can increase potassium retention.'),
       findsOneWidget,
     );
+    // Medication names go to RxNorm; "Used only on this device" was wrong.
+    expect(find.textContaining('Used only on this device'), findsNothing);
+    expect(find.textContaining('National Library of Medicine'), findsOne);
   });
 
   // On a 402pt iPhone the severity label and the evidence label shared one

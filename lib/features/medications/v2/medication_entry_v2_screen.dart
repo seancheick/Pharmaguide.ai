@@ -698,8 +698,9 @@ class _PrivacyRow extends StatelessWidget {
         const SizedBox(width: V2Spacing.space8),
         Expanded(
           child: Text(
-            'Your medication list stays on this device. Used only to '
-            'check supplement interactions.',
+            'Your medication list is saved on this device only and used '
+            'only to check interactions. Name search looks up spellings '
+            'with the U.S. National Library of Medicine (RxNorm).',
             style: V2Typography.caption(color: context.v2.fgMuted),
           ),
         ),

@@ -197,28 +197,43 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.accessibility_new_rounded,
                   title: 'Accessibility',
-                  caption: 'Dynamic type, reduce motion',
+                  caption: 'Text size and motion follow your device',
                   onTap: () => _showSettingSheet(
                     context,
                     title: 'Accessibility',
                     body:
-                        'PharmaGuide respects your system text-size and '
-                        'reduce-motion settings. Layouts clamp extreme '
-                        'text scaling so safety content remains readable.',
+                        'PharmaGuide follows the text size and Reduce Motion '
+                        'settings in your device’s Accessibility settings. '
+                        'There is nothing to switch on here.',
+                    bullets: const [
+                      'Text grows with your system size. The very largest '
+                          'sizes are capped for now while each screen is '
+                          'checked at them',
+                      'Reduce Motion turns off entrance animations',
+                      'Something hard to read or reach? Tell us with Send '
+                          'beta feedback, under About',
+                    ],
                   ),
                 ),
                 PGSettingsTile(
                   icon: Icons.cloud_download_outlined,
                   title: 'Offline mode',
-                  caption: 'Download catalog for travel',
+                  caption: 'Scan, search and checks work offline',
                   onTap: () => _showSettingSheet(
                     context,
-                    title: 'Offline catalog',
+                    title: 'Offline mode',
                     body:
-                        'The product catalog ships on device for lookup. '
-                        'When an approved catalog update is available, '
-                        'PharmaGuide can refresh it without uploading '
-                        'your health data.',
+                        'The product catalog and the interaction checks live '
+                        'on this device, so there is nothing to download '
+                        'before a trip. Approved catalog updates download '
+                        'on their own when you are online.',
+                    bullets: const [
+                      'Works offline: barcode scan, search, product scores, '
+                          'interaction checks, your stack',
+                      'Needs a connection: full product details the first '
+                          'time you open them, medication name search, '
+                          'sign-in and sync',
+                    ],
                   ),
                 ),
               ],
@@ -278,14 +293,14 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.star_outline_rounded,
                   title: 'Rate PharmaGuide',
-                  caption: 'Enabled after App Store release',
+                  caption: 'Available after App Store release',
                   onTap: () => _showSettingSheet(
                     context,
                     title: 'Rate PharmaGuide',
                     body:
-                        'Ratings will open here after PharmaGuide is live '
-                        'on the App Store. For TestFlight builds, send '
-                        'feedback through the tester invitation.',
+                        'Ratings open here once PharmaGuide is on the App '
+                        'Store. During the beta, Send beta feedback (just '
+                        'above) reaches the team directly.',
                   ),
                 ),
               ],
@@ -296,14 +311,19 @@ class SettingsV2Screen extends StatelessWidget {
                 PGSettingsTile(
                   icon: Icons.download_outlined,
                   title: 'Export my data',
-                  caption: 'Profile, stack, scans · JSON',
+                  caption: 'Coming soon · clinician PDF available now',
                   onTap: () => _showSettingSheet(
                     context,
                     title: 'Export my data',
                     body:
-                        'Your stack, profile, and scan history are stored '
-                        'locally on this device. Export will be enabled '
-                        'after the secure file-save flow is wired.',
+                        'A full export of your profile, stack and scan '
+                        'history, as a file you keep, is coming. Everything '
+                        'already lives on this device.',
+                    bullets: const [
+                      'Today: share your stack and profile with a clinician '
+                          'as a PDF from Clinician report, under Reports & '
+                          'sharing',
+                    ],
                   ),
                 ),
                 if (signedIn)
@@ -419,6 +439,9 @@ void _showPrivacyDashboard(BuildContext context) {
             'when signed in',
         'Supplement dosage and schedule: on device',
         'Medication list: on device',
+        'Medication name search: what you type is looked up with the U.S. '
+            'National Library of Medicine (RxNorm); your saved list is not '
+            'sent',
         'Recent scans: on device',
         'Account email: Supabase auth',
       ],
@@ -430,12 +453,17 @@ void _showSettingSheet(
   BuildContext context, {
   required String title,
   required String body,
+  List<String> bullets = const [],
   bool destructive = false,
 }) {
   PGModal.bottomSheet<void>(
     context: context,
-    builder: (_) =>
-        _SettingsInfoSheet(title: title, body: body, destructive: destructive),
+    builder: (_) => _SettingsInfoSheet(
+      title: title,
+      body: body,
+      bullets: bullets,
+      destructive: destructive,
+    ),
   );
 }
 
