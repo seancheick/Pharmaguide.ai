@@ -1171,27 +1171,43 @@ class _InteractionCard extends StatelessWidget {
               horizontal: V2Spacing.space16,
               vertical: V2Spacing.space12,
             ),
-            child: Row(
+            // Evidence gets its own line: sharing one row with the severity
+            // label overflowed on a 402pt phone and clipped the evidence
+            // level, which every interaction warning must show whole.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _severityColor(context.v2),
-                    shape: BoxShape.circle,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _severityColor(context.v2),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: V2Spacing.space8),
+                    Flexible(
+                      child: Text(
+                        result.severity.label.toUpperCase(),
+                        style: V2Typography.eyebrow(
+                          color: _severityColor(context.v2),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: V2Spacing.space8),
-                Text(
-                  result.severity.label.toUpperCase(),
-                  style: V2Typography.eyebrow(
-                    color: _severityColor(context.v2),
+                const SizedBox(height: V2Spacing.space4),
+                Padding(
+                  // Aligns under the label, past the dot and its gap.
+                  padding: const EdgeInsets.only(left: V2Spacing.space16),
+                  child: Text(
+                    result.evidenceLevel.label,
+                    style: V2Typography.overline(
+                      color: context.v2.fgMuted,
+                    ).copyWith(fontSize: V2Typography.size12),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  result.evidenceLevel.label,
-                  style: V2Typography.overline(color: context.v2.fgMuted),
                 ),
               ],
             ),
