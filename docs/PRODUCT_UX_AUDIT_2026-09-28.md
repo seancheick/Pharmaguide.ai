@@ -361,8 +361,15 @@ release.
   correct primitive for a positioned, magnified backdrop. The capsule is a blur with a 1.3×
   saturation lift. Springs follow Apple's response/damping model, and crossing into a tab ticks a
   selection haptic.
-- Reduce Motion drops the lens. Increase Contrast and Android get an opaque outlined bar. Tabs are
-  labelled, selectable buttons with 44 pt targets.
+- Reduce Motion drops the lens. Increase Contrast, Reduce Transparency and Android get an opaque
+  outlined bar. Tabs are labelled, selectable buttons with 44 pt targets.
+- **Reduce Transparency needed a bridge.** Flutter's `AccessibilityFeatures` has no flag for it
+  (dart:ui carries Reduce Motion, Increase Contrast and Bold Text only), so the first prototype
+  ignored it. `AppDelegate.swift` now reports `UIAccessibility.isReduceTransparencyEnabled` and its
+  change notification on `pharmaguide/accessibility`, and `lib/core/theme/reduce_transparency.dart`
+  owns the value. The shipped `PGFrostedNavBar` and `PGFrostedHeader` honour it too, which was a
+  gap in production, not just the prototype. On the simulator, switching it on in Settings turns the
+  glass bar and the shipped bar solid without relaunching, and switching it off restores the blur.
 - Five widget tests. On the simulator, after tuning against the native capture, the press, drag
   and settle read close to native in side-by-side screenshots.
 - **What it can't do:** real refraction of the iOS material, dynamic light/dark adaptation of the
@@ -410,5 +417,6 @@ simulator can't profile.
 | Command | Result |
 |---|---|
 | `flutter analyze` | No issues found |
-| `flutter test` (full) | see the final chat report; expected: only the 7 pre-existing golden pixel diffs |
-| New or changed regression tests | fonts (fails when Newsreader is missing), safety sheet ×2 + provider ×2, app tabs + unknown path, colours ×4, tier copy, guest stack + wishlist ×4, sign-in page ×4, onboarding ×3 (red on the old screen), splash ×2, settings copy ×6, RxNorm disclosure ×3, glass prototype ×5 |
+| `flutter test` (full, at ec3cdff1) | +3662 −7: only the 7 pre-existing golden pixel diffs |
+| `flutter test test/core test/dev test/app_test.dart test/app_deep_link_test.dart` (at 7f4ecece) | +538 −2: only the 2 pre-existing nutrient-bar goldens |
+| New or changed regression tests | fonts (fails when Newsreader is missing), safety sheet ×2 + provider ×2, app tabs + unknown path, colours ×4, tier copy, guest stack + wishlist ×4, sign-in page ×4, onboarding ×3 (red on the old screen), splash ×2, settings copy ×6, RxNorm disclosure ×3, glass prototype ×6, Reduce Transparency owner ×5 + nav bar ×2 + header ×1 |
