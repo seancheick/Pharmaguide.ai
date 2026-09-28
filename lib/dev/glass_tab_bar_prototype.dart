@@ -443,7 +443,7 @@ class _Lens extends StatelessWidget {
                   stops: const [0, 0.45, 1],
                   colors: [
                     Colors.white.withValues(alpha: isDark ? 0.10 : 0.28),
-                    Colors.white.withValues(alpha: 0),
+                    const Color(0x00FFFFFF), // clear white: no grey mid-band
                     Colors.white.withValues(alpha: isDark ? 0.03 : 0.08),
                   ],
                 ),
@@ -467,16 +467,17 @@ class _ChromaticRim extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final a = isDark ? 0.45 : 0.75;
+    final white = Colors.white.withValues(alpha: isDark ? 0.45 : 0.75);
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4
       ..shader = SweepGradient(
         colors: [
-          Colors.white.withValues(alpha: a),
+          white,
           const Color(0xFF8FE3FF).withValues(alpha: a * 0.8),
-          Colors.white.withValues(alpha: a),
+          white,
           const Color(0xFFFFB8E6).withValues(alpha: a * 0.7),
-          Colors.white.withValues(alpha: a),
+          white,
         ],
       ).createShader(rect);
     canvas.drawRRect(
