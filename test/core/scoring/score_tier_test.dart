@@ -241,6 +241,17 @@ void main() {
       expect(ScoreTier.poor.label, 'Poor');
     });
 
+    // A quality tier is not a safety verdict. "Clean safety profile" and
+    // "no major safety concerns" under a quality score read as "safe for
+    // me", before any stack, medication or profile check (Sean 2026-09-28).
+    test('tier descriptions make no safety claims', () {
+      for (final tier in ScoreTier.values) {
+        final text = tier.description.toLowerCase();
+        expect(text, isNot(contains('safe')), reason: tier.name);
+        expect(text, isNot(contains('red flag')), reason: tier.name);
+      }
+    });
+
     test('locked description copy matches spec (key phrases)', () {
       // Don't pin the entire string (verbose), just the unique phrase
       // each tier promises. If the wording shifts, this test forces

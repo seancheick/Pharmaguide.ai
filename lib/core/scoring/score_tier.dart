@@ -38,20 +38,24 @@ extension ScoreTierMeta on ScoreTier {
 
   /// One-line description shown under the score line on the hero card.
   /// Sentence-case (no period) so it reads as a label, not a sentence.
-  /// Locked copy per the design contract.
+  ///
+  /// Quality words only, never safety ones: "clean safety profile" under a
+  /// quality score read as "safe for me" before any stack, medication or
+  /// profile check ran (Sean 2026-09-28). Personal safety lives in the
+  /// warnings and interaction surfaces.
   String get description => switch (this) {
     ScoreTier.elite =>
-      'High-quality ingredients, strong evidence, no major safety concerns',
+      'High-quality ingredients, strong evidence, and a well-tested, transparent formula',
     ScoreTier.excellent =>
-      'Well-formulated with good ingredient quality, solid evidence, clean safety profile',
+      'Well-formulated with good ingredient quality, solid evidence, and clear labeling',
     ScoreTier.strong =>
-      'Reliable option with acceptable ingredients and no major red flags',
+      'Reliable option with good ingredients and few quality gaps',
     ScoreTier.acceptable =>
       'Adequate formulation with some limitations in quality, evidence, or transparency',
     ScoreTier.weak =>
       'Notable concerns — weaker ingredients, limited evidence, or avoidable additives',
     ScoreTier.poor =>
-      'Significant concerns around formulation quality, safety, or transparency',
+      'Significant concerns around formulation quality, quality checks, or transparency',
   };
 
   /// Non-text tier token — the score dot, pillar bars, and tint fills.
