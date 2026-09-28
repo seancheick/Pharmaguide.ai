@@ -407,7 +407,9 @@ class _MiniProductPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PGEyebrow('Thorne'),
+          // An illustration, not a catalog result: a real brand here wore a
+          // score its catalog product doesn't have.
+          const PGEyebrow('Example'),
           const SizedBox(height: V2Spacing.space4),
           Text(
             'Magnesium Glycinate',
