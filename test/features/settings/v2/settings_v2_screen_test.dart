@@ -429,6 +429,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('National Library of Medicine'), findsOneWidget);
+    // iOS now keeps local health data out of backups, like Android; say so,
+    // because a new phone then starts fresh.
+    expect(find.textContaining('not included in iCloud'), findsOneWidget);
   });
 }
 

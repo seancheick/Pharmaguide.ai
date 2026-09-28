@@ -443,6 +443,9 @@ void _showPrivacyDashboard(BuildContext context) {
             'National Library of Medicine (RxNorm); your saved list is not '
             'sent',
         'Recent scans: on device',
+        'Backups: health data on this device is not included in iCloud or '
+            'computer backups, so a new phone starts fresh (a signed-in '
+            'supplement stack syncs back)',
         'Account email: Supabase auth',
       ],
     ),
@@ -483,7 +486,9 @@ class _SettingsInfoSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = destructive ? context.v2.contraindicated : context.v2.accent;
-    return Padding(
+    // Scrolls: a fixed Column overflowed once the privacy list grew, and
+    // would at large text sizes on any phone.
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
         V2Spacing.space24,
         V2Spacing.space8,
