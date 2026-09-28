@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -452,6 +453,150 @@ Page<dynamic> _platformPage(GoRouterState state, Widget child) {
       : MaterialPage<void>(key: state.pageKey, child: child);
 }
 
+/// Appends the `/dev/v2` design-gallery and fixture previews to [routes] in
+/// debug builds only. Release builds must not register them: the custom
+/// `pharmaguide://` scheme reaches every registered path, and the fixture
+/// screens show fake profile data with no way back into the app.
+@visibleForTesting
+List<RouteBase> withDevPreviewRoutes(
+  List<RouteBase> routes, {
+  bool debugBuild = kDebugMode,
+}) {
+  if (!debugBuild) return routes;
+  return [
+    ...routes,
+    // ---------------------------------------------------------------
+    // Debug-only v2 design system gallery. Reachable via
+    // `context.go('/dev/v2')`; not registered in the app shell so it
+    // never appears in the nav bar. Will be removed (or moved behind
+    // a debug-settings toggle) before v2 ships to production.
+    // ---------------------------------------------------------------
+    GoRoute(path: '/dev/v2', builder: (_, __) => const V2Gallery()),
+    // v2 Settings (Profile tab) preview. `?signedIn=1` toggles the
+    // hero into the signed-in variant.
+    //
+    // Phase 8.1.0 cleanup (2026-05-14): Product Detail / Home / Scanner /
+    // Stack / floating-shell preview routes were retired. Those v2
+    // screens were built on primitives that didn't mirror production
+    // patterns. Mirror-based rebuilds land in Phase 8.1.1+ and
+    // re-register their routes there.
+    GoRoute(
+      path: '/dev/v2/settings',
+      pageBuilder: (_, state) {
+        final signedIn = state.uri.queryParameters['signedIn'] == '1';
+        return _platformPage(state, SettingsV2Screen(signedIn: signedIn));
+      },
+    ),
+    // v2 splash preview — `autoNavigate: false` so it doesn't redirect
+    // out of the gallery after the entrance animation completes.
+    GoRoute(
+      path: '/dev/v2/splash',
+      pageBuilder: (_, state) => _platformPage(
+        state,
+        const AnimatedSplashV2Screen(autoNavigate: false),
+      ),
+    ),
+    // v2 onboarding preview — `autoFinish: false` so completing the
+    // flow loops back to step 1 rather than persisting prefs +
+    // navigating home.
+    GoRoute(
+      path: '/dev/v2/onboarding',
+      pageBuilder: (_, state) =>
+          _platformPage(state, const OnboardingV2Screen(autoFinish: false)),
+    ),
+    // v2 ProfileSetup mirror — dev gallery preview against the live
+    // `profileProvider`. Production `/profile/setup` renders the
+    // same widget unconditionally (Phase 11.11 hygiene).
+    GoRoute(
+      path: '/dev/v2/profile-setup',
+      pageBuilder: (_, state) =>
+          _platformPage(state, const ProfileSetupV2Screen()),
+    ),
+    // v2 first-time profile wizard — Phase 11.7L.B.9. The
+    // `autoFinish: false` preview keeps `OnboardingPrefs` clean so
+    // reviewers can replay the wizard freely from the gallery.
+    GoRoute(
+      path: '/dev/v2/profile-wizard',
+      pageBuilder: (_, state) =>
+          _platformPage(state, const ProfileWizardV2Screen(autoFinish: false)),
+    ),
+    // Product Detail V2 *Connected*. Driven by a real `dsldId` and
+    // the production provider stack (coreDatabaseProvider, detailBlob,
+    // personalizedInteractionWarnings, profileProvider, fitScore).
+    GoRoute(
+      path: '/dev/v2/product/:dsldId',
+      pageBuilder: (_, state) {
+        final dsldId = state.pathParameters['dsldId']!;
+        final section = state.uri.queryParameters['section'];
+        return _platformPage(
+          state,
+          ProductDetailV2ConnectedScreen(
+            dsldId: dsldId,
+            initialSection: section,
+          ),
+        );
+      },
+    ),
+    // v2 Auth Invitation dev preview — uses the same PGAuthService
+    // methods as production, with a gallery-only back affordance.
+    GoRoute(
+      path: '/dev/v2/auth',
+      pageBuilder: (_, state) =>
+          _platformPage(state, const AuthInvitationV2Preview()),
+    ),
+    // v2 Home dev preview — fixture data + retinted frosted nav
+    // bar. The production `/` route uses the connected v2 widget.
+    GoRoute(
+      path: '/dev/v2/home',
+      pageBuilder: (_, state) => _platformPage(state, const HomeV2Preview()),
+    ),
+    // v2 Scanner dev preview — PGVerdictReveal demo chips for each
+    // severity tier. Camera surrogate stands in for MobileScanner.
+    GoRoute(
+      path: '/dev/v2/scan',
+      pageBuilder: (_, state) => _platformPage(state, const ScannerV2Preview()),
+    ),
+    // v2 camera permission gate — first-ask + denied states.
+    // `?denied=1` flips into the denied variant.
+    GoRoute(
+      path: '/dev/v2/scan/permission',
+      pageBuilder: (_, state) {
+        final denied = state.uri.queryParameters['denied'] == '1';
+        return _platformPage(state, CameraPermissionV2Preview(denied: denied));
+      },
+    ),
+    // v2 Stack dev preview — two pinned tabs (Stack / Wishlist),
+    // summary card with status tier (no numeric score), supplement
+    // + medication list with swipe-to-remove.
+    GoRoute(
+      path: '/dev/v2/stack',
+      pageBuilder: (_, state) => _platformPage(state, const StackV2Preview()),
+    ),
+    // Dev-only direct preview — bypasses both env toggle and
+    // `catalogRoute` so reviewers can see the empty-state and
+    // recent-search flows without a populated catalog DB.
+    GoRoute(
+      path: '/dev/v2/search',
+      pageBuilder: (_, state) => _platformPage(state, const SearchV2Screen()),
+    ),
+    // Direct dev preview — bypasses the env toggle so reviewers
+    // can poke at the v2 screen without restarting with a flag.
+    GoRoute(
+      path: '/dev/v2/medication-entry',
+      pageBuilder: (_, state) =>
+          _platformPage(state, const MedicationEntryV2Screen()),
+    ),
+    // Dev-only direct preview — bypasses both env toggle and the
+    // `catalogRoute` gate so reviewers can poke at the screen
+    // without a populated catalog DB.
+    GoRoute(
+      path: '/dev/v2/quick-check',
+      pageBuilder: (_, state) =>
+          _platformPage(state, const QuickCheckV2Screen()),
+    ),
+  ];
+}
+
 /// Single-instance app router. Created on first `_buildRouter` call and
 /// memoized so the global `_AuthEventListener` can call `.go(...)` after
 /// the auth round-trip lands (magic link return / Apple / Google native
@@ -497,7 +642,7 @@ GoRouter _buildRouter({
     initialLocation: initialLocation,
     observers: [SentryNavigatorObserver()],
     redirect: (_, state) => normalizePharmaGuideDeepLink(state.uri),
-    routes: [
+    routes: withDevPreviewRoutes([
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
         routes: [
@@ -555,119 +700,6 @@ GoRouter _buildRouter({
       // iOS swipe-back-from-edge (Apple HIG default for stack navigation).
       // Onboarding intentionally stays Material — it's a linear flow and
       // swipe-back would let users escape it before completing.
-      // ---------------------------------------------------------------
-      // Debug-only v2 design system gallery. Reachable via
-      // `context.go('/dev/v2')`; not registered in the app shell so it
-      // never appears in the nav bar. Will be removed (or moved behind
-      // a debug-settings toggle) before v2 ships to production.
-      // ---------------------------------------------------------------
-      GoRoute(path: '/dev/v2', builder: (_, __) => const V2Gallery()),
-      // v2 Settings (Profile tab) preview. `?signedIn=1` toggles the
-      // hero into the signed-in variant.
-      //
-      // Phase 8.1.0 cleanup (2026-05-14): Product Detail / Home / Scanner /
-      // Stack / floating-shell preview routes were retired. Those v2
-      // screens were built on primitives that didn't mirror production
-      // patterns. Mirror-based rebuilds land in Phase 8.1.1+ and
-      // re-register their routes there.
-      GoRoute(
-        path: '/dev/v2/settings',
-        pageBuilder: (_, state) {
-          final signedIn = state.uri.queryParameters['signedIn'] == '1';
-          return _platformPage(state, SettingsV2Screen(signedIn: signedIn));
-        },
-      ),
-      // v2 splash preview — `autoNavigate: false` so it doesn't redirect
-      // out of the gallery after the entrance animation completes.
-      GoRoute(
-        path: '/dev/v2/splash',
-        pageBuilder: (_, state) => _platformPage(
-          state,
-          const AnimatedSplashV2Screen(autoNavigate: false),
-        ),
-      ),
-      // v2 onboarding preview — `autoFinish: false` so completing the
-      // flow loops back to step 1 rather than persisting prefs +
-      // navigating home.
-      GoRoute(
-        path: '/dev/v2/onboarding',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const OnboardingV2Screen(autoFinish: false)),
-      ),
-      // v2 ProfileSetup mirror — dev gallery preview against the live
-      // `profileProvider`. Production `/profile/setup` renders the
-      // same widget unconditionally (Phase 11.11 hygiene).
-      GoRoute(
-        path: '/dev/v2/profile-setup',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const ProfileSetupV2Screen()),
-      ),
-      // v2 first-time profile wizard — Phase 11.7L.B.9. The
-      // `autoFinish: false` preview keeps `OnboardingPrefs` clean so
-      // reviewers can replay the wizard freely from the gallery.
-      GoRoute(
-        path: '/dev/v2/profile-wizard',
-        pageBuilder: (_, state) => _platformPage(
-          state,
-          const ProfileWizardV2Screen(autoFinish: false),
-        ),
-      ),
-      // Product Detail V2 *Connected*. Driven by a real `dsldId` and
-      // the production provider stack (coreDatabaseProvider, detailBlob,
-      // personalizedInteractionWarnings, profileProvider, fitScore).
-      GoRoute(
-        path: '/dev/v2/product/:dsldId',
-        pageBuilder: (_, state) {
-          final dsldId = state.pathParameters['dsldId']!;
-          final section = state.uri.queryParameters['section'];
-          return _platformPage(
-            state,
-            ProductDetailV2ConnectedScreen(
-              dsldId: dsldId,
-              initialSection: section,
-            ),
-          );
-        },
-      ),
-      // v2 Auth Invitation dev preview — uses the same PGAuthService
-      // methods as production, with a gallery-only back affordance.
-      GoRoute(
-        path: '/dev/v2/auth',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const AuthInvitationV2Preview()),
-      ),
-      // v2 Home dev preview — fixture data + retinted frosted nav
-      // bar. The production `/` route uses the connected v2 widget.
-      GoRoute(
-        path: '/dev/v2/home',
-        pageBuilder: (_, state) => _platformPage(state, const HomeV2Preview()),
-      ),
-      // v2 Scanner dev preview — PGVerdictReveal demo chips for each
-      // severity tier. Camera surrogate stands in for MobileScanner.
-      GoRoute(
-        path: '/dev/v2/scan',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const ScannerV2Preview()),
-      ),
-      // v2 camera permission gate — first-ask + denied states.
-      // `?denied=1` flips into the denied variant.
-      GoRoute(
-        path: '/dev/v2/scan/permission',
-        pageBuilder: (_, state) {
-          final denied = state.uri.queryParameters['denied'] == '1';
-          return _platformPage(
-            state,
-            CameraPermissionV2Preview(denied: denied),
-          );
-        },
-      ),
-      // v2 Stack dev preview — two pinned tabs (Stack / Wishlist),
-      // summary card with status tier (no numeric score), supplement
-      // + medication list with swipe-to-remove.
-      GoRoute(
-        path: '/dev/v2/stack',
-        pageBuilder: (_, state) => _platformPage(state, const StackV2Preview()),
-      ),
       // Splash + Onboarding production routes use the v2 widgets.
       GoRoute(
         path: Routes.splashIntro,
@@ -734,13 +766,6 @@ GoRouter _buildRouter({
           );
         },
       ),
-      // Dev-only direct preview — bypasses both env toggle and
-      // `catalogRoute` so reviewers can see the empty-state and
-      // recent-search flows without a populated catalog DB.
-      GoRoute(
-        path: '/dev/v2/search',
-        pageBuilder: (_, state) => _platformPage(state, const SearchV2Screen()),
-      ),
       GoRoute(
         path: Routes.medicationEntry,
         pageBuilder: (_, state) =>
@@ -751,25 +776,10 @@ GoRouter _buildRouter({
         pageBuilder: (_, state) =>
             _platformPage(state, const ProductSubmissionsScreen()),
       ),
-      // Direct dev preview — bypasses the env toggle so reviewers
-      // can poke at the v2 screen without restarting with a flag.
-      GoRoute(
-        path: '/dev/v2/medication-entry',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const MedicationEntryV2Screen()),
-      ),
       GoRoute(
         path: Routes.quickCheck,
         pageBuilder: (_, state) =>
             _platformPage(state, catalogRoute(const QuickCheckV2Screen())),
-      ),
-      // Dev-only direct preview — bypasses both env toggle and the
-      // `catalogRoute` gate so reviewers can poke at the screen
-      // without a populated catalog DB.
-      GoRoute(
-        path: '/dev/v2/quick-check',
-        pageBuilder: (_, state) =>
-            _platformPage(state, const QuickCheckV2Screen()),
       ),
       GoRoute(
         path: '${Routes.product}/:dsldId',
@@ -810,7 +820,7 @@ GoRouter _buildRouter({
           );
         },
       ),
-    ],
+    ]),
   );
   _appRouter = router;
   return router;
