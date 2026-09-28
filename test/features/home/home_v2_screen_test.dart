@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -149,6 +150,9 @@ void main() {
 
     expect(find.text('Check two together'), findsOneWidget);
     expect(find.textContaining('Safe'), findsNothing);
+    // Navigation wears the brand accent, not the caution severity amber.
+    final icon = tester.widget<Icon>(find.byIcon(Icons.compare_arrows_rounded));
+    expect(icon.color, V2Palette.light.accent);
   });
 
   testWidgets('recent scan cards do not overflow with long names', (

@@ -528,7 +528,7 @@ class _ScannerV2PreviewState extends State<ScannerV2Preview> {
   @override
   Widget build(BuildContext context) {
     final demoVerdict = switch (_demo) {
-      _DemoState.success => PGVerdictKind.success,
+      _DemoState.success => PGVerdictKind.found,
       _DemoState.attention => PGVerdictKind.attention,
       _DemoState.idle || _DemoState.notFound => null,
     };

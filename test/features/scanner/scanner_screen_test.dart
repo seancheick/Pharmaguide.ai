@@ -430,7 +430,7 @@ void main() {
       await tester.pumpWidget(
         wrap(
           const PGVerdictReveal(
-            kind: PGVerdictKind.success,
+            kind: PGVerdictKind.found,
             caption: 'Magnesium Glycinate',
             autoDismissAfter: null,
             playHaptic: false,

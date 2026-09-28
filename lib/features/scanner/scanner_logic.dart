@@ -44,10 +44,11 @@ Color verdictFlashColor(V2Palette p, String? verdict) {
 
 /// Two-state scan confirmation for [PGVerdictReveal].
 ///
-/// Policy (v2): no per-tier judgement at scan time — only "recognized,
-/// looks clean" vs "recognized, worth reviewing on the product page".
+/// Policy (v2): no per-tier judgement at scan time — only "recognized" vs
+/// "recognized, worth reviewing on the product page". The flash fires before
+/// any personal check, so "found" is never a safety colour.
 ///
-///   no known catalog concern                  → success (green)
+///   no known catalog concern                  → found (brand accent)
 ///   blocked / unsafe / caution / not assessed → attention (amber)
 ///
 /// Reads the typed catalog safety status, never a verdict string. The scan
@@ -56,7 +57,7 @@ Color verdictFlashColor(V2Palette p, String? verdict) {
 /// switch turns a new status into a compile error, not a silent amber.
 PGVerdictKind scanRevealKind(CatalogProductSafetyStatus status) =>
     switch (status) {
-      CatalogProductSafetyStatus.noKnownCatalogConcern => PGVerdictKind.success,
+      CatalogProductSafetyStatus.noKnownCatalogConcern => PGVerdictKind.found,
       CatalogProductSafetyStatus.blocked ||
       CatalogProductSafetyStatus.unsafe ||
       CatalogProductSafetyStatus.caution ||

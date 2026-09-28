@@ -957,7 +957,7 @@ class _TopRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
                 border: Border.all(
                   color: focused
-                      ? context.v2.safe.withValues(alpha: 0.26)
+                      ? context.v2.accent.withValues(alpha: 0.26)
                       : Colors.transparent,
                   width: 1.0,
                 ),
@@ -968,7 +968,7 @@ class _TopRow extends StatelessWidget {
                   Icon(
                     Icons.search_rounded,
                     size: 30,
-                    color: focused ? context.v2.safe : context.v2.fgMuted,
+                    color: focused ? context.v2.accent : context.v2.fgMuted,
                   ),
                   const SizedBox(width: V2Spacing.space12),
                   Expanded(
@@ -999,7 +999,7 @@ class _TopRow extends StatelessWidget {
                         isDense: true,
                       ),
                       style: V2Typography.bodyXl(color: context.v2.fg),
-                      cursorColor: context.v2.safe,
+                      cursorColor: context.v2.accent,
                       cursorWidth: 2,
                       onChanged: onChanged,
                       onSubmitted: onSubmitted,
@@ -1214,7 +1214,7 @@ class _RecentSearchRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: V2Spacing.space4),
           child: Row(
             children: [
-              Icon(Icons.search_rounded, size: 26, color: context.v2.safe),
+              Icon(Icons.search_rounded, size: 26, color: context.v2.accent),
               const SizedBox(width: V2Spacing.space16),
               Expanded(
                 child: Text(

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -137,6 +138,27 @@ void main() {
       expect(visible, greaterThanOrEqualTo(lineHeight));
     });
   }
+
+  // Focus wore the `safe` severity green: interaction chrome is brand accent.
+  testWidgets('focused search field uses the brand accent, not safe green', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          recentSearchesServiceProvider.overrideWithValue(
+            _FakeRecentSearchesService(),
+          ),
+        ],
+        child: const MaterialApp(home: SearchV2Screen()),
+      ),
+    );
+    await tester.pump();
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.cursorColor, V2Palette.light.accent);
+    expect(field.cursorColor, isNot(V2Palette.light.safe));
+  });
 
   testWidgets('idle state renders modern recent and discovery sections', (
     tester,

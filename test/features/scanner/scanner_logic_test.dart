@@ -10,12 +10,12 @@ import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 
 void main() {
   group('scanRevealKind', () {
-    test('a clean catalog product confirms as success (dsld 299750)', () {
+    test('a clean catalog product confirms as found (dsld 299750)', () {
       // Liposomal Vitamin C, SAFE 91/100, flashed amber: the scan flow passed
       // its safety status id to a switch that only knew verdict strings.
       expect(
         scanRevealKind(CatalogProductSafetyStatus.noKnownCatalogConcern),
-        PGVerdictKind.success,
+        PGVerdictKind.found,
       );
     });
 

@@ -8,12 +8,16 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// judgement at scan time — the product page is where verdict
 /// nuance happens. The flash is purely "we recognized this."
 ///
-/// Green: recognized with a positive product verdict — no major concern at a
-/// glance. Spring scale celebration.
+/// Found: recognized, no catalog concern. Brand accent, never the safety
+/// green: the flash fires before any stack, medication or profile check, so
+/// green read as "safe for you" (Sean 2026-09-28).
 ///
-/// Amber: caution / avoid / contraindicated — product matched, worth
-/// reviewing. Calm fade-up, decelerate curve.
-enum PGVerdictKind { success, attention }
+/// Attention: blocked / unsafe / caution / not assessed — product matched,
+/// worth reviewing. Amber.
+///
+/// Both use the same calm decelerate settle; no spring celebration on a
+/// clinical surface.
+enum PGVerdictKind { found, attention }
 
 /// Brief severity-tinted icon flash that signals "scan succeeded."
 ///
@@ -21,10 +25,9 @@ enum PGVerdictKind { success, attention }
 /// No label, no subline — product info lives on the detail page that
 /// opens immediately after this dismisses (~900ms).
 ///
-/// Motion: spring scale 1.0 → 1.08 → 1.0 for [success] (celebration),
-/// decelerate fade-up for [attention] (calm).
+/// Motion: decelerate fade-up with a slight scale settle for both kinds.
 ///
-/// Haptics: light tap for success, medium tap for attention.
+/// Haptics: light tap for found, medium tap for attention.
 class PGVerdictReveal extends StatefulWidget {
   final PGVerdictKind kind;
 
@@ -90,7 +93,7 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
   void _fireHaptic() {
     if (!widget.playHaptic) return;
     switch (widget.kind) {
-      case PGVerdictKind.success:
+      case PGVerdictKind.found:
         HapticFeedback.lightImpact();
       case PGVerdictKind.attention:
         HapticFeedback.mediumImpact();
@@ -104,21 +107,19 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
   }
 
   Color get _tone => switch (widget.kind) {
-    PGVerdictKind.success => context.v2.safe,
+    PGVerdictKind.found => context.v2.accent,
     PGVerdictKind.attention => context.v2.caution,
   };
 
   Color get _onTone => switch (widget.kind) {
-    PGVerdictKind.success => context.v2.onSafe,
+    PGVerdictKind.found => context.v2.onAccent,
     PGVerdictKind.attention => context.v2.onCaution,
   };
 
   IconData get _icon => switch (widget.kind) {
-    PGVerdictKind.success => Icons.check_circle_rounded,
+    PGVerdictKind.found => Icons.check_circle_rounded,
     PGVerdictKind.attention => Icons.warning_amber_rounded,
   };
-
-  bool get _isCelebration => widget.kind == PGVerdictKind.success;
 
   String get _semanticsLabel {
     final caption = widget.caption?.trim();
@@ -145,23 +146,12 @@ class _PGVerdictRevealState extends State<PGVerdictReveal>
           animation: _ctrl,
           builder: (context, _) {
             final t = _ctrl.value;
-            final curve = _isCelebration
-                ? V2Motion.spring
-                : V2Motion.decelerate;
-            // **Sentry fix — 58× AssertionError 'opacity >= 0.0 && opacity
-            // <= 1.0'.** V2Motion.spring is `Cubic(0.34, 1.56, 0.64, 1)` —
-            // the 1.56 control point produces a brief overshoot above 1.0
-            // for celebration verdicts, which Opacity rejects. Clamp the
-            // eased value before any Opacity consumer reads it. Scale +
-            // lift consumers don't have a bounds constraint, so they use
-            // the unclamped easedRaw (the spring overshoot adds the
-            // pleasant pop on the icon).
-            final easedRaw = curve.transform(t);
+            // Clamped before any Opacity consumer reads it (Sentry: 58×
+            // 'opacity >= 0.0 && opacity <= 1.0' when a spring overshot).
+            final easedRaw = V2Motion.decelerate.transform(t);
             final eased = easedRaw.clamp(0.0, 1.0);
             final tClamped = t.clamp(0.0, 1.0);
-            final scale = _isCelebration
-                ? 0.92 + (easedRaw * 0.16)
-                : 0.96 + (easedRaw * 0.04);
+            final scale = 0.96 + (easedRaw * 0.04);
             final lift = (1 - easedRaw) * 14;
 
             return Stack(

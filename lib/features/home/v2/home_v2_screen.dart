@@ -1161,13 +1161,15 @@ class _QuickCheckCta extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
+                // Brand accent: amber is the caution severity, and this tile
+                // is navigation, not a warning.
                 decoration: BoxDecoration(
-                  color: context.v2.caution.withValues(alpha: 0.12),
+                  color: context.v2.accentTint,
                   borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
                 ),
                 child: Icon(
                   Icons.compare_arrows_rounded,
-                  color: context.v2.caution,
+                  color: context.v2.accent,
                   size: 20,
                 ),
               ),

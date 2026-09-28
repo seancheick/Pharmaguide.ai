@@ -112,10 +112,12 @@ class PGScoreBreakdownCard extends StatefulWidget {
     return '$sign${fmtScore(value.abs())}';
   }
 
+  /// Quality bars wear the brand accent, never a severity token: `safe` on a
+  /// full "Dose" bar read as "this dose is safe". Strength is carried by the
+  /// bar length, the number and the pillar label ("Strong", "Limited").
   static Color pillarTone(double? rawScore, num max, V2Palette palette) {
     if (rawScore == null || max <= 0) return palette.fgSubtle;
-    final fraction = (rawScore / max).clamp(0.0, 1.0);
-    return fraction >= 0.5 ? palette.safe : palette.monitor;
+    return palette.accent;
   }
 
   @override

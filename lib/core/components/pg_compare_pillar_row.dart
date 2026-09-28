@@ -10,8 +10,8 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 /// One pillar, two products: label on top, then product A's mini bar +
 /// score/max beside product B's. Visual language mirrors
 /// `PGScoreBreakdownCard`'s pillar bars — same 6pt rounded bar, the
-/// shared calm 2-tone palette ([PGScoreBreakdownCard.pillarTone]; pillars
-/// are QUALITY signals, never alarm-red), and the shared
+/// shared accent tone ([PGScoreBreakdownCard.pillarTone]; pillars are
+/// QUALITY signals, never a severity colour), and the shared
 /// [PGScoreBreakdownCard.fmtScore] formatter so "17.5/20" renders
 /// identically everywhere.
 ///
@@ -120,13 +120,11 @@ class PGComparePillarRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _side(context, scoreA, maxA,
-                  displayState: displayStateA),
+              child: _side(context, scoreA, maxA, displayState: displayStateA),
             ),
             const SizedBox(width: V2Spacing.space16),
             Expanded(
-              child: _side(context, scoreB, maxB,
-                  displayState: displayStateB),
+              child: _side(context, scoreB, maxB, displayState: displayStateB),
             ),
           ],
         ),
