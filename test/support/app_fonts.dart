@@ -43,6 +43,7 @@ const _goldenFontFiles = <String, String>{
   'Geist': 'assets/fonts/Geist-Regular.ttf',
   'GeistMono_500': 'assets/fonts/GeistMono-Medium.ttf',
   'GeistMono': 'assets/fonts/GeistMono-Medium.ttf',
+  'Newsreader_regular': 'assets/fonts/Newsreader-Regular.ttf',
   'MaterialIcons': 'test/fonts/MaterialIcons-Regular.otf',
 };
 
@@ -53,10 +54,8 @@ const _goldenFontFiles = <String, String>{
 /// metrics, so tests that assert layout against the placeholder font are left
 /// untouched.
 ///
-/// NOTE: Newsreader (`V2Typography.display*`) is NOT bundled in `assets/fonts/`,
-/// so display-scale text still falls back to the placeholder font. No current
-/// golden renders it. A new golden that does must ship the Newsreader TTF and
-/// add it here rather than quietly accept box glyphs.
+/// Newsreader (`V2Typography.display*`) is bundled too, so display-scale text
+/// renders real glyphs in any golden that shows it.
 ///
 /// Material icons DO render, from the copy vendored at `test/fonts/`. Reading
 /// them out of the Flutter SDK at test time would have keyed the goldens to an

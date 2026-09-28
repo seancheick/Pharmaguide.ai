@@ -76,6 +76,7 @@ void main() async {
 
 Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
+  V2Typography.useBundledFontsOnly();
 
   // Route Flutter framework errors + platform-level errors to Sentry.
   FlutterError.onError = (details) {

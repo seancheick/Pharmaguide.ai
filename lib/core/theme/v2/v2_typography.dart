@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// v2 typography — fixed scale, weight discipline enforced.
@@ -13,7 +15,33 @@ import 'package:google_fonts/google_fonts.dart';
 ///   names, timestamps, compact diagnostics.
 /// - **Weights:** 400 and 500 only. Never 600. Never 700. Never italic.
 /// - **Scale:** 40 / 32 / 24 / 20 / 18 / 16 / 14 / 12 / 10. No other sizes.
+/// - **Bundled:** every family and weight above ships in `assets/fonts/`
+///   (Geist-Regular/Medium, GeistMono-Medium, Newsreader-Regular). A new
+///   weight or family needs its TTF there too; nothing is fetched at runtime.
 abstract final class V2Typography {
+  static bool _bundledOnly = false;
+
+  /// Loads type only from `assets/fonts/` and registers the fonts' SIL OFL
+  /// licenses. Call once at startup. Runtime fetching sent the user's IP to
+  /// Google for Newsreader and drew a fallback serif on a first launch
+  /// offline.
+  static void useBundledFontsOnly() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+    if (_bundledOnly) return;
+    _bundledOnly = true;
+    LicenseRegistry.addLicense(() async* {
+      for (final (families, asset) in const [
+        (['Geist', 'Geist Mono'], 'assets/fonts/OFL-Geist.txt'),
+        (['Newsreader'], 'assets/fonts/OFL-Newsreader.txt'),
+      ]) {
+        yield LicenseEntryWithLineBreaks(
+          families,
+          await rootBundle.loadString(asset),
+        );
+      }
+    });
+  }
+
   // Font scale — fixed.
   static const double size40 = 40;
   static const double size32 = 32;
