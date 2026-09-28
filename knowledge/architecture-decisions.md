@@ -139,3 +139,23 @@
 - Home, Stack, the hero warning, and the details sheet use the same signal count and noun.
 - “Optimized” means no identified concerns under the checks that completed; it does not mean an ideal or universally safe supplement stack.
 - Score-derived `RiskTier` and `healthLabel` APIs are removed to prevent a second classification path from returning.
+
+---
+
+## ADR-007: Guest scope, first run, and never affirming "safe"
+
+**Date:** 2026-09-28
+**Status:** ACCEPTED (Sean, product/UX audit round 2; see docs/PRODUCT_UX_AUDIT_2026-09-28.md §12)
+**Supersedes:** the 2026-05-18 access tier "Guest: no saved stack" (dcd5c5fc).
+**Context:** The audit found that the app asserted more certainty and protection than it has: "Safe to add" on an empty stack, safety phrases in quality-tier copy, a safety-green scan flash before any personal check, and a Face ID switch with no lock behind it. It also found a sign-in wall before any value, even though stack and wishlist data never needed an account.
+
+**Decision:**
+- No surface affirms "safe". A clear pre-add check reads "No known interactions with your stack". An empty stack reads "nothing to check against yet". A product missing from the catalog counts as not checked. Quality tiers describe quality only. The scan flash means "found" (brand accent), never a safety colour.
+- Guests keep a stack and wishlist on the device. An account adds backup and sync of the supplement stack only. Profile, medications and allergies never upload. Guests still get 3 scans a day.
+- First run is one screen with no sign-in step. The account is offered when someone wants sync. Returning users skip the splash.
+- iOS excludes app data from backups (Documents and Application Support), matching Android's `allowBackup="false"`.
+
+**Consequences:**
+- A signed-out device keeps showing its local stack and wishlist (as the stack already did). A different account signing in clears them (AccountSwitchGuard).
+- A new phone starts fresh unless the user signed in; the supplement stack syncs back.
+- The first sign-in adopts guest rows and pushes the supplement rows. The medication-never-syncs guards are unchanged (release-gate test).

@@ -41,7 +41,10 @@ real and mostly respected: 295 of 321 corner radii use tokens.
    percent"). Even inside that cap, the search field clipped the query and Home micro-metrics don't
    scale.
 
-**Changed on this branch (6 commits, each test-first).**
+**Changed on this branch.** Round 1 below; round 2, after Sean approved the six decisions,
+is in §12.
+
+**Round 1 (6 commits, each test-first).**
 
 | Commit | Fix |
 |---|---|
@@ -262,25 +265,150 @@ release binary.
 
 **Next (low risk, clear).** Scroll Quick Check results into view. Put the keyboard-covered results
 list above the keyboard. Add Search by name to the camera-denied screen. One back button.
-Sentence-case pass. Remove or relabel the placeholder Profile rows. Fix the micro-metrics scaling.
-Show the 10 pt PD evidence badge at 12 pt. Format participant counts. Hide the empty-stack timing
-card. Rewrite `knowledge/design-system.md` for v2. Bundle Newsreader.
+Sentence-case pass. Fix the micro-metrics scaling. Show the 10 pt PD evidence badge at 12 pt. Format
+participant counts. Hide the empty-stack timing card. Rewrite `knowledge/design-system.md` for v2.
+Show a placeholder while product-detail sections load (§12.4).
+*Done in round 2:* placeholder Profile rows explained, Newsreader bundled.
 
-**Needs Sean's decision.**
-1. "Safe to add" on an empty stack or on a clear check: remove the affirmative "Safe"?
-   (Recommended: yes.)
-2. Remove the Chat tab until chat ships? (Recommended: yes.)
-3. Quality-tier descriptions: drop the safety phrases? (Recommended: yes.)
-   Scan reveal: make it a neutral "found" instead of safety-green? (Recommended: yes.)
-4. Guest scope: allow a local stack and wishlist without an account, since data is on-device anyway?
-5. iOS backup exclusion for `user_data.db` (parity with Android) vs iCloud restore convenience.
-6. Onboarding restructure (§6).
+**Decided by Sean 2026-09-28: all six, implemented in round 2 (§12).**
 
-**Later (design discussion).** Raise the text-scale cap to 2.0 with per-screen verification.
-Move to `StatefulShellRoute` for tab state. Merge the two interaction-card implementations (Quick
-Check `_InteractionCard` and `PGInteractionWarnings`). Take pillar colours off severity tokens.
-Consolidate the button families.
+**Later (design discussion).** Raise the text-scale cap to 2.0 after the fixes in §12.2. Move to
+`StatefulShellRoute` for tab state. Merge the two interaction-card implementations (Quick Check
+`_InteractionCard` and `PGInteractionWarnings`). Consolidate the button families. Split a
+`positive` token from `safe` (certifications, "in your stack" and success toasts still use the
+safety green). Glass tab bar rollout (§12.3).
 
 **Experiments (measure before adopting).** One-screen onboarding vs the current four. Deferred
 sign-in (first save) vs the current post-onboarding wall. Guest scan cap of 3 vs 10 per day, watching
 first-week retention. A return-visit trigger from recall alerts on stacked products.
+
+---
+
+## 12. Round 2 — Sean's decisions implemented (2026-09-28)
+
+Sean approved all six recommendations and added five specific asks and a Liquid Glass
+prototype. Each change is its own commit with a test that fails on the old code.
+
+### 12.1 What changed
+
+| Commit | Change |
+|---|---|
+| e4c0ecd | Newsreader bundled (byte-identical to the file the app was downloading, sha256 `f1832462…`); `V2Typography.useBundledFontsOnly()` turns runtime font fetching off and registers the SIL OFL licences for Geist and Newsreader, which were missing |
+| d6066a8 | Pre-add sheet never says "safe". An empty stack gets "Nothing in your stack to check against yet"; a clear check gets "No known interactions with your stack … the list is finite" (info tone, not green). A product missing from the catalog counts as not checked. The Home tile "Safe to take together?" is now "Check two together" |
+| f4fafae | Chat tab, `/chat` route and placeholder removed. Unknown paths (old `pharmaguide://chat` links, typos) go Home instead of go_router's bare "Page Not Found" |
+| b78a002 | Safety colours for clinical risk only: the scan flash for a recognized product is brand teal "found" with no spring; score pillars use the accent; the Quick Check tile and search focus use the accent |
+| 2d8147c | Quality-tier descriptions use quality words only ("clean safety profile" and similar are gone) |
+| 3773011 | Guests keep a stack and wishlist on the device (the sync path already handled it: guests skip sync, the first sign-in adopts and pushes the supplement rows, medications never sync). The wishlist stays after sign-out, like the stack |
+| f2523ee | The sign-in page has a Close button, and Skip returns to the page that opened it (`leaveAuthInvitation`), going Home only when nothing is underneath. Copy says what an account adds; Skip is a real 44 pt button |
+| 594a252 | Onboarding is one screen: "Start scanning" opens the camera, "Set up my profile first" opens the guided wizard, and there is no sign-in step. The splash plays on first run only (`initialAppLocation`). `PGCelebration` deleted |
+| 89fffd6 | Placeholder Profile rows explain what works today and point to something real. Medication name search is disclosed: it goes to the U.S. National Library of Medicine (RxNorm), on medication entry, Quick Check and the Privacy dashboard |
+| 24aab1b | iOS: `Documents` and `Application Support` excluded from iCloud and computer backups at launch, matching Android. Verified on the simulator: both directories carry `com.apple.metadata:com_apple_backup_excludeItem`, and `user_data.db` plus its `-wal`/`-shm` files live in `Documents`. The Privacy dashboard says so (a new phone starts fresh; a signed-in supplement stack syncs back), and its info sheet now scrolls (the longer list overflowed by 26 px) |
+| 94ffeb3 | The Profile "Sign in" row says "Back up and sync your stack" (was "Save stack, profile, and history") |
+| 26836ac, c994537 | Debug-only glass tab bar prototype (§12.3) |
+
+All checked on the iPhone 17 simulator from a fresh install:
+- first-run onboarding → "Start scanning" → camera pre-prompt, 2 taps from launch;
+- "Add to my stack" as a guest shows the empty-stack wording and adds with no sign-in page;
+- 4-tab bar;
+- teal score pillars;
+- the "Check two together" tile;
+- the sign-in page's Close returns to Profile;
+- the guest profile reads "1 in stack · 1 scan".
+
+### 12.2 Text scaling: should the 1.4× cap go to 2.0×? (Sean asked for an opinion)
+
+**Experiment.** I set the cap to 2.0× (uncommitted), set the simulator to the largest accessibility
+size, and walked Home and the product page.
+
+- **Home.** The Scan card's title breaks mid-word ("supplemen / t"). The recent-scan card is a fixed
+  height and overflows by **56 px** (`home_v2_screen.dart:1098`), cutting off the product name.
+  The metric labels ("1 Supplement") don't scale at all, and the search placeholder truncates.
+- **Product page.** The sticky "In your stack · Remove" bar overflows by **31 px**. The dose line
+  truncates to "500 caplet(s) · Ta…", so "Take 1 caplet daily" is lost, and the tier reads "Very g…".
+- **Scaled cleanly.** Headlines, body text, the For-you card and the tab bar.
+
+**Opinion: yes, go to 2.0×, but not as a one-line change.** Apple's "at least 200 percent" is the
+right target for a health app whose users skew older. But flipping the cap today would ship two
+overflows and truncate dose instructions, which is worse than a 1.4× cap. The work is bounded:
+1. Let these grow instead of fixing their height or truncating: the Scan CTA (stack the icon
+   above the title at large sizes), the recent-scan card, the PD sticky bar (wrap into two rows),
+   the PD hero meta and score lines, and the metric row (drop the `FittedBox`).
+2. Add a large-text smoke test: pump each main screen at `TextScaler.linear(2.0)` and assert no
+   overflow, like the Quick Check width test in round 1.
+3. Then raise the cap to 2.0 in one commit, with simulator screenshots of each screen at AX5.
+
+That's one focused session. Leave the cap at 1.4× until step 1 lands. The Accessibility sheet now
+says the largest sizes are capped for now.
+
+### 12.3 iOS 26 interactive Liquid Glass (Sean's addition)
+
+**Audit.** The current `PGFrostedNavBar` is a full-width, edge-attached Material `NavigationBar`
+behind a `BackdropFilter`, with a static M3 pill. It has no floating capsule and no press response.
+Buttons come in four families (§3). Flutter 3.44.6 has no Liquid Glass support in the framework
+(`rg -i "liquid.?glass|glassEffect"` over the SDK finds nothing). Xcode 27 / iOS SDK 27.0 and an
+iOS 26.5 simulator are installed, so the native material is available to Swift code.
+
+**Native reference.** I captured Apple's Files app tab bar on the iOS 26.5 simulator, mid-press
+and mid-drag. At rest it's an inset floating capsule with a light pill under the selected tab and
+brand colour only on the selected icon and label. On touch it shows a glass lens about 1.34× the
+tab's width and 1.36× the bar's height, rising past the capsule. The lens magnifies the tab under
+it (which switches to its filled icon), has a faint iridescent rim and a soft shadow, and the whole
+capsule swells about 3.5%. The lens tracks the finger across tabs and settles into the pill on
+release.
+
+**Prototype** (`/dev/v2/glass-nav`, debug-only, over the real Home screen).
+- `PGGlassTabBar` reproduces each of those beats. The magnification is `RawMagnifier`, Flutter's
+  correct primitive for a positioned, magnified backdrop. The capsule is a blur with a 1.3×
+  saturation lift. Springs follow Apple's response/damping model, and crossing into a tab ticks a
+  selection haptic.
+- Reduce Motion drops the lens. Increase Contrast and Android get an opaque outlined bar. Tabs are
+  labelled, selectable buttons with 44 pt targets.
+- Five widget tests. On the simulator, after tuning against the native capture, the press, drag
+  and settle read close to native in side-by-side screenshots.
+- **What it can't do:** real refraction of the iOS material, dynamic light/dark adaptation of the
+  glass to the content underneath, and the exact native spring feel. Those need the platform.
+
+**Native option.** On iOS 26+, a `UiKitView` hosting a real `UITabBar` (or a SwiftUI
+`GlassEffectContainer`) would get the true material and interaction for free. The costs:
+- an always-on platform view on every tab screen, which pushes Flutter onto its platform-view
+  compositing path (measurable frame cost, and the reason it's rarely done for the main bar);
+- two tab-bar implementations to keep in sync (Android and iOS < 26 still need the Flutter bar);
+- accessibility bridging across the boundary.
+
+A small spike would settle whether the cost is acceptable. It needs a physical device, because the
+simulator can't profile.
+
+**Where it belongs** (liquid-glass.md: glass only on the functional layer, used sparingly):
+- **Yes:** the bottom tab bar (first); scanner controls over the camera (torch, manual entry;
+  clear glass over live video); the Stack/Nutrients/Wishlist segmented control; compact floating
+  toolbar actions (share, wishlist, compare on the product page).
+- **No:** content cards, ingredient rows, warnings, evidence panels, interaction cards, the score
+  hero, or anything read to make a clinical decision.
+
+**Recommendation.**
+1. Ship the Flutter glass tab bar as the shell's bar (replacing `PGFrostedNavBar`) after a device
+   check on a physical iPhone. It's self-contained, tested, and falls back cleanly.
+2. Run the native `UITabBar` platform-view spike on a device, and adopt it on iOS 26+ only if frame
+   times stay clean.
+3. Then extend glass to the scanner controls and the segmented control. Nothing else.
+
+### 12.4 New findings from the device walk
+
+- **P2, perceived performance.** On a first open, the product page renders hero, For-you and footer
+  as if complete, then "What's inside", the score breakdown and evidence pop in 1–2 s later when the
+  detail blob arrives. No placeholder, so the page jumps. Fix: section skeletons while the blob loads.
+- **P3.** `camera_permission_v2_screen.dart:83` overflows by 8 px while the manual-entry sheet and
+  keyboard are up (transient, hidden behind the sheet).
+- **Known, tracked (ADR-006 memory).** A guest's one-product stack shows the Stack Health tier
+  "Optimized". The ADR defines it as "no identified concerns under the checks that completed", but a
+  green "Optimized" for one vitamin C with no profile reads as praise. Left for the ADR-006 copy item.
+- **Remaining safety-green uses:** certifications, "in your stack", success toasts, formulation
+  enhancers. A `positive` token split is under Later.
+
+### 12.5 Tests (round 2)
+
+| Command | Result |
+|---|---|
+| `flutter analyze` | No issues found |
+| `flutter test` (full) | see the final chat report; expected: only the 7 pre-existing golden pixel diffs |
+| New or changed regression tests | fonts (fails when Newsreader is missing), safety sheet ×2 + provider ×2, app tabs + unknown path, colours ×4, tier copy, guest stack + wishlist ×4, sign-in page ×4, onboarding ×3 (red on the old screen), splash ×2, settings copy ×6, RxNorm disclosure ×3, glass prototype ×5 |
