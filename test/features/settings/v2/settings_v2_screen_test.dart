@@ -39,7 +39,8 @@ void main() {
 
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
 
-    expect(find.text('Save stack, profile, and history'), findsOneWidget);
+    // Guests keep their stack on the device; an account adds backup + sync.
+    expect(find.text('Back up and sync your stack'), findsOneWidget);
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
 

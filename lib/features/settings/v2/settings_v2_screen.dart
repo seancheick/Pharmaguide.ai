@@ -104,7 +104,7 @@ class SettingsV2Screen extends StatelessWidget {
                   caption: signedIn
                       ? accountEmail ??
                             'Unlimited early-access scans · stack saved'
-                      : 'Save stack, profile, and history',
+                      : 'Back up and sync your stack',
                   onTap: signedIn
                       ? null
                       : () => context.push(Routes.authInvitation),
