@@ -231,7 +231,8 @@ void main() {
       },
     );
 
-    test('empty stack is a confident clear (safe to affirm)', () async {
+    // Nothing was checked, so the sheet must say so instead of "Safe to add".
+    test('empty stack is reported as empty, not as a checked clear', () async {
       final coreDb = CoreDatabase.memory();
       final interactionDb = InteractionDatabase.memory();
       final userDb = UserDatabase.memory();
@@ -261,7 +262,49 @@ void main() {
 
       expect(result.results, isEmpty);
       expect(result.checksIncomplete, isFalse);
-      expect(result.isConfidentClear, isTrue);
+      expect(result.stackEmpty, isTrue);
+    });
+
+    // A product missing from the local catalog could not be checked at all;
+    // that is not a clean result.
+    test('candidate missing from the catalog is not a clean result', () async {
+      final coreDb = CoreDatabase.memory();
+      final interactionDb = InteractionDatabase.memory();
+      final userDb = UserDatabase.memory();
+      addTearDown(() async {
+        await coreDb.close();
+        await interactionDb.close();
+        await userDb.close();
+      });
+      await _seedSupplement(
+        coreDb,
+        dsldId: 'SUPP_ONE_MULTI',
+        name: 'O.N.E. Multivitamin',
+        canonicalTags: ['vitamin_e'],
+      );
+      await userDb.addToStack(
+        UserStacksLocalCompanion.insert(
+          id: 'one_multi',
+          type: const Value('supplement'),
+          name: 'O.N.E. Multivitamin',
+          dsldId: const Value('SUPP_ONE_MULTI'),
+          ingredientKeys: const Value('["vitamin_e"]'),
+        ),
+      );
+
+      final container = _container(
+        coreDb: coreDb,
+        interactionDb: interactionDb,
+        userDb: userDb,
+      );
+      addTearDown(container.dispose);
+
+      final result = await container.read(
+        safetyCheckForAddProvider('NOT_IN_CATALOG').future,
+      );
+
+      expect(result.checksIncomplete, isTrue);
+      expect(result.isConfidentClear, isFalse);
     });
 
     test(

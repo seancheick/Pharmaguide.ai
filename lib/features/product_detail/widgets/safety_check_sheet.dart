@@ -13,8 +13,8 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
 /// Looks up the independent catalog safety state so the safety sheet can
-/// refuse to show "Safe to add" on a blocked/unsafe product even if a
-/// future caller skips the upstream FLTR-16 UI guard.
+/// refuse to offer an add on a blocked/unsafe product even if a future
+/// caller skips the upstream FLTR-16 UI guard.
 final _sheetProductBlockedProvider = FutureProvider.family
     .autoDispose<bool, String>((ref, dsldId) async {
       final db = ref.watch(coreDatabaseProvider);
@@ -60,8 +60,8 @@ class _SafetyCheckSheet extends ConsumerWidget {
     final safetyAsync = ref.watch(safetyCheckForAddProvider(dsldId));
 
     // FLTR-16 — third-layer defense. If the product's catalog safety
-    // status is blocked/unsafe, the sheet must not display a "Safe to add"
-    // banner under any circumstances, even if a direct opener
+    // status is blocked/unsafe, the sheet must not display an addable
+    // result under any circumstances, even if a direct opener
     // skipped the [PGStackActionButtons] guard. The status loads
     // alongside the interaction check; we treat pending verdict as
     // "not yet known, assume safe to render loading" — the check
@@ -225,7 +225,7 @@ class _SafetyCheckError extends StatelessWidget {
 
 /// FLTR-16 — third-layer defense banner. Rendered in place of
 /// [_SafetyResults] when the product itself carries a BLOCKED/UNSAFE
-/// verdict. Replaces the "Safe to add" success state so a blocked
+/// verdict. Replaces the interaction result so a blocked
 /// product never reads as addable, even if the sheet is opened
 /// directly. The primary button is disabled alongside.
 class _UnsafeProductBanner extends StatelessWidget {
@@ -251,16 +251,26 @@ class _SafetyResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Affirmative "Safe to add" is allowed ONLY when every check ran and
-    // nothing fired. An empty result under incomplete checks is NOT a clean
-    // bill of health — it must hedge (never render green).
+    // Never "safe": an empty stack had nothing to check, and a clear check
+    // only means nothing in PharmaGuide's curated interaction list fired.
+    // Neither renders the green success tone.
+    if (check.stackEmpty) {
+      return const PGSeverityBanner(
+        tone: PGBannerTone.info,
+        title: 'Nothing in your stack to check against yet',
+        body:
+            'Your stack is empty. As you add supplements and medications, '
+            'PharmaGuide checks each new one against the rest.',
+      );
+    }
     if (check.isConfidentClear) {
       return const PGSeverityBanner(
-        tone: PGBannerTone.success,
-        title: 'No stack interactions found',
+        tone: PGBannerTone.info,
+        title: 'No known interactions with your stack',
         body:
-            'This product does not overlap with anything currently in '
-            'your stack. Safe to add.',
+            'Nothing in PharmaGuide’s curated interaction checks flags this '
+            'with what’s in your stack. The list is finite, so a clinician '
+            'is still the right call if you’re unsure.',
       );
     }
 

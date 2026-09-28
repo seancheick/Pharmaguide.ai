@@ -43,7 +43,7 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 ///      "View stack →" footer. NO numeric score.
 ///   6. Recent scans — section header + HORIZONTAL carousel of 156pt
 ///      cards (image + score line + name + brand + time-ago)
-///   7. Quick Check — "Safe to take together?" single-row card with
+///   7. Quick Check — "Check two together" single-row card with
 ///      caution-tinted compare-arrows icon
 ///   8. PGTransparencyFooter
 ///
@@ -135,7 +135,7 @@ class HomeV2Screen extends ConsumerWidget {
           sliver: SliverToBoxAdapter(child: _RecentScansSection()),
         ),
 
-        // 6. Quick Check — "Safe to take together?" tile that opens
+        // 6. Quick Check — "Check two together" tile that opens
         // the real quick-check screen.
         const SliverPadding(
           padding: EdgeInsets.fromLTRB(
@@ -1138,7 +1138,7 @@ class _RecentScanCard extends StatelessWidget {
 }
 
 // =============================================================================
-// Quick Check — "Safe to take together?" single-row card with a
+// Quick Check — "Check two together" single-row card with a
 // caution-tinted compare-arrows icon.
 // =============================================================================
 
@@ -1183,12 +1183,12 @@ class _QuickCheckCta extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Safe to take together?',
+                      'Check two together',
                       style: V2Typography.bodyMedium(color: context.v2.fg),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Check two supplements or medications',
+                      'Known interactions between supplements or medications',
                       style: V2Typography.bodySm(color: context.v2.fgMuted),
                     ),
                   ],

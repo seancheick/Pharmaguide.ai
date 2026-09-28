@@ -127,6 +127,30 @@ void main() {
     });
   }
 
+  // The tile asked "Safe to take together?", a yes/no safety question the
+  // feature deliberately never answers ("No interaction catalogued").
+  testWidgets('quick check tile does not ask a safety question', (
+    tester,
+  ) async {
+    final coreDb = CoreDatabase.memory();
+    final userDb = UserDatabase.memory();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    await pumpHomeV2(tester, coreDb, userDb);
+    await tester.scrollUntilVisible(
+      find.text('Check two together'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text('Check two together'), findsOneWidget);
+    expect(find.textContaining('Safe'), findsNothing);
+  });
+
   testWidgets('recent scan cards do not overflow with long names', (
     tester,
   ) async {

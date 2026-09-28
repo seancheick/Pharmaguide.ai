@@ -41,23 +41,30 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 ///
 /// Carries the combined interaction/heuristic [results] AND a
 /// [checksIncomplete] flag so the "Add to stack" sheet can distinguish
-/// "every check ran and found nothing" (safe to affirm) from "one or more
-/// checks could not run" (must hedge — an empty list is NOT a clean bill of
-/// health). Under-warning is the dangerous failure on a medical surface, so
-/// the sheet only renders the affirmative "Safe to add" state when
-/// [isConfidentClear] is true.
+/// "every check ran and found nothing" from "one or more checks could not
+/// run" (must hedge — an empty list is NOT a clean bill of health), plus
+/// [stackEmpty] for "there was nothing to check against". Under-warning is
+/// the dangerous failure on a medical surface; even a full clear is shown as
+/// "no known interactions", never as "safe".
 class PreAddSafetyResult {
   const PreAddSafetyResult({
     required this.results,
     required this.checksIncomplete,
+    this.stackEmpty = false,
   });
 
-  /// Fully-checked, nothing fired — the only state that may show the
-  /// affirmative "Safe to add" banner. Also used for the trivially-safe
-  /// short-circuits (empty stack / candidate not found).
-  static const PreAddSafetyResult clear = PreAddSafetyResult(
+  /// Nothing in the stack to check the candidate against. Not a checked
+  /// clear: the sheet says there was nothing to compare, never "safe".
+  static const PreAddSafetyResult emptyStack = PreAddSafetyResult(
     results: <InteractionResult>[],
     checksIncomplete: false,
+    stackEmpty: true,
+  );
+
+  /// The candidate is missing from the local catalog, so no check could run.
+  static const PreAddSafetyResult notChecked = PreAddSafetyResult(
+    results: <InteractionResult>[],
+    checksIncomplete: true,
   );
 
   /// Combined curated (supplement×supplement, medication×supplement) and
@@ -66,13 +73,16 @@ class PreAddSafetyResult {
   final List<InteractionResult> results;
 
   /// True when at least one check could not run to completion — interaction
-  /// DB failure, medication normalization failure, or a stack product that
-  /// could not hydrate. An empty [results] with this set means "not fully
-  /// checked", never "all clear".
+  /// DB failure, medication normalization failure, a stack product that
+  /// could not hydrate, or a candidate missing from the catalog. An empty
+  /// [results] with this set means "not fully checked", never "all clear".
   final bool checksIncomplete;
 
-  /// The single state that is safe to render as an affirmative "Safe to
-  /// add": every check ran AND nothing fired.
+  /// True when the stack was empty, so there was nothing to check against.
+  final bool stackEmpty;
+
+  /// Every check that applies ran and nothing fired. The sheet reports "no
+  /// known interactions" — a finite curated list — and never "safe".
   bool get isConfidentClear => results.isEmpty && !checksIncomplete;
 }
 
@@ -95,8 +105,9 @@ class PreAddSafetyResult {
 ///
 /// Results are combined and deduped by result id. If any check could not run
 /// (DB unavailable, med normalization threw, a stack product failed to
-/// hydrate) [PreAddSafetyResult.checksIncomplete] is set so the sheet hedges
-/// instead of claiming "Safe to add".
+/// hydrate, candidate missing from the catalog)
+/// [PreAddSafetyResult.checksIncomplete] is set so the sheet hedges instead
+/// of reporting a clear.
 ///
 /// Runs off the bundled core + interaction DBs only — no network. Fast
 /// enough to await inside a "Verifying safety…" confirmation step.
@@ -105,12 +116,14 @@ final safetyCheckForAddProvider = FutureProvider.family
       final coreDb = ref.watch(coreDatabaseProvider);
 
       final candidate = await coreDb.findById(dsldId);
-      if (candidate == null) return PreAddSafetyResult.clear;
 
       // Mirror the report: depend on the active stack so any mutation
       // invalidates us, and split by type.
       final stack = await ref.watch(activeStackProvider.future);
-      if (stack.isEmpty) return PreAddSafetyResult.clear;
+      if (stack.isEmpty) return PreAddSafetyResult.emptyStack;
+      // Missing from the local catalog: nothing could be checked, which is
+      // not a clean result.
+      if (candidate == null) return PreAddSafetyResult.notChecked;
 
       // Only needed to check a NON-empty stack — watch it after the
       // trivially-clear short-circuits so an empty-stack add never depends on
