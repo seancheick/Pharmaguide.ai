@@ -23,6 +23,7 @@ import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/dev/glass_tab_bar_prototype.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
 // Phase 11.11 hygiene (2026-05-17): legacy v1 widget imports removed
 // after the route-coherence promotion proved stable. Production
@@ -393,6 +394,11 @@ List<RouteBase> withDevPreviewRoutes(
     // a debug-settings toggle) before v2 ships to production.
     // ---------------------------------------------------------------
     GoRoute(path: '/dev/v2', builder: (_, __) => const V2Gallery()),
+    // iOS 26-style interactive glass tab bar prototype over the real Home.
+    GoRoute(
+      path: '/dev/v2/glass-nav',
+      builder: (_, __) => const GlassTabBarPrototypeScreen(),
+    ),
     // v2 Settings (Profile tab) preview. `?signedIn=1` toggles the
     // hero into the signed-in variant.
     //
