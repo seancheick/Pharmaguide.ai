@@ -89,3 +89,5 @@ assets/db/interaction_db.sqlite
 # `npx impeccable install -y --providers=claude,codex --scope=project --no-hooks`.
 .claude/skills/impeccable/scripts/bin/
 .agents/skills/impeccable/scripts/bin/
+# Impeccable critique run archives (per-run working state that /impeccable polish reads).
+.impeccable/critique/
