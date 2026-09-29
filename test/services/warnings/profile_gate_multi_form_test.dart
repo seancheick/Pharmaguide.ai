@@ -19,14 +19,14 @@ Map<String, dynamic> _row(List<Map<String, String>> forms) => {
   'matched_forms': forms,
 };
 
-InteractionWarning _vitaminAPregnancy() => InteractionWarning(
+InteractionWarning _vitaminAPregnancy() => const InteractionWarning(
   severity: Severity.caution,
   evidenceLevel: EvidenceLevel.established,
   title: 'Vitamin A in pregnancy',
   mechanism: 'preformed vitamin A',
   management: 'talk to your doctor',
   ingredientName: 'Vitamin A',
-  conditionIds: const ['pregnancy'],
+  conditionIds: ['pregnancy'],
   profileGate: {
     'gate_type': 'profile_flag',
     'requires': {
