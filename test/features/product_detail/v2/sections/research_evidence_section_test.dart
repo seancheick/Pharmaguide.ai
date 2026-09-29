@@ -247,7 +247,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Evidence pillar: LIMITED · 8/20'), findsOneWidget);
+        expect(find.text('Evidence pillar: Limited · 8/20'), findsOneWidget);
         expect(
           find.text(
             'Evidence is limited because support is ingredient-level, not product-specific.',
@@ -258,7 +258,7 @@ void main() {
           find.textContaining('Vitamin K: strong ingredient evidence'),
           findsOneWidget,
         );
-        expect(find.textContaining('Ingredient support: STRONG'), findsNothing);
+        expect(find.textContaining('Ingredient support: Strong'), findsNothing);
       },
     );
 

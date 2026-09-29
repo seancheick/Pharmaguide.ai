@@ -1154,7 +1154,7 @@ class _ProductDetailV2ConnectedState
         },
       ),
       actions: [
-        // Wishlist heart — signed-in only; guests are sent to auth.
+        // Wishlist heart — guests save to this device (ADR-007).
         // Sits left of Compare/Share so save-for-later is one tap away
         // without competing with the sticky "Add to stack" CTA.
         if (_product != null) PGFavoriteButton(dsldId: widget.dsldId),

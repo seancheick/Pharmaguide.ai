@@ -290,7 +290,7 @@ void main() {
       );
 
       expect(find.text('Clinical evidence'), findsOneWidget);
-      expect(find.text('Product evidence: STRONG · 1 study'), findsOneWidget);
+      expect(find.text('Product evidence: Strong · 1 study'), findsOneWidget);
       expect(
         find.text(
           'Direct human research exists for this product or formulation.',
@@ -316,7 +316,7 @@ void main() {
       );
 
       expect(
-        find.text('Branded ingredient evidence: STRONG · 1 study'),
+        find.text('Branded ingredient evidence: Strong · 1 study'),
         findsOneWidget,
       );
       expect(
@@ -376,7 +376,7 @@ void main() {
       );
 
       expect(
-        find.text('Ingredient evidence: MODERATE · 1 study'),
+        find.text('Ingredient evidence: Moderate · 1 study'),
         findsOneWidget,
       );
 
@@ -401,7 +401,7 @@ void main() {
 
       // Preclinical refs inform the tier only — never a "study" count
       // that downstream copy could read as human studies.
-      expect(find.text('Early evidence: LIMITED'), findsOneWidget);
+      expect(find.text('Early evidence: Limited'), findsOneWidget);
       expect(find.textContaining('study'), findsNothing);
       expect(find.textContaining('meta-analysis'), findsNothing);
     });
@@ -475,8 +475,32 @@ void main() {
         },
       );
 
-      expect(find.text('Ingredient evidence: MODERATE'), findsOneWidget);
+      expect(find.text('Ingredient evidence: Moderate'), findsOneWidget);
       expect(find.textContaining('PMID'), findsNothing);
+    });
+
+    // Critique 2026-09-29: "~14573 participants" had no thousands separator.
+    testWidgets('large enrollment reads with a thousands separator', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        evidenceData: {
+          'match_count': 1,
+          'clinical_matches': [
+            _match(
+              evidence: 'ingredient-human',
+              studyType: 'systematic_review_meta',
+              effectDirection: 'positive_strong',
+              refs: [_ref('39519498'), _ref('39074168')],
+              totalEnrollment: 14573,
+            ),
+          ],
+        },
+      );
+
+      expect(find.textContaining('~14,573 participants'), findsOneWidget);
+      expect(find.textContaining('14573'), findsNothing);
     });
 
     testWidgets(
@@ -499,7 +523,7 @@ void main() {
         );
 
         expect(
-          find.text('Ingredient evidence: STRONG · 2 studies · meta-analysis'),
+          find.text('Ingredient evidence: Strong · 2 studies · meta-analysis'),
           findsOneWidget,
         );
         expect(
@@ -537,7 +561,7 @@ void main() {
       );
 
       expect(
-        find.text('Ingredient evidence: MODERATE · 1 study · meta-analysis'),
+        find.text('Ingredient evidence: Moderate · 1 study · meta-analysis'),
         findsOneWidget,
       );
       expect(
@@ -575,10 +599,10 @@ void main() {
         );
 
         expect(
-          find.text('Ingredient evidence: STRONG · 2 studies · meta-analysis'),
+          find.text('Ingredient evidence: Strong · 2 studies · meta-analysis'),
           findsOneWidget,
         );
-        expect(find.textContaining('Product evidence: STRONG'), findsNothing);
+        expect(find.textContaining('Product evidence: Strong'), findsNothing);
         expect(
           find.text(
             'Human research supports one or more ingredients, not necessarily this exact product.',
@@ -607,7 +631,7 @@ void main() {
         );
 
         expect(
-          find.text('Ingredient evidence: LIMITED · 1 study · meta-analysis'),
+          find.text('Ingredient evidence: Limited · 1 study · meta-analysis'),
           findsOneWidget,
         );
         expect(
@@ -690,7 +714,7 @@ void main() {
 
       // Card summary reflects all deduped studies.
       expect(
-        find.text('Ingredient evidence: MODERATE · 8 studies'),
+        find.text('Ingredient evidence: Moderate · 8 studies'),
         findsOneWidget,
       );
 

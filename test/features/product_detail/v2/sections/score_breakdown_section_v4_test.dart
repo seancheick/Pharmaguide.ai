@@ -251,14 +251,14 @@ void evidenceScopeReconciliationTests() {
 
     expect(find.text('6.8/20'), findsOneWidget);
     expect(
-      find.text('Ingredient evidence: STRONG · 2 studies · meta-analysis'),
+      find.text('Ingredient evidence: Strong · 2 studies · meta-analysis'),
       findsOneWidget,
     );
     expect(
       find.text('Vitamin D3: strong ingredient evidence · 2 human studies'),
       findsOneWidget,
     );
-    expect(find.textContaining('Product evidence: STRONG'), findsNothing);
+    expect(find.textContaining('Product evidence: Strong'), findsNothing);
 
     await tester.tap(find.text('Evidence'));
     await tester.pumpAndSettle();
@@ -364,7 +364,7 @@ void evidenceScopeReconciliationTests() {
       );
 
       expect(
-        find.text('Ingredient evidence: STRONG · 2 studies · meta-analysis'),
+        find.text('Ingredient evidence: Strong · 2 studies · meta-analysis'),
         findsOneWidget,
       );
       expect(
@@ -385,7 +385,7 @@ void evidenceScopeReconciliationTests() {
         ),
         findsOneWidget,
       );
-      expect(find.textContaining('Product evidence: STRONG'), findsNothing);
+      expect(find.textContaining('Product evidence: Strong'), findsNothing);
       expect(find.textContaining('· 3 studies'), findsNothing);
     },
   );
@@ -416,7 +416,7 @@ void evidenceScopeReconciliationTests() {
       );
 
       expect(
-        find.text('Ingredient evidence: STRONG · 1 study'),
+        find.text('Ingredient evidence: Strong · 1 study'),
         findsOneWidget,
       );
       expect(find.textContaining('Exact-product evidence:'), findsNothing);
@@ -457,17 +457,17 @@ void evidenceScopeReconciliationTests() {
         ),
       );
 
-      expect(find.text('Product evidence: STRONG · 1 study'), findsOneWidget);
+      expect(find.text('Product evidence: Strong · 1 study'), findsOneWidget);
       expect(
         find.textContaining(
           'Vitamin D3: strong ingredient evidence · 2 human studies',
         ),
         findsOneWidget,
       );
-      expect(find.textContaining('Product evidence: STRONG · 3'), findsNothing);
+      expect(find.textContaining('Product evidence: Strong · 3'), findsNothing);
       expect(
         find.textContaining(
-          'Product evidence: STRONG · 1 study · meta-analysis',
+          'Product evidence: Strong · 1 study · meta-analysis',
         ),
         findsNothing,
       );

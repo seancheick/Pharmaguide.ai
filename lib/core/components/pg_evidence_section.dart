@@ -10,11 +10,12 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 enum PGEvidenceTier { strong, moderate, limited, none }
 
 extension PGEvidenceTierMeta on PGEvidenceTier {
+  // Sentence case: app-authored copy is never all caps (AGENTS.md).
   String get label => switch (this) {
-    PGEvidenceTier.strong => 'STRONG',
-    PGEvidenceTier.moderate => 'MODERATE',
-    PGEvidenceTier.limited => 'LIMITED',
-    PGEvidenceTier.none => 'NO DIRECT EVIDENCE',
+    PGEvidenceTier.strong => 'Strong',
+    PGEvidenceTier.moderate => 'Moderate',
+    PGEvidenceTier.limited => 'Limited',
+    PGEvidenceTier.none => 'No direct evidence',
   };
 
   // Takes the palette: an enum has no element tree, but its colour

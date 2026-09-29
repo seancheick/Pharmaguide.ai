@@ -221,7 +221,7 @@ _EvidencePillarPresentation? _evidencePillarPresentation(
   if (v4PillarStatusHasNoVerdict(status)) {
     return _EvidencePillarPresentation(
       tier: tier,
-      summaryLine: 'Evidence pillar: ${v4PillarStatusLabel(status).toUpperCase()}',
+      summaryLine: 'Evidence pillar: ${v4PillarStatusLabel(status)}',
       helperLine: pillar.reason,
     );
   }
@@ -233,7 +233,7 @@ _EvidencePillarPresentation? _evidencePillarPresentation(
   return _EvidencePillarPresentation(
     tier: tier,
     summaryLine:
-        'Evidence pillar: ${v4PillarStatusLabel(status).toUpperCase()} · '
+        'Evidence pillar: ${v4PillarStatusLabel(status)} · '
         '$scoreLabel/${pillar.max}',
     helperLine: pillar.reason,
   );

@@ -44,6 +44,7 @@
 // render a tier badge from nothing).
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:pharmaguide/core/components/pg_evidence_section.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
 import 'package:pharmaguide/core/utils/pubmed_launcher.dart';
@@ -380,7 +381,8 @@ String? evidenceAttributionHeadline(List<Map<String, dynamic>> matches) {
         : '${best.label}: $evidenceLabel · ${best.studies} '
               'human ${best.studies == 1 ? 'study' : 'studies'}';
     if (best.enrollment > 0) {
-      return '$base · ~${best.enrollment} participants';
+      return '$base · ~${NumberFormat.decimalPattern().format(best.enrollment)} '
+          'participants';
     }
     return base;
   }
