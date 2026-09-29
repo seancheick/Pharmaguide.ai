@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/presentation/package_identity.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
@@ -178,7 +179,9 @@ void main() {
       await pumpIncompleteEvidenceHero(tester);
 
       expect(
-        find.text('Clinical evidence review is incomplete'),
+        find.text(
+          'Limited confidence · Clinical evidence review is incomplete',
+        ),
         findsOneWidget,
       );
       expect(find.text('Limited assessment'), findsNothing);
@@ -199,4 +202,23 @@ void main() {
       matchesGoldenFile('goldens/hero_evidence_review_incomplete.png'),
     );
   }, tags: const ['golden']);
+
+  // Critique 2026-09-29: "Trusted Manufacturer" with a verified seal sat on a
+  // 37/100 product with high-risk ingredients, reading as an endorsement of
+  // the product. The flag means the brand is on the pipeline's curated list
+  // of recognized manufacturers (top_manufacturers_data.json, exact match).
+  test('the manufacturer chip names what it checks', () {
+    const product = ProductsCoreData(
+      dsldId: 'MAKER',
+      productName: 'Maker Product',
+      isTrustedManufacturer: 1,
+      exportVersion: 'test',
+      exportedAt: '2026-09-29T00:00:00Z',
+    );
+
+    final labels = buildHeroTrustTags(product).map((t) => t.label);
+
+    expect(labels, contains('Recognized manufacturer'));
+    expect(labels, isNot(contains('Trusted Manufacturer')));
+  });
 }

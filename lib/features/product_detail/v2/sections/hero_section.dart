@@ -143,7 +143,10 @@ List<HeroTrustTag> buildHeroTrustTags(ProductsCoreData? product) {
   }
   if (product?.isTrustedManufacturer == 1) {
     tags.add(
-      const HeroTrustTag(label: 'Trusted Manufacturer', isCertification: true),
+      const HeroTrustTag(
+        label: 'Recognized manufacturer',
+        isCertification: true,
+      ),
     );
   }
   if (product?.isVegan == 1) {

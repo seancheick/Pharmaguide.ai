@@ -224,9 +224,11 @@ void main() {
       expect(find.text('85/100'), findsOneWidget);
       expect(find.text('Product quality score unavailable.'), findsNothing);
       expect(find.text('Very good'), findsNothing);
+      // Critique 2026-09-29: a bare reason under a bare number read as an
+      // unfinished score. The caption names the state first.
       expect(
         find.text(
-          'No clinical evidence matched • '
+          'Limited confidence · No clinical evidence matched • '
           'Product-level certification not verified',
         ),
         findsOneWidget,

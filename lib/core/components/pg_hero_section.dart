@@ -208,9 +208,11 @@ class PGHeroSection extends StatelessWidget {
     final confidenceLabel = limitedAssessment
         ? 'Limited'
         : parsedConfidenceLabel;
+    // Name the state before its reasons: a bare reason under a bare number
+    // read as an unfinished score rather than a deliberate one.
     final limitedAssessmentDetail = scoreConfidenceDrivers.isEmpty
         ? 'Limited assessment'
-        : scoreConfidenceDrivers.join(' • ');
+        : 'Limited confidence · ${scoreConfidenceDrivers.join(' • ')}';
     final scoreDisplay = heroScoreDisplayFor(
       score: score,
       isBlocked: isBlocked,
@@ -355,8 +357,7 @@ class PGHeroSection extends StatelessWidget {
               limitedAssessmentDetail,
               style: V2Typography.caption(color: context.v2.fgMuted),
             ),
-          ] else if (scoreDisplay ==
-              HeroScoreDisplay.assessmentIncomplete) ...[
+          ] else if (scoreDisplay == HeroScoreDisplay.assessmentIncomplete) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
               'Assessment incomplete',
@@ -519,7 +520,7 @@ class _TrustChipRow extends StatelessWidget {
     // Long lists (6+ tags on Thorne products) wrapped to 3+ messy rows.
     //
     // New layout: split into two grouped rows by tag type.
-    //   Row 1 — Certifications (Third-Party Tested, Trusted Manufacturer,
+    //   Row 1 — Certifications (Third-Party Tested, Recognized manufacturer,
     //           Organic) with verified icon + accent tone.
     //   Row 2 — Dietary tags (Gluten-Free, Dairy-Free, Soy-Free, Vegan,
     //           Non-GMO) compact text-only, green tone.

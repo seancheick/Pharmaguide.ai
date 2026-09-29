@@ -355,7 +355,7 @@ class V2Gallery extends StatelessWidget {
                       ),
                       PGPillarBadge(
                         icon: Icons.factory_outlined,
-                        label: 'Trusted manufacturer',
+                        label: 'Recognized manufacturer',
                         color: context.v2.safe,
                       ),
                     ],
