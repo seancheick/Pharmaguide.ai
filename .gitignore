@@ -84,3 +84,8 @@ assets/db/interaction_db.sqlite
 
 # Claude Code worktree handoff state (settings.local.json is covered by the global git ignore)
 .claude/state/
+
+# Impeccable design skill engine: a 12 MB macOS-arm64 binary per copy. Restore it with
+# `npx impeccable install -y --providers=claude,codex --scope=project --no-hooks`.
+.claude/skills/impeccable/scripts/bin/
+.agents/skills/impeccable/scripts/bin/
