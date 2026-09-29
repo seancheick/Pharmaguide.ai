@@ -133,10 +133,24 @@ class PGReviewBeforeUseCard extends StatefulWidget {
 class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
   late bool _expanded;
 
+  /// The auto-expand answer for the current rows, so a later rebuild opens
+  /// the card only when that answer turns true (danger rows arrive after
+  /// the checks finish), never re-opening one the person collapsed.
+  late bool _autoExpand;
+
   @override
   void initState() {
     super.initState();
-    _expanded = _shouldAutoExpand();
+    _autoExpand = _shouldAutoExpand();
+    _expanded = _autoExpand;
+  }
+
+  @override
+  void didUpdateWidget(PGReviewBeforeUseCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final autoExpand = _shouldAutoExpand();
+    if (autoExpand && !_autoExpand) _expanded = true;
+    _autoExpand = autoExpand;
   }
 
   /// Auto-expand rules — match production behavior:

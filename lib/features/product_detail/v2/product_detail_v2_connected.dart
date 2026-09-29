@@ -32,6 +32,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_empty_state.dart';
+import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/extensions/json_helpers.dart';
@@ -347,6 +348,15 @@ class _ProductDetailV2ConnectedState
     super.dispose();
   }
 
+  /// Re-runs every personalized check the "incomplete" banner covers.
+  void _retryPersonalizedChecks() {
+    ref
+      ..invalidate(personalizedInteractionWarningsProvider(widget.dsldId))
+      ..invalidate(profileWarningRuleWarningsProvider(widget.dsldId))
+      ..invalidate(fitScoreForProductProvider(widget.dsldId))
+      ..invalidate(evaluatorProfileFlagsProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_productLoading) {
@@ -502,7 +512,16 @@ class _ProductDetailV2ConnectedState
         personalizedWarningsFailed ||
         profileRuleWarningsFailed ||
         fitAsync.hasError ||
-        userProfileFlagsAsync.asData == null;
+        userProfileFlagsAsync.hasError;
+    // Still running is not a failure, and not a result either: while any
+    // check is in flight the fit result is null, which would otherwise read
+    // as "No concerns found" for a profiled user.
+    final personalizedChecksRunning =
+        !personalizedChecksFailed &&
+        (personalizedWarningsAsync.isLoading ||
+            profileRuleWarningsAsync.isLoading ||
+            fitAsync.isLoading ||
+            userProfileFlagsAsync.isLoading);
 
     // -------------------------------------------------------------
     // Blob-derived flags used by downstream sections.
@@ -715,14 +734,16 @@ class _ProductDetailV2ConnectedState
 
                       // ---- 2. ProfileRelevance (personalized) ----------
                       if (personalizedChecksFailed) ...[
-                        const PGSeverityBanner(
-                          key: Key('personalized-checks-error-banner'),
+                        PGSeverityBanner(
+                          key: const Key('personalized-checks-error-banner'),
                           tone: PGBannerTone.caution,
                           title: 'Personalized checks are incomplete',
                           body:
                               'We couldn\'t complete every interaction and profile '
                               'check for this product. This is not an all-clear; '
                               'try again before relying on these results.',
+                          actionLabel: 'Retry',
+                          onAction: _retryPersonalizedChecks,
                         ),
                         const SizedBox(height: V2Spacing.space12),
                       ],
@@ -742,7 +763,17 @@ class _ProductDetailV2ConnectedState
                       ],
 
                       if (showProfileRelevance) ...[
-                        if (profileRelevanceSummary.shouldRender) ...[
+                        if (personalizedChecksRunning) ...[
+                          KeyedSubtree(
+                            key: _anchors.interactionsKey,
+                            child: const PGReviewBeforeUseCard(
+                              eyebrow: 'For You',
+                              tone: PGReviewTone.info,
+                              title: 'Checking this product for you',
+                            ),
+                          ),
+                          const SizedBox(height: V2Spacing.space12),
+                        ] else if (profileRelevanceSummary.shouldRender) ...[
                           KeyedSubtree(
                             key: _anchors.interactionsKey,
                             child: ProfileRelevanceSection(

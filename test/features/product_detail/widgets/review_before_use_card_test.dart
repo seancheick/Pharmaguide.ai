@@ -760,4 +760,55 @@ void main() {
       }
     });
   });
+
+  // Critique 2026-09-29: the card decided whether to open only when first
+  // built. It first built with no rows (checks still loading), so danger
+  // rows that arrived later stayed hidden behind the chevron.
+  testWidgets('danger rows that arrive later open the card', (tester) async {
+    Widget card(List<PGReviewRow> rows) => MaterialApp(
+      home: Scaffold(
+        body: PGReviewBeforeUseCard(
+          tone: rows.isEmpty ? PGReviewTone.info : PGReviewTone.danger,
+          title: 'For You',
+          rows: rows,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(card(const []));
+    await tester.pumpWidget(
+      card(const [
+        PGReviewRow(headline: 'Yohimbe', rowTone: PGReviewTone.danger),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Yohimbe'), findsOneWidget);
+  });
+
+  testWidgets('a card the person collapsed stays collapsed on rebuild', (
+    tester,
+  ) async {
+    const rows = [
+      PGReviewRow(headline: 'Yohimbe', rowTone: PGReviewTone.danger),
+    ];
+    Widget card() => const MaterialApp(
+      home: Scaffold(
+        body: PGReviewBeforeUseCard(
+          tone: PGReviewTone.danger,
+          title: 'For You',
+          rows: rows,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(card());
+    await tester.tap(find.text('For You'));
+    await tester.pumpAndSettle();
+    expect(find.text('Yohimbe'), findsNothing);
+
+    await tester.pumpWidget(card());
+    await tester.pumpAndSettle();
+    expect(find.text('Yohimbe'), findsNothing);
+  });
 }

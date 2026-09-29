@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,7 @@ import 'package:pharmaguide/features/product_detail/providers/fit_score_provider
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 
 const _connectedDsldId = 'label-ledger-connected';
@@ -140,6 +143,9 @@ Future<void> _pumpConnectedScreen(
   required Map<String, dynamic> detailBlob,
   String? initialSection = 'ingredients',
   bool fitFails = false,
+  Completer<void>? fitGate,
+  List<int>? fitCalls,
+  bool settle = true,
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
@@ -163,12 +169,19 @@ Future<void> _pumpConnectedScreen(
           (ref, dsldId) async => const [],
         ),
         fitScoreForProductProvider.overrideWith((ref, dsldId) async {
-          if (fitFails) {
+          fitCalls?.add(1);
+          if (fitGate != null) await fitGate.future;
+          if (fitFails && (fitCalls == null || fitCalls.length == 1)) {
             throw StateError('fit inputs unavailable');
           }
           return null;
         }),
         currentStackMedicationClassIdsProvider.overrideWith(
+          (ref) async => const <String>{},
+        ),
+        // The clinical schema behind these flags is an app asset that never
+        // resolves in widget tests; left pending, every check stays running.
+        evaluatorProfileFlagsProvider.overrideWith(
           (ref) async => const <String>{},
         ),
         rdaOptimalUlsProvider.overrideWith((ref) async => const {}),
@@ -181,7 +194,13 @@ Future<void> _pumpConnectedScreen(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
 }
 
 Future<void> _scrollConnectedTowardTop(WidgetTester tester) async {
@@ -309,6 +328,64 @@ void main() {
       );
       expect(find.text('Personalized checks are incomplete'), findsOneWidget);
       expect(find.textContaining('not an all-clear'), findsOneWidget);
+    });
+
+    // Critique 2026-09-29: checks still loading were reported as failed
+    // ("incomplete… try again"), and the fit result is null while loading,
+    // which a profiled user would otherwise see as "No concerns found".
+    testWidgets('checks still running show a neutral checking state', (
+      tester,
+    ) async {
+      final gate = Completer<void>();
+      await _pumpConnectedScreen(
+        tester,
+        fitGate: gate,
+        settle: false,
+        initialSection: null,
+        detailBlob: {
+          'ingredients': const <Map<String, dynamic>>[],
+          'display_ingredients': [_activeLedgerRow('Active row', 0)],
+          'quality_pillars_v4': _connectedV4Pillars(),
+        },
+      );
+
+      expect(
+        find.byKey(const Key('personalized-checks-error-banner')),
+        findsNothing,
+      );
+      expect(find.text('Checking this product for you'), findsOneWidget);
+      expect(find.text('No concerns found'), findsNothing);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Checking this product for you'), findsNothing);
+    });
+
+    testWidgets('failed checks offer a Retry that runs them again', (
+      tester,
+    ) async {
+      final calls = <int>[];
+      await _pumpConnectedScreen(
+        tester,
+        fitFails: true,
+        fitCalls: calls,
+        initialSection: null,
+        detailBlob: {
+          'ingredients': const <Map<String, dynamic>>[],
+          'display_ingredients': [_activeLedgerRow('Active row', 0)],
+          'quality_pillars_v4': _connectedV4Pillars(),
+        },
+      );
+      expect(calls, hasLength(1));
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(calls, hasLength(2));
+      expect(
+        find.byKey(const Key('personalized-checks-error-banner')),
+        findsNothing,
+      );
     });
   });
 
