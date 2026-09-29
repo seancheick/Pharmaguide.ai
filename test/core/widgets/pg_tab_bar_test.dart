@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -248,4 +250,37 @@ void main() {
       expect(tester.getSize(find.byType(UiKitView)).height, 49 + 34);
     },
   );
+
+  // iOS gets the bar's taps directly (NativeTabBar.swift removes Flutter's
+  // delaying recognizer), so the bar must be off while a Flutter sheet or
+  // page covers it, or a tap on the sheet's Done button would also switch
+  // tabs underneath.
+  testWidgets('the native bar is off while a sheet covers it', (tester) async {
+    final views = _PlatformViews()..install(tester);
+    await tester.pumpWidget(
+      _host(native: true, selected: 0, onSelected: (_) {}),
+    );
+    await tester.pump();
+    expect(views.params['interactive'], isTrue);
+    views.recordViewChannel(tester);
+
+    unawaited(
+      showModalBottomSheet<void>(
+        context: tester.element(find.byType(Scaffold)),
+        builder: (_) => const SizedBox(height: 200, child: Text('Sheet')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      views.calls.where((c) => c.method == 'setInteractive').last.arguments,
+      isFalse,
+    );
+
+    Navigator.of(tester.element(find.text('Sheet'))).pop();
+    await tester.pumpAndSettle();
+    expect(
+      views.calls.where((c) => c.method == 'setInteractive').last.arguments,
+      isTrue,
+    );
+  });
 }

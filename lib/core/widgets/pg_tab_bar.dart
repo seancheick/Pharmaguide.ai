@@ -112,6 +112,7 @@ class _NativeTabBarState extends State<_NativeTabBar> {
 
   MethodChannel? _channel;
   Map<String, Object>? _sentStyle;
+  bool? _sentInteractive;
 
   Map<String, Object> _style(BuildContext context) => {
     'dark': Theme.of(context).brightness == Brightness.dark,
@@ -119,12 +120,20 @@ class _NativeTabBarState extends State<_NativeTabBar> {
   };
 
   void _onCreated(int id) {
-    _channel = MethodChannel('${_viewType}_$id')
+    final channel = _channel = MethodChannel('${_viewType}_$id')
       ..setMethodCallHandler((call) async {
         if (call.method == 'select' && call.arguments is int) {
           widget.onSelected(call.arguments as int);
         }
       });
+    // Anything that changed between the first build and creation.
+    channel.invokeMethod<void>('setSelectedIndex', widget.selectedIndex);
+    if (_sentStyle case final style?) {
+      channel.invokeMethod<void>('setStyle', style);
+    }
+    if (_sentInteractive case final interactive?) {
+      channel.invokeMethod<void>('setInteractive', interactive);
+    }
   }
 
   @override
@@ -152,6 +161,15 @@ class _NativeTabBarState extends State<_NativeTabBar> {
       _channel?.invokeMethod<void>('setStyle', style);
     }
 
+    // iOS takes the bar's taps directly (NativeTabBar.swift), so the bar is
+    // off while a sheet, dialog or pushed page covers the shell; otherwise a
+    // tap on a sheet's button over the bar would also switch tabs.
+    final interactive = ModalRoute.of(context)?.isCurrent ?? true;
+    if (_sentInteractive != null && _sentInteractive != interactive) {
+      _channel?.invokeMethod<void>('setInteractive', interactive);
+    }
+    _sentInteractive = interactive;
+
     return SizedBox(
       height: _nativeBarHeight + MediaQuery.paddingOf(context).bottom,
       child: UiKitView(
@@ -161,12 +179,13 @@ class _NativeTabBarState extends State<_NativeTabBar> {
           'symbols': [for (final t in widget.tabs) t.symbol],
           'selectedSymbols': [for (final t in widget.tabs) t.selectedSymbol],
           'selectedIndex': widget.selectedIndex,
+          'interactive': interactive,
           ...style,
         },
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: _onCreated,
-        // Touches go straight to UIKit so the lens tracks the finger from
-        // touch-down, as in Apple's apps.
+        // Flutter claims nothing here, so its widgets never react to a touch
+        // meant for the bar.
         gestureRecognizers: {
           const Factory<OneSequenceGestureRecognizer>(
             EagerGestureRecognizer.new,

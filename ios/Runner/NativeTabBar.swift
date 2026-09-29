@@ -10,7 +10,8 @@ import UIKit
 /// everywhere else keeps PGFrostedNavBar.
 ///
 /// Dart → iOS: creation params {labels, symbols, selectedSymbols, selectedIndex,
-/// tint (ARGB), dark}, then `setSelectedIndex` and `setStyle`.
+/// tint (ARGB), dark, interactive}, then `setSelectedIndex`, `setStyle` and
+/// `setInteractive` (off while a Flutter sheet or page covers the bar).
 /// iOS → Dart: `select` with the tapped index.
 final class NativeTabBarFactory: NSObject, FlutterPlatformViewFactory {
   static let viewType = "pharmaguide/tab_bar"
@@ -40,6 +41,32 @@ final class NativeTabBarFactory: NSObject, FlutterPlatformViewFactory {
   }
 }
 
+/// Hosts the bar and hands its touches straight to UIKit.
+///
+/// Flutter wraps every platform view in a touch-intercepting view with a
+/// "delaying" recognizer that every other recognizer on the view must wait
+/// for until the Dart side accepts the gesture. The iOS 26 tab bar selects
+/// through its own recognizers, so a tap shorter than that round trip
+/// (about 30 ms on the simulator) was dropped, while Apple's bars take even
+/// instant taps. Flutter still receives every touch through its separate
+/// forwarding recognizer; only the wait is removed. Nothing interactive in
+/// Flutter sits on top of the bar except modal routes, and Dart switches the
+/// bar off (`setInteractive`) while one covers it. If a Flutter upgrade
+/// renames the recognizer, this finds nothing and taps behave as before.
+private final class TouchThroughContainer: UIView {
+  // Not didMoveToSuperview: the engine adds this view to its intercepting
+  // view before attaching the recognizers (FlutterPlatformViews.mm,
+  // initWithEmbeddedView), so they exist only once the view has a window.
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    guard window != nil, let host = superview else { return }
+    for recognizer in host.gestureRecognizers ?? []
+    where String(describing: type(of: recognizer)).contains("Delaying") {
+      host.removeGestureRecognizer(recognizer)
+    }
+  }
+}
+
 final class NativeTabBarView: NSObject, FlutterPlatformView, UITabBarDelegate {
   private let container: UIView
   private let tabBar = UITabBar()
@@ -51,7 +78,7 @@ final class NativeTabBarView: NSObject, FlutterPlatformView, UITabBarDelegate {
     params: [String: Any],
     messenger: FlutterBinaryMessenger
   ) {
-    container = UIView(frame: frame)
+    container = TouchThroughContainer(frame: frame)
     container.backgroundColor = .clear
     channel = FlutterMethodChannel(
       name: "\(NativeTabBarFactory.viewType)_\(viewId)",
@@ -82,6 +109,7 @@ final class NativeTabBarView: NSObject, FlutterPlatformView, UITabBarDelegate {
     ])
 
     select(params["selectedIndex"] as? Int ?? 0)
+    tabBar.isUserInteractionEnabled = params["interactive"] as? Bool ?? true
     applyStyle(params)
 
     channel.setMethodCallHandler { [weak self] call, result in
@@ -92,6 +120,9 @@ final class NativeTabBarView: NSObject, FlutterPlatformView, UITabBarDelegate {
         result(nil)
       case "setStyle":
         self.applyStyle(call.arguments as? [String: Any] ?? [:])
+        result(nil)
+      case "setInteractive":
+        self.tabBar.isUserInteractionEnabled = call.arguments as? Bool ?? true
         result(nil)
       default:
         result(FlutterMethodNotImplemented)
