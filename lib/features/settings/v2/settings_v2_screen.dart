@@ -239,6 +239,49 @@ class SettingsV2Screen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: V2Spacing.space24),
+            // Chat is on the roadmap (V2.0), not in the tab bar: a tab that
+            // only previews a feature is placeholder content (App Review
+            // 2.1(a)). Sean 2026-09-28: stack-aware, personal, answered on the
+            // device. Never "pharmacist" (a protected title in state pharmacy
+            // acts), never "first" (unsubstantiated), never "safe" (ADR-007).
+            PGSettingsGroup(
+              eyebrow: 'Coming later',
+              children: [
+                PGSettingsTile(
+                  icon: Icons.auto_awesome_outlined,
+                  title: 'Ask PharmaGuide',
+                  caption: 'A private guide to everything you take',
+                  onTap: () => _showSettingSheet(
+                    context,
+                    title: 'Ask PharmaGuide',
+                    body:
+                        'A new way to understand what you take. Ask anything '
+                        'in plain words, like “Can I take magnesium with my '
+                        'blood pressure pill?”, and get an answer shaped '
+                        'around your whole stack.',
+                    bullets: const [
+                      'Knows your stack: every supplement and medication '
+                          'you’ve added, considered together rather than one '
+                          'at a time',
+                      'Personal to you: answers take in your medications, '
+                          'conditions, allergies, sex and age',
+                      'Grounded in evidence: built on the same interaction '
+                          'checks and sources behind your scores, with every '
+                          'answer showing where it came from',
+                      'Private by design: your questions and health details '
+                          'are answered on this device and aren’t sent '
+                          'anywhere',
+                      'It won’t diagnose, and it’s no substitute for your '
+                          'doctor or pharmacist',
+                      'Today: Check two together, on Home, looks up known '
+                          'interactions between two supplements or '
+                          'medications',
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: V2Spacing.space24),
             PGSettingsGroup(
               eyebrow: 'About',
               children: [

@@ -413,6 +413,48 @@ void main() {
     });
   }
 
+  // Chat is a roadmap item (V2.0), not a tab (App Review 2.1(a)). Sean
+  // 2026-09-28: stack-aware, personal, answered on the device. The copy
+  // never calls it a pharmacist (a protected title), never claims to be the
+  // first, and never says "safe".
+  testWidgets('Ask PharmaGuide previews a private, stack-aware guide', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+    await tester.scrollUntilVisible(
+      find.text('Ask PharmaGuide'),
+      320,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(find.text('Ask PharmaGuide'));
+    expect(find.text('COMING LATER'), findsOneWidget);
+    expect(find.text('A private guide to everything you take'), findsOneWidget);
+    await tester.pump();
+    await tester.tap(find.text('Ask PharmaGuide'));
+    await tester.pumpAndSettle();
+
+    for (final promise in [
+      'every supplement and medication you’ve added',
+      'your medications, conditions, allergies, sex and age',
+      'showing where it came from',
+      'answered on this device',
+      'no substitute for your doctor or pharmacist',
+      'Check two together',
+    ]) {
+      expect(find.textContaining(promise), findsOneWidget, reason: promise);
+    }
+    for (final claim in [
+      'your pharmacist',
+      'private pharmacist',
+      'first',
+      'safe',
+      'Safe',
+    ]) {
+      expect(find.textContaining(claim), findsNothing, reason: claim);
+    }
+  });
+
   // Medication name search sends the typed text to the U.S. National
   // Library of Medicine (RxNorm); "stays on this device" was only true of
   // the saved list.
