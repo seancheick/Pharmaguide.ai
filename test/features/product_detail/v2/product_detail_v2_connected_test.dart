@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -433,6 +434,41 @@ void main() {
       tester.widget<ColoredBox>(backdrop).color,
       Theme.of(context).scaffoldBackgroundColor,
     );
+  });
+
+  // Critique 2026-09-29: tapping the iOS status bar did not scroll product
+  // detail to the top. The page's own scroll controller was never the
+  // primary one the Scaffold's status-bar handler animates.
+  testWidgets('tapping the iOS status bar scrolls back to the top', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.padding = const FakeViewPadding(top: 54 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await _pumpConnectedScreen(
+      tester,
+      initialSection: null,
+      detailBlob: {
+        'ingredients': const <Map<String, dynamic>>[],
+        'display_ingredients': [
+          for (var i = 0; i < 30; i++) _activeLedgerRow('Active row $i', i),
+        ],
+        'quality_pillars_v4': _connectedV4Pillars(),
+      },
+    );
+    ScrollPosition position() =>
+        tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(position().pixels, greaterThan(0));
+
+    tester.simulateStatusBarTap();
+    await tester.pumpAndSettle();
+    expect(position().pixels, 0);
+    debugDefaultTargetPlatformOverride = null;
   });
 
   group('productDetailIngredientSourcesFromBlob', () {

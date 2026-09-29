@@ -690,7 +690,7 @@ class _ProductDetailV2ConnectedState
 
     final mq = MediaQuery.of(context);
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    final page = AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         body: Stack(
@@ -1124,6 +1124,15 @@ class _ProductDetailV2ConnectedState
           onSeeAlternatives: _anchors.scrollToAlternatives,
         ),
       ),
+    );
+    // The Scaffold scrolls its PrimaryScrollController to the top when the
+    // iOS status bar is tapped; this page scrolls its own controller.
+    // Nothing inherits it automatically, so nested lists never attach to
+    // it and break the section anchors.
+    return PrimaryScrollController(
+      controller: _anchors.scrollController,
+      automaticallyInheritForPlatforms: const <TargetPlatform>{},
+      child: page,
     );
   }
 
