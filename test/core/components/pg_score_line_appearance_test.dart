@@ -117,4 +117,20 @@ void main() {
       );
     });
   });
+
+  // Critique 2026-09-29: VoiceOver read "37/100" literally, apart from its
+  // tier. The line reads as one phrase.
+  testWidgets('the score reads as one phrase to a screen reader', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester, V2Theme.light, 37);
+    expect(find.bySemanticsLabel('37 out of 100, Poor'), findsOneWidget);
+    await pump(tester, V2Theme.light, 85, confidence: 'low');
+    expect(
+      find.bySemanticsLabel('85 out of 100, limited confidence'),
+      findsOneWidget,
+    );
+    handle.dispose();
+  });
 }

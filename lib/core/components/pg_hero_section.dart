@@ -608,7 +608,7 @@ class _TrustChip extends StatelessWidget {
           Text(
             label,
             style: V2Typography.caption(color: tone).copyWith(
-              fontSize: 10,
+              fontSize: V2Typography.size12,
               fontWeight: FontWeight.w500,
               letterSpacing: -0.05,
             ),
@@ -649,7 +649,7 @@ class _HeroCautionPill extends StatelessWidget {
           Text(
             'Use caution',
             style: V2Typography.caption(color: style.foreground).copyWith(
-              fontSize: 10,
+              fontSize: V2Typography.size12,
               fontWeight: FontWeight.w500,
               letterSpacing: -0.05,
             ),

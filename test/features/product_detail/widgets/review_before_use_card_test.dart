@@ -811,4 +811,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Yohimbe'), findsNothing);
   });
+
+  // Critique 2026-09-29: the For You header toggled rows but announced no
+  // button role or open/closed state to VoiceOver.
+  testWidgets('the expandable header announces its state', (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: PGReviewBeforeUseCard(
+            tone: PGReviewTone.danger,
+            title: 'For You',
+            rows: [
+              PGReviewRow(headline: 'Yohimbe', rowTone: PGReviewTone.danger),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final header = find.bySemanticsLabel(RegExp('For You'));
+    expect(
+      tester.getSemantics(header),
+      isSemantics(
+        isButton: true,
+        hasExpandedState: true,
+        isExpanded: true,
+      ),
+    );
+    await tester.tap(find.text('For You'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSemantics(header),
+      isSemantics(hasExpandedState: true, isExpanded: false),
+    );
+    handle.dispose();
+  });
 }

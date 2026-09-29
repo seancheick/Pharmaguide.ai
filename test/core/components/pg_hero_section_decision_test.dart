@@ -327,4 +327,39 @@ void main() {
       expect(find.text('Third-Party Tested'), findsOneWidget);
     });
   });
+
+  // Critique 2026-09-29: trust and diet chips were 10 pt, below the 12 pt
+  // caption floor.
+  testWidgets('hero chips use at least caption size text', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: PGHeroSection(
+            imageWidget: SizedBox(),
+            productName: 'Test Product',
+            brandName: 'Test Brand',
+            score: 85,
+            hasCatalogCaution: true,
+            trustTags: [
+              PGTrustTag(
+                label: 'Recognized manufacturer',
+                isCertification: true,
+              ),
+              PGTrustTag(label: 'Gluten-Free', isCertification: false),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final label in [
+      'Recognized manufacturer',
+      'Gluten-Free',
+      'Use caution',
+    ]) {
+      final size = tester.widget<Text>(find.text(label)).style?.fontSize;
+      expect(size, greaterThanOrEqualTo(12), reason: label);
+    }
+  });
 }

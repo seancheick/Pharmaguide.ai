@@ -1139,6 +1139,7 @@ class _ProductDetailV2ConnectedState
       floating: true,
       snap: true,
       leading: IconButton(
+        tooltip: 'Back',
         icon: Icon(Icons.arrow_back_rounded, color: context.v2.fg),
         // **Sentry fix — 21× `GoError: There is nothing to pop`.**
         // Deep links / scan-flow / push notifications can land users

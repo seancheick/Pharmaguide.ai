@@ -189,85 +189,96 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
           // Tone-tinted banner header (3pt left accent strip). Whole
           // banner is tappable when there are rows to expand — chevron
           // on the trailing edge animates state.
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: isInteractive
-                  ? () => setState(() => _expanded = !_expanded)
-                  : null,
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(width: 3, color: tone),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(V2Spacing.space16),
-                        color: tone.withValues(alpha: 0.06),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(widget.tone.icon, size: 20, color: tone),
-                            const SizedBox(width: V2Spacing.space8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (widget.eyebrow != null) ...[
-                                    Text(
-                                      widget.eyebrow!.toUpperCase(),
-                                      style: V2Typography.eyebrow(
-                                        color: context.v2.fgMuted,
-                                      ),
-                                    ),
-                                    const SizedBox(height: V2Spacing.space4),
-                                  ],
-                                  Row(
+          MergeSemantics(
+            child: Semantics(
+              button: isInteractive,
+              expanded: isInteractive ? _expanded : null,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: isInteractive
+                      ? () => setState(() => _expanded = !_expanded)
+                      : null,
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(width: 3, color: tone),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(V2Spacing.space16),
+                            color: tone.withValues(alpha: 0.06),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(widget.tone.icon, size: 20, color: tone),
+                                const SizedBox(width: V2Spacing.space8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          widget.title,
-                                          style: V2Typography.titleSm(
-                                            color: context.v2.fg,
+                                      if (widget.eyebrow != null) ...[
+                                        Text(
+                                          widget.eyebrow!.toUpperCase(),
+                                          style: V2Typography.eyebrow(
+                                            color: context.v2.fgMuted,
                                           ),
                                         ),
-                                      ),
-                                      if (hasRows)
-                                        _CountBadge(
-                                          count: rows.length,
-                                          tone: tone,
+                                        const SizedBox(
+                                          height: V2Spacing.space4,
                                         ),
+                                      ],
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              widget.title,
+                                              style: V2Typography.titleSm(
+                                                color: context.v2.fg,
+                                              ),
+                                            ),
+                                          ),
+                                          if (hasRows)
+                                            _CountBadge(
+                                              count: rows.length,
+                                              tone: tone,
+                                            ),
+                                        ],
+                                      ),
+                                      if (widget.body != null) ...[
+                                        const SizedBox(
+                                          height: V2Spacing.space4,
+                                        ),
+                                        Text(
+                                          widget.body!,
+                                          style: V2Typography.bodySm(
+                                            color: context.v2.fgMuted,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
-                                  if (widget.body != null) ...[
-                                    const SizedBox(height: V2Spacing.space4),
-                                    Text(
-                                      widget.body!,
-                                      style: V2Typography.bodySm(
-                                        color: context.v2.fgMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            if (isInteractive) ...[
-                              const SizedBox(width: V2Spacing.space8),
-                              AnimatedRotation(
-                                turns: _expanded ? 0.5 : 0,
-                                duration: const Duration(milliseconds: 180),
-                                child: Icon(
-                                  Icons.expand_more_rounded,
-                                  size: 22,
-                                  color: tone,
                                 ),
-                              ),
-                            ],
-                          ],
+                                if (isInteractive) ...[
+                                  const SizedBox(width: V2Spacing.space8),
+                                  AnimatedRotation(
+                                    turns: _expanded ? 0.5 : 0,
+                                    duration: const Duration(milliseconds: 180),
+                                    child: Icon(
+                                      Icons.expand_more_rounded,
+                                      size: 22,
+                                      color: tone,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -406,6 +417,7 @@ class _CountBadge extends StatelessWidget {
       ),
       child: Text(
         '$count',
+        semanticsLabel: count == 1 ? '1 item' : '$count items',
         style: V2Typography.overline(color: style.foreground).copyWith(
           fontSize: 11,
           letterSpacing: 0.2,

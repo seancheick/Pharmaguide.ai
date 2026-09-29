@@ -7,7 +7,8 @@ abstract final class V2Colors {
   static const surface = Color(0xFFFFFFFF);
   static const fg = Color(0xFF181A1B);
   static const fgMuted = Color(0xFF5C5F61);
-  static const fgSubtle = Color(0xFF8A8D90);
+  // ≥4.5:1 on bg, surface and both container tints (was #8A8D90, 3.17:1).
+  static const fgSubtle = Color(0xFF686B6E);
   static const outline = Color(0x0F181A1B);
 
   // Dark surfaces.
@@ -15,7 +16,8 @@ abstract final class V2Colors {
   static const surfaceDark = Color(0xFF16191A);
   static const fgDark = Color(0xFFE8E6E1);
   static const fgMutedDark = Color(0xFFA8A6A2);
-  static const fgSubtleDark = Color(0xFF7A7875);
+  // ≥4.5:1 on bgDark and every dark surface (was #7A7875, 3.43–4.33:1).
+  static const fgSubtleDark = Color(0xFF908E8A);
   static const outlineDark = Color(0x14E8E6E1);
 
   // Accent — deep clinical teal.

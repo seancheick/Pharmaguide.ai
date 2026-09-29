@@ -78,59 +78,65 @@ class PGScoreLine extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (!limitedConfidence) ...[
-              Container(
-                width: dot,
-                height: dot,
-                decoration: BoxDecoration(
-                  color: tier.color(brightness),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: V2Spacing.space8),
-            ],
-            // Score numeric + tier label kept as separate Text widgets
-            // (matches production — `find.text('Elite')` matches
-            // in widget tests this way).
-            Text(
-              '$displayScore/100',
-              style:
-                  V2Typography.bodyMedium(
-                    color: prominent
-                        ? limitedConfidence
-                              ? context.v2.fg
-                              : tier.textColor(brightness)
-                        : context.v2.fg,
-                  ).copyWith(
-                    fontSize: headlineSize,
-                    fontWeight: headlineWeight,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+        Semantics(
+          label: limitedConfidence
+              ? '$displayScore out of 100, limited confidence'
+              : '$displayScore out of 100, ${tier.label}',
+          excludeSemantics: true,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (!limitedConfidence) ...[
+                Container(
+                  width: dot,
+                  height: dot,
+                  decoration: BoxDecoration(
+                    color: tier.color(brightness),
+                    shape: BoxShape.circle,
                   ),
-            ),
-            if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
-            // Tier label wraps in Flexible + ellipsis so the row
-            // can survive tight column widths (e.g. 130pt slot
-            // in Home's Recent-scans carousel). Long labels like
-            // Tier labels can overflow otherwise.
-            if (!limitedConfidence)
-              Flexible(
-                child: Text(
-                  tier.label,
-                  style:
-                      V2Typography.bodyMedium(
-                        color: tier.textColor(brightness),
-                      ).copyWith(
-                        fontSize: headlineSize,
-                        fontWeight: headlineWeight,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(width: V2Spacing.space8),
+              ],
+              // Score numeric + tier label kept as separate Text widgets
+              // (matches production — `find.text('Elite')` matches
+              // in widget tests this way).
+              Text(
+                '$displayScore/100',
+                style:
+                    V2Typography.bodyMedium(
+                      color: prominent
+                          ? limitedConfidence
+                                ? context.v2.fg
+                                : tier.textColor(brightness)
+                          : context.v2.fg,
+                    ).copyWith(
+                      fontSize: headlineSize,
+                      fontWeight: headlineWeight,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
               ),
-          ],
+              if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
+              // Tier label wraps in Flexible + ellipsis so the row
+              // can survive tight column widths (e.g. 130pt slot
+              // in Home's Recent-scans carousel). Long labels like
+              // Tier labels can overflow otherwise.
+              if (!limitedConfidence)
+                Flexible(
+                  child: Text(
+                    tier.label,
+                    style:
+                        V2Typography.bodyMedium(
+                          color: tier.textColor(brightness),
+                        ).copyWith(
+                          fontSize: headlineSize,
+                          fontWeight: headlineWeight,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
         ),
         if (confidenceLabel != null) ...[
           const SizedBox(height: 2),

@@ -361,6 +361,21 @@ void main() {
       expect(find.text('Checking this product for you'), findsNothing);
     });
 
+    // Critique 2026-09-29: the back button had no label, so VoiceOver read
+    // only "button".
+    testWidgets('the back button is labelled', (tester) async {
+      await _pumpConnectedScreen(
+        tester,
+        initialSection: null,
+        detailBlob: {
+          'ingredients': const <Map<String, dynamic>>[],
+          'display_ingredients': [_activeLedgerRow('Active row', 0)],
+          'quality_pillars_v4': _connectedV4Pillars(),
+        },
+      );
+      expect(find.byTooltip('Back'), findsOneWidget);
+    });
+
     testWidgets('failed checks offer a Retry that runs them again', (
       tester,
     ) async {
