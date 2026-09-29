@@ -79,12 +79,18 @@ class UserProfile {
 class ProductContext {
   final String? productForm;
   final String? nutrientForm;
+
+  /// Every form the ingredient row declares ("Vitamin A (as Beta-Carotene,
+  /// Retinyl Acetate)" -> {beta_carotene, retinol}). When empty, the single
+  /// [nutrientForm] stands for the row.
+  final Set<String> nutrientForms;
   final num? dosePerDay;
   final String? doseUnit;
 
   const ProductContext({
     this.productForm,
     this.nutrientForm,
+    this.nutrientForms = const <String>{},
     this.dosePerDay,
     this.doseUnit,
   });
@@ -92,6 +98,12 @@ class ProductContext {
   factory ProductContext.fromJson(Map<String, dynamic> json) => ProductContext(
     productForm: _str(json['product_form']),
     nutrientForm: _str(json['nutrient_form']),
+    nutrientForms: (json['nutrient_forms'] is List)
+        ? (json['nutrient_forms'] as List)
+              .whereType<String>()
+              .where((f) => f.isNotEmpty)
+              .toSet()
+        : const <String>{},
     dosePerDay: json['dose_per_day'] is num
         ? json['dose_per_day'] as num
         : null,
@@ -173,15 +185,20 @@ GateEvaluationResult evaluateProfileGate(
     );
   }
 
-  final nutrientForm = productContext.nutrientForm;
-  if (nutrientForm != null &&
-      _asStringList(excludes['nutrient_forms_any']).contains(nutrientForm)) {
+  // A row can declare several forms. The exclusion holds only when EVERY
+  // declared form is excluded: excluding beta-carotene must not hide the
+  // retinyl acetate beside it (mirrors the Python reference).
+  final nutrientForms = productContext.nutrientForms.isNotEmpty
+      ? productContext.nutrientForms
+      : {if (productContext.nutrientForm != null) productContext.nutrientForm!};
+  final excludedForms = _asStringList(excludes['nutrient_forms_any']).toSet();
+  if (nutrientForms.isNotEmpty && nutrientForms.every(excludedForms.contains)) {
     return GateEvaluationResult(
       fires: false,
       severity: null,
       reason:
           'excludes.nutrient_forms_any suppressed: '
-          'nutrient_form="$nutrientForm"',
+          'nutrient_forms=${nutrientForms.toList()..sort()}',
     );
   }
 

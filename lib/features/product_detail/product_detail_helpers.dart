@@ -99,6 +99,7 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
           userProfileFlags: userProfileFlags,
           productForm: productContext.productForm,
           nutrientForm: productContext.nutrientForm,
+          nutrientForms: productContext.nutrientForms,
           dosePerDay: productContext.dosePerDay,
         )) {
           return true;

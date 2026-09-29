@@ -30,7 +30,7 @@ void main() {
     // SHA-256 of the vendored fixture bytes. MUST equal PINNED_SHA256 in the
     // pipeline repo's scripts/tests/test_profile_gate_fixture_sync.py.
     const pinnedSha256 =
-        'ea6e5ae87d46c8c8e1f1fe8220c15cab6aa1950cf9c8c6195a8de9defdc81e66';
+        '95d0df5af355663ec30f0e065ed7e79534a784ad4da50ba1652219c403a66666';
 
     test('vendored fixture matches the pinned canonical hash', () {
       expect(
