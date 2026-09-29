@@ -177,3 +177,6 @@
 - Every tab screen composites one platform view on iOS 26. That needs a physical-device scroll check before release; the simulator can't profile.
 - Tabs are declared once, as `PGTab` entries (label, Material icons, SF Symbols), and both bars read from them.
 - Flutter exposes no Reduce Transparency flag, so Flutter-drawn blur reads it from `ReduceTransparency.of(context)` (`AppDelegate.swift` bridge).
+- Taps: `NativeTabBar.swift` removes Flutter's delaying recognizer from the bar's host view, because quick taps (under ~30 ms) were being dropped. `PGTabBar` switches the bar off while a modal route covers the shell. Re-check both after any Flutter upgrade.
+
+**Addendum 2026-09-28: chat (Ask PharmaGuide).** Sean decided that chat answers on the device, is stack-aware, and is personal (medications, conditions, allergies, sex, age). This replaces the cloud Gemini plan in SPRINT_TRACKER V2.0, and the Profile preview ("answered on this device and aren't sent anywhere") commits to it. Before launch, choose the on-device model. Apple's Foundation Models framework needs an Apple Intelligence iPhone, so decide what other phones get. Chat stays out of the tab bar until it works (App Review 2.1(a)). The copy never says "pharmacist" (a protected title under state pharmacy acts, e.g. Fla. Stat. §465.015), "first", or "safe".
