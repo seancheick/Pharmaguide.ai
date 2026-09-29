@@ -67,6 +67,28 @@ bool shouldShowBetterAlternatives({
   return false;
 }
 
+/// Ranked alternatives for (current product, sorted goal ids joined by ",",
+/// limit). Fetches the current product, builds a wider candidate pool
+/// (on-market + strictly higher score + intent/family channels), then hands
+/// it to `BetterAlternativesRanker` for the final relevance and tiebreaker
+/// pass. Cached per key: a rebuild reuses the result instead of re-querying
+/// the catalog and flashing the loading skeleton.
+final betterAlternativesProvider = FutureProvider.autoDispose
+    .family<List<ProductsCoreData>, (String, String, int)>((ref, key) async {
+      final (currentDsldId, goalsKey, limit) = key;
+      final coreDb = ref.watch(coreDatabaseProvider);
+      final current = await coreDb.findById(currentDsldId);
+      if (current == null) return const [];
+      final pool = await coreDb.fetchBetterAlternativesPool(current);
+      if (pool.isEmpty) return const [];
+      return rankAlternatives(
+        current: current,
+        candidates: pool,
+        userGoals: goalsKey.isEmpty ? null : goalsKey.split(',').toSet(),
+        limit: limit,
+      );
+    });
+
 /// Quality-only alternatives section. Profile goals can break ties, but this
 /// surface never claims candidate-level safety or personal fit.
 class BetterAlternativesSection extends ConsumerWidget {
@@ -95,26 +117,6 @@ class BetterAlternativesSection extends ConsumerWidget {
     this.maxAlternatives = 3,
   });
 
-  /// Fetches the current product, builds a wider candidate pool
-  /// (on-market + strictly higher score + intent/family channels), then
-  /// hands it to `BetterAlternativesRanker` for the final relevance and
-  /// tiebreaker pass.
-  Future<List<ProductsCoreData>> _loadRanked(
-    CoreDatabase coreDb, {
-    Set<String>? userGoals,
-  }) async {
-    final current = await coreDb.findById(currentDsldId);
-    if (current == null) return const [];
-    final pool = await coreDb.fetchBetterAlternativesPool(current);
-    if (pool.isEmpty) return const [];
-    return rankAlternatives(
-      current: current,
-      candidates: pool,
-      userGoals: userGoals,
-      limit: maxAlternatives,
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (!shouldShowBetterAlternatives(
@@ -133,27 +135,29 @@ class BetterAlternativesSection extends ConsumerWidget {
     // supplement_type matching, and Vinpocetine-style blocked
     // products have empty category but a usable supplement_type.
 
-    final coreDb = ref.watch(coreDatabaseProvider);
     // Personalize tiebreakers when the profile has goals (sentinel-stripped).
-    final userGoals = ref.watch(profileProvider).goalsForEvaluator.toSet();
+    final goals = ref.watch(profileProvider).goalsForEvaluator.toList()..sort();
+    final alternativesAsync = ref.watch(
+      betterAlternativesProvider((
+        currentDsldId,
+        goals.join(','),
+        maxAlternatives,
+      )),
+    );
 
-    return FutureBuilder<List<ProductsCoreData>>(
-      future: _loadRanked(
-        coreDb,
-        userGoals: userGoals.isEmpty ? null : userGoals,
-      ),
-      builder: (context, snapshot) {
-        // Loading skeleton — keeps the sticky-CTA scroll anchor
-        // landing on a real surface, not an empty slot mid-fetch.
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const PGBetterAlternativesSkeleton();
-        }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+    return alternativesAsync.when(
+      // Loading skeleton — keeps the sticky-CTA scroll anchor
+      // landing on a real surface, not an empty slot mid-fetch.
+      loading: () => const PGBetterAlternativesSkeleton(),
+      error: (_, _) => isBlocked
+          ? const _BlockedAlternativesEmpty()
+          : const SizedBox.shrink(),
+      data: (alternatives) {
+        if (alternatives.isEmpty) {
           return isBlocked
               ? const _BlockedAlternativesEmpty()
               : const SizedBox.shrink();
         }
-        final alternatives = snapshot.data!;
         final mapped = alternatives
             .where((p) => p.qualityScoreV4100 != null)
             .map((p) {

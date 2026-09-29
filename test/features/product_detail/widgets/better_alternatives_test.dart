@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -310,6 +311,48 @@ void main() {
             'Product Detail, Stack, Search, and Wishlist',
       );
 
+      await coreDb.close();
+    });
+
+    // Critique 2026-09-29: the section built a new query future on every
+    // build, so any parent rebuild re-ran the catalog query and flashed the
+    // loading skeleton over results already on screen.
+    testWidgets('a parent rebuild keeps the loaded alternatives', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      await _seedCurrent(coreDb);
+      await _seedProduct(
+        coreDb,
+        dsldId: 'alt-1',
+        productName: 'Premium Multi',
+        brandName: 'BrandA',
+        qualityScoreV4100: 70,
+        category: 'multivitamin',
+      );
+      late StateSetter rebuild;
+
+      await tester.pumpWidget(
+        _wrap(
+          coreDb,
+          StatefulBuilder(
+            builder: (context, setState) {
+              rebuild = setState;
+              return _section();
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('70/100'), findsOneWidget);
+
+      rebuild(() {});
+      await tester.pump();
+
+      expect(find.byType(PGBetterAlternativesSkeleton), findsNothing);
+      expect(find.text('70/100'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
     });
 
