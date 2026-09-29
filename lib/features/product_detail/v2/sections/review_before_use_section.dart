@@ -27,6 +27,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/personal_fit_hel
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -129,14 +130,24 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   final profileIncomplete = !hasProfileInformation;
 
   if (hasContainsAllergen || hasHardWarning) {
+    final hardWarnings = warnings.where(_isHardWarning).toList(growable: false);
+    // Hard warnings reach this card whatever the profile
+    // (partitionProfileWarnings). When none of them came from the profile,
+    // saying "for your profile" claims a personal check that never ran.
+    final profileMatched =
+        hasContainsAllergen || hardWarnings.any(_isProfileMatched);
     return ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.notRecommended,
       tone: PGReviewTone.danger,
-      headline: 'Not recommended for your profile',
-      body: _notRecommendedBody(
-        warnings: warnings.where(_isHardWarning).toList(growable: false),
-        hasContainsAllergen: hasContainsAllergen,
-      ),
+      headline: profileMatched
+          ? 'Not recommended for your profile'
+          : 'PharmaGuide does not recommend this product',
+      body: profileMatched
+          ? _notRecommendedBody(
+              warnings: hardWarnings,
+              hasContainsAllergen: hasContainsAllergen,
+            )
+          : 'Flagged for everyone, whatever your profile.',
       rows: rows,
       profileIncomplete: profileIncomplete,
       startExpanded: rows.isNotEmpty,
@@ -436,6 +447,13 @@ ProfileRelevanceSummary _cleanProfileSummary({
 }
 
 bool _isHardWarning(InteractionWarning warning) => warning.severity.isHard;
+
+/// A warning tied to something in the profile: a medication class, a
+/// condition, or a gate that requires one.
+bool _isProfileMatched(InteractionWarning warning) =>
+    warning.drugClassIds.isNotEmpty ||
+    warning.conditionIds.isNotEmpty ||
+    profileGateRequiresProfile(warning.profileGate);
 
 bool _isReviewWarning(InteractionWarning warning) =>
     warning.severity.isActionable;

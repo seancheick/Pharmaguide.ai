@@ -345,6 +345,19 @@ List<String> validateProfileGate(
   return errors;
 }
 
+/// True when [gate] fires only for people whose profile matches it: it
+/// requires a condition, a medication class or a profile flag. Dose and
+/// nutrient-form gates fire for everyone taking the product.
+bool profileGateRequiresProfile(Map<String, dynamic>? gate) {
+  if (gate == null) return false;
+  final requires = _asMap(gate['requires']);
+  return const [
+    'conditions_any',
+    'drug_classes_any',
+    'profile_flags_any',
+  ].any((key) => _asStringList(requires[key]).isNotEmpty);
+}
+
 // --- Helpers ---
 
 Map<String, dynamic> _asMap(Object? raw) {

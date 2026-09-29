@@ -271,6 +271,100 @@ void main() {
       expect(summary.body, 'Conflicts with your medication profile.');
     });
 
+    // Critique 2026-09-29 (Staminol, empty profile): hard warnings about the
+    // product itself (yohimbe, DHEA) were headlined "Not recommended for your
+    // profile" with the body "profile-specific warning", a personal check
+    // that never ran. Same danger card, same rows, honest wording.
+    for (final hasProfile in const [false, true]) {
+      test('product-wide hard warning does not claim a profile match '
+          '(hasProfileInformation: $hasProfile)', () {
+        final summary = _summary(
+          hasProfileInformation: hasProfile,
+          warnings: [
+            _warning(severity: Severity.avoid, title: 'Yohimbe'),
+            _warning(severity: Severity.contraindicated, title: 'DHEA'),
+          ],
+        );
+
+        expect(summary.status, ProfileRelevanceStatus.notRecommended);
+        expect(summary.tone, PGReviewTone.danger);
+        expect(summary.startExpanded, isTrue);
+        expect(summary.rows, hasLength(2));
+        expect(summary.headline, 'PharmaGuide does not recommend this product');
+        expect(summary.body, 'Flagged for everyone, whatever your profile.');
+        expect(
+          '${summary.headline} ${summary.body}',
+          isNot(contains('profile-specific')),
+        );
+      });
+    }
+
+    test('a profile-matched hard warning keeps the profile headline', () {
+      final summary = _summary(
+        warnings: [
+          _warning(severity: Severity.avoid, title: 'Yohimbe'),
+          _warning(
+            severity: Severity.avoid,
+            title: 'Medication conflict',
+            drugClassIds: const ['anticoagulants'],
+          ),
+        ],
+      );
+
+      expect(summary.headline, 'Not recommended for your profile');
+      expect(summary.body, 'Conflicts with your medication profile.');
+    });
+
+    test(
+      'a hard warning gated on a profile flag counts as profile-matched',
+      () {
+        final summary = _summary(
+          warnings: [
+            const InteractionWarning(
+              severity: Severity.contraindicated,
+              evidenceLevel: EvidenceLevel.established,
+              title: 'Pregnancy',
+              mechanism: '',
+              management: '',
+              profileGate: {
+                'gate_type': 'profile_flag',
+                'requires': {
+                  'profile_flags_any': ['pregnant'],
+                },
+              },
+            ),
+          ],
+        );
+
+        expect(summary.headline, 'Not recommended for your profile');
+      },
+    );
+
+    // Dose and nutrient-form gates fire for everyone taking the product.
+    test('a dose-gated hard warning is product-wide', () {
+      final summary = _summary(
+        warnings: [
+          const InteractionWarning(
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.established,
+            title: 'Above the upper limit',
+            mechanism: '',
+            management: '',
+            profileGate: {
+              'gate_type': 'dose',
+              'requires': {
+                'conditions_any': <String>[],
+                'drug_classes_any': <String>[],
+                'profile_flags_any': <String>[],
+              },
+            },
+          ),
+        ],
+      );
+
+      expect(summary.headline, 'PharmaGuide does not recommend this product');
+    });
+
     test('condition caution warning requires review', () {
       final summary = _summary(
         warnings: [
