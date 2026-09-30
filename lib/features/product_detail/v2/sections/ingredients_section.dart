@@ -45,6 +45,7 @@ import 'package:pharmaguide/features/product_detail/blend_grouping.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 import 'package:pharmaguide/features/product_detail/ingredient_sort.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_helpers.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
 import 'package:pharmaguide/features/product_detail/widgets/functional_roles_sheet.dart';
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_sheet.dart';
 import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
@@ -795,6 +796,7 @@ Widget _tileFor({
   return PGActiveIngredientTile(
     key: key,
     ingredient: typed,
+    dailyValueLabel: dailyValueLabelForCanonicalRow(ingredient),
     showBottomDivider: showBottomDivider,
     showNestedIndent: showNestedIndent,
     dense: dense,

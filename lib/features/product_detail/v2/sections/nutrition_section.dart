@@ -129,7 +129,7 @@ Widget _buildFromLabelRows(
       'exact_dose_text',
       'display_dose_label',
     ]);
-    final dailyValue = _dailyValueLabel(row);
+    final dailyValue = dailyValueLabelForCanonicalRow(row);
     if (label == null || (printedValue == null && dailyValue == null)) continue;
 
     if (label.trim().toLowerCase() == 'calories') {
@@ -179,7 +179,10 @@ int _readInt(Object? value) {
   return int.tryParse(value?.toString() ?? '') ?? 0;
 }
 
-String? _dailyValueLabel(Map<String, dynamic> row) {
+/// Formats the pipeline-owned daily value for any canonical label row.
+/// Consumers may choose the row's section, but must not reparse or recompute
+/// this value from the printed amount.
+String? dailyValueLabelForCanonicalRow(Map<String, dynamic> row) {
   final canonical = row['dailyValue'];
   if (canonical is num) {
     final value = canonical.toDouble();

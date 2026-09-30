@@ -52,6 +52,11 @@ class PGActiveIngredientTile extends StatelessWidget {
   /// smaller name type and tighter padding under the blend's left rail.
   final bool dense;
 
+  /// Pipeline-owned Daily Value text for mapped nutrition rows that remain in
+  /// the active ledger. This tile renders it without deriving a value from the
+  /// printed dose.
+  final String? dailyValueLabel;
+
   const PGActiveIngredientTile({
     super.key,
     required this.ingredient,
@@ -59,6 +64,7 @@ class PGActiveIngredientTile extends StatelessWidget {
     this.onTap,
     this.showNestedIndent = true,
     this.dense = false,
+    this.dailyValueLabel,
   });
 
   @override
@@ -84,6 +90,12 @@ class PGActiveIngredientTile extends StatelessWidget {
                 i.isSafetyConcern ||
                 i.isInferredFromLabel));
     final hasDose = i.dose != null && i.dose!.isNotEmpty;
+    final hasDailyValue =
+        dailyValueLabel != null && dailyValueLabel!.trim().isNotEmpty;
+    final amountLabel = [
+      if (hasDose) i.dose!,
+      if (hasDailyValue) dailyValueLabel!.trim(),
+    ].join(' · ');
     final hasParentheticalDose =
         i.parentheticalDoseText != null &&
         i.parentheticalDoseText!.trim().isNotEmpty;
@@ -100,6 +112,7 @@ class PGActiveIngredientTile extends StatelessWidget {
       hasForm: hasForm,
       formState: formState,
       suppressClaims: suppressClaims,
+      dailyValueLabel: hasDailyValue ? dailyValueLabel!.trim() : null,
     );
     final nestedDepth = i.nestedDepth < 0 ? 0 : i.nestedDepth;
 
@@ -146,13 +159,13 @@ class PGActiveIngredientTile extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (hasDose)
+                            if (amountLabel.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(
                                   left: V2Spacing.space8,
                                 ),
                                 child: Text(
-                                  i.dose!,
+                                  amountLabel,
                                   style: V2Typography.monoData(
                                     color: context.v2.fgMuted,
                                   ).copyWith(fontSize: 12),
@@ -248,6 +261,7 @@ String _semanticsLabel({
   required bool hasForm,
   required PGIngredientFormDisplayState formState,
   required bool suppressClaims,
+  String? dailyValueLabel,
 }) {
   final parts = <String>[ingredient.name];
   final nestedDepth = ingredient.nestedDepth < 0 ? 0 : ingredient.nestedDepth;
@@ -262,6 +276,7 @@ String _semanticsLabel({
     );
   }
   if (hasDose) parts.add(ingredient.dose!);
+  if (dailyValueLabel != null) parts.add(dailyValueLabel);
   if (hasParentheticalDose) {
     parts.add(_parenthesize(ingredient.parentheticalDoseText!));
   }

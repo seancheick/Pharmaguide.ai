@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
 import 'package:pharmaguide/core/data/functional_roles_vocab.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart';
 
 void main() {
   setUp(() {
@@ -975,6 +976,82 @@ void main() {
         ),
         findsOneWidget,
       );
+    },
+  );
+
+  testWidgets(
+    'canonical ledger renders supplied daily values in their production sections',
+    (tester) async {
+      const ledger = <Map<String, dynamic>>[
+        {
+          'label_display_name': 'Calcium',
+          'display_type': 'mapped_ingredient',
+          'exact_dose_text': '65 mg',
+          'dailyValue': 5,
+          'nested_depth': 0,
+          'score_included': true,
+        },
+        {
+          'label_display_name': 'Total Carbohydrate',
+          'display_type': 'nutrition_fact',
+          'exact_dose_text': '6 g',
+          'dailyValue': 2,
+          'nested_depth': 0,
+          'score_included': false,
+        },
+        {
+          'label_display_name': 'Added Sugars',
+          'display_type': 'nutrition_fact',
+          'exact_dose_text': '0 g',
+          'dailyValue': 0,
+          'nested_depth': 1,
+          'score_included': false,
+        },
+        {
+          'label_display_name': 'Protein',
+          'display_type': 'nutrition_fact',
+          'exact_dose_text': '3 g',
+          'nested_depth': 0,
+          'score_included': false,
+        },
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => SingleChildScrollView(
+                child: buildIngredientsSection(
+                  context: ctx,
+                  ingredients: const [],
+                  displayIngredients: ledger,
+                  inactiveIngredients: const [],
+                  ulAnalysis: const [],
+                  blends: const [],
+                  nutritionContent: buildNutritionSection(
+                    caloriesPerServing: null,
+                    nutritionDetail: null,
+                    labelRows: labelNutritionRowsForDisplayLedger(ledger),
+                    embedded: true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Calcium'), findsOneWidget);
+      expect(find.text('65 mg · 5% DV'), findsOneWidget);
+
+      await tester.tap(find.text('Nutrition Facts'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2% DV'), findsOneWidget);
+      expect(find.text('0% DV'), findsOneWidget);
+      expect(find.text('Protein'), findsOneWidget);
+      expect(find.textContaining('% DV'), findsNWidgets(3));
     },
   );
 
