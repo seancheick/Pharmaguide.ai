@@ -22,154 +22,290 @@
       "name": "Stress & Adaptogens",
       "notes": "Botanicals and nutrients shown to modulate the stress response and HPA axis. Often used to improve resilience and reduce perceived stress.",
       "related_condition_ids": [],
-      "examples": ["ashwagandha", "rhodiola", "holy basil", "L-theanine"]
+      "examples": [
+        "ashwagandha",
+        "rhodiola",
+        "holy basil",
+        "L-theanine"
+      ]
     },
     {
       "id": "aging_longevity",
       "name": "Healthy Aging & Longevity",
       "notes": "Compounds with evidence for cellular and metabolic resilience over time. Often touted for healthspan.",
       "related_condition_ids": [],
-      "examples": ["NAD+ precursors (NR, NMN)", "resveratrol", "spermidine", "polyphenols"]
+      "examples": [
+        "NAD+ precursors (NR, NMN)",
+        "resveratrol",
+        "spermidine",
+        "polyphenols"
+      ]
     },
     {
       "id": "anti_inflammatory",
       "name": "Anti-Inflammatory",
       "notes": "Ingredients with evidence for reducing systemic or localized inflammation (CRP, IL-6, joint markers).",
-      "related_condition_ids": ["autoimmune", "heart_disease"],
-      "examples": ["curcumin", "boswellia", "omega-3 EPA/DHA", "tart cherry"]
+      "related_condition_ids": [
+        "autoimmune",
+        "heart_disease"
+      ],
+      "examples": [
+        "curcumin",
+        "boswellia",
+        "omega-3 EPA/DHA",
+        "tart cherry"
+      ]
     },
     {
       "id": "antioxidant",
       "name": "Antioxidants",
       "notes": "Compounds that scavenge reactive oxygen species or upregulate endogenous antioxidant pathways (Nrf2).",
       "related_condition_ids": [],
-      "examples": ["vitamin C", "vitamin E", "alpha-lipoic acid", "astaxanthin", "glutathione"]
+      "examples": [
+        "vitamin C",
+        "vitamin E",
+        "alpha-lipoic acid",
+        "astaxanthin",
+        "glutathione"
+      ]
     },
     {
       "id": "cardiovascular",
       "name": "Cardiovascular & Heart Health",
       "notes": "Evidence for blood pressure, lipid panel, vascular function, or cardiac event reduction.",
-      "related_condition_ids": ["heart_disease", "hypertension", "high_cholesterol"],
-      "examples": ["omega-3 EPA/DHA", "CoQ10", "garlic", "hawthorn", "magnesium"]
+      "related_condition_ids": [
+        "heart_disease",
+        "hypertension",
+        "high_cholesterol"
+      ],
+      "examples": [
+        "omega-3 EPA/DHA",
+        "CoQ10",
+        "garlic",
+        "hawthorn",
+        "magnesium"
+      ]
     },
     {
       "id": "cognitive_neurological",
       "name": "Cognitive & Neurological",
       "notes": "Evidence for attention, memory, processing speed, or neuroprotection.",
       "related_condition_ids": [],
-      "examples": ["bacopa", "lion's mane", "phosphatidylserine", "omega-3 DHA", "huperzine A"]
+      "examples": [
+        "bacopa",
+        "lion's mane",
+        "phosphatidylserine",
+        "omega-3 DHA",
+        "huperzine A"
+      ]
     },
     {
       "id": "digestive_gut",
       "name": "Digestive & Gut Health",
       "notes": "Evidence for GI symptom relief, gut motility, microbiome diversity, or barrier function.",
       "related_condition_ids": [],
-      "examples": ["digestive enzymes", "L-glutamine", "ginger", "deglycyrrhizinated licorice (DGL)"]
+      "examples": [
+        "digestive enzymes",
+        "L-glutamine",
+        "ginger",
+        "deglycyrrhizinated licorice (DGL)"
+      ]
     },
     {
       "id": "eye_health",
       "name": "Eye & Vision",
       "notes": "Evidence for macular pigment optical density, dry-eye symptoms, or age-related vision changes.",
       "related_condition_ids": [],
-      "examples": ["lutein", "zeaxanthin", "omega-3 DHA", "bilberry", "vitamin A"]
+      "examples": [
+        "lutein",
+        "zeaxanthin",
+        "omega-3 DHA",
+        "bilberry",
+        "vitamin A"
+      ]
     },
     {
       "id": "general_herbs",
       "name": "General Herbal",
       "notes": "Broad-action herbal ingredients without a single dominant indication. Used as catch-all bucket for botanicals with general wellness evidence.",
       "related_condition_ids": [],
-      "examples": ["green tea extract", "turmeric (general)", "milk thistle", "ginseng"]
+      "examples": [
+        "green tea extract",
+        "turmeric (general)",
+        "milk thistle",
+        "ginseng"
+      ]
     },
     {
       "id": "hormonal_endocrine",
       "name": "Hormonal & Endocrine",
       "notes": "Evidence for hormone modulation (thyroid, sex hormones, cortisol). Use with provider awareness.",
-      "related_condition_ids": ["thyroid_disorder"],
-      "examples": ["DIM", "vitex (chasteberry)", "ashwagandha (T3/T4)", "iodine"]
+      "related_condition_ids": [
+        "thyroid_disorder"
+      ],
+      "examples": [
+        "DIM",
+        "vitex (chasteberry)",
+        "ashwagandha (T3/T4)",
+        "iodine"
+      ]
     },
     {
       "id": "immune",
       "name": "Immune Support",
       "notes": "Evidence for immune-cell function, infection-duration reduction, or vaccine-response support.",
-      "related_condition_ids": ["autoimmune"],
-      "examples": ["vitamin D", "vitamin C", "zinc", "elderberry", "beta-glucans"]
+      "related_condition_ids": [
+        "autoimmune"
+      ],
+      "examples": [
+        "vitamin D",
+        "vitamin C",
+        "zinc",
+        "elderberry",
+        "beta-glucans"
+      ]
     },
     {
       "id": "joint_bone",
       "name": "Joint & Bone",
       "notes": "Evidence for joint comfort, range of motion, cartilage health, and bone density.",
       "related_condition_ids": [],
-      "examples": ["glucosamine + chondroitin", "collagen", "vitamin D", "calcium", "vitamin K2"]
+      "examples": [
+        "glucosamine + chondroitin",
+        "collagen",
+        "vitamin D",
+        "calcium",
+        "vitamin K2"
+      ]
     },
     {
       "id": "liver_detox",
       "name": "Liver & Detoxification",
       "notes": "Evidence for hepatic enzyme support, glutathione production, or phase I/II detox pathways.",
-      "related_condition_ids": ["liver_disease"],
-      "examples": ["milk thistle (silymarin)", "NAC", "alpha-lipoic acid", "TMG"]
+      "related_condition_ids": [
+        "liver_disease"
+      ],
+      "examples": [
+        "milk thistle (silymarin)",
+        "NAC",
+        "alpha-lipoic acid",
+        "TMG"
+      ]
     },
     {
       "id": "metabolic_blood_sugar",
       "name": "Metabolic & Blood Sugar",
       "notes": "Evidence for fasting glucose, HbA1c, insulin sensitivity, or metabolic syndrome markers.",
-      "related_condition_ids": ["diabetes"],
-      "examples": ["berberine", "chromium", "alpha-lipoic acid", "cinnamon", "myo-inositol"]
+      "related_condition_ids": [
+        "diabetes"
+      ],
+      "examples": [
+        "berberine",
+        "chromium",
+        "alpha-lipoic acid",
+        "cinnamon",
+        "myo-inositol"
+      ]
     },
     {
       "id": "mineral_supplement",
       "name": "Mineral Supplementation",
       "notes": "Evidence for correcting mineral deficiencies and downstream functional outcomes.",
       "related_condition_ids": [],
-      "examples": ["magnesium glycinate", "iron bisglycinate", "zinc picolinate", "selenium"]
+      "examples": [
+        "magnesium glycinate",
+        "iron bisglycinate",
+        "zinc picolinate",
+        "selenium"
+      ]
     },
     {
       "id": "mitochondrial_energy",
       "name": "Mitochondrial & Energy",
       "notes": "Evidence for ATP production, mitochondrial biogenesis, or fatigue reduction.",
       "related_condition_ids": [],
-      "examples": ["CoQ10", "PQQ", "creatine", "L-carnitine", "D-ribose"]
+      "examples": [
+        "CoQ10",
+        "PQQ",
+        "creatine",
+        "L-carnitine",
+        "D-ribose"
+      ]
     },
     {
       "id": "probiotics",
       "name": "Probiotic Strains",
       "notes": "Strain-specific clinical evidence (strain identity is essential for evidence transfer).",
       "related_condition_ids": [],
-      "examples": ["L. rhamnosus GG", "S. boulardii", "B. longum 35624", "L. plantarum 299v"]
+      "examples": [
+        "L. rhamnosus GG",
+        "S. boulardii",
+        "B. longum 35624",
+        "L. plantarum 299v"
+      ]
     },
     {
       "id": "skin_hair_collagen",
       "name": "Skin, Hair & Collagen",
       "notes": "Evidence for skin elasticity, hydration, hair density, and nail strength.",
       "related_condition_ids": [],
-      "examples": ["collagen peptides", "biotin", "silica", "vitamin C", "zinc"]
+      "examples": [
+        "collagen peptides",
+        "biotin",
+        "silica",
+        "vitamin C",
+        "zinc"
+      ]
     },
     {
       "id": "sleep_mood",
       "name": "Sleep & Mood",
       "notes": "Evidence for sleep onset/depth/duration and mood-state outcomes (depression, anxiety scales).",
       "related_condition_ids": [],
-      "examples": ["melatonin", "magnesium glycinate", "L-theanine", "saffron", "5-HTP"]
+      "examples": [
+        "melatonin",
+        "magnesium glycinate",
+        "L-theanine",
+        "saffron",
+        "5-HTP"
+      ]
     },
     {
       "id": "sports_performance",
       "name": "Sports Performance",
       "notes": "Evidence for power output, endurance, recovery, or training adaptation in athletes.",
       "related_condition_ids": [],
-      "examples": ["creatine monohydrate", "beta-alanine", "caffeine", "BCAAs", "citrulline malate"]
+      "examples": [
+        "creatine monohydrate",
+        "beta-alanine",
+        "caffeine",
+        "BCAAs",
+        "citrulline malate"
+      ]
     },
     {
       "id": "urinary_genitourinary",
       "name": "Urinary & Genitourinary",
       "notes": "Evidence for urinary tract symptoms, prostate health, and bladder function.",
       "related_condition_ids": [],
-      "examples": ["cranberry (PAC-A)", "saw palmetto", "D-mannose", "pumpkin seed extract"]
+      "examples": [
+        "cranberry (PAC-A)",
+        "saw palmetto",
+        "D-mannose",
+        "pumpkin seed extract"
+      ]
     },
     {
       "id": "vitamin_supplement",
       "name": "Vitamin Supplementation",
       "notes": "Evidence for correcting vitamin deficiencies and downstream functional outcomes.",
       "related_condition_ids": [],
-      "examples": ["vitamin D3+K2", "B-complex (methylated)", "vitamin C", "vitamin A"]
+      "examples": [
+        "vitamin D3+K2",
+        "B-complex (methylated)",
+        "vitamin C",
+        "vitamin A"
+      ]
     }
   ]
 }

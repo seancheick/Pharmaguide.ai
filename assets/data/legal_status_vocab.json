@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 10 legal_status_enum values in banned_recalled_ingredients.json. Distinct from clinical_risk_vocab — captures the regulatory/legal classification rather than the clinical danger level.",
-    "schema_version": "1.0.0",
-    "last_updated": "2026-05-01",
-    "total_entries": 10,
-    "status": "LOCKED — verified against banned_recalled_ingredients.json 2026-05-01",
+    "description": "Controlled vocabulary for the 11 legal_status_enum values in banned_recalled_ingredients.json. Distinct from clinical_risk_vocab — captures the regulatory/legal classification rather than the clinical danger level.",
+    "schema_version": "1.1.0",
+    "last_updated": "2026-08-20",
+    "total_entries": 11,
+    "status": "LOCKED — verified against banned_recalled_ingredients.json 2026-08-20",
     "purpose": "Single source of truth for legal-status labels. Each entry includes the regulatory authority that owns the determination (FDA / DEA / WADA / state).",
-    "alignment": "Pipeline source: scripts/data/banned_recalled_ingredients.json `legal_status_enum` field (146 entries; live: not_lawful_as_supplement=44, high_risk=28, adulterant=24, banned_federal=18, contaminant_risk=16, controlled_substance=7, restricted=5, wada_prohibited=2, banned_state=1, lawful=1).",
+    "alignment": "Pipeline source: scripts/data/banned_recalled_ingredients.json `legal_status_enum` field (169 entries; live: not_lawful_as_supplement=41, high_risk=33, adulterant=31, contaminant_risk=22, banned_federal=18, controlled_substance=8, restricted=6, lawful=4, under_review=3, wada_prohibited=2, banned_state=1).",
     "field_contract": {
       "id": "Stable snake_case identifier.",
       "name": "User-facing label.",
@@ -65,6 +65,13 @@
       "notes": "Permitted under specific conditions (dose limits, age restrictions, prescription-only forms). Not freely available as a supplement.",
       "authority": "FDA",
       "implication": "Read product labels carefully; may require provider oversight."
+    },
+    {
+      "id": "under_review",
+      "name": "Regulatory status under review",
+      "notes": "The available authority record does not yet support a final US legal classification for this exact substance or use.",
+      "authority": "FDA",
+      "implication": "Do not treat this as a confirmed legal block until the exact policy basis is verified."
     },
     {
       "id": "high_risk",

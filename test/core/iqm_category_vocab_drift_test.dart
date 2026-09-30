@@ -11,17 +11,17 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 12 entries', () {
+    test('schema lock + 13 entries', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
-      expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 12);
+      expect(md['schema_version'], '1.1.0');
+      expect(md['total_entries'], 13);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
-    test('canonical 12 IDs present', () {
+    test('canonical 13 IDs present', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['iqm_categories'] as List)
@@ -39,6 +39,7 @@ void main() {
           'functional_foods',
           'herbs',
           'minerals',
+          'mushroom_extracts',
           'other',
           'probiotics',
           'proteins',

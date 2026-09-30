@@ -20,9 +20,9 @@
 //     ]
 //   }
 //
-// 6 entries, locked. The canonical shipped set is SAFE / CAUTION / POOR /
-// BLOCKED / UNSAFE / NUTRITION_ONLY per REFERENCE_DATA_LOOKUP_OPPORTUNITIES.md §1.
-// NOT_SCORED is intentionally excluded — products that fail to score
+// 5 entries, locked (vocab 1.1.0). The canonical shipped set is SAFE / CAUTION /
+// POOR / BLOCKED / UNSAFE. NUTRITION_ONLY is retired and NOT_SCORED is
+// intentionally excluded — products that fail to score
 // go to the review queue, not Flutter. Updates require a clinician
 // sign-off cycle and a coordinated pipeline + Flutter release.
 //
@@ -42,7 +42,7 @@ import 'package:flutter/services.dart' show rootBundle;
 /// and the tone/color/icon hints are the locked theming intent.
 class VerdictEntry {
   /// Stable UPPER_SNAKE ID emitted by the pipeline scoring engine.
-  /// One of: SAFE, CAUTION, POOR, BLOCKED, UNSAFE, NUTRITION_ONLY.
+  /// One of: SAFE, CAUTION, POOR, BLOCKED, UNSAFE.
   final String id;
 
   /// Full user-facing label (sentence case), e.g. "Safe".

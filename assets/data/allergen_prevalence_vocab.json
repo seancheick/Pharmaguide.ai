@@ -31,7 +31,11 @@
       "ui_icon": "warning",
       "action": "Always check label",
       "notes": "This allergen appears in many supplements. If you have a sensitivity, always read the label and look for 'Contains' statements.",
-      "_examples_in_data": ["wheat", "milk", "soy"]
+      "_examples_in_data": [
+        "wheat",
+        "milk",
+        "soy"
+      ]
     },
     {
       "id": "moderate",
@@ -42,7 +46,11 @@
       "ui_icon": "info",
       "action": "Check label if sensitive",
       "notes": "This allergen appears in some supplement categories. Read the label if you have a known sensitivity.",
-      "_examples_in_data": ["egg", "fish", "shellfish"]
+      "_examples_in_data": [
+        "egg",
+        "fish",
+        "shellfish"
+      ]
     },
     {
       "id": "low",
@@ -53,7 +61,11 @@
       "ui_icon": "info",
       "action": "Read context",
       "notes": "This allergen rarely appears in supplements but is included for completeness. Cross-contamination is the main concern.",
-      "_examples_in_data": ["tree nuts", "peanuts", "sesame"]
+      "_examples_in_data": [
+        "tree nuts",
+        "peanuts",
+        "sesame"
+      ]
     }
   ]
 }

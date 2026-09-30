@@ -11,16 +11,16 @@ void main() {
       expect(file.existsSync(), isTrue);
     });
 
-    test('schema lock + 10 entries', () {
+    test('schema lock + 11 entries', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
-      expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 10);
+      expect(md['schema_version'], '1.1.0');
+      expect(md['total_entries'], 11);
     });
 
-    test('canonical 10 IDs present', () {
+    test('canonical 11 IDs present', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['legal_statuses'] as List)
@@ -37,6 +37,7 @@ void main() {
           'controlled_substance',
           'wada_prohibited',
           'restricted',
+          'under_review',
           'high_risk',
           'contaminant_risk',
           'lawful',

@@ -16,8 +16,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// repo). Update the Dart consumer instead.
 ///
 /// What this test asserts:
-///   1. The 6 shipped IDs (SAFE/CAUTION/POOR/BLOCKED/UNSAFE/NUTRITION_ONLY) are present
-///   2. NOT_SCORED is intentionally absent (review-queue-only per doc)
+///   1. The 5 shipped IDs (SAFE/CAUTION/POOR/BLOCKED/UNSAFE) are present
+///   2. NOT_SCORED and the retired NUTRITION_ONLY are absent: both are
+///      pipeline QA quarantine states, never app verdicts (vocab 1.1.0)
 ///   3. The user-facing `name` for each verdict matches the locked
 ///      label currently shipped by verdict_badge.dart `labelFor()`
 ///   4. Display contract fields (tone, ui_color, ui_icon, short_label,
@@ -43,12 +44,12 @@ void main() {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
-      expect(md['schema_version'], '1.0.0');
-      expect(md['total_entries'], 6);
+      expect(md['schema_version'], '1.1.0');
+      expect(md['total_entries'], 5);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
-    test('canonical 6 shipped verdict IDs present, NOT_SCORED absent', () {
+    test('canonical 5 shipped verdict IDs present, NOT_SCORED and NUTRITION_ONLY absent', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['verdicts'] as List)
@@ -63,7 +64,6 @@ void main() {
           'POOR',
           'BLOCKED',
           'UNSAFE',
-          'NUTRITION_ONLY',
         }),
       );
       expect(
@@ -90,7 +90,6 @@ void main() {
           'POOR': 'Poor quality',
           'BLOCKED': 'Do not use',
           'UNSAFE': 'Unsafe',
-          'NUTRITION_ONLY': 'Food product — see ingredients',
         };
 
         final raw = file.readAsStringSync();

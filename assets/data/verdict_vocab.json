@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 6 product-quality verdicts shipped to Flutter (SAFE, CAUTION, POOR, BLOCKED, UNSAFE, NUTRITION_ONLY). Carries the full display contract per second-opinion review 2026-04-30: name + short_label + tone + ui_color + ui_icon + action live in this vocab so Flutter is a renderer (no presentation logic in Dart). Single source of truth for verdict labels across verdict_badge, alert_summary_card, banner, and score_breakdown_card. Bundled as a Flutter asset.",
-    "schema_version": "1.0.0",
-    "last_updated": "2026-05-01",
-    "total_entries": 6,
-    "status": "LOCKED — pipeline + Flutter alignment 2026-05-01",
-    "purpose": "Display contract for the canonical 6 shipped verdicts emitted by score_supplements.py / build_final_db.py and consumed by Flutter. Each entry carries the locked name/short_label/tone/ui_color/ui_icon/action — Flutter renders verbatim, no inference. Verdict precedence (BLOCKED > UNSAFE > CAUTION > POOR > SAFE) lives in scoring_config.json; NUTRITION_ONLY is a food-shape export verdict.",
-    "alignment": "Pipeline source: scripts/score_supplements.py _derive_verdict() (BLOCKED via B0 banned/recalled gate; UNSAFE via critical-flag escalation; CAUTION/POOR via quality-score thresholds; SAFE default). Flutter consumer: lib/features/product_detail/widgets/verdict_badge.dart (replaces hardcoded switch).",
+    "description": "Controlled vocabulary for the 5 product-quality verdicts allowed in the live Flutter catalog (SAFE, CAUTION, POOR, BLOCKED, UNSAFE). NOT_SCORED and the retired NUTRITION_ONLY value are QA quarantine states, not app verdicts. Each live entry owns its display contract so Flutter remains a renderer.",
+    "schema_version": "1.1.0",
+    "last_updated": "2026-08-20",
+    "total_entries": 5,
+    "status": "LOCKED — scoring integrity unification 2026-08-20",
+    "purpose": "Display contract for the canonical 5 live verdicts emitted by the v4 scored artifact and projected by build_final_db.py. Verdict precedence is BLOCKED > UNSAFE > CAUTION > POOR > SAFE.",
+    "alignment": "Pipeline source: scripts/scoring_v4/scored_artifact.py and scripts/build_final_db.py. Flutter consumer: lib/features/product_detail/widgets/verdict_badge.dart.",
     "field_contract": {
       "id": "Stable uppercase identifier emitted by the scoring engine. Never rename without a pipeline + Flutter + cached-blob migration.",
       "name": "Full user-facing label (sentence case). Shown in detail screens and full-text contexts.",
@@ -20,7 +20,7 @@
     "char_limit_short_label": 12,
     "char_limit_action": 40,
     "char_limit_notes": 200,
-    "pipeline_contract_note": "Per REFERENCE_DATA_LOOKUP_OPPORTUNITIES.md §1: NOT_SCORED is intentionally NOT in vocab — products that fail scoring divert to the review queue and never ship to Flutter. NUTRITION_ONLY is intentionally included because food-shape products ship with ingredient-focused display rather than bioactive scoring.",
+    "pipeline_contract_note": "NOT_SCORED and NUTRITION_ONLY are intentionally absent. Products with incomplete supplement assessment, including food-shaped inputs, divert to the QA review queue and never ship to Flutter.",
     "co_render_surfaces": [
       "lib/features/product_detail/widgets/verdict_badge.dart",
       "lib/features/search/widgets/result_tile.dart",
@@ -77,16 +77,6 @@
       "ui_icon": "alert",
       "action": "Do not use",
       "notes": "Product has critical safety flags (high-dose contraindications, severe interaction risk, or regulatory adverse events). Do not use without medical supervision."
-    },
-    {
-      "id": "NUTRITION_ONLY",
-      "name": "Food product — see ingredients",
-      "short_label": "Food",
-      "tone": "info",
-      "ui_color": "gray",
-      "ui_icon": "info",
-      "action": "Read ingredients label",
-      "notes": "Food-shape product where supplement-style scoring does not apply. Review the ingredients, nutrition facts, allergens, and label claims."
     }
   ]
 }
