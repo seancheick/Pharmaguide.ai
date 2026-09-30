@@ -21,10 +21,18 @@ void main() {
             .map((entry) => (entry as Map)['id'] as String)
             .toSet();
 
-        expect(conditions.length, 15);
+        expect(conditions.length, 18);
         expect((conditions.first as Map)['id'], 'pregnancy');
-        expect(conditionIds, contains('immunocompromised'));
-        expect(conditionIds, hasLength(15));
+        expect(
+          conditionIds,
+          containsAll([
+            'immunocompromised',
+            'current_smoker',
+            'former_smoker',
+            'asbestos_exposure',
+          ]),
+        );
+        expect(conditionIds, hasLength(18));
       },
     );
 
@@ -56,10 +64,15 @@ void main() {
       () async {
         final schema = await repo.loadClinicalProfileSchema();
 
-        expect(schema.selectableConditions, hasLength(15));
+        expect(schema.selectableConditions, hasLength(18));
         expect(
           schema.selectableConditions.map((entry) => entry.id),
-          contains('immunocompromised'),
+          containsAll([
+            'immunocompromised',
+            'current_smoker',
+            'former_smoker',
+            'asbestos_exposure',
+          ]),
         );
         expect(schema.userSelectableFlags.map((entry) => entry.id), [
           'severely_immunocompromised',

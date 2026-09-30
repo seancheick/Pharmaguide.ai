@@ -2,10 +2,10 @@
   "_metadata": {
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
-    "schema_version": "5.3.0",
+    "schema_version": "5.4.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
-    "last_updated": "2026-07-29",
-    "total_entries": 79,
+    "last_updated": "2026-09-24",
+    "total_entries": 82,
     "flutter_top_level_key": "clinical_risk_taxonomy",
     "drug_classes_count": 30,
     "migration": {
@@ -297,6 +297,67 @@
           "description": "Disorders of lipoprotein metabolism and other lipidemias"
         }
       ]
+    },
+    {
+      "id": "current_smoker",
+      "label": "Current Smoker",
+      "category": "lifestyle",
+      "display_priority": 16,
+      "user_selectable": true,
+      "description": "Smoke tobacco now. High-dose beta-carotene supplements raised lung cancer risk in smokers in large trials.",
+      "synonyms": [
+        "smoking",
+        "smoker",
+        "tobacco use",
+        "cigarette smoker"
+      ],
+      "icd10": [
+        {
+          "code": "F17",
+          "description": "Nicotine dependence"
+        },
+        {
+          "code": "Z72.0",
+          "description": "Tobacco use"
+        }
+      ]
+    },
+    {
+      "id": "former_smoker",
+      "label": "Former Smoker",
+      "category": "lifestyle",
+      "display_priority": 17,
+      "user_selectable": true,
+      "description": "Smoked tobacco in the past. Excess lung cancers with beta-carotene supplements occurred mostly in former smokers in AREDS2.",
+      "synonyms": [
+        "ex-smoker",
+        "quit smoking",
+        "history of smoking"
+      ],
+      "icd10": [
+        {
+          "code": "Z87.891",
+          "description": "Personal history of nicotine dependence"
+        }
+      ]
+    },
+    {
+      "id": "asbestos_exposure",
+      "label": "Asbestos Exposure",
+      "category": "occupational",
+      "display_priority": 18,
+      "user_selectable": true,
+      "description": "Significant past or current asbestos exposure. High-dose beta-carotene with vitamin A raised lung cancer risk in exposed workers (CARET).",
+      "synonyms": [
+        "asbestos",
+        "asbestos worker"
+      ],
+      "icd10": [
+        {
+          "code": "Z77.090",
+          "description": "Contact with and (suspected) exposure to asbestos"
+        }
+      ]
     }
   ],
   "drug_classes": [
@@ -563,7 +624,7 @@
       "label": "No Data",
       "weight": 0.0,
       "color": "gray",
-      "description": "No evidence \u2014 used as gap-fill default in pregnancy_lactation."
+      "description": "No evidence — used as gap-fill default in pregnancy_lactation."
     }
   ],
   "profile_flags": [
@@ -611,7 +672,7 @@
       "label": "Hypoglycemia History",
       "category": "metabolic",
       "capture_mode": "reserved",
-      "description": "User has a history of hypoglycemia. Used to escalate diabetes interaction severity (e.g., berberine baseline caution \u2192 avoid)."
+      "description": "User has a history of hypoglycemia. Used to escalate diabetes interaction severity (e.g., berberine baseline caution → avoid)."
     },
     {
       "id": "bleeding_history",
