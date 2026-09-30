@@ -72,6 +72,134 @@ void main() {
       );
     });
 
+    testWidgets(
+      'canonical label rows preserve nutrients, units, zeroes, and daily values',
+      (tester) async {
+        await _pump(
+          tester,
+          buildNutritionSection(
+            caloriesPerServing: null,
+            nutritionDetail: null,
+            labelRows: const [
+              {
+                'label_display_name': 'Calories',
+                'exact_dose_text': '0 Calories',
+                'nested_depth': 0,
+              },
+              {
+                'label_display_name': 'Total Fat',
+                'exact_dose_text': '0 g',
+                'dailyValue': 0.0,
+                'nested_depth': 0,
+              },
+              {
+                'label_display_name': 'Saturated Fat',
+                'exact_dose_text': '0 g',
+                'dailyValue': 0,
+                'nested_depth': 1,
+              },
+              {
+                'label_display_name': 'Cholesterol',
+                'exact_dose_text': '0 mg',
+                'dailyValue': 0.0,
+                'nested_depth': 0,
+              },
+              {
+                'label_display_name': 'Sodium',
+                'exact_dose_text': '35 mg',
+                'dailyValue': 2.0,
+                'nested_depth': 0,
+              },
+              {
+                'label_display_name': 'Total Carbohydrate',
+                'exact_dose_text': '4 g',
+                'dailyValue': 1.5,
+                'nested_depth': 0,
+              },
+              {
+                'label_display_name': 'Dietary Fiber',
+                'exact_dose_text': '1 g',
+                'nested_depth': 1,
+              },
+              {
+                'label_display_name': 'Total Sugars',
+                'exact_dose_text': '3 g',
+                'nested_depth': 1,
+              },
+              {
+                'label_display_name': 'Protein',
+                'exact_dose_text': '2 g',
+                'nested_depth': 0,
+              },
+            ],
+          ),
+        );
+
+        await _expandNutrition(tester);
+        final panel = tester.widget<PGNutritionPanel>(
+          find.byType(PGNutritionPanel),
+        );
+
+        expect(panel.caloriesPerServing, 0);
+        expect(panel.facts.map((fact) => fact.label), [
+          'Total Fat',
+          'Saturated Fat',
+          'Cholesterol',
+          'Sodium',
+          'Total Carbohydrate',
+          'Dietary Fiber',
+          'Total Sugars',
+          'Protein',
+        ]);
+        expect(panel.facts.map((fact) => fact.value), [
+          '0 g',
+          '0 g',
+          '0 mg',
+          '35 mg',
+          '4 g',
+          '1 g',
+          '3 g',
+          '2 g',
+        ]);
+        expect(panel.facts.map((fact) => fact.dailyValue), [
+          '0% DV',
+          '0% DV',
+          '0% DV',
+          '2% DV',
+          '1.5% DV',
+          null,
+          null,
+          null,
+        ]);
+      },
+    );
+
+    testWidgets('daily-value-only label rows remain visible', (tester) async {
+      await _pump(
+        tester,
+        buildNutritionSection(
+          caloriesPerServing: null,
+          nutritionDetail: null,
+          labelRows: const [
+            {
+              'label_display_name': 'Vitamin A',
+              'exact_dose_text': '',
+              'dailyValue': 20.0,
+              'nested_depth': 0,
+            },
+          ],
+        ),
+      );
+
+      await _expandNutrition(tester);
+      final panel = tester.widget<PGNutritionPanel>(
+        find.byType(PGNutritionPanel),
+      );
+      expect(panel.facts.single.label, 'Vitamin A');
+      expect(panel.facts.single.value, '—');
+      expect(panel.facts.single.dailyValue, '20% DV');
+    });
+
     testWidgets('renders nothing when both inputs are absent', (tester) async {
       await _pump(
         tester,

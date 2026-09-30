@@ -20,12 +20,9 @@
 //     Fiber / Protein are FDA-standard labels.
 //   • Formatting verbatim: integers when whole, one decimal otherwise.
 //
-// Deferred to S9.next-iteration:
-//   • %DV column — production NutritionPanel doesn't render %DV either,
-//     so this matches behavior. PGNutritionFact supports dailyValue
-//     if we later expose it from the pipeline.
-//   • Vitamins/minerals (Sodium, Potassium, etc.) — production currently
-//     omits these per FDA-style simplification.
+// Canonical `display_ingredients` nutrition rows take precedence over this
+// summary fallback. They preserve every printed nutrition row, label order,
+// nesting, exact amount text, and the cleaner-owned numeric `dailyValue`.
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_nutrition_panel.dart';
@@ -128,14 +125,15 @@ Widget _buildFromLabelRows(
       'display_name',
       'raw_source_text',
     ]);
-    final value = _firstText(row, const [
+    final printedValue = _firstText(row, const [
       'exact_dose_text',
       'display_dose_label',
     ]);
-    if (label == null || value == null) continue;
+    final dailyValue = _dailyValueLabel(row);
+    if (label == null || (printedValue == null && dailyValue == null)) continue;
 
     if (label.trim().toLowerCase() == 'calories') {
-      calories = _firstNumber(value)?.round();
+      calories = _firstNumber(printedValue ?? '')?.round();
       continue;
     }
 
@@ -143,8 +141,8 @@ Widget _buildFromLabelRows(
     facts.add(
       PGNutritionFact(
         label: label,
-        value: value,
-        dailyValue: _dailyValueLabel(row),
+        value: printedValue ?? '—',
+        dailyValue: dailyValue,
         isHeadline: depth == 0,
         indentLevel: depth,
       ),
@@ -182,6 +180,14 @@ int _readInt(Object? value) {
 }
 
 String? _dailyValueLabel(Map<String, dynamic> row) {
+  final canonical = row['dailyValue'];
+  if (canonical is num) {
+    final value = canonical.toDouble();
+    final formatted = value == value.truncateToDouble()
+        ? value.toInt().toString()
+        : value.toStringAsFixed(1);
+    return '$formatted% DV';
+  }
   final value = _firstText(row, const [
     'daily_value_text',
     'percent_daily_value_text',
