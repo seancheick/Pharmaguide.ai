@@ -25,9 +25,12 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 /// lives on the snackbar; the bar itself does not auto-collapse.
 ///
 /// Conditional primary button per state:
-///   - **Unsafe verdict (BLOCKED / UNSAFE):** "See higher-quality options" —
-///     onTap scrolls the screen to the Better Alternatives section
-///     (the screen wires the actual scroll via [onSeeAlternatives]).
+///   - **Unsafe verdict (BLOCKED / UNSAFE) with alternatives:** "See
+///     higher-quality options" — onTap scrolls the screen to the Better
+///     Alternatives section (the screen wires the scroll via
+///     [onSeeAlternatives], and passes null when there are none).
+///   - **Unsafe without alternatives:** the Remove panel if it is in the
+///     stack, otherwise no bar (an unsafe product is never added).
 ///   - **Already in stack:** [_InStackPanel] with Remove inline.
 ///   - **Default (safe, not in stack):** "Add to my stack" — runs the
 ///     safety-check sheet → addProduct flow.
@@ -41,7 +44,7 @@ class PGStackActionButtons extends ConsumerWidget {
 
   /// Tap target when the unsafe-state primary fires. Screen wires
   /// this to scroll the page to the Better Alternatives section.
-  /// No-op if null.
+  /// Null means there are no alternatives, so the button is not shown.
   final VoidCallback? onSeeAlternatives;
 
   const PGStackActionButtons({
@@ -54,7 +57,10 @@ class PGStackActionButtons extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final entryAsync = ref.watch(stackEntryForDsldIdProvider(dsldId));
+    final primary = _primary(context, ref, entryAsync);
+    if (primary == null) return const SizedBox.shrink();
     return Container(
+      key: const Key('stack-action-bar'),
       padding: EdgeInsets.fromLTRB(
         V2Spacing.space24,
         V2Spacing.space12,
@@ -65,11 +71,11 @@ class PGStackActionButtons extends ConsumerWidget {
         color: context.v2.surface,
         border: Border(top: BorderSide(color: context.v2.outline)),
       ),
-      child: _primary(context, ref, entryAsync),
+      child: primary,
     );
   }
 
-  Widget _primary(
+  Widget? _primary(
     BuildContext context,
     WidgetRef ref,
     AsyncValue<UserStacksLocalData?> entryAsync,
@@ -79,17 +85,19 @@ class PGStackActionButtons extends ConsumerWidget {
     // direct them to the comparison options, not let them re-open the
     // remove flow as the loudest button. The candidates are proven higher
     // quality, not personalized as universally safer.
-    if (isUnsafe) {
+    final seeAlternatives = onSeeAlternatives;
+    if (isUnsafe && seeAlternatives != null) {
       return _SeeHigherQualityButton(
         onTap: () {
           PGHaptics.press();
-          onSeeAlternatives?.call();
+          seeAlternatives();
         },
       );
     }
     return entryAsync.when(
       loading: () => const _LoadingPrimary(),
-      error: (_, __) => _AddButton(onTap: () => _handleAdd(context, ref)),
+      error: (_, __) =>
+          isUnsafe ? null : _AddButton(onTap: () => _handleAdd(context, ref)),
       data: (entry) {
         if (entry != null) {
           return _InStackPanel(
@@ -97,7 +105,9 @@ class PGStackActionButtons extends ConsumerWidget {
             onRemove: () => _handleRemove(context, ref, entry.id),
           );
         }
-        return _AddButton(onTap: () => _handleAdd(context, ref));
+        return isUnsafe
+            ? null
+            : _AddButton(onTap: () => _handleAdd(context, ref));
       },
     );
   }

@@ -105,7 +105,9 @@ void main() {
         final userDb = UserDatabase.memory();
         await _seedProduct(coreDb, verdict: 'UNSAFE');
 
-        await tester.pumpWidget(_wrap(coreDb, userDb, isUnsafe: true));
+        await tester.pumpWidget(
+          _wrap(coreDb, userDb, isUnsafe: true, onSeeAlternatives: () {}),
+        );
         await tester.pumpAndSettle();
 
         expect(find.text('See higher-quality options'), findsOneWidget);
@@ -179,7 +181,9 @@ void main() {
         await _seedProduct(coreDb, verdict: 'UNSAFE');
         await _addToStack(userDb);
 
-        await tester.pumpWidget(_wrap(coreDb, userDb, isUnsafe: true));
+        await tester.pumpWidget(
+          _wrap(coreDb, userDb, isUnsafe: true, onSeeAlternatives: () {}),
+        );
         await tester.pumpAndSettle();
 
         expect(find.text('See higher-quality options'), findsOneWidget);
@@ -190,6 +194,48 @@ void main() {
         await userDb.close();
       },
     );
+
+    // Simulator walkthrough 2026-10-01: a blocked hemp extract showed
+    // "No comparable alternatives found" above a sticky "See higher-quality
+    // options" button that led nowhere. No alternatives, no button.
+    testWidgets('unsafe with no alternatives → no options button, no Add', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(coreDb, verdict: 'UNSAFE');
+
+      await tester.pumpWidget(_wrap(coreDb, userDb, isUnsafe: true));
+      await tester.pumpAndSettle();
+
+      expect(find.text('See higher-quality options'), findsNothing);
+      expect(find.text('Add to my stack'), findsNothing);
+      expect(find.byKey(const Key('stack-action-bar')), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
+
+    testWidgets('unsafe with no alternatives, in stack → Remove stays', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await _seedProduct(coreDb, verdict: 'UNSAFE');
+      await _addToStack(userDb);
+
+      await tester.pumpWidget(_wrap(coreDb, userDb, isUnsafe: true));
+      await tester.pumpAndSettle();
+
+      expect(find.text('See higher-quality options'), findsNothing);
+      expect(find.text('In your stack'), findsOneWidget);
+      expect(find.text('Remove'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+      await userDb.close();
+    });
 
     testWidgets(
       'tap quality-options action → fires onSeeAlternatives callback',

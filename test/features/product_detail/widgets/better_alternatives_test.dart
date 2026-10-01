@@ -434,7 +434,10 @@ void main() {
       await coreDb.close();
     });
 
-    testWidgets('blocked product keeps an honest destination when none match', (
+    // Simulator walkthrough 2026-10-01: the empty card sat under a sticky
+    // "See higher-quality options" button and read as a contradiction. The
+    // button now hides when there are no alternatives, so the card goes too.
+    testWidgets('blocked product with no match renders nothing', (
       tester,
     ) async {
       final coreDb = CoreDatabase.memory();
@@ -445,13 +448,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('No comparable alternatives found'), findsOneWidget);
-      expect(
-        find.text(
-          'We couldn\'t find a similar, higher-quality option in this catalog.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('No comparable alternatives found'), findsNothing);
+      expect(find.text('Similar higher-quality options'), findsNothing);
       await coreDb.close();
     });
   });

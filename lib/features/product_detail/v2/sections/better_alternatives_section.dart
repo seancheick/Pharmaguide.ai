@@ -26,10 +26,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_better_alternatives.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
-import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
-import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
-import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
-import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -89,6 +85,20 @@ final betterAlternativesProvider = FutureProvider.autoDispose
       );
     });
 
+/// The ranked alternatives for [dsldId], keyed exactly as the section keys
+/// them, so the section and the page's sticky button read one cached result.
+AsyncValue<List<ProductsCoreData>> watchBetterAlternatives(
+  WidgetRef ref,
+  String dsldId, {
+  int limit = 3,
+}) {
+  // Personalize tiebreakers when the profile has goals (sentinel-stripped).
+  final goals = ref.watch(profileProvider).goalsForEvaluator.toList()..sort();
+  return ref.watch(
+    betterAlternativesProvider((dsldId, goals.join(','), limit)),
+  );
+}
+
 /// Quality-only alternatives section. Profile goals can break ties, but this
 /// surface never claims candidate-level safety or personal fit.
 class BetterAlternativesSection extends ConsumerWidget {
@@ -135,29 +145,21 @@ class BetterAlternativesSection extends ConsumerWidget {
     // supplement_type matching, and Vinpocetine-style blocked
     // products have empty category but a usable supplement_type.
 
-    // Personalize tiebreakers when the profile has goals (sentinel-stripped).
-    final goals = ref.watch(profileProvider).goalsForEvaluator.toList()..sort();
-    final alternativesAsync = ref.watch(
-      betterAlternativesProvider((
-        currentDsldId,
-        goals.join(','),
-        maxAlternatives,
-      )),
+    final alternativesAsync = watchBetterAlternatives(
+      ref,
+      currentDsldId,
+      limit: maxAlternatives,
     );
 
     return alternativesAsync.when(
       // Loading skeleton — keeps the sticky-CTA scroll anchor
       // landing on a real surface, not an empty slot mid-fetch.
       loading: () => const PGBetterAlternativesSkeleton(),
-      error: (_, _) => isBlocked
-          ? const _BlockedAlternativesEmpty()
-          : const SizedBox.shrink(),
+      // No alternatives: no section. The sticky button hides too, so the
+      // page never offers options it cannot show.
+      error: (_, _) => const SizedBox.shrink(),
       data: (alternatives) {
-        if (alternatives.isEmpty) {
-          return isBlocked
-              ? const _BlockedAlternativesEmpty()
-              : const SizedBox.shrink();
-        }
+        if (alternatives.isEmpty) return const SizedBox.shrink();
         final mapped = alternatives
             .where((p) => p.qualityScoreV4100 != null)
             .map((p) {
@@ -197,44 +199,6 @@ class BetterAlternativesSection extends ConsumerWidget {
               : null,
         );
       },
-    );
-  }
-}
-
-class _BlockedAlternativesEmpty extends StatelessWidget {
-  const _BlockedAlternativesEmpty();
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      label:
-          'No comparable alternatives found. We could not find a similar, '
-          'higher-quality option in this catalog.',
-      child: Container(
-        padding: const EdgeInsets.all(V2Spacing.space16),
-        decoration: BoxDecoration(
-          color: context.v2.surface,
-          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-          border: Border.all(color: context.v2.outline),
-          boxShadow: V2Shadows.sm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'No comparable alternatives found',
-              style: V2Typography.titleSm(color: context.v2.fg),
-            ),
-            const SizedBox(height: V2Spacing.space4),
-            Text(
-              'We couldn\'t find a similar, higher-quality option in this '
-              'catalog.',
-              style: V2Typography.bodySm(color: context.v2.fgMuted),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

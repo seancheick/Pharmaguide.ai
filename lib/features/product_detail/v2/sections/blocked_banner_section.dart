@@ -10,12 +10,14 @@
 //   2. Optional regulatory date line ("FDA ban effective · Sep 7, 2016")
 //      via `buildRegulatoryLine` from the production helper module.
 //   3. Optional substance-name row ("Ingredient: <name>") when the
-//      pipeline didn't bake the name into the one-liner.
+//      reason line doesn't already name it.
 //   4. Optional safety-warning paragraph (longer prose).
 //   5. Optional italic context note (substance-vs-adulterant
 //      disambiguation) via `contextNoteFor`.
 //   6. Optional detail paragraph (mechanism / FDA-story).
 //   7. Optional "FDA sources" link list (tap → launchUrl external).
+//   8. When the detail blob failed to load, a note that the explanation
+//      and sources need a connection.
 //
 // Mapping data → display lives in `blocked_banner_helpers.dart`. This
 // file is pure widget composition.
@@ -48,6 +50,7 @@ Widget buildBlockedBannerSection({
   required String blockingReason,
   required List<Map<String, dynamic>> topWarnings,
   required Map<String, dynamic>? bannedSubstanceDetail,
+  bool detailsUnavailable = false,
 }) {
   // Resolve display inputs from the data via helpers.
   final substanceName = bannedSubstanceDetail?['substance_name']
@@ -68,6 +71,7 @@ Widget buildBlockedBannerSection({
   final contextNote = contextNoteFor(banContext);
   final reasonBody = resolveBlockedReasonBody(
     oneLiner: oneLiner,
+    warningTitles: blockedWarningTitles(topWarnings),
     substanceName: substanceName,
     blockingReason: blockingReason,
   );
@@ -77,12 +81,11 @@ Widget buildBlockedBannerSection({
   );
 
   // Whether the standalone "Ingredient: <name>" row should render.
-  // Suppressed when the one-liner already mentions the substance by
-  // name in prose (avoids redundancy).
+  // Suppressed only when the reason line already names the substance.
   final showSubstanceRow =
       substanceName != null &&
       substanceName.isNotEmpty &&
-      (oneLiner == null || oneLiner.isEmpty);
+      !reasonBody.toLowerCase().contains(substanceName.toLowerCase());
 
   return Padding(
     padding: const EdgeInsets.only(top: V2Spacing.space12),
@@ -144,13 +147,25 @@ Widget buildBlockedBannerSection({
         // 6. Detail / FDA-story paragraph.
         if (detailText != null && detailText.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space12),
-          Text(detailText, style: V2Typography.bodySm(color: context.v2.fgMuted)),
+          Text(
+            detailText,
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
+          ),
         ],
 
         // 7. FDA sources link list.
         if (fdaLinks.isNotEmpty) ...[
           const SizedBox(height: V2Spacing.space12),
           _FdaSourcesBlock(links: fdaLinks),
+        ],
+
+        // 8. Offline: the explanation lives in the detail blob.
+        if (bannedSubstanceDetail == null && detailsUnavailable) ...[
+          const SizedBox(height: V2Spacing.space8),
+          Text(
+            'The full explanation and sources load when you\'re online.',
+            style: V2Typography.bodySm(color: context.v2.fgMuted),
+          ),
         ],
       ],
     ),

@@ -686,8 +686,13 @@ class _ProductDetailV2ConnectedState
                   final Map<dynamic, dynamic> m => Map<String, dynamic>.from(m),
                   _ => null,
                 },
+            detailsUnavailable: blobError,
           )
         : null;
+    final blockedHasAlternatives =
+        isBlocked &&
+        (watchBetterAlternatives(ref, widget.dsldId).value?.isNotEmpty ??
+            false);
 
     final mq = MediaQuery.of(context);
 
@@ -739,7 +744,9 @@ class _ProductDetailV2ConnectedState
                         LiveSafetyAlertSection(product: _product!),
 
                       // ---- 2. ProfileRelevance (personalized) ----------
-                      if (personalizedChecksFailed) ...[
+                      // A blocked product hides personal results, so a
+                      // failed personal check has nothing to qualify.
+                      if (personalizedChecksFailed && !isBlocked) ...[
                         PGSeverityBanner(
                           key: const Key('personalized-checks-error-banner'),
                           tone: PGBannerTone.caution,
@@ -1127,7 +1134,9 @@ class _ProductDetailV2ConnectedState
         bottomNavigationBar: PGStackActionButtons(
           dsldId: widget.dsldId,
           isUnsafe: isBlocked,
-          onSeeAlternatives: _anchors.scrollToAlternatives,
+          onSeeAlternatives: blockedHasAlternatives
+              ? _anchors.scrollToAlternatives
+              : null,
         ),
       ),
     );
