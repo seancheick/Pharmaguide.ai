@@ -70,7 +70,7 @@ void main() {
   );
 
   test(
-    'verified production feed survives offline reads and rejects tampering',
+    'verified production feed survives cache-only/offline reads and rejects tampering',
     () async {
       // The pipeline ships a full, indented feed with metadata and a newline.
       // Its checksum must cover these exact bytes, not a reconstructed model.
@@ -84,10 +84,12 @@ void main() {
       final checksum = 'sha256:${sha256.convert(utf8.encode(feed))}';
       final preferences = _MemoryPreferences();
       var offline = false;
+      var requests = 0;
       final client = SupabaseClient(
         'https://example.test',
         'test-key',
         httpClient: MockClient((request) async {
+          requests++;
           if (offline) throw http.ClientException('offline');
           if (request.url.path.contains('/storage/')) {
             return http.Response(feed, 200, request: request);
@@ -108,6 +110,16 @@ void main() {
       final current = await repository.loadCurrent();
       expect(current.isComplete, isTrue);
       expect(current.alerts.single.alertId, 'SA_2026_0001');
+      final beforeCacheRead = requests;
+      expect(
+        (await repository.loadCachedAlerts()).single.alertId,
+        'SA_2026_0001',
+      );
+      expect(
+        requests,
+        beforeCacheRead,
+        reason: 'Cache-only scan admission makes no HTTP request',
+      );
       offline = true;
       final fallback = await repository.loadCurrent();
       expect(fallback.isComplete, isFalse);
@@ -120,6 +132,13 @@ void main() {
               as Map<String, dynamic>;
       payload['feed'] = base64Encode(utf8.encode('$feed '));
       preferences.values['safety_alert_release_v1'] = jsonEncode(payload);
+      final beforeTamperRead = requests;
+      expect(await repository.loadCachedAlerts(), isEmpty);
+      expect(
+        requests,
+        beforeTamperRead,
+        reason: 'Corrupt cache must not trigger HTTP in scan admission',
+      );
       expect((await repository.loadCurrent()).alerts, isEmpty);
     },
   );
