@@ -382,7 +382,7 @@ class SettingsV2Screen extends StatelessWidget {
             const SizedBox(height: V2Spacing.space32),
             Center(
               child: Text(
-                'Your health data stays on this device.',
+                'Your health profile and medication list stay on this device.',
                 style: V2Typography.caption(color: context.v2.fgSubtle),
               ),
             ),
