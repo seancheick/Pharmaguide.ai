@@ -5,7 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
+    as canonical_ids;
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 
 /// Return the flash color associated with a scanned product's verdict
 /// string. Case-insensitive; null and unrecognized values stay neutral.
@@ -63,3 +67,23 @@ PGVerdictKind scanRevealKind(CatalogProductSafetyStatus status) =>
       CatalogProductSafetyStatus.caution ||
       CatalogProductSafetyStatus.notAssessed => PGVerdictKind.attention,
     };
+
+/// Whether a scanned product must be shown even when a guest is out of
+/// scans: a blocked or unsafe catalog product, or one matched by a blocking
+/// live recall alert. Matching reuses [SafetyAlert.appliesTo] with the same
+/// canonical ids Stack uses, so the scan and the stack agree.
+bool scanResultIsSafetyCritical(
+  ProductsCoreData product, {
+  Iterable<SafetyAlert> alerts = const [],
+}) {
+  if (catalogProductIsBlocked(product)) return true;
+  final ingredientIds = canonical_ids.canonicalIdsForProduct(product);
+  return alerts.any(
+    (alert) =>
+        alert.disposition == SafetyAlertDisposition.block &&
+        alert.appliesTo(
+          dsldId: product.dsldId,
+          ingredientCanonicalIds: ingredientIds,
+        ),
+  );
+}

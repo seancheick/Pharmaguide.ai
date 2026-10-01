@@ -67,8 +67,10 @@ CatalogProductSafetyStatus catalogProductSafetyStatus(
     return CatalogProductSafetyStatus.notAssessed;
   }
 
-  // Additive-schema fallback for catalogs older than export schema 2.2.0.
-  // POOR is quality-only and therefore maps to no catalog safety concern.
+  // No product safety status (catalogs older than export schema 2.2.0, which
+  // the catalog gate now refuses, or a malformed row). The legacy verdict may
+  // still raise a warning, but it never supplies reassurance: SAFE and POOR
+  // mean the safety status is unknown, not that there is no concern.
   switch (product.verdict?.trim().toUpperCase()) {
     case 'BLOCKED':
       return CatalogProductSafetyStatus.blocked;
@@ -76,9 +78,6 @@ CatalogProductSafetyStatus catalogProductSafetyStatus(
       return CatalogProductSafetyStatus.unsafe;
     case 'CAUTION':
       return CatalogProductSafetyStatus.caution;
-    case 'SAFE':
-    case 'POOR':
-      return CatalogProductSafetyStatus.noKnownCatalogConcern;
     default:
       return CatalogProductSafetyStatus.notAssessed;
   }

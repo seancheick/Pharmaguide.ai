@@ -66,6 +66,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/certifications_s
 import 'package:pharmaguide/features/product_detail/v2/sections/evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/formulation_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/live_safety_alert_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
@@ -731,6 +732,11 @@ class _ProductDetailV2ConnectedState
                         bottomBanner: heroBottomBanner,
                       ),
                       const SizedBox(height: V2Spacing.space12),
+
+                      // ---- 1b. Live recall / ban alerts -----------------
+                      // Fast-lane alerts published between catalog releases.
+                      if (_product != null)
+                        LiveSafetyAlertSection(product: _product!),
 
                       // ---- 2. ProfileRelevance (personalized) ----------
                       if (personalizedChecksFailed) ...[

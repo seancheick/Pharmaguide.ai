@@ -68,6 +68,16 @@ class PGSeverityBanner extends StatelessWidget {
     PGBannerTone.neutral => p.fgMuted,
   };
 
+  /// Spoken name of [tone], so a screen reader announces the severity rather
+  /// than leaving it to colour and an unlabeled icon.
+  static String semanticLabelFor(PGBannerTone tone) => switch (tone) {
+    PGBannerTone.info => 'Information',
+    PGBannerTone.caution => 'Caution',
+    PGBannerTone.danger => 'Safety warning',
+    PGBannerTone.success => 'Confirmed',
+    PGBannerTone.neutral => 'Not enough information',
+  };
+
   /// Severity wash opacity. Shared for the same reason as [accentFor].
   static double washAlpha({required bool isDark}) => isDark ? 0.14 : 0.06;
 
@@ -104,98 +114,108 @@ class PGSeverityBanner extends StatelessWidget {
     const chevronGap = 2.0;
     const actionRadius = V2Spacing.radiusPill;
 
-    return Container(
-      margin: margin,
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-        border: Border.all(color: outlineColor, width: 0.8),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Severity wash
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [tint, Colors.transparent],
-                  stops: const [0.0, 0.5],
+    return Semantics(
+      container: true,
+      child: Container(
+        margin: margin,
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+          border: Border.all(color: outlineColor, width: 0.8),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            // Severity wash
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [tint, Colors.transparent],
+                    stops: const [0.0, 0.5],
+                  ),
                 ),
               ),
             ),
-          ),
-          // Left accent strip
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: Container(width: 3, color: style.accent),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              horizontalPadding + 3,
-              verticalPadding,
-              horizontalPadding,
-              verticalPadding,
+            // Left accent strip
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(width: 3, color: style.accent),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(style.icon, size: 20, color: style.accent),
-                const SizedBox(width: iconGap),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: V2Typography.titleSm(color: palette.fg),
-                      ),
-                      if (body != null && body!.isNotEmpty) ...[
-                        const SizedBox(height: bodyGap),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                horizontalPadding + 3,
+                verticalPadding,
+                horizontalPadding,
+                verticalPadding,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    style.icon,
+                    size: 20,
+                    color: style.accent,
+                    semanticLabel: semanticLabelFor(tone),
+                  ),
+                  const SizedBox(width: iconGap),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          body!,
-                          style: V2Typography.bodySm(color: mutedColor),
+                          title,
+                          style: V2Typography.titleSm(color: palette.fg),
                         ),
-                      ],
-                      if (actionLabel != null && onAction != null) ...[
-                        const SizedBox(height: actionGap),
-                        InkWell(
-                          onTap: onAction,
-                          borderRadius: BorderRadius.circular(actionRadius),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  actionLabel!,
-                                  style: V2Typography.label(color: palette.fg),
-                                ),
-                                const SizedBox(width: chevronGap),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 16,
-                                  color: palette.fg,
-                                ),
-                              ],
+                        if (body != null && body!.isNotEmpty) ...[
+                          const SizedBox(height: bodyGap),
+                          Text(
+                            body!,
+                            style: V2Typography.bodySm(color: mutedColor),
+                          ),
+                        ],
+                        if (actionLabel != null && onAction != null) ...[
+                          const SizedBox(height: actionGap),
+                          InkWell(
+                            onTap: onAction,
+                            borderRadius: BorderRadius.circular(actionRadius),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    actionLabel!,
+                                    style: V2Typography.label(
+                                      color: palette.fg,
+                                    ),
+                                  ),
+                                  const SizedBox(width: chevronGap),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 16,
+                                    color: palette.fg,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

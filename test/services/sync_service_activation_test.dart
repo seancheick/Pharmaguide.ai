@@ -34,7 +34,9 @@ void _buildValidCatalog(String path, {String dbVersion = _dbVersion}) {
       "INSERT INTO export_manifest VALUES ('min_app_version', '1.0.0')",
     );
     db.execute(
-      "INSERT INTO export_manifest VALUES ('schema_version', '2.0.0')",
+      // 2.2.0+ required since 2026-10-01: older schemas lack a product
+      // safety status and are refused by the catalog gate.
+      "INSERT INTO export_manifest VALUES ('schema_version', '2.5.0')",
     );
     db.execute('PRAGMA user_version = 3');
   } finally {

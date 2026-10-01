@@ -57,6 +57,17 @@ class ScanLimitService {
     return true;
   }
 
+  /// Admit one scan result for display.
+  ///
+  /// A safety-critical result (a blocked or unsafe product, or a matching
+  /// blocking recall alert) is always shown and never charged, so the guest
+  /// cap can never hide a safety finding. Every other result is charged
+  /// exactly like [recordScan] and refused once the cap is reached.
+  Future<bool> admitResult({required bool safetyCritical}) async {
+    if (safetyCritical) return true;
+    return recordScan();
+  }
+
   /// Label for display: "3 of 10 scans used" etc.
   String get usageLabel {
     if (_isSignedIn) {

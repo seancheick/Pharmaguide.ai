@@ -24,6 +24,11 @@ const int kAppBuildNumber = 18;
 /// 3 fixtures exercise parsers, but activation remains intentionally gated.
 const int kMaxSupportedCatalogSchemaMajor = 2;
 
+/// Lowest catalog `schema_version` this build activates. 2.2.0 is the first
+/// export with a product safety status; an older catalog could only be read
+/// through the legacy verdict, which must never supply reassurance.
+const String kMinSupportedCatalogSchema = '2.2.0';
+
 /// Compares two semver-ish strings (`major.minor.patch`, tolerant of
 /// missing components and `-pre`/`+build` suffixes).
 ///

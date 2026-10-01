@@ -64,6 +64,9 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/features/contributions/product_submissions_screen.dart';
@@ -141,19 +144,34 @@ class ScanScreen extends ConsumerWidget {
     if (!context.mounted || barcode == null) return;
 
     try {
-      final allowed = await _recordAllowedScan(ref);
+      // Same order as the camera scan: look up first, always show a blocked
+      // or recalled product, and charge the guest cap only for ordinary
+      // results.
+      final scanLimit = await _scanLimitService(ref);
+      final resolution = await ref
+          .read(coreDatabaseProvider)
+          .resolveByUpc(barcode);
+      final alerts = await _cachedSafetyAlerts(ref);
       if (!context.mounted) return;
-      if (!allowed) {
+
+      bool isCritical(ProductsCoreData product) =>
+          scanResultIsSafetyCritical(product, alerts: alerts);
+      final anyCritical = switch (resolution) {
+        UpcUnique(:final product) => isCritical(product),
+        UpcAmbiguous(:final candidates) => candidates.any(isCritical),
+        UpcNotFound() => false,
+      };
+      if (!anyCritical && !scanLimit.canScan) {
         _showGuestScanLimitSheet(context);
         return;
       }
 
-      final resolution = await ref
-          .read(coreDatabaseProvider)
-          .resolveByUpc(barcode);
-      if (!context.mounted) return;
-
       if (resolution is UpcNotFound) {
+        if (!await scanLimit.admitResult(safetyCritical: false)) {
+          if (context.mounted) _showGuestScanLimitSheet(context);
+          return;
+        }
+        if (!context.mounted) return;
         await _showManualLookupNotFound(context, ref, barcode);
         return;
       }
@@ -174,8 +192,20 @@ class ScanScreen extends ConsumerWidget {
       // compile error here rather than silently treated as a dismissal.
       switch (choice) {
         case ProductVersionSelected(product: final chosen):
+          if (!await scanLimit.admitResult(
+            safetyCritical: isCritical(chosen),
+          )) {
+            if (context.mounted) _showGuestScanLimitSheet(context);
+            return;
+          }
+          if (!context.mounted) return;
           product = chosen;
         case ProductVersionUnmatched():
+          if (!await scanLimit.admitResult(safetyCritical: false)) {
+            if (context.mounted) _showGuestScanLimitSheet(context);
+            return;
+          }
+          if (!context.mounted) return;
           await _showManualLookupNotFound(context, ref, barcode);
           return;
         case null:
@@ -216,14 +246,23 @@ class ScanScreen extends ConsumerWidget {
     }
   }
 
-  Future<bool> _recordAllowedScan(WidgetRef ref) async {
+  Future<ScanLimitService> _scanLimitService(WidgetRef ref) async {
     final prefs = await SharedPreferences.getInstance();
     final authMode = ref.read(authStateProvider);
-    final service = ScanLimitService(
+    return ScanLimitService(
       prefs: prefs,
       isSignedIn: authMode == AuthMode.signedIn,
     );
-    return service.recordScan();
+  }
+
+  /// Cache-only, so a lookup never waits on the network. Any failure means
+  /// "no cached alerts"; the catalog's own blocked status still applies.
+  Future<List<SafetyAlert>> _cachedSafetyAlerts(WidgetRef ref) async {
+    try {
+      return await ref.read(safetyAlertRepositoryProvider).loadCachedAlerts();
+    } on Object {
+      return const [];
+    }
   }
 
   void _showGuestScanLimitSheet(BuildContext context) {

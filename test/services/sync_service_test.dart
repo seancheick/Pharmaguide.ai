@@ -105,7 +105,7 @@ void main() {
       expect(
         () => SyncService.enforceCatalogVersionGate(
           minAppVersion: '99.0.0',
-          schemaVersion: '2.0.0',
+          schemaVersion: '2.5.0',
           appVersion: '1.0.0',
         ),
         throwsA(isA<CatalogVersionGateException>()),
@@ -115,12 +115,12 @@ void main() {
     test('min_app_version equal to or below app version is allowed', () {
       SyncService.enforceCatalogVersionGate(
         minAppVersion: '1.0.0',
-        schemaVersion: '2.0.0',
+        schemaVersion: '2.5.0',
         appVersion: '1.0.0',
       );
       SyncService.enforceCatalogVersionGate(
         minAppVersion: '0.9.5',
-        schemaVersion: '1.6.0',
+        schemaVersion: '2.2.0',
         appVersion: '1.0.0',
       );
     });
@@ -137,13 +137,55 @@ void main() {
       );
     });
 
-    test('missing keys fail open (older catalogs predate them)', () {
-      SyncService.enforceCatalogVersionGate(
-        minAppVersion: null,
-        schemaVersion: null,
-        appVersion: '1.0.0',
-      );
+    // Safety-related uncertainty fails closed: a catalog that cannot say
+    // which app and schema it targets is not activated; the current catalog
+    // stays in place (2026-10-01, roadmap 1.2).
+    test('missing keys fail closed', () {
+      for (final (minApp, schema) in <(String?, String?)>[
+        (null, null),
+        ('1.0.0', null),
+        (null, '2.5.0'),
+        ('  ', '2.5.0'),
+        ('1.0.0', ''),
+      ]) {
+        expect(
+          () => SyncService.enforceCatalogVersionGate(
+            minAppVersion: minApp,
+            schemaVersion: schema,
+            appVersion: '1.0.0',
+          ),
+          throwsA(isA<CatalogVersionGateException>()),
+          reason: 'min_app_version=$minApp schema_version=$schema',
+        );
+      }
     });
+
+    test(
+      'schemas before 2.2.0 carry no product safety status and are refused',
+      () {
+        for (final schema in ['1.9.0', '2.0.0', '2.1.9']) {
+          expect(
+            () => SyncService.enforceCatalogVersionGate(
+              minAppVersion: '1.0.0',
+              schemaVersion: schema,
+              appVersion: '1.0.0',
+            ),
+            throwsA(isA<CatalogVersionGateException>()),
+            reason: schema,
+          );
+        }
+        SyncService.enforceCatalogVersionGate(
+          minAppVersion: '1.0.0',
+          schemaVersion: '2.2.0',
+          appVersion: '1.0.0',
+        );
+        SyncService.enforceCatalogVersionGate(
+          minAppVersion: '1.0.0',
+          schemaVersion: '2.5.0',
+          appVersion: '1.0.0',
+        );
+      },
+    );
 
     test('present-but-malformed values fail closed', () {
       expect(
@@ -185,7 +227,7 @@ void main() {
         stagingPath,
         dbVersion: dbVersion,
         minAppVersion: '99.0.0',
-        schemaVersion: '2.0.0',
+        schemaVersion: '2.5.0',
       );
 
       final svc = SyncService(appVersion: '1.0.0');
@@ -207,7 +249,7 @@ void main() {
         stagingPath,
         dbVersion: dbVersion,
         minAppVersion: '1.0.0',
-        schemaVersion: '2.0.0',
+        schemaVersion: '2.5.0',
         omitColumns: const {'mapped_coverage'},
       );
 
@@ -230,7 +272,7 @@ void main() {
           stagingPath,
           dbVersion: dbVersion,
           minAppVersion: '1.0.0',
-          schemaVersion: '2.0.0',
+          schemaVersion: '2.5.0',
         );
 
         final svc = SyncService(appVersion: '1.0.0');
@@ -244,22 +286,21 @@ void main() {
       },
     );
 
-    test(
-      'staged DB without gate keys (older catalog) still validates',
-      () async {
-        const dbVersion = '2026.06.10.020350';
-        final stagingPath = '${tempDir.path}/pharmaguide_core.db.staging';
-        _buildStagedCatalog(stagingPath, dbVersion: dbVersion);
+    // Was "still validates" (fail open). A catalog that cannot say which app
+    // and schema it targets is now refused; the current catalog stays.
+    test('staged DB without gate keys is refused (fail closed)', () async {
+      const dbVersion = '2026.06.10.020350';
+      final stagingPath = '${tempDir.path}/pharmaguide_core.db.staging';
+      _buildStagedCatalog(stagingPath, dbVersion: dbVersion);
 
-        final svc = SyncService(appVersion: '1.0.0');
-        expect(
-          await svc.validateStagedDatabaseForTest(
-            stagingPath,
-            expectedVersion: dbVersion,
-          ),
-          dbVersion,
-        );
-      },
-    );
+      final svc = SyncService(appVersion: '1.0.0');
+      await expectLater(
+        svc.validateStagedDatabaseForTest(
+          stagingPath,
+          expectedVersion: dbVersion,
+        ),
+        throwsA(isA<CatalogVersionGateException>()),
+      );
+    });
   });
 }
