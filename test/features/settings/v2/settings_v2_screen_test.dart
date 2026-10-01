@@ -476,6 +476,25 @@ void main() {
     // because a new phone then starts fresh.
     expect(find.textContaining('not included in iCloud'), findsOneWidget);
   });
+
+  // A signed-in supplement stack syncs to the account (see the privacy
+  // dashboard), so the closing line may only claim what stays on the device.
+  testWidgets('closing privacy line claims only what stays on device', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+    await tester.scrollUntilVisible(
+      find.text('Your health profile and medication list stay on this device.'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.text('Your health profile and medication list stay on this device.'),
+      findsOneWidget,
+    );
+    expect(find.text('Your health data stays on this device.'), findsNothing);
+  });
 }
 
 class _AllowedNotificationService implements NotificationAuthorizationService {

@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_scan_not_found.dart';
@@ -17,6 +19,7 @@ import 'package:pharmaguide/features/scanner/scanner_not_found_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/services/gtin.dart';
+import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -268,6 +271,97 @@ void main() {
           .join(' | '),
     );
     expect(find.text('Scan again'), findsNothing);
+  });
+
+  // A guest out of scans still sees a blocked product: the cap may gate
+  // convenience, never a recall or banned-ingredient finding (roadmap 1.2).
+  group('guest scan cap never hides a safety finding', () {
+    const upc = '050428381397';
+    String today() => DateTime.now().toUtc().toIso8601String().split('T').first;
+
+    Future<void> scanAtCap(
+      WidgetTester tester, {
+      required String safetyStatus,
+    }) async {
+      SharedPreferences.setMockInitialValues({
+        'guest_daily_scan_count': 3,
+        'guest_daily_scan_date': today(),
+      });
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      await coreDb
+          .into(coreDb.productsCore)
+          .insert(
+            ProductsCoreCompanion.insert(
+              dsldId: '500',
+              productName: 'Scanned product',
+              exportVersion: 'test',
+              exportedAt: '2026-10-01T00:00:00Z',
+              upcSku: const Value(upc),
+              productSafetyStatus: Value(safetyStatus),
+            ),
+          );
+      final previousPlatform = MobileScannerPlatform.instance;
+      MobileScannerPlatform.instance = _FakeMobileScannerPlatform();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+        await userDb.close();
+        MobileScannerPlatform.instance = previousPlatform;
+      });
+
+      final router = GoRouter(
+        initialLocation: '/scan',
+        routes: [
+          GoRoute(path: '/scan', builder: (_, __) => const ScannerScreen()),
+          GoRoute(
+            path: '/product/:id',
+            builder: (_, state) =>
+                Scaffold(body: Text('Product page ${state.pathParameters['id']}')),
+          ),
+          GoRoute(
+            path: '/auth',
+            builder: (_, __) => const Scaffold(body: Text('Sign in')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Enter code manually'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), upc);
+      await tester.pump();
+      await tester.tap(find.text('Find Product'));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+    }
+
+    testWidgets('a blocked product opens and is not charged', (tester) async {
+      await scanAtCap(tester, safetyStatus: 'blocked');
+
+      expect(find.text('Product page 500'), findsOneWidget);
+      expect(find.byType(GuestScanLimitSheet), findsNothing);
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        ScanLimitService(prefs: prefs, isSignedIn: false).guestScansUsed,
+        3,
+      );
+    });
+
+    testWidgets('an ordinary product still meets the cap', (tester) async {
+      await scanAtCap(tester, safetyStatus: 'no_known_catalog_concern');
+
+      expect(find.byType(GuestScanLimitSheet), findsOneWidget);
+      expect(find.text('Product page 500'), findsNothing);
+    });
   });
 
   testWidgets('both camera fallbacks are solid, readable over the feed', (

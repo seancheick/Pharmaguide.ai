@@ -623,10 +623,10 @@ class SyncService {
 
   /// Pure version-gate decision, extracted for unit testing.
   ///
-  /// Fail-open ONLY when a key is entirely absent (older catalogs predate
-  /// the keys). A key that is present but unparseable fails CLOSED — a
-  /// catalog declaring compatibility requirements we cannot read must not
-  /// be activated.
+  /// Fails CLOSED on every uncertainty: a missing, blank or unparseable key,
+  /// a catalog that needs a newer app, a schema major this build cannot
+  /// read, or a schema older than [kMinSupportedCatalogSchema]. A refused
+  /// catalog is not activated; the current catalog stays in place.
   @visibleForTesting
   static void enforceCatalogVersionGate({
     required String? minAppVersion,
@@ -634,38 +634,56 @@ class SyncService {
     required String appVersion,
     int maxSupportedSchemaMajor = kMaxSupportedCatalogSchemaMajor,
   }) {
-    if (minAppVersion != null && minAppVersion.trim().isNotEmpty) {
-      final cmp = compareSemver(minAppVersion, appVersion);
-      if (cmp == null) {
-        throw CatalogVersionGateException(
-          'Catalog min_app_version "$minAppVersion" is unparseable — '
-          'refusing activation (fail closed).',
-        );
-      }
-      if (cmp > 0) {
-        throw CatalogVersionGateException(
-          'Catalog requires app >= $minAppVersion but this build is '
-          '$appVersion — refusing activation. Update the app to receive '
-          'this catalog.',
-        );
-      }
+    if (minAppVersion == null || minAppVersion.trim().isEmpty) {
+      throw const CatalogVersionGateException(
+        'Catalog has no min_app_version — refusing activation (fail closed).',
+      );
+    }
+    if (schemaVersion == null || schemaVersion.trim().isEmpty) {
+      throw const CatalogVersionGateException(
+        'Catalog has no schema_version — refusing activation (fail closed).',
+      );
     }
 
-    if (schemaVersion != null && schemaVersion.trim().isNotEmpty) {
-      final major = int.tryParse(schemaVersion.trim().split('.').first);
-      if (major == null) {
-        throw CatalogVersionGateException(
-          'Catalog schema_version "$schemaVersion" is unparseable — '
-          'refusing activation (fail closed).',
-        );
-      }
-      if (major > maxSupportedSchemaMajor) {
-        throw CatalogVersionGateException(
-          'Catalog schema_version $schemaVersion exceeds the highest '
-          'major this build supports ($maxSupportedSchemaMajor.x) — '
-          'refusing activation.',
-        );
-      }
+    final cmp = compareSemver(minAppVersion, appVersion);
+    if (cmp == null) {
+      throw CatalogVersionGateException(
+        'Catalog min_app_version "$minAppVersion" is unparseable — '
+        'refusing activation (fail closed).',
+      );
+    }
+    if (cmp > 0) {
+      throw CatalogVersionGateException(
+        'Catalog requires app >= $minAppVersion but this build is '
+        '$appVersion — refusing activation. Update the app to receive '
+        'this catalog.',
+      );
+    }
+
+    final major = int.tryParse(schemaVersion.trim().split('.').first);
+    if (major == null) {
+      throw CatalogVersionGateException(
+        'Catalog schema_version "$schemaVersion" is unparseable — '
+        'refusing activation (fail closed).',
+      );
+    }
+    if (major > maxSupportedSchemaMajor) {
+      throw CatalogVersionGateException(
+        'Catalog schema_version $schemaVersion exceeds the highest '
+        'major this build supports ($maxSupportedSchemaMajor.x) — '
+        'refusing activation.',
+      );
+    }
+    final belowMinimum = compareSemver(
+      schemaVersion,
+      kMinSupportedCatalogSchema,
+    );
+    if (belowMinimum == null || belowMinimum < 0) {
+      throw CatalogVersionGateException(
+        'Catalog schema_version $schemaVersion is older than '
+        '$kMinSupportedCatalogSchema, which has no product safety status — '
+        'refusing activation.',
+      );
     }
   }
 

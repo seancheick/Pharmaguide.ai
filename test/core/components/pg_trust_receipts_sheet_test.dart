@@ -79,13 +79,16 @@ void main() {
         findsOneWidget,
       );
 
-      // Closing block: truthful privacy line.
+      // Closing block: truthful privacy line. Medication name search goes
+      // to the National Library of Medicine, so only the saved list is
+      // claimed to stay on the device.
       expect(
         find.textContaining(
-          'Your health profile and medications never leave your device.',
+          'Your health profile and medication list stay on your device.',
         ),
         findsOneWidget,
       );
+      expect(find.textContaining('never leave your device'), findsNothing);
     });
 
     testWidgets('shows live counts when provided', (tester) async {

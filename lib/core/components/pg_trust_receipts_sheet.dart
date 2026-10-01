@@ -167,7 +167,7 @@ class PGTrustReceiptsSheet extends StatelessWidget {
               ),
               child: Text(
                 "We don't sell supplements, and scores can't be bought. "
-                'Your health profile and medications never leave your device.',
+                'Your health profile and medication list stay on your device.',
                 style: V2Typography.bodySm(color: context.v2.fg),
               ),
             ),

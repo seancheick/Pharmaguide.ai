@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
+    as canonical_ids;
+import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart';
@@ -48,6 +51,26 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((ref) asy
     isComplete: release.isComplete,
   );
 });
+
+/// Live alerts that match one catalog product, by exact product id or exact
+/// canonical ingredient id (the same [SafetyAlert.appliesTo] match Stack
+/// uses). Current verified release first, else the last verified copy on the
+/// device.
+final productSafetyAlertsProvider = FutureProvider.autoDispose
+    .family<List<SafetyAlert>, ProductsCoreData>((ref, product) async {
+      final release = await ref
+          .read(safetyAlertRepositoryProvider)
+          .loadCurrent();
+      final ingredientIds = canonical_ids.canonicalIdsForProduct(product);
+      return release.alerts
+          .where(
+            (alert) => alert.appliesTo(
+              dsldId: product.dsldId,
+              ingredientCanonicalIds: ingredientIds,
+            ),
+          )
+          .toList(growable: false);
+    });
 
 Set<String> _ingredientIds(String? raw) {
   if (raw == null || raw.isEmpty) return const {};

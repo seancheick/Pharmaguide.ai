@@ -26,6 +26,8 @@ import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/gtin.dart';
@@ -134,23 +136,35 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     GtinIdentity identity, {
     bool manualEntry = false,
   }) async {
-    final allowed = await _recordAllowedScan();
+    // Look the product up before applying the guest scan cap: the catalog is
+    // local, and a blocked or recalled product must always be shown. Only
+    // ordinary results are charged against (and stopped by) the cap.
+    final scanLimit = await _scanLimitService();
     if (!mounted) return;
-    if (!allowed) {
-      _showGuestScanLimitSheet();
-      setState(() => _hasScanned = false);
-      return;
-    }
 
     setState(() => _isLookingUp = true);
 
     try {
       final db = ref.read(coreDatabaseProvider);
       final resolution = await db.resolveByGtin(identity);
+      final alerts = await _cachedSafetyAlerts();
 
       if (!mounted) return;
 
       setState(() => _isLookingUp = false);
+
+      bool isCritical(ProductsCoreData product) =>
+          scanResultIsSafetyCritical(product, alerts: alerts);
+      final anyCritical = switch (resolution) {
+        UpcUnique(:final product) => isCritical(product),
+        UpcAmbiguous(:final candidates) => candidates.any(isCritical),
+        UpcNotFound() => false,
+      };
+      if (!anyCritical && !scanLimit.canScan) {
+        _showGuestScanLimitSheet();
+        setState(() => _hasScanned = false);
+        return;
+      }
 
       final choice = switch (resolution) {
         UpcUnique(:final product) => ProductVersionSelected(product),
@@ -166,6 +180,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       // compile error here rather than silently treated as a dismissal.
       switch (choice) {
         case ProductVersionSelected(:final product):
+          if (!await scanLimit.admitResult(
+            safetyCritical: isCritical(product),
+          )) {
+            if (!mounted) return;
+            _showGuestScanLimitSheet();
+            setState(() => _hasScanned = false);
+            return;
+          }
           CrashReportingService().setScanResult('found');
           // Persist the scan before we navigate so any mounted Home shell can
           // leave first-launch mode and refresh Recents immediately.
@@ -186,6 +208,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           // Either the catalog has never seen this barcode, or it has seen it
           // on labels that are not this bottle. Both mean the product is
           // missing, and both deserve the same offer to add it.
+          if (!await scanLimit.admitResult(safetyCritical: false)) {
+            if (!mounted) return;
+            _showGuestScanLimitSheet();
+            setState(() => _hasScanned = false);
+            return;
+          }
           CrashReportingService().setScanResult('not_found');
           unawaited(_showProductNotFound(identity, manualEntry: manualEntry));
         case null:
@@ -347,14 +375,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     );
   }
 
-  Future<bool> _recordAllowedScan() async {
+  Future<ScanLimitService> _scanLimitService() async {
     final prefs = await SharedPreferences.getInstance();
     final authMode = ref.read(authStateProvider);
-    final service = ScanLimitService(
+    return ScanLimitService(
       prefs: prefs,
       isSignedIn: authMode == AuthMode.signedIn,
     );
-    return service.recordScan();
+  }
+
+  /// Cache-only, so a scan never waits on the network. Any failure means
+  /// "no cached alerts"; the catalog's own blocked status still applies.
+  Future<List<SafetyAlert>> _cachedSafetyAlerts() async {
+    try {
+      return await ref.read(safetyAlertRepositoryProvider).loadCachedAlerts();
+    } on Object {
+      return const [];
+    }
   }
 
   void _showGuestScanLimitSheet() {

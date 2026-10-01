@@ -181,13 +181,16 @@ void main() {
       }
     });
 
-    test('legacy safety fallback preserves historical meanings', () {
+    // The legacy verdict may still raise a warning, but it can never supply
+    // reassurance: without a product safety status, SAFE and POOR mean the
+    // safety status is unknown (2026-10-01, roadmap 1.2).
+    test('legacy safety fallback keeps warnings and never reassures', () {
       final cases = <(String, CatalogProductSafetyStatus)>[
         ('BLOCKED', CatalogProductSafetyStatus.blocked),
         ('UNSAFE', CatalogProductSafetyStatus.unsafe),
         ('CAUTION', CatalogProductSafetyStatus.caution),
-        ('SAFE', CatalogProductSafetyStatus.noKnownCatalogConcern),
-        ('POOR', CatalogProductSafetyStatus.noKnownCatalogConcern),
+        ('SAFE', CatalogProductSafetyStatus.notAssessed),
+        ('POOR', CatalogProductSafetyStatus.notAssessed),
         ('NOT_SCORED', CatalogProductSafetyStatus.notAssessed),
       ];
 
@@ -278,9 +281,17 @@ void main() {
           <({String? scoreStatus, String? assessmentStatus, double? score})>[
             (scoreStatus: 'scored', assessmentStatus: 'failed', score: 82),
             (scoreStatus: 'scored', assessmentStatus: 'partial', score: 82),
-            (scoreStatus: 'future_state', assessmentStatus: 'complete', score: 82),
+            (
+              scoreStatus: 'future_state',
+              assessmentStatus: 'complete',
+              score: 82,
+            ),
             (scoreStatus: 'scored', assessmentStatus: 'complete', score: null),
-            (scoreStatus: 'not_scored', assessmentStatus: 'complete', score: 82),
+            (
+              scoreStatus: 'not_scored',
+              assessmentStatus: 'complete',
+              score: 82,
+            ),
           ];
       for (final testCase in cases) {
         expect(

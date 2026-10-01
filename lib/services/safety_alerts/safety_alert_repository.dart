@@ -71,6 +71,17 @@ class SafetyAlertRepository {
     }
   }
 
+  /// Alerts from the last verified release stored on this device, without a
+  /// network call. For instant decisions such as a scan result; display
+  /// paths use [loadCurrent]. Empty when nothing has been cached yet.
+  Future<List<SafetyAlert>> loadCachedAlerts() async {
+    try {
+      return (await _loadCached())?.alerts ?? const [];
+    } on Object {
+      return const [];
+    }
+  }
+
   Future<_DecodedRelease> _decodeRemote(Map<String, dynamic> row) async {
     final path = row['feed_path'];
     final checksum = row['checksum'];

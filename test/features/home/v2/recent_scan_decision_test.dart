@@ -29,6 +29,7 @@ ProductsCoreData _row({
   double? mappedCoverage,
   String? scoreConfidence,
   String? qualityTier,
+  String? productSafetyStatus,
 }) {
   return ProductsCoreData(
     dsldId: 'TEST-1',
@@ -38,6 +39,7 @@ ProductsCoreData _row({
     mappedCoverage: mappedCoverage,
     qualityScoreConfidence: scoreConfidence,
     qualityTier: qualityTier,
+    productSafetyStatus: productSafetyStatus,
     exportVersion: 'test',
     exportedAt: '2026-07-05T00:00:00Z',
   );
@@ -60,6 +62,9 @@ void main() {
         _row(
           score: 82.4,
           verdict: 'SAFE',
+          // Current catalogs carry the safety status; a bare legacy SAFE
+          // verdict no longer reads as reassurance (2026-10-01).
+          productSafetyStatus: 'no_known_catalog_concern',
           mappedCoverage: 0.9,
           scoreConfidence: 'moderate',
           qualityTier: 'Strong',
