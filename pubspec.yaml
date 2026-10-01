@@ -58,7 +58,7 @@ dependencies:
   json_annotation: ^4.9.0
   cached_network_image: ^4.0.0
   http: ^1.2.1
-  shimmer: ^3.0.0
+  shimmer: ^4.0.0
   # URL launching (clinical citations, FDA links)
   url_launcher: ^6.2.0
   google_fonts: ^8.1.0
