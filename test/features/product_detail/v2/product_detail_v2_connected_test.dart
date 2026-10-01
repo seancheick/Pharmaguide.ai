@@ -66,11 +66,15 @@ Map<String, dynamic> _connectedLabelRecord() {
   };
 }
 
-Future<void> _seedConnectedProduct(CoreDatabase coreDb) async {
+Future<void> _seedConnectedProduct(
+  CoreDatabase coreDb, {
+  bool blocked = false,
+}) async {
   await _seedProduct(
     coreDb,
     dsldId: _connectedDsldId,
     productName: 'Connected Label Trust Product',
+    blocked: blocked,
   );
 }
 
@@ -78,6 +82,7 @@ Future<void> _seedProduct(
   CoreDatabase coreDb, {
   required String dsldId,
   required String productName,
+  bool blocked = false,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -90,7 +95,16 @@ Future<void> _seedProduct(
           qualityScoreV4100: const Value(88),
           qualityScoreStatus: const Value('scored'),
           mappedCoverage: const Value(1),
-          verdict: const Value('SAFE'),
+          verdict: Value(blocked ? 'BLOCKED' : 'SAFE'),
+          productSafetyStatus: Value(blocked ? 'blocked' : null),
+          blockingReason: Value(blocked ? 'banned_ingredient' : null),
+          hasBannedSubstance: Value(blocked ? 1 : 0),
+          topWarnings: Value(
+            blocked
+                ? '[{"type":"banned_substance","severity":"critical",'
+                      '"title":"Banned substance: organic Hemp Oil extract"}]'
+                : null,
+          ),
         ),
       );
 }
@@ -147,10 +161,11 @@ Future<void> _pumpConnectedScreen(
   Completer<void>? fitGate,
   List<int>? fitCalls,
   bool settle = true,
+  bool blocked = false,
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
-  await _seedConnectedProduct(coreDb);
+  await _seedConnectedProduct(coreDb, blocked: blocked);
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
@@ -375,6 +390,45 @@ void main() {
         },
       );
       expect(find.byTooltip('Back'), findsOneWidget);
+    });
+
+    // Simulator walkthrough 2026-10-01: a blocked product showed "Personalized
+    // checks are incomplete", "No comparable alternatives found" and a sticky
+    // "See higher-quality options" together. The page hides personal results
+    // on a blocked product, so a failed personal check has nothing to qualify,
+    // and a button that leads to an empty section contradicts the card.
+    testWidgets('blocked product: no checks banner, no empty alternatives', (
+      tester,
+    ) async {
+      await _pumpConnectedScreen(
+        tester,
+        blocked: true,
+        fitFails: true,
+        initialSection: null,
+        detailBlob: {
+          'ingredients': const <Map<String, dynamic>>[],
+          'display_ingredients': [_activeLedgerRow('Active row', 0)],
+        },
+      );
+
+      expect(
+        find.text('PharmaGuide does not recommend this product'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Banned substance: organic Hemp Oil extract'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('personalized-checks-error-banner')),
+        findsNothing,
+      );
+      await _scrollConnectedTowardBottomUntil(
+        tester,
+        find.text('No comparable alternatives found'),
+      );
+      expect(find.text('No comparable alternatives found'), findsNothing);
+      expect(find.text('See higher-quality options'), findsNothing);
     });
 
     testWidgets('failed checks offer a Retry that runs them again', (

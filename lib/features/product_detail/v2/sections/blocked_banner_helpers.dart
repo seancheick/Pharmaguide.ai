@@ -55,9 +55,24 @@ String humanizeBlockingReason(String code) {
     case '':
       return '';
   }
-  final spaced = code.replaceAll('_', ' ').trim();
+  final spaced = code.replaceAll('_', ' ').trim().toLowerCase();
   if (spaced.isEmpty) return '';
   return spaced[0].toUpperCase() + spaced.substring(1);
+}
+
+/// Pipeline-authored titles of the ban/recall warnings in the core row's
+/// `top_warnings` (e.g. "Banned substance: organic Hemp Oil extract").
+/// Offline-safe: they name the type and the ingredient even when the detail
+/// blob is unavailable.
+List<String> blockedWarningTitles(List<Map<String, dynamic>> warnings) {
+  final titles = <String>[];
+  for (final w in warnings) {
+    final type = w['type'];
+    if (type != 'banned_substance' && type != 'recalled_ingredient') continue;
+    final title = w['title']?.toString().trim() ?? '';
+    if (title.isNotEmpty && !titles.contains(title)) titles.add(title);
+  }
+  return titles;
 }
 
 /// Drain FDA / recall URLs from a top-warnings list. Used as a
@@ -102,23 +117,24 @@ List<String> chooseFdaLinks({
   return extractFdaLinks(topWarnings);
 }
 
-/// Resolve the banner body copy. Three tiers, in order of richness:
-///   1. Pipeline-emitted one-liner (authored layperson sentence)
-///   2. Substance-specific phrasing when we know the substance name
+/// Resolve the banner body copy. Four tiers, in order of richness:
+///   1. Pipeline-emitted one-liner (authored layperson sentence, blob)
+///   2. Pipeline warning titles from the core row (type + ingredient,
+///      available offline)
+///   3. Substance-specific phrasing when we know the substance name
 ///      but no authored one-liner is present
-///   3. Humanized blocking_reason enum — last-resort fallback that
+///   4. Humanized blocking_reason enum — last-resort fallback that
 ///      replaces the raw token with prose
-///
-/// Mirrors production's `_BlockedBanner.build()` reasonBody logic
-/// (lines 1675–1691).
 String resolveBlockedReasonBody({
   required String? oneLiner,
+  required List<String> warningTitles,
   required String? substanceName,
   required String blockingReason,
 }) {
   if (oneLiner != null && oneLiner.isNotEmpty) {
     return oneLiner;
   }
+  if (warningTitles.isNotEmpty) return warningTitles.join('\n');
   if (substanceName != null && substanceName.isNotEmpty) {
     // Brand-attributed phrasing per Sean's 2026-05 product-tone
     // guidelines — surfaces PharmaGuide as the agent making the
