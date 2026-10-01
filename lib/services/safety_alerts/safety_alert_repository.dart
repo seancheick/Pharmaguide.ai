@@ -101,7 +101,11 @@ class SafetyAlertRepository {
           (raw) => SafetyAlert.fromJson(Map<String, Object?>.from(raw as Map)),
         )
         .toList(growable: false);
-    return _DecodedRelease(alerts: alerts, checksum: actual);
+    return _DecodedRelease(
+      alerts: alerts,
+      checksum: actual,
+      feedBytes: Uint8List.fromList(bytes).asUnmodifiableView(),
+    );
   }
 
   Future<_DecodedRelease?> _loadCached() async {
@@ -125,11 +129,9 @@ class SafetyAlertRepository {
 
   Map<String, Object> _cachePayload(_DecodedRelease release) => {
     'checksum': release.checksum,
-    'feed': base64Encode(
-      utf8.encode(
-        jsonEncode({'alerts': release.alerts.map(_alertJson).toList()}),
-      ),
-    ),
+    // Retain exactly the verified downloaded bytes: re-encoding parsed alert
+    // models loses feed metadata/formatting and invalidates the checksum.
+    'feed': base64Encode(release.feedBytes),
   };
 
   Future<SafetyAlertRelease> _withWatermark(
@@ -173,28 +175,15 @@ class SafetyAlertRepository {
       isComplete: isComplete,
     );
   }
-
-  static Map<String, Object> _alertJson(SafetyAlert alert) => {
-    'alert_id': alert.alertId,
-    'revision': alert.revision,
-    'event_type': alert.eventType == SafetyAlertEventType.ingredientBan
-        ? 'ingredient_ban'
-        : 'product_recall',
-    'source_url': alert.sourceUrl.toString(),
-    'headline': alert.headline,
-    'body': alert.body,
-    'action': alert.action,
-    'consumer_disposition': alert.disposition.name,
-    'resolved_dsld_ids': alert.resolvedDsldIds.toList(),
-    'scope': <String, Object>{
-      'ingredient_canonical_ids': alert.ingredientCanonicalIds.toList(),
-      'dsld_ids': <String>[],
-    },
-  };
 }
 
 final class _DecodedRelease {
-  const _DecodedRelease({required this.alerts, required this.checksum});
+  const _DecodedRelease({
+    required this.alerts,
+    required this.checksum,
+    required this.feedBytes,
+  });
   final List<SafetyAlert> alerts;
   final String checksum;
+  final Uint8List feedBytes;
 }
