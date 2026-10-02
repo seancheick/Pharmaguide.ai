@@ -192,7 +192,8 @@ reader. Consumers use `product_safety_status` for warnings and hard guards,
 - `caution`: render the independent safety warning; it is not a quality tier.
 - `no_known_catalog_concern`: no catalog safety finding; never personalized medical reassurance.
 - `not_assessed`: unknown safety assessment; never substitute a positive legacy label.
-- A Poor, Good or Exceptional quality tier can coexist with any applicable safety status.
+- Quality ratings are independent of safety findings. BLOCKED/UNSAFE preserve
+  the existing suppression of displayed scores and tiers.
 
 The legacy `verdict` is compatibility/readiness data, not the consumer safety
 owner. `POOR` is never newly emitted; it remains readable in old catalogs as a
