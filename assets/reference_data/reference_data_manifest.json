@@ -32,6 +32,6 @@
     "assets/data/signal_strength_vocab.json": "09b73c8525d33f938670400b34191b96d790852039a9bf5105e34b68ad4537d1",
     "assets/data/study_type_vocab.json": "5a13d091f85a1b8112e2882255ab319aa6e073579a97ac5ed8f0e302ba21704e",
     "assets/data/user_goals_vocab.json": "b8df5a140370d3c95477d1e3e672cf2fd238aac21454b3274dafb7207c4a390c",
-    "assets/data/verdict_vocab.json": "956d6602d5c133bbbb11bad79c05e0281808aa6f9b17df53c1293d8c6e075acf"
+    "assets/data/verdict_vocab.json": "eca9ffe8747402a0b4c266b74ef201744258ecd8eabbe071bac7e5922f911bd3"
   }
 }
