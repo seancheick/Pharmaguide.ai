@@ -245,67 +245,70 @@ class _MagicLinkSheetState extends State<MagicLinkSheet> {
         ),
         child: SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              V2Spacing.space24,
-              V2Spacing.space12,
-              V2Spacing.space24,
-              V2Spacing.space24,
-            ),
-            child: AnimatedSize(
-              duration: V2Motion.base,
-              curve: V2Motion.emphasized,
-              alignment: Alignment.topCenter,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Drag handle.
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: context.v2.outline,
-                        borderRadius: BorderRadius.circular(2),
+          // Scrolls when large text plus the keyboard leave too little room.
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                V2Spacing.space12,
+                V2Spacing.space24,
+                V2Spacing.space24,
+              ),
+              child: AnimatedSize(
+                duration: V2Motion.base,
+                curve: V2Motion.emphasized,
+                alignment: Alignment.topCenter,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Drag handle.
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: context.v2.outline,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: V2Spacing.space16),
-                  if (_state == _SheetState.sent)
-                    _SentBody(
-                      email: _controller.text.trim(),
-                      codeController: _codeController,
-                      isCodeValid: _isValidCode,
-                      isVerifying: _isVerifying,
-                      codeError: _codeError,
-                      onCodeChanged: () => setState(() => _codeError = null),
-                      onVerify: _verify,
-                    )
-                  else
-                    _EditBody(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      isValid: _isValidEmail,
-                      isSending: _state == _SheetState.sending,
-                      errorMessage: _errorMessage,
-                      onChanged: () {
-                        // Always rebuild so the "Send magic link" button
-                        // can flip from disabled → enabled as the user
-                        // types a valid address (parent owns isValid;
-                        // without a setState here the button stays
-                        // greyed out until something else triggers a
-                        // rebuild). Also clears the error state on edit.
-                        setState(() {
-                          if (_state == _SheetState.error) {
-                            _state = _SheetState.editing;
-                            _errorMessage = null;
-                          }
-                        });
-                      },
-                      onSubmit: _send,
-                    ),
-                ],
+                    const SizedBox(height: V2Spacing.space16),
+                    if (_state == _SheetState.sent)
+                      _SentBody(
+                        email: _controller.text.trim(),
+                        codeController: _codeController,
+                        isCodeValid: _isValidCode,
+                        isVerifying: _isVerifying,
+                        codeError: _codeError,
+                        onCodeChanged: () => setState(() => _codeError = null),
+                        onVerify: _verify,
+                      )
+                    else
+                      _EditBody(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        isValid: _isValidEmail,
+                        isSending: _state == _SheetState.sending,
+                        errorMessage: _errorMessage,
+                        onChanged: () {
+                          // Always rebuild so the "Send magic link" button
+                          // can flip from disabled → enabled as the user
+                          // types a valid address (parent owns isValid;
+                          // without a setState here the button stays
+                          // greyed out until something else triggers a
+                          // rebuild). Also clears the error state on edit.
+                          setState(() {
+                            if (_state == _SheetState.error) {
+                              _state = _SheetState.editing;
+                              _errorMessage = null;
+                            }
+                          });
+                        },
+                        onSubmit: _send,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

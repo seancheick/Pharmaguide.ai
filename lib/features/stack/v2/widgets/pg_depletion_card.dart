@@ -59,7 +59,12 @@ class PGDepletionCard extends StatelessWidget {
                   color: context.v2.monitor,
                 ),
                 const SizedBox(width: V2Spacing.space8),
-                PGEyebrow('Personalized review', color: context.v2.monitor),
+                Flexible(
+                  child: PGEyebrow(
+                    'Personalized review',
+                    color: context.v2.monitor,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: V2Spacing.space8),
@@ -327,10 +332,14 @@ class _DepletionRow extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  affordance,
-                                  style: V2Typography.label(
-                                    color: context.v2.accent,
+                                Flexible(
+                                  child: Text(
+                                    affordance,
+                                    style: V2Typography.label(
+                                      color: context.v2.accent,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 const SizedBox(width: V2Spacing.space4),

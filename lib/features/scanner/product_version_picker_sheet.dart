@@ -57,35 +57,38 @@ class ProductVersionPickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        V2Spacing.space24,
-        0,
-        V2Spacing.space24,
-        V2Spacing.space24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            forComparison
-                ? 'Which catalog label should we compare?'
-                : 'Which bottle matches yours?',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: V2Spacing.space8),
-          Text(
-            forComparison
-                ? 'Choose the record you want to report. This does not confirm it matches your bottle.'
-                : 'This barcode is on more than one label. Check the serving count \n'
-                      'and what is in it against your bottle, not just the picture.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: V2Spacing.space16),
-          Flexible(
-            child: ListView.separated(
+    // One scroll for the header and the candidates: at large text sizes the
+    // header alone can be taller than a small phone's sheet.
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          0,
+          V2Spacing.space24,
+          V2Spacing.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              forComparison
+                  ? 'Which catalog label should we compare?'
+                  : 'Which bottle matches yours?',
+              style: theme.textTheme.headlineSmall,
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              forComparison
+                  ? 'Choose the record you want to report. This does not confirm it matches your bottle.'
+                  : 'This barcode is on more than one label. Check the serving count \n'
+                        'and what is in it against your bottle, not just the picture.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: V2Spacing.space16),
+            ListView.separated(
               shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: candidates.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
@@ -136,23 +139,23 @@ class ProductVersionPickerSheet extends StatelessWidget {
                 );
               },
             ),
-          ),
-          const Divider(height: 1),
-          Semantics(
-            button: true,
-            label: 'None of these match',
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: V2Spacing.space8,
+            const Divider(height: 1),
+            Semantics(
+              button: true,
+              label: 'None of these match',
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: V2Spacing.space8,
+                ),
+                leading: const Icon(Icons.help_outline),
+                title: const Text('None of these match'),
+                subtitle: const Text('My bottle has a different label.'),
+                onTap: () =>
+                    Navigator.of(context).pop(const ProductVersionUnmatched()),
               ),
-              leading: const Icon(Icons.help_outline),
-              title: const Text('None of these match'),
-              subtitle: const Text('My bottle has a different label.'),
-              onTap: () =>
-                  Navigator.of(context).pop(const ProductVersionUnmatched()),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

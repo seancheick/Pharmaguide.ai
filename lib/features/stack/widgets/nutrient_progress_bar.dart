@@ -72,45 +72,63 @@ class NutrientProgressBar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            total.displayName,
-                            style: _labelStyle(context.v2.fg),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+              LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              total.displayName,
+                              style: _labelStyle(context.v2.fg),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        if (hasContributions) ...[
-                          const SizedBox(width: V2Spacing.space4),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 16,
-                            color: context.v2.fgMuted,
-                          ),
+                          if (hasContributions) ...[
+                            const SizedBox(width: V2Spacing.space4),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 16,
+                              color: context.v2.fgMuted,
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    hasOnlyExcludedContributions
-                        ? 'Not totaled'
-                        : _formatAmountRange(
-                            total.minimumTotalAmount,
-                            total.totalAmount,
-                            total.unit,
-                          ),
-                    style: _monoDataStyle(tierColor),
-                  ),
-                  const SizedBox(width: V2Spacing.space8),
-                  // Inline compact subtitle (% target / UL) — moved from
-                  // its own row so each nutrient is a tight single line.
-                  _buildSubtitleText(context),
-                ],
+                    // Amount + inline compact subtitle (% target / UL), one
+                    // tight line per nutrient. Capped at 60% of the row and
+                    // scaled down only when large text would push it past the
+                    // edge; when it fits, the layout is unchanged.
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth * 0.6,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              hasOnlyExcludedContributions
+                                  ? 'Not totaled'
+                                  : _formatAmountRange(
+                                      total.minimumTotalAmount,
+                                      total.totalAmount,
+                                      total.unit,
+                                    ),
+                              style: _monoDataStyle(tierColor),
+                            ),
+                            const SizedBox(width: V2Spacing.space8),
+                            _buildSubtitleText(context),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (!hasOnlyExcludedContributions) ...[
                 const SizedBox(height: V2Spacing.space4),

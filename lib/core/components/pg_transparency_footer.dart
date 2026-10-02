@@ -66,19 +66,18 @@ class PGTransparencyFooter extends StatelessWidget {
                 : MainAxisAlignment.start,
             mainAxisSize: center ? MainAxisSize.min : MainAxisSize.max,
             children: [
-              Icon(
-                Icons.verified_outlined,
-                size: 13,
-                color: context.v2.accent,
-              ),
+              Icon(Icons.verified_outlined, size: 13, color: context.v2.accent),
               const SizedBox(width: V2Spacing.space4),
               const PGEyebrow('Data sources'),
               const SizedBox(width: V2Spacing.space8),
               center
-                  ? Text(
-                      sources.join(' · '),
-                      style: V2Typography.caption(color: context.v2.fgMuted),
-                      maxLines: 1,
+                  ? Flexible(
+                      child: Text(
+                        sources.join(' · '),
+                        style: V2Typography.caption(color: context.v2.fgMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     )
                   : Expanded(
                       child: Text(

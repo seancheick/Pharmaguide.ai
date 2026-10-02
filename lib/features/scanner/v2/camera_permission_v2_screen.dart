@@ -80,58 +80,73 @@ class CameraPermissionV2Screen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                 horizontal: V2Spacing.space24,
               ),
-              child: Column(
-                children: [
-                  if (onClose != null)
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: _CloseChip(onTap: onClose!),
+              // Spacers keep the layout airy when it fits; at large text
+              // sizes on small phones the content scrolls instead of clipping.
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                  const Spacer(flex: 2),
-                  _IconWell(denied: denied),
-                  const SizedBox(height: V2Spacing.space24),
-                  PGEyebrow(
-                    denied ? 'Permission needed' : 'Camera access',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: V2Spacing.space12),
-                  Text(
-                    headline,
-                    textAlign: TextAlign.center,
-                    style: V2Typography.displayXs(color: context.v2.fg),
-                  ),
-                  const SizedBox(height: V2Spacing.space12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: V2Spacing.space12,
+                    child: IntrinsicHeight(
+                      child: Column(
+                        children: [
+                          if (onClose != null)
+                            Align(
+                              alignment: Alignment.topRight,
+                              child: _CloseChip(onTap: onClose!),
+                            ),
+                          const Spacer(flex: 2),
+                          _IconWell(denied: denied),
+                          const SizedBox(height: V2Spacing.space24),
+                          PGEyebrow(
+                            denied ? 'Permission needed' : 'Camera access',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: V2Spacing.space12),
+                          Text(
+                            headline,
+                            textAlign: TextAlign.center,
+                            style: V2Typography.displayXs(color: context.v2.fg),
+                          ),
+                          const SizedBox(height: V2Spacing.space12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: V2Spacing.space12,
+                            ),
+                            child: Text(
+                              body,
+                              textAlign: TextAlign.center,
+                              style: V2Typography.body(
+                                color: context.v2.fgMuted,
+                              ),
+                            ),
+                          ),
+                          if (!denied) ...[
+                            const SizedBox(height: V2Spacing.space24),
+                            const _BenefitBullets(),
+                          ],
+                          const Spacer(flex: 3),
+                          PGPillButton(
+                            label: primaryLabel,
+                            icon: primaryIcon,
+                            expand: true,
+                            onPressed: onPrimaryAction,
+                          ),
+                          const SizedBox(height: V2Spacing.space12),
+                          PGPillButton(
+                            label: 'Enter code manually',
+                            icon: Icons.keyboard_rounded,
+                            variant: PGPillVariant.secondary,
+                            expand: true,
+                            onPressed: onManualEntry,
+                          ),
+                          const SizedBox(height: V2Spacing.space24),
+                        ],
+                      ),
                     ),
-                    child: Text(
-                      body,
-                      textAlign: TextAlign.center,
-                      style: V2Typography.body(color: context.v2.fgMuted),
-                    ),
                   ),
-                  if (!denied) ...[
-                    const SizedBox(height: V2Spacing.space24),
-                    const _BenefitBullets(),
-                  ],
-                  const Spacer(flex: 3),
-                  PGPillButton(
-                    label: primaryLabel,
-                    icon: primaryIcon,
-                    expand: true,
-                    onPressed: onPrimaryAction,
-                  ),
-                  const SizedBox(height: V2Spacing.space12),
-                  PGPillButton(
-                    label: 'Enter code manually',
-                    icon: Icons.keyboard_rounded,
-                    variant: PGPillVariant.secondary,
-                    expand: true,
-                    onPressed: onManualEntry,
-                  ),
-                  const SizedBox(height: V2Spacing.space24),
-                ],
+                ),
               ),
             ),
           ),

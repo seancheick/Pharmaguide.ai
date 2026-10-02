@@ -59,47 +59,50 @@ class _StackShareOptions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        V2Spacing.space24,
-        V2Spacing.space8,
-        V2Spacing.space24,
-        V2Spacing.space24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Share from your stack',
-            style: V2Typography.titleSm(color: context.v2.fg),
-          ),
-          const SizedBox(height: V2Spacing.space8),
-          Text(
-            'Choose exactly what leaves this device.',
-            style: V2Typography.body(color: context.v2.fgMuted),
-          ),
-          const SizedBox(height: V2Spacing.space16),
-          _ShareOption(
-            icon: Icons.medication_outlined,
-            title: 'Share supplements',
-            description:
-                'Product names and brands only. Medications and health '
-                'profile are never included.',
-            onTap: () =>
-                Navigator.of(context).pop(_StackShareChoice.supplements),
-          ),
-          const SizedBox(height: V2Spacing.space12),
-          _ShareOption(
-            icon: Icons.medical_information_outlined,
-            title: 'Clinician report',
-            description:
-                'Sensitive PDF with profile, medications, supplements, and '
-                'safety analysis. Preview before sharing or printing.',
-            onTap: () =>
-                Navigator.of(context).pop(_StackShareChoice.clinicianReport),
-          ),
-        ],
+    // Scrolls when large text makes the options taller than the screen.
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          V2Spacing.space24,
+          V2Spacing.space8,
+          V2Spacing.space24,
+          V2Spacing.space24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Share from your stack',
+              style: V2Typography.titleSm(color: context.v2.fg),
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            Text(
+              'Choose exactly what leaves this device.',
+              style: V2Typography.body(color: context.v2.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space16),
+            _ShareOption(
+              icon: Icons.medication_outlined,
+              title: 'Share supplements',
+              description:
+                  'Product names and brands only. Medications and health '
+                  'profile are never included.',
+              onTap: () =>
+                  Navigator.of(context).pop(_StackShareChoice.supplements),
+            ),
+            const SizedBox(height: V2Spacing.space12),
+            _ShareOption(
+              icon: Icons.medical_information_outlined,
+              title: 'Clinician report',
+              description:
+                  'Sensitive PDF with profile, medications, supplements, and '
+                  'safety analysis. Preview before sharing or printing.',
+              onTap: () =>
+                  Navigator.of(context).pop(_StackShareChoice.clinicianReport),
+            ),
+          ],
+        ),
       ),
     );
   }

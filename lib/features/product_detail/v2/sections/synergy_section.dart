@@ -79,9 +79,11 @@ class _SynergySection extends StatelessWidget {
             children: [
               Icon(Icons.hub_outlined, size: 18, color: context.v2.accent),
               const SizedBox(width: V2Spacing.space8),
-              Text(
-                'Works well with',
-                style: V2Typography.titleSm(color: context.v2.fg),
+              Flexible(
+                child: Text(
+                  'Works well with',
+                  style: V2Typography.titleSm(color: context.v2.fg),
+                ),
               ),
             ],
           ),
@@ -142,7 +144,9 @@ class _SynergyChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: context.v2.accentTint,
             borderRadius: BorderRadius.circular(V2Spacing.radiusPill),
-            border: Border.all(color: context.v2.accent.withValues(alpha: 0.22)),
+            border: Border.all(
+              color: context.v2.accent.withValues(alpha: 0.22),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

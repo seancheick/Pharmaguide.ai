@@ -100,20 +100,26 @@ class PGScoreLine extends StatelessWidget {
               // Score numeric + tier label kept as separate Text widgets
               // (matches production — `find.text('Elite')` matches
               // in widget tests this way).
-              Text(
-                '$displayScore/100',
-                style:
-                    V2Typography.bodyMedium(
-                      color: prominent
-                          ? limitedConfidence
-                                ? context.v2.fg
-                                : tier.textColor(brightness)
-                          : context.v2.fg,
-                    ).copyWith(
-                      fontSize: headlineSize,
-                      fontWeight: headlineWeight,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$displayScore/100',
+                    style:
+                        V2Typography.bodyMedium(
+                          color: prominent
+                              ? limitedConfidence
+                                    ? context.v2.fg
+                                    : tier.textColor(brightness)
+                              : context.v2.fg,
+                        ).copyWith(
+                          fontSize: headlineSize,
+                          fontWeight: headlineWeight,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                  ),
+                ),
               ),
               if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
               // Tier label wraps in Flexible + ellipsis so the row

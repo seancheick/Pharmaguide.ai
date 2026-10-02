@@ -968,14 +968,16 @@ class _MissingProductSubmissionSheetState
                       V2Spacing.space16,
                       V2Spacing.space16,
                     ),
-                    child: Row(
+                    child: OverflowBar(
+                      alignment: MainAxisAlignment.spaceBetween,
+                      overflowAlignment: OverflowBarAlignment.end,
+                      overflowSpacing: V2Spacing.space8,
                       children: [
                         TextButton(
                           key: const Key('missing-product-sort-cancel'),
                           onPressed: () => Navigator.of(sheetContext).pop(),
                           child: const Text('Cancel'),
                         ),
-                        const Spacer(),
                         FilledButton(
                           key: const Key('missing-product-sort-done'),
                           onPressed: canAdd
@@ -3182,17 +3184,19 @@ class _OptionalCategoryTile extends StatelessWidget {
               icon: const Icon(Icons.photo_library_outlined),
               tooltip: 'Choose from your photos',
             ),
-            TextButton.icon(
-              key: Key('missing-product-add-${category.wireValue}'),
-              style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
-              onPressed: enabled ? onAdd : null,
-              icon: busy
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.photo_camera_outlined, size: 18),
-              label: Text(count == 0 ? 'Add' : 'Add another'),
+            Flexible(
+              child: TextButton.icon(
+                key: Key('missing-product-add-${category.wireValue}'),
+                style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                onPressed: enabled ? onAdd : null,
+                icon: busy
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.photo_camera_outlined, size: 18),
+                label: Text(count == 0 ? 'Add' : 'Add another'),
+              ),
             ),
           ],
         ),

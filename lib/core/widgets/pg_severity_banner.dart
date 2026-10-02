@@ -191,10 +191,12 @@ class PGSeverityBanner extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    actionLabel!,
-                                    style: V2Typography.label(
-                                      color: palette.fg,
+                                  Flexible(
+                                    child: Text(
+                                      actionLabel!,
+                                      style: V2Typography.label(
+                                        color: palette.fg,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: chevronGap),
