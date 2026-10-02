@@ -1,50 +1,11 @@
-// Pure helpers for the scanner screen. Extracted so the verdict-to-color
-// policy can be unit-tested without pumping a full widget tree.
+// Typed catalog-safety helpers for scan confirmation and critical alerts.
 
-import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
-import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
     as canonical_ids;
-import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
-
-/// Return the flash color associated with a scanned product's verdict
-/// string. Case-insensitive; null and unrecognized values stay neutral.
-///
-/// Policy:
-///   SAFE / GOOD / RECOMMENDED   → safe
-///   CAUTION / REVIEW / MODERATE → caution
-///   POOR                        → Poor quality-tier color (quality, not safety)
-///   BLOCKED / UNSAFE            → contraindicated
-///   NOT_SCORED / NUTRITION_ONLY → neutral
-///   null / unknown              → neutral (not green)
-///
-/// Kept for callers/tests that still need a solid color; production
-/// scan confirmation uses [verdictRevealKind] + [PGVerdictReveal].
-Color verdictFlashColor(V2Palette p, String? verdict) {
-  switch (verdict?.trim().toUpperCase()) {
-    case 'RECOMMENDED':
-    case 'SAFE':
-    case 'GOOD':
-      return p.safe;
-    case 'CAUTION':
-    case 'MODERATE':
-    case 'REVIEW':
-      return p.caution;
-    case 'POOR':
-      return VerdictBadge.poorQualityTone(p);
-    case 'BLOCKED':
-    case 'UNSAFE':
-      return p.contraindicated;
-    case 'NOT_SCORED':
-    case 'NUTRITION_ONLY':
-    default:
-      return p.fgSubtle;
-  }
-}
 
 /// Two-state scan confirmation for [PGVerdictReveal].
 ///

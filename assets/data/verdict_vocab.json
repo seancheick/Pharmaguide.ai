@@ -1,21 +1,21 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for the 5 product-quality verdicts allowed in the live Flutter catalog (SAFE, CAUTION, POOR, BLOCKED, UNSAFE). NOT_SCORED and the retired NUTRITION_ONLY value are QA quarantine states, not app verdicts. Each live entry owns its display contract so Flutter remains a renderer.",
-    "schema_version": "1.1.0",
-    "last_updated": "2026-08-20",
+    "description": "Safety/disposition compatibility display contract. Quality ratings are emitted separately in quality_tier. POOR remains only for older cached catalogs and is never emitted by the current scorer.",
+    "schema_version": "1.1.1",
+    "last_updated": "2026-10-01",
     "total_entries": 5,
-    "status": "LOCKED — scoring integrity unification 2026-08-20",
-    "purpose": "Display contract for the canonical 5 live verdicts emitted by the v4 scored artifact and projected by build_final_db.py. Verdict precedence is BLOCKED > UNSAFE > CAUTION > POOR > SAFE.",
-    "alignment": "Pipeline source: scripts/scoring_v4/scored_artifact.py and scripts/build_final_db.py. Flutter consumer: lib/features/product_detail/widgets/verdict_badge.dart.",
+    "status": "LOCKED \u2014 independent quality/safety clarification approved October 1, 2026",
+    "purpose": "Current safety/disposition compatibility IDs are SAFE, CAUTION, BLOCKED and UNSAFE. POOR is a retired quality alias readable in older catalogs; it makes no safety claim.",
+    "alignment": "Pipeline: scripts/scoring_v4/scored_artifact.py. Flutter: lib/core/scoring/catalog_product_semantics.dart and lib/core/widgets/verdict_badge.dart.",
     "field_contract": {
-      "id": "Stable uppercase identifier emitted by the scoring engine. Never rename without a pipeline + Flutter + cached-blob migration.",
+      "id": "Stable compatibility identifier. Consumer safety comes from product_safety_status; consumer quality comes from quality_tier. POOR is read-only compatibility for older catalogs.",
       "name": "Full user-facing label (sentence case). Shown in detail screens and full-text contexts.",
-      "short_label": "Compact chip / pill label. ≤12 chars. Shown in search-result tiles and dense list views.",
+      "short_label": "Compact chip / pill label. \u226412 chars. Shown in search-result tiles and dense list views.",
       "tone": "Semantic intent for theming. One of: positive, neutral, info, warning, danger.",
       "ui_color": "Color hint Flutter resolves to a theme color. One of: green, blue, gray, yellow, orange, red.",
       "ui_icon": "Icon hint Flutter resolves to an icon asset. One of: check, info, warning, alert, block.",
-      "action": "Suggested user action verb-phrase (≤40 chars). Shown beneath the verdict in product detail.",
-      "notes": "≤200-char plain-English description shown in tap-to-learn modal."
+      "action": "Suggested user action verb-phrase (\u226440 chars). Shown beneath the verdict in product detail.",
+      "notes": "\u2264200-char plain-English description shown in tap-to-learn modal."
     },
     "char_limit_short_label": 12,
     "char_limit_action": 40,
@@ -36,7 +36,7 @@
       "ui_color": "green",
       "ui_icon": "check",
       "action": "Use as directed",
-      "notes": "Product passed all safety gates and meets the quality threshold. Use as directed on the label and follow your healthcare provider's guidance."
+      "notes": "No catalog safety concern was identified in the assessed label. This disposition makes no claim about quality, personal suitability or absence of every risk."
     },
     {
       "id": "CAUTION",
@@ -46,17 +46,17 @@
       "ui_color": "yellow",
       "ui_icon": "warning",
       "action": "Review before use",
-      "notes": "Product has flags worth reviewing before use — possible interactions, dose concerns, or quality issues. Read the warnings and check with your provider."
+      "notes": "Catalog findings require review before use. Product quality is rated separately; personal interactions and suitability are assessed separately."
     },
     {
       "id": "POOR",
       "name": "Poor quality",
       "short_label": "Poor",
-      "tone": "warning",
-      "ui_color": "orange",
-      "ui_icon": "warning",
-      "action": "Consider alternatives",
-      "notes": "Product is safe to use but scored low for ingredient quality, dosing, or evidence backing. Consider higher-quality alternatives in the same category."
+      "tone": "neutral",
+      "ui_color": "gray",
+      "ui_icon": "info",
+      "action": "Review the quality rating",
+      "notes": "This is an older catalog quality label. Current quality ratings use quality_tier; this label makes no safety claim."
     },
     {
       "id": "BLOCKED",

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
-import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 
@@ -41,9 +40,9 @@ bool isUnsafeVerdict(String? verdict) {
   return v == 'BLOCKED' || v == 'UNSAFE';
 }
 
-/// A "verdict" is the final single-word rating from the scoring pipeline
-/// (SAFE / CAUTION / POOR / BLOCKED / NOT_SCORED / NUTRITION_ONLY).
-/// Retired labels are still accepted for old fixtures / cached rows.
+/// Display metadata for catalog-safety warnings and assessment placeholders.
+/// Quality labels belong to ScoreTier. Legacy mixed-verdict labels retain
+/// readable cached labels, but never provide positive safety inference.
 abstract final class VerdictBadge {
   /// Brightness-aware colour for a verdict string.
   ///
@@ -53,16 +52,18 @@ abstract final class VerdictBadge {
   /// palette makes the promise checkable at the call site.
   static Color colorFor(V2Palette p, String verdict) {
     switch (verdict.trim().toUpperCase()) {
+      // Legacy mixed-verdict labels must never imply safety or reuse the
+      // quality ladder. Current callers pass independent safety statuses.
       case 'RECOMMENDED':
-        return p.safe;
       case 'SAFE':
       case 'GOOD':
-        return p.safe;
+      case 'POOR':
+      case 'NO_KNOWN_CATALOG_CONCERN':
+      case 'NOT_ASSESSED':
+        return p.fgSubtle;
       case 'CAUTION':
       case 'REVIEW':
         return p.caution;
-      case 'POOR':
-        return poorQualityTone(p);
       case 'MODERATE':
         return p.avoid;
       case 'UNSAFE':
@@ -84,12 +85,6 @@ abstract final class VerdictBadge {
     }
   }
 
-  /// POOR is the quality verdict of the lowest shipped quality tier (pipeline
-  /// quality score 1.9.0), never a safety finding. It wears the Poor
-  /// quality-tier color, never the safety "avoid" or "contraindicated" tones.
-  static Color poorQualityTone(V2Palette p) =>
-      ScoreTier.poor.textColor(ThemeData.estimateBrightnessForColor(p.surface));
-
   /// Human-friendly label. Avoids all-caps for verdicts longer than 12 chars.
   ///
   /// Vocab-first lookup (added 2026-05-02): if VocabRegistry is initialized
@@ -110,6 +105,10 @@ abstract final class VerdictBadge {
         return 'Recommended';
       case 'SAFE':
         return 'Safe';
+      case 'NO_KNOWN_CATALOG_CONCERN':
+        return 'No catalog concern';
+      case 'NOT_ASSESSED':
+        return 'Not assessed';
       case 'GOOD':
         return 'Good';
       case 'CAUTION':

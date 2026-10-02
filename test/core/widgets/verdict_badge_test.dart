@@ -1,28 +1,48 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
+import 'package:pharmaguide/core/data/verdict_vocab.dart';
+import 'package:pharmaguide/core/data/vocab_registry.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
 
 void main() {
-  group('VerdictBadge verdict contract', () {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  group('VerdictBadge safety display and cache compatibility', () {
+    tearDown(() => VocabRegistry.instance.debugReset());
+
+    test(
+      'initialized vocab cannot give legacy quality labels a safety tone',
+      () async {
+        VocabRegistry.instance.debugSeed(verdicts: await loadVerdictVocab());
+        for (final palette in [V2Palette.light, V2Palette.dark]) {
+          for (final token in ['SAFE', 'POOR', 'GOOD', 'RECOMMENDED']) {
+            expect(
+              VerdictBadge.colorFor(palette, token),
+              palette.fgSubtle,
+              reason: token,
+            );
+          }
+        }
+        expect(VerdictBadge.labelFor('POOR'), 'Poor quality');
+        expect(VerdictBadge.labelFor('SAFE'), 'Safe');
+      },
+    );
     test('live catalog verdicts map to expected colors', () {
       expect(
         VerdictBadge.colorFor(V2Palette.light, 'SAFE'),
-        V2Palette.light.safe,
+        V2Palette.light.fgSubtle,
       );
       expect(
         VerdictBadge.colorFor(V2Palette.light, 'CAUTION'),
         V2Palette.light.caution,
       );
-      // POOR is a quality verdict (lowest shipped tier), never a safety tone.
+      // Legacy quality labels carry no safety tone; ScoreTier owns quality.
       expect(
         VerdictBadge.colorFor(V2Palette.light, 'POOR'),
-        ScoreTier.poor.textColor(Brightness.light),
+        V2Palette.light.fgSubtle,
       );
       expect(
         VerdictBadge.colorFor(V2Palette.dark, 'POOR'),
-        ScoreTier.poor.textColor(Brightness.dark),
+        V2Palette.dark.fgSubtle,
       );
       expect(
         VerdictBadge.colorFor(V2Palette.light, 'POOR'),
@@ -46,19 +66,24 @@ void main() {
       expect(VerdictBadge.labelFor('SAFE'), 'Safe');
       expect(VerdictBadge.labelFor('CAUTION'), 'Caution');
       expect(VerdictBadge.labelFor('POOR'), 'Poor');
+      expect(
+        VerdictBadge.labelFor('NO_KNOWN_CATALOG_CONCERN'),
+        'No catalog concern',
+      );
+      expect(VerdictBadge.labelFor('NOT_ASSESSED'), 'Not assessed');
       expect(VerdictBadge.labelFor('BLOCKED'), 'Blocked');
       expect(VerdictBadge.labelFor('NOT_SCORED'), 'Not scored');
       expect(VerdictBadge.labelFor('NUTRITION_ONLY'), 'Nutrition only');
     });
 
-    test('retired aliases remain supported for cached rows and fixtures', () {
+    test('retired quality aliases remain readable but never imply safety', () {
       expect(
         VerdictBadge.colorFor(V2Palette.light, 'RECOMMENDED'),
-        V2Palette.light.safe,
+        V2Palette.light.fgSubtle,
       );
       expect(
         VerdictBadge.colorFor(V2Palette.light, 'GOOD'),
-        V2Palette.light.safe,
+        V2Palette.light.fgSubtle,
       );
       expect(
         VerdictBadge.colorFor(V2Palette.light, 'REVIEW'),

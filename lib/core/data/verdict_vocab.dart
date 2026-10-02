@@ -1,30 +1,9 @@
 // Verdict vocab loader.
 //
-// Pipeline contract (locked v1.0.0, schema in pipeline repo
-// `scripts/data/verdict_vocab.json`):
-//
-//   {
-//     "schema_version": "1.0.0",
-//     "verdicts": [
-//       {
-//         "id": "SAFE",
-//         "name": "Safe",
-//         "short_label": "Safe",
-//         "tone": "positive",
-//         "ui_color": "green",
-//         "ui_icon": "check",
-//         "action": "Use as directed",
-//         "notes": "≤ 200-char user-facing description..."
-//       },
-//       ...
-//     ]
-//   }
-//
-// 5 entries, locked (vocab 1.1.0). The canonical shipped set is SAFE / CAUTION /
-// POOR / BLOCKED / UNSAFE. NUTRITION_ONLY is retired and NOT_SCORED is
-// intentionally excluded — products that fail to score
-// go to the review queue, not Flutter. Updates require a clinician
-// sign-off cycle and a coordinated pipeline + Flutter release.
+// Pipeline source: scripts/data/verdict_vocab.json. Catalog safety status and
+// quality tier are separate contracts; this vocabulary displays warnings and
+// retains legacy SAFE/POOR labels for cached catalogs. It does not determine
+// product safety, quality, score eligibility, or personalized medical safety.
 //
 // Loaded once at first call to `loadVerdictVocab()`; subsequent calls
 // return the cached value. The cache is process-lifetime — there is
@@ -37,12 +16,12 @@ import 'package:flutter/services.dart' show rootBundle;
 /// One vocab entry — a single verdict with the full DISPLAY CONTRACT
 /// (name + short_label + tone + ui_color + ui_icon + action + notes).
 ///
-/// Critical UX rule: show the locked fields verbatim. Never paraphrase —
-/// every line was reviewed for clinical accuracy and consumer framing,
-/// and the tone/color/icon hints are the locked theming intent.
+/// Labels preserve the pipeline display contract. Typed catalog safety and
+/// ScoreTier own current safety and quality rendering respectively; legacy
+/// vocabulary metadata must never infer either assessment.
 class VerdictEntry {
   /// Stable UPPER_SNAKE ID emitted by the pipeline scoring engine.
-  /// One of: SAFE, CAUTION, POOR, BLOCKED, UNSAFE.
+  /// Safety disposition or a legacy cached mixed-verdict identifier.
   final String id;
 
   /// Full user-facing label (sentence case), e.g. "Safe".

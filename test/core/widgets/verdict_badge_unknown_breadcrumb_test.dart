@@ -20,9 +20,18 @@ void main() {
     });
 
     test('known verdicts are untouched by the guard', () {
-      expect(VerdictBadge.colorFor(V2Palette.light, 'SAFE'), V2Palette.light.safe);
-      expect(VerdictBadge.colorFor(V2Palette.light, 'BLOCKED'), V2Palette.light.contraindicated);
-      expect(VerdictBadge.colorFor(V2Palette.light, 'NOT_SCORED'), V2Palette.light.fgSubtle);
+      expect(
+        VerdictBadge.colorFor(V2Palette.light, 'SAFE'),
+        V2Palette.light.fgSubtle,
+      );
+      expect(
+        VerdictBadge.colorFor(V2Palette.light, 'BLOCKED'),
+        V2Palette.light.contraindicated,
+      );
+      expect(
+        VerdictBadge.colorFor(V2Palette.light, 'NOT_SCORED'),
+        V2Palette.light.fgSubtle,
+      );
     });
 
     test('unknown verdict is breadcrumbed once per session (deduped)', () {
@@ -33,7 +42,10 @@ void main() {
       // test file runs in its own isolate, so this is fresh here.
       const canary = 'DRIFT_CANARY_XYZZY';
       VerdictBadge.colorFor(V2Palette.light, canary);
-      VerdictBadge.colorFor(V2Palette.light, canary); // repeat render must NOT double-log
+      VerdictBadge.colorFor(
+        V2Palette.light,
+        canary,
+      ); // repeat render must NOT double-log
       VerdictBadge.labelFor(canary); // label path shares the dedup
 
       final hits = crash.breadcrumbs

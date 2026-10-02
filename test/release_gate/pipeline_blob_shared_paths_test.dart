@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
+import 'package:pharmaguide/core/components/pg_verdict_reveal.dart';
+import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
@@ -128,11 +130,18 @@ void main() {
     },
   );
 
-  test('Scanner blocked verdict renders red, never safe/neutral', () {
-    expect(verdictFlashColor(V2Palette.light, 'BLOCKED'), V2Palette.light.contraindicated);
+  test('Scanner independent blocked safety status asks for attention', () {
+    final product = ProductsCoreData(
+      dsldId: pipelineBlob['dsld_id'] as String,
+      productName: 'Blocked fixture',
+      productSafetyStatus: 'blocked',
+      exportVersion: 'test',
+      exportedAt: '2026-10-01',
+    );
+    expect(scanResultIsSafetyCritical(product), isTrue);
     expect(
-      verdictFlashColor(V2Palette.light, pipelineBlob['verdict'] as String),
-      V2Palette.light.contraindicated,
+      scanRevealKind(catalogProductSafetyStatus(product)),
+      PGVerdictKind.attention,
     );
   });
 }

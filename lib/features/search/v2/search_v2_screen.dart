@@ -2320,22 +2320,15 @@ String? _packSizeLabel(ProductsCoreData product) {
   );
 }
 
-/// Verdict → chip tone. Public + @visibleForTesting so the SAFE-case
-/// regression (SAFE used to fall through to the gray NOT_SCORED fallback)
-/// stays locked in test/features/search/v2/search_chip_decision_test.dart.
+/// Independent catalog-safety label → chip tone.
+/// Quality tiers never determine a safety chip's color.
 @visibleForTesting
 Color searchVerdictTone(V2Palette p, String verdict) {
   switch (verdict.trim().toUpperCase()) {
-    case 'SAFE':
-    case 'RECOMMENDED':
-    case 'GOOD':
-      return p.safe;
     case 'CAUTION':
     case 'MODERATE':
     case 'REVIEW':
       return p.caution;
-    case 'POOR':
-      return VerdictBadge.poorQualityTone(p);
     case 'AVOID':
       return p.avoid;
     case 'BLOCKED':

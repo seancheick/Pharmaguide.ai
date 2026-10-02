@@ -16,9 +16,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// repo). Update the Dart consumer instead.
 ///
 /// What this test asserts:
-///   1. The 5 shipped IDs (SAFE/CAUTION/POOR/BLOCKED/UNSAFE) are present
+///   1. Safety disposition IDs and legacy SAFE/POOR cache labels are present
 ///   2. NOT_SCORED and the retired NUTRITION_ONLY are absent: both are
-///      pipeline QA quarantine states, never app verdicts (vocab 1.1.0)
+///      pipeline QA quarantine states, never app verdicts (vocab 1.1.1)
 ///   3. The user-facing `name` for each verdict matches the locked
 ///      label currently shipped by verdict_badge.dart `labelFor()`
 ///   4. Display contract fields (tone, ui_color, ui_icon, short_label,
@@ -44,28 +44,19 @@ void main() {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
-      expect(md['schema_version'], '1.1.0');
+      expect(md['schema_version'], '1.1.1');
       expect(md['total_entries'], 5);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
-    test('canonical 5 shipped verdict IDs present, NOT_SCORED and NUTRITION_ONLY absent', () {
+    test('safety and legacy cache IDs present; QA-only states absent', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['verdicts'] as List)
           .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
-      expect(
-        ids,
-        equals({
-          'SAFE',
-          'CAUTION',
-          'POOR',
-          'BLOCKED',
-          'UNSAFE',
-        }),
-      );
+      expect(ids, equals({'SAFE', 'CAUTION', 'POOR', 'BLOCKED', 'UNSAFE'}));
       expect(
         ids.contains('NOT_SCORED'),
         isFalse,
@@ -115,6 +106,20 @@ void main() {
         }
       },
     );
+
+    test('legacy quality labels and safety copy never mix assessments', () {
+      final decoded =
+          jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      final entries = (decoded['verdicts'] as List)
+          .cast<Map<String, dynamic>>();
+      final byId = {for (final entry in entries) entry['id'] as String: entry};
+      expect(byId['POOR']!['tone'], 'neutral');
+      expect(byId['POOR']!['ui_icon'], 'info');
+      expect(byId['POOR']!['ui_color'], 'gray');
+      expect(byId['POOR']!['notes'], isNot(contains('safe to use')));
+      expect(byId['SAFE']!['notes'], isNot(contains('quality threshold')));
+      expect(byId['CAUTION']!['notes'], isNot(contains('quality issues')));
+    });
 
     test('every entry has the full display contract populated', () {
       final raw = file.readAsStringSync();

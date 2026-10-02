@@ -13,7 +13,7 @@
 //
 //   This registry preloads every vocab in parallel during app startup,
 //   then exposes sync getters. Call init() before runApp(); after that,
-//   any widget can do VocabRegistry.instance.verdict('SAFE')?.name.
+//   warning widgets can read VocabRegistry.instance.verdict('CAUTION')?.name.
 //
 // If a getter is called before init() finishes, it returns null and the
 // caller is expected to fall back to its legacy hardcoded value (the

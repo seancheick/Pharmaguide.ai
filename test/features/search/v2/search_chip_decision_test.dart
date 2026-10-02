@@ -1,47 +1,30 @@
-// FIX 3 (P1) regression locks — search result chips.
-//
-// (a) `searchVerdictTone` had no 'SAFE' case, so the pipeline's most common
-//     positive verdict fell through to the gray NOT_SCORED fallback.
-// (b) The score chip rendered gated only on `score != null` — a scored
-//     product with mapped_coverage < 0.3 showed a confident tier-colored
-//     number, and an UNSAFE-verdict product could show a positive score
-//     next to its block indicator. `searchScoreChipDisplayFor` +
-//     `searchShowsVerdictChip` now own those decisions:
-//       * unsafe verdict → score chip hidden (verdict chip carries the block)
-//       * low coverage   → neutral "Limited data" chip, never a tier color
-//       * low coverage   → positive (green) verdict chips suppressed;
-//                          warning verdicts still render (under-warning is
-//                          the bigger clinical risk).
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/features/search/v2/search_v2_screen.dart';
 
 void main() {
   group('searchVerdictTone', () {
-    test('SAFE maps to the safe/green tone — not the gray fallback', () {
-      expect(searchVerdictTone(V2Palette.light, 'SAFE'), V2Palette.light.safe);
+    test('Legacy SAFE never supplies a positive safety tone', () {
+      expect(
+        searchVerdictTone(V2Palette.light, 'SAFE'),
+        V2Palette.light.fgMuted,
+      );
     });
 
     test('verdict tone matching is case/whitespace-insensitive', () {
       expect(
         searchVerdictTone(V2Palette.light, ' safe '),
-        V2Palette.light.safe,
+        V2Palette.light.fgMuted,
       );
     });
 
-    test('POOR wears the Poor quality tier color, not a safety tone', () {
+    test('Legacy POOR has no safety or quality tone in the safety chip', () {
       expect(
         searchVerdictTone(V2Palette.light, 'POOR'),
-        ScoreTier.poor.textColor(Brightness.light),
+        V2Palette.light.fgMuted,
       );
-      expect(
-        searchVerdictTone(V2Palette.dark, 'POOR'),
-        ScoreTier.poor.textColor(Brightness.dark),
-      );
+      expect(searchVerdictTone(V2Palette.dark, 'POOR'), V2Palette.dark.fgMuted);
     });
 
     test('BLOCKED / UNSAFE stay contraindicated', () {

@@ -16,6 +16,7 @@ ProductsCoreData _row({
   String? productSafetyStatus,
   String? qualityScoreStatus,
   String? qualityAssessmentStatus,
+  String? qualityTier,
 }) {
   return ProductsCoreData(
     dsldId: 'TEST-1',
@@ -26,6 +27,7 @@ ProductsCoreData _row({
     productSafetyStatus: productSafetyStatus,
     qualityScoreStatus: qualityScoreStatus,
     qualityAssessmentStatus: qualityAssessmentStatus,
+    qualityTier: qualityTier,
     exportVersion: 'test',
     exportedAt: '2026-07-05T00:00:00Z',
   );
@@ -55,6 +57,35 @@ void main() {
   });
 
   group('independent consumer semantics', () {
+    test('safety status is invariant across quality scores and tiers', () {
+      for (final quality in [
+        (39.0, 'Poor'),
+        (60.0, 'Needs improvement'),
+        (97.0, 'Exceptional'),
+      ]) {
+        for (final safety in CatalogProductSafetyStatus.values) {
+          final product = _row(
+            qualityScore: quality.$1,
+            qualityTier: quality.$2,
+            verdict: quality.$1 < 55 ? 'POOR' : 'SAFE',
+            productSafetyStatus: switch (safety) {
+              CatalogProductSafetyStatus.blocked => 'blocked',
+              CatalogProductSafetyStatus.unsafe => 'unsafe',
+              CatalogProductSafetyStatus.caution => 'caution',
+              CatalogProductSafetyStatus.noKnownCatalogConcern =>
+                'no_known_catalog_concern',
+              CatalogProductSafetyStatus.notAssessed => 'not_assessed',
+            },
+          );
+          expect(
+            catalogProductSafetyStatus(product),
+            safety,
+            reason: '${quality.$2}: $safety',
+          );
+        }
+      }
+    });
+
     test(
       'catalog safety status blocks independently of a POOR quality verdict',
       () {
