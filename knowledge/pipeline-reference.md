@@ -9,14 +9,14 @@
 
 | File | Entries | Purpose | Scoring Role |
 |------|---------|---------|--------------|
-| `ingredient_quality_map.json` | 563 parents | Quality scoring for known ingredients | **Bonus** (Section A: Ingredient Quality, max 25) |
+| `ingredient_quality_map.json` | 563 parents | Quality scoring for known ingredients | Formulation input; current scoring config owns credit |
 | `banned_recalled_ingredients.json` | 143 | Regulatory safety disqualifications | **Penalty/Gate** (B0 hard-stop, BLOCKED verdict) |
-| `harmful_additives.json` | 115 | Harmful additive identification | **Penalty** (Section B: Safety & Purity) |
-| `backed_clinical_studies.json` | 197 (all PMID-backed) | Clinical evidence for bonus points | **Bonus** (Section C: Evidence & Research, max 20) |
+| `harmful_additives.json` | 115 | Harmful additive identification | Existing safety and quality owners determine applicable judgments |
+| `backed_clinical_studies.json` | 197 (all PMID-backed) | Clinical evidence for bonus points | Evidence input; applicable reviewed evidence determines credit |
 | `allergens.json` | Big 8 types | Allergen classification | **Flag** (profile-driven alerts) |
-| `rda_optimal_uls.json` | -- | Dosing adequacy benchmarks (RDA, AI, UL) | **Penalty** (B7: 150%+ UL triggers dose warning) |
-| `manufacturer_violations.json` | -- | Brand trust penalties | **Penalty** (Section D: Brand Trust, max 5) |
-| `synergy_cluster.json` | -- | Ingredient synergy groupings | **Bonus** (Section A sub-score) |
+| `rda_optimal_uls.json` | -- | Dosing adequacy benchmarks (RDA, AI, UL) | Existing Dose/exposure and Safety owners consume applicable benchmarks |
+| `manufacturer_violations.json` | -- | Brand trust penalties | Verification input; current scoring config owns consequences |
+| `synergy_cluster.json` | -- | Ingredient synergy groupings | Formulation input; current scoring config owns credit |
 
 All files use `_metadata` contract: `schema_version`, `last_updated`, `total_entries`.
 
@@ -35,23 +35,36 @@ All files use `_metadata` contract: `schema_version`, `last_updated`, `total_ent
 | `image_is_pdf` | INTEGER | 1 = skip image widget |
 | `detail_blob_sha256` | TEXT | Primary resolver for hashed detail fetch |
 
-### Scores
-| Column | Type | Range | Notes |
-|--------|------|-------|-------|
-| `score_quality_80` | REAL | 0-80 | Canonical pipeline score. NULL = not scored |
-| `score_display_80` | TEXT | -- | Pre-formatted: "71.1/80" |
-| `score_display_100_equivalent` | TEXT | -- | Pre-formatted: "88.8/100" |
-| `score_100_equivalent` | REAL | 0-100 | Display convenience |
-| `grade` | TEXT | -- | Exceptional / Excellent / Good / Fair / Below Avg / Low / Very Poor |
-| `verdict` | TEXT | -- | SAFE / CAUTION / POOR / UNSAFE / BLOCKED / NOT_SCORED |
+### Independent Quality, Safety and Completion
 
-### Section Scores
-| Column | Max | Section |
-|--------|-----|---------|
-| `score_ingredient_quality` | 25 | A: Ingredient Quality |
-| `score_safety_purity` | 30 | B: Safety & Purity |
-| `score_evidence_research` | 20 | C: Evidence & Research |
-| `score_brand_trust` | 5 | D: Brand Trust |
+| Column | Type | Notes |
+|--------|------|-------|
+| `quality_score_v4_100` | REAL | Canonical public whole-number quality score /100; null when not displayable |
+| `quality_score_status` | TEXT | `scored` / `suppressed_safety` / `not_scored`; controls score display eligibility |
+| `quality_tier` | TEXT | Exceptional / Excellent / Very good / Good / Needs improvement / Poor; quality only |
+| `product_safety_status` | TEXT | `blocked` / `unsafe` / `caution` / `no_known_catalog_concern` / `not_assessed`; independent of score |
+| `quality_assessment_status` | TEXT | `complete` / `partial` / `failed`; completion is distinct from score availability |
+| `score_100_equivalent` | REAL | Compatibility mirror of the public /100 quality score |
+| `score_display_100_equivalent` | TEXT | Compatibility display mirror |
+| `grade` | TEXT | Compatibility label derived from `quality_tier` |
+| `verdict` | TEXT | Compatibility/readiness only: SAFE / CAUTION / UNSAFE / BLOCKED / NOT_SCORED. POOR is readable only in older cached catalogs |
+
+The legacy `score_quality_80` and `score_display_80` columns were removed in
+export schema 2.0.0. Never restore them or infer safety from quality.
+
+### Quality Pillars
+
+| Pillar | Maximum |
+|--------|---------|
+| Formulation | 20 |
+| Dose | 20 |
+| Evidence | 20 |
+| Transparency | 15 |
+| Verification | 15 |
+| Safety/Hygiene | 10 |
+
+These are components of the quality score; the Safety/Hygiene pillar does not
+replace the independent catalog safety disposition.
 
 ### Safety Flags
 | Column | Type | Meaning |
@@ -168,39 +181,36 @@ All files use `_metadata` contract: `schema_version`, `last_updated`, `total_ent
 
 ---
 
-## Verdict Precedence (Deterministic)
+## Consumer Status Ownership
 
-```
-BLOCKED > UNSAFE > MODERATE > REVIEW > RECOMMENDED
-```
+`lib/core/scoring/catalog_product_semantics.dart` is the app's existing typed
+reader. Consumers use `product_safety_status` for warnings and hard guards,
+`quality_tier` for quality, `quality_score_status` for number availability, and
+`quality_assessment_status` for completed-rating eligibility.
 
-App maps these to display verdicts:
-- `BLOCKED` -> Red hard-stop screen (B0 gate)
-- `UNSAFE` -> Red verdict banner
-- `POOR` -> Orange verdict banner
-- `CAUTION` -> Amber verdict banner
-- `SAFE` -> Green verdict banner
-- `NOT_SCORED` -> Gray, no score ring, explanation text
+- `blocked` / `unsafe`: retain existing safety warning and score-suppression guards.
+- `caution`: render the independent safety warning; it is not a quality tier.
+- `no_known_catalog_concern`: no catalog safety finding; never personalized medical reassurance.
+- `not_assessed`: unknown safety assessment; never substitute a positive legacy label.
+- A Poor, Good or Exceptional quality tier can coexist with any applicable safety status.
 
----
+The legacy `verdict` is compatibility/readiness data, not the consumer safety
+owner. `POOR` is never newly emitted; it remains readable in old catalogs as a
+quality alias. When typed safety is missing, the existing compatibility owner
+preserves BLOCKED/UNSAFE/CAUTION warnings but treats SAFE and POOR as not assessed.
+Do not render a green Safe or orange Poor safety banner from those cache labels.
 
 ## Scoring Formula Summary
 
-```
-Total = A + B + C + D + violation_penalty
-       (25) (30) (20) (5)
+The pipeline's existing v4 scorer assembles the six quality pillars /100 using
+`scripts/scoring_v4/config/quality_score.json`. That config owns numerical rules,
+floors, caps and tier boundaries; Flutter consumes the public score and tier.
 
-Clamped to [0, 80]
-score_100 = (score_80 / 80) * 100
-```
+`lib/core/scoring/score_tier.dart::catalogTier` renders the pipeline tier, with its
+existing explicitly named fallback only for older cached records. Do not create
+another score calculation, grade ladder or quality-to-safety conversion.
 
-Grade scale (applied to score_100_equivalent):
-- >= 90: Exceptional
-- >= 80: Excellent
-- >= 70: Good
-- >= 60: Fair
-- >= 50: Below Avg
-- >= 32: Low
-- < 32: Very Poor
-
-No grade assigned for BLOCKED, UNSAFE, or NOT_SCORED.
+Score suppression, assessment completion and catalog safety remain separate
+contracts. Their current eligibility behavior lives in
+`catalog_product_semantics.dart`; preserve its hard guards and conservative
+handling of unknown fields.

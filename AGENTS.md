@@ -55,6 +55,11 @@ make help             # every target
 
 ## One brain — the pipeline decides, the app renders
 
+- Quality uses `quality_tier` / `quality_score_status`; catalog safety uses
+  `product_safety_status`; completion uses `quality_assessment_status` through
+  `catalog_product_semantics.dart`. A quality score or tier never determines safety.
+  `POOR` is only a legacy cached quality alias, never a safety finding or a newly emitted verdict.
+  Read legacy `verdict` only through the existing conservative compatibility owner.
 - Never add app-side logic that overrides a pipeline verdict (`skip_ul_check`, `over_ul`,
   `ul_gate_eligible`). If a bad value came from the pipeline, fix it in the pipeline. An app-side
   correction is a defect even when the screen looks right.
