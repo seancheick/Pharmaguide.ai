@@ -4,6 +4,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -198,19 +200,44 @@ void main() {
     // Simulator walkthrough 2026-10-01: a blocked hemp extract showed
     // "No comparable alternatives found" above a sticky "See higher-quality
     // options" button that led nowhere. No alternatives, no button.
-    testWidgets('unsafe with no alternatives → no options button, no Add', (
+    // Sean 2026-10-01: with nothing to compare, the next step is another scan.
+    testWidgets('unsafe with no alternatives → "Scan another product"', (
       tester,
     ) async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
       await _seedProduct(coreDb, verdict: 'UNSAFE');
 
-      await tester.pumpWidget(_wrap(coreDb, userDb, isUnsafe: true));
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, _) => const Scaffold(
+              body: PGStackActionButtons(dsldId: _dsldId, isUnsafe: true),
+            ),
+          ),
+          GoRoute(
+            path: Routes.scan,
+            builder: (_, _) => const Scaffold(body: Text('Scanner')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('See higher-quality options'), findsNothing);
       expect(find.text('Add to my stack'), findsNothing);
-      expect(find.byKey(const Key('stack-action-bar')), findsNothing);
+      await tester.tap(find.text('Scan another product'));
+      await tester.pumpAndSettle();
+      expect(find.text('Scanner'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
