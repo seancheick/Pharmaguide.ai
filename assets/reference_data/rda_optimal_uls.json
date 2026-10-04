@@ -3,11 +3,11 @@
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
     "schema_version": "5.1.1",
-    "last_updated": "2026-09-20",
+    "last_updated": "2026-10-03",
     "reference_data_contract": {
       "contract_version": "1",
       "reference_version": "5.1.2-2026-09-15",
-      "semantic_fingerprint": "sha256:8ae520e97d7912894d9daa988a14e7dcf30759ab85b30a44a9cfcf105b346069"
+      "semantic_fingerprint": "sha256:50c128ce98f9352a3c8ed7a0c23d8639e4a088bdbd487a830649a6bb84ecfab5"
     },
     "total_entries": 77,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
@@ -637,7 +637,7 @@
     {
       "standard_name": "Vitamin E",
       "unit": "mg alpha-tocopherol",
-      "ul_note": "UL applies to synthetic alpha-tocopherol only",
+      "ul_note": "UL applies to all forms of supplemental alpha-tocopherol, natural (RRR) and synthetic (all-rac); 1,000 mg equals 1,500 IU of the natural form or 1,100 IU of the synthetic form.",
       "optimal_range": "100-400",
       "highest_ul": 1000,
       "warnings": [
@@ -802,7 +802,7 @@
       "ul_status": "established",
       "unofficial_ul": null,
       "nutrient_class": "ceiling",
-      "ul_basis": "synthetic_only"
+      "ul_basis": "supplemental_only"
     },
     {
       "standard_name": "Vitamin K",
@@ -2736,7 +2736,7 @@
     {
       "standard_name": "Calcium",
       "unit": "mg",
-      "ul_note": "UL based on kidney stone risk and cardiovascular concerns",
+      "ul_note": "UL based on kidney stone risk with higher supplemental calcium intake (Women's Health Initiative data).",
       "optimal_range": "1000-1500",
       "highest_ul": 3000,
       "warnings": [
@@ -3248,7 +3248,7 @@
     {
       "standard_name": "Zinc",
       "unit": "mg",
-      "ul_note": "UL based on copper interference and immune dysfunction",
+      "ul_note": "UL based on the zinc intake that impairs copper status; it does not apply to zinc given as medical treatment.",
       "optimal_range": "8-40",
       "highest_ul": 40,
       "warnings": [
@@ -4099,7 +4099,7 @@
     {
       "standard_name": "Manganese",
       "unit": "mg",
-      "ul_note": "UL based on neurotoxicity from inhalation studies",
+      "ul_note": "UL based on whole-blood manganese above the normal range and risk of neurotoxicity; it does not apply to supplemental manganese taken under medical supervision.",
       "optimal_range": "2-5",
       "highest_ul": 11,
       "warnings": [
@@ -4436,7 +4436,7 @@
     {
       "standard_name": "Phosphorus",
       "unit": "mg",
-      "ul_note": "UL based on calcium-phosphorus imbalance",
+      "ul_note": "UL based on intakes associated with normal serum phosphate concentrations; it does not apply to supplemental phosphorus under medical supervision.",
       "optimal_range": "700-1250",
       "highest_ul": 4000,
       "warnings": [
@@ -5115,7 +5115,7 @@
     {
       "standard_name": "Fluoride",
       "unit": "mg",
-      "ul_note": "UL based on dental fluorosis risk",
+      "ul_note": "UL based on dental and skeletal fluorosis; applies to fluoride from all sources.",
       "optimal_range": "3-10",
       "highest_ul": 10,
       "warnings": [

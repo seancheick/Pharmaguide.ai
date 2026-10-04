@@ -1,7 +1,7 @@
 {
   "_comment": "Written by scripts/sync_flutter_reference_data.py. Hand edits to any listed asset will fail the Flutter reference-data release gate until the pipeline regenerates this manifest.",
   "artifacts": {
-    "assets/reference_data/rda_optimal_uls.json": "88328591c24733b1c812d88050890ee1e48bfb7e62c793259d2677126fe5d8c5",
+    "assets/reference_data/rda_optimal_uls.json": "5fe30650e7d30412629ec433923c1ad79f8338cda3cea3de6de4afd12087ffb5",
     "assets/data/product_type_vocab.json": "fb9201bb0f22bf0169d916e19e5de0678e4e8249b60df5a8932689532223e537",
     "assets/reference_data/medication_depletions.json": "d98a7d4c71659cbc20fdf48a9b3dd765ff3550f9c691be72ea937cf84595b534",
     "assets/reference_data/clinical_risk_taxonomy.json": "8a13c3d3472081d96a68a88e32bfbb41936c023f7eff816ac104ce3b35f4aa36",
