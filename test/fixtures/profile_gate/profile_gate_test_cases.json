@@ -3,10 +3,10 @@
     "description": "Shared evaluator fixture for v6.0 profile_gate. Python (scripts/profile_gate_evaluator.py) and Dart (Flutter alert-rendering layer) MUST both produce the same fires/severity output for every case below. Drift between the two implementations is the failure this fixture catches.",
     "purpose": "profile_gate_evaluator_cross_runtime_fixture",
     "schema_version": "1.1.0",
-    "total_entries": 22,
+    "total_entries": 72,
     "evaluator_contract_version": "6.0",
-    "last_updated": "2026-09-23",
-    "case_count": 22,
+    "last_updated": "2026-10-03",
+    "case_count": 72,
     "see_also": [
       "scripts/INTERACTION_RULE_SCHEMA_V6_ADR.md",
       "scripts/profile_gate_evaluator.py"
@@ -320,6 +320,706 @@
       "product_context": {"product_form": null, "nutrient_form": "beta_carotene", "nutrient_forms": ["beta_carotene", "mixed_carotenoids"], "dose_per_day": null, "dose_unit": null},
       "base_severity": "caution",
       "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "gold_fish_oil_anticoagulant_at_threshold_not_met",
+      "description": "Fish oil 3000 mg/day with an anticoagulant sits exactly on the exclusive > 3000 threshold: not met, monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 3000, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 3000, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_fish_oil_anticoagulant_above_threshold",
+      "description": "Fish oil 3001 mg/day with an anticoagulant crosses the threshold: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 3000, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 3001, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_omega3_anticoagulant_at_threshold_not_met",
+      "description": "Omega-3 2000 mg/day with an anticoagulant is not above the > 2000 threshold: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 2000, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 2000, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_omega3_anticoagulant_above_threshold",
+      "description": "Omega-3 2500 mg/day with an anticoagulant: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 2000, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 2500, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_omega3_bleeding_disorder_at_threshold_not_met",
+      "description": "Omega-3 3000 mg/day with a bleeding disorder is not above the > 3000 threshold: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["bleeding_disorders"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 3000, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["bleeding_disorders"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 3000, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_omega3_bleeding_disorder_above_threshold",
+      "description": "Omega-3 3500 mg/day with a bleeding disorder escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["bleeding_disorders"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 3000, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["bleeding_disorders"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 3500, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_omega3_anticoagulant_gate_ignores_antiplatelet_only_user",
+      "description": "The omega-3 anticoagulant gate does not fire for a user on an antiplatelet only, whatever the dose",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 2000, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["antiplatelets"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 5000, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "gold_ginkgo_anticoagulant_at_threshold_not_met",
+      "description": "Ginkgo 240 mg/day with an anticoagulant is not above the > 240 threshold: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 240, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 240, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_ginkgo_anticoagulant_above_threshold",
+      "description": "Ginkgo 360 mg/day with an anticoagulant escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 240, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 360, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_garlic_anticoagulant_above_threshold",
+      "description": "Garlic 1201 mg/day with an anticoagulant escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 1200, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1201, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_garlic_anticoagulant_unknown_dose_uses_not_met_severity",
+      "description": "Garlic with an anticoagulant and no resolved dose still fires, at the severity_if_not_met tier (monitor), never silently dropped",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 1200, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_vitamin_d_anticoagulant_at_threshold_not_met",
+      "description": "Vitamin D 10000 IU/day with an anticoagulant is not above the > 10000 threshold: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10000, "unit": "IU", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 10000, "dose_unit": "IU"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_vitamin_d_anticoagulant_above_threshold",
+      "description": "Vitamin D 10001 IU/day with an anticoagulant: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10000, "unit": "IU", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 10001, "dose_unit": "IU"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_dha_antiplatelet_above_threshold",
+      "description": "DHA 4000 mg/day with an antiplatelet: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["antiplatelets"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 3000, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "informational"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["antiplatelets"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 4000, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_resveratrol_anticoagulant_at_threshold_not_met",
+      "description": "Resveratrol 500 mg/day with an anticoagulant is not above the > 500 threshold: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["anticoagulants"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 500, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["anticoagulants"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 500, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_selenium_thyroid_at_threshold_not_met",
+      "description": "Selenium 400 mcg/day with a thyroid disorder is not above the > 400 threshold: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["thyroid_disorder"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 400, "unit": "mcg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": ["thyroid_disorder"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 400, "dose_unit": "mcg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_selenium_thyroid_above_threshold",
+      "description": "Selenium 401 mcg/day with a thyroid disorder escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["thyroid_disorder"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 400, "unit": "mcg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": ["thyroid_disorder"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 401, "dose_unit": "mcg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_biotin_thyroid_at_threshold_not_met",
+      "description": "Biotin 5 mg/day with a thyroid disorder is not above the > 5 threshold: informational",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["thyroid_disorder"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 5, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "informational"}
+      },
+      "user_profile": {"conditions": ["thyroid_disorder"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 5, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "informational"}
+    },
+    {
+      "name": "gold_biotin_thyroid_above_threshold",
+      "description": "Biotin 10 mg/day with a thyroid disorder (lab-assay interference range): caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["thyroid_disorder"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 5, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "informational"}
+      },
+      "user_profile": {"conditions": ["thyroid_disorder"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 10, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_iodine_thyroid_at_threshold_not_met",
+      "description": "Iodine 1100 mcg/day with a thyroid disorder is not above the > 1100 threshold: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["thyroid_disorder"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 1100, "unit": "mcg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": ["thyroid_disorder"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1100, "dose_unit": "mcg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_iodine_thyroid_above_threshold",
+      "description": "Iodine 1101 mcg/day with a thyroid disorder escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["thyroid_disorder"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 1100, "unit": "mcg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": ["thyroid_disorder"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1101, "dose_unit": "mcg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_5htp_ssri_user_contraindicated",
+      "description": "5-HTP with an SSRI/SNRI is contraindicated",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {"conditions_any": [], "drug_classes_any": ["antidepressants_ssri_snri"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["antidepressants_ssri_snri"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "contraindicated",
+      "expected": {"fires": true, "severity": "contraindicated"}
+    },
+    {
+      "name": "gold_5htp_maoi_user_contraindicated",
+      "description": "5-HTP with an MAOI is contraindicated",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {"conditions_any": [], "drug_classes_any": ["maois"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["maois"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "contraindicated",
+      "expected": {"fires": true, "severity": "contraindicated"}
+    },
+    {
+      "name": "gold_5htp_generic_serotonergic_gate_yields_to_ssri_rule",
+      "description": "A user on a serotonergic drug who is also on an SSRI is suppressed by the generic avoid gate (the SSRI rule owns the contraindication)",
+      "gate": {
+        "gate_type": "drug_class",
+        "requires": {"conditions_any": [], "drug_classes_any": ["serotonergic_medications"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": ["antidepressants_ssri_snri", "maois"], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["serotonergic_medications", "antidepressants_ssri_snri"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "avoid",
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "gold_berberine_diabetes_at_threshold_inclusive",
+      "description": "Berberine 1500 mg/day with diabetes meets the inclusive >= 1500 threshold: avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 1500, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1500, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_berberine_diabetes_just_below_threshold",
+      "description": "Berberine 1499 mg/day with diabetes: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 1500, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1499, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_berberine_lower_risk_hypoglycemic_at_threshold",
+      "description": "Berberine 1500 mg/day with a lower-risk hypoglycemic: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["hypoglycemics_lower_risk"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 1500, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["hypoglycemics_lower_risk"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1500, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_berberine_lower_risk_hypoglycemic_below_threshold",
+      "description": "Berberine 500 mg/day with a lower-risk hypoglycemic: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["hypoglycemics_lower_risk"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 1500, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["hypoglycemics_lower_risk"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 500, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_berberine_unknown_hypoglycemic_unknown_dose",
+      "description": "Berberine with an unclassified hypoglycemic and no resolved dose: caution at both tiers, never dropped",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": ["hypoglycemics_unknown"], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 1500, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": ["hypoglycemics_unknown"], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_alpha_lipoic_acid_diabetes_at_threshold_not_met",
+      "description": "Alpha-lipoic acid 600 mg/day with diabetes is not above the > 600 threshold: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 600, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 600, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_alpha_lipoic_acid_diabetes_above_threshold",
+      "description": "Alpha-lipoic acid 601 mg/day with diabetes escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 600, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 601, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_niacin_diabetes_at_threshold_not_met",
+      "description": "Niacin 1000 mg NE/day with diabetes is not above the > 1000 threshold: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 1000, "unit": "mg NE", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1000, "dose_unit": "mg NE"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_niacin_diabetes_above_threshold",
+      "description": "Niacin 1500 mg NE/day with diabetes escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["diabetes"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 1000, "unit": "mg NE", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": ["diabetes"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 1500, "dose_unit": "mg NE"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_vitamin_a_pregnant_above_threshold_contraindicated",
+      "description": "Vitamin A 10001 IU/day while pregnant is contraindicated",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10000, "unit": "iu", "severity_if_met": "contraindicated", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 10001, "dose_unit": "iu"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "contraindicated"}
+    },
+    {
+      "name": "gold_vitamin_a_pregnant_at_threshold_not_met",
+      "description": "Vitamin A 10000 IU/day while pregnant is not above the > 10000 threshold: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10000, "unit": "iu", "severity_if_met": "contraindicated", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 10000, "dose_unit": "iu"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_vitamin_a_ttc_beta_carotene_only_suppressed",
+      "description": "Trying to conceive, vitamin A 15000 IU declared only as beta-carotene: the preformed-retinol rule is suppressed",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["ttc"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": ["beta_carotene", "mixed_carotenoids"]},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10000, "unit": "iu", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["ttc"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": "beta_carotene", "nutrient_forms": ["beta_carotene"], "dose_per_day": 15000, "dose_unit": "iu"},
+      "base_severity": null,
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "gold_vitamin_a_ttc_retinyl_acetate_fires",
+      "description": "Trying to conceive, vitamin A 15000 IU as retinyl acetate escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["ttc"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": ["beta_carotene", "mixed_carotenoids"]},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10000, "unit": "iu", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["ttc"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": "retinyl_acetate", "nutrient_forms": ["retinyl_acetate"], "dose_per_day": 15000, "dose_unit": "iu"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_vitamin_a_ttc_mixed_forms_not_all_excluded_fires",
+      "description": "Trying to conceive, a row declaring beta-carotene AND retinyl acetate is not hidden by the carotenoid exclusion",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["ttc"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": ["beta_carotene", "mixed_carotenoids"]},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10000, "unit": "iu", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["ttc"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": "beta_carotene", "nutrient_forms": ["beta_carotene", "retinyl_acetate"], "dose_per_day": 15000, "dose_unit": "iu"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_caffeine_pregnant_at_threshold_not_met",
+      "description": "Caffeine 200 mg/day while pregnant is not above the > 200 threshold: monitor",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 200, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 200, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "monitor"}
+    },
+    {
+      "name": "gold_caffeine_pregnant_above_threshold",
+      "description": "Caffeine 201 mg/day while pregnant escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 200, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "monitor"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 201, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_licorice_pregnant_at_threshold_inclusive",
+      "description": "Licorice 71 mg/day while pregnant meets the inclusive >= 71 threshold: avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 71, "unit": "mg", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 71, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_bitter_orange_pregnant_at_threshold_inclusive",
+      "description": "Bitter orange 3 mg/day while pregnant meets the inclusive >= 3 threshold: contraindicated",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 3, "unit": "mg", "severity_if_met": "contraindicated", "severity_if_not_met": "avoid"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 3, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "contraindicated"}
+    },
+    {
+      "name": "gold_curcumin_pregnant_culinary_turmeric_suppressed",
+      "description": "Culinary turmeric is excluded from the pregnancy curcumin gate",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": ["culinary_turmeric"], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": "culinary_turmeric", "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "caution",
+      "expected": {"fires": false, "severity": null}
+    },
+    {
+      "name": "gold_curcumin_pregnant_high_potency_extract_fires",
+      "description": "A high-potency curcumin extract is not excluded from the pregnancy gate: caution",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["pregnant"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": ["culinary_turmeric"], "nutrient_forms_any": []},
+        "dose": null
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["pregnant"]},
+      "product_context": {"product_form": "high_potency_extract", "nutrient_form": null, "dose_per_day": null, "dose_unit": null},
+      "base_severity": "caution",
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_creatine_kidney_at_threshold_not_met",
+      "description": "Creatine 10 g/day with kidney disease is not above the > 10 threshold: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["kidney_disease"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10, "unit": "g", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["kidney_disease"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 10, "dose_unit": "g"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_creatine_kidney_above_threshold",
+      "description": "Creatine 12 g/day with kidney disease escalates to avoid",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["kidney_disease"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">", "value": 10, "unit": "g", "severity_if_met": "avoid", "severity_if_not_met": "caution"}
+      },
+      "user_profile": {"conditions": ["kidney_disease"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 12, "dose_unit": "g"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_green_tea_liver_disease_avoid_regardless_of_dose",
+      "description": "Green tea extract with liver disease is avoid at both tiers, including a trivial dose",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["liver_disease"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 800, "unit": "mg EGCG", "severity_if_met": "avoid", "severity_if_not_met": "avoid"}
+      },
+      "user_profile": {"conditions": ["liver_disease"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 100, "dose_unit": "mg EGCG"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "avoid"}
+    },
+    {
+      "name": "gold_beta_carotene_current_smoker_at_lower_threshold",
+      "description": "Beta-carotene 7500 mcg RAE/day for a current smoker meets the inclusive >= 7500 threshold: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["current_smoker"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 7500, "unit": "mcg RAE", "severity_if_met": "caution", "severity_if_not_met": "informational"}
+      },
+      "user_profile": {"conditions": ["current_smoker"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 7500, "dose_unit": "mcg RAE"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
+    },
+    {
+      "name": "gold_beta_carotene_current_smoker_below_lower_threshold",
+      "description": "Beta-carotene 7499 mcg RAE/day for a current smoker: informational",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": ["current_smoker"], "drug_classes_any": [], "profile_flags_any": []},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 7500, "unit": "mcg RAE", "severity_if_met": "caution", "severity_if_not_met": "informational"}
+      },
+      "user_profile": {"conditions": ["current_smoker"], "drug_classes": [], "profile_flags": []},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 7499, "dose_unit": "mcg RAE"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "informational"}
+    },
+    {
+      "name": "gold_vitamin_b6_lactation_at_threshold_inclusive",
+      "description": "Vitamin B6 200 mg/day while breastfeeding meets the inclusive >= 200 threshold: caution",
+      "gate": {
+        "gate_type": "combination",
+        "requires": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": ["breastfeeding"]},
+        "excludes": {"conditions_any": [], "drug_classes_any": [], "profile_flags_any": [], "product_forms_any": [], "nutrient_forms_any": []},
+        "dose": {"basis": "per_day", "comparator": ">=", "value": 200, "unit": "mg", "severity_if_met": "caution", "severity_if_not_met": "informational"}
+      },
+      "user_profile": {"conditions": [], "drug_classes": [], "profile_flags": ["breastfeeding"]},
+      "product_context": {"product_form": null, "nutrient_form": null, "dose_per_day": 200, "dose_unit": "mg"},
+      "base_severity": null,
+      "expected": {"fires": true, "severity": "caution"}
     }
   ]
 }
