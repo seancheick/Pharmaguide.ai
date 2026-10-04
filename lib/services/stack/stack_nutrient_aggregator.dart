@@ -158,7 +158,13 @@ class StackNutrientAggregator {
         final canContributeToUl =
             isUlScopedComponent || exclusionReason == null;
         if (canContributeToUl && isUlEvaluationEligible(row)) {
-          total.addUlComparableAmount(amount, unit);
+          final ulAmount = readUlDoseAmount(row);
+          final ulUnit = readUlDoseUnit(row);
+          if (ulAmount != null && ulAmount >= 0 && ulUnit.isNotEmpty) {
+            total.addUlComparableAmount(ulAmount, ulUnit);
+          } else {
+            total.hasUnresolvedUlContribution = true;
+          }
         } else if (canContributeToUl && _isUnresolvedUlContribution(row)) {
           total.hasUnresolvedUlContribution = true;
         }
@@ -257,6 +263,7 @@ class StackNutrientAggregator {
   }
 
   static bool _hasUlExposureContract(Map<String, dynamic> row) =>
+      row.containsKey('safety_exposure') ||
       row.containsKey('skip_ul_check') ||
       row.containsKey('ul_gate_eligible') ||
       row.containsKey('ul_assessment_status') ||

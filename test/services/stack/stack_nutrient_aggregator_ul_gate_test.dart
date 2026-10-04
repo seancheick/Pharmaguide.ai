@@ -19,8 +19,75 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 
 void main() {
+  test('pipeline safety exposure alone establishes the UL contract', () {
+    final stack = List.generate(
+      2,
+      (i) => StackItemNutrients(
+        stackEntryId: 'e$i',
+        productName: 'Vitamin E',
+        ingredients: [
+          {
+            'name': 'Vitamin E',
+            'canonical_id': 'vitamin_e',
+            'per_day_min': 337.5,
+            'per_day_max': 337.5,
+            'converted_unit': 'mg',
+            'safety_exposure': {'per_day': 675.0, 'unit': 'mg'},
+          },
+        ],
+      ),
+    );
+    final total = const StackNutrientAggregator().aggregate(stack);
+    final statuses = const StackUlChecker(
+      rdaData: {
+        'nutrient_recommendations': [
+          {
+            'id': 'vitamin_e',
+            'standard_name': 'Vitamin E',
+            'unit': 'mg',
+            'highest_ul': 1000,
+            'data': [
+              {'group': 'Male', 'age_range': '19-30', 'rda_ai': 15, 'ul': 1000},
+            ],
+          },
+        ],
+      },
+    ).check(total, ageBracket: '19-30', sex: 'Male');
+    expect(statuses.single.tier, NutrientTier.exceedsUl);
+    expect(statuses.single.pctOfUl, 135);
+    expect(statuses.single.pctOfRda, 4500);
+  });
+
+  test('synthetic vitamin E UL mass stays separate from activity intake', () {
+    final stack = List.generate(
+      2,
+      (i) => StackItemNutrients(
+        stackEntryId: 'e$i',
+        productName: 'Vitamin E',
+        ingredients: [
+          {
+            'name': 'Vitamin E',
+            'canonical_id': 'vitamin_e',
+            'per_day_min': 337.5,
+            'per_day_max': 337.5,
+            'converted_unit': 'mg',
+            'ul_gate_eligible': true,
+            'safety_exposure': {'per_day': 675.0, 'unit': 'mg'},
+          },
+        ],
+      ),
+    );
+    final total = const StackNutrientAggregator().aggregate(
+      stack,
+    )['vitamin_e']!;
+    expect(total.totalAmount, 675);
+    expect(total.minimumTotalAmount, 675);
+    expect(total.ulComparableTotalAmount, 1350);
+  });
+
   const aggregator = StackNutrientAggregator();
 
   group('StackNutrientAggregator — ul_gate_eligible exclusion', () {

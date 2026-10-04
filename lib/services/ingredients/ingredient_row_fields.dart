@@ -94,6 +94,24 @@ String readDoseUnit(Map<String, dynamic> row) {
   return '';
 }
 
+/// UL exposure is authored by the pipeline separately from activity intake.
+/// Older rows without the contract retain their existing daily-dose fallback.
+/// A present but malformed contract must not silently become activity mass.
+double? readUlDoseAmount(Map<String, dynamic> row) {
+  if (!row.containsKey('safety_exposure')) return readDoseAmount(row);
+  final exposure = row['safety_exposure'];
+  if (exposure is! Map || readUlDoseUnit(row).isEmpty) return null;
+  return asFiniteDouble(exposure['per_day']);
+}
+
+String readUlDoseUnit(Map<String, dynamic> row) {
+  if (!row.containsKey('safety_exposure')) return readDoseUnit(row);
+  final exposure = row['safety_exposure'];
+  if (exposure is! Map) return '';
+  final unit = exposure['unit'];
+  return unit is String ? normalizeDoseUnit(unit) : '';
+}
+
 /// Single canonical id for [row] (lowercased, trimmed), or null. Prefers the
 /// pipeline's `nutrient_group_id` roll-up (so Vitamin K1 + K2 group as one
 /// "Vitamin K") then the raw canonical / mapped fields.

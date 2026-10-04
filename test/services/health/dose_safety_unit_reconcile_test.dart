@@ -13,6 +13,60 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/health/dose_safety.dart';
 
 void main() {
+  test('malformed safety exposure is not declared within limits', () {
+    expect(
+      resolveDoseSafety(
+        ingredient: const {'standard_name': 'Vitamin E'},
+        ulAnalysis: [
+          {
+            'standard_name': 'Vitamin E',
+            'quantity': 900,
+            'unit': 'mg',
+            'highest_ul': 1000,
+            'skip_ul_check': false,
+            'safety_exposure': {'per_day': 'bad', 'unit': 'mg'},
+          },
+        ],
+      ),
+      DoseSafety.skip,
+    );
+  });
+  test('fallback exceedance magnitude uses the same UL exposure', () {
+    final alerts = extractUlExceedances([
+      {
+        'standard_name': 'Vitamin E',
+        'quantity': 900,
+        'unit': 'mg',
+        'nutrient_unit': 'mg',
+        'highest_ul': 1000,
+        'skip_ul_check': false,
+        'safety_exposure': {'per_day': 1800, 'unit': 'mg'},
+        'warnings': ['Above upper limit'],
+      },
+    ]);
+    expect(alerts.single.pctOfUl, 180);
+  });
+
+  test('UL fallback uses pipeline safety exposure rather than activity', () {
+    expect(
+      resolveDoseSafety(
+        ingredient: const {'standard_name': 'Vitamin E'},
+        ulAnalysis: [
+          {
+            'standard_name': 'Vitamin E',
+            'quantity': 900,
+            'unit': 'mg',
+            'nutrient_unit': 'mg',
+            'highest_ul': 1000,
+            'skip_ul_check': false,
+            'safety_exposure': {'per_day': 1800, 'unit': 'mg'},
+          },
+        ],
+      ),
+      DoseSafety.exceedsUl,
+    );
+  });
+
   group('resolveDoseSafety — legacy quantity/UL unit reconciliation', () {
     test(
       'Boron 150 mcg vs 20 mg UL reconciles → withinLimits (no false over)',

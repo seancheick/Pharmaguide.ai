@@ -2,6 +2,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 
 void main() {
+  group('pipeline UL exposure contract', () {
+    test('uses safety mass without changing activity or adequacy readers', () {
+      final row = <String, dynamic>{
+        'per_day_min': 450,
+        'per_day_max': 900,
+        'converted_unit': 'mg',
+        'safety_exposure': {'per_day': '1800', 'unit': 'MG'},
+      };
+      expect(readUlDoseAmount(row), 1800);
+      expect(readUlDoseUnit(row), 'mg');
+      expect(readDoseAmount(row), 900);
+      expect(readAdequacyDoseAmount(row), 450);
+    });
+    test('older rows retain dose fallback, malformed contracts do not', () {
+      expect(readUlDoseAmount({'per_day_max': 15, 'unit': 'mg'}), 15);
+      expect(readUlDoseUnit({'unit': 'mcg'}), 'mcg');
+      for (final exposure in [
+        null,
+        <String, dynamic>{},
+        {'per_day': 1800},
+        {'per_day': 'NaN', 'unit': 'mg'},
+        {'per_day': 1800, 'unit': 3},
+      ]) {
+        expect(
+          readUlDoseAmount({
+            'quantity': 900,
+            'unit': 'mg',
+            'safety_exposure': exposure,
+          }),
+          isNull,
+        );
+      }
+    });
+  });
+
   group('readDoseAmount — per-day-first priority (B#1)', () {
     test('per-day fields win over raw per-serving quantity', () {
       // The bug: stack_dose_summer read `quantity` (raw per-serving) before

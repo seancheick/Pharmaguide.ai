@@ -16,6 +16,7 @@ library;
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 
 /// Per-ingredient dose safety state derived from the pipeline's UL
 /// analysis block. Callers map each state to a visual badge.
@@ -64,13 +65,13 @@ DoseSafety resolveDoseSafety({
   }
   if (_hasStructuredUlDecision(entry)) return DoseSafety.withinLimits;
 
-  // Per the FLTR-11 clarification: compare the actual disclosed
-  // `quantity` against the UL, NOT `per_day_max`. per_day_max is a
-  // pipeline-normalized scaling field (quantity × max servings/day)
-  // used for stack aggregation. Using it would double-count the
-  // serving math and fire false-positive UL alerts on any product
-  // whose label allows multiple servings.
-  return _quantityExceedsResolvedUl(entry, ingredient: ingredient)
+  final pct = _quantityPctOfUl(entry, ingredient: ingredient);
+  if (pct == null &&
+      (entry.containsKey('safety_exposure') ||
+          ingredient.containsKey('safety_exposure'))) {
+    return DoseSafety.skip;
+  }
+  return pct != null && pct > 100.0
       ? DoseSafety.exceedsUl
       : DoseSafety.withinLimits;
 }
@@ -90,21 +91,27 @@ bool _hasConfirmedUlExceedance(
 
   if (_hasStructuredUlDecision(entry)) return false;
 
-  return _quantityExceedsResolvedUl(entry, ingredient: ingredient);
+  return (_quantityPctOfUl(entry, ingredient: ingredient) ?? 0) > 100.0;
 }
 
 bool _hasStructuredUlDecision(Map<String, dynamic> entry) {
   return entry.containsKey('over_ul') || entry.containsKey('pct_ul');
 }
 
-bool _quantityExceedsResolvedUl(
+double? _quantityPctOfUl(
   Map<String, dynamic> entry, {
   Map<String, dynamic>? ingredient,
 }) {
-  final quantity =
-      asFiniteDouble(entry['quantity']) ??
-      asFiniteDouble(ingredient?['quantity']);
-  if (quantity == null || quantity <= 0) return false;
+  final exposureRow = entry.containsKey('safety_exposure')
+      ? entry
+      : ingredient?.containsKey('safety_exposure') == true
+      ? ingredient!
+      : null;
+  final quantity = exposureRow != null
+      ? readUlDoseAmount(exposureRow)
+      : asFiniteDouble(entry['quantity']) ??
+            asFiniteDouble(ingredient?['quantity']);
+  if (quantity == null || quantity <= 0) return null;
 
   // UL resolution order honoring the pipeline contract:
   //   1. ul_for_default_profile — age/sex-aware UL when the pipeline
@@ -114,7 +121,7 @@ bool _quantityExceedsResolvedUl(
   final ul =
       asFiniteDouble(entry['ul_for_default_profile']) ??
       asFiniteDouble(entry['highest_ul']);
-  if (ul == null || ul <= 0) return false;
+  if (ul == null || ul <= 0) return null;
 
   // Unit reconciliation (P2 hardening). `quantity` is in the disclosed
   // `unit`; the UL is expressed in the nutrient's reference unit
@@ -125,7 +132,9 @@ bool _quantityExceedsResolvedUl(
   // blobs) assume it already matches the disclosed unit (legacy behavior);
   // when the units differ and cannot be reconciled (e.g. IU ↔ mg, which is
   // form-dependent) NEVER guess — decline to flag.
-  final quantityUnit = (entry['unit'] ?? ingredient?['unit'] ?? '').toString();
+  final quantityUnit = exposureRow != null
+      ? readUlDoseUnit(exposureRow)
+      : (entry['unit'] ?? ingredient?['unit'] ?? '').toString();
   final ulUnit = (entry['nutrient_unit'] ?? entry['converted_unit'] ?? '')
       .toString();
   final comparableQuantity = _quantityInUlUnit(
@@ -133,9 +142,9 @@ bool _quantityExceedsResolvedUl(
     quantityUnit: quantityUnit,
     ulUnit: ulUnit,
   );
-  if (comparableQuantity == null) return false;
+  if (comparableQuantity == null) return null;
 
-  return comparableQuantity > ul;
+  return comparableQuantity / ul * 100.0;
 }
 
 /// Convert [quantity] (in [quantityUnit]) into [ulUnit] for comparison
@@ -248,21 +257,7 @@ String managementForConfirmedUlExceedance(Severity severity) {
 double? _resolvedPctOfUl(Map<String, dynamic> entry) {
   final explicit = asFiniteDouble(entry['pct_ul']);
   if (explicit != null && explicit > 0) return explicit;
-
-  final quantity = asFiniteDouble(entry['quantity']);
-  final ul =
-      asFiniteDouble(entry['ul_for_default_profile']) ??
-      asFiniteDouble(entry['highest_ul']);
-  if (quantity == null || quantity <= 0 || ul == null || ul <= 0) return null;
-
-  final comparableQuantity = _quantityInUlUnit(
-    quantity,
-    quantityUnit: (entry['unit'] ?? '').toString(),
-    ulUnit: (entry['nutrient_unit'] ?? entry['converted_unit'] ?? '')
-        .toString(),
-  );
-  if (comparableQuantity == null || comparableQuantity <= 0) return null;
-  return comparableQuantity / ul * 100.0;
+  return _quantityPctOfUl(entry);
 }
 
 /// Extract UL-exceedance alerts from the pipeline's analysis block.
