@@ -103,7 +103,9 @@ void main() {
               rxcui: '10582',
               drugClasses: <String>[],
               expectedInteractionId: 'DSI_LEVOTHYROXINE_CALCIUM',
-              expectedSeverity: Severity.avoid,
+              // Current curated Moderate severity maps to caution; retain the
+              // warning instead of inventing a categorical prohibition.
+              expectedSeverity: Severity.caution,
             ),
             (
               canonicalId: 'iron',
@@ -111,7 +113,9 @@ void main() {
               rxcui: '10582',
               drugClasses: <String>[],
               expectedInteractionId: 'DSI_LEVOTHYROXINE_IRON',
-              expectedSeverity: Severity.avoid,
+              // Current curated Moderate severity maps to caution; retain the
+              // warning instead of inventing a categorical prohibition.
+              expectedSeverity: Severity.caution,
             ),
             (
               canonicalId: 'vitamin_k',
