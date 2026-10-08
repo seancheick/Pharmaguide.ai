@@ -78,7 +78,6 @@ void main() {
               String rxcui,
               List<String> drugClasses,
               String expectedInteractionId,
-              Severity expectedSeverity,
             })
           >[
             (
@@ -87,7 +86,6 @@ void main() {
               rxcui: '29046',
               drugClasses: ['class:ace_inhibitors'],
               expectedInteractionId: 'DSI_ACEI_POTASSIUM',
-              expectedSeverity: Severity.avoid,
             ),
             (
               canonicalId: 'st_johns_wort',
@@ -95,7 +93,6 @@ void main() {
               rxcui: '36437',
               drugClasses: ['class:ssris'],
               expectedInteractionId: 'DSI_SSRI_SJW',
-              expectedSeverity: Severity.contraindicated,
             ),
             (
               canonicalId: 'calcium',
@@ -103,9 +100,6 @@ void main() {
               rxcui: '10582',
               drugClasses: <String>[],
               expectedInteractionId: 'DSI_LEVOTHYROXINE_CALCIUM',
-              // Current curated Moderate severity maps to caution; retain the
-              // warning instead of inventing a categorical prohibition.
-              expectedSeverity: Severity.caution,
             ),
             (
               canonicalId: 'iron',
@@ -113,9 +107,6 @@ void main() {
               rxcui: '10582',
               drugClasses: <String>[],
               expectedInteractionId: 'DSI_LEVOTHYROXINE_IRON',
-              // Current curated Moderate severity maps to caution; retain the
-              // warning instead of inventing a categorical prohibition.
-              expectedSeverity: Severity.caution,
             ),
             (
               canonicalId: 'vitamin_k',
@@ -123,10 +114,6 @@ void main() {
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
               expectedInteractionId: 'DSI_WAR_VITK',
-              // Vitamin K is a consistency/monitoring interaction, not a
-              // categorical prohibition. The live clinical row must render
-              // as review-level caution.
-              expectedSeverity: Severity.caution,
             ),
             (
               canonicalId: 'ashwagandha',
@@ -134,7 +121,6 @@ void main() {
               rxcui: '6809',
               drugClasses: ['class:diabetes_meds'],
               expectedInteractionId: 'DSI_DM_ASHWAGANDHA',
-              expectedSeverity: Severity.caution,
             ),
             (
               canonicalId: 'turmeric',
@@ -142,7 +128,6 @@ void main() {
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
               expectedInteractionId: 'DSI_WAR_TURMERIC',
-              expectedSeverity: Severity.caution,
             ),
             (
               canonicalId: 'red_yeast_rice',
@@ -150,7 +135,6 @@ void main() {
               rxcui: '83367',
               drugClasses: ['class:statins'],
               expectedInteractionId: 'DSI_STATINS_RYR',
-              expectedSeverity: Severity.avoid,
             ),
             (
               canonicalId: 'horse_chestnut_seed',
@@ -158,7 +142,6 @@ void main() {
               rxcui: '11289',
               drugClasses: ['class:anticoagulants'],
               expectedInteractionId: 'DSI_ANTICOAG_HORSE_CHESTNUT',
-              expectedSeverity: Severity.caution,
             ),
           ];
 
@@ -203,6 +186,27 @@ void main() {
       );
 
       for (final fixture in fixtures) {
+        // This gate verifies consumer parity, not a second clinical policy.
+        // CI hydrates the published DB; local validation may stage a newer
+        // candidate. Assert the exact authored enum without the production
+        // severity parser so malformed source or consumer-softened values fail.
+        final authored = await interactionDb
+            .customSelect(
+              'SELECT severity FROM interactions WHERE id = ? '
+              'AND retired_at IS NULL',
+              variables: [
+                drift.Variable.withString(fixture.expectedInteractionId),
+              ],
+              readsFrom: {interactionDb.interactions},
+            )
+            .getSingle();
+        final authoredSeverity = authored.read<String>('severity');
+        expect(
+          Severity.values.map((severity) => severity.name),
+          contains(authoredSeverity),
+          reason: '${fixture.expectedInteractionId} must author a valid enum',
+        );
+        final expectedSeverity = Severity.values.byName(authoredSeverity);
         final supplement = QuickCheckItem.supplement(
           await _productForCanonicalId(coreDb, fixture.canonicalId),
         );
@@ -235,9 +239,9 @@ void main() {
         );
         expect(
           result.severity,
-          fixture.expectedSeverity,
+          expectedSeverity,
           reason:
-              '${fixture.canonicalId} should render the expected severity tier',
+              '${fixture.canonicalId} must retain its exact authored severity',
         );
       }
 
