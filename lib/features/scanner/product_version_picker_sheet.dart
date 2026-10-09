@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
+import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart'
+    show productDetailIngredientSourcesFromBlob;
+import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_section.dart'
+    show dailyValueLabelForCanonicalRow;
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
@@ -44,7 +50,7 @@ Future<ProductVersionChoice?> showProductVersionPickerSheet(
   );
 }
 
-class ProductVersionPickerSheet extends StatelessWidget {
+class ProductVersionPickerSheet extends ConsumerWidget {
   const ProductVersionPickerSheet({
     super.key,
     required this.candidates,
@@ -55,8 +61,12 @@ class ProductVersionPickerSheet extends StatelessWidget {
   final bool forComparison;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final detailsById = {
+      for (final product in candidates)
+        product.dsldId: ref.watch(detailBlobProvider(product.dsldId)),
+    };
     // One scroll for the header and the candidates: at large text sizes the
     // header alone can be taller than a small phone's sheet.
     return SingleChildScrollView(
@@ -81,8 +91,7 @@ class ProductVersionPickerSheet extends StatelessWidget {
             Text(
               forComparison
                   ? 'Choose the record you want to report. This does not confirm it matches your bottle.'
-                  : 'This barcode is on more than one label. Check the serving count \n'
-                        'and what is in it against your bottle, not just the picture.',
+                  : 'This barcode is on more than one label. Compare the printed amounts and % Daily Values below, then open the Facts panel to confirm your bottle.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: V2Spacing.space16),
@@ -116,7 +125,23 @@ class ProductVersionPickerSheet extends StatelessWidget {
                       compact: true,
                     ),
                     title: Text(product.productName),
-                    subtitle: details.isEmpty ? null : Text(details),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (details.isNotEmpty) Text(details),
+                        const SizedBox(height: 8),
+                        ..._labelPreview(
+                          detailsById[product.dsldId]!,
+                          peers: [
+                            for (final other in candidates)
+                              if (other.dsldId != product.dsldId)
+                                detailsById[other.dsldId]!.asData?.value,
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        const Text('Open Facts panel to compare'),
+                      ],
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () async {
                       if (forComparison) {
@@ -184,4 +209,76 @@ String _bottleDetails(ProductsCoreData product) {
   if (servings != null && servings > 0) details.add('$servings servings');
 
   return details.join(' · ');
+}
+
+// Preview only recorded label facts; the full canonical renderer remains the
+// confirmation authority. Identical doses do not establish identical labels.
+List<Widget> _labelPreview(
+  AsyncValue<Map<String, dynamic>?> detail, {
+  required List<Map<String, dynamic>?> peers,
+}) {
+  final rows = productDetailIngredientSourcesFromBlob(
+    detail.asData?.value,
+  ).displayIngredients;
+  final active =
+      rows
+          ?.where(
+            (row) =>
+                row['source_section'] != 'inactiveIngredients' &&
+                row['display_disposition'] != 'other_ingredient',
+          )
+          .toList() ??
+      [];
+  if (active.isEmpty) {
+    return [
+      Text(
+        detail.isLoading
+            ? 'Loading label facts…'
+            : 'Label facts unavailable; open to retry',
+      ),
+    ];
+  }
+  final otherNames =
+      rows
+          ?.where((row) => row['display_disposition'] == 'other_ingredient')
+          .map((row) => row['label_display_name'])
+          .whereType<String>()
+          .where((name) => name.trim().isNotEmpty)
+          .toList() ??
+      <String>[];
+  final peerRows = peers
+      .map(
+        (blob) =>
+            productDetailIngredientSourcesFromBlob(blob).displayIngredients,
+      )
+      .toList();
+  final canCompare =
+      peerRows.isNotEmpty &&
+      peerRows.every((rows) => rows != null && rows.isNotEmpty);
+  final peerOtherNames = peerRows
+      .expand((rows) => rows ?? <Map<String, dynamic>>[])
+      .where((row) => row['display_disposition'] == 'other_ingredient')
+      .map((row) => row['label_display_name'])
+      .whereType<String>()
+      .toSet();
+  final differingOtherNames = canCompare
+      ? otherNames.where((name) => !peerOtherNames.contains(name)).toList()
+      : <String>[];
+  return [
+    for (final row in active.take(3))
+      Text(
+        [
+              row['label_display_name'],
+              row['label_display_form'],
+              row['exact_dose_text'],
+              dailyValueLabelForCanonicalRow(row),
+            ]
+            .whereType<String>()
+            .where((value) => value.trim().isNotEmpty)
+            .join(' · '),
+      ),
+    if (active.length > 3) const Text('More ingredients in the Facts panel'),
+    if (differingOtherNames.isNotEmpty)
+      Text('Other ingredients to compare: ${differingOtherNames.join(', ')}'),
+  ];
 }
