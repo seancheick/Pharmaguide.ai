@@ -3,7 +3,7 @@
   "artifacts": {
     "assets/reference_data/rda_optimal_uls.json": "5fe30650e7d30412629ec433923c1ad79f8338cda3cea3de6de4afd12087ffb5",
     "assets/data/product_type_vocab.json": "fb9201bb0f22bf0169d916e19e5de0678e4e8249b60df5a8932689532223e537",
-    "assets/reference_data/medication_depletions.json": "d98a7d4c71659cbc20fdf48a9b3dd765ff3550f9c691be72ea937cf84595b534",
+    "assets/reference_data/medication_depletions.json": "8416eac60fe0ce9d4a04db144e25c0e8f6abc820468412861baa3888d03ec68f",
     "assets/reference_data/clinical_risk_taxonomy.json": "8a13c3d3472081d96a68a88e32bfbb41936c023f7eff816ac104ce3b35f4aa36",
     "assets/reference_data/timing_rules.json": "1f360ce38843698ef2531f774d938d63065832f6cab2c4d69e50d88d01b829c1",
     "assets/data/allergen_prevalence_vocab.json": "396d50c2527306c3d5606459ee37cdbc4590a70b06375e2f1da598a45fc098f3",
@@ -32,6 +32,6 @@
     "assets/data/signal_strength_vocab.json": "09b73c8525d33f938670400b34191b96d790852039a9bf5105e34b68ad4537d1",
     "assets/data/study_type_vocab.json": "5a13d091f85a1b8112e2882255ab319aa6e073579a97ac5ed8f0e302ba21704e",
     "assets/data/user_goals_vocab.json": "b8df5a140370d3c95477d1e3e672cf2fd238aac21454b3274dafb7207c4a390c",
-    "assets/data/verdict_vocab.json": "eca9ffe8747402a0b4c266b74ef201744258ecd8eabbe071bac7e5922f911bd3"
+    "assets/data/verdict_vocab.json": "5a9929c56b2e8b2fcd895036548c378750d2a9d6739aebab79d95f1f44b95b66"
   }
 }

@@ -8,7 +8,7 @@ Complete instructions for running, testing, and deploying the PharmaGuide Flutte
 
 ### Required Software
 
-- **Flutter SDK** — `3.24.0` or later
+- **Flutter SDK** — `3.44.0` or later
   - [Install Flutter](https://flutter.dev/docs/get-started/install)
   - Verify: `flutter --version`
 
