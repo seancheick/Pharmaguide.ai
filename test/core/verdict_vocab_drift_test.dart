@@ -17,8 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// What this test asserts:
 ///   1. Safety disposition IDs and legacy SAFE/POOR cache labels are present
-///   2. NOT_SCORED and the retired NUTRITION_ONLY are absent: both are
-///      pipeline QA quarantine states, never app verdicts (vocab 1.1.1)
+///   2. NOT_SCORED is visible without a quality or safety claim; the retired
+///      NUTRITION_ONLY remains absent (canonical vocab 1.1.2)
 ///   3. The user-facing `name` for each verdict matches the locked
 ///      label currently shipped by verdict_badge.dart `labelFor()`
 ///   4. Display contract fields (tone, ui_color, ui_icon, short_label,
@@ -44,27 +44,32 @@ void main() {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final md = decoded['_metadata'] as Map<String, dynamic>;
 
-      expect(md['schema_version'], '1.1.1');
-      expect(md['total_entries'], 5);
+      expect(md['schema_version'], '1.1.2');
+      expect(md['total_entries'], 6);
       expect((md['status'] as String).contains('LOCKED'), isTrue);
     });
 
-    test('safety and legacy cache IDs present; QA-only states absent', () {
+    test('safety, legacy cache and incomplete quality IDs remain distinct', () {
       final raw = file.readAsStringSync();
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final entries = (decoded['verdicts'] as List)
           .cast<Map<String, dynamic>>();
       final ids = entries.map((e) => e['id'] as String).toSet();
 
-      expect(ids, equals({'SAFE', 'CAUTION', 'POOR', 'BLOCKED', 'UNSAFE'}));
       expect(
-        ids.contains('NOT_SCORED'),
-        isFalse,
-        reason:
-            'NOT_SCORED is intentionally absent — products that fail '
-            'to score must divert to the review queue per pipeline '
-            'contract (REFERENCE_DATA_LOOKUP_OPPORTUNITIES.md §1).',
+        ids,
+        equals({'SAFE', 'CAUTION', 'POOR', 'BLOCKED', 'UNSAFE', 'NOT_SCORED'}),
       );
+      expect(ids.contains('NUTRITION_ONLY'), isFalse);
+      final unscored = entries.singleWhere(
+        (entry) => entry['id'] == 'NOT_SCORED',
+      );
+      expect(unscored['name'], 'Score unavailable');
+      expect(unscored['tone'], 'neutral');
+      expect(unscored['ui_icon'], 'info');
+      expect(unscored['ui_color'], 'gray');
+      expect(unscored['notes'], contains('no safety claim'));
+      expect(unscored['notes'], contains('warnings remain visible'));
     });
 
     test(
