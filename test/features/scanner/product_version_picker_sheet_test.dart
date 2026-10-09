@@ -28,6 +28,122 @@ ProductsCoreData _product(
 );
 
 void main() {
+  testWidgets('previews preserve calcium and other-ingredient differences', (
+    tester,
+  ) async {
+    final candidates = [
+      _product('a', 'B1', score: 77, quantity: 100),
+      _product('b', 'B1', score: 75, quantity: 100),
+    ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          detailBlobProvider('a').overrideWith(
+            (ref) async => {
+              'display_ingredients': [
+                {
+                  'label_display_name': 'Thiamine',
+                  'label_display_form': 'Thiamine Mononitrate',
+                  'exact_dose_text': '100 mg',
+                  'dailyValue': 8333,
+                  'display_disposition': 'scored',
+                },
+                {
+                  'label_display_name': 'Calcium',
+                  'exact_dose_text': '34 mg',
+                  'dailyValue': 3,
+                  'display_disposition': 'scored',
+                },
+                {
+                  'label_display_name': 'Rapeseed Lecithin',
+                  'display_disposition': 'other_ingredient',
+                },
+              ],
+            },
+          ),
+          detailBlobProvider('b').overrideWith(
+            (ref) async => {
+              'display_ingredients': [
+                {
+                  'label_display_name': 'Thiamine',
+                  'exact_dose_text': '100 mg',
+                  'dailyValue': 6667,
+                  'display_disposition': 'scored',
+                },
+                {
+                  'label_display_name': 'Soy Lecithin',
+                  'display_disposition': 'other_ingredient',
+                },
+              ],
+            },
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ProductVersionPickerSheet(candidates: candidates),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Calcium · 34 mg · 3% DV'), findsOneWidget);
+    expect(find.textContaining('Thiamine Mononitrate'), findsOneWidget);
+    expect(
+      find.text('Other ingredients to compare: Soy Lecithin'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Other ingredients to compare: Rapeseed Lecithin'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('75'), findsNothing);
+    expect(find.textContaining('77'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('same-name labels show printed dose and DV before selection', (
+    tester,
+  ) async {
+    final candidates = [
+      _product('old', 'B12', score: 91, quantity: 60),
+      _product('new', 'B12', score: 91, quantity: 60),
+    ];
+    Map<String, dynamic> label(int dv) => {
+      'display_ingredients': [
+        {
+          'label_display_name': 'Vitamin B12',
+          'exact_dose_text': '5,000 mcg',
+          'dailyValue': dv,
+          'label_order': 0,
+          'nested_depth': 0,
+          'raw_source_path': 'ingredientRows[0]',
+          'display_disposition': 'scored',
+          'label_display_form': 'Cyanocobalamin',
+        },
+      ],
+    };
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          detailBlobProvider('old').overrideWith((ref) async => label(83333)),
+          detailBlobProvider('new').overrideWith((ref) async => label(208333)),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ProductVersionPickerSheet(candidates: candidates),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('83333% DV'), findsOneWidget);
+    expect(find.textContaining('208333% DV'), findsOneWidget);
+    expect(find.textContaining('5,000 mcg'), findsNWidgets(2));
+    expect(find.textContaining('Cyanocobalamin'), findsNWidgets(2));
+    expect(find.text('This matches my label'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('nutrition-only editions use the canonical nutrition renderer', (
     tester,
   ) async {
@@ -188,6 +304,7 @@ void main() {
 
     expect(find.text('My bottle has a different label.'), findsOneWidget);
     expect(find.textContaining("we'll add it"), findsNothing);
+    await tester.ensureVisible(find.text('None of these match'));
     await tester.tap(find.text('None of these match'));
     await tester.pumpAndSettle();
 
@@ -242,7 +359,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(choice, isNull);
-    expect(find.text('Fish oil'), findsOneWidget);
+    expect(find.text('Fish oil'), findsNWidgets(2));
+    expect(find.text('Match the Facts panel'), findsOneWidget);
     await tester.tap(find.text('This matches my label'));
     await tester.pumpAndSettle();
 
