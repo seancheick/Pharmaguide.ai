@@ -6,8 +6,8 @@
 
 *The supplement safety app that scores, checks, and protects — powered by clinical data, not marketing claims.*
 
-[![Flutter](https://img.shields.io/badge/Flutter_3.8-02569B?logo=flutter&logoColor=white&style=flat-square)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart_3.8-0175C2?logo=dart&logoColor=white&style=flat-square)](https://dart.dev)
+[![Flutter](https://img.shields.io/badge/Flutter_3.44-02569B?logo=flutter&logoColor=white&style=flat-square)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart_3.12-0175C2?logo=dart&logoColor=white&style=flat-square)](https://dart.dev)
 [![Tests](https://img.shields.io/badge/tests-97_passing-22C55E?style=flat-square)](test/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
@@ -87,8 +87,8 @@ The supplement industry is a **$60B market** with almost no transparency. Consum
 
 **Mobile App**
 
-![Flutter](https://img.shields.io/badge/Flutter_3.8-02569B?logo=flutter&logoColor=white&style=flat-square)
-![Dart](https://img.shields.io/badge/Dart_3.8-0175C2?logo=dart&logoColor=white&style=flat-square)
+![Flutter](https://img.shields.io/badge/Flutter_3.44-02569B?logo=flutter&logoColor=white&style=flat-square)
+![Dart](https://img.shields.io/badge/Dart_3.12-0175C2?logo=dart&logoColor=white&style=flat-square)
 ![Riverpod](https://img.shields.io/badge/Riverpod-blue?style=flat-square)
 ![GoRouter](https://img.shields.io/badge/GoRouter-purple?style=flat-square)
 ![Drift](https://img.shields.io/badge/Drift_SQLite-orange?style=flat-square)
@@ -195,7 +195,7 @@ These rules are enforced in code and code review:
 
 ### Prerequisites
 
-- Flutter SDK 3.8+
+- Flutter SDK 3.44.0+
 - Xcode 16+ (iOS) / Android Studio (Android)
 - A Supabase project with the PharmaGuide pipeline data
 
