@@ -71,6 +71,7 @@ const ACTIONS = new Set([
   "review_states",
   "validate_label",
   "request_evidence",
+  "correct_barcode",
 ]);
 // A batch is a convenience for one person at one screen, not a bulk pipe.
 const BATCH_MAX_ITEMS = 25;
