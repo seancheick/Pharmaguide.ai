@@ -63,6 +63,7 @@ fi
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/display_names.sql" >/dev/null
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/review_pictures.sql" >/dev/null
 psql_test -q < "$repo_dir/supabase/tests/submission_identity/read_extractions.sql" >/dev/null
+psql_test -q < "$repo_dir/supabase/tests/submission_identity/barcode_correction.sql" >/dev/null
 if [[ "${1:-}" != "--no-concurrency" ]]; then
   source "$repo_dir/supabase/tests/submission_identity/concurrency.sh"
 fi

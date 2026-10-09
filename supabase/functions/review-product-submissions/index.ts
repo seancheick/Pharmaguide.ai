@@ -27,6 +27,7 @@ import {
   assertDraftEvidenceBinding,
   parseEvidenceBinding,
 } from "./evidence.ts";
+import { barcodeCorrectionRefusal, parseBarcodeCorrection } from "./barcode_correction.ts";
 import { parseEvidenceRequest } from "./retake.ts";
 import { loadSubmissionDrafts } from "./drafts.ts";
 import { parseCatalogRelation } from "./catalog_relation.ts";
@@ -1071,6 +1072,30 @@ Deno.serve(async (request: Request): Promise<Response> => {
       await scheduleSubmissionPushDrain(admin, evidenceRequest.submissionId);
       audit(reviewerId, action, "success", 1);
       return json({ requested: true });
+    }
+
+    if (action === "correct_barcode") {
+      const correction = parseBarcodeCorrection(body);
+      const { data, error } = await userClient.rpc(
+        "correct_product_submission_barcode",
+        {
+          p_submission_id: correction.submissionId,
+          p_new_upc: correction.newUpc,
+          p_reason: correction.reason,
+          p_expected_revision: correction.expectedEvidenceRevision,
+          p_manifest_sha256: correction.evidenceManifestSha256,
+        },
+      );
+      if (error) {
+        // The one action whose refusal the reviewer must be told in words: a
+        // bad check digit and a collision call for different next steps.
+        const refusal = barcodeCorrectionRefusal(error);
+        if (refusal === null) throw error;
+        audit(reviewerId, action, "refused");
+        return json({ error: refusal }, 409);
+      }
+      audit(reviewerId, action, "success", 1);
+      return json({ corrected: data });
     }
 
     if (action === "load_review") {
