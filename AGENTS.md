@@ -17,6 +17,12 @@ only Claude-specific extras. Deeper context lives in `knowledge/` — read it on
     audited path.
 - The data comes from the pipeline repo at `/Users/seancheick/Downloads/dsld_clean`
   (github PharmaGuide_Pipeline). Its AGENTS.md is the other half of the contract below.
+- **North star (Sean, October 10, 2026):** anyone who scans a supplement gets an accurate, sourced
+  answer to "is this safe for me, and is it any good?", and never a false reassurance. The launch
+  order lives in the pipeline's `docs/plans/PHARMAGUIDE_PRODUCT_ROADMAP.md` ("Launch track").
+- Sibling repos: pipeline github.com/seancheick/PharmaGuide_Pipeline; website and blog
+  github.com/seancheick/PharmaGuideWebsite (`/Users/seancheick/PharmaGuide Website`). A cloud session
+  sees only attached repos: attach the pipeline when a task touches the contract.
 
 ## Commands — `make`, never a raw `flutter run` or `flutter build`
 
