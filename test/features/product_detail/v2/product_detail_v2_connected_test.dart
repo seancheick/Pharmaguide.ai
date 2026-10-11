@@ -348,7 +348,7 @@ void main() {
 
     // Critique 2026-09-29: checks still loading were reported as failed
     // ("incomplete… try again"), and the fit result is null while loading,
-    // which a profiled user would otherwise see as "No concerns found".
+    // which a profiled user would otherwise see as "No known concerns".
     testWidgets('checks still running show a neutral checking state', (
       tester,
     ) async {
@@ -370,7 +370,7 @@ void main() {
         findsNothing,
       );
       expect(find.text('Checking this product for you'), findsOneWidget);
-      expect(find.text('No concerns found'), findsNothing);
+      expect(find.text('No known concerns'), findsNothing);
 
       gate.complete();
       await tester.pumpAndSettle();

@@ -20,6 +20,7 @@ import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
+import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
@@ -52,6 +53,9 @@ class ProfileRelevanceSummary {
   final bool needsGoals;
   final bool startExpanded;
 
+  /// Small muted line under an all-clear (see [kLifeStageClinicianNote]).
+  final String? footnote;
+
   const ProfileRelevanceSummary({
     required this.status,
     required this.tone,
@@ -62,7 +66,21 @@ class ProfileRelevanceSummary {
     this.profileIncomplete = false,
     this.needsGoals = false,
     this.startExpanded = false,
+    this.footnote,
   });
+
+  ProfileRelevanceSummary withFootnote(String? note) => ProfileRelevanceSummary(
+    status: status,
+    tone: tone,
+    headline: headline,
+    body: body,
+    rows: rows,
+    whyThisFitsReasons: whyThisFitsReasons,
+    profileIncomplete: profileIncomplete,
+    needsGoals: needsGoals,
+    startExpanded: startExpanded,
+    footnote: note,
+  );
 
   /// A defensive low-coverage state remains silent in consumer UI. Catalog
   /// completeness is enforced by the release gate, not explained here.
@@ -90,6 +108,42 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   // must NOT render a green "safe" all-clear over a flagged substance hazard.
   bool hasCriticalGlobalNote = false,
   void Function(List<String> sourceUrls)? onTapCitations,
+  // Pregnancy or breastfeeding is in the profile. Missing life-stage data is
+  // not a warning (no_data stays suppressed), so the all-clear carries one
+  // small clinician line instead (Sean, 2026-10-11).
+  bool hasPregnancyOrBreastfeeding = false,
+}) {
+  final summary = _buildProfileRelevanceSummary(
+    fitResult: fitResult,
+    topGoalLabel: topGoalLabel,
+    warnings: warnings,
+    interactionHint: interactionHint,
+    matchedAllergens: matchedAllergens,
+    freeFromConflicts: freeFromConflicts,
+    hasInteractionProfile: hasInteractionProfile,
+    hasProfileInformation: hasProfileInformation,
+    selectedGoalLabels: selectedGoalLabels,
+    hasCriticalGlobalNote: hasCriticalGlobalNote,
+    onTapCitations: onTapCitations,
+  );
+  return hasPregnancyOrBreastfeeding &&
+          summary.headline == kNoProfileConcernsHeadline
+      ? summary.withFootnote(kLifeStageClinicianNote)
+      : summary;
+}
+
+ProfileRelevanceSummary _buildProfileRelevanceSummary({
+  required FitScoreResult? fitResult,
+  required String? topGoalLabel,
+  required List<InteractionWarning> warnings,
+  required String interactionHint,
+  required List<MatchedAllergen> matchedAllergens,
+  required List<String> freeFromConflicts,
+  required bool hasInteractionProfile,
+  required bool hasProfileInformation,
+  required List<String> selectedGoalLabels,
+  required bool hasCriticalGlobalNote,
+  required void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final allergenRows = rowsForAllergens(matchedAllergens);
 
@@ -313,6 +367,13 @@ class ProfileRelevanceSection extends StatelessWidget {
       footer: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (summary.footnote != null) ...[
+            Text(
+              summary.footnote!,
+              style: V2Typography.caption(color: context.v2.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space12),
+          ],
           if (hasReasons) ...[
             PGWhyThisFitsExpander(reasons: summary.whyThisFitsReasons),
             const SizedBox(height: V2Spacing.space12),
@@ -493,7 +554,11 @@ bool _shouldExpandInformationalRows(List<PGReviewRow> rows) {
 /// card's eyebrow already reads "FOR YOU", so repeating "profile-specific"
 /// was both redundant and long enough to wrap to two lines at 20px on a 375pt
 /// device, which flattened the hierarchy against the 14px body.
-const String kNoProfileConcernsHeadline = 'No concerns found';
+// We report what we found, not a guarantee: "No known concerns".
+const String kNoProfileConcernsHeadline = 'No known concerns';
+
+const String kLifeStageClinicianNote =
+    'Pregnant or breastfeeding? Check new supplements with your obstetrician.';
 
 String _cleanProfileBody({
   required String? topGoalLabel,

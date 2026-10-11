@@ -88,6 +88,7 @@ ProfileRelevanceSummary _summary({
   bool hasCriticalGlobalNote = false,
   bool hasProfileInformation = true,
   List<String> selectedGoalLabels = const [],
+  bool hasPregnancyOrBreastfeeding = false,
 }) {
   return buildProfileRelevanceSummary(
     fitResult: fitResult ?? _fit(),
@@ -100,6 +101,7 @@ ProfileRelevanceSummary _summary({
     hasCriticalGlobalNote: hasCriticalGlobalNote,
     hasProfileInformation: hasProfileInformation,
     selectedGoalLabels: selectedGoalLabels,
+    hasPregnancyOrBreastfeeding: hasPregnancyOrBreastfeeding,
   );
 }
 
@@ -117,6 +119,50 @@ Future<void> _pump(WidgetTester tester, ProfileRelevanceSummary summary) {
 }
 
 void main() {
+  // Sean, 2026-10-11: an all-clear says what we know ("No known concerns"),
+  // never "No concerns found"; missing pregnancy/breastfeeding data is not a
+  // warning, but those profiles get one small obstetrician line under it.
+  group('no-known-concerns verdict', () {
+    test('the all-clear headline reads "No known concerns"', () {
+      expect(kNoProfileConcernsHeadline, 'No known concerns');
+      expect(_summary(fitResult: _fit()).headline, 'No known concerns');
+    });
+
+    test('pregnancy or breastfeeding profile gets the obstetrician line', () {
+      final summary = _summary(
+        fitResult: _fit(),
+        hasPregnancyOrBreastfeeding: true,
+      );
+      expect(summary.headline, 'No known concerns');
+      expect(summary.footnote, kLifeStageClinicianNote);
+    });
+
+    test('other profiles get no footnote', () {
+      expect(_summary(fitResult: _fit()).footnote, isNull);
+    });
+
+    test('a warning verdict never carries the all-clear footnote', () {
+      final summary = _summary(
+        fitResult: _fit(),
+        hasPregnancyOrBreastfeeding: true,
+        warnings: [
+          _warning(severity: Severity.avoid, conditionIds: const ['pregnancy']),
+        ],
+      );
+      expect(summary.headline, isNot('No known concerns'));
+      expect(summary.footnote, isNull);
+    });
+
+    testWidgets('the footnote renders under the verdict', (tester) async {
+      await _pump(
+        tester,
+        _summary(fitResult: _fit(), hasPregnancyOrBreastfeeding: true),
+      );
+      expect(find.text('No known concerns'), findsOneWidget);
+      expect(find.text(kLifeStageClinicianNote), findsOneWidget);
+    });
+  });
+
   group('buildProfileRelevanceSummary', () {
     test('product UL caution stays review-worthy, not not-recommended', () {
       final warnings = filterProductDetailWarningsForProfile(
