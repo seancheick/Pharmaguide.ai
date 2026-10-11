@@ -41,11 +41,11 @@ void main() {
       final drugClasses = taxonomy['drug_classes'] as List;
       final metadata = taxonomy['_metadata'] as Map;
       expect(drugClasses.length, metadata['drug_classes_count']);
-      expect(drugClasses.length, 30);
+      expect(drugClasses.length, 31);
       expect((drugClasses.first as Map)['id'], 'anticoagulants');
       expect(
         drugClasses.map((entry) => (entry as Map)['id']),
-        containsAll(['serotonergic_medications', 'vitamin_k_antagonists']),
+        containsAll(['serotonergic_medications', 'vitamin_k_antagonists', 'ssris']),
       );
     });
 
