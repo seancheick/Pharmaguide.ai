@@ -17,9 +17,9 @@ only Claude-specific extras. Deeper context lives in `knowledge/` — read it on
     audited path.
 - The data comes from the pipeline repo at `/Users/seancheick/Downloads/dsld_clean`
   (github PharmaGuide_Pipeline). Its AGENTS.md is the other half of the contract below.
-- **North star (Sean, October 10, 2026):** anyone who scans a supplement gets an accurate, sourced
-  answer to "is this safe for me, and is it any good?", and never a false reassurance. The launch
-  order lives in the pipeline's `docs/plans/PHARMAGUIDE_PRODUCT_ROADMAP.md` ("Launch track").
+- **North star (Sean, October 10, sharpened October 11, 2026):** anyone who scans a supplement gets a straight, verified answer: what the product is, whether it is good quality, and whether it is safe for them (their pregnancy or breastfeeding, conditions and medications), with the reason and the source. We flag only real, sourced concerns, never noise; when we find none we say "no known concerns", never "safe". No invented claims, and never a false reassurance. Example: a pregnant user scans a St. John's wort product and is told at the top of the page that it is not for her during pregnancy, why, and the source. This app is
+  where that answer is shown: the personal verdict leads the product page. The launch order lives in
+  the pipeline's `docs/plans/PHARMAGUIDE_PRODUCT_ROADMAP.md` ("Launch track").
 - Sibling repos: pipeline github.com/seancheick/PharmaGuide_Pipeline; website and blog
   github.com/seancheick/PharmaGuideWebsite (`/Users/seancheick/PharmaGuide Website`). A cloud session
   sees only attached repos: attach the pipeline when a task touches the contract.

@@ -517,7 +517,7 @@ class _ProductDetailV2ConnectedState
         userProfileFlagsAsync.hasError;
     // Still running is not a failure, and not a result either: while any
     // check is in flight the fit result is null, which would otherwise read
-    // as "No concerns found" for a profiled user.
+    // as "No known concerns" for a profiled user.
     final personalizedChecksRunning =
         !personalizedChecksFailed &&
         (personalizedWarningsAsync.isLoading ||
@@ -639,6 +639,9 @@ class _ProductDetailV2ConnectedState
       hasInteractionProfile:
           profile.conditionsForEvaluator.isNotEmpty ||
           profile.drugClassesForEvaluator.isNotEmpty,
+      hasPregnancyOrBreastfeeding:
+          userConditionsSet.contains('pregnancy') ||
+          userConditionsSet.contains('lactation'),
       hasProfileInformation:
           profile.ageBracket != null ||
           profile.sex != null ||
