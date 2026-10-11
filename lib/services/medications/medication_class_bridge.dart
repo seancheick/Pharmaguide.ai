@@ -42,17 +42,6 @@ class MedicationClassBridge {
     'class:propionic_acid_derivatives': 'class:nsaids',
   };
 
-  // Aspirin identities used only to prevent RxClass fallback from promoting
-  // aspirin into the generic NSAID class. This is not dose parsing and does
-  // not create a "safe" claim; full-dose aspirin remains a future authored
-  // clinical-rule decision.
-  static const Set<String> _aspirinRxcuis = {
-    '1191', // aspirin ingredient
-    '243670', // aspirin 81 MG Oral Tablet
-    '315431', // aspirin 81 MG
-  };
-  static const Set<String> _antiplateletClasses = {'class:antiplatelet_agents'};
-
   // CONTRACT — interaction-bridge `class:*` vocab -> profile/rule vocab.
   //
   // The bridge produces `class:*` ids (RxClass / curated drug_class_map
@@ -116,14 +105,10 @@ class MedicationClassBridge {
       }
     }
 
-    final hasAspirinIdentity =
-        rxcuis.any(_aspirinRxcuis.contains) ||
-        curated.any(_antiplateletClasses.contains);
-
     for (final runtimeId in runtime) {
       final fallback = _rxClassFallbackToCurated[runtimeId];
       if (fallback == null) continue;
-      if (fallback == 'class:nsaids' && hasAspirinIdentity) continue;
+      if (await _db.isDrugClassExcluded(fallback, rxcuis)) continue;
       if (seenCurated.add(fallback)) curated.add(fallback);
     }
 

@@ -160,6 +160,7 @@ class StackActions {
     List<String> ingredientRxcuis = const <String>[],
     String? dosage,
     String? frequency,
+    String? medicationContextJson,
   }) async {
     assert(
       (rxcui != null && rxcui.isNotEmpty) || drugClasses.isNotEmpty,
@@ -198,6 +199,7 @@ class StackActions {
           genericRxcui: Value(genericRxcui),
           drugClassesCol: Value(classesJson),
           ingredientRxcuisCol: Value(ingredientsJson),
+          medicationContextCol: Value(medicationContextJson),
           dosage: Value(dosage),
           frequency: Value(frequency),
         ),

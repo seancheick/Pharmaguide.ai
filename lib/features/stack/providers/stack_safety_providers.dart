@@ -643,6 +643,17 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
             evaluator.evaluate(
               rules: rules,
               medicationName: med.name,
+              medicationIngredientRxcuis: {
+                if (snapshot.genericRxcui == null &&
+                    snapshot.ingredientRxcuis.isEmpty &&
+                    snapshot.rxcui != null)
+                  snapshot.rxcui!,
+                if (snapshot.genericRxcui != null) snapshot.genericRxcui!,
+                ...snapshot.ingredientRxcuis,
+              },
+              medicationContext: MedicationUseContext.fromStored(
+                med.medicationContextCol,
+              ),
               medicationProfileGateClassIds: resolution.profileGateClassIds
                   .toSet(),
               userConditions: profile.conditionsForEvaluator.toSet(),

@@ -24,6 +24,9 @@ class UserStacksLocal extends Table {
   /// matched independently against the curated interaction DB.
   TextColumn get ingredientRxcuisCol =>
       text().named('ingredient_rxcuis').nullable()(); // JSON array
+  /// Explicitly confirmed medication use facts; device-only, never synced.
+  TextColumn get medicationContextCol =>
+      text().named('medication_context').nullable()();
   TextColumn get dosage => text().nullable()();
   TextColumn get frequency => text().nullable()();
   DateTimeColumn get addedAt =>

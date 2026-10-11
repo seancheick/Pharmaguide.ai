@@ -23,6 +23,11 @@ class DrugClassMap extends Table {
   /// the membership list is read in bulk, never queried by element.
   TextColumn get drugRxcuisJson => text().named('drug_rxcuis_json')();
 
+  /// Pipeline-authored identity exclusions; absence means unknown coverage.
+  TextColumn get excludedDrugRxcuisJson => text()
+      .named('excluded_drug_rxcuis_json')
+      .withDefault(const Constant('[]'))();
+
   TextColumn get source => text()(); // 'rxclass' | 'manual'
   TextColumn get lastUpdated => text().named('last_updated')();
 

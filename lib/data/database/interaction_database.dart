@@ -112,7 +112,7 @@ class InteractionDatabase extends _$InteractionDatabase {
   InteractionDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -124,8 +124,12 @@ class InteractionDatabase extends _$InteractionDatabase {
       await m.createAll();
     },
     onUpgrade: (migrator, from, to) async {
-      if (from == 1 && to == 2) {
-        await migrator.createTable(profileWarningRules);
+      if (from >= 1 && from < 3 && to == 3) {
+        if (from < 2) await migrator.createTable(profileWarningRules);
+        await migrator.addColumn(
+          drugClassMap,
+          drugClassMap.excludedDrugRxcuisJson,
+        );
         return;
       }
       throw StateError(
@@ -420,6 +424,27 @@ class InteractionDatabase extends _$InteractionDatabase {
     }
     out.sort();
     return out;
+  }
+
+  /// Explicit negative membership authored by the pipeline, not missing coverage.
+  Future<bool> isDrugClassExcluded(
+    String classId,
+    Iterable<String> rxcuis,
+  ) async {
+    final row = await (select(
+      drugClassMap,
+    )..where((t) => t.classId.equals(classId))).getSingleOrNull();
+    if (row == null) return false;
+    try {
+      final decoded = jsonDecode(row.excludedDrugRxcuisJson);
+      if (decoded is! List) return false;
+      final identities = rxcuis.map((id) => id.trim()).toSet();
+      return decoded.any(
+        (id) => id != null && identities.contains(id.toString().trim()),
+      );
+    } on FormatException {
+      return false;
+    }
   }
 
   /// Resolve schema-3 compact warning references from the versioned local DB.

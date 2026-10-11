@@ -4,10 +4,10 @@
     "purpose": "interaction_alert_taxonomy",
     "schema_version": "5.4.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
-    "last_updated": "2026-09-24",
-    "total_entries": 82,
+    "last_updated": "2026-10-11",
+    "total_entries": 83,
     "flutter_top_level_key": "clinical_risk_taxonomy",
-    "drug_classes_count": 30,
+    "drug_classes_count": 31,
     "migration": {
       "completed_migrations": [
         {
@@ -548,6 +548,12 @@
       "label": "Fluoroquinolone Antibiotics",
       "category": "antiinfective",
       "display_priority": 22
+    },
+    {
+      "id": "ssris",
+      "label": "SSRIs",
+      "category": "psychiatry",
+      "display_priority": 10
     }
   ],
   "severity_levels": [

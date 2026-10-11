@@ -27,6 +27,7 @@ UserStacksLocalData _medication({
   required String name,
   required String rxcui,
   String? drugClasses,
+  String? medicationContext,
 }) {
   final now = DateTime.utc(2026, 6, 27);
   return UserStacksLocalData(
@@ -35,6 +36,7 @@ UserStacksLocalData _medication({
     name: name,
     rxcui: rxcui,
     drugClassesCol: drugClasses,
+    medicationContextCol: medicationContext,
     addedAt: now,
     clientUpdatedAt: now,
   );
@@ -169,6 +171,36 @@ Future<ProviderContainer> _containerWithSupplementAndMedication({
 }
 
 void main() {
+  test(
+    'actual stack consumer uses confirmed context and unknown legacy aspirin warns',
+    () async {
+      for (final context in [
+        null,
+        '{"daily_dose_mg":81}',
+        '{"daily_dose_mg":81,"use_context":"clinician_directed_pregnancy_condition"}',
+      ]) {
+        final container = await _container(
+          profile: const ProfileState(conditions: ['pregnancy']),
+          medication: _medication(
+            name: 'Aspirin',
+            rxcui: '1191',
+            medicationContext: context,
+          ),
+        );
+        final report = await container.read(stackSafetyReportProvider.future);
+        if (context?.contains('clinician_directed_pregnancy_condition') ??
+            false) {
+          expect(report.medicationProfileWarnings, isEmpty);
+        } else {
+          expect(
+            report.medicationProfileWarnings.map((w) => w.ruleId),
+            contains('MCR_PREGNANCY_NSAIDS'),
+          );
+        }
+      }
+    },
+  );
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
@@ -212,7 +244,7 @@ void main() {
       );
       expect(
         report.medicationProfileWarnings.single.headline,
-        'NSAIDs are not recommended with kidney disease',
+        'Review systemic NSAID use with kidney disease',
       );
       final signal = orderedSignalsFrom(report).first;
       expect(signal.family, SignalFamily.medicationProfile);

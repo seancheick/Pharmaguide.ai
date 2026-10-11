@@ -58,6 +58,7 @@
 //   med-entry-class-${classId}).
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
@@ -103,6 +104,40 @@ class _MedicationEntryV2ScreenState
   final _searchController = TextEditingController();
   final _doseController = TextEditingController();
   final _frequencyController = TextEditingController();
+  final _dailyDoseController = TextEditingController();
+  int _contextGeneration = 0;
+  int _reviewGeneration = 0;
+  String? _confirmedRoute;
+  String? _confirmedUseContext;
+
+  MedicationUseContext get _medicationContext => MedicationUseContext(
+    dailyDoseMg: double.tryParse(_dailyDoseController.text.trim()),
+    route: _confirmedRoute,
+    useContext: _confirmedUseContext,
+  );
+
+  void _resetMedicationContext() {
+    _dailyDoseController.clear();
+    _confirmedRoute = null;
+    _confirmedUseContext = null;
+    _contextGeneration++;
+    _reviewGeneration++;
+    _resolvingClasses = false;
+  }
+
+  void _contextChanged() {
+    if (_selectedName == null) return;
+    unawaited(
+      _refreshProfileReview(
+        name: _selectedName!,
+        rxcui: _selectedRxcui,
+        genericRxcui: _selectedGenericRxcui,
+        ingredientRxcuis: _ingredientRxcuis,
+        drugClasses: _selectedClasses,
+      ),
+    );
+  }
+
   final _searchFocusNode = FocusNode();
 
   Timer? _debounce;
@@ -151,6 +186,7 @@ class _MedicationEntryV2ScreenState
     _searchController.dispose();
     _doseController.dispose();
     _frequencyController.dispose();
+    _dailyDoseController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
@@ -160,6 +196,7 @@ class _MedicationEntryV2ScreenState
   // ───────── autocomplete plumbing ─────────
 
   void _onQueryChanged(String value) {
+    _resetMedicationContext();
     _debounce?.cancel();
     final trimmed = value.trim();
     setState(() {
@@ -215,6 +252,8 @@ class _MedicationEntryV2ScreenState
   // ───────── selection plumbing ─────────
 
   Future<void> _selectSuggestion(RxNormSuggestion suggestion) async {
+    _resetMedicationContext();
+    final selectionGeneration = _contextGeneration;
     final displayName = medicationDisplayName(suggestion.name);
     setState(() {
       _selectedName = displayName;
@@ -240,8 +279,17 @@ class _MedicationEntryV2ScreenState
     final genericsFuture = _service.resolveGenericRxcuis(suggestion.rxcui);
 
     final classesResult = await classesFuture;
+    if (!mounted ||
+        selectionGeneration != _contextGeneration ||
+        _selectedRxcui != suggestion.rxcui) {
+      return;
+    }
     final genericsResult = await genericsFuture;
-    if (!mounted) return;
+    if (!mounted ||
+        selectionGeneration != _contextGeneration ||
+        _selectedRxcui != suggestion.rxcui) {
+      return;
+    }
 
     final classResolution =
         await MedicationClassBridge(
@@ -254,7 +302,11 @@ class _MedicationEntryV2ScreenState
               : const <String>[],
           runtimeClassIds: classesResult,
         );
-    if (!mounted) return;
+    if (!mounted ||
+        selectionGeneration != _contextGeneration ||
+        _selectedRxcui != suggestion.rxcui) {
+      return;
+    }
 
     setState(() {
       _selectedClasses = classResolution.mergedInteractionClassIds;
@@ -281,6 +333,7 @@ class _MedicationEntryV2ScreenState
   }
 
   void _selectOfflineClass(String classId) {
+    _resetMedicationContext();
     setState(() {
       _selectedName = _friendlyClassLabel(classId);
       _selectedRxcui = null;
@@ -329,6 +382,7 @@ class _MedicationEntryV2ScreenState
   }
 
   void _clearSelection() {
+    _resetMedicationContext();
     setState(() {
       _selectedName = null;
       _selectedRxcui = null;
@@ -364,6 +418,8 @@ class _MedicationEntryV2ScreenState
     required List<String> drugClasses,
   }) async {
     if (!mounted) return;
+    final reviewGeneration = ++_reviewGeneration;
+    final context = _medicationContext;
     setState(() {
       _resolvingProfileReview = true;
       _profileReviewWarnings = const <MedicationProfileWarning>[];
@@ -394,6 +450,13 @@ class _MedicationEntryV2ScreenState
       warnings = const MedicationProfileGateEvaluator().evaluate(
         rules: rules,
         medicationName: name,
+        medicationIngredientRxcuis: {
+          if (genericRxcui == null && ingredientRxcuis.isEmpty && rxcui != null)
+            rxcui,
+          if (genericRxcui != null) genericRxcui,
+          ...ingredientRxcuis,
+        },
+        medicationContext: context,
         medicationProfileGateClassIds: resolution.profileGateClassIds.toSet(),
         userConditions: profile.conditionsForEvaluator.toSet(),
         userProfileFlags: userProfileFlags,
@@ -408,13 +471,90 @@ class _MedicationEntryV2ScreenState
       unavailable = true;
     }
 
-    if (!mounted || _selectedName != name) return;
+    if (!mounted ||
+        _selectedName != name ||
+        reviewGeneration != _reviewGeneration ||
+        _selectedRxcui != rxcui) {
+      return;
+    }
     setState(() {
       _profileReviewWarnings = warnings;
       _resolvingProfileReview = false;
       _profileReviewUnavailable = unavailable;
     });
   }
+
+  Widget _medicationContextConfirmations() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('Optional medication details'),
+      const Text(
+        'Confirm these from your prescription or label. Leave anything you are unsure about blank.',
+      ),
+      TextField(
+        key: const ValueKey('medication_daily_dose'),
+        controller: _dailyDoseController,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(
+          labelText: 'Total daily dose (mg)',
+          helperText: 'Include all doses taken in one day.',
+        ),
+        onChanged: (_) => _contextChanged(),
+      ),
+      DropdownButtonFormField<String>(
+        key: ValueKey('medication_route_$_contextGeneration'),
+        isExpanded: true,
+        initialValue: _confirmedRoute,
+        decoration: const InputDecoration(labelText: 'How do you use it?'),
+        items: const [
+          DropdownMenuItem(value: 'oral', child: Text('By mouth')),
+          DropdownMenuItem(
+            value: 'ophthalmic',
+            child: Text('Directly in the eye'),
+          ),
+          DropdownMenuItem(value: 'topical', child: Text('On the skin')),
+          DropdownMenuItem(
+            value: 'other',
+            child: Text('Another route / unsure'),
+          ),
+        ],
+        onChanged: (value) {
+          setState(() => _confirmedRoute = value);
+          _contextChanged();
+        },
+      ),
+      DropdownButtonFormField<String>(
+        key: ValueKey('medication_use_confirmation_$_contextGeneration'),
+        isExpanded: true,
+        initialValue: _confirmedUseContext,
+        decoration: const InputDecoration(
+          labelText: 'Does one of these apply?',
+        ),
+        items: const [
+          DropdownMenuItem(
+            value: 'clinician_directed_pregnancy_condition',
+            child: Text('Clinician-prescribed aspirin for pregnancy'),
+          ),
+          DropdownMenuItem(
+            value: 'cardiovascular_protection',
+            child: Text('Aspirin for heart or blood-vessel protection'),
+          ),
+          DropdownMenuItem(
+            value: 'within_product_label_directions',
+            child: Text('Topical diclofenac within its label directions'),
+          ),
+          DropdownMenuItem(
+            value: 'unknown',
+            child: Text('None of these / unsure'),
+          ),
+        ],
+        onChanged: (value) {
+          setState(() => _confirmedUseContext = value);
+          _contextChanged();
+        },
+      ),
+    ],
+  );
 
   Future<void> _save() async {
     if (!_canSave) return;
@@ -430,6 +570,7 @@ class _MedicationEntryV2ScreenState
         genericRxcui: _selectedGenericRxcui,
         drugClasses: _selectedClasses,
         ingredientRxcuis: _ingredientRxcuis,
+        medicationContextJson: jsonEncode(_medicationContext.toJson()),
         dosage: _doseController.text.trim().isEmpty
             ? null
             : _doseController.text.trim(),
@@ -593,6 +734,8 @@ class _MedicationEntryV2ScreenState
                       ),
                     ],
                     const SizedBox(height: V2Spacing.space32),
+                    _medicationContextConfirmations(),
+                    const SizedBox(height: V2Spacing.space12),
                     _OptionalSection(
                       doseController: _doseController,
                       frequencyController: _frequencyController,

@@ -51,6 +51,7 @@ class _ThrowingStackActions extends StackActions {
     List<String> ingredientRxcuis = const <String>[],
     String? dosage,
     String? frequency,
+    String? medicationContextJson,
   }) async {
     throw Exception('simulated network failure');
   }
