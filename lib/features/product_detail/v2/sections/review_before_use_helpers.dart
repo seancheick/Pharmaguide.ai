@@ -422,3 +422,15 @@ String _allergenTag(String presenceType) {
       return 'Allergen';
   }
 }
+
+/// Pipeline-authored context is informational and has displayable copy.
+/// Shared by the notes renderer and the older-catalog history fallback.
+bool isProductContextNote(InteractionWarning warning) =>
+    const {
+      'category_contamination_risk',
+      'manufacturer_violation',
+      'marketing_claim',
+    }.contains(warning.warningType) &&
+    warning.severity == Severity.informational &&
+    warning.displayModeDefault == 'informational' &&
+    warning.displayBody.trim().isNotEmpty;

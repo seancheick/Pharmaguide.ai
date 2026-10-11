@@ -352,12 +352,19 @@ Widget? buildGeneralNotesSection({
             !materialWarnings.contains(warning) && isCalmProfileNote(warning),
       )
       .toList(growable: false);
+  // These pipeline assessments are label/category/company context. They
+  // must be visible without becoming a contamination finding or changing
+  // the user's safety assessment. Other unmatched FYIs stay suppressed.
+  final productContext = warnings
+      .where(isProductContextNote)
+      .toList(growable: false);
   final reassuringClaims = freeFromClaims
       .where((claim) => claim.status == FreeFromStatus.certified)
       .toList(growable: false);
   if (materialWarnings.isEmpty &&
       profileNotes.isEmpty &&
-      reassuringClaims.isEmpty) {
+      reassuringClaims.isEmpty &&
+      productContext.isEmpty) {
     return null;
   }
 
@@ -395,6 +402,22 @@ Widget? buildGeneralNotesSection({
             ? '1 material safety note'
             : '$count material safety notes',
         rows: materialRows,
+      ),
+    );
+  }
+  if (productContext.isNotEmpty) {
+    if (sections.isNotEmpty) {
+      sections.add(const SizedBox(height: V2Spacing.space12));
+    }
+    sections.add(
+      PGReviewBeforeUseCard(
+        eyebrow: 'Good to know',
+        tone: PGReviewTone.info,
+        title: 'Product context',
+        rows: [
+          for (final warning in productContext)
+            _rowForProfileNote(warning, onTapCitations: onTapCitations),
+        ],
       ),
     );
   }

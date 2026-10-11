@@ -75,6 +75,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/nutrition_sectio
 import 'package:pharmaguide/features/product_detail/v2/sections/populations_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/research_evidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/synergy_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
@@ -1004,8 +1005,15 @@ class _ProductDetailV2ConnectedState
                         ),
                       ],
 
-                      // ---- 15. ManufacturerViolations (WIRED, 11.7e) ---
-                      if (showDeepDive) ...[
+                      // Older catalogs need the historical section fallback. New
+                      // catalogs render complete, scoped history in Product context.
+                      if (showDeepDive &&
+                          !partitionedWarnings.general.any(
+                            (warning) =>
+                                warning.warningType ==
+                                    'manufacturer_violation' &&
+                                isProductContextNote(warning),
+                          )) ...[
                         ..._sectionWithTrailingGap(
                           buildManufacturerViolationsSection(
                             manufacturerDetail: _blobMap(

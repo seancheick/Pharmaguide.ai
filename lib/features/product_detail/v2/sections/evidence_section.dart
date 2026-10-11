@@ -18,7 +18,7 @@
 // falling back to id) so one study never counts twice and its
 // enrollment sums once. Citations were already PMID-deduped; this
 // extends the dedupe to the match level.
-//   unsubstantiated_claims[]    — flagged marketing claims (deferred)
+//   unsubstantiated_claims[]    — flagged marketing claims (rendered in Product context)
 //
 // `references_structured` entries: {type, authority, pmid, doi, title,
 // citation, url}. There is NO `pmids` field on a match — citations come

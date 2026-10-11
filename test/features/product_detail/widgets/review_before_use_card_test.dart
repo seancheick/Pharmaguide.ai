@@ -9,6 +9,7 @@ import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_helpers.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
@@ -833,11 +834,7 @@ void main() {
     final header = find.bySemanticsLabel(RegExp('For You'));
     expect(
       tester.getSemantics(header),
-      isSemantics(
-        isButton: true,
-        hasExpandedState: true,
-        isExpanded: true,
-      ),
+      isSemantics(isButton: true, hasExpandedState: true, isExpanded: true),
     );
     await tester.tap(find.text('For You'));
     await tester.pumpAndSettle();
@@ -846,5 +843,82 @@ void main() {
       isSemantics(hasExpandedState: true, isExpanded: false),
     );
     handle.dispose();
+  });
+  for (final type in [
+    'category_contamination_risk',
+    'manufacturer_violation',
+    'marketing_claim',
+  ]) {
+    testWidgets('$type renders as product context with evidence and citation', (
+      tester,
+    ) async {
+      final warning = InteractionWarning.fromJson({
+        'type': type,
+        'severity': 'informational',
+        'display_mode_default': 'informational',
+        'evidence_level': 'ungraded',
+        'title': 'Source-backed context',
+        'detail': 'Context is not a product-specific hazard finding.',
+        'source_urls': ['https://ods.od.nih.gov/factsheets/WYNTK-Consumer/'],
+      });
+      var opened = false;
+      final section = buildGeneralNotesSection(
+        warnings: partitionProfileWarnings(
+          warnings: [warning],
+          userConditions: {},
+          userDrugClasses: {},
+          userProfileFlags: {},
+        ).general,
+        onTapCitations: (urls) {
+          opened = urls.isNotEmpty;
+        },
+      );
+      expect(section, isNotNull);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: SingleChildScrollView(child: section!)),
+        ),
+      );
+      expect(find.text('Product context'), findsOneWidget);
+      await tester.tap(find.text('Product context'));
+      await tester.pumpAndSettle();
+      expect(find.text('Source-backed context'), findsOneWidget);
+      expect(
+        find.textContaining('not a product-specific hazard'),
+        findsOneWidget,
+      );
+      expect(find.text('Review this product'), findsNothing);
+      expect(find.textContaining('Evidence not graded'), findsWidgets);
+      await tester.tap(find.text('Source-backed context'));
+      await tester.pump();
+      expect(opened, isTrue);
+    });
+  }
+  test('context visibility rejects empty copy and hard hazards', () {
+    for (final values in [
+      {
+        'type': 'manufacturer_violation',
+        'severity': 'informational',
+        'display_mode_default': 'informational',
+        'detail': '',
+      },
+      {
+        'type': 'manufacturer_violation',
+        'severity': 'avoid',
+        'display_mode_default': 'critical',
+        'detail': 'Real hazard',
+      },
+      {
+        'type': 'unknown_context',
+        'severity': 'informational',
+        'display_mode_default': 'informational',
+        'detail': 'Unknown type',
+      },
+    ]) {
+      expect(
+        isProductContextNote(InteractionWarning.fromJson(values)),
+        isFalse,
+      );
+    }
   });
 }
