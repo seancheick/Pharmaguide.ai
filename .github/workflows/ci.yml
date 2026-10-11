@@ -27,6 +27,17 @@ jobs:
         with:
           lfs: false
 
+      # The Edge Function tests (supabase/functions/**/*_test.ts) were never run
+      # here, so a handler could be merged without its allowlist entry and every
+      # test still passed. --allow-read: actions_test.ts reads index.ts.
+      # --allow-env: the FCM client library reads its logging flag at import.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Edge Function tests
+        run: deno test --allow-read --allow-env supabase/functions
+
       # interaction_db.sqlite is distributed as a versioned GitHub Release asset
       # (not Git LFS). Hydrate + verify it BEFORE analyze/test/package.
       # fetch_interaction_db.sh fails closed on a bad checksum, header, size, or
