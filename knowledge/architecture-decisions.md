@@ -224,3 +224,21 @@
 - Snapshots (Phase 2) start only after this ADR and the AGENTS.md amendment are merged, the personal-connector gate (S1–S3, S5, S10) is green on staging, and `AiShareScope` has landed.
 - Apple Health import is one-way (Health → PharmaGuide medications), stays on the device, and never implies AI sharing.
 - ADR-007's "Profile, medications and allergies never upload" now carries this one exception; the ADR-008 chat addendum is unchanged.
+
+---
+
+## ADR-010: One engine, server-side via dart2js in the edge function (native Dart as fallback)
+
+**Date:** 2026-10-12
+**Status:** PROPOSED (spike evidence in `docs/spikes/2026-10-12-engine-service-spike.md`; Sean decides the refactor investment, estimated 20–25 files, 3–5 days)
+**Context:** Phase 4 of ADR-009 ("check against my stack" for AI assistants) needs the same findings the app shows: interactions with evidence levels, depletions, duplication and dose context. A TypeScript re-implementation would create a second safety brain. The spike compiled the unchanged Dart engine (29 files) with `dart compile js -O2` and `dart compile exe` through a compile-time overlay that swaps only the three Drift database libraries and `crash_reporting_service`, plus `flutter/foundation` and `material` shims. On a real-catalog fixture (ginkgo candidate; fish oil, garlic and warfarin in the stack) the JS, AOT and VM outputs and the app's own provider path over the full interaction DB produced byte-identical findings. A 10-item stack costs about 1 ms warm in Deno and under 1 ms native; the bundle is about 0.5 MB. The 25 MB interaction DB is about 90% `research_pairs`, which the safety checks never read; the live safety ruleset is about 2.1 MB. Edge Functions allow 256 MB and 2 s CPU per request.
+
+**Decision (proposed):**
+- The engine stays in Dart in this repository. No clinical rule is re-implemented in TypeScript or any other server language (ADR-009).
+- Before any server use, `lib/` exposes a pure engine API: an `InteractionRuleSource` interface, plain or platform-neutral row types, the orchestration extracted from the Riverpod providers (`stack_safety_providers.dart`) into `lib/services/engine/`, an injectable severity drift hook in place of the Sentry import in `severity.dart`, and `meta` in place of `flutter/foundation`. The app providers become thin adapters over that API.
+- The server build is `dart compile js` of that API, called from the personal MCP edge function through a `dart:js_interop` export. TypeScript handles only auth, MCP transport and JSON.
+- The pipeline publishes the live safety ruleset (interactions, `drug_class_map`, `profile_warning_rules`) and the reference JSON as one versioned artifact. `research_pairs` is served by an indexed query or left out of assistant answers.
+- Release gate: golden fixtures over a fixed set of stacks and products, including blob-backed dose and UL cases, must produce identical findings on the VM and on JS in CI (JS treats ints and doubles alike, so numeric semantics are a tested surface).
+- Fallback: if the Supabase Edge Runtime cannot run the JS within limits, the same API is built with `dart compile exe` as a container service called by the MCP function. Decision rules are identical.
+
+**Consequences:** a one-time refactor that also simplifies testing the app; rule and reference updates ship with the catalog version, not with function deploys; completeness flags (`checks_incomplete`, unresolved identity, missing blobs) cross the API unchanged, so "no known concerns" is only emitted under the ADR-009 completeness rule. Open: the Supabase Edge Runtime itself was not exercised (only the Deno CLI and Node); dose, UL, FitScore, profile-gate and timing paths compiled but were not golden-checked for lack of blobs; whether research-pair evidence belongs in assistant answers at all.
