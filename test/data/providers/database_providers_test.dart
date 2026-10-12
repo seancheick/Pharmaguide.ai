@@ -18,9 +18,11 @@ class _FakeAssetBundle extends CachingAssetBundle {
 
   final Uint8List bytes;
   final Map<String, List<int>> assets;
+  final List<String> loadedKeys = [];
 
   @override
   Future<ByteData> load(String key) async {
+    loadedKeys.add(key);
     final asset = assets[key];
     if (asset == null) {
       throw StateError('missing fake asset: $key');
@@ -147,6 +149,43 @@ void main() {
         await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: bundle);
 
         expect(await file.readAsBytes(), bytes);
+      },
+    );
+
+    // Sentry PHARMAGUIDE-21 (watchdog memory kill): every launch read the
+    // whole bundled catalog into memory before checking the on-disk copy.
+    test(
+      'a current on-disk copy is reused without loading the asset',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp('pharmaguide-db');
+        addTearDown(() async => tempDir.delete(recursive: true));
+
+        final dbPath = '${tempDir.path}/pharmaguide_core.db';
+        final bytes = [1, 2, 3, 4];
+        final manifest = _manifestBytes(
+          dbVersion: '2026.05.17.204805',
+          dbBytes: bytes,
+        );
+        // First launch copies the asset and writes the marker.
+        await ensureCoreDatabaseAvailable(
+          dbPath: dbPath,
+          bundle: _FakeAssetBundle(
+            Uint8List.fromList(bytes),
+            assets: {'assets/db/export_manifest.json': manifest},
+          ),
+        );
+
+        final relaunch = _FakeAssetBundle(
+          Uint8List.fromList(bytes),
+          assets: {'assets/db/export_manifest.json': manifest},
+        );
+        await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: relaunch);
+
+        expect(
+          relaunch.loadedKeys,
+          isNot(contains(bundledCoreDatabaseAssetPath)),
+        );
+        expect(await File(dbPath).readAsBytes(), bytes);
       },
     );
 
