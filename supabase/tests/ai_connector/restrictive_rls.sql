@@ -172,7 +172,9 @@ BEGIN
     END;
   END LOOP;
   PERFORM aic.assert((SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.prosrc LIKE '%PERFORM public.reject_oauth_client_request();%') = 7,
+    WHERE n.nspname = 'public' AND p.prosrc LIKE '%PERFORM public.reject_oauth_client_request();%'
+      -- The project-wide PostgREST pre-request guard reuses the same check.
+      AND p.proname <> 'pgrst_reject_ai_assistant_tokens') = 7,
     'seven guarded RPCs');
 END $$;
 RESET role;

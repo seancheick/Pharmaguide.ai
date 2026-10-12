@@ -5,6 +5,9 @@
 // never forwards it: the signature against the project's JWKS (asymmetric
 // algorithms only), the exact issuer, expiry, the audience stamped by
 // public.custom_access_token_hook, and the presence of `sub` and `client_id`.
+// verifyAppSessionToken is the mirror image for ai-share-snapshot: the same
+// signature core, but it requires the app's own session and refuses any
+// token that carries `client_id`.
 import {
   createLocalJWKSet,
   createRemoteJWKSet,
@@ -28,7 +31,10 @@ export type TokenRejection =
   | "wrong_audience"
   | "not_an_oauth_client_token"
   | "missing_subject"
-  | "wrong_role";
+  | "wrong_role"
+  // App-session verification only (verifyAppSessionToken):
+  | "assistant_token"
+  | "anonymous_user";
 
 export class TokenRejected extends Error {
   constructor(readonly reason: TokenRejection) {
@@ -74,20 +80,22 @@ function nonblankString(value: unknown, max = 255): string | null {
     : null;
 }
 
-export async function verifyOAuthAccessToken(
+/// Signature (asymmetric JWKS), exact issuer, expiry, `sub` present and, when
+/// given, the exact audience. The one verification core for both token kinds.
+async function verifySignedClaims(
   token: string | null,
-  config: OAuthTokenConfig,
-): Promise<VerifiedOAuthToken> {
+  config: { issuer: string; audience?: string; keys: JWTVerifyGetKey; now?: () => Date },
+): Promise<JWTPayload> {
   if (!token) throw new TokenRejected("missing");
-  let claims: JWTPayload;
   try {
-    ({ payload: claims } = await jwtVerify(token, config.keys, {
+    const { payload } = await jwtVerify(token, config.keys, {
       algorithms: ACCEPTED_ALGORITHMS,
       issuer: config.issuer,
       audience: config.audience,
       requiredClaims: ["exp", "sub"],
       currentDate: config.now?.(),
-    }));
+    });
+    return payload;
   } catch (error) {
     if (error instanceof errors.JWTExpired) throw new TokenRejected("expired");
     if (error instanceof errors.JWTClaimValidationFailed) {
@@ -106,6 +114,13 @@ export async function verifyOAuthAccessToken(
     }
     throw new TokenRejected("malformed");
   }
+}
+
+export async function verifyOAuthAccessToken(
+  token: string | null,
+  config: OAuthTokenConfig,
+): Promise<VerifiedOAuthToken> {
+  const claims = await verifySignedClaims(token, config);
   const sub = nonblankString(claims.sub);
   if (!sub) throw new TokenRejected("missing_subject");
   if (claims.role !== "authenticated") throw new TokenRejected("wrong_role");
@@ -117,6 +132,38 @@ export async function verifyOAuthAccessToken(
     sessionId: nonblankString(claims.session_id),
     claims,
   };
+}
+
+export interface AppSessionConfig {
+  /// Exact `iss`, e.g. https://<ref>.supabase.co/auth/v1
+  issuer: string;
+  keys: JWTVerifyGetKey;
+  now?: () => Date;
+}
+
+export interface VerifiedAppSession {
+  sub: string;
+  claims: JWTPayload;
+}
+
+/// The PharmaGuide app's own signed-in session (ai-share-snapshot). Refuses an
+/// AI assistant's OAuth token (any `client_id`) before anything else, then
+/// requires aud "authenticated", role "authenticated" and a non-anonymous user.
+export async function verifyAppSessionToken(
+  token: string | null,
+  config: AppSessionConfig,
+): Promise<VerifiedAppSession> {
+  const claims = await verifySignedClaims(token, config);
+  if (claims.client_id !== undefined && claims.client_id !== null) {
+    throw new TokenRejected("assistant_token");
+  }
+  const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!audiences.includes("authenticated")) throw new TokenRejected("wrong_audience");
+  const sub = nonblankString(claims.sub);
+  if (!sub) throw new TokenRejected("missing_subject");
+  if (claims.role !== "authenticated") throw new TokenRejected("wrong_role");
+  if (claims.is_anonymous === true) throw new TokenRejected("anonymous_user");
+  return { sub, claims };
 }
 
 /// For user-JWT edge functions (delete-account, register-push-token): true

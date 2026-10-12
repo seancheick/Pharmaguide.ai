@@ -57,7 +57,9 @@ function deny(reason: string): GateResult {
   return { ok: false, status: 403, reason };
 }
 
-function evaluate(connection: AiConnection, now: Date): GateResult {
+/// Active and unexpired, or the reason it is not. Also used by
+/// ai-share-snapshot before it stores a share for a connection.
+export function evaluate(connection: AiConnection, now: Date): GateResult {
   if (connection.status === "revoked") return deny(GATE_REASONS.revoked);
   if (connection.status !== "active") return deny(GATE_REASONS.expired);
   const expiresAt = Date.parse(connection.expires_at);

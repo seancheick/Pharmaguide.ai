@@ -3,6 +3,10 @@
 The personal PharmaGuide MCP server (Phase 1b). It gives an assistant the user approved one
 read-only tool, `get_my_supplements`: the supplement names, PharmaGuide product ids and
 ingredient keys the user already syncs, with `not_included: [medications, conditions, doses]`.
+Phase 2 adds `get_my_stack_snapshot`: the brief the user shared to this exact connection from
+the app (`supabase/functions/ai-share-snapshot`), decrypted with `AI_SHARE_SNAPSHOT_KEY_V<n>`
+(`_shared/snapshot_crypto.ts`), with `stale` from `user_stacks.client_updated_at`. It needs no
+connection-wide category: the share itself is the user's per-connection consent.
 Threat model: `docs/security/ai-connector-threat-model.md` (S1–S10).
 
 Every request: verify the OAuth token (`_shared/oauth_token.ts`) → resolve its

@@ -24,3 +24,11 @@ verify_jwt = false
 # carry the RFC 9728 resource_metadata challenge, which only the function adds.
 [functions.mcp-personal]
 verify_jwt = false
+
+# Phase 2 consented snapshot share (ADR-009). Called by the app with its own
+# session JWT; the function verifies it itself (JWKS, iss, exp, aud
+# "authenticated") so it can refuse any token carrying client_id (an AI
+# assistant's OAuth token) and anonymous users with 403 before any work.
+# Secret: AI_SHARE_SNAPSHOT_KEY_V1 (base64, 32 bytes), shared with mcp-personal.
+[functions.ai-share-snapshot]
+verify_jwt = false

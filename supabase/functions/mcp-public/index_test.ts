@@ -1,5 +1,6 @@
 import { CatalogFacts, type CatalogRow, type CatalogStore, type Json } from "../_shared/catalog.ts";
-import { createHandler, isAmbiguous, RateLimiter, SERVER_INSTRUCTIONS } from "./index.ts";
+import { RateLimiter } from "../_shared/rate_limiter.ts";
+import { createHandler, isAmbiguous, SERVER_INSTRUCTIONS } from "./index.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
