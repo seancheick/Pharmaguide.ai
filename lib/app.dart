@@ -25,6 +25,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/core/widgets/pg_tab_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
+import 'package:pharmaguide/features/ai_share/ai_share_providers.dart';
 // Phase 11.11 hygiene (2026-05-17): legacy v1 widget imports removed
 // after the route-coherence promotion proved stable. Production
 // routes (`/product/:dsldId`, `/search`, `/quick-check`,
@@ -1454,6 +1455,8 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
           await Future.wait([
             RecentSearchesService().clearAll(),
             HealthAttachmentStore().clearAll(),
+            // The previous user's AI-share choices and opt-in refreshes.
+            ref.read(aiSharePrefsStoreProvider).clear(),
           ]);
         },
       );

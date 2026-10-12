@@ -479,6 +479,13 @@ void main() {
     );
     expect(note, findsOneWidget);
     expect(find.textContaining('saved on this device only'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'unless you choose to share a snapshot with a '
+        'connected AI assistant',
+      ),
+      findsOneWidget,
+    );
   });
   testWidgets('new medication query resets confirmed dose route and purpose', (
     tester,

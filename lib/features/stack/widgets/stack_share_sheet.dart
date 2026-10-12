@@ -8,16 +8,19 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/widgets/ai_brief_preview_screen.dart';
 import 'package:pharmaguide/features/stack/widgets/clinician_report_preview_screen.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
 
-enum _StackShareChoice { supplements, clinicianReport }
+enum _StackShareChoice { supplements, aiBrief, clinicianReport }
 
 /// Single Stack sharing entry point.
 ///
-/// Supplement sharing is intentionally non-clinical. The clinician report is
-/// a separate, clearly labelled sensitive document that must be previewed
-/// before its system share or print actions become available.
+/// Supplement sharing is intentionally non-clinical. The AI brief is a text
+/// export the user scopes and previews before pasting into an assistant. The
+/// clinician report is a separate, clearly labelled sensitive document that
+/// must be previewed before its system share or print actions become
+/// available.
 Future<void> showStackShareSheet(BuildContext context, WidgetRef ref) async {
   final choice = await PGModal.bottomSheet<_StackShareChoice>(
     context: context,
@@ -31,6 +34,10 @@ Future<void> showStackShareSheet(BuildContext context, WidgetRef ref) async {
         MaterialPageRoute<void>(
           builder: (_) => const ClinicianReportPreviewScreen(),
         ),
+      );
+    case _StackShareChoice.aiBrief:
+      await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute<void>(builder: (_) => const AiBriefPreviewScreen()),
       );
     case _StackShareChoice.supplements:
       final stack = await ref.read(activeStackProvider.future);
@@ -90,6 +97,16 @@ class _StackShareOptions extends StatelessWidget {
                   'profile are never included.',
               onTap: () =>
                   Navigator.of(context).pop(_StackShareChoice.supplements),
+            ),
+            const SizedBox(height: V2Spacing.space12),
+            _ShareOption(
+              icon: Icons.auto_awesome_outlined,
+              title: 'Share with an AI assistant',
+              description:
+                  'A text brief to paste into ChatGPT, Claude or another '
+                  'assistant. You choose what it includes; medications and '
+                  'your profile stay out until you switch them on.',
+              onTap: () => Navigator.of(context).pop(_StackShareChoice.aiBrief),
             ),
             const SizedBox(height: V2Spacing.space12),
             _ShareOption(

@@ -27,6 +27,7 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
+import 'package:pharmaguide/features/ai_share/ai_share_snapshot_pusher.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
@@ -606,6 +607,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       child: Consumer(
         builder: (context, ref, child) {
           ref.watch(stackSyncListenerProvider);
+          // Opt-in AI-share refresh (ADR-009). Off for every connection until
+          // the user switches it on; never runs for guests.
+          ref.watch(aiShareSnapshotListenerProvider);
           // One always-on observer persists added/changed/resolved clinical
           // signals. It is fail-closed: partial or unavailable analysis never
           // resolves an existing event as an all-clear.

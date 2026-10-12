@@ -180,3 +180,65 @@
 - Taps: `NativeTabBar.swift` removes Flutter's delaying recognizer from the bar's host view, because quick taps (under ~30 ms) were being dropped. `PGTabBar` switches the bar off while a modal route covers the shell. Re-check both after any Flutter upgrade.
 
 **Addendum 2026-09-28: chat (Ask PharmaGuide).** Sean decided that chat answers on the device, is stack-aware, and is personal (medications, conditions, allergies, sex, age). This replaces the cloud Gemini plan in SPRINT_TRACKER V2.0, and the Profile preview ("answered on this device and aren't sent anywhere") commits to it. Before launch, choose the on-device model. Apple's Foundation Models framework needs an Apple Intelligence iPhone, so decide what other phones get. Chat stays out of the tab bar until it works (App Review 2.1(a)). The copy never says "pharmacist" (a protected title under state pharmacy acts, e.g. Fla. Stat. §465.015), "first", or "safe".
+
+---
+
+## ADR-009: AI-assistant sharing — public catalog MCP, personal connector, consented one-shot stack snapshots
+
+**Date:** 2026-10-12
+**Status:** ACCEPTED (Sean, 2026-10-12, after two external reviews; every factual claim was reproduced against a primary source before it was adopted)
+**Context:** Sean wants a user talking to ChatGPT or Claude to connect PharmaGuide, so the assistant reads what the user chose to share (supplements, medications, findings) and advises on it. Long term, the assistant asks PharmaGuide's engine to check a proposed product against the user's real regimen before suggesting it. Today's rules point the other way. ADR-007 says profile, medications and allergies never upload. Stack sync excludes medications at three layers (the Drift filter and assert in `lib/features/stack/services/stack_sync_queue.dart`, the `user_stacks` `CHECK (type = 'supplement')`, and RLS `WITH CHECK`), pinned by `test/release_gate/phi_medication_no_sync_test.dart`. The ADR-008 addendum promises that Ask PharmaGuide chat answers on the device. External facts, verified on 2026-10-12:
+- Claude and ChatGPT accept a remote MCP server for personal data only with OAuth 2.1 (protected-resource metadata, PKCE S256, DCR or CIMD; no static keys).
+- Supabase Auth's OAuth 2.1 server is in beta. Its access tokens carry the user's full database session; scopes have no effect on table access, so only RLS on `auth.jwt()->>'client_id'` restricts them.
+- supabase/auth #2610 (open since 2026-07-02): the `resource` parameter is ignored and `aud` is always `"authenticated"`, so a token is not bound to one MCP resource.
+- Apple Health medications are read-only for third-party apps (iOS 26), with per-medication read authorization and no supplement category.
+- OpenAI's directory guidelines list PHI as restricted data for listed plugins; private connectors are not addressed.
+
+**Decision:**
+- **PharmaGuide evaluates; the LLM explains.** Findings come from the one Dart engine with versioned evidence. No clinical rule is re-implemented in TypeScript or any other server language. If a server-side engine is needed, it runs the same Dart code (Phase 4 spike; the hosting decision goes in ADR-010).
+- **Two endpoints, two trust levels.**
+  - Public catalog MCP (`supabase/functions/mcp-public`): no account, product discovery and catalog assessments from pipeline-published artifacts, no personal data. It is the only candidate for a directory listing.
+  - Personal MCP (`supabase/functions/mcp-personal`): OAuth. First the supplements already synced to `user_stacks`; later consented snapshots and stack checks. Private and unlisted.
+- **One scoped exception to "medications never reach Supabase".** The only path is a user-initiated, one-shot snapshot. The user picks the scope in the app (`AiShareScope`), sees a preview of the exact payload, and shares it explicitly. The snapshot is bound to one `ai_connections` row and stored in `ai_share_snapshots`, encrypted with application-level AES-GCM in the edge function; keys live in Supabase Vault or function secrets with a `key_version` (pgsodium is pending deprecation). Honest wording: encrypted at rest; PharmaGuide's server can decrypt it while the share is live; it is not end-to-end encrypted. Default lifetime is 24 h, at most 30 d. It is deleted on disconnect, app sign-out, account deletion or expiry. Ongoing refresh is a separate opt-in, off by default and ended with one tap; a category added later (a medication, a condition, a pregnancy flag) is never shared silently. The stack-sync path and its three medication guards are unchanged: stack sync still never carries medication rows.
+- **Three data locations.** Shared data can be stored by PharmaGuide, transmitted to the AI provider, and retained in the provider's chat history. Revocation reaches the first and ends the second; it cannot reach the third, and the consent copy says so. A supplement list sent to a provider is a new disclosure even when PharmaGuide stores nothing new, so it gets the same consent preview.
+- **Security requirements S1–S10**, each with an automated test (full table: `docs/security/ai-connector-threat-model.md`):
+  - S1 Database isolation: restrictive `client_id IS NULL` RLS on user-owned tables, Storage, SECURITY DEFINER RPCs and user-JWT functions; MCP servers verify the JWT themselves and never forward it.
+  - S2 Resource binding: an access-token hook stamps the personal MCP audience, and a token minted for another resource is rejected.
+  - S3 Client identity: production accepts only pre-registered clients with exact callback URIs; DCR runs on staging only.
+  - S4 Consent preview: destination, categories, duration, the three data locations and the revocation path.
+  - S5 Revocation and purge: disconnect, sign-out and account deletion delete snapshots and log rows; an unexpired token loses access immediately.
+  - S6 Desktop approval: a short-lived pairing code; the deep link is the same-device path only.
+  - S7 Audit, rate limits, caching: a payload-free access log, per-IP, per-client and per-connection limits, and cached catalog reads.
+  - S8 Tool output is data: label and user strings are tagged by source, length-capped and wrapped in a data envelope.
+  - S9 Policy and legal: privacy policy, FTC Health Breach Notification Rule review, and a directory listing for the public server only.
+  - S10 Grant-level authorization: every personal tool call resolves to an active, unexpired connection and enforces that connection's own categories.
+- **Completeness rule.** "No known concerns" is permitted only when identity resolution, the relevant medication list, amounts/doses and the evaluated rule sets are all present for the shared scope. `mapped_coverage` is one input, never sufficient on its own. Otherwise the answer lists exactly what was not assessed ("not fully checked: medications not shared; 2 ingredients unresolved").
+- **Wording rule.** No tool output makes an unsupported declaration that a product or regimen is safe. Pipeline- and clinician-authored classifications (for example "unsafe" or "contraindicated") pass through verbatim with their `evidence_level` and source.
+
+**Consequences:**
+- `test/safety_invariants/no_health_in_supabase_test.dart` gains exactly the snapshot path in its allowlist, nothing broader. `test/release_gate/phi_medication_no_sync_test.dart` stays unchanged.
+- Privacy copy that promises device-only health data needs a connected-case amendment before snapshots ship: the Ask PharmaGuide preview ("answered on this device and aren't sent anywhere", still true for chat itself) and "Your health profile and medication list stay on this device." in `lib/features/settings/v2/settings_v2_screen.dart`, and "saved on this device only" in `lib/features/medications/v2/medication_entry_v2_screen.dart`. The wording is Sean's decision.
+- The privacy policy is updated and the FTC Health Breach Notification Rule is reviewed before a personal connector reaches users (S9).
+- Supabase Auth as the authorization server stays conditional on the S1–S3 adversarial tests passing on a staging project. If it cannot pass, the authorization server is replaced (own server or hosted IdP) and Supabase keeps the database and functions.
+- The personal connector stays private and unlisted until OpenAI's policy for private connectors is confirmed; only the public server goes to directories.
+- Snapshots (Phase 2) start only after this ADR and the AGENTS.md amendment are merged, the personal-connector gate (S1–S3, S5, S10) is green on staging, and `AiShareScope` has landed.
+- Apple Health import is one-way (Health → PharmaGuide medications), stays on the device, and never implies AI sharing.
+- ADR-007's "Profile, medications and allergies never upload" now carries this one exception; the ADR-008 chat addendum is unchanged.
+
+---
+
+## ADR-010: One engine, server-side via dart2js in the edge function (native Dart as fallback)
+
+**Date:** 2026-10-12
+**Status:** PROPOSED (spike evidence in `docs/spikes/2026-10-12-engine-service-spike.md`; Sean decides the refactor investment, estimated 20–25 files, 3–5 days)
+**Context:** Phase 4 of ADR-009 ("check against my stack" for AI assistants) needs the same findings the app shows: interactions with evidence levels, depletions, duplication and dose context. A TypeScript re-implementation would create a second safety brain. The spike compiled the unchanged Dart engine (29 files) with `dart compile js -O2` and `dart compile exe` through a compile-time overlay that swaps only the three Drift database libraries and `crash_reporting_service`, plus `flutter/foundation` and `material` shims. On a real-catalog fixture (ginkgo candidate; fish oil, garlic and warfarin in the stack) the JS, AOT and VM outputs and the app's own provider path over the full interaction DB produced byte-identical findings. A 10-item stack costs about 1 ms warm in Deno and under 1 ms native; the bundle is about 0.5 MB. The 25 MB interaction DB is about 90% `research_pairs`, which the safety checks never read; the live safety ruleset is about 2.1 MB. Edge Functions allow 256 MB and 2 s CPU per request.
+
+**Decision (proposed):**
+- The engine stays in Dart in this repository. No clinical rule is re-implemented in TypeScript or any other server language (ADR-009).
+- Before any server use, `lib/` exposes a pure engine API: an `InteractionRuleSource` interface, plain or platform-neutral row types, the orchestration extracted from the Riverpod providers (`stack_safety_providers.dart`) into `lib/services/engine/`, an injectable severity drift hook in place of the Sentry import in `severity.dart`, and `meta` in place of `flutter/foundation`. The app providers become thin adapters over that API.
+- The server build is `dart compile js` of that API, called from the personal MCP edge function through a `dart:js_interop` export. TypeScript handles only auth, MCP transport and JSON.
+- The pipeline publishes the live safety ruleset (interactions, `drug_class_map`, `profile_warning_rules`) and the reference JSON as one versioned artifact. `research_pairs` is served by an indexed query or left out of assistant answers.
+- Release gate: golden fixtures over a fixed set of stacks and products, including blob-backed dose and UL cases, must produce identical findings on the VM and on JS in CI (JS treats ints and doubles alike, so numeric semantics are a tested surface).
+- Fallback: if the Supabase Edge Runtime cannot run the JS within limits, the same API is built with `dart compile exe` as a container service called by the MCP function. Decision rules are identical.
+
+**Consequences:** a one-time refactor that also simplifies testing the app; rule and reference updates ship with the catalog version, not with function deploys; completeness flags (`checks_incomplete`, unresolved identity, missing blobs) cross the API unchanged, so "no known concerns" is only emitted under the ADR-009 completeness rule. Open: the Supabase Edge Runtime itself was not exercised (only the Deno CLI and Node); dose, UL, FitScore, profile-gate and timing paths compiled but were not golden-checked for lack of blobs; whether research-pair evidence belongs in assistant answers at all.

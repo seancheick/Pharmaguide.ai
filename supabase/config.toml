@@ -6,8 +6,29 @@ project_id = "pharmaguide"
 [functions.cleanup-product-submissions]
 verify_jwt = false
 
+# Public, authless MCP server: product catalog facts only, no personal data.
+# It never reads a caller JWT; it reads catalog_search with the service role
+# and applies its own per-IP rate limit (supabase/functions/mcp-public).
+[functions.mcp-public]
+verify_jwt = false
+
 # Invoked only by the pipeline after it atomically promotes an alert release.
 # The function performs its own constant-time release-secret check; an end-user
 # JWT must never be able to trigger bulk notification delivery.
 [functions.dispatch-safety-alert-release]
+verify_jwt = false
+
+# Personal MCP server (AI connector). The OAuth 2.1 access token is verified
+# inside the function (JWKS, iss, exp, aud, client_id, sub) and checked against
+# ai_connections on every call. The gateway check is off because a 401 must
+# carry the RFC 9728 resource_metadata challenge, which only the function adds.
+[functions.mcp-personal]
+verify_jwt = false
+
+# Phase 2 consented snapshot share (ADR-009). Called by the app with its own
+# session JWT; the function verifies it itself (JWKS, iss, exp, aud
+# "authenticated") so it can refuse any token carrying client_id (an AI
+# assistant's OAuth token) and anonymous users with 403 before any work.
+# Secret: AI_SHARE_SNAPSHOT_KEY_V1 (base64, 32 bytes), shared with mcp-personal.
+[functions.ai-share-snapshot]
 verify_jwt = false

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
+import 'package:pharmaguide/features/ai_share/ai_connections_screen.dart';
 import 'package:pharmaguide/features/history/health_history_screen.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
@@ -86,6 +87,12 @@ class SettingsV2Connected extends ConsumerWidget {
           Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute<void>(
               builder: (_) => const ClinicianReportPreviewScreen(),
+            ),
+          ),
+      onOpenAiConnections: () =>
+          Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const AiConnectionsScreen(),
             ),
           ),
       onOpenProductSubmissions: signedIn

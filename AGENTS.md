@@ -46,6 +46,11 @@ make help             # every target
 - Never store profile data, medications, allergens, conditions, goals or FitScore in Supabase.
   Signed-in supplement-stack sync goes only through the audited stack-sync path; medication rows
   never sync.
+  - The single exception: a user-initiated, consented AI-share snapshot, written only by the
+    personal-MCP consent flow into `ai_share_snapshots` (encrypted, connection-bound,
+    time-limited; see ADR-009). Stack sync still never carries medication rows.
+- AI assistants receive PharmaGuide findings; they never compute safety. No clinical rule is
+  re-implemented outside the Dart engine (ADR-009).
 - FitScore is never persisted; it is recomputed from the current profile every time.
 - Never display "safe" when `mapped_coverage < 0.3`.
 - Severity order is sacred: contraindicated > avoid > caution > monitor > safe.

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
@@ -7,9 +6,9 @@ import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/services/sharing/clinical_profile_labels.dart';
+import 'package:pharmaguide/services/sharing/report_text.dart';
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
-import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -26,17 +25,8 @@ class ClinicianPdfBuilder {
   /// Derived only from the generation instant so the same report always
   /// carries the same id: pages separated from the set stay attributable, and
   /// a clinician can quote one token back. It is not a patient identifier.
-  static String reportIdFor(DateTime generatedAt) {
-    final stamp = generatedAt
-        .toUtc()
-        .millisecondsSinceEpoch
-        .toRadixString(36)
-        .toUpperCase();
-    final tail = stamp.length <= 6
-        ? stamp.padLeft(6, '0')
-        : stamp.substring(stamp.length - 6);
-    return 'PG-$tail';
-  }
+  static String reportIdFor(DateTime generatedAt) =>
+      stackReportIdFor(generatedAt);
 
   Future<Uint8List> build({
     required UserProfile? profile,
@@ -79,30 +69,9 @@ class ClinicianPdfBuilder {
         .where((e) => e.type == 'supplement')
         .toList(growable: false);
 
-    // A declared drug class that no saved medication resolves means the
-    // checks needing an exact medication ran at class granularity or not at
-    // all. Testing `medications.isEmpty` marked this resolved as soon as ANY
-    // medication existed — an unrelated aspirin silenced a missing ACE
-    // inhibitor.
-    //
-    // Coverage is decided by `MedicationClassBridge.profileGateIdsForClasses`,
-    // the single crosswalk between the medication `class:*` vocab and the
-    // clinician-signed profile vocab. It is deliberately seeded with one
-    // mapping and FAILS OPEN, so an unmapped medication class does not match
-    // a differently-named profile id and the banner still fires. That is the
-    // safe direction: over-warn, never silently clear.
-    final declaredClasses = _decodeJsonStringList(
-      profile?.drugClasses,
-    ).map(_bareClassId).where((id) => id.isNotEmpty).toSet();
-    final resolvedClasses = MedicationClassBridge.profileGateIdsForClasses(
-      medications.expand(
-        (medication) => _decodeJsonStringList(medication.drugClassesCol),
-      ),
-    ).map(_bareClassId).toSet();
-    final unresolvedClasses = declaredClasses.difference(resolvedClasses);
-    final unresolvedClassLabels = clinicalProfileLabels(
-      unresolvedClasses.toList(growable: false),
-      ClinicalProfileField.drugClass,
+    final unresolvedClassLabels = unresolvedDeclaredClassLabels(
+      profile,
+      medications,
     );
 
     doc.addPage(
@@ -203,7 +172,7 @@ class ClinicianPdfBuilder {
                 pw.Text('Medication & Supplement Review', style: theme.title),
                 pw.SizedBox(height: 6),
                 pw.Text(
-                  'Generated ${_formatDate(generatedAt)} - '
+                  'Generated ${formatReportDate(generatedAt)} - '
                   'Report $reportId - For clinician review',
                   style: theme.caption,
                 ),
@@ -242,7 +211,7 @@ class ClinicianPdfBuilder {
             ),
             pw.SizedBox(height: 4),
             pw.Text(
-              _clean(
+              cleanReportText(
                 'No entered medication resolves this declared medication '
                 'class: ${unresolvedClassLabels.join(', ')}. Medication and '
                 'medication-nutrient checks are class-only or did not run for '
@@ -261,7 +230,7 @@ class ClinicianPdfBuilder {
   List<pw.Widget> _about(_Theme theme) {
     return _section(theme, 'About this report', [
       pw.Text(
-        _clean(
+        cleanReportText(
           'This report summarizes supplements, medications, nutrient totals, timing guidance, and safety signals reported in the user\'s PharmaGuide stack. Generated entirely on this device; PharmaGuide does not upload or store this report on a server.',
         ),
         style: theme.body,
@@ -297,7 +266,7 @@ class ClinicianPdfBuilder {
       Map<String, String> labels = const <String, String>{},
     }) {
       final values = clinicalProfileLabels(
-        _decodeJsonStringList(raw),
+        decodeJsonStringList(raw),
         field,
         conditionLabels: labels,
       );
@@ -323,7 +292,7 @@ class ClinicianPdfBuilder {
       ClinicalProfileField.allergen,
     );
     final goals = clinicalProfileLabels(
-      _decodeJsonStringList(profile?.goals),
+      decodeJsonStringList(profile?.goals),
       ClinicalProfileField.goal,
     );
     if (goals.isNotEmpty) rows.add(('Goals', goals.join(', ')));
@@ -374,10 +343,12 @@ class ClinicianPdfBuilder {
           for (final item in medications)
             [
               _cell(theme, item.name),
-              _cell(theme, _medicationSchedule(item)),
+              _cell(theme, medicationScheduleText(item)),
               _cell(
                 theme,
-                _identityCoverageLabel(medicationIdentityStatuses[item.id]),
+                medicationIdentityCoverageLabel(
+                  medicationIdentityStatuses[item.id],
+                ),
               ),
             ],
         ],
@@ -403,66 +374,7 @@ class ClinicianPdfBuilder {
       ]);
     }
 
-    // A product that reached no nutrient total is a coverage finding, and it
-    // is invisible if the report only lists names.
-    //
-    // But "excluded" is not the same as "unmapped". `compoundFormDuplicate`
-    // and `declaredTotalDuplicate` are deliberate anti-double-counting
-    // exclusions — the label IS represented, it is simply not summed twice.
-    // Counting only `contributions` printed "label not represented in totals"
-    // for a fully characterized product, which on a clinician document reads
-    // as an accusation against a product that is fine.
-    final mappedNutrients = <String, Set<String>>{};
-    final countedElsewhere = <String>{};
-    final unusableRows = <String>{};
-    for (final status in nutrientStatuses) {
-      for (final contribution in status.total.contributions) {
-        final id = contribution.stackEntryId.trim();
-        if (id.isEmpty) continue;
-        (mappedNutrients[id] ??= <String>{}).add(status.total.canonicalId);
-      }
-      for (final excluded in status.total.excludedContributions) {
-        final id = excluded.contribution.stackEntryId.trim();
-        if (id.isEmpty) continue;
-        switch (excluded.reason) {
-          case NutrientExclusionReason.compoundFormDuplicate:
-          case NutrientExclusionReason.declaredTotalDuplicate:
-            countedElsewhere.add(id);
-          case NutrientExclusionReason.missingUnit:
-          case NutrientExclusionReason.notProvidedUnit:
-          case NutrientExclusionReason.unsupportedUnit:
-          case NutrientExclusionReason.unitConflict:
-          case NutrientExclusionReason.skippedByPipeline:
-            unusableRows.add(id);
-        }
-      }
-    }
-
-    String coverageLabel(String stackEntryId) {
-      final count = mappedNutrients[stackEntryId]?.length ?? 0;
-      if (count > 0) {
-        return count == 1 ? 'One nutrient counted' : '$count nutrients counted';
-      }
-      // A real coverage gap outranks a benign de-duplication: reporting only
-      // the benign reason would hide the unusable row entirely.
-      if (unusableRows.contains(stackEntryId)) {
-        return 'Not counted - a label amount used an unusable unit';
-      }
-      if (countedElsewhere.contains(stackEntryId)) {
-        return 'Counted within another nutrient row on this label';
-      }
-      return 'Nothing counted from this label';
-    }
-
-    // A partly-mapped product still has a gap worth naming.
-    List<String> coverageNotes(String stackEntryId) => <String>[
-      if ((mappedNutrients[stackEntryId]?.length ?? 0) > 0 &&
-          unusableRows.contains(stackEntryId))
-        'One label amount used an unusable unit and was not counted.',
-      if (countedElsewhere.contains(stackEntryId) &&
-          unusableRows.contains(stackEntryId))
-        'A duplicate form row was also excluded to avoid double-counting.',
-    ];
+    final coverage = SupplementNutrientCoverage(nutrientStatuses);
 
     return _section(theme, 'Supplements (${supplements.length})', [
       _dataTable(
@@ -473,13 +385,17 @@ class ClinicianPdfBuilder {
           for (final item in supplements)
             [
               _cell(theme, item.name),
-              _noteCell(theme, coverageLabel(item.id), coverageNotes(item.id)),
+              _noteCell(
+                theme,
+                coverage.labelFor(item.id),
+                coverage.notesFor(item.id),
+              ),
             ],
         ],
       ),
       pw.SizedBox(height: 6),
       pw.Text(
-        _clean(
+        cleanReportText(
           'Amounts come from the verified product label, not from free-text '
           'entries. See Nutrient totals for per-product contributions.',
         ),
@@ -529,8 +445,8 @@ class ClinicianPdfBuilder {
     required bool classOnlyReconciliation,
   }) {
     final signals = orderedSignalsFrom(safetyReport);
-    final representedHeadlines = _representedIssueHeadlines(signals);
-    final remainingIssues = _sortedIssues(
+    final representedHeadlines = representedIssueHeadlines(signals);
+    final remainingIssues = sortIssuesBySeverity(
       intelligence.issues
           .where(
             (issue) => !representedHeadlines.contains(issue.headline.trim()),
@@ -651,43 +567,6 @@ class ClinicianPdfBuilder {
     ];
   }
 
-  Set<String> _representedIssueHeadlines(List<ClinicalSignal> signals) {
-    final headlines = <String>{};
-    for (final signal in signals) {
-      switch (signal.payload) {
-        case InteractionPayload(:final result):
-          headlines.add(result.mechanism.trim());
-        case MedicationProfilePayload(:final warning):
-          headlines.add(
-            '${warning.medicationName}: ${warning.headline}'.trim(),
-          );
-        case CumulativeExposurePayload(:final status):
-          final warning = status.warning;
-          if (warning == null && status.tier != NutrientTier.exceedsUl) {
-            continue;
-          }
-          final hasUpperLimitDetail =
-              status.ul != null && status.pctOfUl != null;
-          headlines.add(
-            status.tier == NutrientTier.exceedsUl && hasUpperLimitDetail
-                ? StackSafetyReport.nutrientUpperLimitSummary(status)
-                : warning!.trim(),
-          );
-        case DoseThresholdPayload():
-          headlines.add(signal.body.trim());
-        case RegulatorySafetyPayload():
-          headlines.add(signal.body.trim());
-        case MedicationNutrientPayload():
-          break;
-        case TimingSeparationPayload():
-          // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart. Timing already has its own section in this report.
-          break;
-      }
-    }
-    headlines.remove('');
-    return headlines;
-  }
-
   pw.Widget _clinicalSignalBlock(_Theme theme, ClinicalSignal signal) {
     final detail = <pw.Widget>[
       if (signal.consumerDisposition == ConsumerDisposition.goodToKnow)
@@ -701,7 +580,7 @@ class ClinicianPdfBuilder {
         detail.add(
           _line(
             theme,
-            'Evidence: ${_evidenceLabel(result.evidenceLevel.wireId)}',
+            'Evidence: ${evidenceLevelLabel(result.evidenceLevel.wireId)}',
           ),
         );
         if (result.mechanism.trim().isNotEmpty) {
@@ -753,14 +632,7 @@ class ClinicianPdfBuilder {
   ) {
     if (statuses.isEmpty) return const <pw.Widget>[];
 
-    final sorted = [...statuses]
-      ..sort((a, b) {
-        final warn = (b.shouldWarn ? 1 : 0).compareTo(a.shouldWarn ? 1 : 0);
-        if (warn != 0) return warn;
-        return (b.pctOfUl ?? b.pctOfRda ?? 0).compareTo(
-          a.pctOfUl ?? a.pctOfRda ?? 0,
-        );
-      });
+    final sorted = sortNutrientStatuses(statuses);
 
     return _section(theme, 'Nutrient totals', [
       _dataTable(
@@ -787,36 +659,27 @@ class ClinicianPdfBuilder {
           for (final status in sorted)
             [
               _cell(theme, status.total.displayName),
-              _cell(theme, _amountCell(status)),
-              _cell(theme, _targetCell(status)),
+              _cell(theme, nutrientAmountText(status)),
+              _cell(theme, nutrientTargetText(status)),
               // A UL exists but the label's form cannot support an honest
               // comparison: print the reason, never a fabricated percentage.
-              _cell(
-                theme,
-                _isUnquantified(status)
-                    ? '-'
-                    : status.ulAssessmentIndeterminate
-                    ? 'Not comparable'
-                    : status.pctOfUl == null
-                    ? '-'
-                    : '${_formatNumber(status.pctOfUl!)}%',
-              ),
+              _cell(theme, nutrientUpperLimitText(status)),
               _noteCell(
                 theme,
                 // A tier label promises a comparison that an unquantified row
                 // cannot support.
-                _isUnquantified(status)
+                isNutrientUnquantified(status)
                     ? 'No usable label amount'
-                    : _nutrientTierLabel(status.tier),
-                _comparatorCaveats(status),
+                    : nutrientTierLabel(status.tier),
+                nutrientComparatorCaveats(status),
               ),
-              _cell(theme, _contributionSummary(status)),
+              _cell(theme, nutrientContributionSummary(status)),
             ],
         ],
       ),
       pw.SizedBox(height: 8),
       pw.Text(
-        _clean(
+        cleanReportText(
           'Totals are supplement-only and exclude food, beverages, and '
           'fortified products. Targets are the reference intake matched to '
           'this profile; substances with no established reference intake show '
@@ -825,30 +688,6 @@ class ClinicianPdfBuilder {
         style: theme.caption,
       ),
     ]);
-  }
-
-  /// Uncertainty the UL checker already recorded on the status.
-  ///
-  /// These flags exist precisely because the comparison is weaker than it
-  /// looks. Dropping them presents a fallback demographic's target, or a
-  /// deliberately least-restrictive upper limit, as if it were this patient's.
-  List<String> _comparatorCaveats(NutrientStatus status) => <String>[
-    if (status.rdaIsBaseline)
-      'Target is a generic adult baseline, not profile-matched.',
-    if (status.ulIsFallback)
-      'Upper limit is a non-personalized fallback value.',
-    if (status.ulAssessmentIndeterminate)
-      'Upper-limit comparison not possible for this label form.',
-  ];
-
-  String _contributionSummary(NutrientStatus status) {
-    final names = <String>[];
-    for (final contribution in status.total.contributions) {
-      final name = contribution.productName.trim();
-      if (name.isEmpty || names.contains(name)) continue;
-      names.add(name);
-    }
-    return names.isEmpty ? '-' : names.join(', ');
   }
 
   List<pw.Widget> _timingSection(
@@ -874,15 +713,15 @@ class ClinicianPdfBuilder {
         ])
           [
             _cell(theme, product.productName),
-            _cell(theme, _categoryLabel(item.category)),
-            _cell(theme, _instructionFor(item)),
+            _cell(theme, timingCategoryLabel(item.category)),
+            _cell(theme, timingInstructionText(item)),
             // Reuse the report's own evidence vocabulary rather than the
             // model's UI label, so one report never names the same tier two
             // ways. Authority is printed beside it, never merged into it: a
             // mechanism paper and a drug label can share a tier.
             _cell(
               theme,
-              '${_evidenceLabel(item.evidenceLevel.wireId)} - '
+              '${evidenceLevelLabel(item.evidenceLevel.wireId)} - '
               '${item.sourceAuthority.label}',
             ),
           ],
@@ -910,52 +749,10 @@ class ClinicianPdfBuilder {
       // Unresolved inputs belong in a clinical report even when the app stays
       // silent about them: a reader must be able to tell "checked, nothing
       // found" from "could not check".
-      for (final issue in guidance.issues) _line(theme, _issueSentence(issue)),
+      for (final issue in guidance.issues)
+        _line(theme, timingIssueSentence(issue)),
     ]);
   }
-
-  static String _categoryLabel(TimingCategory category) => switch (category) {
-    TimingCategory.importantSeparation => 'Important',
-    TimingCategory.howToTake => 'Administration',
-    TimingCategory.optional => 'Optional',
-  };
-
-  /// The authored advice plus the exact structured interval behind it.
-  static String _instructionFor(TimingOptimization item) {
-    final relation = item.relation;
-    final detail = switch (relation.type) {
-      TimingRelationType.separateFrom ||
-      TimingRelationType.separateFromMedications =>
-        relation.minimumHours == null
-            ? ''
-            : ' (minimum ${relation.minimumHours}h separation)',
-      TimingRelationType.beforeEvent || TimingRelationType.afterEvent =>
-        relation.minimumMinutes == null
-            ? ''
-            : ' (${relation.minimumMinutes}'
-                  '${relation.maximumMinutes == null ? '' : '-${relation.maximumMinutes}'}'
-                  ' minutes)',
-      _ => '',
-    };
-    final prescription = item.involvesMedication
-        ? ' Medication schedule remains as prescribed.'
-        : '';
-    return '${item.advice}$detail$prescription';
-  }
-
-  static String _issueSentence(TimingEvaluationIssue issue) => switch (issue) {
-    ConflictingProductGuidance(:final productName) =>
-      '$productName: applicable timing rules conflict for a single product; '
-          'no instruction was issued.',
-    FormulationUnknown(:final productName) =>
-      '$productName: formulation could not be determined, so timing guidance '
-          'was not issued.',
-    IdentityUnresolved(:final ingredient) =>
-      'A timing rule matched $ingredient but could not be tied to a specific '
-          'product in the stack.',
-    AnalysisUnavailable(:final reason) =>
-      'Timing analysis unavailable ($reason). This is not a clean result.',
-  };
 
   List<pw.Widget> _depletionSection(
     _Theme theme,
@@ -1000,7 +797,7 @@ class ClinicianPdfBuilder {
             theme,
             'Relationship: ${medNutrientRelationshipLabel(match.depletionType)}',
           ),
-          _line(theme, 'Evidence: ${_evidenceLabel(match.evidenceLevel)}'),
+          _line(theme, 'Evidence: ${evidenceLevelLabel(match.evidenceLevel)}'),
         ];
         if (match.mechanism.trim().isNotEmpty) {
           rows.add(_line(theme, 'Mechanism: ${match.mechanism.trim()}'));
@@ -1085,7 +882,7 @@ class ClinicianPdfBuilder {
           // Repeated per page so a separated sheet stays attributable to one
           // report and one snapshot date.
           pw.Text(
-            'PharmaGuide - $reportId - ${_formatDate(generatedAt)}',
+            'PharmaGuide - $reportId - ${formatReportDate(generatedAt)}',
             style: theme.footer,
           ),
           pw.Text(
@@ -1149,7 +946,7 @@ class ClinicianPdfBuilder {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
       child: pw.Text(
-        _clean(text),
+        cleanReportText(text),
         style: bold ? theme.tableHead : theme.tableBody,
       ),
     );
@@ -1162,11 +959,11 @@ class ClinicianPdfBuilder {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(_clean(text), style: theme.tableBody),
+          pw.Text(cleanReportText(text), style: theme.tableBody),
           for (final note in notes)
             pw.Padding(
               padding: const pw.EdgeInsets.only(top: 2),
-              child: pw.Text(_clean(note), style: theme.tableNote),
+              child: pw.Text(cleanReportText(note), style: theme.tableNote),
             ),
         ],
       ),
@@ -1200,7 +997,7 @@ class ClinicianPdfBuilder {
   pw.Widget _line(_Theme theme, String text) {
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 5),
-      child: pw.Text(_clean(text), style: theme.body),
+      child: pw.Text(cleanReportText(text), style: theme.body),
     );
   }
 
@@ -1216,8 +1013,11 @@ class ClinicianPdfBuilder {
       child: pw.RichText(
         text: pw.TextSpan(
           children: [
-            pw.TextSpan(text: '${_clean(label)}: ', style: theme.bodyBold),
-            pw.TextSpan(text: _clean(text), style: theme.body),
+            pw.TextSpan(
+              text: '${cleanReportText(label)}: ',
+              style: theme.bodyBold,
+            ),
+            pw.TextSpan(text: cleanReportText(text), style: theme.body),
           ],
         ),
       ),
@@ -1237,181 +1037,12 @@ class ClinicianPdfBuilder {
         text: pw.TextSpan(
           children: [
             pw.TextSpan(text: 'Good to know: ', style: theme.bodyBold),
-            pw.TextSpan(text: _clean(text), style: theme.body),
+            pw.TextSpan(text: cleanReportText(text), style: theme.body),
           ],
         ),
       ),
     );
   }
-
-  /// Profile ids may carry the `class:` prefix; bridge ids always do.
-  static String _bareClassId(String raw) {
-    final trimmed = raw.trim().toLowerCase();
-    return trimmed.startsWith('class:') ? trimmed.substring(6) : trimmed;
-  }
-
-  /// Exposure as one coherent quantity.
-  ///
-  /// `totalAmount` is the MAXIMUM label-directed exposure and `pctOfRda` is
-  /// derived from the MINIMUM, so printing them in the same row stated two
-  /// different doses as one. A ranged label prints the range on both.
-  String _amountCell(NutrientStatus status) {
-    final total = status.total;
-    if (_isUnquantified(status)) return 'Not quantified';
-    if (total.hasDoseRange && total.minimumTotalAmount != null) {
-      return '${_formatNumber(total.minimumTotalAmount!)}-'
-          '${_formatNumber(total.totalAmount)} ${total.unit}';
-    }
-    return '${_formatNumber(total.totalAmount)} ${total.unit}';
-  }
-
-  /// Nothing reached the sum AND there is no amount to show. Printing "0"
-  /// there is a measured absence the report cannot support. A total that
-  /// carries an amount without per-product attribution is still quantified —
-  /// it simply cannot be sourced, so it keeps its amount and its comparison.
-  bool _isUnquantified(NutrientStatus status) =>
-      status.total.contributions.isEmpty && status.total.totalAmount == 0;
-
-  String _targetCell(NutrientStatus status) {
-    if (_isUnquantified(status)) return '-';
-    final minimum = status.pctOfRda;
-    if (minimum == null) return '-';
-    final maximum = status.maximumPctOfRda;
-    if (maximum != null && (maximum - minimum).abs() > 0.05) {
-      return '${_formatNumber(minimum)}-${_formatNumber(maximum)}%';
-    }
-    return '${_formatNumber(minimum)}%';
-  }
-
-  List<String> _decodeJsonStringList(String? raw) {
-    if (raw == null || raw.isEmpty) return const <String>[];
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is List) {
-        return decoded
-            .map((e) => e.toString().trim())
-            .where((s) => s.isNotEmpty)
-            .toList(growable: false);
-      }
-    } on Object {
-      return const <String>[];
-    }
-    return const <String>[];
-  }
-
-  List<StackIssue> _sortedIssues(List<StackIssue> issues) {
-    final sorted = issues.indexed
-        .map((entry) => _RankedIssue(entry.$2, entry.$1))
-        .toList(growable: false);
-    sorted.sort((a, b) {
-      final severity = b.issue.severity.weight.compareTo(
-        a.issue.severity.weight,
-      );
-      if (severity != 0) return severity;
-      return a.ordinal.compareTo(b.ordinal);
-    });
-    return sorted.map((entry) => entry.issue).toList(growable: false);
-  }
-
-  /// Medication dose and schedule as entered.
-  ///
-  /// Supplement amounts are deliberately absent from the supplement table:
-  /// they are owned by the verified product label and the nutrient-total
-  /// section. Historical free-text stack fields must not be presented to a
-  /// clinician as if they were a validated supplement dose.
-  String _medicationSchedule(UserStacksLocalData item) {
-    final dosage = (item.dosage ?? '').trim();
-    final frequency = (item.frequency ?? '').trim();
-    if (dosage.isEmpty && frequency.isEmpty) return 'Not recorded';
-    if (frequency.isEmpty) return dosage;
-    if (dosage.isEmpty) return frequency;
-    return '$dosage, $frequency';
-  }
-
-  String _identityCoverageLabel(MedicationIdentityStatus? status) =>
-      switch (status) {
-        MedicationIdentityStatus.complete => 'reviewed matching available',
-        MedicationIdentityStatus.partial => 'reviewed matching is partial',
-        MedicationIdentityStatus.classOnly =>
-          'reviewed medication-group matching only',
-        MedicationIdentityStatus.exactOnly =>
-          'RxNorm identity saved; no reviewed direct or group coverage found',
-        MedicationIdentityStatus.unresolved ||
-        null => 'matching unresolved; medication checks may be incomplete',
-      };
-
-  String _nutrientTierLabel(NutrientTier tier) => switch (tier) {
-    // Creatine, lutein, ALA and similar have no RDA or AI. Naming the missing
-    // standard still frames them against it; state only what is known.
-    NutrientTier.noRda =>
-      'No daily reference - amount shown for reconciliation',
-    NutrientTier.underFifty => 'Below 50% target',
-    NutrientTier.adequate => 'Adequate',
-    NutrientTier.aboveAdequateNoUl => 'Above target (no upper limit)',
-    NutrientTier.abundant => 'Above target',
-    NutrientTier.aboveTypical => 'Above typical',
-    NutrientTier.approachingUl => 'Approaching upper limit',
-    NutrientTier.exceedsUl => 'Exceeds upper limit',
-  };
-
-  String _evidenceLabel(String level) => switch (level.trim().toLowerCase()) {
-    'established' => 'Established',
-    'probable' => 'Probable',
-    'moderate' => 'Moderate',
-    'limited' => 'Limited',
-    'theoretical' => 'Theoretical',
-    'no_data' => 'No evidence data',
-    'ungraded' => 'Not graded',
-    'possible' => 'Possible',
-    _ => 'Not graded',
-  };
-
-  String _formatDate(DateTime d) {
-    final month = d.month.toString().padLeft(2, '0');
-    final day = d.day.toString().padLeft(2, '0');
-    return '${d.year}-$month-$day';
-  }
-
-  /// Grouped digits, in the label's own unit.
-  ///
-  /// "5000 mg" invites "is that 5 grams?". Grouping answers it without
-  /// restating the dose in a different unit — a reconciliation document must
-  /// show what the bottle shows.
-  String _formatNumber(num value) {
-    final fixed = value == value.roundToDouble()
-        ? value.toStringAsFixed(0)
-        : value.toStringAsFixed(1);
-    final parts = fixed.split('.');
-    final negative = parts.first.startsWith('-');
-    final digits = negative ? parts.first.substring(1) : parts.first;
-    final grouped = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) grouped.write(',');
-      grouped.write(digits[i]);
-    }
-    final whole = negative ? '-$grouped' : '$grouped';
-    return parts.length > 1 ? '$whole.${parts[1]}' : whole;
-  }
-
-  String _clean(String value) {
-    return value
-        .replaceAll('\u2013', '-')
-        .replaceAll('\u2014', '-')
-        .replaceAll('\u2022', '-')
-        .replaceAll('\u00b7', '-')
-        .replaceAll('\u2018', "'")
-        .replaceAll('\u2019', "'")
-        .replaceAll('\u201c', '"')
-        .replaceAll('\u201d', '"')
-        .replaceAll(RegExp(r'[\u{10000}-\u{10FFFF}]', unicode: true), '');
-  }
-}
-
-class _RankedIssue {
-  const _RankedIssue(this.issue, this.ordinal);
-
-  final StackIssue issue;
-  final int ordinal;
 }
 
 class _Theme {

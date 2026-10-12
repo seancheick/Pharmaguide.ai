@@ -1,0 +1,84 @@
+{
+    "pre_add": {
+        "checks_incomplete": true,
+        "results": [
+            {
+                "id": "DSI_FISHOIL_GINKGO",
+                "type": "supplementSupplement",
+                "severity": "caution",
+                "curated_severity": "caution",
+                "evidence_level": "probable",
+                "effect_type": "additive",
+                "agent1": "Ginkgo Biloba",
+                "agent2": "Fish Oil 1,000 mg",
+                "source": "pipeline",
+                "matched_supplement": null,
+                "matched_med_classes": [],
+                "dose_dependent": true,
+                "source_urls": [
+                    "https://pubmed.ncbi.nlm.nih.gov/20617421/"
+                ],
+                "mechanism": "Both omega-3 fatty acids and ginkgo biloba (via ginkgolides inhibiting PAF) independently inhibit platelet aggregation, producing additive antiplatelet/bleeding risk.",
+                "management": "Monitor for signs of bruising or prolonged bleeding, especially before surgery. Consider separating or reducing doses."
+            },
+            {
+                "id": "DSI_WAR_GINKGO",
+                "type": "drugSupplement",
+                "severity": "avoid",
+                "curated_severity": "avoid",
+                "evidence_level": "probable",
+                "effect_type": "additive",
+                "agent1": "Warfarin",
+                "agent2": "Ginkgo Biloba",
+                "source": "pipeline",
+                "matched_supplement": "ginkgo",
+                "matched_med_classes": [
+                    "class:anticoagulants",
+                    "class:vitamin_k_antagonists"
+                ],
+                "dose_dependent": false,
+                "source_urls": [
+                    "https://www.nccih.nih.gov/health/ginkgo",
+                    "https://nccih.nih.gov/health/ginkgo/ataglance.htm"
+                ],
+                "mechanism": "Ginkgo can affect platelet function and may increase bleeding risk with warfarin. Serious bleeding has been reported, but controlled and observational findings are mixed; a uniform or quantified increase in risk is not established.",
+                "management": "Avoid combining ginkgo with warfarin. If ginkgo is being used, inform prescriber immediately. Watch for signs of bleeding (unusual bruising, prolonged cuts, blood in urine/stool)."
+            },
+            {
+                "id": "STACK_BT_1",
+                "type": "supplementSupplement",
+                "severity": "avoid",
+                "curated_severity": null,
+                "evidence_level": "established",
+                "effect_type": null,
+                "agent1": "Ginkgo Biloba",
+                "agent2": "Odorless Garlic",
+                "source": "stackEngine",
+                "matched_supplement": null,
+                "matched_med_classes": [],
+                "dose_dependent": true,
+                "source_urls": [],
+                "mechanism": "Multiple blood-thinning supplements increase bleeding risk",
+                "management": "Consult healthcare provider before combining blood-thinning supplements"
+            }
+        ]
+    },
+    "depletion": {
+        "status": "loaded",
+        "matches": [
+            {
+                "id": "DEP_ANTICOAGULANTS_VITAMINK",
+                "drug": "Warfarin (anticoagulant / blood thinner)",
+                "drug_class": "11289",
+                "nutrient": "vitamin_k",
+                "type": "functional_antagonism",
+                "severity": "significant",
+                "evidence_level": "established",
+                "source_urls": [
+                    "https://pubmed.ncbi.nlm.nih.gov/11157640/",
+                    "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=801e4da1-5459-47d2-b67b-009f0a3247cc&type=display"
+                ]
+            }
+        ]
+    }
+}
