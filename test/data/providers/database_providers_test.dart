@@ -84,23 +84,26 @@ void main() {
       );
     });
 
-    test('accepts schemas 1, 2 and approved schema 3 compatible requirements', () {
-      enforceInteractionDatabaseVersionGate(
-        minAppVersion: '1.0.0',
-        schemaVersion: '1.2.0',
-        appVersion: '1.0.0',
-      );
-      enforceInteractionDatabaseVersionGate(
-        minAppVersion: '1.0.0',
-        schemaVersion: '2.0.0',
-        appVersion: '1.0.0',
-      );
-      enforceInteractionDatabaseVersionGate(
-        minAppVersion: '1.0.0',
-        schemaVersion: '3.0.0',
-        appVersion: '1.0.0',
-      );
-    });
+    test(
+      'accepts schemas 1, 2 and approved schema 3 compatible requirements',
+      () {
+        enforceInteractionDatabaseVersionGate(
+          minAppVersion: '1.0.0',
+          schemaVersion: '1.2.0',
+          appVersion: '1.0.0',
+        );
+        enforceInteractionDatabaseVersionGate(
+          minAppVersion: '1.0.0',
+          schemaVersion: '2.0.0',
+          appVersion: '1.0.0',
+        );
+        enforceInteractionDatabaseVersionGate(
+          minAppVersion: '1.0.0',
+          schemaVersion: '3.0.0',
+          appVersion: '1.0.0',
+        );
+      },
+    );
   });
 
   group('ensureCoreDatabaseAvailable', () {
