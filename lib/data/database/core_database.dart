@@ -40,7 +40,7 @@ final class UpcAmbiguous extends UpcResolution {
 @DriftDatabase(tables: [ProductsCore])
 class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)
-    : super(NativeDatabase(dbFile, logStatements: false));
+    : super(NativeDatabase.createInBackground(dbFile, logStatements: false));
 
   CoreDatabase.memory() : super(NativeDatabase.memory());
 
