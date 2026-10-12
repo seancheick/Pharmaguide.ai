@@ -80,6 +80,9 @@ void main() async {
 
 Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Claim links from the first moment: the awaited setup below runs before
+  // any widget exists, and a link landing then had no handler at all.
+  final launchLinks = LaunchLinkBuffer()..attach();
   V2Typography.useBundledFontsOnly();
   unawaited(ReduceTransparency.listen());
 
@@ -177,6 +180,7 @@ Future<void> _runApp() async {
         supabaseReady: supabaseReady,
         hasSeenOnboarding: hasSeenOnboarding,
         appPreferencesController: appPreferencesController,
+        launchLinks: launchLinks,
       ),
     );
   } on Object {
@@ -192,6 +196,9 @@ class PharmaGuideBootstrap extends StatefulWidget {
   final bool hasSeenOnboarding;
   final AppPreferencesController appPreferencesController;
 
+  /// Attached in `_runApp` before any setup; released once the router mounts.
+  final LaunchLinkBuffer launchLinks;
+
   const PharmaGuideBootstrap({
     super.key,
     required this.userDb,
@@ -199,6 +206,7 @@ class PharmaGuideBootstrap extends StatefulWidget {
     required this.supabaseReady,
     required this.hasSeenOnboarding,
     required this.appPreferencesController,
+    required this.launchLinks,
   });
 
   @override
@@ -239,10 +247,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
   final math.Random _refreshRandom = math.Random();
 
-  /// Claims links that arrive while the startup screen shows. Attached here,
-  /// before the startup MaterialApp registers its own observer, so it is
-  /// asked first.
-  final LaunchLinkBuffer _launchLinks = LaunchLinkBuffer();
+  LaunchLinkBuffer get _launchLinks => widget.launchLinks;
 
   /// Read once when the router is first built; the router owns links after.
   String? _launchLocation;
@@ -250,7 +255,6 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   @override
   void initState() {
     super.initState();
-    _launchLinks.attach();
     unawaited(_bootstrapCatalog());
   }
 
