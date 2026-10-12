@@ -73,6 +73,22 @@ void main() {
           isNot(contains('class:nsaids')),
         );
         expect(result.profileGateClassIds, isNot(contains('nsaids')));
+        expect(
+          result.runtimeClassIds,
+          contains('class:anti_inflammatory_agents_non_steroidal'),
+        );
+        expect(
+          result.mergedInteractionClassIds,
+          isNot(contains('class:anti_inflammatory_agents_non_steroidal')),
+        );
+        final cached = await bridge.resolve(
+          selectedRxcui: id,
+          runtimeClassIds: ['class:nsaids'],
+        );
+        expect(
+          cached.mergedInteractionClassIds,
+          isNot(contains('class:nsaids')),
+        );
         expect(gateIds(result), isNot(contains('MCR_PREGNANCY_NSAIDS')));
         expect(gateIds(result), isNot(contains('MCR_KIDNEY_DISEASE_NSAIDS')));
       }
@@ -88,6 +104,30 @@ void main() {
       final positive = await bridge.resolve(selectedRxcui: '5640');
       expect(positive.profileGateClassIds, contains('nsaids'));
       expect(gateIds(positive), contains('MCR_PREGNANCY_NSAIDS'));
+    },
+  );
+
+  test(
+    'combination positive membership survives another ingredient exclusion',
+    () async {
+      await db.customStatement(
+        "UPDATE drug_class_map SET excluded_drug_rxcuis_json='[\"4845\"]' WHERE class_id='class:nsaids'",
+      );
+      final result = await bridge.resolve(
+        ingredientRxcuis: ['4845', '5640'],
+        runtimeClassIds: [
+          'class:nsaids',
+          'class:anti_inflammatory_agents_non_steroidal',
+        ],
+      );
+      expect(
+        result.mergedInteractionClassIds,
+        containsAll([
+          'class:nsaids',
+          'class:anti_inflammatory_agents_non_steroidal',
+        ]),
+      );
+      expect(result.profileGateClassIds, contains('nsaids'));
     },
   );
 

@@ -1282,20 +1282,29 @@ final depletionWatchProvider =
     });
 
 /// Drug-class ids resolved for the user's CURRENT-STACK medications — the
-/// SAME already-resolved source stack safety and depletion consume
-/// (`drugClassesCol` on `type == 'medication'` rows, populated by the class
-/// bridge at add-time). Exposed so product detail can gate its
-/// pipeline-authored drug-interaction warnings on the meds a user actually
-/// added, not just the profile picker chips. NO re-mapping here — this reads
-/// the classes the bridge already resolved, keeping one source of truth.
+/// same current class bridge stack safety and depletion consume. Stored
+/// identity and runtime classes are resolved against the current bundled map
+/// so membership corrections and exclusions also reach older stack entries.
+/// Product detail then gates pipeline-authored warnings on actual medications.
 final currentStackMedicationClassIdsProvider = FutureProvider<Set<String>>((
   ref,
 ) async {
   final stack = await ref.watch(activeStackProvider.future);
   final classIds = <String>[];
+  MedicationClassBridge? bridge;
   for (final e in stack) {
     if (e.type != 'medication') continue;
-    classIds.addAll(_decodeStackStringList(e.drugClassesCol));
+    bridge ??= MedicationClassBridge(
+      db: ref.watch(interactionDatabaseProvider),
+    );
+    final snapshot = MedicationIdentitySnapshot.fromStackRow(e);
+    final resolution = await bridge.resolve(
+      selectedRxcui: snapshot.rxcui,
+      genericRxcui: snapshot.genericRxcui,
+      ingredientRxcuis: snapshot.ingredientRxcuis,
+      runtimeClassIds: snapshot.drugClassIds,
+    );
+    classIds.addAll(resolution.mergedInteractionClassIds);
   }
   // Stack rows store the `class:*` interaction-bridge vocab
   // (mergedInteractionClassIds); the profile gate matches the profile vocab.
