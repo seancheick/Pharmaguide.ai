@@ -35,7 +35,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -105,6 +105,12 @@ class UserDatabase extends _$UserDatabase {
         // deliberately separate from scan history, which remains a Home-tab
         // product lookup history.
         await m.createTable(healthHistoryEvents);
+      }
+      if (from < 12) {
+        await m.addColumn(
+          userStacksLocal,
+          userStacksLocal.medicationContextCol,
+        );
       }
       if (from < 11) {
         // v11: user-reported start date and per-item reminder time. Both are

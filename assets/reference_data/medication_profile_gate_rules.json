@@ -4,7 +4,7 @@
     "purpose": "standalone_medication_profile_gate_rules",
     "schema_version": "1.0.0",
     "contract_test": "scripts/tests/test_medication_profile_gate_rules_contract.py",
-    "last_updated": "2026-06-27",
+    "last_updated": "2026-10-11",
     "total_entries": 2,
     "change_log": [
       {
@@ -18,15 +18,15 @@
     ]
   },
   "schema_version": "1.0.0",
-  "updated_at": "2026-06-27",
+  "updated_at": "2026-10-11",
   "medication_profile_gate_rules": [
     {
       "id": "MCR_PREGNANCY_NSAIDS",
       "severity": "caution",
       "evidence_level": "established",
       "headline": "Review NSAID use in pregnancy",
-      "body": "NSAIDs such as ibuprofen and naproxen are generally avoided from 20 weeks of pregnancy; after about 30 weeks, they should not be used unless your clinician specifically directs.",
-      "management": "Check with your OB/clinician before using NSAIDs during pregnancy. Acetaminophen may be discussed as an option, but use should still follow clinician guidance.",
+      "body": "Systemic NSAIDs such as ibuprofen and naproxen are generally avoided from 20 weeks of pregnancy; from 30 weeks they should be avoided. The FDA recommendation does not apply to clinician-prescribed low-dose aspirin 81 mg for pregnancy-related conditions or NSAIDs administered directly to the eye.",
+      "management": "Check with your OB/clinician before using NSAIDs during pregnancy. Do not stop prescribed low-dose aspirin without discussing it with your prescriber. Acetaminophen may be discussed as an option under clinician guidance.",
       "sources": [
         "https://www.fda.gov/drugs/drug-safety-and-availability/fda-recommends-avoiding-use-nsaids-pregnancy-20-weeks-or-later-because-they-can-result-low-amniotic",
         "https://www.acog.org/clinical/clinical-guidance/practice-advisory/articles/2021/12/low-dose-aspirin-use-for-the-prevention-of-preeclampsia-and-related-morbidity-and-mortality",
@@ -37,8 +37,12 @@
         "gate_type": "combination",
         "requires": {
           "conditions_any": [],
-          "drug_classes_any": ["nsaids"],
-          "profile_flags_any": ["pregnant"]
+          "drug_classes_any": [
+            "nsaids"
+          ],
+          "profile_flags_any": [
+            "pregnant"
+          ]
         },
         "excludes": {
           "conditions_any": [],
@@ -47,24 +51,44 @@
           "product_forms_any": [],
           "nutrient_forms_any": []
         }
-      }
+      },
+      "medication_ingredient_rxcuis": [
+        "1191"
+      ],
+      "medication_exceptions": [
+        {
+          "ingredient_rxcuis": [
+            "1191"
+          ],
+          "dose_mg_exact": 81,
+          "use_context": "clinician_directed_pregnancy_condition"
+        },
+        {
+          "route": "ophthalmic"
+        }
+      ]
     },
     {
       "id": "MCR_KIDNEY_DISEASE_NSAIDS",
       "severity": "avoid",
       "evidence_level": "established",
-      "headline": "NSAIDs are not recommended with kidney disease",
-      "body": "NSAIDs such as ibuprofen and naproxen can reduce kidney blood flow and may worsen kidney function, especially with existing kidney disease, dehydration, low blood pressure, longer use, or advanced kidney disease.",
-      "management": "Worth talking with your kidney clinician or prescriber before using NSAIDs — ask about alternatives or monitoring if you need pain or inflammation relief.",
+      "headline": "Review systemic NSAID use with kidney disease",
+      "body": "Systemic NSAIDs such as ibuprofen and naproxen can reduce kidney blood flow and worsen kidney function, especially with kidney disease, dehydration, low blood pressure or longer use. Correctly used topical diclofenac has much lower systemic exposure; this is not a blanket assurance for overuse or every topical product. Low-dose aspirin used for cardiovascular protection differs from higher-dose aspirin used for pain.",
+      "management": "Worth talking with your kidney clinician or prescriber before using NSAIDs \u2014 ask about alternatives or monitoring if you need pain or inflammation relief.",
       "sources": [
         "https://www.niddk.nih.gov/health-information/kidney-disease/keeping-kidneys-safe",
-        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2007/017463s105lbl.pdf"
+        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2007/017463s105lbl.pdf",
+        "https://www.kidney.org/kidney-topics/pain-medicines-and-kidney-disease"
       ],
       "profile_gate": {
         "gate_type": "combination",
         "requires": {
-          "conditions_any": ["kidney_disease"],
-          "drug_classes_any": ["nsaids"],
+          "conditions_any": [
+            "kidney_disease"
+          ],
+          "drug_classes_any": [
+            "nsaids"
+          ],
           "profile_flags_any": []
         },
         "excludes": {
@@ -74,7 +98,29 @@
           "product_forms_any": [],
           "nutrient_forms_any": []
         }
-      }
+      },
+      "medication_ingredient_rxcuis": [
+        "1191"
+      ],
+      "medication_exceptions": [
+        {
+          "ingredient_rxcuis": [
+            "1191"
+          ],
+          "dose_mg_range_inclusive": [
+            81,
+            100
+          ],
+          "use_context": "cardiovascular_protection"
+        },
+        {
+          "ingredient_rxcuis": [
+            "3355"
+          ],
+          "route": "topical",
+          "use_context": "within_product_label_directions"
+        }
+      ]
     }
   ]
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +27,10 @@ class _FakeRxNormHttp {
   };
 
   Future<String> call(Uri url) async {
+    if (url.path == '/REST/approximateTerm.json' &&
+        url.queryParameters['term'] == 'unknown medication') {
+      return '{}';
+    }
     if (url.path == '/REST/rxclass/class/byRxcui.json') {
       if (url.queryParameters['relaSource'] == 'ATC') return '{}';
       return '''
@@ -56,6 +62,46 @@ class _FakeRxNormHttp {
   }
 }
 
+class _DelayedRxNormHttp {
+  final aspirinClasses = Completer<String>();
+  Future<String> call(Uri url) async {
+    if (url.path == '/REST/approximateTerm.json') {
+      final aspirin = url.queryParameters['term'] == 'aspirin';
+      return jsonEncode({
+        'approximateGroup': {
+          'candidate': [
+            {
+              'rxcui': aspirin ? '1191' : '5640',
+              'name': aspirin ? 'Aspirin' : 'Ibuprofen',
+              'score': '100',
+            },
+          ],
+        },
+      });
+    }
+    if (url.path == '/REST/rxclass/class/byRxcui.json') {
+      if (url.queryParameters['rxcui'] == '1191') return aspirinClasses.future;
+      return '{}';
+    }
+    if (url.path.endsWith('/related.json')) {
+      final id = url.path.contains('/1191/') ? '1191' : '5640';
+      return jsonEncode({
+        'relatedGroup': {
+          'conceptGroup': [
+            {
+              'tty': 'IN',
+              'conceptProperties': [
+                {'rxcui': id},
+              ],
+            },
+          ],
+        },
+      });
+    }
+    return '{}';
+  }
+}
+
 class _FakeReferenceDataRepository extends ReferenceDataRepository {
   @override
   Future<Map<String, dynamic>> loadMedicationProfileGateRules() async {
@@ -63,6 +109,9 @@ class _FakeReferenceDataRepository extends ReferenceDataRepository {
       'medication_profile_gate_rules': [
         {
           'id': 'MCR_PREGNANCY_NSAIDS',
+          'medication_exceptions': [
+            {'route': 'ophthalmic'},
+          ],
           'severity': 'caution',
           'evidence_level': 'established',
           'headline': 'Review NSAID use in pregnancy',
@@ -202,6 +251,51 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Review NSAID use in pregnancy'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is DropdownButtonFormField<String> &&
+              (w.key as ValueKey?)?.value.toString().startsWith(
+                    'medication_route_',
+                  ) ==
+                  true,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is DropdownButtonFormField<String> &&
+              (w.key as ValueKey?)?.value.toString().startsWith(
+                    'medication_use_confirmation_',
+                  ) ==
+                  true,
+        ),
+        findsOneWidget,
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('medication_daily_dose')),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('medication_daily_dose')),
+        '81',
+      );
+      await tester.pumpAndSettle();
+      // A numeric aspirin dose cannot turn ibuprofen into the exempt molecule.
+      expect(
+        find.text('Review NSAID use in pregnancy', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('med-entry-profile-review-card')),
+        -160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       expect(
         find.textContaining('generally avoided from 20 weeks'),
         findsOneWidget,
@@ -386,4 +480,198 @@ void main() {
     expect(note, findsOneWidget);
     expect(find.textContaining('saved on this device only'), findsOneWidget);
   });
+  testWidgets('new medication query resets confirmed dose route and purpose', (
+    tester,
+  ) async {
+    final interactionDb = InteractionDatabase.memory();
+    addTearDown(interactionDb.close);
+    await interactionDb
+        .into(interactionDb.drugClassMap)
+        .insert(
+          DrugClassMapCompanion.insert(
+            classId: 'class:nsaids',
+            className: 'NSAIDs',
+            drugRxcuisJson: '["5640"]',
+            source: 'fixture',
+            lastUpdated: '2026-06-27',
+          ),
+        );
+
+    final fakeRx = _FakeRxNormHttp();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          referenceDataRepositoryProvider.overrideWith(
+            (ref) => _FakeReferenceDataRepository(),
+          ),
+          loadedProfileProvider.overrideWith(
+            (ref) async => const ProfileState(conditions: ['pregnancy']),
+          ),
+          clinicalProfileSchemaProvider.overrideWith(
+            (ref) async => _testClinicalProfileSchema,
+          ),
+          rxNormApiServiceProvider.overrideWithValue(
+            RxNormApiService(httpGet: fakeRx.call, offlineDb: interactionDb),
+          ),
+        ],
+        child: const MaterialApp(home: MedicationEntryV2Screen()),
+      ),
+    );
+
+    await tester.enterText(find.byKey(const Key('med-entry-search')), 'motrin');
+    final searchField = tester.widget<TextField>(
+      find.byKey(const Key('med-entry-search')),
+    );
+    expect(searchField.autocorrect, isFalse);
+    expect(searchField.enableSuggestions, isFalse);
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('med-entry-suggestion-202488')));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byWidgetPredicate(
+        (w) =>
+            w is DropdownButtonFormField<String> &&
+            (w.key as ValueKey?)?.value.toString().startsWith(
+                  'medication_route_',
+                ) ==
+                true,
+      ),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -220));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) =>
+            w is DropdownButtonFormField<String> &&
+            (w.key as ValueKey?)?.value.toString().startsWith(
+                  'medication_route_',
+                ) ==
+                true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Directly in the eye').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('medication_daily_dose')),
+      '81',
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('med-entry-search')),
+      -160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(
+      find.byKey(const Key('med-entry-search')),
+      'unknown medication',
+    );
+    await tester.pumpAndSettle();
+    final routeFinder = find.byWidgetPredicate(
+      (w) =>
+          w is DropdownButtonFormField<String> &&
+          (w.key as ValueKey?)?.value.toString().startsWith(
+                'medication_route_',
+              ) ==
+              true,
+    );
+    expect(tester.state<FormFieldState<String>>(routeFinder).value, isNull);
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('medication_daily_dose')),
+          )
+          .controller!
+          .text,
+      isEmpty,
+    );
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
+    'late aspirin hydration cannot replace newly selected ibuprofen identity',
+    (tester) async {
+      final interactionDb = InteractionDatabase.memory();
+      addTearDown(interactionDb.close);
+      await interactionDb
+          .into(interactionDb.drugClassMap)
+          .insert(
+            DrugClassMapCompanion.insert(
+              classId: 'class:nsaids',
+              className: 'NSAIDs',
+              drugRxcuisJson: '["5640"]',
+              source: 'fixture',
+              lastUpdated: '2026-06-27',
+            ),
+          );
+
+      final fakeRx = _DelayedRxNormHttp();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            referenceDataRepositoryProvider.overrideWith(
+              (ref) => ReferenceDataRepository(),
+            ),
+            loadedProfileProvider.overrideWith(
+              (ref) async => const ProfileState(conditions: ['pregnancy']),
+            ),
+            clinicalProfileSchemaProvider.overrideWith(
+              (ref) async => _testClinicalProfileSchema,
+            ),
+            rxNormApiServiceProvider.overrideWithValue(
+              RxNormApiService(httpGet: fakeRx.call, offlineDb: interactionDb),
+            ),
+          ],
+          child: const MaterialApp(home: MedicationEntryV2Screen()),
+        ),
+      );
+
+      await tester.enterText(
+        find.byKey(const Key('med-entry-search')),
+        'aspirin',
+      );
+      final searchField = tester.widget<TextField>(
+        find.byKey(const Key('med-entry-search')),
+      );
+      expect(searchField.autocorrect, isFalse);
+      expect(searchField.enableSuggestions, isFalse);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('med-entry-suggestion-1191')));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.enterText(
+        find.byKey(const Key('med-entry-search')),
+        'ibuprofen',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('med-entry-suggestion-5640')));
+      await tester.pumpAndSettle();
+      fakeRx.aspirinClasses.complete('{}');
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('med-entry-profile-review-card')),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Review NSAID use in pregnancy'), findsOneWidget);
+      expect(
+        find.textContaining('Used to check: NSAIDs', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Antiplatelet', skipOffstage: false),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

@@ -215,3 +215,10 @@ Score suppression, assessment completion and catalog safety remain separate
 contracts. Their current eligibility behavior lives in
 `catalog_product_semantics.dart`; preserve its hard guards and conservative
 handling of unknown fields.
+
+`drug_class_map.excluded_drug_rxcuis_json` carries the pipeline's explicit
+`drug_classes.json.excluded_member_rxcuis` identity/class exclusions (empty JSON
+array by default). `MedicationClassBridge` consults this field before adding a
+curated class from RxClass fallback; absence or unknown identity preserves
+fallback. This is classification only. Aspirin dose, route and confirmed-use
+exceptions are evaluated by the authored medication profile rules.
