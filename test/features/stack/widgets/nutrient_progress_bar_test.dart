@@ -357,6 +357,7 @@ void main() {
         tier: NutrientTier.abundant,
         rda: 400,
         pctOfRda: 300,
+        ulAssessmentIndeterminate: true,
       );
 
       await tester.pumpWidget(
@@ -365,7 +366,15 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('different unit'), findsOneWidget);
+      expect(
+        find.textContaining('conflicting or unresolved units'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('a label amount or unit is unresolved'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('identify the form'), findsNothing);
     });
 
     testWidgets('formats sub-10 amounts with one decimal', (tester) async {

@@ -1,0 +1,188 @@
+[
+  {
+    "id": "31063",
+    "source_blob_sha256": "f7004578bd9f2e27266da4debd87fe86df7fd16704e35ffbcb45d740f49595d9",
+    "rows": [
+      {
+        "ingredient": "Molybdenum",
+        "canonical_id": "molybdenum",
+        "quantity": 75.0,
+        "unit": "mg",
+        "converted_unit": null,
+        "ul_gate_eligible": false,
+        "per_day_min": null,
+        "per_day_max": null,
+        "safety_exposure": {
+          "per_day": null,
+          "unit": null
+        },
+        "skip_ul_check": true,
+        "skip_ul_reason": "label_unit_conflict",
+        "ul_assessment_status": "indeterminate",
+        "pct_rda": null,
+        "dose_data_quality": {
+          "status": "unresolved_unit",
+          "reason": "label_unit_conflict",
+          "raw_amount": 75.0,
+          "raw_unit": "mg",
+          "notes": [
+            "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "801",
+    "source_blob_sha256": "cb5b56f2901d21b33694de5321106d21daacb1fbc1e35dabb1c13ce3b725419d",
+    "rows": [
+      {
+        "ingredient": "Molybdenum",
+        "canonical_id": "molybdenum",
+        "quantity": 75.0,
+        "unit": "mg",
+        "converted_unit": null,
+        "ul_gate_eligible": false,
+        "per_day_min": null,
+        "per_day_max": null,
+        "safety_exposure": {
+          "per_day": null,
+          "unit": null
+        },
+        "skip_ul_check": true,
+        "skip_ul_reason": "label_unit_conflict",
+        "ul_assessment_status": "indeterminate",
+        "pct_rda": null,
+        "dose_data_quality": {
+          "status": "unresolved_unit",
+          "reason": "label_unit_conflict",
+          "raw_amount": 75.0,
+          "raw_unit": "mg",
+          "notes": [
+            "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "223563",
+    "source_blob_sha256": "49596fd57893ae11493984156179cd24e420425f0ad547b87d0a955917c83d90",
+    "rows": [
+      {
+        "ingredient": "Vitamin A",
+        "canonical_id": "vitamin_a",
+        "quantity": 900.0,
+        "unit": "mg RAE",
+        "converted_unit": null,
+        "ul_gate_eligible": false,
+        "per_day_min": null,
+        "per_day_max": null,
+        "safety_exposure": {
+          "per_day": null,
+          "unit": null
+        },
+        "skip_ul_check": true,
+        "skip_ul_reason": "label_unit_conflict",
+        "ul_assessment_status": "indeterminate",
+        "pct_rda": null,
+        "dose_data_quality": {
+          "status": "unresolved_unit",
+          "reason": "label_unit_conflict",
+          "raw_amount": 900.0,
+          "raw_unit": "mg RAE",
+          "notes": [
+            "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
+          ]
+        }
+      },
+      {
+        "ingredient": "Vitamin D3",
+        "canonical_id": "vitamin_d",
+        "quantity": 100.0,
+        "unit": "mg",
+        "converted_unit": null,
+        "ul_gate_eligible": false,
+        "per_day_min": null,
+        "per_day_max": null,
+        "safety_exposure": {
+          "per_day": null,
+          "unit": null
+        },
+        "skip_ul_check": true,
+        "skip_ul_reason": "label_unit_conflict",
+        "ul_assessment_status": "indeterminate",
+        "pct_rda": null,
+        "dose_data_quality": {
+          "status": "unresolved_unit",
+          "reason": "label_unit_conflict",
+          "raw_amount": 100.0,
+          "raw_unit": "mg",
+          "notes": [
+            "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "223572",
+    "source_blob_sha256": "701cfed43ec03849638462177870ea51849a2a0b4f8255a5184c0cb8fd184943",
+    "rows": [
+      {
+        "ingredient": "Vitamin A",
+        "canonical_id": "vitamin_a",
+        "quantity": 900.0,
+        "unit": "mg RAE",
+        "converted_unit": null,
+        "ul_gate_eligible": false,
+        "per_day_min": null,
+        "per_day_max": null,
+        "safety_exposure": {
+          "per_day": null,
+          "unit": null
+        },
+        "skip_ul_check": true,
+        "skip_ul_reason": "label_unit_conflict",
+        "ul_assessment_status": "indeterminate",
+        "pct_rda": null,
+        "dose_data_quality": {
+          "status": "unresolved_unit",
+          "reason": "label_unit_conflict",
+          "raw_amount": 900.0,
+          "raw_unit": "mg RAE",
+          "notes": [
+            "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
+          ]
+        }
+      },
+      {
+        "ingredient": "Vitamin D3",
+        "canonical_id": "vitamin_d",
+        "quantity": 50.0,
+        "unit": "mg",
+        "converted_unit": null,
+        "ul_gate_eligible": false,
+        "per_day_min": null,
+        "per_day_max": null,
+        "safety_exposure": {
+          "per_day": null,
+          "unit": null
+        },
+        "skip_ul_check": true,
+        "skip_ul_reason": "label_unit_conflict",
+        "ul_assessment_status": "indeterminate",
+        "pct_rda": null,
+        "dose_data_quality": {
+          "status": "unresolved_unit",
+          "reason": "label_unit_conflict",
+          "raw_amount": 50.0,
+          "raw_unit": "mg",
+          "notes": [
+            "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
+          ]
+        }
+      }
+    ]
+  }
+]

@@ -76,6 +76,34 @@ class StackNutrientAggregator {
         final canonical = readCanonicalId(row);
         if (canonical == null || canonical.isEmpty) continue;
 
+        if (hasUnresolvedDoseUnit(row)) {
+          final total = accum.putIfAbsent(
+            canonical,
+            () => _MutableTotal(
+              canonicalId: canonical,
+              displayName: readNutrientDisplayName(row) ?? canonical,
+              unit: '',
+              hasAuthoredDisplayName: false,
+            ),
+          );
+          total.hasUnitConflict = true;
+          total.hasUlExposureContract = true;
+          total.hasUnresolvedUlContribution = true;
+          total.excludedContributions.add(
+            ExcludedNutrientContribution(
+              contribution: NutrientContribution(
+                stackEntryId: item.stackEntryId,
+                productName: item.productName,
+                ingredientName: readDisplayName(row) ?? canonical,
+                amount: asFiniteDouble(row['quantity']) ?? 0,
+                unit: readDoseUnit(row),
+              ),
+              reason: NutrientExclusionReason.unitConflict,
+            ),
+          );
+          continue;
+        }
+
         final amount = readDoseAmount(row);
         if (amount == null || amount <= 0) continue;
         final adequacyAmount = readAdequacyDoseAmount(row) ?? amount;
@@ -256,7 +284,8 @@ class StackNutrientAggregator {
           ulComparableUnit: value.ulComparableUnit,
           hasUlExposureContract: value.hasUlExposureContract,
           hasUnresolvedUlContribution:
-              value.hasUnresolvedUlContribution && !value.hasCompleteUlCoverage,
+              value.hasUnresolvedUlContribution &&
+              (value.hasUnitConflict || !value.hasCompleteUlCoverage),
         ),
       ),
     );

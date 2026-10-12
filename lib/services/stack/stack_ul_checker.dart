@@ -119,7 +119,11 @@ class StackUlChecker {
   }) {
     final resolved = _findEntry(recommendations, total);
     if (resolved == null) {
-      return NutrientStatus(total: total, tier: NutrientTier.noRda);
+      return NutrientStatus(
+        total: total,
+        tier: NutrientTier.noRda,
+        ulAssessmentIndeterminate: total.hasUnresolvedUlContribution,
+      );
     }
     final entry = resolved.entry;
 
@@ -151,7 +155,11 @@ class StackUlChecker {
           );
     if (adequacyAmountInReferenceUnit == null &&
         safetyAmountInReferenceUnit == null) {
-      return NutrientStatus(total: total, tier: NutrientTier.noRda);
+      return NutrientStatus(
+        total: total,
+        tier: NutrientTier.noRda,
+        ulAssessmentIndeterminate: total.hasUnresolvedUlContribution,
+      );
     }
 
     final rdaLookup = _getRdaWithProvenance(
@@ -217,7 +225,7 @@ class StackUlChecker {
           (total.hasUnresolvedUlContribution ||
               (!total.hasUlExposureContract &&
                   safetyAmountInReferenceUnit == null)) &&
-          (verdict == null || !verdict.isDefinitive),
+          (total.hasUnitConflict || verdict == null || !verdict.isDefinitive),
     );
   }
 

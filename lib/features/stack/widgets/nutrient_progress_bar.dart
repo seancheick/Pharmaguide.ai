@@ -157,15 +157,18 @@ class NutrientProgressBar extends StatelessWidget {
               if (status.ulAssessmentIndeterminate) ...[
                 const SizedBox(height: V2Spacing.space4),
                 Text(
-                  'Safety limit not shown because the label does not '
-                  'identify the form.',
+                  total.hasUnitConflict
+                      ? 'Safety limit cannot be assessed because a label '
+                            'amount or unit is unresolved.'
+                      : 'Safety limit not shown because the label does not '
+                            'identify the form.',
                   style: _captionStyle(context.v2.fgMuted),
                 ),
               ],
               if (total.hasUnitConflict) ...[
                 const SizedBox(height: V2Spacing.space4),
                 Text(
-                  'Note: excludes products reported in a different unit.',
+                  'Note: excludes amounts with conflicting or unresolved units.',
                   style: _captionStyle(context.v2.fgMuted),
                 ),
               ],

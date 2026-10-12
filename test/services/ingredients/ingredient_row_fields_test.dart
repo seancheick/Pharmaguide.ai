@@ -2,6 +2,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 
 void main() {
+  test('reviewed unit conflict blocks every numerical dose fallback', () {
+    final row = <String, dynamic>{
+      'quantity': 75,
+      'unit': 'mg',
+      'per_day_min': 75,
+      'per_day_max': 75,
+      'normalized_amount': 75000,
+      'safety_exposure': {'per_day': 75000, 'unit': 'mcg'},
+      'adequacy_exposure': {'per_day': 75000, 'unit': 'mcg'},
+      'dose_data_quality': {
+        'status': 'unresolved_unit',
+        'reason': 'label_unit_conflict',
+      },
+    };
+    expect(readDoseAmount(row), isNull);
+    expect(readAdequacyDoseAmount(row), isNull);
+    expect(readUlDoseAmount(row), isNull);
+    expect(readDoseUnit(row), 'mg');
+    row['dose_data_quality'] = {'status': 'corrected'};
+    expect(readDoseAmount(row), 75);
+  });
   group('pipeline UL exposure contract', () {
     test('uses safety mass without changing activity or adequacy readers', () {
       final row = <String, dynamic>{
