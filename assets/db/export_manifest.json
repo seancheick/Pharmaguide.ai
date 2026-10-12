@@ -1,6 +1,6 @@
 {
-  "checksum": "sha256:bd21963197ab987204c986dd8485ad602a732386b98d6cc40aa34a4644d97290",
-  "checksum_sha256": "bd21963197ab987204c986dd8485ad602a732386b98d6cc40aa34a4644d97290",
+  "checksum": "sha256:b1b0f30e4d21e26f2a80fcb432ad36781b47aabfb8af6063c7be8b77da90812e",
+  "checksum_sha256": "b1b0f30e4d21e26f2a80fcb432ad36781b47aabfb8af6063c7be8b77da90812e",
   "core_projection_manifest": {
     "app_core_column_count": 91,
     "checksum": "sha256:1d2a566f35d94cfdc9b42f0428c93ac6a82b2846f01a881642960a50aa01504f",
@@ -9,12 +9,16 @@
     "path": "core_projection_manifest.json",
     "server_core_column_count": 26
   },
-  "db_version": "2026.10.09.085312",
-  "detail_blob_count": 15414,
-  "detail_blob_unique_count": 15414,
-  "detail_index_checksum": "sha256:8b6b759c8b195668dfdd2333f28ec76d4c2093978c6b84b1ea378d2fdc4300a5",
+  "db_version": "2026.10.12.142202",
+  "detail_blob_count": 15407,
+  "detail_blob_unique_count": 15407,
+  "detail_index_checksum": "sha256:2380ec3230eb0b4b5eafcdc0829aa9f64c0a4637890fab66d72aa90bd1d3b1fb",
   "errors": [],
   "excluded_by_gate": [
+    {
+      "dsld_id": "17226",
+      "error": "review_queue: identity integrity ingredientRows[15].forms[7]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
     {
       "dsld_id": "178711",
       "error": "review_queue: identity integrity ingredientRows[20].nestedRows[0].forms[0]:unresolved_identity_conflict"
@@ -28,8 +32,28 @@
       "error": "review_queue: identity integrity ingredientRows[4]:unresolved_identity_conflict"
     },
     {
+      "dsld_id": "213005",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "213011",
+      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "213013",
+      "error": "review_queue: identity integrity ingredientRows[1]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "213015",
+      "error": "review_queue: identity integrity ingredientRows[1]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
       "dsld_id": "232011",
       "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
+      "dsld_id": "2528",
+      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[2]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
     },
     {
       "dsld_id": "278388",
@@ -40,44 +64,48 @@
       "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict"
     },
     {
+      "dsld_id": "327983",
+      "error": "review_queue: identity integrity ingredientRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
+    },
+    {
       "dsld_id": "328450",
       "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
     }
   ],
-  "generated_at": "2026-10-09T08:53:12.702477+00:00",
+  "generated_at": "2026-10-12T14:22:02.339005+00:00",
   "integrity": {
     "contract_failures": 0,
-    "contract_quarantine_count": 7,
-    "coverage_pct": 99.95,
+    "contract_quarantine_count": 14,
+    "coverage_pct": 99.91,
     "enriched_input_count": 15421,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 7,
-    "exported_count": 15414,
-    "has_banned_substance": 73,
+    "excluded_by_gate_count": 14,
+    "exported_count": 15407,
+    "has_banned_substance": 69,
     "has_recalled_ingredient": 0,
     "quality_score_config_checksum": "sha256:51d2b6d3238fc5777040a322a4e36cdb1b0213934e0ab07736867a296d4ad24c",
     "scored_input_count": 15421,
     "scored_only_count": 0,
-    "skipped_count": 7,
+    "skipped_count": 14,
     "strict_mode": true,
-    "total_skipped": 7,
-    "verdict_blocked": 73,
-    "verdict_not_scored": 168,
+    "total_skipped": 14,
+    "verdict_blocked": 69,
+    "verdict_not_scored": 210,
     "verdict_unsafe": 0,
     "warning_count": 0
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 15414,
+  "product_count": 15407,
   "quality_score_config_checksum": "sha256:51d2b6d3238fc5777040a322a4e36cdb1b0213934e0ab07736867a296d4ad24c",
-  "release_staged_at": "2026-10-09T08:56:51Z",
+  "release_staged_at": "2026-10-12T14:25:53Z",
   "schema_version": "2.5.0",
   "score_model": "v4",
   "scoring_version": "4.5.0",
   "warnings": [],
-  "interaction_db_checksum": "5df294e416f5aa451273e951c5b6c17a308963b5bb55f2ca28eb274fe8a27376",
-  "interaction_db_version": "1.0.12",
+  "interaction_db_checksum": null,
+  "interaction_db_version": null,
   "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "source_of_truth_matrix_version": "1.0.0",
   "strict_gate_summary": {
@@ -89,10 +117,10 @@
       "scoring_contract",
       "export_contract",
       "clinical_drift",
-      "artifact_freshness",
-      "interaction_db_parity"
+      "artifact_freshness"
     ],
     "post_candidate_gates": [
+      "interaction_db_parity",
       "flutter_bundle_parity"
     ],
     "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest"
