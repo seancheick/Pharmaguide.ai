@@ -54,3 +54,17 @@ that way is invisible to `db push`, which then treats it as pending and would
 that drops and recreates a table. After any such apply, reconcile the stamp to
 the file version with `supabase migration repair`, or apply through `db push` in
 the first place.
+
+## Written, not applied
+
+| File | Written | Status |
+|---|---|---|
+| `20261012120000_ai_connector_restrictive_rls.sql` | 2026-10-12 | written, not applied — S1 restrictive `client_id` policies on the user tables and `storage.objects`; guard in the app's seven SECURITY DEFINER RPCs |
+| `20261012120100_ai_connections.sql` | 2026-10-12 | written, not applied — `ai_connections`, `mcp_access_log` (S10, S7, S5) |
+| `20261012120200_custom_access_token_hook.sql` | 2026-10-12 | written, not applied — S2 token hook and `ai_connector_config`; after applying, set `personal_mcp_audience` and enable the hook in Authentication → Hooks |
+
+Apply them with `supabase db push`, in this order, and only after
+`scripts/test_ai_connector_rls.sh` passes. The first one re-creates the seven
+RPCs from their current definitions. A later migration that redefines one of
+them must keep its `PERFORM public.reject_oauth_client_request();` line; the
+test fails if it does not.
