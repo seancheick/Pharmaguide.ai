@@ -48,7 +48,7 @@
 #       built_at, checksum_sha256, schema_version, db_version,
 #       total_interactions, source_drafts_count, source_suppai_count,
 #       interaction_db_version, pipeline_version, min_app_version.
-#     Schema 2 additionally requires profile_warning_rules_count and
+#     Schemas 2 and 3 additionally require profile_warning_rules_count and
 #     profile_warning_rules_version.
 #     (override_count and resolved_conflict_count live in the embedded
 #     interaction_db_metadata kv table only — verified by gate I7.)
@@ -56,11 +56,11 @@
 # I3. SHA-256 of interaction_db.sqlite matches manifest's checksum_sha256.
 # I4. PRAGMA integrity_check returns 'ok'.
 # I5. PRAGMA user_version matches the value paired with the accepted schema
-#     (1 for schema 1.0.0; 2 for schema 2.0.0).
+#     (1 for schema 1.0.0; 2 for schema 2.0.0; 3 for schema 3.0.0).
 # I6. SELECT COUNT(*) FROM interactions WHERE retired_at IS NULL is at least
 #     MIN_INTERACTION_COUNT (defaults to 1; override with --min-interactions).
 # I7. The embedded interaction_db_metadata kv table agrees with the JSON
-#     manifest on schema_version, total_interactions, and schema-2 warning
+#     manifest on schema_version, total_interactions, and schema-2/3 warning
 #     registry count/version; the physical warning-rule table count also agrees.
 # I8. The embedded sha256_checksum key is **NOT** present (T7 fix —
 #     storing the file's hash inside the file would invalidate the hash).
@@ -121,9 +121,10 @@ APP_SUPPORTED_SCHEMAS=(
 
 # Interaction DB schema versions and their paired SQLite user_version values.
 # Keep the arrays index-aligned. Schema 1 remains supported for the currently
-# bundled compatibility database; schema 2 carries profile warning rules.
-APP_SUPPORTED_INTERACTION_SCHEMAS=("1.0.0" "2.0.0")
-APP_SUPPORTED_INTERACTION_USER_VERSIONS=(1 2)
+# bundled compatibility database; schemas 2/3 carry profile warning rules.
+# Schema 3 additionally carries explicit class membership exclusions.
+APP_SUPPORTED_INTERACTION_SCHEMAS=("1.0.0" "2.0.0" "3.0.0")
+APP_SUPPORTED_INTERACTION_USER_VERSIONS=(1 2 3)
 
 # ---------------------------------------------------------------------------
 # CLI parsing
@@ -526,10 +527,10 @@ PY
   INTERACTION_BUILT_AT="$(read_interaction_manifest_field built_at)"
   INTERACTION_PROFILE_WARNING_RULES_COUNT=""
   INTERACTION_PROFILE_WARNING_RULES_VERSION=""
-  if [[ "$INTERACTION_SCHEMA_VERSION" == 2.* ]]; then
+  if [[ "$INTERACTION_SCHEMA_VERSION" == 2.* || "$INTERACTION_SCHEMA_VERSION" == 3.* ]]; then
     for key in profile_warning_rules_count profile_warning_rules_version; do
       if ! read_interaction_manifest_field "$key" >/dev/null 2>&1; then
-        err "schema-2 interaction manifest missing required key: $key"
+        err "schema-2/3 interaction manifest missing required key: $key"
         exit 1
       fi
     done
@@ -651,7 +652,7 @@ PY
     exit 1
   fi
 
-  if [[ "$INTERACTION_SCHEMA_VERSION" == 2.* ]]; then
+  if [[ "$INTERACTION_SCHEMA_VERSION" == 2.* || "$INTERACTION_SCHEMA_VERSION" == 3.* ]]; then
     EMBEDDED_PROFILE_WARNING_RULES_COUNT="$(
       read_interaction_embedded profile_warning_rules_count
     )"
@@ -662,7 +663,7 @@ PY
       "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='profile_warning_rules';" \
       2>/dev/null || echo 0)"
     if [[ "$PROFILE_WARNING_RULE_TABLE_PRESENT" != "1" ]]; then
-      err "schema-2 interaction DB is missing profile_warning_rules"
+      err "schema-2/3 interaction DB is missing profile_warning_rules"
       exit 1
     fi
     PROFILE_WARNING_RULE_TABLE_COUNT="$(sqlite3 "$SRC_INTERACTION_DB" \
@@ -682,9 +683,46 @@ PY
       exit 1
     fi
     if [[ ! "$PROFILE_WARNING_RULE_TABLE_COUNT" =~ ^[1-9][0-9]*$ ]]; then
-      err "schema-2 interaction DB has no profile warning rules"
+      err "schema-2/3 interaction DB has no profile warning rules"
       exit 1
     fi
+  fi
+  if [[ "$INTERACTION_SCHEMA_VERSION" == 3.* ]]; then
+    # Schema 3 makes curated class exclusions authoritative at the bridge seam.
+    # Validate the actual column and every row, not just the schema label.
+    if ! python3 - "$SRC_INTERACTION_DB" "$SRC_INTERACTION_MANIFEST" <<'PYCLASS'
+import json, sqlite3, sys
+try:
+    with sqlite3.connect(sys.argv[1]) as con:
+        columns = {row[1] for row in con.execute("PRAGMA table_info(drug_class_map)")}
+        if "excluded_drug_rxcuis_json" not in columns:
+            raise ValueError("class exclusion column is missing")
+        rows = con.execute("SELECT excluded_drug_rxcuis_json FROM drug_class_map").fetchall()
+        if not rows:
+            raise ValueError("class count is zero")
+        manifest = json.load(open(sys.argv[2]))
+        if "drug_class_count" in manifest and (
+            type(manifest["drug_class_count"]) is not int
+            or manifest["drug_class_count"] != len(rows)
+        ):
+            raise ValueError("class count split-brain")
+        for (raw,) in rows:
+            values = json.loads(raw)
+            if not isinstance(values, list) or any(
+                not isinstance(value, str) or not value.isascii()
+                or not value.isdigit() or not value
+                for value in values
+            ):
+                raise ValueError("class exclusion must be an array of RxCUI strings")
+except (sqlite3.Error, ValueError, TypeError) as error:
+    print("class exclusion validation failed: " + str(error), file=sys.stderr)
+    sys.exit(1)
+PYCLASS
+    then
+      err "schema-3 class exclusion contract validation failed"
+      exit 1
+    fi
+    ok "schema-3 class exclusion column, JSON and class count validated"
   fi
   ok "embedded interaction_db_metadata agrees with JSON manifest"
 
