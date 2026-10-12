@@ -204,5 +204,56 @@ void main() {
             'a human reviewer first.',
       );
     });
+
+    // ADR-009: the one scoped exception. A user-initiated, previewed AI-share
+    // snapshot may carry medications or profile data, and only through this
+    // one client invoking this one edge function. Every other edge-function
+    // caller is pinned too, so a new upload path cannot appear unreviewed.
+    test('edge functions are invoked only from the allowlisted callers, and '
+        'only the AI-share snapshot client sends a health payload', () {
+      final invokers = <String>{};
+      final snapshotNameUsers = <String>{};
+      final payloadSenders = <String>{};
+
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        if (entity.path.endsWith('.g.dart')) continue;
+        final source = entity.readAsStringSync();
+        final path = entity.path.replaceAll(r'\', '/');
+        if (source.contains('functions.invoke(')) invokers.add(path);
+        // A quoted literal, so a doc comment naming the function is fine.
+        if (_aiShareSnapshotLiteral.hasMatch(source)) {
+          snapshotNameUsers.add(path);
+        }
+        if (RegExp(r"""['"]payload['"]\s*:""").hasMatch(source)) {
+          payloadSenders.add(path);
+        }
+      }
+
+      expect(
+        invokers,
+        equals(_edgeFunctionInvokers),
+        reason:
+            'Edge-function callers drifted. A new caller must be reviewed '
+            'for health data and added here explicitly.',
+      );
+      expect(snapshotNameUsers, equals({_aiShareSnapshotClientPath}));
+      expect(payloadSenders, equals({_aiShareSnapshotClientPath}));
+
+      // The snapshot client writes no table directly: the edge function
+      // owns storage, encryption and expiry.
+      final client = File(_aiShareSnapshotClientPath).readAsStringSync();
+      expect(_supabaseWriteRegex.hasMatch(client), isFalse);
+      expect(client.contains('.from('), isFalse);
+    });
   });
 }
+
+final _aiShareSnapshotLiteral = RegExp(r"""['"]ai-share-snapshot['"]""");
+const _aiShareSnapshotClientPath =
+    'lib/services/sharing/ai_share_snapshot_client.dart';
+const _edgeFunctionInvokers = <String>{
+  'lib/services/auth/account_deletion_service.dart',
+  'lib/services/notifications/safety_push_service.dart',
+  _aiShareSnapshotClientPath,
+};

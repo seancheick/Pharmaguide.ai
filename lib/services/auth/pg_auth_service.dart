@@ -9,6 +9,9 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/notifications/safety_push_service.dart';
+import 'package:pharmaguide/services/settings/app_preferences.dart';
+import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
+import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -203,7 +206,15 @@ const String _googleIosClientId = String.fromEnvironment(
 /// the global `_AuthEventListener` in app.dart a `signedIn` event —
 /// same plumbing the magic-link return uses.
 class PGAuthService {
-  PGAuthService();
+  PGAuthService({
+    this._aiShareSnapshots,
+    this._aiSharePrefs,
+    @visibleForTesting this._signOutRemote,
+  });
+
+  final AiShareSnapshotClient? _aiShareSnapshots;
+  final AiSharePrefsStore? _aiSharePrefs;
+  final Future<void> Function()? _signOutRemote;
 
   /// Apple Sign In. iOS uses the native AppleID dialog via
   /// [SignInWithApple.getAppleIDCredential]; the returned identity
@@ -379,9 +390,45 @@ class PGAuthService {
   /// Push teardown is transport cleanup, not user data: the device token must
   /// be unregistered while the session JWT can still authorize it, or the
   /// signed-out device keeps receiving this account's notifications.
+  ///
+  /// AI-share snapshots (ADR-009 S5) are deleted here for the same reason:
+  /// the edge function needs this session's JWT. The purge is best-effort;
+  /// a failure is logged and sign-out still completes.
   Future<void> signOut() async {
     await SafetyPushService.active?.unregisterBeforeSignOut();
+    await _purgeAiShareBeforeSignOut();
+    final remote = _signOutRemote;
+    if (remote != null) return remote();
     await supabase.auth.signOut();
+  }
+
+  Future<void> _purgeAiShareBeforeSignOut() async {
+    // Stop every opt-in refresh first so nothing re-uploads after the purge.
+    try {
+      await (_aiSharePrefs ??
+              AiSharePrefsStore(SharedPreferencesAsyncAppPreferencesStore()))
+          .clear();
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'ai_share:signout_prefs_clear_failed',
+      );
+    }
+    try {
+      // Bounded so an offline device can still sign out.
+      await (_aiShareSnapshots ?? AiShareSnapshotClient.production())
+          .deleteAll()
+          .timeout(const Duration(seconds: 10));
+    } on AiShareNotSignedIn {
+      // No session: nothing this device can authorize deleting.
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'ai_share:signout_purge_failed',
+      );
+    }
   }
 
   /// Clears only the session cached on this device.

@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
-import 'package:pharmaguide/core/components/pg_settings_tile.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/features/stack/widgets/ai_share_scope_switches.dart';
 import 'package:pharmaguide/services/sharing/ai_brief_builder.dart';
 import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
 import 'package:pharmaguide/services/sharing/clinician_report_document_provider.dart';
@@ -180,78 +180,10 @@ class _Preview extends StatelessWidget {
                   onChanged: onPreset,
                 ),
                 const SizedBox(height: V2Spacing.space16),
-                PGSettingsGroup(
-                  eyebrow: 'Include',
-                  children: [
-                    if (detailed)
-                      PGSettingsTile(
-                        icon: Icons.scale_outlined,
-                        title: 'Supplement label amounts',
-                        caption: 'Verified amounts as nutrient totals.',
-                        trailing: Switch.adaptive(
-                          value: scope.supplementAmounts,
-                          onChanged: (v) =>
-                              onScope((s) => s.copyWith(supplementAmounts: v)),
-                        ),
-                      ),
-                    PGSettingsTile(
-                      icon: Icons.edit_calendar_outlined,
-                      title: 'Supplement dose as you entered it',
-                      caption: 'Free text, not verified against the label.',
-                      trailing: Switch.adaptive(
-                        value: scope.supplementSchedule,
-                        onChanged: (v) =>
-                            onScope((s) => s.copyWith(supplementSchedule: v)),
-                      ),
-                    ),
-                    PGSettingsTile(
-                      icon: Icons.medication_outlined,
-                      title: 'Medications',
-                      caption: 'Names. Findings that involve them come along.',
-                      trailing: Switch.adaptive(
-                        value: scope.medicationNames,
-                        onChanged: (v) =>
-                            onScope((s) => s.copyWith(medicationNames: v)),
-                      ),
-                    ),
-                    PGSettingsTile(
-                      icon: Icons.schedule_outlined,
-                      title: 'Medication dose and frequency',
-                      caption: scope.medicationNames
-                          ? 'As you entered them.'
-                          : 'Switch on Medications first.',
-                      trailing: Switch.adaptive(
-                        value: scope.medicationSchedule,
-                        onChanged: scope.medicationNames
-                            ? (v) => onScope(
-                                (s) => s.copyWith(medicationSchedule: v),
-                              )
-                            : null,
-                      ),
-                    ),
-                    PGSettingsTile(
-                      icon: Icons.person_outline_rounded,
-                      title: 'Health profile',
-                      caption:
-                          'Age, sex, conditions, pregnancy, allergies, goals.',
-                      trailing: Switch.adaptive(
-                        value: scope.profile,
-                        onChanged: (v) =>
-                            onScope((s) => s.copyWith(profile: v)),
-                      ),
-                    ),
-                    if (detailed)
-                      PGSettingsTile(
-                        icon: Icons.fact_check_outlined,
-                        title: 'PharmaGuide findings',
-                        caption: 'With severity, evidence level and sources.',
-                        trailing: Switch.adaptive(
-                          value: scope.findings,
-                          onChanged: (v) =>
-                              onScope((s) => s.copyWith(findings: v)),
-                        ),
-                      ),
-                  ],
+                AiShareScopeSwitches(
+                  scope: scope,
+                  onScope: onScope,
+                  showDetailedSwitches: detailed,
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 Text(
