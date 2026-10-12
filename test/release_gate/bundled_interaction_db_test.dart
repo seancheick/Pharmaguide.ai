@@ -68,7 +68,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('release gate: bundled interaction DB asset', () {
-    test('catalog importer accepts interaction schemas 1 and 2 as pairs', () {
+    test('catalog importer accepts interaction schemas 1, 2 and 3 as pairs', () {
       final importer = File(
         'scripts/import_catalog_artifact.sh',
       ).readAsStringSync();
@@ -81,8 +81,12 @@ void main() {
 
       expect(supportedSchemas, contains('"1.0.0"'));
       expect(supportedSchemas, contains('"2.0.0"'));
+      expect(supportedSchemas, contains('"3.0.0"'));
       expect(supportedUserVersions, contains('1'));
       expect(supportedUserVersions, contains('2'));
+      expect(supportedUserVersions, contains('3'));
+      expect(importer, contains('excluded_drug_rxcuis_json'));
+      expect(importer, contains('class exclusion contract validation failed'));
       expect(
         importer,
         contains('EXPECTED_INTERACTION_USER_VERSION'),
