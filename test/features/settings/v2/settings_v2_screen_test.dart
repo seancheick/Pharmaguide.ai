@@ -142,6 +142,29 @@ void main() {
     expect(find.text('Preview, print, or share a private PDF'), findsOneWidget);
   });
 
+  testWidgets('Profile exposes Connected AI assistants', (tester) async {
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsV2Screen(onOpenAiConnections: () => opened = true),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Connected AI assistants'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Connected AI assistants')),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Connected AI assistants'));
+
+    expect(opened, isTrue);
+  });
+
   testWidgets('Profile exposes the unified Health History entry point', (
     tester,
   ) async {
@@ -485,14 +508,11 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
 
     await tester.scrollUntilVisible(
-      find.text('Your health profile and medication list stay on this device.'),
+      find.text(_closingPrivacyLine),
       240,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(
-      find.text('Your health profile and medication list stay on this device.'),
-      findsOneWidget,
-    );
+    expect(find.text(_closingPrivacyLine), findsOneWidget);
     expect(find.text('Your health data stays on this device.'), findsNothing);
   });
 }
@@ -511,3 +531,7 @@ class _AllowedNotificationService implements NotificationAuthorizationService {
   @override
   Future<void> openNotificationSettings() async {}
 }
+
+const _closingPrivacyLine =
+    'Your health profile and medication list stay on this device unless '
+    'you choose to share a snapshot with a connected AI assistant.';

@@ -41,6 +41,7 @@ class SettingsV2Screen extends StatelessWidget {
   final Future<bool> Function(Uri uri)? onOpenExternal;
   final VoidCallback? onOpenHealthHistory;
   final VoidCallback? onOpenClinicianReport;
+  final VoidCallback? onOpenAiConnections;
   final VoidCallback? onOpenProductSubmissions;
   final int pendingProductSubmissionCount;
   final VoidCallback? onDeleteAccount;
@@ -61,6 +62,7 @@ class SettingsV2Screen extends StatelessWidget {
     this.onOpenExternal,
     this.onOpenHealthHistory,
     this.onOpenClinicianReport,
+    this.onOpenAiConnections,
     this.onOpenProductSubmissions,
     this.pendingProductSubmissionCount = 0,
     this.onDeleteAccount,
@@ -151,6 +153,12 @@ class SettingsV2Screen extends StatelessWidget {
                   title: 'Clinician report',
                   caption: 'Preview, print, or share a private PDF',
                   onTap: onOpenClinicianReport,
+                ),
+                PGSettingsTile(
+                  icon: Icons.hub_outlined,
+                  title: 'Connected AI assistants',
+                  caption: 'Choose what an assistant can read',
+                  onTap: onOpenAiConnections,
                 ),
                 if (signedIn)
                   PGSettingsTile(
@@ -382,7 +390,10 @@ class SettingsV2Screen extends StatelessWidget {
             const SizedBox(height: V2Spacing.space32),
             Center(
               child: Text(
-                'Your health profile and medication list stay on this device.',
+                'Your health profile and medication list stay on this device '
+                'unless you choose to share a snapshot with a connected AI '
+                'assistant.',
+                textAlign: TextAlign.center,
                 style: V2Typography.caption(color: context.v2.fgSubtle),
               ),
             ),

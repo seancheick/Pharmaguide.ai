@@ -54,6 +54,10 @@ abstract final class SupabaseContract {
   /// current row; devices never write the feed or its dispatch metadata.
   static const safetyAlertReleasesTable = 'safety_alert_releases';
 
+  /// Approved AI-assistant connections (ADR-009, S10). Written by the website
+  /// consent route; the app only reads its own rows.
+  static const aiConnectionsTable = 'ai_connections';
+
   /// Product-state identity used by every PostgREST user-stack upsert. The
   /// database enforces this as a full UNIQUE constraint, not a partial index.
   static const userStacksProductConflictTarget = 'user_id,dsld_id';

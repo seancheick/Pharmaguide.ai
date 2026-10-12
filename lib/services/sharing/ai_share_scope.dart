@@ -65,6 +65,33 @@ class AiShareScope {
   bool get isEmpty =>
       !supplementNames && !medicationNames && !profile && !findings;
 
+  /// Wire form for the consented snapshot (`ai-share-snapshot`) and the
+  /// device-only refresh preference: JSON booleans, one key per switch.
+  Map<String, bool> toJson() => {
+    'supplement_names': supplementNames,
+    'supplement_amounts': supplementAmounts,
+    'supplement_schedule': supplementSchedule,
+    'medication_names': medicationNames,
+    'medication_schedule': medicationSchedule,
+    'profile': profile,
+    'findings': findings,
+  };
+
+  /// Fail-closed parse: a missing or non-boolean field is off, so a
+  /// corrupted or older record can never widen what is shared.
+  factory AiShareScope.fromJson(Map<String, Object?> json) {
+    bool on(String key) => json[key] == true;
+    return AiShareScope(
+      supplementNames: on('supplement_names'),
+      supplementAmounts: on('supplement_amounts'),
+      supplementSchedule: on('supplement_schedule'),
+      medicationNames: on('medication_names'),
+      medicationSchedule: on('medication_schedule'),
+      profile: on('profile'),
+      findings: on('findings'),
+    ).normalized;
+  }
+
   AiShareScope copyWith({
     bool? supplementNames,
     bool? supplementAmounts,
