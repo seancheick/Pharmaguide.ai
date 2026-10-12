@@ -15,7 +15,7 @@
 // to this connection from the app, decrypted for exactly this connection.
 //
 // Transport: _shared/mcp_transport.ts, shared with mcp-public.
-import { withOAuthProtectedResource } from "jsr:@supabase/server@1.9.2";
+import { withOAuthProtectedResource } from "jsr:@supabase/server@1.9.1";
 
 import {
   type AiConnection,
