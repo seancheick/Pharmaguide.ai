@@ -115,6 +115,12 @@ class MedicationClassBridge {
     final merged = <String>[];
     final seenMerged = <String>{};
     for (final classId in [...runtime, ...curated]) {
+      final membershipClassId = _rxClassFallbackToCurated[classId] ?? classId;
+      // A combination's verified member wins over another ingredient's exclusion.
+      if (!seenCurated.contains(membershipClassId) &&
+          await _db.isDrugClassExcluded(membershipClassId, rxcuis)) {
+        continue;
+      }
       if (seenMerged.add(classId)) merged.add(classId);
     }
 
