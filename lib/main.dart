@@ -6,10 +6,13 @@ import 'dart:ui';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
+import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
+import 'package:pharmaguide/core/navigation/launch_link_buffer.dart';
 import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -236,14 +239,24 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
   final math.Random _refreshRandom = math.Random();
 
+  /// Claims links that arrive while the startup screen shows. Attached here,
+  /// before the startup MaterialApp registers its own observer, so it is
+  /// asked first.
+  final LaunchLinkBuffer _launchLinks = LaunchLinkBuffer();
+
+  /// Read once when the router is first built; the router owns links after.
+  String? _launchLocation;
+
   @override
   void initState() {
     super.initState();
+    _launchLinks.attach();
     unawaited(_bootstrapCatalog());
   }
 
   @override
   void dispose() {
+    _launchLinks.detach();
     _catalogRefreshTimer?.cancel();
     unawaited(_coreDb?.close());
     unawaited(widget.interactionDb?.close());
@@ -318,8 +331,19 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       _coreDb = initialDb;
       _catalogAvailable = initialDb != null;
       _catalogUnavailableReason = initialDb == null ? initialReason : null;
+      _launchLocation = _launchLinks.takeLocation();
       _bootstrapped = true;
       _scopeVersion++;
+    });
+    // The app router mounts on this frame. Keep claiming links until it has,
+    // then hand it any link that landed in between.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _launchLinks.detach();
+      final late = _launchLinks.takeLocation();
+      final routerContext = rootNavigatorKey.currentContext;
+      if (late != null && routerContext != null) {
+        GoRouter.of(routerContext).go(late);
+      }
     });
 
     _scheduleCatalogRefresh(initialDelay: const Duration(seconds: 10));
@@ -599,6 +623,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           catalogUnavailableReason: _catalogUnavailableReason,
           onRetryCatalogLoad: _retryCatalogLoad,
           hasSeenOnboarding: widget.hasSeenOnboarding,
+          launchLocation: _launchLocation,
         ),
       ),
     );
