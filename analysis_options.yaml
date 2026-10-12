@@ -3,6 +3,9 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - lib/data/database/*.g.dart
+    # Engine-portability spike: compiled against its own overlay package
+    # config (tool/engine_spike/make_overlay.py), not the app's.
+    - tool/engine_spike/**
   language:
     strict-casts: true
     strict-inference: true
