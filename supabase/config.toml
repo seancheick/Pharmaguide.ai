@@ -6,6 +6,12 @@ project_id = "pharmaguide"
 [functions.cleanup-product-submissions]
 verify_jwt = false
 
+# Public, authless MCP server: product catalog facts only, no personal data.
+# It never reads a caller JWT; it reads catalog_search with the service role
+# and applies its own per-IP rate limit (supabase/functions/mcp-public).
+[functions.mcp-public]
+verify_jwt = false
+
 # Invoked only by the pipeline after it atomically promotes an alert release.
 # The function performs its own constant-time release-secret check; an end-user
 # JWT must never be able to trigger bulk notification delivery.
