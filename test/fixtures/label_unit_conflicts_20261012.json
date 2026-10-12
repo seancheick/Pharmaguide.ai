@@ -5,208 +5,21 @@
     "rows": [
       {
         "ingredient": "Molybdenum",
-        "standard_name": "Molybdenum",
         "canonical_id": "molybdenum",
-        "nutrient_group_id": null,
-        "nutrient_group_name": null,
         "quantity": 75.0,
         "unit": "mg",
-        "converted_quantity": null,
         "converted_unit": null,
         "ul_gate_eligible": false,
-        "ul_exposure_basis": "unresolved_unit",
-        "ul_gate_ineligible_reason": "label_unit_conflict",
-        "source_label_key": "label:molybdenum:molybdenum:75:mg",
-        "dose_role": "declared_total",
-        "parent_label_key": null,
         "per_day_min": null,
         "per_day_max": null,
         "safety_exposure": {
           "per_day": null,
           "unit": null
         },
-        "servings_per_day_min": 1.0,
-        "servings_per_day_max": 1.0,
         "skip_ul_check": true,
         "skip_ul_reason": "label_unit_conflict",
         "ul_assessment_status": "indeterminate",
-        "nutrient_unit": "mcg",
-        "highest_ul": 2000,
-        "ul_for_default_profile": null,
-        "optimal_range": "",
         "pct_rda": null,
-        "adequacy_band": "unknown",
-        "warnings": [
-          "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-        ],
-        "data_by_group": [
-          {
-            "group": "Male",
-            "age_range": "14-18",
-            "rda_ai": 43,
-            "ul": 1700,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "19-30",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "31-50",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "51-70",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "71+",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "14-18",
-            "rda_ai": 43,
-            "ul": 1700,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "19-30",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "31-50",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "51-70",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "71+",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "14-18",
-            "rda_ai": 50,
-            "ul": 1700,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "19-30",
-            "rda_ai": 50,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "31-50",
-            "rda_ai": 50,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "14-18",
-            "rda_ai": 50,
-            "ul": 1700,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "19-30",
-            "rda_ai": 50,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "31-50",
-            "rda_ai": 50,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          }
-        ],
-        "reference_profile": {
-          "id": "adult_neutral_compatibility",
-          "age_range": "19-30",
-          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
-        },
-        "conversion_evidence": {
-          "success": false,
-          "original_value": 75.0,
-          "original_unit": "mg",
-          "converted_value": null,
-          "converted_unit": null,
-          "conversion_rule_id": "label_unit_conflict",
-          "conversion_factor": null,
-          "nutrient_detected": "Molybdenum",
-          "form_detected": null,
-          "form_detection_source": "reviewed_label_unit_conflict",
-          "confidence": "unknown",
-          "warnings": [],
-          "notes": [],
-          "error": "Printed amount and Daily Value conflict; manufacturer confirmation is needed.",
-          "ingredient": "Molybdenum",
-          "dose_data_quality": {
-            "status": "unresolved_unit",
-            "reason": "label_unit_conflict",
-            "raw_amount": 75.0,
-            "raw_unit": "mg",
-            "notes": [
-              "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-            ]
-          },
-          "source_label_key": "label:molybdenum:molybdenum:75:mg",
-          "dose_role": "declared_total",
-          "parent_label_key": null
-        },
-        "raw_source_text": "Molybdenum",
-        "raw_source_path": "ingredientRows[26]",
-        "is_servings_estimated": false,
         "dose_data_quality": {
           "status": "unresolved_unit",
           "reason": "label_unit_conflict",
@@ -215,8 +28,7 @@
           "notes": [
             "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
           ]
-        },
-        "below_clinical_dose": false
+        }
       }
     ]
   },
@@ -226,208 +38,21 @@
     "rows": [
       {
         "ingredient": "Molybdenum",
-        "standard_name": "Molybdenum",
         "canonical_id": "molybdenum",
-        "nutrient_group_id": null,
-        "nutrient_group_name": null,
         "quantity": 75.0,
         "unit": "mg",
-        "converted_quantity": null,
         "converted_unit": null,
         "ul_gate_eligible": false,
-        "ul_exposure_basis": "unresolved_unit",
-        "ul_gate_ineligible_reason": "label_unit_conflict",
-        "source_label_key": "label:molybdenum:molybdenum:75:mg",
-        "dose_role": "declared_total",
-        "parent_label_key": null,
         "per_day_min": null,
         "per_day_max": null,
         "safety_exposure": {
           "per_day": null,
           "unit": null
         },
-        "servings_per_day_min": 1.0,
-        "servings_per_day_max": 1.0,
         "skip_ul_check": true,
         "skip_ul_reason": "label_unit_conflict",
         "ul_assessment_status": "indeterminate",
-        "nutrient_unit": "mcg",
-        "highest_ul": 2000,
-        "ul_for_default_profile": null,
-        "optimal_range": "",
         "pct_rda": null,
-        "adequacy_band": "unknown",
-        "warnings": [
-          "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-        ],
-        "data_by_group": [
-          {
-            "group": "Male",
-            "age_range": "14-18",
-            "rda_ai": 43,
-            "ul": 1700,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "19-30",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "31-50",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "51-70",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "71+",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "14-18",
-            "rda_ai": 43,
-            "ul": 1700,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "19-30",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "31-50",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "51-70",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "71+",
-            "rda_ai": 45,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "14-18",
-            "rda_ai": 50,
-            "ul": 1700,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "19-30",
-            "rda_ai": 50,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "31-50",
-            "rda_ai": 50,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "14-18",
-            "rda_ai": 50,
-            "ul": 1700,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "19-30",
-            "rda_ai": 50,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "31-50",
-            "rda_ai": 50,
-            "ul": 2000,
-            "rda_ai_status": null,
-            "ul_status": null
-          }
-        ],
-        "reference_profile": {
-          "id": "adult_neutral_compatibility",
-          "age_range": "19-30",
-          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
-        },
-        "conversion_evidence": {
-          "success": false,
-          "original_value": 75.0,
-          "original_unit": "mg",
-          "converted_value": null,
-          "converted_unit": null,
-          "conversion_rule_id": "label_unit_conflict",
-          "conversion_factor": null,
-          "nutrient_detected": "Molybdenum",
-          "form_detected": null,
-          "form_detection_source": "reviewed_label_unit_conflict",
-          "confidence": "unknown",
-          "warnings": [],
-          "notes": [],
-          "error": "Printed amount and Daily Value conflict; manufacturer confirmation is needed.",
-          "ingredient": "Molybdenum",
-          "dose_data_quality": {
-            "status": "unresolved_unit",
-            "reason": "label_unit_conflict",
-            "raw_amount": 75.0,
-            "raw_unit": "mg",
-            "notes": [
-              "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-            ]
-          },
-          "source_label_key": "label:molybdenum:molybdenum:75:mg",
-          "dose_role": "declared_total",
-          "parent_label_key": null
-        },
-        "raw_source_text": "Molybdenum",
-        "raw_source_path": "ingredientRows[26]",
-        "is_servings_estimated": false,
         "dose_data_quality": {
           "status": "unresolved_unit",
           "reason": "label_unit_conflict",
@@ -436,8 +61,7 @@
           "notes": [
             "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
           ]
-        },
-        "below_clinical_dose": false
+        }
       }
     ]
   },
@@ -447,208 +71,21 @@
     "rows": [
       {
         "ingredient": "Vitamin A",
-        "standard_name": "Vitamin A",
         "canonical_id": "vitamin_a",
-        "nutrient_group_id": null,
-        "nutrient_group_name": null,
         "quantity": 900.0,
         "unit": "mg RAE",
-        "converted_quantity": null,
         "converted_unit": null,
         "ul_gate_eligible": false,
-        "ul_exposure_basis": "unresolved_unit",
-        "ul_gate_ineligible_reason": "label_unit_conflict",
-        "source_label_key": "label:vitamin_a:vitamin a:900:mg rae",
-        "dose_role": "declared_total",
-        "parent_label_key": null,
         "per_day_min": null,
         "per_day_max": null,
         "safety_exposure": {
           "per_day": null,
           "unit": null
         },
-        "servings_per_day_min": 1.0,
-        "servings_per_day_max": 1.0,
         "skip_ul_check": true,
         "skip_ul_reason": "label_unit_conflict",
         "ul_assessment_status": "indeterminate",
-        "nutrient_unit": "mcg RAE",
-        "highest_ul": 3000,
-        "ul_for_default_profile": null,
-        "optimal_range": "",
         "pct_rda": null,
-        "adequacy_band": "unknown",
-        "warnings": [
-          "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-        ],
-        "data_by_group": [
-          {
-            "group": "Male",
-            "age_range": "14-18",
-            "rda_ai": 900,
-            "ul": 2800,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "19-30",
-            "rda_ai": 900,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "31-50",
-            "rda_ai": 900,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "51-70",
-            "rda_ai": 900,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "71+",
-            "rda_ai": 900,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "14-18",
-            "rda_ai": 700,
-            "ul": 2800,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "19-30",
-            "rda_ai": 700,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "31-50",
-            "rda_ai": 700,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "51-70",
-            "rda_ai": 700,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "71+",
-            "rda_ai": 700,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "14-18",
-            "rda_ai": 750,
-            "ul": 2800,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "19-30",
-            "rda_ai": 770,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "31-50",
-            "rda_ai": 770,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "14-18",
-            "rda_ai": 1200,
-            "ul": 2800,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "19-30",
-            "rda_ai": 1300,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "31-50",
-            "rda_ai": 1300,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          }
-        ],
-        "reference_profile": {
-          "id": "adult_neutral_compatibility",
-          "age_range": "19-30",
-          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
-        },
-        "conversion_evidence": {
-          "success": false,
-          "original_value": 900.0,
-          "original_unit": "mg RAE",
-          "converted_value": null,
-          "converted_unit": null,
-          "conversion_rule_id": "label_unit_conflict",
-          "conversion_factor": null,
-          "nutrient_detected": "Vitamin A",
-          "form_detected": null,
-          "form_detection_source": "reviewed_label_unit_conflict",
-          "confidence": "unknown",
-          "warnings": [],
-          "notes": [],
-          "error": "Printed amount and Daily Value conflict; manufacturer confirmation is needed.",
-          "ingredient": "Vitamin A",
-          "dose_data_quality": {
-            "status": "unresolved_unit",
-            "reason": "label_unit_conflict",
-            "raw_amount": 900.0,
-            "raw_unit": "mg RAE",
-            "notes": [
-              "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-            ]
-          },
-          "source_label_key": "label:vitamin_a:vitamin a:900:mg rae",
-          "dose_role": "declared_total",
-          "parent_label_key": null
-        },
-        "raw_source_text": "Vitamin A",
-        "raw_source_path": "ingredientRows[0]",
-        "is_servings_estimated": false,
         "dose_data_quality": {
           "status": "unresolved_unit",
           "reason": "label_unit_conflict",
@@ -657,213 +94,25 @@
           "notes": [
             "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
           ]
-        },
-        "below_clinical_dose": false
+        }
       },
       {
         "ingredient": "Vitamin D3",
-        "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d",
-        "nutrient_group_id": null,
-        "nutrient_group_name": null,
         "quantity": 100.0,
         "unit": "mg",
-        "converted_quantity": null,
         "converted_unit": null,
         "ul_gate_eligible": false,
-        "ul_exposure_basis": "unresolved_unit",
-        "ul_gate_ineligible_reason": "label_unit_conflict",
-        "source_label_key": "label:vitamin_d:vitamin d3:100:mg",
-        "dose_role": "declared_total",
-        "parent_label_key": null,
         "per_day_min": null,
         "per_day_max": null,
         "safety_exposure": {
           "per_day": null,
           "unit": null
         },
-        "servings_per_day_min": 1.0,
-        "servings_per_day_max": 1.0,
         "skip_ul_check": true,
         "skip_ul_reason": "label_unit_conflict",
         "ul_assessment_status": "indeterminate",
-        "nutrient_unit": "mcg",
-        "highest_ul": 100,
-        "ul_for_default_profile": null,
-        "optimal_range": "",
         "pct_rda": null,
-        "adequacy_band": "unknown",
-        "warnings": [
-          "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-        ],
-        "data_by_group": [
-          {
-            "group": "Male",
-            "age_range": "14-18",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "19-30",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "31-50",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "51-70",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "71+",
-            "rda_ai": 20,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "14-18",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "19-30",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "31-50",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "51-70",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "71+",
-            "rda_ai": 20,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "14-18",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "19-30",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "31-50",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "14-18",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "19-30",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "31-50",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          }
-        ],
-        "reference_profile": {
-          "id": "adult_neutral_compatibility",
-          "age_range": "19-30",
-          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
-        },
-        "conversion_evidence": {
-          "success": false,
-          "original_value": 100.0,
-          "original_unit": "mg",
-          "converted_value": null,
-          "converted_unit": null,
-          "conversion_rule_id": "label_unit_conflict",
-          "conversion_factor": null,
-          "nutrient_detected": "Vitamin D",
-          "form_detected": null,
-          "form_detection_source": "reviewed_label_unit_conflict",
-          "confidence": "unknown",
-          "warnings": [],
-          "notes": [],
-          "error": "Printed amount and Daily Value conflict; manufacturer confirmation is needed.",
-          "ingredient": "Vitamin D3",
-          "dose_data_quality": {
-            "status": "unresolved_unit",
-            "reason": "label_unit_conflict",
-            "raw_amount": 100.0,
-            "raw_unit": "mg",
-            "notes": [
-              "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-            ]
-          },
-          "source_label_key": "label:vitamin_d:vitamin d3:100:mg",
-          "dose_role": "declared_total",
-          "parent_label_key": null
-        },
-        "raw_source_text": "Vitamin D3",
-        "raw_source_path": "ingredientRows[2]",
-        "is_servings_estimated": false,
         "dose_data_quality": {
           "status": "unresolved_unit",
           "reason": "label_unit_conflict",
@@ -872,8 +121,7 @@
           "notes": [
             "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
           ]
-        },
-        "below_clinical_dose": false
+        }
       }
     ]
   },
@@ -883,208 +131,21 @@
     "rows": [
       {
         "ingredient": "Vitamin A",
-        "standard_name": "Vitamin A",
         "canonical_id": "vitamin_a",
-        "nutrient_group_id": null,
-        "nutrient_group_name": null,
         "quantity": 900.0,
         "unit": "mg RAE",
-        "converted_quantity": null,
         "converted_unit": null,
         "ul_gate_eligible": false,
-        "ul_exposure_basis": "unresolved_unit",
-        "ul_gate_ineligible_reason": "label_unit_conflict",
-        "source_label_key": "label:vitamin_a:vitamin a:900:mg rae",
-        "dose_role": "declared_total",
-        "parent_label_key": null,
         "per_day_min": null,
         "per_day_max": null,
         "safety_exposure": {
           "per_day": null,
           "unit": null
         },
-        "servings_per_day_min": 1.0,
-        "servings_per_day_max": 1.0,
         "skip_ul_check": true,
         "skip_ul_reason": "label_unit_conflict",
         "ul_assessment_status": "indeterminate",
-        "nutrient_unit": "mcg RAE",
-        "highest_ul": 3000,
-        "ul_for_default_profile": null,
-        "optimal_range": "",
         "pct_rda": null,
-        "adequacy_band": "unknown",
-        "warnings": [
-          "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-        ],
-        "data_by_group": [
-          {
-            "group": "Male",
-            "age_range": "14-18",
-            "rda_ai": 900,
-            "ul": 2800,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "19-30",
-            "rda_ai": 900,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "31-50",
-            "rda_ai": 900,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "51-70",
-            "rda_ai": 900,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "71+",
-            "rda_ai": 900,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "14-18",
-            "rda_ai": 700,
-            "ul": 2800,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "19-30",
-            "rda_ai": 700,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "31-50",
-            "rda_ai": 700,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "51-70",
-            "rda_ai": 700,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "71+",
-            "rda_ai": 700,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "14-18",
-            "rda_ai": 750,
-            "ul": 2800,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "19-30",
-            "rda_ai": 770,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "31-50",
-            "rda_ai": 770,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "14-18",
-            "rda_ai": 1200,
-            "ul": 2800,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "19-30",
-            "rda_ai": 1300,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "31-50",
-            "rda_ai": 1300,
-            "ul": 3000,
-            "rda_ai_status": null,
-            "ul_status": null
-          }
-        ],
-        "reference_profile": {
-          "id": "adult_neutral_compatibility",
-          "age_range": "19-30",
-          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
-        },
-        "conversion_evidence": {
-          "success": false,
-          "original_value": 900.0,
-          "original_unit": "mg RAE",
-          "converted_value": null,
-          "converted_unit": null,
-          "conversion_rule_id": "label_unit_conflict",
-          "conversion_factor": null,
-          "nutrient_detected": "Vitamin A",
-          "form_detected": null,
-          "form_detection_source": "reviewed_label_unit_conflict",
-          "confidence": "unknown",
-          "warnings": [],
-          "notes": [],
-          "error": "Printed amount and Daily Value conflict; manufacturer confirmation is needed.",
-          "ingredient": "Vitamin A",
-          "dose_data_quality": {
-            "status": "unresolved_unit",
-            "reason": "label_unit_conflict",
-            "raw_amount": 900.0,
-            "raw_unit": "mg RAE",
-            "notes": [
-              "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-            ]
-          },
-          "source_label_key": "label:vitamin_a:vitamin a:900:mg rae",
-          "dose_role": "declared_total",
-          "parent_label_key": null
-        },
-        "raw_source_text": "Vitamin A",
-        "raw_source_path": "ingredientRows[0]",
-        "is_servings_estimated": false,
         "dose_data_quality": {
           "status": "unresolved_unit",
           "reason": "label_unit_conflict",
@@ -1093,213 +154,25 @@
           "notes": [
             "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
           ]
-        },
-        "below_clinical_dose": false
+        }
       },
       {
         "ingredient": "Vitamin D3",
-        "standard_name": "Vitamin D",
         "canonical_id": "vitamin_d",
-        "nutrient_group_id": null,
-        "nutrient_group_name": null,
         "quantity": 50.0,
         "unit": "mg",
-        "converted_quantity": null,
         "converted_unit": null,
         "ul_gate_eligible": false,
-        "ul_exposure_basis": "unresolved_unit",
-        "ul_gate_ineligible_reason": "label_unit_conflict",
-        "source_label_key": "label:vitamin_d:vitamin d3:50:mg",
-        "dose_role": "declared_total",
-        "parent_label_key": null,
         "per_day_min": null,
         "per_day_max": null,
         "safety_exposure": {
           "per_day": null,
           "unit": null
         },
-        "servings_per_day_min": 1.0,
-        "servings_per_day_max": 1.0,
         "skip_ul_check": true,
         "skip_ul_reason": "label_unit_conflict",
         "ul_assessment_status": "indeterminate",
-        "nutrient_unit": "mcg",
-        "highest_ul": 100,
-        "ul_for_default_profile": null,
-        "optimal_range": "",
         "pct_rda": null,
-        "adequacy_band": "unknown",
-        "warnings": [
-          "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-        ],
-        "data_by_group": [
-          {
-            "group": "Male",
-            "age_range": "14-18",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "19-30",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "31-50",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "51-70",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Male",
-            "age_range": "71+",
-            "rda_ai": 20,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "14-18",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "19-30",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "31-50",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "51-70",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Female",
-            "age_range": "71+",
-            "rda_ai": 20,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "14-18",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "19-30",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Pregnancy",
-            "age_range": "31-50",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "14-18",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "19-30",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          },
-          {
-            "group": "Lactation",
-            "age_range": "31-50",
-            "rda_ai": 15,
-            "ul": 100,
-            "rda_ai_status": null,
-            "ul_status": null
-          }
-        ],
-        "reference_profile": {
-          "id": "adult_neutral_compatibility",
-          "age_range": "19-30",
-          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
-        },
-        "conversion_evidence": {
-          "success": false,
-          "original_value": 50.0,
-          "original_unit": "mg",
-          "converted_value": null,
-          "converted_unit": null,
-          "conversion_rule_id": "label_unit_conflict",
-          "conversion_factor": null,
-          "nutrient_detected": "Vitamin D",
-          "form_detected": null,
-          "form_detection_source": "reviewed_label_unit_conflict",
-          "confidence": "unknown",
-          "warnings": [],
-          "notes": [],
-          "error": "Printed amount and Daily Value conflict; manufacturer confirmation is needed.",
-          "ingredient": "Vitamin D3",
-          "dose_data_quality": {
-            "status": "unresolved_unit",
-            "reason": "label_unit_conflict",
-            "raw_amount": 50.0,
-            "raw_unit": "mg",
-            "notes": [
-              "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
-            ]
-          },
-          "source_label_key": "label:vitamin_d:vitamin d3:50:mg",
-          "dose_role": "declared_total",
-          "parent_label_key": null
-        },
-        "raw_source_text": "Vitamin D3",
-        "raw_source_path": "ingredientRows[2]",
-        "is_servings_estimated": false,
         "dose_data_quality": {
           "status": "unresolved_unit",
           "reason": "label_unit_conflict",
@@ -1308,8 +181,7 @@
           "notes": [
             "The printed amount and Daily Value conflict; the dose needs manufacturer confirmation."
           ]
-        },
-        "below_clinical_dose": false
+        }
       }
     ]
   }
