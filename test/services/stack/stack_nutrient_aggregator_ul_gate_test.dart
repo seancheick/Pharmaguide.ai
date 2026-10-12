@@ -16,12 +16,181 @@
 // decision and exclude the compound mass from the UL recompute, exactly
 // as it already excludes an elemental-sibling compound duplicate.
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 
 void main() {
+  test('native four-label exports preserve unresolved dose in app totals', () {
+    final fixtures =
+        jsonDecode(
+              File(
+                'test/fixtures/label_unit_conflicts_20261012.json',
+              ).readAsStringSync(),
+            )
+            as List;
+    final rda =
+        jsonDecode(
+              File(
+                'assets/reference_data/rda_optimal_uls.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    for (final fixture in fixtures) {
+      final rows = (fixture['rows'] as List)
+          .map((r) => Map<String, dynamic>.from(r as Map))
+          .toList();
+      final items = [
+        StackItemNutrients(
+          stackEntryId: fixture['id'] as String,
+          productName: fixture['id'] as String,
+          ingredients: rows,
+        ),
+      ];
+      final totals = const StackNutrientAggregator().aggregate(items);
+      final statuses = StackUlChecker(rdaData: rda).check(
+        totals,
+        ageBracket: '19-30',
+        sex: 'Male',
+        pipelineVerdicts: const StackNutrientAggregator()
+            .extractPipelineUlVerdicts(items),
+      );
+      expect(statuses, hasLength(rows.length), reason: fixture['id'] as String);
+      for (final status in statuses) {
+        expect(status.ulAssessmentIndeterminate, isTrue);
+        expect(status.pctOfUl, isNull);
+        expect(status.pctOfRda, isNull);
+        expect(status.total.contributions, isEmpty);
+        expect(status.total.hasUnitConflict, isTrue);
+        expect(status.total.excludedContributions, hasLength(1));
+      }
+    }
+  });
+
+  test(
+    'conflicted printed dose stays excluded and visible beside a known dose',
+    () {
+      const aggregator = StackNutrientAggregator();
+      final result = aggregator.aggregate([
+        const StackItemNutrients(
+          stackEntryId: 'conflict',
+          productName: 'Printed conflict',
+          ingredients: [
+            {
+              'ingredient': 'Molybdenum',
+              'canonical_id': 'molybdenum',
+              'quantity': 75,
+              'unit': 'mg',
+              'dose_data_quality': {'status': 'unresolved_unit'},
+              'skip_ul_check': true,
+              'skip_ul_reason': 'label_unit_conflict',
+              'ul_assessment_status': 'indeterminate',
+            },
+          ],
+        ),
+        const StackItemNutrients(
+          stackEntryId: 'known',
+          productName: 'Known dose',
+          ingredients: [
+            {
+              'ingredient': 'Molybdenum',
+              'canonical_id': 'molybdenum',
+              'quantity': 45,
+              'unit': 'mcg',
+              'safety_exposure': {'per_day': 45, 'unit': 'mcg'},
+            },
+          ],
+        ),
+      ]);
+      final total = result['molybdenum']!;
+      expect(total.hasUnresolvedUlContribution, isTrue);
+      final statuses =
+          const StackUlChecker(
+            rdaData: {
+              'nutrient_recommendations': [
+                {
+                  'id': 'molybdenum',
+                  'standard_name': 'Molybdenum',
+                  'unit': 'mcg',
+                  'highest_ul': 2000,
+                  'data': [
+                    {
+                      'group': 'Male',
+                      'age_range': '19-30',
+                      'rda_ai': 45,
+                      'ul': 2000,
+                    },
+                  ],
+                },
+              ],
+            },
+          ).check(
+            result,
+            ageBracket: '19-30',
+            sex: 'Male',
+            pipelineVerdicts: {
+              'molybdenum': const PipelineUlVerdict(overUl: false, pctUl: 2.25),
+            },
+          );
+      expect(statuses.single.ulAssessmentIndeterminate, isTrue);
+      expect(total.totalAmount, 45);
+      expect(total.hasUnitConflict, isTrue);
+      expect(total.excludedContributions, hasLength(1));
+      expect(
+        total.excludedContributions.single.reason,
+        NutrientExclusionReason.unitConflict,
+      );
+      expect(total.excludedContributions.single.contribution.amount, 75);
+    },
+  );
+  test(
+    'conflict-only dose retains uncertainty without any numeric exposure',
+    () {
+      final totals = const StackNutrientAggregator().aggregate([
+        const StackItemNutrients(
+          stackEntryId: 'conflict',
+          productName: 'Printed conflict',
+          ingredients: [
+            {
+              'ingredient': 'Molybdenum',
+              'canonical_id': 'molybdenum',
+              'quantity': 75,
+              'unit': 'mg',
+              'dose_data_quality': {'status': 'unresolved_unit'},
+            },
+          ],
+        ),
+      ]);
+      final status = const StackUlChecker(
+        rdaData: {
+          'nutrient_recommendations': [
+            {
+              'id': 'molybdenum',
+              'standard_name': 'Molybdenum',
+              'unit': 'mcg',
+              'highest_ul': 2000,
+              'data': [
+                {
+                  'group': 'Male',
+                  'age_range': '19-30',
+                  'rda_ai': 45,
+                  'ul': 2000,
+                },
+              ],
+            },
+          ],
+        },
+      ).check(totals, ageBracket: '19-30', sex: 'Male').single;
+      expect(status.ulAssessmentIndeterminate, isTrue);
+      expect(status.pctOfUl, isNull);
+      expect(status.pctOfRda, isNull);
+      expect(status.total.contributions, isEmpty);
+    },
+  );
   test('pipeline safety exposure alone establishes the UL contract', () {
     final stack = List.generate(
       2,

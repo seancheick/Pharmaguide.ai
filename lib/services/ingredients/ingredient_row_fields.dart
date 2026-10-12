@@ -29,6 +29,12 @@ import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 
+/// The pipeline preserved a printed quantity whose unit is not resolved.
+bool hasUnresolvedDoseUnit(Map<String, dynamic> row) {
+  final quality = row['dose_data_quality'];
+  return quality is Map && quality['status'] == 'unresolved_unit';
+}
+
 /// Numeric dose amount for [row], in priority order, or null when no field
 /// carries a usable finite number.
 ///
@@ -37,6 +43,7 @@ import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 /// dose-safety thresholds are per-day, so a "2 servings/day x 500 mg" row must
 /// read its per-day value, not the per-serving label number.
 double? readDoseAmount(Map<String, dynamic> row) {
+  if (hasUnresolvedDoseUnit(row)) return null;
   const fields = <String>[
     'per_day_max',
     'daily_amount',
@@ -61,6 +68,7 @@ double? readDoseAmount(Map<String, dynamic> row) {
 /// older blob has no `per_day_min`, fall back to the regular dose reader so
 /// fixed-dose products retain their historical behavior.
 double? readAdequacyDoseAmount(Map<String, dynamic> row) {
+  if (hasUnresolvedDoseUnit(row)) return null;
   final minimum = asFiniteDouble(row['per_day_min']);
   if (minimum != null) return minimum;
 
@@ -98,6 +106,7 @@ String readDoseUnit(Map<String, dynamic> row) {
 /// Older rows without the contract retain their existing daily-dose fallback.
 /// A present but malformed contract must not silently become activity mass.
 double? readUlDoseAmount(Map<String, dynamic> row) {
+  if (hasUnresolvedDoseUnit(row)) return null;
   if (!row.containsKey('safety_exposure')) return readDoseAmount(row);
   final exposure = row['safety_exposure'];
   if (exposure is! Map || readUlDoseUnit(row).isEmpty) return null;
