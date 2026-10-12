@@ -93,7 +93,11 @@ class CrashReportingService {
       options.attachStacktrace = true;
       options.attachThreads = true;
       options.enableAutoSessionTracking = true;
-      options.debug = kDebugMode;
+      // Off even in debug builds. With debug on, Sentry Cocoa scans every
+      // loaded image for duplicate SDK classes under the loader lock; on a
+      // fresh simulator install that deadlocked against the main thread's
+      // Objective-C class lookup and froze the app on the splash.
+      options.debug = false;
       // Beta diagnostic window: capture 100% of performance traces for full
       // visibility into slow screens / queries / network spans. This is the
       // *performance* sampler only — error & crash capture is governed by

@@ -6,10 +6,13 @@ import 'dart:ui';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:pharmaguide/core/data/vocab_registry.dart';
+import 'package:pharmaguide/core/navigation/root_navigator_key.dart';
+import 'package:pharmaguide/core/navigation/launch_link_buffer.dart';
 import 'package:pharmaguide/core/theme/reduce_transparency.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -77,6 +80,9 @@ void main() async {
 
 Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Claim links from the first moment: the awaited setup below runs before
+  // any widget exists, and a link landing then had no handler at all.
+  final launchLinks = LaunchLinkBuffer()..attach();
   V2Typography.useBundledFontsOnly();
   unawaited(ReduceTransparency.listen());
 
@@ -174,6 +180,7 @@ Future<void> _runApp() async {
         supabaseReady: supabaseReady,
         hasSeenOnboarding: hasSeenOnboarding,
         appPreferencesController: appPreferencesController,
+        launchLinks: launchLinks,
       ),
     );
   } on Object {
@@ -189,6 +196,9 @@ class PharmaGuideBootstrap extends StatefulWidget {
   final bool hasSeenOnboarding;
   final AppPreferencesController appPreferencesController;
 
+  /// Attached in `_runApp` before any setup; released once the router mounts.
+  final LaunchLinkBuffer launchLinks;
+
   const PharmaGuideBootstrap({
     super.key,
     required this.userDb,
@@ -196,6 +206,7 @@ class PharmaGuideBootstrap extends StatefulWidget {
     required this.supabaseReady,
     required this.hasSeenOnboarding,
     required this.appPreferencesController,
+    required this.launchLinks,
   });
 
   @override
@@ -236,6 +247,11 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
   final math.Random _refreshRandom = math.Random();
 
+  LaunchLinkBuffer get _launchLinks => widget.launchLinks;
+
+  /// Read once when the router is first built; the router owns links after.
+  String? _launchLocation;
+
   @override
   void initState() {
     super.initState();
@@ -244,6 +260,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
   @override
   void dispose() {
+    _launchLinks.detach();
     _catalogRefreshTimer?.cancel();
     unawaited(_coreDb?.close());
     unawaited(widget.interactionDb?.close());
@@ -318,8 +335,19 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       _coreDb = initialDb;
       _catalogAvailable = initialDb != null;
       _catalogUnavailableReason = initialDb == null ? initialReason : null;
+      _launchLocation = _launchLinks.takeLocation();
       _bootstrapped = true;
       _scopeVersion++;
+    });
+    // The app router mounts on this frame. Keep claiming links until it has,
+    // then hand it any link that landed in between.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _launchLinks.detach();
+      final late = _launchLinks.takeLocation();
+      final routerContext = rootNavigatorKey.currentContext;
+      if (late != null && routerContext != null) {
+        GoRouter.of(routerContext).go(late);
+      }
     });
 
     _scheduleCatalogRefresh(initialDelay: const Duration(seconds: 10));
@@ -599,6 +627,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           catalogUnavailableReason: _catalogUnavailableReason,
           onRetryCatalogLoad: _retryCatalogLoad,
           hasSeenOnboarding: widget.hasSeenOnboarding,
+          launchLocation: _launchLocation,
         ),
       ),
     );

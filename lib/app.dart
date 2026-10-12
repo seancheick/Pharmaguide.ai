@@ -577,9 +577,16 @@ void leaveAuthInvitation(BuildContext context) {
 /// belongs at the start of onboarding). DEV_ROUTE / SCREENSHOT_ROUTE
 /// overrides win, in that order.
 @visibleForTesting
-String initialAppLocation({required bool hasSeenOnboarding}) {
+String initialAppLocation({
+  required bool hasSeenOnboarding,
+  String? launchLocation,
+}) {
   if (_devRoute.isNotEmpty) return _devRoute;
   if (_screenshotRoute.isNotEmpty) return _screenshotRoute;
+  // A link that opened the app during startup (see LaunchLinkBuffer).
+  if (launchLocation != null && launchLocation.isNotEmpty) {
+    return launchLocation;
+  }
   if (hasSeenOnboarding) return Routes.home;
   return '${Routes.splashIntro}?next=${Uri.encodeComponent(Routes.onboarding)}';
 }
@@ -595,6 +602,7 @@ GoRouter _buildRouter({
   required bool hasSeenOnboarding,
   String? catalogUnavailableReason,
   VoidCallback? onRetryCatalogLoad,
+  String? launchLocation,
 }) {
   if (_appRouter != null) return _appRouter!;
 
@@ -616,6 +624,7 @@ GoRouter _buildRouter({
   // screen without bypassing explicit DEV_ROUTE previews.
   final initialLocation = initialAppLocation(
     hasSeenOnboarding: hasSeenOnboarding,
+    launchLocation: launchLocation,
   );
 
   final router = GoRouter(
@@ -1144,12 +1153,16 @@ class PharmaGuideApp extends ConsumerWidget {
   final VoidCallback? onRetryCatalogLoad;
   final bool hasSeenOnboarding;
 
+  /// A link that opened the app while the startup screen showed.
+  final String? launchLocation;
+
   const PharmaGuideApp({
     super.key,
     this.catalogAvailable = true,
     this.catalogUnavailableReason,
     this.onRetryCatalogLoad,
     this.hasSeenOnboarding = true,
+    this.launchLocation,
   });
 
   @override
@@ -1171,6 +1184,7 @@ class PharmaGuideApp extends ConsumerWidget {
         hasSeenOnboarding: hasSeenOnboarding,
         catalogUnavailableReason: catalogUnavailableReason,
         onRetryCatalogLoad: onRetryCatalogLoad,
+        launchLocation: launchLocation,
       ),
       // Global Dynamic Type clamp.
       //

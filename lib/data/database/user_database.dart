@@ -29,7 +29,7 @@ part 'user_database.g.dart';
 )
 class UserDatabase extends _$UserDatabase {
   UserDatabase(File dbFile)
-    : super(NativeDatabase(dbFile, logStatements: false));
+    : super(NativeDatabase.createInBackground(dbFile, logStatements: false));
 
   /// In-memory database for testing.
   UserDatabase.memory() : super(NativeDatabase.memory());

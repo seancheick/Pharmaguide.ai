@@ -106,7 +106,7 @@ class InteractionDbMetadata {
 )
 class InteractionDatabase extends _$InteractionDatabase {
   InteractionDatabase(File dbFile)
-    : super(NativeDatabase(dbFile, logStatements: false));
+    : super(NativeDatabase.createInBackground(dbFile, logStatements: false));
 
   /// In-memory variant for tests that build a fixture DB on the fly.
   InteractionDatabase.memory() : super(NativeDatabase.memory());

@@ -323,22 +323,38 @@ Future<void> _ensureBundledDatabaseAvailable({
   required String manifestAssetPath,
   bool preserveNewerExistingCoreDb = false,
 }) async {
-  final assetData = await bundle.load(dbAssetPath);
-  final assetBytes = assetData.buffer.asUint8List(
-    assetData.offsetInBytes,
-    assetData.lengthInBytes,
-  );
   final manifest = await _readBundledDbManifest(
     bundle: bundle,
     manifestAssetPath: manifestAssetPath,
   );
+  // The asset is 25-65 MB. Load it only when a copy (or the fallback hash)
+  // needs it: reading it on every launch held it in memory for nothing
+  // (Sentry PHARMAGUIDE-21, an out-of-memory watchdog kill).
+  Uint8List? loadedBytes;
+  Future<Uint8List> assetBytes() async {
+    final cached = loadedBytes;
+    if (cached != null) return cached;
+    final data = await bundle.load(dbAssetPath);
+    return loadedBytes = data.buffer.asUint8List(
+      data.offsetInBytes,
+      data.lengthInBytes,
+    );
+  }
+
   // Fallback hash when the manifest carries no checksum (test fixtures).
   // Hashing 100-250 MB is pure CPU work — run it off the UI isolate.
   // Isolate.run copies the byte buffer into the worker; that one-time
   // copy is the price of not freezing frames for the hash duration.
-  final String expectedChecksum =
-      _manifestChecksum(manifest) ??
-      await Isolate.run(() => sha256.convert(assetBytes).toString());
+  final String expectedChecksum;
+  final manifestChecksum = _manifestChecksum(manifest);
+  if (manifestChecksum != null) {
+    expectedChecksum = manifestChecksum;
+  } else {
+    final bytes = await assetBytes();
+    expectedChecksum = await Isolate.run(
+      () => sha256.convert(bytes).toString(),
+    );
+  }
   final expectedVersion = manifest['db_version']?.toString();
 
   final dbFile = File(dbPath);
@@ -376,7 +392,7 @@ Future<void> _ensureBundledDatabaseAvailable({
     }
   }
 
-  await _writeBytesChunked(dbFile, assetBytes);
+  await _writeBytesChunked(dbFile, await assetBytes());
   await _writeBundleMarker(
     markerFile: markerFile,
     dbAssetPath: dbAssetPath,
