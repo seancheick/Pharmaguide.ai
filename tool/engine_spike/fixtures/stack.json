@@ -1,0 +1,32 @@
+{
+  "_comment": "Synthetic spike stack. Products are real catalog rows; no user data.",
+  "candidate_dsld_id": "15699",
+  "stack": [
+    {
+      "id": "stack-fish-oil",
+      "type": "supplement",
+      "name": "Fish Oil 1,000 mg",
+      "dsld_id": "12043",
+      "ingredient_keys": "[\"fish_oil\"]"
+    },
+    {
+      "id": "stack-garlic",
+      "type": "supplement",
+      "name": "Odorless Garlic",
+      "dsld_id": "12009",
+      "ingredient_keys": "[\"garlic\"]"
+    },
+    {
+      "id": "stack-warfarin",
+      "type": "medication",
+      "name": "Warfarin",
+      "rxcui": "11289",
+      "drug_classes": null
+    }
+  ],
+  "profile": {
+    "_comment": "Minimal; the pre-add check and depletion check read no profile fields.",
+    "conditions": [],
+    "is_pregnant": false
+  }
+}
