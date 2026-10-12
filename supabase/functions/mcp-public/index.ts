@@ -1,7 +1,6 @@
 // Public, authless PharmaGuide MCP server (streamable HTTP, stateless JSON
 // responses). Product discovery and verified catalog facts only: it never
-// accepts, stores or returns personal data. Hand-rolled JSON-RPC keeps the
-// bundle dependency-free and the tests hermetic.
+// accepts, stores or returns personal data. Transport: _shared/mcp_transport.ts.
 
 import {
   barcodeCandidates,
@@ -14,6 +13,8 @@ import {
   postgrestCatalogStore,
   toMatch,
 } from "../_shared/catalog.ts";
+import { McpTransport } from "../_shared/mcp_transport.ts";
+import { RateLimiter } from "../_shared/rate_limiter.ts";
 import { resolveSupabaseAdminKey } from "../_shared/supabase_server_keys.ts";
 
 export const SERVER_INSTRUCTIONS =
@@ -24,39 +25,12 @@ export const SERVER_INSTRUCTIONS =
   "Where limitations are listed, say what was not assessed. " +
   "If a search is ambiguous, ask for the barcode or a label photo instead of guessing.";
 
-export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
-const DEFAULT_PROTOCOL_VERSION = "2025-06-18";
-const MAX_BODY_BYTES = 64 * 1024;
 const SEARCH_LIMIT = 10;
 export const AMBIGUITY_MARGIN = 0.1;
 
 // ---------------------------------------------------------------------------
-// Rate limiting (S7): in-memory token bucket per client IP.
+// Rate limiting (S7): _shared/rate_limiter.ts, keyed per client IP.
 // ---------------------------------------------------------------------------
-
-export class RateLimiter {
-  #buckets = new Map<string, { tokens: number; at: number }>();
-  constructor(
-    readonly capacity = 60,
-    readonly refillPerMs = 60 / 60_000,
-    readonly maxKeys = 10_000,
-    readonly now: () => number = Date.now,
-  ) {}
-
-  /// Takes one token for `key`; false when the bucket is empty.
-  take(key: string): boolean {
-    const now = this.now();
-    const bucket = this.#buckets.get(key) ?? { tokens: this.capacity, at: now };
-    bucket.tokens = Math.min(this.capacity, bucket.tokens + (now - bucket.at) * this.refillPerMs);
-    bucket.at = now;
-    this.#buckets.delete(key);
-    this.#buckets.set(key, bucket);
-    if (this.#buckets.size > this.maxKeys) this.#buckets.delete(this.#buckets.keys().next().value!);
-    if (bucket.tokens < 1) return false;
-    bucket.tokens -= 1;
-    return true;
-  }
-}
 
 export function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
@@ -222,96 +196,38 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
 }
 
 // ---------------------------------------------------------------------------
-// Streamable HTTP transport (JSON responses, no sessions, no SSE stream)
+// Transport (_shared/mcp_transport.ts)
 // ---------------------------------------------------------------------------
 
-const CORS = {
+const transport = new McpTransport({
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "content-type, accept, mcp-protocol-version, mcp-session-id, last-event-id",
   "Access-Control-Expose-Headers": "mcp-session-id",
-};
-
-function jsonResponse(body: unknown, status = 200, extra: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", ...CORS, ...extra },
-  });
-}
-
-function rpcError(id: unknown, code: number, message: string, status = 200): Response {
-  return jsonResponse({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }, status);
-}
+});
 
 export function createHandler(deps: ToolDeps & { limiter?: RateLimiter }) {
   const limiter = deps.limiter ?? new RateLimiter();
+  const server = {
+    serverInfo: { name: "pharmaguide-public", title: "PharmaGuide (public catalog)", version: "0.1.0" },
+    instructions: SERVER_INSTRUCTIONS,
+    tools: TOOLS,
+    async callTool(id: unknown, name: string, args: Json): Promise<Response> {
+      const { result, isError } = await callTool(name, args, deps);
+      return transport.toolResult(id, result, isError);
+    },
+  };
   return async function handle(request: Request): Promise<Response> {
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-    if (request.method !== "POST") {
-      return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "POST, OPTIONS" });
-    }
+    const early = transport.preflight(request);
+    if (early) return early;
     if (!limiter.take(clientIp(request))) {
-      return jsonResponse({ jsonrpc: "2.0", id: null, error: { code: -32000, message: "Rate limit exceeded" } }, 429, {
-        "Retry-After": "60",
-      });
+      return transport.json(
+        { jsonrpc: "2.0", id: null, error: { code: -32000, message: "Rate limit exceeded" } },
+        429,
+        { "Retry-After": "60" },
+      );
     }
-    const headerVersion = request.headers.get("mcp-protocol-version");
-    if (headerVersion && !SUPPORTED_PROTOCOL_VERSIONS.includes(headerVersion)) {
-      return rpcError(null, -32600, "Unsupported MCP protocol version", 400);
-    }
-    const text = await request.text();
-    if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) return rpcError(null, -32600, "Request too large", 413);
-    let message: unknown;
-    try {
-      message = JSON.parse(text);
-    } catch {
-      return rpcError(null, -32700, "Parse error", 400);
-    }
-    if (!message || typeof message !== "object" || Array.isArray(message)) {
-      return rpcError(null, -32600, "Invalid request", 400);
-    }
-    const { id, method, params } = message as { id?: unknown; method?: unknown; params?: unknown };
-    if (typeof method !== "string") {
-      // A JSON-RPC response or malformed message: nothing to answer.
-      return new Response(null, { status: 202, headers: CORS });
-    }
-    if (id === undefined) return new Response(null, { status: 202, headers: CORS }); // notification
-    const p = (params && typeof params === "object" && !Array.isArray(params) ? params : {}) as Json;
-
-    switch (method) {
-      case "initialize": {
-        const requested = typeof p.protocolVersion === "string" ? p.protocolVersion : "";
-        return jsonResponse({
-          jsonrpc: "2.0",
-          id,
-          result: {
-            protocolVersion: SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : DEFAULT_PROTOCOL_VERSION,
-            capabilities: { tools: { listChanged: false } },
-            serverInfo: { name: "pharmaguide-public", title: "PharmaGuide (public catalog)", version: "0.1.0" },
-            instructions: SERVER_INSTRUCTIONS,
-          },
-        });
-      }
-      case "ping":
-        return jsonResponse({ jsonrpc: "2.0", id, result: {} });
-      case "tools/list":
-        return jsonResponse({ jsonrpc: "2.0", id, result: { tools: TOOLS } });
-      case "tools/call": {
-        const name = typeof p.name === "string" ? p.name : "";
-        if (!TOOLS.some((t) => t.name === name)) return rpcError(id, -32602, `Unknown tool: ${name}`);
-        const args = (p.arguments && typeof p.arguments === "object" && !Array.isArray(p.arguments)
-          ? p.arguments
-          : {}) as Json;
-        const { result, isError } = await callTool(name, args, deps);
-        return jsonResponse({
-          jsonrpc: "2.0",
-          id,
-          result: { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result, isError },
-        });
-      }
-      default:
-        return rpcError(id, -32601, `Method not found: ${method}`);
-    }
+    return await transport.dispatch(request, server);
   };
 }
 
@@ -319,7 +235,7 @@ if (import.meta.main) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = resolveSupabaseAdminKey();
   if (!supabaseUrl || !serviceKey) {
-    Deno.serve(() => jsonResponse({ error: "Catalog unavailable" }, 503));
+    Deno.serve(() => transport.json({ error: "Catalog unavailable" }, 503));
   } else {
     const fetchFn: FetchLike = (input, init) => fetch(input, init);
     const store = postgrestCatalogStore({ supabaseUrl, serviceKey, fetchFn });

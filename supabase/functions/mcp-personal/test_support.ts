@@ -7,7 +7,14 @@ import { exportJWK, type JWTPayload, SignJWT } from "npm:jose@6.2.12";
 import type { AiConnection, ConnectionRepository } from "../_shared/connection_gate.ts";
 import { localJwks, verifyOAuthAccessToken } from "../_shared/oauth_token.ts";
 import { RateLimiter } from "../_shared/rate_limiter.ts";
-import { type AccessLog, createHandler, type StackRepository, type StackRow } from "./index.ts";
+import { keyringFromEnv, type SnapshotRow } from "../_shared/snapshot_crypto.ts";
+import {
+  type AccessLog,
+  createHandler,
+  type SnapshotRepository,
+  type StackRepository,
+  type StackRow,
+} from "./index.ts";
 
 export const ISSUER = "https://project-ref.supabase.co/auth/v1";
 export const AUDIENCE = "https://project-ref.supabase.co/functions/v1/mcp-personal";
@@ -17,6 +24,10 @@ export const USER_A = "00000000-0000-0000-0000-00000000000a";
 export const USER_B = "00000000-0000-0000-0000-00000000000b";
 export const CLAUDE = "client-claude";
 export const CHATGPT = "client-chatgpt";
+/// A fixed 32-byte test key (bytes 1..32). Never a real secret.
+export const TEST_KEYRING_ENV: Record<string, string> = {
+  AI_SHARE_SNAPSHOT_KEY_V1: btoa(String.fromCharCode(...Array.from({ length: 32 }, (_, i) => i + 1))),
+};
 
 export function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -116,6 +127,26 @@ export class FakeStacks implements StackRepository {
   }
 }
 
+/// In-memory ai_share_snapshots and user_stacks.client_updated_at, with the
+/// same filters as the PostgREST repository; records every read.
+export class FakeSnapshots implements SnapshotRepository {
+  rows: SnapshotRow[] = [];
+  stackUpdates: Record<string, string[]> = {};
+  readonly reads: Array<{ connectionId: string; userId: string }> = [];
+  readonly staleChecks: Array<{ userId: string; since: string }> = [];
+  findForConnection(connectionId: string, userId: string) {
+    this.reads.push({ connectionId, userId });
+    return Promise.resolve(
+      this.rows.find((r) => r.connection_id === connectionId && r.user_id === userId) ?? null,
+    );
+  }
+  stackChangedSince(userId: string, since: string) {
+    this.staleChecks.push({ userId, since });
+    const cutoff = Date.parse(since);
+    return Promise.resolve((this.stackUpdates[userId] ?? []).some((at) => Date.parse(at) > cutoff));
+  }
+}
+
 export class FakeLog implements AccessLog {
   readonly entries: Array<{ connectionId: string; tool: string }> = [];
   fail = false;
@@ -131,6 +162,7 @@ export interface Harness {
   key: SigningKey;
   connections: FakeConnections;
   stacks: FakeStacks;
+  snapshots: FakeSnapshots;
   log: FakeLog;
 }
 
@@ -150,17 +182,21 @@ export async function harness(
     [USER_B]: [{ name: "User B Fish Oil", dsld_id: "2002", ingredient_keys: '["epa","dha"]', added_at: "2026-10-02T09:00:00Z" }],
   });
   const log = new FakeLog();
+  const snapshots = new FakeSnapshots();
+  const keyring = await keyringFromEnv((name) => TEST_KEYRING_ENV[name]);
   const handler = createHandler({
     verifyToken: (token) => verifyOAuthAccessToken(token, { issuer: ISSUER, audience: AUDIENCE, keys: jwks, now: () => NOW }),
     connections,
     stacks,
+    snapshots,
+    keyring,
     accessLog: log,
     resourceUrl: AUDIENCE,
     authorizationServer: ISSUER,
     limiter: options.limiter,
     now: () => NOW,
   });
-  return { handler, key, connections, stacks, log };
+  return { handler, key, connections, stacks, snapshots, log };
 }
 
 export function rpc(token: string | null, method: string, params: Record<string, unknown> = {}): Request {

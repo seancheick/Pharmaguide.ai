@@ -62,6 +62,9 @@ the first place.
 | `20261012120000_ai_connector_restrictive_rls.sql` | 2026-10-12 | written, not applied — S1 restrictive `client_id` policies on the user tables and `storage.objects`; guard in the app's seven SECURITY DEFINER RPCs |
 | `20261012120100_ai_connections.sql` | 2026-10-12 | written, not applied — `ai_connections`, `mcp_access_log` (S10, S7, S5) |
 | `20261012120200_custom_access_token_hook.sql` | 2026-10-12 | written, not applied — S2 token hook and `ai_connector_config`; after applying, set `personal_mcp_audience` and enable the hook in Authentication → Hooks |
+| `20261012130000_ai_share_snapshots.sql` | 2026-10-12 | written, not applied — ADR-009 Phase 2 `ai_share_snapshots` (ciphertext only, no plaintext column, service role only), `purge_expired_ai_share_snapshots()` scheduled every 15 min with pg_cron (manual: `SELECT * FROM public.purge_expired_ai_share_snapshots();`). Before deploying `ai-share-snapshot`, set the function secret `AI_SHARE_SNAPSHOT_KEY_V1` (base64 of 32 random bytes, e.g. `openssl rand -base64 32`) for both `ai-share-snapshot` and `mcp-personal` |
+| `20261012130100_pgrst_reject_ai_assistant_tokens.sql` | 2026-10-12 | written, not applied — S1 project-wide: `ALTER ROLE authenticator SET pgrst.db_pre_request` so PostgREST refuses any request whose claims carry `client_id`; covers the 23 privileged functions without a per-function guard. Check no other `pgrst.db_pre_request` is set on the project first (`SELECT setconfig FROM pg_db_role_setting WHERE setrole = 'authenticator'::regrole;`) |
+| `20261012130200_ai_connections_display_fields.sql` | 2026-10-12 | written, not applied — S3/S4 `ai_connections.client_name`, `callback_host` (nullable, ≤ 200), written by the website consent route |
 
 Apply them with `supabase db push`, in this order, and only after
 `scripts/test_ai_connector_rls.sh` passes. The first one re-creates the seven

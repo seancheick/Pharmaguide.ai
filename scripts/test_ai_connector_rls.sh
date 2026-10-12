@@ -43,4 +43,5 @@ for migration in "$repo_dir"/supabase/migrations/*.sql; do
   psql_test -q < "$migration" >/dev/null
 done
 psql_test -q < "$repo_dir/supabase/tests/ai_connector/restrictive_rls.sql"
+psql_test -q < "$repo_dir/supabase/tests/ai_connector/snapshots_pre_request.sql"
 echo 'AI connector SQL tests passed.'

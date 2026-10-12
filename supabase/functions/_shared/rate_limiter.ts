@@ -1,7 +1,7 @@
 // In-memory token bucket (S7). Limits hold per Edge Function instance, not
 // globally; that bounds abuse from one caller without adding a shared store.
-// mcp-public carries an identical class in its own index.ts (lane B1a); the
-// integrator should point it at this file so there is one owner.
+// The one owner for mcp-public (per IP), mcp-personal (per connection) and
+// ai-share-snapshot (per user).
 export class RateLimiter {
   #buckets = new Map<string, { tokens: number; at: number }>();
   constructor(
