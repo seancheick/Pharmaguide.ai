@@ -3,11 +3,11 @@
     "description": "RDA (Recommended Dietary Allowance), optimal dosing, and UL (Upper Limit) reference values for nutrient dosing validation",
     "purpose": "dosing_validation",
     "schema_version": "5.1.1",
-    "last_updated": "2026-10-03",
+    "last_updated": "2026-10-11",
     "reference_data_contract": {
       "contract_version": "1",
       "reference_version": "5.1.2-2026-09-15",
-      "semantic_fingerprint": "sha256:50c128ce98f9352a3c8ed7a0c23d8639e4a088bdbd487a830649a6bb84ecfab5"
+      "semantic_fingerprint": "sha256:45bd51bc49b049484fd9e53a67cb9fd997e9fe0c04bd098d944a89b250ee139e"
     },
     "total_entries": 77,
     "data_source": "Institute of Medicine (IOM) Dietary Reference Intakes, National Academies 2019 Sodium/Potassium Update, FDA, USDA, Clinical Research",
@@ -113,6 +113,10 @@
     "boron": {
       "message": "Too much can cause nausea, vomiting, diarrhea, rash, or headache.",
       "source_url": "https://ods.od.nih.gov/factsheets/Boron-HealthProfessional/"
+    },
+    "vanadium": {
+      "message": "Excessive vanadium intake can harm the kidneys. The adult upper limit is 1.8 mg per day.",
+      "source_url": "https://www.nationalacademies.org/read/10026/chapter/15"
     }
   },
   "nutrient_recommendations": [
@@ -638,13 +642,13 @@
       "standard_name": "Vitamin E",
       "unit": "mg alpha-tocopherol",
       "ul_note": "UL applies to all forms of supplemental alpha-tocopherol, natural (RRR) and synthetic (all-rac); 1,000 mg equals 1,500 IU of the natural form or 1,100 IU of the synthetic form.",
-      "optimal_range": "100-400",
+      "optimal_range": null,
       "highest_ul": 1000,
       "warnings": [
         "May increase bleeding risk",
         "Avoid high doses with blood thinners"
       ],
-      "special_considerations": "Smokers may need higher intake due to increased oxidative stress",
+      "special_considerations": "Smoking does not establish a recommendation for higher-dose vitamin E supplements; supplemental risk and benefit depend on population and indication.",
       "deficiency_symptoms": [
         "Muscle weakness",
         "Vision problems",
@@ -795,7 +799,7 @@
       "conditionally_essential_for": null,
       "dri_update": null,
       "is_conditionally_essential": null,
-      "notes": null,
+      "notes": "NIH ODS/FNB establishes 15 mg/day alpha-tocopherol RDA at age 14+, 19 mg/day during lactation, and the separately recorded life-stage supplemental ULs. The reviewed source does not establish an unqualified 100–400 mg/day optimal supplementation range. Supplemental vitamin E may cause harm below its UL; a UL is not a recommended intake. Source: https://ods.od.nih.gov/factsheets/VitaminE-HealthProfessional/.",
       "smoker_adjustment": null,
       "synthesis_precursors": null,
       "ul": null,
@@ -5445,7 +5449,7 @@
       "standard_name": "Vanadium",
       "unit": "mcg",
       "ul": null,
-      "ul_note": "No official RDA established, UL based on toxicity studies",
+      "ul_note": "NASEM 2001 established an adult (age 19+) UL of 1.8 mg/day elemental vanadium. No RDA or AI is established. No UL can be established for ages 0–18, pregnancy or lactation; intake in these groups should come from food (and formula for infants) only.",
       "optimal_range": "10-100",
       "highest_ul": 1800,
       "warnings": [
@@ -5461,15 +5465,15 @@
         "Kidney damage",
         "Nervous system effects"
       ],
-      "unofficial_ul": 1800,
+      "unofficial_ul": null,
       "data": [
         {
           "group": "Male",
           "age_range": "14-18",
           "rda_ai": null,
-          "ul": 1800,
+          "ul": null,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "not_determined"
         },
         {
           "group": "Male",
@@ -5477,7 +5481,7 @@
           "rda_ai": null,
           "ul": 1800,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "established"
         },
         {
           "group": "Male",
@@ -5485,7 +5489,7 @@
           "rda_ai": null,
           "ul": 1800,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "established"
         },
         {
           "group": "Male",
@@ -5493,7 +5497,7 @@
           "rda_ai": null,
           "ul": 1800,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "established"
         },
         {
           "group": "Male",
@@ -5501,15 +5505,15 @@
           "rda_ai": null,
           "ul": 1800,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "established"
         },
         {
           "group": "Female",
           "age_range": "14-18",
           "rda_ai": null,
-          "ul": 1800,
+          "ul": null,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "not_determined"
         },
         {
           "group": "Female",
@@ -5517,7 +5521,7 @@
           "rda_ai": null,
           "ul": 1800,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "established"
         },
         {
           "group": "Female",
@@ -5525,7 +5529,7 @@
           "rda_ai": null,
           "ul": 1800,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "established"
         },
         {
           "group": "Female",
@@ -5533,7 +5537,7 @@
           "rda_ai": null,
           "ul": 1800,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "established"
         },
         {
           "group": "Female",
@@ -5541,70 +5545,70 @@
           "rda_ai": null,
           "ul": 1800,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "established"
         },
         {
           "group": "Pregnancy",
           "age_range": "14-18",
           "rda_ai": null,
-          "ul": 1800,
+          "ul": null,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "not_determined"
         },
         {
           "group": "Pregnancy",
           "age_range": "19-30",
           "rda_ai": null,
-          "ul": 1800,
+          "ul": null,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "not_determined"
         },
         {
           "group": "Pregnancy",
           "age_range": "31-50",
           "rda_ai": null,
-          "ul": 1800,
+          "ul": null,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "not_determined"
         },
         {
           "group": "Lactation",
           "age_range": "14-18",
           "rda_ai": null,
-          "ul": 1800,
+          "ul": null,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "not_determined"
         },
         {
           "group": "Lactation",
           "age_range": "19-30",
           "rda_ai": null,
-          "ul": 1800,
+          "ul": null,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "not_determined"
         },
         {
           "group": "Lactation",
           "age_range": "31-50",
           "rda_ai": null,
-          "ul": 1800,
+          "ul": null,
           "rda_ai_status": "not_determined",
-          "ul_status": null
+          "ul_status": "not_determined"
         }
       ],
       "id": "vanadium",
-      "ul_status": "not_established_insufficient_data",
+      "ul_status": "established",
       "cdrr": null,
       "cdrr_note": null,
       "conditionally_essential_for": null,
       "dri_update": null,
       "interaction_warnings": null,
       "is_conditionally_essential": null,
-      "notes": null,
+      "notes": "Source: https://www.nationalacademies.org/read/10026/chapter/15 (Vanadium UL Summary). An absent life-stage UL does not establish safety of supplements.",
       "smoker_adjustment": null,
       "synthesis_precursors": null,
-      "nutrient_class": "floor",
-      "ul_basis": "not_applicable"
+      "nutrient_class": "ceiling",
+      "ul_basis": "total_intake"
     },
     {
       "standard_name": "Alpha-Linolenic Acid",
@@ -9728,8 +9732,8 @@
       ],
       "unit": "mg",
       "ul": null,
-      "ul_note": "No official UL; oral HA well tolerated.",
-      "optimal_range": "120-200",
+      "ul_note": "No official UL is established. Short-term tolerability in studied adults does not establish a safe upper limit or safety for other life stages.",
+      "optimal_range": null,
       "highest_ul": null,
       "ul_status": "not_established_insufficient_data",
       "is_conditionally_essential": false,
@@ -9738,7 +9742,7 @@
       "warnings": [
         "Generally well tolerated"
       ],
-      "special_considerations": "Oral HA for joint and skin hydration; low molecular weight may absorb better.",
+      "special_considerations": "Studied preparations, molecular weights, populations and outcomes differ; the name hyaluronic acid alone does not establish comparative absorption or clinical applicability.",
       "deficiency_symptoms": [],
       "toxicity_symptoms": [
         "Generally well tolerated"
@@ -9747,7 +9751,7 @@
       "cdrr": null,
       "cdrr_note": null,
       "dri_update": null,
-      "notes": "Migrated from rda_therapeutic_dosing.json (non-botanical bioactive); scored via the generic dose path. No official DRI — rda_ai anchor is the lower bound of the clinically effective dose. Anchor dose corrected from 80 mg after content verification against PubMed on 2026-09-15.",
+      "notes": "No official DRI. Anchor dose 120 mg, retained from the dated 2026-09-15 review, is an authored generic Dose anchor with unresolved preparation/outcome calibration, not a universal minimum effective dose. PMID41422283 studied 1.8 MDa sodium hyaluronate at 60 and 120 mg/day for 12 weeks in 150 healthy adults; both doses improved selected skin outcomes, with more modest effects at 60 mg. PMID34203487 and PMID25834304 studied 120 mg/day for skin outcomes; PMID23226979 studied 200 mg/day in a selected knee-osteoarthritis population with an exercise context. These studies do not establish one universal optimal range or pregnancy/adolescent dosing.",
       "smoker_adjustment": null,
       "unofficial_ul": null,
       "references": [
