@@ -203,4 +203,12 @@ class ShareService {
 
     await _share(text, subject: 'My supplements');
   }
+
+  /// Share the AI brief exactly as previewed.
+  ///
+  /// A pure pass-through: the text was composed on this device from the
+  /// scope the user chose (`AiBriefBuilder`), and nothing is minted, fetched
+  /// or appended here. The release gate `ai_brief_no_network_test` pins it.
+  Future<void> shareAiBrief(String text) =>
+      _share(text, subject: 'PharmaGuide stack brief');
 }
