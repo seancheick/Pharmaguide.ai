@@ -4,6 +4,7 @@ import {
   resolveSupabaseAdminKey,
   resolveSupabasePublicKey,
 } from "../_shared/supabase_server_keys.ts";
+import { isOAuthClientToken } from "../_shared/oauth_token.ts";
 
 const TOKEN_MAX_LENGTH = 4096;
 const PLATFORMS = new Set(["ios", "android"]);
@@ -47,6 +48,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
   const authorization = request.headers.get("authorization");
   if (!authorization?.startsWith("Bearer ")) {
     return json({ error: "Authentication required" }, 401);
+  }
+  // S1: an AI assistant's OAuth token must not register or move push tokens.
+  if (isOAuthClientToken(authorization)) {
+    return json({ error: "Push registration is available only in PharmaGuide" }, 403);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");

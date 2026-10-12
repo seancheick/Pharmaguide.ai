@@ -4,6 +4,7 @@ import {
   resolveSupabaseAdminKey,
   resolveSupabasePublicKey,
 } from "../_shared/supabase_server_keys.ts";
+import { isOAuthClientToken } from "../_shared/oauth_token.ts";
 import { removeStorageObjectsOrThrow } from "../_shared/verified_storage_removal.ts";
 
 const DELETE_CONFIRMATION = "DELETE";
@@ -39,6 +40,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
   if (!authorization?.startsWith("Bearer ")) {
     audit("missing_authentication");
     return json({ error: "Authentication required" }, 401);
+  }
+  // S1: an AI assistant's OAuth token carries the user's identity but must
+  // never be able to delete the account.
+  if (isOAuthClientToken(authorization)) {
+    audit("oauth_client_refused");
+    return json({ error: "Account deletion is available only in PharmaGuide" }, 403);
   }
 
   let body: Record<string, unknown>;
@@ -120,6 +127,21 @@ Deno.serve(async (request: Request): Promise<Response> => {
         admin.storage.from(PHOTO_BUCKET),
         chunk,
       );
+    }
+
+    // S5: end every AI connection explicitly (the access-log rows cascade)
+    // rather than relying on the auth.users cascade alone. A project where
+    // the ai_connections migration is not applied yet has no connections, so
+    // a missing table must not block account deletion.
+    const { error: connectionError } = await admin
+      .from("ai_connections")
+      .delete()
+      .eq("user_id", authData.user.id);
+    if (
+      connectionError &&
+      !["PGRST205", "42P01"].includes(connectionError.code ?? "")
+    ) {
+      throw connectionError;
     }
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(

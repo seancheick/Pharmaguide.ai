@@ -17,3 +17,10 @@ verify_jwt = false
 # JWT must never be able to trigger bulk notification delivery.
 [functions.dispatch-safety-alert-release]
 verify_jwt = false
+
+# Personal MCP server (AI connector). The OAuth 2.1 access token is verified
+# inside the function (JWKS, iss, exp, aud, client_id, sub) and checked against
+# ai_connections on every call. The gateway check is off because a 401 must
+# carry the RFC 9728 resource_metadata challenge, which only the function adds.
+[functions.mcp-personal]
+verify_jwt = false
