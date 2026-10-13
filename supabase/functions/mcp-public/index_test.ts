@@ -83,10 +83,11 @@ async function harness(rows: CatalogRow[], opts: { storageDown?: boolean; limite
 // Every key a public tool response may contain. A personal field (profile,
 // medication, condition, user id ...) appearing anywhere fails this test.
 const PUBLIC_RESPONSE_KEYS = new Set([
+  "quality_score_v4_100", "raw_source_path", "owner_row_ref", "source_role", "display_form_label", "form_status", "display_dose_label", "dose_status", "form_evidence", "references_structured", "url", "pmid", "supports_claims", "serving_info", "basis_count", "basis_unit", "min_servings_per_day", "max_servings_per_day", "servings_per_day_source", "basis_reason", "primary_type", "product_role", "label_record", "source_name", "source_record_id", "source_date", "source_updated_date", "label_source_url", "metadata_status", "quality_pillars_v4", "formulation", "dose", "evidence", "transparency", "verification", "safety_hygiene", "score", "max", "reason", "evidence_result_state", "display_state", "safety_summary", "safety_summary_one_liner", "sort", "offset", "total_matches", "next_offset", "supplement_type",
   "data", "name_source", "catalog_version", "generated_at", "error", "found", "next_step", "matches",
   "ambiguous", "dsld_id", "product_name", "brand_name", "product_line", "form_factor", "product_status",
   "quality_tier", "product_safety_status", "match_confidence", "identity", "upc", "ingredients", "name",
-  "standard_name", "amount", "unit", "identity_resolved", "quality", "quality_score_status",
+  "standard_name", "amount", "unit", "identity_resolved", "quality", "quality_score_status", "forms", "prefix", "percent",
   "quality_score_confidence", "quality_assessment_status", "mapped_coverage", "warnings", "type", "severity",
   "title", "detail", "action", "ingredient", "evidence_level", "source", "sources", "pmids",
   "upper_limit_flags", "nutrient", "pipeline_warnings", "pct_of_upper_limit", "limitations",
@@ -150,7 +151,7 @@ Deno.test("ambiguity: close scores or a shared product line", () => {
 Deno.test("search_products wraps matches in the S8 envelope and asks for a barcode when ambiguous", async () => {
   const { call, searched } = await harness([row("1", { match_score: 0.8 }), row("2", { match_score: 0.78 })]);
   const result = await call("search_products", { query: "Thorne Magnesium Bisglycinate", form: "capsule" });
-  assertEquals(searched, [{ query: "Thorne Magnesium Bisglycinate", brand: undefined, form: "capsule", limit: 10 }]);
+  assertEquals(searched, [{ query: "Thorne Magnesium Bisglycinate", brand: undefined, form: "capsule", limit: 10, sort: "relevance", offset: 0, catalog_version: VERSION }]);
   const env = result.structuredContent;
   assertEquals(Object.keys(env), ["data", "name_source", "catalog_version", "generated_at"]);
   assertEquals(env.name_source, "catalog");
@@ -228,4 +229,31 @@ Deno.test("transport: GET is 405, notifications are 202, unknown methods are JSO
 Deno.test("public instructions never turn an empty partial view into reassurance", () => {
   assert(SERVER_INSTRUCTIONS.includes("An empty warning list does not mean"), "empty is not complete");
   assert(SERVER_INSTRUCTIONS.includes("not fully checked"), "missing checks must be disclosed");
+});
+
+Deno.test("quality browsing pages the whole matched set without asking for an owned barcode", async () => {
+  const h = await harness([row("1", { total_matches: 23 } as Partial<CatalogRow>), row("2", { total_matches: 23 } as Partial<CatalogRow>)]);
+  const result = await h.call("search_products", { query: "magnesium", sort: "quality", offset: 10 });
+  const data = result.structuredContent.data as Json;
+  assertEquals(h.searched[0].sort, "quality");
+  assertEquals(h.searched[0].offset, 10);
+  assertEquals(data.total_matches, 23);
+  assertEquals(data.next_offset, 12);
+  assert(!(String(data.next_step).includes("photo")), "browse does not demand identity evidence");
+  assert(String(data.next_step).includes("compare"), "guides comparison");
+});
+
+Deno.test("search rejects invalid ranking and pagination instead of silently ignoring them", async () => {
+  const h = await harness([]);
+  for (const args of [{sort:"best_for_me"}, {offset:-1}, {offset:1.5}, {offset:"10"}]) {
+    assertEquals((await h.call("search_products", {query:"magnesium", ...args})).isError, true);
+  }
+});
+
+Deno.test("comparison filter uses catalog classification and stale pages fail explicitly", async () => {
+  const h = await harness([row("1", {total_matches: 1})]);
+  const result = await h.call("search_products", {query:"magnesium", sort:"quality", supplement_type:"single_mineral", catalog_version:VERSION});
+  assertEquals(h.searched[0].supplement_type, "single_mineral");
+  assertEquals((result.structuredContent.data as Json).next_offset, null);
+  assertEquals((await h.call("search_products", {query:"magnesium", offset:10, catalog_version:"old"})).isError, true);
 });

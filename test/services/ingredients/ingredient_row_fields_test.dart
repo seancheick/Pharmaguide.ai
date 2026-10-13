@@ -1,7 +1,29 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 
 void main() {
+  test('canonical magnesium range reaches app adequacy and safety readers', () {
+    final fixtures =
+        jsonDecode(
+              File(
+                'test/fixtures/serving_basis_magnesium.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    for (final entry in {'201495': 150.0, '184671': 120.0}.entries) {
+      final product = fixtures[entry.key] as Map<String, dynamic>;
+      final row = product['dose_row'] as Map<String, dynamic>;
+      expect(product['serving_info']['basis_count'], 1);
+      expect(product['dosing_summary'], 'Take 1-4 capsules daily');
+      expect(readAdequacyDoseAmount(row), entry.value);
+      expect(readDoseAmount(row), entry.value * 4);
+      expect(readUlDoseAmount(row), entry.value * 4);
+      expect(readUlDoseUnit(row), 'mg');
+    }
+  });
   test('reviewed unit conflict blocks every numerical dose fallback', () {
     final row = <String, dynamic>{
       'quantity': 75,

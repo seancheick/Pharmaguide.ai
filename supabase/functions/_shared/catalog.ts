@@ -49,6 +49,8 @@ export interface CatalogRow {
   mapped_coverage: number | null;
   quality_score_confidence: string | null;
   quality_assessment_status: string | null;
+  quality_score_v4_100?: number | null;
+  total_matches?: number;
   match_score?: number | null;
 }
 
@@ -56,7 +58,7 @@ export const CATALOG_ROW_COLUMNS = [
   "catalog_version", "dsld_id", "product_name", "brand_name", "brand_family",
   "product_line", "upc_sku", "form_factor", "supplement_type", "product_status",
   "quality_tier", "quality_score_status", "product_safety_status",
-  "mapped_coverage", "quality_score_confidence", "quality_assessment_status",
+  "mapped_coverage", "quality_score_confidence", "quality_assessment_status", "quality_score_v4_100",
 ] as const;
 
 /// Top-level blob keys this module reads. A test pins them to the pipeline's
@@ -64,11 +66,12 @@ export const CATALOG_ROW_COLUMNS = [
 export const BLOB_KEYS_READ = [
   "dsld_id", "product_name", "brand_name", "product_line", "ingredients",
   "warnings", "warnings_profile_gated", "quality_assessment_status", "rda_ul_data",
+  "serving_info", "row_ledger", "quality_pillars_v4", "label_record", "primary_type", "product_role",
 ] as const;
 
 export interface CatalogStore {
   currentVersion(): Promise<string | null>;
-  search(args: { query: string; brand?: string; form?: string; limit: number }): Promise<CatalogRow[]>;
+  search(args: { query: string; brand?: string; form?: string; limit: number; sort?: "relevance" | "quality"; offset?: number; catalog_version?: string; supplement_type?: string }): Promise<CatalogRow[]>;
   byUpc(candidates: string[]): Promise<CatalogRow[]>;
   byDsldId(dsldId: string): Promise<CatalogRow | null>;
 }
@@ -140,7 +143,7 @@ export function catalogAssessmentStatus(
 /// the limitation explaining why.
 export function publicQuality(row: Pick<
   CatalogRow,
-  "quality_tier" | "quality_score_status" | "quality_score_confidence" | "quality_assessment_status"
+  "quality_tier" | "quality_score_status" | "quality_score_confidence" | "quality_assessment_status" | "quality_score_v4_100"
 >, assessmentOverride?: unknown): { quality: Json; limitations: string[] } {
   const limitations: string[] = [];
   const scoreStatus = lower(row.quality_score_status);
@@ -168,8 +171,11 @@ export function publicQuality(row: Pick<
   if (tier && confidence && !["high", "moderate", "medium"].includes(confidenceKey)) {
     limitations.push("Quality score confidence is limited.");
   }
+  const publishedScore = finiteNumber(row.quality_score_v4_100);
   return {
     quality: {
+      quality_score_v4_100: tier && completion === "complete" && scoreStatus === "scored" &&
+          publishedScore !== null && publishedScore >= 0 && publishedScore <= 100 ? publishedScore : null,
       quality_tier: tier,
       quality_score_status: capText(row.quality_score_status, 40),
       quality_score_confidence: confidence,
@@ -255,18 +261,30 @@ function pmidsFrom(w: Json): string[] {
   return [...pmids].slice(0, MAX_SOURCES);
 }
 
-/// Pipeline-authored text passes through verbatim (length-capped).
+const CLINICAL_TEXT_CAP = 20_000;
+function completeText(value: unknown): string | null {
+  const text = capText(value, Number.MAX_SAFE_INTEGER);
+  return text && text.length <= CLINICAL_TEXT_CAP ? text : null;
+}
+
+function publicSources(value: unknown): string[] {
+  return stringList(value).filter(s => /^https?:\/\//i.test(s) && s.length <= 4096).slice(0, MAX_SOURCES);
+}
+
+/// Pipeline-authored statements are complete; oversized text is omitted and disclosed.
 export function warningFacts(w: Json): Json {
   return {
     type: capText(w.type, 60),
     severity: capText(w.severity, 40),
     title: capText(w.title),
-    detail: capText(w.detail),
-    action: capText(w.action),
+    detail: completeText(w.detail),
+    action: completeText(w.action),
+    safety_summary: completeText(w.safety_summary),
+    safety_summary_one_liner: completeText(w.safety_summary_one_liner),
     ingredient: capText(w.ingredient_name, 120),
     evidence_level: capText(w.evidence_level, 60),
     source: capText(w.source, 120),
-    sources: stringList(w.sources).slice(0, MAX_SOURCES).map((s) => capText(s, 300)),
+    sources: publicSources(w.sources),
     pmids: pmidsFrom(w),
   };
 }
@@ -330,12 +348,40 @@ export function upperLimitFacts(rdaUlData: unknown): { flags: Json[]; unconfirme
   return { flags, unconfirmed };
 }
 
-function ingredientFacts(raw: unknown): Json[] {
+function ingredientFacts(raw: unknown, ledger: unknown): Json[] {
+  const ownership = new Map<string, Json>();
+  for (const value of Array.isArray(ledger) ? ledger : []) {
+    const row = asObject(value);
+    if (row && typeof row.row_ref === "string") ownership.set(row.row_ref, row);
+  }
   const out: Json[] = [];
   for (const item of Array.isArray(raw) ? raw : []) {
     const ing = asObject(item);
     if (!ing) continue;
+    const owner = ownership.get(String(ing.raw_source_path ?? ""));
+    const evidence = asObject(ing.form_evidence);
     out.push({
+      raw_source_path: capText(ing.raw_source_path, 300),
+      owner_row_ref: capText(owner?.owner_row_ref, 300),
+      source_role: capText(owner?.source_role, 60),
+      display_form_label: capText(ing.display_form_label, 300),
+      forms: (Array.isArray(ing.forms) ? ing.forms : []).flatMap(value => {
+        const form = asObject(value);
+        const name = capText(form?.name, 300);
+        return name ? [{ name, prefix: capText(form?.prefix, 60), percent: finiteNumber(form?.percent) }] : [];
+      }),
+      form_status: capText(ing.form_status, 40),
+      display_dose_label: capText(ing.display_dose_label, 300),
+      dose_status: capText(ing.dose_status, 40),
+      form_evidence: evidence ? {
+        evidence_level: capText(evidence.evidence_level, 60),
+        references_structured: (Array.isArray(evidence.references_structured) ? evidence.references_structured : [])
+          .slice(0, MAX_SOURCES).map(v => {
+            const ref = asObject(v) ?? {};
+            return { title: completeText(ref.title), url: publicSources([ref.url])[0] ?? null,
+              pmid: capText(ref.pmid, 20), supports_claims: stringList(ref.supports_claims).map(x => capText(x, 200)) };
+          }),
+      } : null,
       name: capText(ing.name ?? ing.standard_name, 200),
       standard_name: capText(ing.standard_name, 200),
       amount: finiteNumber(ing.quantity),
@@ -362,13 +408,23 @@ export function toProductFacts(blob: unknown, row: CatalogRow): Json {
     (Array.isArray(b.warnings_profile_gated) && b.warnings_profile_gated.length > 0);
   const ul = upperLimitFacts(b.rda_ul_data);
   const safetyStatus = catalogSafetyStatus(row.product_safety_status);
-  const ingredients = ingredientFacts(b.ingredients);
+  const ingredients = ingredientFacts(b.ingredients, b.row_ledger);
 
   const limitations = [
     "Public catalog view: no personal profile (conditions, medications, pregnancy, breastfeeding, allergies) was checked.",
     ...coverageLimitations(mappedCoverage),
     ...qualityLimits,
   ];
+  limitations.push("Ingredient amounts are per the published serving_info basis, not a personal dose. Rows with owner_row_ref are components of that owner; never add them to the parent amount. Missing ownership is unknown, not proof that rows are additive.");
+  const serving = asObject(b.serving_info);
+  if (!serving) limitations.push("Serving basis is unavailable; do not infer a daily amount.");
+  if (visible.some(w => !capText(w.evidence_level) || (publicSources(w.sources).length === 0 && pmidsFrom(w).length === 0))) {
+    limitations.push("Some warnings have no published evidence grade or external citation. A registry name is provenance, not a clinical citation; do not invent a grade or reference.");
+  }
+  if (visible.some(w => [w.detail, w.action, w.safety_summary].some(v => typeof v === "string" && v.length > CLINICAL_TEXT_CAP))) {
+    limitations.push("An oversized warning statement was omitted rather than shortened; its qualifications are unavailable in this response.");
+  }
+  if (visible.some(w => stringList(w.sources).length > MAX_SOURCES)) limitations.push("Warning source lists are limited to the first 10 references.");
   if (safetyStatus === "not_assessed") {
     limitations.push("Catalog safety status not assessed for this product.");
   }
@@ -401,6 +457,25 @@ export function toProductFacts(blob: unknown, row: CatalogRow): Json {
       product_status: capText(row.product_status, 40),
     },
     ingredients,
+    serving_info: serving ? {
+      basis_count: finiteNumber(serving.basis_count), basis_unit: capText(serving.basis_unit, 100),
+      min_servings_per_day: finiteNumber(serving.min_servings_per_day),
+      max_servings_per_day: finiteNumber(serving.max_servings_per_day),
+      servings_per_day_source: capText(serving.servings_per_day_source, 100), basis_reason: capText(serving.basis_reason, 100),
+    } : null,
+    primary_type: capText(b.primary_type, 100),
+    product_role: capText(b.product_role, 100),
+    label_record: (() => {
+      const label = asObject(b.label_record);
+      return label ? { source_name: capText(label.source_name, 100), source_record_id: capText(label.source_record_id, 30),
+        source_date: capText(label.source_date, 40), source_updated_date: capText(label.source_updated_date, 40),
+        label_source_url: publicSources([label.label_source_url])[0] ?? null, metadata_status: capText(label.metadata_status, 40) } : null;
+    })(),
+    quality_pillars_v4: Object.fromEntries(["formulation", "dose", "evidence", "transparency", "verification", "safety_hygiene"].flatMap(key => {
+      const pillar = asObject(asObject(b.quality_pillars_v4)?.[key]);
+      return pillar ? [[key, { score: finiteNumber(pillar.score), max: finiteNumber(pillar.max), reason: completeText(pillar.reason),
+        evidence_result_state: capText(pillar.evidence_result_state, 60), display_state: capText(pillar.display_state, 60) }]] : [];
+    })),
     quality,
     product_safety_status: safetyStatus,
     quality_assessment_status: quality.quality_assessment_status,
@@ -423,6 +498,10 @@ export function toMatch(row: CatalogRow): Json {
     form_factor: capText(row.form_factor, 60),
     product_status: capText(row.product_status, 40),
     quality_tier: quality.quality_tier,
+    quality_score_v4_100: quality.quality_score_v4_100,
+    quality_score_confidence: quality.quality_score_confidence,
+    quality_assessment_status: quality.quality_assessment_status,
+    supplement_type: capText(row.supplement_type, 100),
     product_safety_status: catalogSafetyStatus(row.product_safety_status),
     match_confidence: score === null ? null : Math.round(Math.min(1, Math.max(0, score)) * 100) / 100,
   };
@@ -631,10 +710,10 @@ export function postgrestCatalogStore(opts: {
       const version = found[0]?.db_version;
       return typeof version === "string" ? version : null;
     },
-    search({ query, brand, form, limit }) {
+    search({ query, brand, form, limit, sort = "relevance", offset = 0, catalog_version, supplement_type }) {
       return rows("rpc/search_catalog", {
         method: "POST",
-        body: JSON.stringify({ p_query: query, p_brand: brand ?? null, p_form: form ?? null, p_limit: limit }),
+        body: JSON.stringify({ p_query: query, p_brand: brand ?? null, p_form: form ?? null, p_limit: limit, p_sort: sort, p_offset: offset, p_catalog_version: catalog_version ?? null, p_supplement_type: supplement_type ?? null }),
       });
     },
     byUpc(candidates) {
