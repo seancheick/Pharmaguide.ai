@@ -365,6 +365,11 @@ function ingredientFacts(raw: unknown, ledger: unknown): Json[] {
       owner_row_ref: capText(owner?.owner_row_ref, 300),
       source_role: capText(owner?.source_role, 60),
       display_form_label: capText(ing.display_form_label, 300),
+      forms: (Array.isArray(ing.forms) ? ing.forms : []).flatMap(value => {
+        const form = asObject(value);
+        const name = capText(form?.name, 300);
+        return name ? [{ name, prefix: capText(form?.prefix, 60), percent: finiteNumber(form?.percent) }] : [];
+      }),
       form_status: capText(ing.form_status, 40),
       display_dose_label: capText(ing.display_dose_label, 300),
       dose_status: capText(ing.dose_status, 40),

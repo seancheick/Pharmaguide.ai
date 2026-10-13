@@ -87,7 +87,7 @@ const PUBLIC_RESPONSE_KEYS = new Set([
   "data", "name_source", "catalog_version", "generated_at", "error", "found", "next_step", "matches",
   "ambiguous", "dsld_id", "product_name", "brand_name", "product_line", "form_factor", "product_status",
   "quality_tier", "product_safety_status", "match_confidence", "identity", "upc", "ingredients", "name",
-  "standard_name", "amount", "unit", "identity_resolved", "quality", "quality_score_status",
+  "standard_name", "amount", "unit", "identity_resolved", "quality", "quality_score_status", "forms", "prefix", "percent",
   "quality_score_confidence", "quality_assessment_status", "mapped_coverage", "warnings", "type", "severity",
   "title", "detail", "action", "ingredient", "evidence_level", "source", "sources", "pmids",
   "upper_limit_flags", "nutrient", "pipeline_warnings", "pct_of_upper_limit", "limitations",

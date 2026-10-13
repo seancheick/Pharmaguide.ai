@@ -52,6 +52,7 @@ export const PIPELINE_BLOB_TOP_LEVEL: Record<string, boolean> = {
 
 /// Every key a public product response may contain (no personal fields).
 export const PUBLIC_FACT_KEYS = new Set([
+  "forms", "prefix", "percent",
   "quality_score_v4_100", "raw_source_path", "owner_row_ref", "source_role", "display_form_label", "form_status", "display_dose_label", "dose_status", "form_evidence", "references_structured", "url", "pmid", "supports_claims", "serving_info", "basis_count", "basis_unit", "min_servings_per_day", "max_servings_per_day", "servings_per_day_source", "basis_reason", "primary_type", "product_role", "label_record", "source_name", "source_record_id", "source_date", "source_updated_date", "label_source_url", "metadata_status", "quality_pillars_v4", "formulation", "dose", "evidence", "transparency", "verification", "safety_hygiene", "score", "max", "reason", "evidence_result_state", "display_state", "safety_summary", "safety_summary_one_liner", "sort", "offset", "total_matches", "next_offset", "supplement_type",
   "identity", "dsld_id", "product_name", "brand_name", "product_line", "form_factor", "upc",
   "product_status", "ingredients", "name", "standard_name", "amount", "unit", "identity_resolved",
@@ -443,6 +444,21 @@ Deno.test("warning qualifications survive and absent evidence is disclosed", () 
   const facts = toProductFacts(blob({ warnings: [{ title: "Finding", detail, severity: "moderate", source: "registry" }] }), row());
   assertEquals((facts.warnings as Json[])[0].detail, detail);
   assert((facts.limitations as string[]).some(x => x.includes("citation")), "missing citation disclosed");
+});
+
+Deno.test("comparison preserves every declared form without inventing proportions", () => {
+  const facts = toProductFacts(blob({ ingredients: [{ name: "Magnesium", quantity: 120, unit: "mg",
+    display_form_label: "Magnesium Citrate", forms: [
+      { name: "Magnesium Citrate", prefix: "as", percent: null, private_field: "not public" },
+      { name: "Magnesium Malate", prefix: null, percent: null }, null, {},
+    ] }, { name: "Other", forms: null }] }), row());
+  const ingredients = facts.ingredients as Json[];
+  assertEquals(ingredients[0].forms, [
+    { name: "Magnesium Citrate", prefix: "as", percent: null },
+    { name: "Magnesium Malate", prefix: null, percent: null },
+  ]);
+  assertEquals(ingredients[0].amount, 120);
+  assertEquals(ingredients[1].forms, []);
 });
 
 Deno.test("comparison never exposes a suppressed or incomplete score as rankable", () => {
