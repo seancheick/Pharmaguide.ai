@@ -55,7 +55,7 @@ that drops and recreates a table. After any such apply, reconcile the stamp to
 the file version with `supabase migration repair`, or apply through `db push` in
 the first place.
 
-## Written, not applied
+## Connector migrations and remote status
 
 ### Pipeline-owned remote stamp (2026-10-13)
 
@@ -72,8 +72,22 @@ the first place.
 | `20261012130100_pgrst_reject_ai_assistant_tokens.sql` | 2026-10-12 | applied to omayamxacvacrnvdvzhr on 2026-10-13 via `supabase db push` — S1 project-wide: `ALTER ROLE authenticator SET pgrst.db_pre_request` so PostgREST refuses any request whose claims carry `client_id`; covers the 23 privileged functions without a per-function guard. Check no other `pgrst.db_pre_request` is set on the project first (`SELECT setconfig FROM pg_db_role_setting WHERE setrole = 'authenticator'::regrole;`) |
 | `20261012130200_ai_connections_display_fields.sql` | 2026-10-12 | applied to omayamxacvacrnvdvzhr on 2026-10-13 via `supabase db push` — S3/S4 `ai_connections.client_name`, `callback_host` (nullable, ≤ 200), written by the website consent route |
 
-Apply them with `supabase db push`, in this order, and only after
+For future replays, apply with `supabase db push` in timestamp order and only after
 `scripts/test_ai_connector_rls.sh` passes. The first one re-creates the seven
 RPCs from their current definitions. A later migration that redefines one of
 them must keep its `PERFORM public.reject_oauth_client_request();` line; the
 test fails if it does not.
+
+## October13 authorization containment
+
+Applied with Sean's approval, in this order, to `omayamxacvacrnvdvzhr`:
+
+| File | Status |
+|---|---|
+| `20261013165631_ai_connection_session_binding.sql` | Applied; service-role-only session-binding RPC verified (authenticated execute=false, service_role=true). |
+| `20261013171928_ai_connector_deny_unbound_oauth.sql` | Applied; existing hook refuses assistant issuance/refresh and preserves ordinary app-session claims. |
+
+`mcp-personal`, `ai-share-snapshot` and `mcp-public` were deployed from merged containment source.
+Personal reads and snapshot POST return503; authenticated deletion stays available. Production
+DCR=false was applied through the Management API and read back. These are containment receipts,
+not personal-connector activation. No WorkOS migration or self-hosted issuer prototype was applied.
