@@ -110,10 +110,10 @@ export class FakeConnections implements ConnectionRepository {
     return Promise.resolve(matches[0] ?? null);
   }
   bindSession(connectionId: string, sessionId: string) {
-    const row = this.rows.find((r) => r.connection_id === connectionId && r.session_id === null);
-    if (!row) return Promise.resolve(false);
+    const row = this.rows.find((r) => r.connection_id === connectionId && (r.session_id === null || r.session_id === sessionId));
+    if (!row || row.status !== "active" || row.revoked_at !== null || Date.parse(row.expires_at) <= NOW.getTime()) return Promise.resolve(null);
     row.session_id = sessionId;
-    return Promise.resolve(true);
+    return Promise.resolve({ ...row });
   }
 }
 

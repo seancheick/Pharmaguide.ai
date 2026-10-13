@@ -19,6 +19,9 @@ import {
   assert,
   assertEquals,
   CLAUDE,
+  claimsFor,
+  harness,
+  rpc,
   connection,
   ISSUER,
   NOW,
@@ -122,6 +125,7 @@ function share(connectionId: string, overrides: Record<string, unknown> = {}) {
     connection_id: connectionId,
     scope: FULL_SCOPE,
     stack_revision: "rev-7",
+    generated_at: NOW.toISOString(),
     ttl_hours: 24,
     format: "pharmaguide-brief-markdown/v1",
     payload: PAYLOAD,
@@ -354,4 +358,32 @@ Deno.test("writes are rate limited per user", async () => {
   const limited = await s.handler(request("POST", token, share(s.live.connection_id)));
   assertEquals(limited.status, 429);
   assertEquals(limited.headers.get("retry-after"), "60");
+});
+
+Deno.test("delayed upload preserves report generation time and detects intervening supplement changes", async () => {
+  const s = await setup();
+  const generatedAt = "2026-10-12T11:00:00.000Z";
+  const response = await s.handler(request("POST", await appToken(s), share(s.live.connection_id, {
+    generated_at: generatedAt,
+  })));
+  assertEquals(response.status, 201);
+  const row = s.store.rows.get(s.live.connection_id)!;
+  assertEquals(row.generated_at, generatedAt, "upload receipt time must not replace report creation");
+  assertEquals(row.expires_at, new Date(NOW.getTime() + 24 * HOUR).toISOString(), "TTL still begins at upload");
+  const personal = await harness({ connections: [s.live] });
+  personal.snapshots.rows.push(row);
+  personal.snapshots.stackUpdates[USER_A] = ["2026-10-12T11:30:00.000Z"];
+  const token = await sign(personal.key, claimsFor(USER_A, CLAUDE));
+  const read = await personal.handler(rpc(token, "tools/call", { name: "get_my_stack_snapshot" }));
+  assertEquals((await read.json()).result.structuredContent.data.stale, true);
+});
+
+Deno.test("a snapshot requires an explicit valid generation timestamp no later than receipt", async () => {
+  const s = await setup();
+  const token = await appToken(s);
+  for (const generated_at of [undefined, null, "not a date", "2026-10-12", "2026-10-12T12:00:01.000Z", 12]) {
+    const response = await s.handler(request("POST", token, share(s.live.connection_id, { generated_at })));
+    assertEquals(response.status, 400, `invalid generation time ${generated_at}`);
+  }
+  assertEquals(s.store.rows.size, 0);
 });

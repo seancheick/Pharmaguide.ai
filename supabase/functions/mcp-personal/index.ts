@@ -55,8 +55,11 @@ export const SERVER_INSTRUCTIONS =
   "share from the PharmaGuide app, limited to the categories in its scope. For anything " +
   "not shared, ask the user, or suggest they share more from the PharmaGuide app. " +
   "A supplement list on its own is not a safety " +
-  "check: never describe a product or regimen as safe; when PharmaGuide reports no " +
-  "findings, say 'no known concerns'.";
+  "check: never describe a product or regimen as safe. Say 'no known concerns' only when " +
+  "the shared PharmaGuide assessment explicitly has no findings and is complete for its scope: " +
+  "identity resolution, the relevant medication list, amounts/doses and evaluated rule sets " +
+  "are all present. An empty supplement list or missing findings is not that assessment. " +
+  "Otherwise say 'not fully checked' and name exactly what was not assessed.";
 
 export const NEXT_STEP =
   "PharmaGuide shared the supplement list only. Before advising, ask the user about " +
@@ -425,16 +428,11 @@ export function postgrestRepositories(
         return found[0] ?? null;
       },
       async bindSession(connectionId, sessionId) {
-        const updated = await rows<{ connection_id: string }>(
-          "ai_connections",
-          { connection_id: `eq.${connectionId}`, session_id: "is.null", select: "connection_id" },
-          {
-            method: "PATCH",
-            headers: { Prefer: "return=representation" },
-            body: JSON.stringify({ session_id: sessionId }),
-          },
-        );
-        return updated.length === 1;
+        const bound = await rows<AiConnection>("rpc/bind_ai_connection_session", {}, {
+          method: "POST",
+          body: JSON.stringify({ p_connection_id: connectionId, p_session_id: sessionId }),
+        });
+        return bound[0] ?? null;
       },
     },
     stacks: {

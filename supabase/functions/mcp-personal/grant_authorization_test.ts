@@ -94,3 +94,66 @@ Deno.test("calls beyond the per-connection limit get 429", async () => {
   assertEquals(limited.status, 429, "3");
   assertEquals(limited.headers.get("retry-after"), "60", "Retry-After");
 });
+
+Deno.test("a token without a session cannot use or leave a consent row unbound", async () => {
+  for (const session of [undefined, null, "", "   "]) {
+    const h = await harness();
+    const claims = { ...claimsFor(USER_A, CLAUDE), session_id: session };
+    const response = await h.handler(callSupplements(await sign(h.key, claims)));
+    assertEquals(response.status, 401, "missing session is not an authorized grant");
+    assertEquals(h.stacks.requestedUsers.length, 0, "nothing read");
+    assertEquals(h.connections.rows[0].session_id, null, "not bound");
+  }
+});
+
+Deno.test("an unused token issued before a new approval cannot bind it", async () => {
+  const old = connection({ status: "revoked", revoked_at: "2026-10-12T11:20:00Z", created_at: "2026-10-12T10:00:00Z" });
+  const current = connection({ created_at: "2026-10-12T11:30:00Z" });
+  const h = await harness({ connections: [old, current] });
+  const claims = { ...claimsFor(USER_A, CLAUDE, "unused-old-session"), iat: Date.parse("2026-10-12T11:00:00Z") / 1000 };
+  const response = await h.handler(callSupplements(await sign(h.key, claims)));
+  assertEquals(response.status, 403, "old token cannot claim a new approval");
+  assertEquals(h.stacks.requestedUsers.length, 0, "nothing read");
+  assertEquals(current.session_id, null, "new approval remains unbound");
+});
+
+Deno.test("first binding requires a valid issue time and consent time", async () => {
+  for (const issuedAt of [undefined]) {
+    const h = await harness();
+    const claims = { ...claimsFor(USER_A, CLAUDE), iat: issuedAt };
+    const response = await h.handler(callSupplements(await sign(h.key, claims)));
+    assertEquals(response.status, 401, "missing issuance cannot prove a new grant");
+  }
+  const h = await harness({ connections: [connection({ created_at: "invalid" })] });
+  assertEquals((await h.handler(callSupplements(await sign(h.key, claimsFor(USER_A, CLAUDE))))).status, 403);
+});
+
+Deno.test("a token issued in the consent second binds and refreshed tokens retain access", async () => {
+  const current = connection({ created_at: "2026-10-12T11:30:00.999Z" });
+  const h = await harness({ connections: [current] });
+  const claims = { ...claimsFor(USER_A, CLAUDE), iat: Date.parse("2026-10-12T11:30:00Z") / 1000 };
+  assertEquals((await h.handler(callSupplements(await sign(h.key, claims)))).status, 200);
+  assertEquals((await h.handler(callSupplements(await sign(h.key, { ...claims, iat: claims.iat + 60 })))).status, 200);
+});
+
+Deno.test("binding cannot return a cached approval after concurrent disconnect", async () => {
+  const current = connection();
+  const h = await harness({ connections: [current] });
+  h.connections.bindSession = () => {
+    current.status = "revoked";
+    current.revoked_at = "2026-10-12T11:59:00Z";
+    return Promise.resolve({ ...current });
+  };
+  const response = await h.handler(callSupplements(await sign(h.key, claimsFor(USER_A, CLAUDE))));
+  assertEquals(response.status, 403);
+  assertEquals(h.stacks.requestedUsers.length, 0);
+});
+
+Deno.test("an already bound connection still requires a live Auth session", async () => {
+  const claims = claimsFor(USER_A, CLAUDE);
+  const h = await harness({ connections: [connection({ session_id: claims.session_id as string })] });
+  h.connections.bindSession = () => Promise.resolve(null);
+  const response = await h.handler(callSupplements(await sign(h.key, claims)));
+  assertEquals(response.status, 403);
+  assertEquals(h.stacks.requestedUsers.length, 0);
+});
