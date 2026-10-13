@@ -283,6 +283,14 @@ void main() {
         120,
         scrollable: find.byType(Scrollable).first,
       );
+      tester
+          .widget<TextField>(find.byKey(const Key('med-entry-dose')))
+          .controller!
+          .selection = const TextSelection.collapsed(
+        offset: 0,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
       await tester.enterText(
         find.byKey(const Key('med-entry-dose')),
         '9 mg/24h',

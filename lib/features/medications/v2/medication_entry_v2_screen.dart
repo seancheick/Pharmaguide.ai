@@ -109,6 +109,8 @@ class _MedicationEntryV2ScreenState
   final _doseController = TextEditingController();
   final _frequencyController = TextEditingController();
   final _dailyDoseController = TextEditingController();
+  String _lastSavedDoseText = '';
+  String _lastSavedFrequencyText = '';
   int _contextGeneration = 0;
   int _reviewGeneration = 0;
   String? _confirmedRoute;
@@ -198,6 +200,13 @@ class _MedicationEntryV2ScreenState
   }
 
   void _savedDoseOrScheduleChanged() {
+    final dose = _doseController.text;
+    final frequency = _frequencyController.text;
+    if (dose == _lastSavedDoseText && frequency == _lastSavedFrequencyText) {
+      return;
+    }
+    _lastSavedDoseText = dose;
+    _lastSavedFrequencyText = frequency;
     if (!mounted || _selectedName == null) return;
     setState(() {
       _dailyDoseController.clear();
