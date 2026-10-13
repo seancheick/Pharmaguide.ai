@@ -32,3 +32,15 @@ verify_jwt = false
 # Secret: AI_SHARE_SNAPSHOT_KEY_V1 (base64, 32 bytes), shared with mcp-personal.
 [functions.ai-share-snapshot]
 verify_jwt = false
+
+# ADR-009: Supabase Auth as the OAuth 2.1 authorization server for the personal
+# MCP connector. The consent page lives on the website (feat/ai-connector-consent).
+[auth.oauth_server]
+enabled = true
+allow_dynamic_registration = true
+authorization_url_path = "/oauth/authorize"
+
+# S2: stamp the personal MCP audience on assistant tokens (supabase/auth #2610).
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
