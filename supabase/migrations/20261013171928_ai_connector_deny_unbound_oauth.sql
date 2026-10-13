@@ -15,7 +15,7 @@ BEGIN
   IF (event -> 'claims' ->> 'client_id') IS NOT NULL THEN
     RETURN jsonb_build_object('error', jsonb_build_object(
       'http_code', 403,
-      'message', 'Personal AI connections are unavailable until OAuth resource binding is verified.'));
+      'message', 'Personal AI connections are temporarily unavailable.'));
   END IF;
   RETURN event;
 END

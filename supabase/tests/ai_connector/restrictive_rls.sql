@@ -207,7 +207,7 @@ BEGIN
         || jsonb_build_object('authentication_method', method);
       result := public.custom_access_token_hook(event);
       PERFORM aic.assert(result #>> '{error,http_code}' = '403'
-        AND result #>> '{error,message}' = 'Personal AI connections are unavailable until OAuth resource binding is verified.'
+        AND result #>> '{error,message}' = 'Personal AI connections are temporarily unavailable.'
         AND NOT (result ? 'claims'),
         'OAuth token refused regardless of audience: ' || method || ' ' || audience::text);
     END LOOP;

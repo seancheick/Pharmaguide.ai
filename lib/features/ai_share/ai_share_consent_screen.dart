@@ -106,7 +106,7 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 Text(
-                  'Available to the assistant for',
+                  'Maximum sharing time',
                   style: V2Typography.titleSm(color: context.v2.fg),
                 ),
                 const SizedBox(height: V2Spacing.space8),
@@ -114,6 +114,13 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
                   segments: const ['24 hours', '7 days', '30 days'],
                   selectedIndex: _durationIndex,
                   onChanged: (i) => setState(() => _durationIndex = i),
+                ),
+                const SizedBox(height: V2Spacing.space16),
+                Text(
+                  'Sharing ends after this time or when your assistant connection '
+                  'expires on ${formatReportDate(widget.connection.expiresAt.toLocal())}, '
+                  'whichever comes first.',
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 AiShareScopeSwitches(scope: _scope, onScope: _update),

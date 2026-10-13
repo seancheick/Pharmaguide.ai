@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
+import 'package:pharmaguide/services/sharing/report_text.dart';
 import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -139,6 +140,33 @@ void main() {
     expect(card(tester), contains('health profile'));
     expect(card(tester), contains('Not included: medications.'));
     expect(backend.calls, isEmpty, reason: 'nothing leaves before Share');
+  });
+
+  testWidgets('maximum duration explains the actual connection expiry cap', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    final connection = tester
+        .widget<AiShareConsentScreen>(find.byType(AiShareConsentScreen))
+        .connection;
+    expect(find.text('Maximum sharing time'), findsOneWidget);
+    expect(find.text('Available to the assistant for'), findsNothing);
+    final expiry = formatReportDate(connection.expiresAt.toLocal());
+    final clarification = find.text(
+      'Sharing ends after this time or when your assistant connection expires '
+      'on $expiry, whichever comes first.',
+    );
+    expect(clarification, findsOneWidget);
+    await tester.ensureVisible(find.text('30 days'));
+    await tester.tap(find.text('30 days'));
+    await tester.pumpAndSettle();
+    expect(clarification, findsOneWidget);
+    expect(
+      backend.calls,
+      isEmpty,
+      reason: 'expiry is explained before sharing',
+    );
   });
 
   testWidgets('the chosen duration is the one uploaded', (tester) async {
