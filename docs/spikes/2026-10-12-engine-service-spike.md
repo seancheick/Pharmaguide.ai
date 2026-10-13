@@ -2,6 +2,34 @@
 
 Date: 2026-10-12 · Branch: `worktree-agent-a3ac37572fd12204f` (base `d4c0b097`) · Status: spike, no `lib/` change
 
+## Independent recheck — October 13, 2026
+
+Owner: `tool/engine_spike/build.sh` and its `InteractionRow` shim. Evidence:
+`rg` of the existing spike/test paths and the real `interactions_table.dart` schema.
+Will NOT create: a second engine, a new clinical policy or replacement golden findings.
+
+The initial recheck failed compilation because the spike row shim lacked the current nullable
+`profileGateJson` and `medicationExceptionsJson` fields. The shim now passes through those JSON
+columns when present; the frozen fixtures omit them and still read as null. No fixtures were
+re-extracted, and no production engine source changed.
+
+The harness also used to overwrite its golden and print parity/closure failures without reliably
+failing its exit status. Five focused harness tests reproduced eight failing cases before the fix;
+all five now pass. Verification requires Deno and Node, refuses missing outputs and failed compiles,
+fails on any runtime difference, and compares against the reviewed golden without overwriting it.
+The candidate VM golden is left under `.build/vm.golden.json` for inspection only.
+
+After these bounded fixes, Dart 3.12.2 VM, native AOT, Deno 2.7.10 and Node 25.9.0 produced identical
+findings for the same frozen fixture. Both full-closure compile probes passed. The existing real-app
+golden and the added optional-field parser test passed (2 tests). Fixture, golden, bundled interaction
+DB and depletion-reference hashes were unchanged. JS was 488,253 bytes (106,652 gzip); its local Deno
+10-item warm mean was 0.965 ms, cold 3 ms and process RSS 89,849,856 bytes on the shared machine.
+
+These are local portability measurements, not a deployed-runtime or clinical-completeness result.
+The fixture still has no detail blobs and explicitly reports incomplete checks. The unverified paths
+below remain unverified, and ADR-010 remains a proposal. Local receipts:
+`/Users/seancheick/pg_quality/ai_connector_audit_20261013/engine-spike-*`.
+
 ## Answer
 
 **Yes, for both targets, with no TypeScript and no change to `lib/`.** The unchanged engine sources
@@ -301,10 +329,12 @@ assistant must serve research-pair evidence from the full SQLite file.
 ```bash
 cp "/Users/seancheick/PharmaGuide ai/assets/db/interaction_db.sqlite" assets/db/   # gitignored
 flutter pub get && make gen
-bash tool/engine_spike/extract_fixtures.sh
+python3 tool/engine_spike/test/build_harness_test.py
 bash tool/engine_spike/build.sh
 flutter test tool/engine_spike/test/golden_parity_test.dart
 ```
 
 `analysis_options.yaml` excludes `tool/engine_spike/**`. The spike compiles against its own overlay
 package config, so the app analyzer would otherwise report its overlay-only symbols.
+Do not run `extract_fixtures.sh` during a parity recheck. Refreshing fixtures or accepting a new golden
+is a separate reviewed data change; a passing build never updates the reviewed golden automatically.

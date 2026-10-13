@@ -34,6 +34,8 @@ class InteractionRow {
     this.direction,
     this.materiality,
     this.doseThresholdJson,
+    this.profileGateJson,
+    this.medicationExceptionsJson,
     required this.typeAuthored,
     required this.source,
     required this.provenance,
@@ -72,6 +74,8 @@ class InteractionRow {
     direction: j['direction'] as String?,
     materiality: j['materiality'] as String?,
     doseThresholdJson: j['dose_threshold_json'] as String?,
+    profileGateJson: j['profile_gate_json'] as String?,
+    medicationExceptionsJson: j['medication_exceptions_json'] as String?,
     typeAuthored: j['type_authored'] as String,
     source: j['source'] as String,
     provenance: j['provenance'] as String,
@@ -109,6 +113,8 @@ class InteractionRow {
   final String? direction;
   final String? materiality;
   final String? doseThresholdJson;
+  final String? profileGateJson;
+  final String? medicationExceptionsJson;
   final String typeAuthored;
   final String source;
   final String provenance;
