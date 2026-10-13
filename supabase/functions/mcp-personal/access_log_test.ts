@@ -66,3 +66,11 @@ Deno.test("instructions frame tool output as data and never as a safety verdict"
   assert(SERVER_INSTRUCTIONS.includes("medications, conditions and"), "states what is excluded");
   assertEquals(cleanText("a\u0000b\tc", 10), "a b c", "control characters");
 });
+
+Deno.test("personal instructions require a complete shared assessment for reassurance", () => {
+  assert(SERVER_INSTRUCTIONS.includes("identity resolution"), "identities required");
+  assert(SERVER_INSTRUCTIONS.includes("medication list"), "medication coverage required");
+  assert(SERVER_INSTRUCTIONS.includes("amounts/doses"), "dose coverage required");
+  assert(SERVER_INSTRUCTIONS.includes("evaluated rule sets"), "evaluated checks required");
+  assert(SERVER_INSTRUCTIONS.includes("not fully checked"), "incomplete checks disclosed");
+});

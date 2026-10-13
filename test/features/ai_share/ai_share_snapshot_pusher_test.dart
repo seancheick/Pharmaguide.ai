@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -32,6 +34,115 @@ void main() {
     prefs = AiSharePrefsStore(MemoryPreferencesStore());
     loads = 0;
   });
+
+  for (final stop in [
+    'disable',
+    'forget',
+    'clear',
+    'scope change',
+    'disable then enable',
+  ]) {
+    test('pending refresh honors $stop before sending', () async {
+      await prefs.recordShare(
+        'c-1',
+        const AiShareScope(medicationNames: true),
+        24,
+      );
+      await prefs.setKeepUpdated('c-1', true);
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final worker = AiShareSnapshotPusher(
+        isSignedIn: () => true,
+        prefs: prefs,
+        client: backend.client(),
+        loadData: () async {
+          entered.complete();
+          await release.future;
+          return aiShareFixture();
+        },
+      );
+      final pending = worker.refreshAfterStackChange();
+      await entered.future;
+      switch (stop) {
+        case 'disable':
+          await prefs.setKeepUpdated('c-1', false);
+        case 'forget':
+          await prefs.forget('c-1');
+        case 'clear':
+          await prefs.clear();
+        case 'disable then enable':
+          await prefs.setKeepUpdated('c-1', false);
+          await prefs.setKeepUpdated('c-1', true);
+        case 'scope change':
+          await prefs.recordShare('c-1', AiShareScope.detailedReport, 24);
+      }
+      release.complete();
+      await pending;
+      expect(backend.uploads, isEmpty);
+    });
+  }
+
+  test(
+    'concurrent refreshes collect and upload in stack-change order',
+    () async {
+      await prefs.recordShare('c-1', AiShareScope.detailedReport, 24);
+      await prefs.setKeepUpdated('c-1', true);
+      final firstEntered = Completer<void>();
+      final releaseFirst = Completer<void>();
+      var calls = 0;
+      final worker = AiShareSnapshotPusher(
+        isSignedIn: () => true,
+        prefs: prefs,
+        client: backend.client(),
+        loadData: () async {
+          calls++;
+          final name = calls == 1 ? 'Old stack' : 'New stack';
+          if (calls == 1) {
+            firstEntered.complete();
+            await releaseFirst.future;
+          }
+          return aiShareFixture(
+            stack: [aiShareEntry('s-1', name, 'supplement')],
+          );
+        },
+      );
+      final first = worker.refreshAfterStackChange();
+      await firstEntered.future;
+      final second = worker.refreshAfterStackChange();
+      await pumpEventQueue();
+      releaseFirst.complete();
+      await Future.wait([first, second]);
+      expect(backend.uploads.last.body['payload'], contains('New stack'));
+    },
+  );
+
+  test('clear cannot be undone by an earlier preference write', () async {
+    final saving = prefs.recordShare('c-1', AiShareScope.detailedReport, 24);
+    final clearing = prefs.clear();
+    await Future.wait([saving, clearing]);
+    expect(await prefs.readAll(), isEmpty);
+  });
+
+  test(
+    'a pending opt-out write blocks reads used to start a refresh',
+    () async {
+      final store = _HeldWriteStore();
+      prefs = AiSharePrefsStore(store);
+      await prefs.recordShare('c-1', AiShareScope.detailedReport, 24);
+      await prefs.setKeepUpdated('c-1', true);
+      store.hold = true;
+      final disabling = prefs.setKeepUpdated('c-1', false);
+      await store.entered.future;
+      final refreshing = pusher().refreshAfterStackChange();
+      await pumpEventQueue();
+      final prematureUploads = backend.uploads.length;
+      store.release.complete();
+      await disabling;
+      await refreshing;
+      expect(prematureUploads, 0);
+      expect(backend.uploads, isEmpty);
+    },
+  );
 
   test('off by default: a recorded share alone never re-uploads', () async {
     await prefs.recordShare('c-1', AiShareScope.detailedReport, 24);
@@ -160,4 +271,18 @@ class _CountingPusher implements AiShareSnapshotPusher {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _HeldWriteStore extends MemoryPreferencesStore {
+  bool hold = false;
+  final entered = Completer<void>();
+  final release = Completer<void>();
+  @override
+  Future<void> setString(String key, String value) async {
+    if (hold) {
+      entered.complete();
+      await release.future;
+    }
+    await super.setString(key, value);
+  }
 }

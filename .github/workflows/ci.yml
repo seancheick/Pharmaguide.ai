@@ -14,7 +14,9 @@ jobs:
   analyze-and-test:
     name: Analyze & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Main already runs near 15 minutes; allow setup + the complete coverage suite.
+    # Individual test timeouts, assertions and coverage remain unchanged.
+    timeout-minutes: 20
 
     steps:
       # Only pharmaguide_core.db still ships via Git LFS. interaction_db.sqlite
@@ -51,6 +53,9 @@ jobs:
 
       - name: Validate catalog importer interaction contracts
         run: python3 -m unittest discover -s scripts/tests -p test_import_catalog_artifact.py
+
+      - name: Validate engine spike build harness
+        run: python3 tool/engine_spike/test/build_harness_test.py
 
       # Fetch the LFS objects (only pharmaguide_core.db now) best-effort and
       # record whether we got them. The catalog-DB tests are tagged `bundle`

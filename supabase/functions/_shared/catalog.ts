@@ -297,8 +297,8 @@ export function upperLimitFacts(rdaUlData: unknown): { flags: Json[]; unconfirme
       nutrient: name,
       pipeline_warnings: [capText(message)],
       pct_of_upper_limit: Math.round(pct * 10) / 10,
-      evidence_level: "established",
-      source: "PharmaGuide upper-limit analysis (rda_ul_data)",
+      evidence_level: capText(flag.evidence_level, 60),
+      source: capText(flag.source, 120) ?? "PharmaGuide upper-limit analysis (rda_ul_data)",
     });
   }
   for (const raw of Array.isArray(rows) ? rows : []) {
@@ -323,8 +323,8 @@ export function upperLimitFacts(rdaUlData: unknown): { flags: Json[]; unconfirme
       nutrient: name,
       pipeline_warnings: messages.slice(0, 5).map((m) => capText(m)),
       pct_of_upper_limit: pct,
-      evidence_level: "established",
-      source: "PharmaGuide upper-limit analysis (rda_ul_data)",
+      evidence_level: capText(row.evidence_level, 60),
+      source: capText(row.source, 120) ?? "PharmaGuide upper-limit analysis (rda_ul_data)",
     });
   }
   return { flags, unconfirmed };
@@ -376,6 +376,9 @@ export function toProductFacts(blob: unknown, row: CatalogRow): Json {
     limitations.push(
       "Some PharmaGuide warnings for this product apply only to specific conditions, medications, pregnancy or breastfeeding; they are not included in this public view.",
     );
+  }
+  if (ul.flags.some((flag) => flag.evidence_level === null)) {
+    limitations.push("Some upper-limit findings have no published evidence grade; do not infer one from the calculation.");
   }
   if (ul.unconfirmed) {
     limitations.push("Some upper-limit (UL) dose comparisons are evaluated only in the PharmaGuide app and are not included here.");
@@ -514,7 +517,7 @@ export class CatalogFacts {
   #publicBase: string;
   #now: () => number;
   #manifest: { version: string | null; at: number } | null = null;
-  #indexes = new Map<string, Promise<Map<string, string>>>();
+  #indexes = new Map<string, { pending: Promise<Map<string, string>>; at: number }>();
   #facts = new Map<string, Json>();
 
   constructor(opts: { store: CatalogStore; fetchFn: FetchLike; supabaseUrl: string; now?: () => number }) {
@@ -537,13 +540,18 @@ export class CatalogFacts {
     return version;
   }
 
-  /// dsld_id -> blob sha256 for one catalog version (cached; versions are immutable).
+  /// Same-version republishing is supported: revalidate the index every 60 s.
+  /// This bounds this process's cache, not the upstream storage CDN's cache.
   detailIndex(version: string): Promise<Map<string, string>> {
+    const now = this.#now();
     const cached = this.#indexes.get(version);
-    if (cached) return cached;
+    if (cached && now - cached.at < MANIFEST_TTL_MS) return cached.pending;
     const pending = this.#loadIndex(version);
-    pending.catch(() => this.#indexes.delete(version));
-    this.#indexes.set(version, pending);
+    pending.catch(() => {
+      // An older slow request must not evict a newer refresh.
+      if (this.#indexes.get(version)?.pending === pending) this.#indexes.delete(version);
+    });
+    this.#indexes.set(version, { pending, at: now });
     while (this.#indexes.size > MAX_CACHED_INDEX_VERSIONS) {
       this.#indexes.delete(this.#indexes.keys().next().value!);
     }
@@ -568,6 +576,10 @@ export class CatalogFacts {
   async blob(version: string, dsldId: string): Promise<unknown> {
     const sha = (await this.detailIndex(version)).get(dsldId);
     if (!sha) throw new CatalogUnavailableError("no detail record for this product");
+    return this.#blobByHash(sha);
+  }
+
+  async #blobByHash(sha: string): Promise<unknown> {
     const response = await this.#fetch(`${this.#publicBase}/${BLOB_PREFIX}/${sha.slice(0, 2)}/${sha}.json`);
     if (!response.ok) throw new CatalogUnavailableError(`detail blob HTTP ${response.status}`);
     const bytes = await response.arrayBuffer();
@@ -575,12 +587,15 @@ export class CatalogFacts {
     return JSON.parse(new TextDecoder().decode(bytes));
   }
 
-  /// Public facts for one catalog row (bounded cache keyed by version + id).
+  /// Recheck index freshness before reusing facts. Include all mapper inputs so
+  /// neither a changed blob nor changed catalog-row safety can hit stale facts.
   async productFacts(row: CatalogRow): Promise<Json> {
-    const key = `${row.catalog_version}:${row.dsld_id}`;
+    const sha = (await this.detailIndex(row.catalog_version)).get(row.dsld_id);
+    if (!sha) throw new CatalogUnavailableError("no detail record for this product");
+    const key = JSON.stringify([row, sha]);
     const hit = this.#facts.get(key);
     if (hit) return hit;
-    const facts = toProductFacts(await this.blob(row.catalog_version, row.dsld_id), row);
+    const facts = toProductFacts(await this.#blobByHash(sha), row);
     this.#facts.set(key, facts);
     if (this.#facts.size > MAX_CACHED_FACTS) this.#facts.delete(this.#facts.keys().next().value!);
     return facts;

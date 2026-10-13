@@ -110,10 +110,10 @@ export class FakeConnections implements ConnectionRepository {
     return Promise.resolve(matches[0] ?? null);
   }
   bindSession(connectionId: string, sessionId: string) {
-    const row = this.rows.find((r) => r.connection_id === connectionId && r.session_id === null);
-    if (!row) return Promise.resolve(false);
+    const row = this.rows.find((r) => r.connection_id === connectionId && (r.session_id === null || r.session_id === sessionId));
+    if (!row || row.status !== "active" || row.revoked_at !== null || Date.parse(row.expires_at) <= NOW.getTime()) return Promise.resolve(null);
     row.session_id = sessionId;
-    return Promise.resolve(true);
+    return Promise.resolve({ ...row });
   }
 }
 
@@ -172,6 +172,7 @@ export async function harness(
     stacks?: Record<string, StackRow[]>;
     extraKeys?: SigningKey[];
     limiter?: RateLimiter;
+    handlerFactory?: typeof createHandler;
   } = {},
 ): Promise<Harness> {
   const key = await signingKey("project-key");
@@ -184,7 +185,7 @@ export async function harness(
   const log = new FakeLog();
   const snapshots = new FakeSnapshots();
   const keyring = await keyringFromEnv((name) => TEST_KEYRING_ENV[name]);
-  const handler = createHandler({
+  const handler = (options.handlerFactory ?? createHandler)({
     verifyToken: (token) => verifyOAuthAccessToken(token, { issuer: ISSUER, audience: AUDIENCE, keys: jwks, now: () => NOW }),
     connections,
     stacks,

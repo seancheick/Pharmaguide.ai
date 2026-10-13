@@ -31,6 +31,7 @@ export type TokenRejection =
   | "wrong_audience"
   | "not_an_oauth_client_token"
   | "missing_subject"
+  | "missing_session"
   | "wrong_role"
   // App-session verification only (verifyAppSessionToken):
   | "assistant_token"
@@ -54,7 +55,7 @@ export interface OAuthTokenConfig {
 export interface VerifiedOAuthToken {
   sub: string;
   clientId: string;
-  sessionId: string | null;
+  sessionId: string;
   claims: JWTPayload;
 }
 
@@ -126,10 +127,15 @@ export async function verifyOAuthAccessToken(
   if (claims.role !== "authenticated") throw new TokenRejected("wrong_role");
   const clientId = nonblankString(claims.client_id);
   if (!clientId) throw new TokenRejected("not_an_oauth_client_token");
+  const sessionId = nonblankString(claims.session_id);
+  if (!sessionId) throw new TokenRejected("missing_session");
+  if (typeof claims.iat !== "number" || !Number.isFinite(claims.iat)) {
+    throw new TokenRejected("malformed");
+  }
   return {
     sub,
     clientId,
-    sessionId: nonblankString(claims.session_id),
+    sessionId,
     claims,
   };
 }

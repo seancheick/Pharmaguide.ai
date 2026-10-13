@@ -207,11 +207,11 @@ Deno.test("upper-limit flags honor skip_ul_check and ul_gate_eligible", () => {
     nutrient: "Niacin",
     pipeline_warnings: [message],
     pct_of_upper_limit: 142.9,
-    evidence_level: "established",
+    evidence_level: null,
     source: "PharmaGuide upper-limit analysis (rda_ul_data)",
   }]);
   assert(
-    !(fromFlags.limitations as string[]).some((l) => l.includes("upper-limit")),
+    !(fromFlags.limitations as string[]).some((l) => l.includes("dose comparisons")),
     "a row already covered by a pipeline safety flag is not unconfirmed",
   );
   const unresolved = toProductFacts(
@@ -320,7 +320,7 @@ export function fakeStore(rows: CatalogRow[], calls = { manifest: 0 }): CatalogS
   };
 }
 
-Deno.test("manifest is cached for 60 s and the detail index once per version", async () => {
+Deno.test("manifest and detail index are reused within their 60 s cache window", async () => {
   let now = 0;
   const calls = { manifest: 0 };
   const storage = await fakeStorage({ "1060": blob() });
@@ -343,6 +343,47 @@ Deno.test("manifest is cached for 60 s and the detail index once per version", a
   assertEquals(storage.requests.filter((u) => u.endsWith("detail_index.json")).length, 1);
 });
 
+Deno.test("same-version corrections refresh facts within the index TTL even when facts were cached later", async () => {
+  let now = 0;
+  const storage = await fakeStorage({ "1060": blob() });
+  const catalog = new CatalogFacts({ store: fakeStore([row()]), fetchFn: storage.fetchFn,
+    supabaseUrl: "https://x.supabase.co", now: () => now });
+  await catalog.detailIndex(row().catalog_version);
+  now = 59_000;
+  const original = await catalog.productFacts(row());
+  const corrected = blob({ warnings: [{ type: "recall", severity: "high", title: "Corrected warning", message: "Authored recall", source: "FDA" }] });
+  const replacement = await fakeStorage({ "1060": corrected });
+  for (const [url, body] of replacement.files) storage.files.set(url, body);
+  assertEquals(await catalog.productFacts(row()), original, "cache remains bounded but reusable before expiry");
+  now = 60_000;
+  assertEquals(await catalog.productFacts(row()), toProductFacts(corrected, row()), "facts must not extend an old index's freshness");
+});
+
+Deno.test("expired index cannot serve cached facts for removed products or unavailable storage", async () => {
+  for (const unavailable of [false, true]) {
+    let now = 0;
+    const storage = await fakeStorage({ "1060": blob() });
+    const catalog = new CatalogFacts({ store: fakeStore([row()]), fetchFn: storage.fetchFn,
+      supabaseUrl: "https://x.supabase.co", now: () => now });
+    await catalog.productFacts(row());
+    const indexUrl = [...storage.files.keys()].find((url) => url.endsWith("detail_index.json"))!;
+    if (unavailable) storage.files.delete(indexUrl);
+    else storage.files.set(indexUrl, "{}");
+    now = 60_000;
+    let refused = false;
+    try { await catalog.productFacts(row()); } catch (error) { refused = error instanceof CatalogUnavailableError; }
+    assert(refused, "expired cached facts must not mask a removed product or failed index refresh");
+  }
+});
+
+Deno.test("facts reflect updated row safety even when the content-addressed blob is unchanged", async () => {
+  const storage = await fakeStorage({ "1060": blob() });
+  const catalog = new CatalogFacts({ store: fakeStore([row()]), fetchFn: storage.fetchFn, supabaseUrl: "https://x.supabase.co" });
+  await catalog.productFacts(row());
+  const correctedRow = row({ product_safety_status: "blocked", product_name: "Corrected name" });
+  assertEquals(await catalog.productFacts(correctedRow), toProductFacts(blob(), correctedRow));
+});
+
 Deno.test("a blob whose bytes do not match the index hash is refused", async () => {
   const storage = await fakeStorage({ "1060": blob() });
   for (const [url] of storage.files) {
@@ -356,4 +397,22 @@ Deno.test("a blob whose bytes do not match the index hash is refused", async () 
     threw = error instanceof CatalogUnavailableError;
   }
   assert(threw, "tampered blob must fail the integrity check");
+});
+
+Deno.test("upper-limit facts preserve authored evidence and do not invent an established grade", () => {
+  const facts = toProductFacts(blob({ rda_ul_data: {
+    safety_flags: [
+      { nutrient: "Niacin", pct_ul: 250, warning: "Authored warning", evidence_level: "moderate", source: "Authored source" },
+      { nutrient: "Zinc", pct_ul: 200, warning: "Another authored warning" },
+    ],
+    analyzed_ingredients: [
+      { standard_name: "Vitamin C", over_ul: true, pct_ul: 150, warnings: ["Authored row warning"] },
+    ],
+  } }), row());
+  const flags = facts.upper_limit_flags as Json[];
+  assertEquals(flags[0].evidence_level, "moderate");
+  assertEquals(flags[0].source, "Authored source");
+  assertEquals(flags[1].evidence_level, null);
+  assertEquals(flags[2].evidence_level, null);
+  assert((facts.limitations as string[]).some((s) => s.includes("evidence grade")), "missing grade disclosed");
 });

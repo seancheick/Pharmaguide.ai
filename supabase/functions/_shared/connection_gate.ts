@@ -32,8 +32,9 @@ export interface ConnectionRepository {
   ): Promise<AiConnection | null>;
   /// The most recently created row for (user, client), any status.
   findLatest(userId: string, clientId: string): Promise<AiConnection | null>;
-  /// Binds the session to an unbound row; false when another session won.
-  bindSession(connectionId: string, sessionId: string): Promise<boolean>;
+  /// Atomically binds or validates against the live Auth session and returns
+  /// the current connection. Null denies missing/older/wrong/revoked sessions.
+  bindSession(connectionId: string, sessionId: string): Promise<AiConnection | null>;
 }
 
 export type GateResult =
@@ -60,7 +61,7 @@ function deny(reason: string): GateResult {
 /// Active and unexpired, or the reason it is not. Also used by
 /// ai-share-snapshot before it stores a share for a connection.
 export function evaluate(connection: AiConnection, now: Date): GateResult {
-  if (connection.status === "revoked") return deny(GATE_REASONS.revoked);
+  if (connection.status === "revoked" || connection.revoked_at !== null) return deny(GATE_REASONS.revoked);
   if (connection.status !== "active") return deny(GATE_REASONS.expired);
   const expiresAt = Date.parse(connection.expires_at);
   // An unparseable expiry is treated as already expired: fail closed.
@@ -78,7 +79,12 @@ export async function resolveConnection(
   const { sub, clientId, sessionId } = token;
   if (sessionId) {
     const bound = await repository.findBySession(sub, clientId, sessionId);
-    if (bound) return evaluate(bound, now);
+    if (bound) {
+      const verdict = evaluate(bound, now);
+      if (!verdict.ok) return verdict;
+      const validated = await repository.bindSession(bound.connection_id, sessionId);
+      return validated ? evaluate(validated, now) : deny(GATE_REASONS.otherSession);
+    }
   }
   const latest = await repository.findLatest(sub, clientId);
   if (!latest) return deny(GATE_REASONS.noConnection);
@@ -90,13 +96,20 @@ export async function resolveConnection(
       : evaluate(latest, now);
   }
   const verdict = evaluate(latest, now);
-  if (!verdict.ok || !sessionId) return verdict;
-  // First call after approval: bind this session to the connection.
-  if (await repository.bindSession(latest.connection_id, sessionId)) {
-    return { ok: true, connection: { ...latest, session_id: sessionId } };
+  if (!verdict.ok) return verdict;
+  // A token from before this consent must not claim a new unbound grant.
+  // JWT iat has second precision; the database timestamp may include fractions.
+  // The RPC also checks original Auth-session age, which refresh cannot reset.
+  const approvedAt = Date.parse(latest.created_at);
+  const issuedAt = token.claims.iat;
+  if (!sessionId || !Number.isFinite(approvedAt) || typeof issuedAt !== "number" ||
+      !Number.isFinite(issuedAt) || issuedAt < Math.floor(approvedAt / 1000)) {
+    return deny(GATE_REASONS.otherSession);
   }
-  const winner = await repository.findBySession(sub, clientId, sessionId);
-  return winner ? evaluate(winner, now) : deny(GATE_REASONS.otherSession);
+  // The service-only RPC checks Auth's original creation time and current
+  // connection state atomically. Never return the cached pre-bind approval.
+  const bound = await repository.bindSession(latest.connection_id, sessionId);
+  return bound ? evaluate(bound, now) : deny(GATE_REASONS.otherSession);
 }
 
 /// The categories a connection grants. Anything that is not an object with a

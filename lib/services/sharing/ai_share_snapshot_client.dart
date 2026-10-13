@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -15,13 +16,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// touches no table. `test/safety_invariants/no_health_in_supabase_test.dart`
 /// pins this file as the only sender of a health payload.
 class AiShareSnapshotClient {
-  AiShareSnapshotClient({required this.invoke, required this.isSignedIn});
+  AiShareSnapshotClient({
+    required this.invoke,
+    required this.isSignedIn,
+    this.currentUserId,
+  });
 
   /// Production wiring. Reads the Supabase client lazily so constructing
   /// this (for example inside `PGAuthService`) never needs Supabase ready.
   factory AiShareSnapshotClient.production([SupabaseClient? client]) {
     SupabaseClient supabase() => client ?? Supabase.instance.client;
     return AiShareSnapshotClient(
+      currentUserId: () => supabase().auth.currentUser?.id,
       isSignedIn: () {
         try {
           return supabase().auth.currentSession != null;
@@ -60,6 +66,24 @@ class AiShareSnapshotClient {
   )
   invoke;
   final bool Function() isSignedIn;
+  final String? Function()? currentUserId;
+
+  // All production instances share ordering, including the separate client
+  // constructed by sign-out. Purge cannot finish ahead of an earlier upload.
+  static Future<void>? _pending;
+  static Future<T> _ordered<T>(Future<T> Function() action) async {
+    while (_pending != null) {
+      await _pending;
+    }
+    final done = Completer<void>();
+    _pending = done.future;
+    try {
+      return await action();
+    } finally {
+      _pending = null;
+      done.complete();
+    }
+  }
 
   static int clampTtlHours(int hours) =>
       hours.clamp(minTtlHours, maxTtlHours).toInt();
@@ -102,6 +126,8 @@ class AiShareSnapshotClient {
     required String stackRevision,
     required int ttlHours,
     required String payload,
+    required DateTime generatedAt,
+    Future<bool> Function()? canUpload,
   }) async {
     _requireSignedIn();
     final normalized = scope.normalized;
@@ -114,13 +140,22 @@ class AiShareSnapshotClient {
     if (payload.trim().isEmpty) {
       throw ArgumentError('The payload is empty.');
     }
-    final response = await invoke(HttpMethod.post, {
-      'connection_id': connectionId,
-      'scope': normalized.toJson(),
-      'stack_revision': stackRevision,
-      'ttl_hours': clampTtlHours(ttlHours),
-      'format': payloadFormat,
-      'payload': payload,
+    final owner = currentUserId?.call();
+    final response = await _ordered(() async {
+      if (canUpload != null && !await canUpload()) {
+        throw StateError('AI share consent changed before upload.');
+      }
+      _requireSignedIn();
+      if (currentUserId?.call() != owner) throw const AiShareNotSignedIn();
+      return invoke(HttpMethod.post, {
+        'connection_id': connectionId,
+        'scope': normalized.toJson(),
+        'stack_revision': stackRevision,
+        'ttl_hours': clampTtlHours(ttlHours),
+        'format': payloadFormat,
+        'payload': payload,
+        'generated_at': generatedAt.toUtc().toIso8601String(),
+      });
     });
     final data = response.data;
     final snapshotId = data is Map ? data['snapshot_id'] : null;
@@ -149,7 +184,12 @@ class AiShareSnapshotClient {
   }
 
   Future<void> _delete(Map<String, Object?> body) async {
-    final response = await invoke(HttpMethod.delete, body);
+    final owner = currentUserId?.call();
+    final response = await _ordered(() {
+      _requireSignedIn();
+      if (currentUserId?.call() != owner) throw const AiShareNotSignedIn();
+      return invoke(HttpMethod.delete, body);
+    });
     if (response.status != 204 && response.status != 200) {
       throw AiShareSnapshotRequestFailed(response.status);
     }

@@ -5,8 +5,8 @@
 // InteractionDatabase over a temp copy of the FULL bundled
 // interaction_db.sqlite, real reference-data repository via rootBundle) and
 // asserts the findings equal the server-side spike output in
-// tool/engine_spike/golden/spike_findings.json (written by build.sh from the
-// Dart VM run, which build.sh also proves byte-identical to AOT/Deno/Node).
+// tool/engine_spike/golden/spike_findings.json (reviewed and frozen;
+// build.sh compares the Dart VM run with it and checks AOT/Deno/Node parity).
 //
 // Run: flutter test tool/engine_spike/test/golden_parity_test.dart
 // Needs: assets/db/interaction_db.sqlite (gitignored) and `make gen`.
@@ -25,11 +25,27 @@ import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart'
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 
 import '../lib/findings_codec.dart';
+import '../shims/overlay/data/database/interaction_database.dart' as spike;
 
 const _fx = 'tool/engine_spike/fixtures';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('spike row shim preserves optional schema-4 JSON fields', () {
+    final rows = jsonDecode(File('$_fx/interactions.json').readAsStringSync()) as List;
+    final original = Map<String, dynamic>.from(rows.first as Map);
+    final missing = spike.InteractionRow.fromSqlJson(original);
+    expect(missing.profileGateJson, original['profile_gate_json']);
+    expect(missing.medicationExceptionsJson, original['medication_exceptions_json']);
+    final withFields = spike.InteractionRow.fromSqlJson({
+      ...original,
+      'profile_gate_json': '{"fixture":"profile"}',
+      'medication_exceptions_json': '[{"fixture":"exception"}]',
+    });
+    expect(withFields.profileGateJson, '{"fixture":"profile"}');
+    expect(withFields.medicationExceptionsJson, '[{"fixture":"exception"}]');
+  });
 
   test('app provider path == server-side spike findings', () async {
     final stackFx =

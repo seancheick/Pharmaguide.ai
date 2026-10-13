@@ -185,8 +185,9 @@ class _ConnectionCard extends ConsumerWidget {
       children: [
         PGSettingsTile(
           icon: Icons.smart_toy_outlined,
-          title: connection.clientId,
+          title: connection.displayName,
           caption:
+              '${connection.callbackHost == null ? '' : '${connection.callbackHost} · '}'
               'Connected ${formatReportDate(connection.createdAt.toLocal())} '
               '· Access ends ${formatReportDate(connection.expiresAt.toLocal())}',
         ),
@@ -207,8 +208,8 @@ class _ConnectionCard extends ConsumerWidget {
             title: 'Keep this assistant updated',
             caption: saved == null
                 ? 'Available after your first share'
-                : 'Re-shares what you chose last time when your stack '
-                      'changes. Nothing new is added.',
+                : 'Uses the categories and duration you last chose when your '
+                      'stack changes, including new entries in those categories.',
             trailing: Switch.adaptive(
               value: saved?.keepUpdated ?? false,
               onChanged: saved == null
@@ -274,6 +275,19 @@ class _ConnectionCard extends ConsumerWidget {
     );
     if (confirmed != true) return;
 
+    try {
+      await ref.read(aiSharePrefsStoreProvider).forget(connection.connectionId);
+    } on Object {
+      if (context.mounted) {
+        PGToast.show(
+          context,
+          'Could not stop sharing. Try again.',
+          variant: PGToastVariant.error,
+        );
+      }
+      return;
+    }
+    ref.invalidate(aiShareConnectionPrefsProvider);
     var deleted = true;
     try {
       await ref
@@ -287,13 +301,6 @@ class _ConnectionCard extends ConsumerWidget {
         hint: 'ai_share:disconnect_delete_failed',
       );
     }
-    try {
-      await ref.read(aiSharePrefsStoreProvider).forget(connection.connectionId);
-    } on Object {
-      // Device-only record; the next sign-out clears it too.
-    }
-    ref.invalidate(aiShareConnectionPrefsProvider);
-
     final open =
         onOpenExternal ??
         (Uri uri) => launchUrl(uri, mode: LaunchMode.externalApplication);

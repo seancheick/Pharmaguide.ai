@@ -26,3 +26,11 @@ CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
   )::jsonb
 $$;
 GRANT EXECUTE ON FUNCTION auth.jwt() TO PUBLIC;
+
+-- Auth's session owner, absent from the Postgres-only fixture image. These
+-- are the exact columns read by the service-only connection binding RPC.
+CREATE TABLE IF NOT EXISTS auth.sessions (
+  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES auth.users(id),
+  oauth_client_id uuid, created_at timestamptz NOT NULL,
+  not_after timestamptz
+);

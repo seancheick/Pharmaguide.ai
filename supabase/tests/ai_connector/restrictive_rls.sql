@@ -179,27 +179,44 @@ BEGIN
 END $$;
 RESET role;
 
--- 5. S2 hook: stamps aud only for OAuth client tokens, fails closed when the
---    audience is blank, and only supabase_auth_admin may run it.
+-- 5. S2 containment: until the issuer proves original requested-resource
+--    binding, refuse third-party issuance and refresh regardless of audience.
+--    Ordinary app / website sessions pass through unchanged.
 DO $$
 DECLARE
   app_event jsonb := '{"user_id":"u","claims":{"aud":"authenticated","sub":"u","role":"authenticated"}}';
   oauth_event jsonb := '{"user_id":"u","claims":{"aud":"authenticated","sub":"u","role":"authenticated","client_id":"c"}}';
+  event jsonb;
   result jsonb;
+  audience jsonb;
+  method text;
 BEGIN
   UPDATE public.ai_connector_config SET value = 'https://ref.supabase.co/functions/v1/mcp-personal'
   WHERE key = 'personal_mcp_audience';
   PERFORM set_config('role', 'supabase_auth_admin', true);
-  PERFORM aic.assert(public.custom_access_token_hook(app_event) = app_event, 'app session claims unchanged');
-  result := public.custom_access_token_hook(oauth_event);
-  PERFORM aic.assert(result #>> '{claims,aud}' = 'https://ref.supabase.co/functions/v1/mcp-personal',
-    'OAuth token audience stamped');
-  PERFORM aic.assert(result #>> '{claims,client_id}' = 'c', 'other claims kept');
+  FOREACH method IN ARRAY ARRAY['password', 'oauth', 'token_refresh'] LOOP
+    event := app_event || jsonb_build_object('authentication_method', method);
+    PERFORM aic.assert(public.custom_access_token_hook(event) = event,
+      'ordinary app session unchanged: ' || method);
+  END LOOP;
+  FOREACH method IN ARRAY ARRAY['oauth_provider/authorization_code', 'token_refresh'] LOOP
+    FOR audience IN SELECT value FROM jsonb_array_elements(
+      '["authenticated", "https://ref.supabase.co/functions/v1/mcp-personal", "https://attacker.invalid/mcp", ["authenticated", "https://ref.supabase.co/functions/v1/mcp-personal"], null]'::jsonb
+    ) LOOP
+      event := jsonb_set(oauth_event, '{claims,aud}', audience)
+        || jsonb_build_object('authentication_method', method);
+      result := public.custom_access_token_hook(event);
+      PERFORM aic.assert(result #>> '{error,http_code}' = '403'
+        AND result #>> '{error,message}' = 'Personal AI connections are temporarily unavailable.'
+        AND NOT (result ? 'claims'),
+        'OAuth token refused regardless of audience: ' || method || ' ' || audience::text);
+    END LOOP;
+  END LOOP;
   PERFORM set_config('role', 'supabase_admin', true);
   UPDATE public.ai_connector_config SET value = ' ' WHERE key = 'personal_mcp_audience';
   PERFORM set_config('role', 'supabase_auth_admin', true);
   result := public.custom_access_token_hook(oauth_event);
-  PERFORM aic.assert(result ? 'error', 'blank audience refuses the OAuth token');
+  PERFORM aic.assert(result #>> '{error,http_code}' = '403', 'blank config cannot permit OAuth issuance');
   PERFORM set_config('role', 'supabase_admin', true);
   PERFORM aic.assert(NOT has_function_privilege('authenticated', 'public.custom_access_token_hook(jsonb)', 'EXECUTE'),
     'authenticated cannot run the hook');

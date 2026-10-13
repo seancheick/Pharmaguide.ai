@@ -212,3 +212,48 @@ EXCEPTION WHEN SQLSTATE 'Z0001' THEN NULL;
 END $$;
 
 SELECT 'AI connector snapshot and pre-request tests passed.' AS result;
+
+SELECT aic.assert(to_regprocedure('public.bind_ai_connection_session(uuid,text)') IS NOT NULL,
+  'authoritative session binding RPC exists');
+
+DO $$
+DECLARE
+  c uuid := '50000000-0000-0000-0000-000000000001';
+  s uuid := '60000000-0000-0000-0000-000000000001';
+  client uuid := '70000000-0000-0000-0000-000000000001';
+BEGIN
+  PERFORM aic.assert(NOT has_function_privilege('anon', 'public.bind_ai_connection_session(uuid,text)', 'EXECUTE')
+    AND NOT has_function_privilege('authenticated', 'public.bind_ai_connection_session(uuid,text)', 'EXECUTE')
+    AND has_function_privilege('service_role', 'public.bind_ai_connection_session(uuid,text)', 'EXECUTE'),
+    'session binding RPC is service-only');
+  INSERT INTO public.ai_connections(connection_id,user_id,client_id,created_at,expires_at)
+    VALUES(c,aic.user_id(1),client::text,now()-interval '1 minute',now()+interval '1 day');
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'missing session denied');
+  INSERT INTO auth.sessions(id,user_id,oauth_client_id,created_at)
+    VALUES(s,aic.user_id(1),client,now()-interval '1 minute'-interval '1 microsecond');
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'older session denied even within consent second');
+  UPDATE auth.sessions SET created_at=now(),user_id=aic.user_id(2) WHERE id=s;
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'wrong user denied');
+  UPDATE auth.sessions SET user_id=aic.user_id(1),oauth_client_id=NULL WHERE id=s;
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'app session denied');
+  UPDATE auth.sessions SET oauth_client_id='70000000-0000-0000-0000-000000000002' WHERE id=s;
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'wrong OAuth client denied');
+  UPDATE auth.sessions SET oauth_client_id=client,not_after=now()-interval '1 second' WHERE id=s;
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'ended session denied');
+  UPDATE auth.sessions SET not_after=NULL WHERE id=s;
+  PERFORM set_config('role','service_role',true);
+  PERFORM aic.assert(EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text) WHERE session_id=s::text), 'current session binds using service role');
+  PERFORM aic.assert(EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'bound session validates again after token refresh');
+  PERFORM set_config('role','supabase_admin',true);
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,'60000000-0000-0000-0000-000000000002')), 'another session cannot take bound grant');
+  DELETE FROM auth.sessions WHERE id=s;
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'Auth-revoked bound session immediately denied');
+  INSERT INTO auth.sessions(id,user_id,oauth_client_id,created_at) VALUES(s,aic.user_id(1),client,now());
+  UPDATE public.ai_connections SET revoked_at=now() WHERE connection_id=c;
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'revoked_at denies even if active status');
+  UPDATE public.ai_connections SET revoked_at=NULL,expires_at=now()-interval '1 second' WHERE connection_id=c;
+  PERFORM aic.assert(NOT EXISTS(SELECT 1 FROM public.bind_ai_connection_session(c,s::text)), 'expired connection denied');
+  RAISE EXCEPTION 'aic rollback' USING ERRCODE='Z0001';
+EXCEPTION WHEN SQLSTATE 'Z0001' THEN NULL;
+END $$;
+RESET role;

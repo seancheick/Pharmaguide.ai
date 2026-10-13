@@ -280,14 +280,46 @@ void main() {
       expect(text, contains('Calcium can lower iron absorption'));
       expect(text, contains('Evidence level: probable'));
       expect(text, contains('Source: https://ods.od.nih.gov/example'));
-      expect(text, contains('| Vitamin D | 5,000 IU | 125% |'));
-      expect(text, contains('Approaching upper limit'));
+      expect(text, contains('| Vitamin D | 5,000 IU | Vitamin D3 |'));
+      expect(text, isNot(contains('125%')));
+      expect(text, isNot(contains('Approaching upper limit')));
     });
 
     test('never declares anything safe', () {
       expect(_unsupportedSafe.hasMatch(text), isFalse, reason: text);
       expect(text, contains('say "no known concerns"'));
     });
+  });
+
+  test(
+    'generic fallback UL warning survives while personal UL is withheld',
+    () {
+      for (final generic in [true, false]) {
+        final status = NutrientStatus(
+          total: _vitaminDStatus.total,
+          tier: NutrientTier.exceedsUl,
+          ul: 4000,
+          pctOfUl: 125,
+          ulIsFallback: generic,
+          warning: 'UL warning control',
+        );
+        final text = builder.build(
+          _data(safetyReport: StackSafetyReport(nutrientStatuses: [status])),
+          AiShareScope.detailedReport,
+        );
+        expect(text.contains('UL warning control'), generic);
+        expect(text, isNot(contains('% of target')));
+      }
+    },
+  );
+
+  test('findings cannot disclose excluded supplement names', () {
+    final text = builder.build(
+      _data(),
+      const AiShareScope(supplementNames: false),
+    );
+    expect(text, isNot(contains('Calcium')));
+    expect(text, isNot(contains('Vitamin D')));
   });
 
   group('AiBriefBuilder full scope', () {

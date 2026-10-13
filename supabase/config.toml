@@ -37,10 +37,11 @@ verify_jwt = false
 # MCP connector. The consent page lives on the website (feat/ai-connector-consent).
 [auth.oauth_server]
 enabled = true
-allow_dynamic_registration = true
+allow_dynamic_registration = false
 authorization_url_path = "/oauth/authorize"
 
-# S2: stamp the personal MCP audience on assistant tokens (supabase/auth #2610).
+# S2 containment: refuse third-party token issuance/refresh until the issuer
+# proves requested-resource binding. Ordinary app sessions are unchanged.
 [auth.hook.custom_access_token]
 enabled = true
 uri = "pg-functions://postgres/public/custom_access_token_hook"

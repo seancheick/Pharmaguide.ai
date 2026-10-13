@@ -2,7 +2,7 @@
 // connection (ADR-009 Phase 2). Called by the PharmaGuide app with its own
 // signed-in session, never with an assistant's OAuth token.
 //
-//   POST   { connection_id, scope, stack_revision, ttl_hours, format, payload }
+//   POST   { connection_id, scope, stack_revision, generated_at, ttl_hours, format, payload }
 //            -> 201 { snapshot_id, expires_at }
 //   DELETE { connection_id } | { all: true } -> 204
 //
@@ -180,11 +180,22 @@ export function createHandler(deps: ShareDeps): (request: Request) => Promise<Re
     let ttlHours: number;
     let stackRevision: string | null;
     let payload: string;
+    let generatedAt: Date;
     try {
       if (typeof body.connection_id !== "string" || !UUID.test(body.connection_id)) throw new BadRequest();
       connectionId = body.connection_id.toLowerCase();
       if (body.format !== SNAPSHOT_FORMAT) throw new BadRequest();
       scope = normalizeScope(body.scope);
+      // Use the report's generation time, not upload receipt time: a change
+      // between preview and upload must still make the shared report stale.
+      if (typeof body.generated_at !== "string" ||
+          !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/.test(body.generated_at)) {
+        throw new BadRequest();
+      }
+      generatedAt = new Date(body.generated_at);
+      if (!Number.isFinite(generatedAt.getTime()) || generatedAt.getTime() > now().getTime()) {
+        throw new BadRequest();
+      }
       ttlHours = clampTtlHours(body.ttl_hours);
       if (body.stack_revision === undefined || body.stack_revision === null) {
         stackRevision = null;
@@ -227,7 +238,7 @@ export function createHandler(deps: ShareDeps): (request: Request) => Promise<Re
       scope,
       stackRevision,
       payload,
-      generatedAt: at,
+      generatedAt,
       expiresAt,
     });
     await deps.store.upsert(row);
@@ -303,6 +314,15 @@ export function postgrestShareStore(
   };
 }
 
+// Do not collect new sensitive snapshots while personal reads are contained
+// for ADR-009 S2. Keep the existing authenticated deletion/sign-out path live.
+export function createProductionHandler(deps: ShareDeps): (request: Request) => Promise<Response> {
+  const handler = createHandler(deps);
+  return (request) => request.method === "POST"
+    ? Promise.resolve(json({ error: MESSAGES.unavailable }, 503))
+    : handler(request);
+}
+
 if (import.meta.main) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
   let serviceKey: string | undefined;
@@ -319,7 +339,7 @@ if (import.meta.main) {
   } else {
     const issuer = `${supabaseUrl.replace(/\/$/, "")}/auth/v1`;
     const keys = remoteJwks(supabaseUrl);
-    Deno.serve(createHandler({
+    Deno.serve(createProductionHandler({
       verifySession: (token) => verifyAppSessionToken(token, { issuer, keys }),
       store: postgrestShareStore(supabaseUrl, serviceKey),
       keyring,

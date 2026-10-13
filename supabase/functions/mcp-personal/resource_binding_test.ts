@@ -1,16 +1,7 @@
-// S2: a token minted for another MCP resource on the same authorization
-// server is never accepted here, and one connection never reads through
-// another.
-//
-// Staging checks that a unit test cannot make (README "Gate"):
-//   - Register a second (attacker) MCP resource and client against the staging
-//     authorization server, complete the flow with resource=<attacker URL>, and
-//     replay the access token here: expect 401.
-//   - Repeat after a refresh_token grant, and with a DCR-registered client:
-//     the hook must stamp aud on refreshed tokens too, expect 401 for the
-//     attacker audience and 200 only for this server's audience.
-//   - Confirm supabase/auth#2610 status: if Auth starts honouring `resource`,
-//     re-run this list before relying on it.
+import { createProductionHandler } from "./index.ts";
+// Synthetic handler tests exercise audience checks and connection isolation.
+// These are not proof of original requested-resource binding by the issuer.
+// Production containment below denies all personal reads until S2 is repaired.
 import {
   assertEquals,
   ATTACKER_AUDIENCE,
@@ -74,4 +65,31 @@ Deno.test("a session bound to connection X cannot be used for connection Y's cli
   const response = await h.handler(callSupplements(await sign(h.key, claimsFor(USER_A, CHATGPT, "session-x"))));
   assertEquals(response.status, 403, "cross-connection session");
   assertEquals((await body(response)).error.code, -32003, "gate error");
+});
+
+Deno.test("production containment denies previously issued personal tokens and keeps discovery", async () => {
+  const h = await harness({ handlerFactory: createProductionHandler });
+  const token = await sign(h.key, claimsFor(USER_A, CLAUDE));
+  for (const name of ["get_my_supplements", "get_my_stack_snapshot"]) {
+    const request = new Request(AUDIENCE, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name } }),
+    });
+    const response = await h.handler(request);
+    assertEquals(response.status, 503, name);
+    assertEquals((await body(response)).error.message, "PharmaGuide is unavailable right now. Try again shortly.");
+  }
+  assertEquals(h.stacks.requestedUsers, [], "no personal read");
+  assertEquals(h.log.entries, [], "no access log write");
+  const metadata = await h.handler(new Request(`${AUDIENCE}/oauth-protected-resource`));
+  assertEquals(metadata.status, 200);
+  assertEquals((await body(metadata)).resource, AUDIENCE);
+});
+
+Deno.test("checked-in OAuth server config requires pre-registered clients", async () => {
+  const config = await Deno.readTextFile(new URL("../../config.toml", import.meta.url));
+  const oauth = config.split("[auth.oauth_server]")[1]?.split(/^\[/m)[0] ?? "";
+  assertEquals(/^allow_dynamic_registration\s*=\s*false\s*$/m.test(oauth), true,
+    "ADR-009 production config must not accept dynamic client registrations");
 });

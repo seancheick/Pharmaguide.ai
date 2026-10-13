@@ -83,7 +83,6 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
 
   Widget _body(BuildContext context, ClinicianReportData data) {
     final text = const AiBriefBuilder().build(data, _scope);
-    final clientId = widget.connection.clientId;
     return Column(
       children: [
         Expanded(
@@ -100,13 +99,14 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ConsentCard(
-                  clientId: clientId,
+                  clientName: widget.connection.displayName,
+                  callbackHost: widget.connection.callbackHost,
                   connectedOn: widget.connection.createdAt,
                   scope: _scope,
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 Text(
-                  'Available to the assistant for',
+                  'Maximum sharing time',
                   style: V2Typography.titleSm(color: context.v2.fg),
                 ),
                 const SizedBox(height: V2Spacing.space8),
@@ -114,6 +114,13 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
                   segments: const ['24 hours', '7 days', '30 days'],
                   selectedIndex: _durationIndex,
                   onChanged: (i) => setState(() => _durationIndex = i),
+                ),
+                const SizedBox(height: V2Spacing.space16),
+                Text(
+                  'Sharing ends after this time or when your assistant connection '
+                  'expires on ${formatReportDate(widget.connection.expiresAt.toLocal())}, '
+                  'whichever comes first.',
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 AiShareScopeSwitches(scope: _scope, onScope: _update),
@@ -171,23 +178,43 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
   ) async {
     final ttlHours = _durations[_durationIndex];
     setState(() => _sharing = true);
+    var pausedUpdates = false;
+    String failureText(String message) => pausedUpdates
+        ? '$message Automatic updates are off; turn them back on in Connected AI assistants.'
+        : message;
     try {
-      final receipt = await ref
-          .read(aiShareSnapshotClientProvider)
-          .upload(
-            connectionId: widget.connection.connectionId,
-            scope: scope,
-            stackRevision: AiShareSnapshotClient.stackRevisionForScope(
-              data.stack,
-              scope,
-            ),
-            ttlHours: ttlHours,
-            payload: text,
-          );
+      final prefs = ref.read(aiSharePrefsStoreProvider);
+      final previous = await prefs.read(widget.connection.connectionId);
+      if (previous?.keepUpdated == true) {
+        // Cancel any prepared refresh before replacing the previewed share.
+        await prefs.setKeepUpdated(widget.connection.connectionId, false);
+        pausedUpdates = true;
+        ref.invalidate(aiShareConnectionPrefsProvider);
+      }
+      final consentRevision = prefs.revision;
+      final client = ref.read(aiShareSnapshotClientProvider);
+      final owner = client.currentUserId?.call();
+      final receipt = await client.upload(
+        connectionId: widget.connection.connectionId,
+        generatedAt: data.generatedAt,
+        scope: scope,
+        stackRevision: AiShareSnapshotClient.stackRevisionForScope(
+          data.stack,
+          scope,
+        ),
+        ttlHours: ttlHours,
+        payload: text,
+      );
       try {
-        await ref
-            .read(aiSharePrefsStoreProvider)
-            .recordShare(widget.connection.connectionId, scope, ttlHours);
+        await prefs.recordShare(
+          widget.connection.connectionId,
+          scope,
+          ttlHours,
+          expectedRevision: consentRevision,
+          isStillOwner: () =>
+              client.isSignedIn() && client.currentUserId?.call() == owner,
+          keepUpdated: previous?.keepUpdated ?? false,
+        );
         ref.invalidate(aiShareConnectionPrefsProvider);
       } on Object catch (error, stackTrace) {
         // The share succeeded; only the device-side record failed, which
@@ -206,14 +233,22 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
       );
       unawaited(Navigator.of(context).maybePop(true));
     } on AiShareNotSignedIn {
-      _fail('Sign in to share with an assistant.');
+      _fail(failureText('Sign in to share with an assistant.'));
+    } on AiShareSnapshotRequestFailed catch (error) {
+      _fail(
+        failureText(
+          error.status == 400
+              ? 'Check your device date/time and refresh the preview before sharing again.'
+              : 'The share did not complete. Try again.',
+        ),
+      );
     } on Object catch (error, stackTrace) {
       CrashReportingService().recordError(
         error,
         stackTrace,
         hint: 'ai_share:upload_failed',
       );
-      _fail('The share did not complete. Try again.');
+      _fail(failureText('The share did not complete. Try again.'));
     }
   }
 
@@ -227,12 +262,14 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
 /// S4: destination, categories, the three data locations and how to stop.
 class _ConsentCard extends StatelessWidget {
   const _ConsentCard({
-    required this.clientId,
+    required this.clientName,
+    required this.callbackHost,
     required this.connectedOn,
     required this.scope,
   });
 
-  final String clientId;
+  final String clientName;
+  final String? callbackHost;
   final DateTime connectedOn;
   final AiShareScope scope;
 
@@ -278,7 +315,12 @@ class _ConsentCard extends StatelessWidget {
             'Sharing with',
             style: V2Typography.caption(color: context.v2.fgMuted),
           ),
-          Text(clientId, style: V2Typography.titleSm(color: context.v2.fg)),
+          Text(clientName, style: V2Typography.titleSm(color: context.v2.fg)),
+          if (callbackHost != null)
+            Text(
+              callbackHost!,
+              style: V2Typography.bodySm(color: context.v2.fg),
+            ),
           Text(
             'Connected ${formatReportDate(connectedOn.toLocal())}',
             style: V2Typography.caption(color: context.v2.fgMuted),

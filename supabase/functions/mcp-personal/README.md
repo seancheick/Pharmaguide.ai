@@ -1,65 +1,51 @@
 # mcp-personal
 
-The personal PharmaGuide MCP server (Phase 1b). It gives an assistant the user approved one
-read-only tool, `get_my_supplements`: the supplement names, PharmaGuide product ids and
-ingredient keys the user already syncs, with `not_included: [medications, conditions, doses]`.
-Phase 2 adds `get_my_stack_snapshot`: the brief the user shared to this exact connection from
-the app (`supabase/functions/ai-share-snapshot`), decrypted with `AI_SHARE_SNAPSHOT_KEY_V<n>`
-(`_shared/snapshot_crypto.ts`), with `stale` from `user_stacks.client_updated_at`. It needs no
-connection-wide category: the share itself is the user's per-connection consent.
-Threat model: `docs/security/ai-connector-threat-model.md` (S1–S10).
+**Production personal access is disabled in this candidate until S2 is repaired.** Every personal MCP request returns 503, including requests with previously issued tokens; protected-resource discovery metadata remains available. Snapshot POST uploads also return 503, while authenticated DELETE/purge stays available. These changes are local, not deployed.
 
-Every request: verify the OAuth token (`_shared/oauth_token.ts`) → resolve its
-`ai_connections` row (`_shared/connection_gate.ts`) → per-connection rate limit → scope check →
-`mcp_access_log` row → service-role read of `user_stacks` filtered by the verified `sub`. The
-OAuth token is never forwarded to the database.
+The dependency-injected implementation has two read-only tools for synthetic testing:
 
-## Gate: green on a staging project before any real user connects
+- `get_my_supplements`: the supplement names, PharmaGuide product ids and ingredient keys already synced by the user. Medications, conditions and doses are excluded.
+- `get_my_stack_snapshot`: the scoped brief explicitly shared to this connection from the phone, decrypted with `AI_SHARE_SNAPSHOT_KEY_V<n>`. This tool needs an active connection and its own consented snapshot; it does not imply consent to other health data.
 
-| Requirement | Automated here | Staging check (Sean or the integrator) |
+The dormant implementation verifies the OAuth token, resolves the existing `ai_connections` owner, validates the live Supabase Auth session, and applies the connection's scope and rate limit. Database access uses the server key, filtered by the verified user; assistant tokens are never forwarded to PostgREST. See `docs/security/ai-connector-threat-model.md`.
+
+## Audit status — October 13, 2026
+
+The audit candidate is implemented and verified locally; these fixes are not deployed. The full Deno suite passed 214 tests and the disposable PostgreSQL suite passed. The full app check passed analysis and 3,901 tests before the final verified-client/expiry display corrections; their affected suites passed 17 tests and focused analysis. Final runtime source `015a43fe` passed CI `38441160359`: 3,858 CI-scoped Flutter tests, 214 Deno tests, analysis, harness and formatting. Bundle assets were available; the existing CI profile excludes golden-tagged cases. Documentation-only closeout reuses this source checkpoint. Local tests do not establish live OAuth readiness.
+
+**S2 remains an open release blocker.** The former token hook stamped the personal MCP audience on OAuth tokens. Requiring that audience rejects a deliberately wrong-audience test token, but does not prove that a token originally requested for another resource cannot receive the stamped audience. The forward containment migration now refuses all third-party token issuance and refresh through the existing hook. Ordinary app sessions are unchanged. This contains exposure; it does not implement resource binding. The real authorization-server attack test, including refresh, remains required. Do not connect real health data or describe personal sharing as release-ready while this is unresolved.
+
+S6's accepted phone-pairing requirement and S9's privacy/policy review also remain open. The first real Claude/ChatGPT connection, actual callback configuration, consent, snapshot retrieval, disconnect and expiry still need recorded live verification.
+
+## Required live gates
+
+| Requirement | Automated coverage | Live acceptance still required |
 |---|---|---|
-| S1 Database isolation | `auth_isolation_test.ts`; `scripts/test_ai_connector_rls.sh` | With a real OAuth access token: PostgREST `GET /rest/v1/user_stacks`, a Storage object read and `rpc/get_product_submission_intake` all return zero rows or 42501; `delete-account` and `register-push-token` return 403 |
-| S2 Resource binding | `resource_binding_test.ts`; hook cases in the SQL suite | Register a second (attacker) MCP resource on the staging AS, mint a token for it, replay it here: 401. Repeat after a `refresh_token` grant and with a DCR-registered client |
-| S3 Client identity | consent-page allowlist tests (website repo) | An unregistered or inexact callback cannot be approved; loopback is refused for every client except Claude Code |
-| S5 Revocation and purge | `revocation_purge_test.ts`; cascade cases in the SQL suite | Disconnect on `/account/connections`, then call the tool with the same unexpired access token: 403. Refresh fails after `revokeGrant` |
-| S10 Grant-level authorization | `grant_authorization_test.ts` | Approve Claude with supplements, connect ChatGPT with an empty scope: ChatGPT's calls get 403 |
+| S1 Database isolation | `auth_isolation_test.ts`; `scripts/test_ai_connector_rls.sh` | A real OAuth token cannot read PostgREST tables, private Storage or privileged RPCs, or call app-only functions. |
+| S2 Resource binding | `resource_binding_test.ts` verifies production 503 and metadata; SQL hook cases verify denied issuance/refresh with unchanged app sessions | Request a token for another resource from the actual AS and replay it here, including after refresh. It must be rejected. Current hook tests do not prove this. |
+| S3 Client identity | Website `tests/ai-connector.test.cjs` | Pre-register actual client ids and exact callback URIs. Checked-in DCR is off under ADR-009; the audit observed live DCR still enabled, and has not changed it. Verify rejected clients and callback mismatches. |
+| S5 Revocation | `revocation_purge_test.ts`; app sign-out tests; SQL suite | Disconnect, then reuse the same unexpired token: access denied; refresh also fails. Offline app sign-out is best-effort and can leave an existing snapshot until later deletion or expiry. |
+| S10 Session and grant ownership | `grant_authorization_test.ts`; SQL session matrix | A refreshed older session cannot bind a newer consent; deleted Auth sessions fail; wrong user/client/scope cannot read a connection or snapshot. |
 
-## Sean's dashboard steps (staging first, then production)
+## Deployment order for the reviewed candidate
 
-1. **Authentication → OAuth Server:** enable it. Turn on dynamic client registration on the
-   **staging project only**; production keeps it off.
-2. **Authorization path:** set the consent page URL to `https://pharmaguide.io/oauth/authorize`
-   (staging: the preview URL). Add it, and `https://pharmaguide.io/account/connections`, to
-   **Authentication → URL Configuration → Redirect URLs** so website sign-in can return there.
-3. **Pre-register the trusted clients** with exact redirect URIs:
-   - Claude: `https://claude.ai/api/mcp/auth_callback`
-   - ChatGPT: `https://chatgpt.com/connector_platform_oauth_redirect` (add the
-     `https://chatgpt.com/connector/oauth/{callback_id}` value ChatGPT shows, if it gives one)
-   - Claude Code: `http://localhost/callback` and `http://127.0.0.1/callback` (loopback, port-agnostic)
+Containment deployment requires the applicable approval and leaves the personal connector disabled. Enabling personal access additionally requires closed release gates and a reviewed issuer repair; this is an order of operations, not evidence that deployment has happened.
 
-   Put the three client ids into the website's `AI_CONNECTOR_TRUSTED_CLIENTS` setting.
-4. **JWT signing keys:** confirm the project signs with an asymmetric key (ES256 or RS256). This
-   server refuses HS256.
-5. **Apply the migrations** (`supabase db push`): `20261012120000_ai_connector_restrictive_rls`,
-   `20261012120100_ai_connections`, `20261012120200_custom_access_token_hook`.
-6. **Audience:** `UPDATE public.ai_connector_config SET value = 'https://<ref>.supabase.co/functions/v1/mcp-personal' WHERE key = 'personal_mcp_audience';`
-7. **Authentication → Hooks → Customize Access Token (JWT) Claims:** Postgres,
-   `public.custom_access_token_hook`, enable. Then sign in to the app once and confirm app
-   sessions still work (their claims are untouched; only tokens with `client_id` change).
-8. **Function secret:** `supabase secrets set MCP_PERSONAL_RESOURCE_URL=<the same URL as step 6>`,
-   then `supabase functions deploy mcp-personal` (config: `verify_jwt = false`).
-9. Deploy `delete-account` and `register-push-token` (they now refuse OAuth client tokens).
+1. Apply pending connector migrations in timestamp order, including prerequisites, `20261013165631_ai_connection_session_binding.sql`, and `20261013171928_ai_connector_deny_unbound_oauth.sql`. The session RPC must exist before the updated personal function is deployed; absent RPC fails closed. It validates Auth session existence, user, client, original creation time and expiry against the active connection.
+2. Verify the existing Auth custom-access-token hook remains enabled. Third-party issuance and refresh must fail; ordinary app sign-in/refresh must still work. Apply checked-in production DCR=false. The audit did not change live configuration.
+3. Deploy both contained functions: `mcp-personal` denies every personal read, including old tokens; `ai-share-snapshot` denies new uploads and preserves authenticated deletion. A hook change alone does not stop already-issued tokens. Preserve configured audience, signing keys and snapshot keys; do not remove containment without a reviewed issuer repair.
+4. Deploy the coordinated website approval route. It must insert the consent row before Supabase Auth approves the authorization, so the resulting session is created at or after consent. The browser must not independently approve the same authorization. Actual connection attempts remain disabled by the hook.
+5. Keep the coordinated app/function contract ready for a later reviewed re-enable. Snapshot POST requires `generated_at`, the report's actual collection time in UTC; older app builds without it are rejected. Lifetime starts at upload acceptance, without replacing generation time. Future device timestamps are rejected; the app directs users to check date/time and refresh the preview.
+6. After the issuer is repaired and containment is deliberately replaced in a reviewed candidate, run the live gates above on deployed test versions and record the receipts before enabling personal access. Configure trusted clients from their actual setup flow and verify callback values. Current production factory tests must continue to prove containment until then.
 
-Until step 6 the hook stamps an unroutable placeholder, so every OAuth token is rejected here.
-Without `MCP_PERSONAL_RESOURCE_URL` the function answers 503 to everything.
+The `stale` flag checks synchronized supplement changes, including removals, after the report's generation time. It cannot detect unsynced phone changes or later medication/profile edits that never reached the server. `stale: false` is not proof that the user's current health information is unchanged. A snapshot is a dated report, not a live safety check.
 
 ## Local commands
 
 ```bash
-deno test --allow-read --allow-env supabase/functions   # all function tests, no network at runtime
-scripts/test_ai_connector_rls.sh                        # SQL suite; needs Docker running
-supabase functions serve mcp-personal --env-file <file with SUPABASE_URL, MCP_PERSONAL_RESOURCE_URL, SUPABASE_SECRET_KEY>
+deno test --allow-read --allow-env supabase/functions
+scripts/test_ai_connector_rls.sh
+supabase functions serve mcp-personal --env-file <local environment file>
 ```
 
-The tests sign tokens with an RSA key generated per run and inject the JWKS; repositories are
-in-memory fakes. Rate limits are per function instance, not global.
+Deno tests sign fixture tokens with an ephemeral RSA key and use injected repositories. The SQL suite uses a disposable Docker database and accepts no remote database URL. Rate limits and catalog caches are per function instance, not global. Never put real keys or health payloads in test logs.
