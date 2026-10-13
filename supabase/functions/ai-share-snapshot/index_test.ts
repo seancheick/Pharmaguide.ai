@@ -31,7 +31,7 @@ import {
   USER_A,
   USER_B,
 } from "../mcp-personal/test_support.ts";
-import { createHandler, type ShareStore, type SnapshotRow } from "./index.ts";
+import { createHandler, createProductionHandler, type ShareStore, type SnapshotRow } from "./index.ts";
 
 const KEY_V1 = btoa(String.fromCharCode(...new Uint8Array(32).map((_, i) => i + 1)));
 const KEY_V2 = btoa(String.fromCharCode(...new Uint8Array(32).map((_, i) => 200 - i)));
@@ -97,13 +97,13 @@ interface Setup {
   live: AiConnection;
 }
 
-async function setup(connections?: AiConnection[], limiter = new RateLimiter(1000, 0)): Promise<Setup> {
+async function setup(connections?: AiConnection[], limiter = new RateLimiter(1000, 0), handlerFactory = createHandler): Promise<Setup> {
   const key = await signingKey("project-key");
   const keys = localJwks({ keys: [key.jwk] });
   const live = connection({ expires_at: "2026-12-31T00:00:00Z" });
   const store = new FakeStore(connections ?? [live]);
   const keyring = await keyringFromEnv((name) => ({ AI_SHARE_SNAPSHOT_KEY_V1: KEY_V1 } as Record<string, string>)[name]);
-  const handler = createHandler({
+  const handler = handlerFactory({
     verifySession: (token) => verifyAppSessionToken(token, { issuer: ISSUER, keys, now: () => NOW }),
     store,
     keyring,
@@ -386,4 +386,22 @@ Deno.test("a snapshot requires an explicit valid generation timestamp no later t
     assertEquals(response.status, 400, `invalid generation time ${generated_at}`);
   }
   assertEquals(s.store.rows.size, 0);
+});
+
+Deno.test("production containment denies new snapshots but preserves authenticated purge", async () => {
+  const s = await setup(undefined, undefined, createProductionHandler);
+  const token = await appToken(s);
+  const upload = await s.handler(request("POST", token, share(s.live.connection_id)));
+  assertEquals(upload.status, 503);
+  assertEquals(s.store.rows.size, 0, "no sensitive snapshot stored");
+  const denied = await s.handler(request("DELETE", null, { all: true }));
+  assertEquals(denied.status, 401, "purge still requires app authentication");
+  const deleted = await s.handler(request("DELETE", token, { connection_id: s.live.connection_id }));
+  assertEquals(deleted.status, 204);
+  const signedOut = await s.handler(request("DELETE", token, { all: true }));
+  assertEquals(signedOut.status, 204);
+  assertEquals(s.store.deletes, [
+    { connectionId: s.live.connection_id, userId: USER_A },
+    { connectionId: null, userId: USER_A },
+  ]);
 });

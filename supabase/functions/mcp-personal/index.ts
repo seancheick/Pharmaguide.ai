@@ -481,6 +481,17 @@ export function postgrestRepositories(
   };
 }
 
+// ADR-009 S2 prerequisite: the current issuer cannot prove the requested
+// resource. Keep discovery available, but never accept even previously issued
+// tokens in production. The injected createHandler above exercises the dormant
+// implementation with synthetic data until a reviewed issuer repair closes S2.
+export function createProductionHandler(deps: PersonalMcpDeps): (request: Request) => Promise<Response> {
+  return withOAuthProtectedResource(
+    { resourceServer: deps.resourceUrl, authorizationServer: deps.authorizationServer },
+    () => Promise.resolve(transport.rpcError(null, -32603, HTTP_MESSAGES.unavailable, 503)),
+  );
+}
+
 if (import.meta.main) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
   const resourceUrl = Deno.env.get("MCP_PERSONAL_RESOURCE_URL")?.trim();
@@ -502,7 +513,7 @@ if (import.meta.main) {
     } catch {
       console.error(JSON.stringify({ event: "mcp_personal_snapshot_key_unavailable" }));
     }
-    Deno.serve(createHandler({
+    Deno.serve(createProductionHandler({
       verifyToken: (token) => verifyOAuthAccessToken(token, { issuer, audience: resourceUrl, keys }),
       ...postgrestRepositories(supabaseUrl, serviceKey),
       keyring,

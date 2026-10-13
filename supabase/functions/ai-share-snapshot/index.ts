@@ -314,6 +314,15 @@ export function postgrestShareStore(
   };
 }
 
+// Do not collect new sensitive snapshots while personal reads are contained
+// for ADR-009 S2. Keep the existing authenticated deletion/sign-out path live.
+export function createProductionHandler(deps: ShareDeps): (request: Request) => Promise<Response> {
+  const handler = createHandler(deps);
+  return (request) => request.method === "POST"
+    ? Promise.resolve(json({ error: MESSAGES.unavailable }, 503))
+    : handler(request);
+}
+
 if (import.meta.main) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
   let serviceKey: string | undefined;
@@ -330,7 +339,7 @@ if (import.meta.main) {
   } else {
     const issuer = `${supabaseUrl.replace(/\/$/, "")}/auth/v1`;
     const keys = remoteJwks(supabaseUrl);
-    Deno.serve(createHandler({
+    Deno.serve(createProductionHandler({
       verifySession: (token) => verifyAppSessionToken(token, { issuer, keys }),
       store: postgrestShareStore(supabaseUrl, serviceKey),
       keyring,

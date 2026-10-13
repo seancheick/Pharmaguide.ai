@@ -6,15 +6,18 @@ consent and connections pages on the website, and the app's AI-share consent flo
 snapshots).
 
 Audit status, October 13, 2026: the corrected candidate is locally implemented, not deployed.
-The full Deno suite passed 211 tests; the disposable PostgreSQL suite passed. The full app check
+The full Deno suite passed 214 tests; the disposable PostgreSQL suite passed. The full app check
 passed analysis and 3,901 tests before the final identity display correction; the two affected
 screen suites then passed 16 tests and focused analysis. These receipts establish local behavior only. S2 resource binding, S6 phone pairing, S9 policy review and the
 first real client connection remain open. Current Flutter validation and candidate revisions live
 in the handoff. Paths below identify actual coverage; planned controls are marked explicitly.
 
-The current audience hook does not prove S2: stamping the same personal audience on every OAuth
-token can hide which resource was originally requested. A live wrong-resource issuance and
-refresh test must pass, or the authorization-server design must change before personal release.
+The former audience-stamping hook did not prove S2: the original requested resource was not
+verified. The candidate now refuses third-party issuance/refresh in the existing hook, returns 503
+for every production personal read (including old tokens), and refuses new snapshot uploads.
+Authenticated snapshot deletion and public discovery metadata remain available. Ordinary app
+sessions are unchanged. This is containment, not resource binding; a reviewed issuer repair and
+live wrong-resource issuance/refresh tests remain required before enabling personal access.
 See `supabase/functions/mcp-personal/README.md` for deployment ordering and the exact remaining gates.
 
 ## Assets
@@ -56,8 +59,8 @@ none for the public server); browser → website consent page → Supabase Auth;
 | Requirement | Threat | Control | Automated test |
 |---|---|---|---|
 | S1 Database isolation | An OAuth access token carries the full user session and reads `user_stacks`, submissions, push tokens, Storage objects or RPCs directly; user A reads user B through MCP. | `AS RESTRICTIVE` policies `((auth.jwt()->>'client_id') IS NULL)` on every user-owned table and on `storage.objects`; `client_id IS NULL` guards in every SECURITY DEFINER RPC and user-JWT edge function. MCP servers verify the JWT (JWKS, `iss`, `exp`, `aud`, `client_id`, `sub`) and read with the service role filtered by the verified `sub`; they never forward the token. Review includes the website's service-role routes. | `supabase/tests/ai_connector/restrictive_rls.sql`; `supabase/functions/mcp-personal/auth_isolation_test.ts` |
-| S2 Resource binding | A token issued for another MCP resource on the same authorization server (supabase/auth #2610) is replayed against the personal MCP. | A Custom Access Token Hook stamps `aud` and the server checks it, but original requested-resource binding is unproven. S2 remains blocked pending a real issuance/replay/refresh test or an authorization-server fix. | `supabase/functions/mcp-personal/resource_binding_test.ts` checks fixture JWT audiences and connection isolation; it does not exercise actual AS issuance or refresh |
-| S3 Client identity | A look-alike client or redirect URI collects the authorization code; open DCR lets anyone register. | Pre-registered trusted clients (Claude, ChatGPT, Claude Code) with exact callback-URI matching in production; DCR on staging only; loopback callbacks only for the approved native client; the consent page shows the verified client and callback host in large type. | Website repo `tests/ai-connector.test.cjs`; live provider registration remains unverified |
+| S2 Resource binding | A token issued for another MCP resource on the same authorization server (supabase/auth #2610) is replayed against the personal MCP. | The existing Auth hook now refuses third-party issuance/refresh; production MCP returns 503 even for old tokens, and snapshot POST refuses new uploads. Discovery and authenticated deletion remain available. S2 remains unresolved until issuer repair and real issuance/replay/refresh tests. | `supabase/functions/mcp-personal/resource_binding_test.ts` tests production containment and synthetic audience checks; `supabase/functions/ai-share-snapshot/index_test.ts` tests denied uploads and permitted authenticated deletion; SQL hook cases test issuance/refresh refusal. Actual AS binding remains unproven |
+| S3 Client identity | A look-alike client or redirect URI collects the authorization code; open DCR lets anyone register. | Pre-registered trusted clients (Claude, ChatGPT, Claude Code) with exact callback-URI matching in production; checked-in DCR=false, while the audit found live DCR still enabled (unchanged); loopback callbacks only for the approved native client; the consent page shows the verified client and callback host in large type. | Website repo `tests/ai-connector.test.cjs`; live provider registration remains unverified |
 | S4 Consent preview | The user shares more than intended, or a derived finding discloses an excluded category. | The preview names the destination (client and host), categories, duration, the three data locations and the revocation path (`pharmaguide.io/account/connections` and in-app Settings). The payload shown is the payload sent; derived findings follow their category. | `test/release_gate/ai_share_snapshot_scope_test.dart` (excluded categories absent, including medication-derived findings; preview equals payload); `test/features/ai_share/ai_share_consent_preview_test.dart`; `test/features/ai_share/ai_connections_screen_test.dart` (stored verified client name/host and legacy identifier fallback) |
 | S5 Revocation and purge | Access or data outlives the user's decision: an unexpired access token keeps working after Disconnect; snapshots survive sign-out or account deletion. | Disconnect calls `revokeGrant`, marks the connection revoked and deletes its snapshots and log rows; `delete-account` purges everything; app sign-out stops refreshes and attempts deletion before ending the session; offline deletion may fail and is not promised immediate. Expiry denies reads; configured cleanup removes expired rows. | `supabase/functions/mcp-personal/revocation_purge_test.ts`; `test/release_gate/ai_share_snapshot_signout_purge_test.dart` |
 | S6 Desktop approval | A desktop consent is phished, or approved by someone without the phone. | Accepted requirement, not implemented: a short-lived, single-use pairing code approved from the phone. Website OAuth consent and the subsequent phone snapshot preview do not by themselves close S6. | No pairing-code implementation or test yet; S6 remains open |
@@ -75,7 +78,10 @@ Snapshot freshness and lifecycle limits:
   refreshes respect consent changes; explicit upload completion cannot restore a disconnected or
   disabled preference. Default profile exclusion withholds personal nutrient comparisons while
   preserving generic fallback UL warnings whose provenance is explicit.
-- Apply `20261013165631_ai_connection_session_binding.sql` before the updated personal function.
+- Apply the S2 containment migration `20261013171928_ai_connector_deny_unbound_oauth.sql`, keep
+  the Auth hook enabled, and deploy both contained functions together so existing tokens cannot
+  read and new snapshots cannot be collected. Apply
+  `20261013165631_ai_connection_session_binding.sql` before the updated personal function.
   The migration and audit fixes have not been applied to the remote service.
 
 Existing guards that stay in force:
