@@ -417,6 +417,8 @@ function pillarExplanation(value: unknown): Json | null {
   if (raw && assessment) {
     for (const key of ["method", "deferred_data_dependency", "dose_participation_basis"]) assessment[key] = capText(raw[key], 120);
     for (const key of ["raw_dose", "normalization_reference", "ul_partial_credit_above_pct", "ul_zero_credit_at_pct", "ul_partial_credit_raw", "supplemental_window_max_raw", "raw_dose_safety_penalty", "safety_hygiene_over_ul_penalty"]) assessment[key] = finiteNumber(raw[key]);
+    const policy = asObject(raw.dose_safety_policy);
+    assessment.dose_safety_policy = policy ? Object.fromEntries(["ul_pct_threshold", "per_flag_penalty", "cap"].map(key => [key, finiteNumber(policy[key])])) : null;
     assessment.unbenchmarked_purpose_ingredients = stringList(raw.unbenchmarked_purpose_ingredients).slice(0, MAX_INGREDIENTS);
     assessment.reference_assessments = (Array.isArray(raw.reference_assessments) ? raw.reference_assessments : []).slice(0, MAX_INGREDIENTS).flatMap(value => {
       const r = asObject(value); if (!r) return [];
