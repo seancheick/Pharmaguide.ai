@@ -132,8 +132,12 @@ List<StackDoseThresholdRule> stackDoseThresholdRulesFromWarnings(
 class StackDoseSummer {
   const StackDoseSummer();
 
-  Map<String, StackDoseTotal> sum(List<StackItemNutrients> stack) {
+  Map<String, StackDoseTotal> sum(
+    List<StackItemNutrients> stack, {
+    bool formFactsComplete = true,
+  }) {
     final accum = <String, _MutableStackDoseTotal>{};
+    final incompleteFormKeys = <String>{};
 
     for (final item in stack) {
       for (final row in item.ingredients) {
@@ -143,7 +147,10 @@ class StackDoseSummer {
         if (keys.isEmpty) continue;
 
         final amount = readDoseAmount(row);
-        if (amount == null || amount <= 0) continue;
+        if (amount == null || amount <= 0) {
+          incompleteFormKeys.addAll(keys);
+          continue;
+        }
 
         final unit = readDoseUnit(row);
         final displayName = readDisplayName(row) ?? keys.first;
@@ -158,6 +165,11 @@ class StackDoseSummer {
               unit: exclusionReason == null ? unit : '',
             ),
           );
+
+          final forms = readMatchedForms(row);
+          if (forms == null || forms.length != 1 || exclusionReason != null) {
+            total.formsComplete = false;
+          }
 
           final contribution = StackDoseContribution(
             stackEntryId: item.stackEntryId,
@@ -197,6 +209,13 @@ class StackDoseSummer {
             ),
           );
           total.totalValue += converted;
+          if (forms != null && forms.length == 1) {
+            total.formTotals.update(
+              forms.single,
+              (v) => v + converted,
+              ifAbsent: () => converted,
+            );
+          }
 
           if (displayName.length > total.displayName.length) {
             total.displayName = displayName;
@@ -213,6 +232,12 @@ class StackDoseSummer {
           displayName: value.displayName,
           totalValue: value.totalValue,
           unit: value.unit,
+          formTotals:
+              formFactsComplete &&
+                  value.formsComplete &&
+                  !incompleteFormKeys.contains(key)
+              ? Map.unmodifiable(value.formTotals)
+              : null,
           contributions: List.unmodifiable(value.contributions),
           excludedContributions: List.unmodifiable(value.excludedContributions),
         ),
@@ -822,6 +847,8 @@ class StackDoseTotal {
     required this.unit,
     required this.contributions,
     this.excludedContributions = const [],
+    this.formTotals,
+    this.isDailyExposureConfirmed = false,
   });
 
   final String canonicalId;
@@ -830,6 +857,10 @@ class StackDoseTotal {
   final String unit;
   final List<StackDoseContribution> contributions;
   final List<ExcludedStackDoseContribution> excludedContributions;
+  final Map<String, double>? formTotals;
+
+  /// Label serving amounts are not proof of the current total daily intake.
+  final bool isDailyExposureConfirmed;
 
   bool get hasExcludedContributions => excludedContributions.isNotEmpty;
 }
@@ -885,6 +916,8 @@ class _MutableStackDoseTotal {
   String displayName;
   String unit;
   double totalValue = 0;
+  bool formsComplete = true;
+  final Map<String, double> formTotals = {};
   final List<StackDoseContribution> contributions = [];
   final List<ExcludedStackDoseContribution> excludedContributions = [];
 }

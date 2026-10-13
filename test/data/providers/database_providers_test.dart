@@ -79,7 +79,7 @@ void main() {
       expect(
         () => enforceInteractionDatabaseVersionGate(
           minAppVersion: '1.0.0',
-          schemaVersion: '4.0.0',
+          schemaVersion: '5.0.0',
           appVersion: '1.0.0',
         ),
         throwsA(isA<InteractionDatabaseVersionGateException>()),
@@ -87,7 +87,7 @@ void main() {
     });
 
     test(
-      'accepts schemas 1, 2 and approved schema 3 compatible requirements',
+      'accepts schemas 1 through approved schema 4 compatible requirements',
       () {
         enforceInteractionDatabaseVersionGate(
           minAppVersion: '1.0.0',
@@ -103,6 +103,20 @@ void main() {
           minAppVersion: '1.0.0',
           schemaVersion: '3.0.0',
           appVersion: '1.0.0',
+        );
+        enforceInteractionDatabaseVersionGate(
+          minAppVersion: '1.0.0',
+          schemaVersion: '4.0.0',
+          appVersion: '1.0.0',
+        );
+        expect(
+          () => enforceInteractionDatabaseVersionGate(
+            minAppVersion: '1.0.0',
+            schemaVersion: '4.0.0',
+            appVersion: '1.0.0',
+            maxSupportedSchemaMajor: 3,
+          ),
+          throwsA(isA<InteractionDatabaseVersionGateException>()),
         );
       },
     );

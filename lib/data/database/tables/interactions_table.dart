@@ -3,7 +3,7 @@ import 'package:drift/drift.dart';
 /// Curated drug↔supplement / supplement↔supplement interaction rows.
 ///
 /// Mirrors `interactions` in `interaction_db.sqlite` (built by the
-/// pipeline's `build_interaction_db.py`, schema_version 1.0.0).
+/// pipeline's `build_interaction_db.py`, approved schema_version 4.0.0).
 ///
 /// READ-ONLY in the app — every row is shipped pre-built and verified
 /// by the pipeline's `verify_interactions.py` gates (RxNorm/UMLS CUI
@@ -63,6 +63,11 @@ class Interactions extends Table {
   TextColumn get materiality => text().nullable()();
   TextColumn get doseThresholdJson =>
       text().named('dose_threshold_json').nullable()();
+
+  TextColumn get profileGateJson =>
+      text().named('profile_gate_json').nullable()();
+  TextColumn get medicationExceptionsJson =>
+      text().named('medication_exceptions_json').nullable()();
 
   // Audit / origin
   TextColumn get typeAuthored => text().named('type_authored')();

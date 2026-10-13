@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -177,6 +178,140 @@ const _testClinicalProfileSchema = ClinicalProfileSchema(
 );
 
 void main() {
+  testWidgets(
+    'pairwise confirmation is visible and invalidated by saved dose and schedule edits',
+    (tester) async {
+      final db = InteractionDatabase.memory();
+      addTearDown(db.close);
+      await db
+          .into(db.drugClassMap)
+          .insert(
+            DrugClassMapCompanion.insert(
+              classId: 'class:maois',
+              className: 'MAOIs',
+              drugRxcuisJson: '["9639"]',
+              source: 'fixture',
+              lastUpdated: '2026-10-13',
+            ),
+          );
+      const criteria =
+          'Confirm delivered 6 mg per 24 hours transdermal and no 9 or 12 mg patches within the previous 14 days.';
+      await db
+          .into(db.interactions)
+          .insert(
+            InteractionsCompanion.insert(
+              id: 'DSI_MAOI_TYRAMINE',
+              agent1Type: 'drug_class',
+              agent1Id: 'class:maois',
+              agent1Name: 'MAOI',
+              agent1DrugClass: const drift.Value('class:maois'),
+              agent2Type: 'food',
+              agent2Id: 'C0041471',
+              agent2Name: 'Tyramine foods',
+              severity: 'avoid',
+              mechanism: 'Diet review',
+              management: 'Review with prescriber',
+              sourceUrlsJson: '[]',
+              sourcePmidsJson: '[]',
+              typeAuthored: 'Med-Food',
+              source: 'curated',
+              provenance: 'dailymed',
+              versionAdded: 'audit',
+              versionLastModified: 'audit',
+              lastUpdated: '2026-10-13',
+              alertStyle: const drift.Value('food_advisory_note'),
+              medicationExceptionsJson: drift.Value(
+                jsonEncode([
+                  {
+                    'ingredient_rxcuis': ['9639'],
+                    'dose_mg_exact': 6,
+                    'route': 'transdermal',
+                    'use_context': 'current_food_context',
+                    'notes': criteria,
+                  },
+                ]),
+              ),
+            ),
+          );
+      Future<String> http(Uri url) async =>
+          url.path == '/REST/approximateTerm.json'
+          ? '{"approximateGroup":{"candidate":[{"rxcui":"9639","name":"Selegiline","score":"100"}]}}'
+          : '{}';
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            interactionDatabaseProvider.overrideWithValue(db),
+            referenceDataRepositoryProvider.overrideWith(
+              (ref) => _FakeReferenceDataRepository(),
+            ),
+            loadedProfileProvider.overrideWith(
+              (ref) async => const ProfileState(),
+            ),
+            clinicalProfileSchemaProvider.overrideWith(
+              (ref) async => _testClinicalProfileSchema,
+            ),
+            rxNormApiServiceProvider.overrideWithValue(
+              RxNormApiService(httpGet: http, offlineDb: db),
+            ),
+          ],
+          child: const MaterialApp(home: MedicationEntryV2Screen()),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const Key('med-entry-search')),
+        'selegiline',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('med-entry-suggestion-9639')));
+      await tester.pumpAndSettle();
+      final choice = find.byKey(
+        const ValueKey('pairwise_confirmation_current_food_context'),
+      );
+      await tester.scrollUntilVisible(
+        choice,
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(criteria), findsOneWidget);
+      await tester.tap(choice);
+      await tester.pumpAndSettle();
+      expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('med-entry-dose')),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      tester
+          .widget<TextField>(find.byKey(const Key('med-entry-dose')))
+          .controller!
+          .selection = const TextSelection.collapsed(
+        offset: 0,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
+      await tester.enterText(
+        find.byKey(const Key('med-entry-dose')),
+        '9 mg/24h',
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<CheckboxListTile>(choice).value, isFalse);
+      await tester.ensureVisible(choice);
+      await tester.tap(choice);
+      await tester.pumpAndSettle();
+      expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
+      await tester.scrollUntilVisible(
+        find.text('Once daily'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Once daily'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<CheckboxListTile>(choice).value, isFalse);
+    },
+  );
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(

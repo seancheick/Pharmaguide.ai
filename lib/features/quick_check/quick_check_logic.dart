@@ -5,6 +5,10 @@
 // consumer on top of this logic + the interaction DB.
 
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
@@ -282,8 +286,10 @@ Future<List<InteractionResult>> runPairCheck(
 Future<List<InteractionResult>> runQuickCheckPair(
   QuickCheckItem a,
   QuickCheckItem b,
-  InteractionDatabase db,
-) async {
+  InteractionDatabase db, {
+  Map<String, dynamic>? supplementDetailBlob,
+  Map<String, StackDoseTotal>? confirmedDailyDoseTotals,
+}) async {
   if (!a.hasInteractionIdentity || !b.hasInteractionIdentity) {
     return const <InteractionResult>[];
   }
@@ -293,9 +299,21 @@ Future<List<InteractionResult>> runQuickCheckPair(
   }
 
   final results = a.isSupplement
-      ? await _runSupplementMedicationCheck(a, b, db)
+      ? await _runSupplementMedicationCheck(
+          a,
+          b,
+          db,
+          supplementDetailBlob,
+          confirmedDailyDoseTotals,
+        )
       : b.isSupplement
-      ? await _runSupplementMedicationCheck(b, a, db)
+      ? await _runSupplementMedicationCheck(
+          b,
+          a,
+          db,
+          supplementDetailBlob,
+          confirmedDailyDoseTotals,
+        )
       : await _runMedicationMedicationCheck(a, b, db);
 
   results.sort((a, b) => b.severity.weight.compareTo(a.severity.weight));
@@ -306,6 +324,8 @@ Future<List<InteractionResult>> _runSupplementMedicationCheck(
   QuickCheckItem supplement,
   QuickCheckItem medication,
   InteractionDatabase db,
+  Map<String, dynamic>? detailBlob,
+  Map<String, StackDoseTotal>? confirmedDailyDoseTotals,
 ) async {
   final supplementIds = supplement.canonicalIds;
   final medicationRxcuis = medication.rxcuis.toSet();
@@ -317,6 +337,18 @@ Future<List<InteractionResult>> _runSupplementMedicationCheck(
 
   final results = <InteractionResult>[];
   final seenRowIds = <String>{};
+  final facts = detailBlob == null
+      ? null
+      : ProductHealthFacts.fromDetailBlob(detailBlob);
+  final doses = facts == null
+      ? null
+      : const StackDoseSummer().sum([
+          StackItemNutrients(
+            stackEntryId: '',
+            productName: supplement.name,
+            ingredients: facts.doseRowsForThresholds,
+          ),
+        ]);
 
   for (final supplementId in supplementIds) {
     final rows = await db.lookupByCanonicalId(supplementId);
@@ -339,6 +371,13 @@ Future<List<InteractionResult>> _runSupplementMedicationCheck(
           (otherType == 'drug' && medicationRxcuis.contains(otherId)) ||
           (otherType == 'drug_class' && medicationClasses.contains(otherId));
       if (!matchesMedication) continue;
+      if (!StackInteractionChecker.pairwiseRuleApplies(
+        row,
+        productForms: facts?.matchedFormsByCanonical ?? const {},
+        stackDoseTotals: {...?doses, ...?confirmedDailyDoseTotals},
+      )) {
+        continue;
+      }
 
       seenRowIds.add(row.id);
       results.add(

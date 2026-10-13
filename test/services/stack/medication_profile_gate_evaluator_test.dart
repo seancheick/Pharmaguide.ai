@@ -3,6 +3,22 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 
 void main() {
+  test('current pairwise confirmations are never persisted or restored', () {
+    const current = MedicationUseContext(
+      dailyDoseMg: 6,
+      route: 'transdermal',
+      useContext: 'confirmed',
+      isCurrentCheck: true,
+    );
+    expect(current.toJson().containsKey('is_current_check'), isFalse);
+    expect(
+      MedicationUseContext.fromStored(
+        '{"daily_dose_mg":6,"route":"transdermal","use_context":"confirmed","is_current_check":true}',
+      ).isCurrentCheck,
+      isFalse,
+    );
+  });
+
   const rawRules = <String, dynamic>{
     'medication_profile_gate_rules': <Map<String, dynamic>>[
       <String, dynamic>{

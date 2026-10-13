@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,141 @@ import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
 
 void main() {
+  for (final confirmed in [false, true]) {
+    testWidgets(
+      'daily amount dialog handles matched duplicate rows once: confirmed=$confirmed',
+      (tester) async {
+        final core = CoreDatabase.memory();
+        final db = InteractionDatabase.memory();
+        addTearDown(() async {
+          await tester.pumpWidget(const SizedBox.shrink());
+          await core.close();
+          await db.close();
+        });
+        await core
+            .into(core.productsCore)
+            .insert(
+              ProductsCoreCompanion.insert(
+                dsldId: 'b3',
+                productName: 'Nicotinic Acid',
+                keyIngredientTags: const drift.Value('["vitamin_b3_niacin"]'),
+                mappedCoverage: const drift.Value(1),
+                exportVersion: 'test',
+                exportedAt: '2026-10-13',
+              ),
+            );
+        await db
+            .into(db.drugClassMap)
+            .insert(
+              DrugClassMapCompanion.insert(
+                classId: 'class:statins',
+                className: 'Statins',
+                drugRxcuisJson: '["83367"]',
+                source: 'fixture',
+                lastUpdated: '2026-10-13',
+              ),
+            );
+        for (final cls in [false, true]) {
+          await db
+              .into(db.interactions)
+              .insert(
+                InteractionsCompanion.insert(
+                  id: 'B3_$cls',
+                  agent1Type: cls ? 'drug_class' : 'drug',
+                  agent1Id: cls ? 'class:statins' : '83367',
+                  agent1Name: 'Statin',
+                  agent1DrugClass: const drift.Value('class:statins'),
+                  agent2Type: 'supplement',
+                  agent2Name: 'B3',
+                  agent2Id: 'C0027996',
+                  agent2CanonicalId: const drift.Value('vitamin_b3_niacin'),
+                  severity: 'caution',
+                  mechanism: 'Dose-qualified fixture',
+                  management: 'Review',
+                  sourceUrlsJson: '[]',
+                  sourcePmidsJson: '[]',
+                  typeAuthored: 'Med-Sup',
+                  source: 'fixture',
+                  provenance: 'fixture',
+                  versionAdded: 'test',
+                  versionLastModified: 'test',
+                  lastUpdated: '2026-10-13',
+                  doseDependent: const drift.Value(1),
+                  direction: const drift.Value('harmful'),
+                  materiality: const drift.Value('dose_dependent'),
+                  doseThresholdJson: drift.Value(
+                    jsonEncode({
+                      'agent_canonical_id': 'vitamin_b3_niacin',
+                      'value': 1000,
+                      'unit': 'mg',
+                      'form_scope': ['nicotinic acid'],
+                    }),
+                  ),
+                ),
+              );
+        }
+        Future<String> http(Uri u) async =>
+            u.path == '/REST/approximateTerm.json' &&
+                u.queryParameters['term']!.contains('atorvastatin')
+            ? '{"approximateGroup":{"candidate":[{"rxcui":"83367","name":"Atorvastatin","score":"100"}]}}'
+            : '{}';
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              coreDatabaseProvider.overrideWithValue(core),
+              interactionDatabaseProvider.overrideWithValue(db),
+              rxNormApiServiceProvider.overrideWithValue(
+                RxNormApiService(httpGet: http, offlineDb: db),
+              ),
+              detailBlobProvider.overrideWith(
+                (ref, id) async => {
+                  'ingredients': [
+                    {
+                      'canonical_id': 'vitamin_b3_niacin',
+                      'standard_name': 'Niacin',
+                      'quantity': 500,
+                      'unit': 'mg',
+                      'form_match_status': 'mapped',
+                      'matched_form': 'nicotinic acid',
+                    },
+                  ],
+                },
+              ),
+            ],
+            child: const MaterialApp(home: QuickCheckV2Screen()),
+          ),
+        );
+        await tester.enterText(find.byType(TextField).first, 'atorvastatin');
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Atorvastatin'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField).first, 'nicotinic');
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Nicotinic Acid'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Check interactions'));
+        await tester.tap(find.text('Check interactions'));
+        await tester.pumpAndSettle();
+        expect(find.text('Confirm the daily amount'), findsOneWidget);
+        if (confirmed) {
+          await tester.enterText(find.byType(TextFormField), '500');
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Use confirmed amount'));
+        } else {
+          await tester.tap(find.text('Keep unknown'));
+        }
+        await tester.pumpAndSettle();
+        expect(find.text('Confirm the daily amount'), findsNothing);
+        expect(
+          find.text('Dose-qualified fixture'),
+          confirmed ? findsNothing : findsNWidgets(2),
+        );
+      },
+    );
+  }
+
   testWidgets('checks RxNorm medication against supplement result', (
     tester,
   ) async {

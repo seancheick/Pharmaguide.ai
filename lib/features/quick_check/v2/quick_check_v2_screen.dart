@@ -1,3 +1,11 @@
+import 'dart:convert';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
+import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 // QuickCheck v2 — production pair-check surface.
 //
 // Same pair-check logic, same providers, same result states, same
@@ -305,10 +313,152 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
     });
   }
 
+  Future<Map<String, StackDoseTotal>> _confirmDailyAmounts(
+    QuickCheckItem a,
+    QuickCheckItem b,
+    InteractionDatabase db,
+    Map<String, dynamic>? blob,
+  ) async {
+    final supplement = a.isSupplement
+        ? a
+        : b.isSupplement
+        ? b
+        : null;
+    final medicine = a.isMedication
+        ? a
+        : b.isMedication
+        ? b
+        : null;
+    if (supplement == null || medicine == null || blob == null) return const {};
+    final facts = ProductHealthFacts.fromDetailBlob(blob);
+    final now = DateTime.now().toUtc();
+    final med = UserStacksLocalData(
+      id: 'check',
+      type: 'medication',
+      name: medicine.name,
+      rxcui: medicine.rxcui,
+      genericRxcui: medicine.genericRxcui,
+      ingredientRxcuisCol: jsonEncode(medicine.ingredientRxcuis),
+      drugClassesCol: jsonEncode(medicine.normalizedDrugClasses),
+      addedAt: now,
+      clientUpdatedAt: now,
+    );
+    final totals = <String, StackDoseTotal>{};
+    final asked = <String>{};
+    for (final id in supplement.canonicalIds) {
+      for (final row in await db.lookupByCanonicalId(id)) {
+        if (!StackInteractionChecker.matchesMedicationSubject(row, med) ||
+            row.doseThresholdJson == null) {
+          continue;
+        }
+        final raw = jsonDecode(row.doseThresholdJson!);
+        if (raw is! Map) continue;
+        final scope = raw['form_scope'];
+        final canonical = raw['agent_canonical_id'];
+        final unit = raw['unit'];
+        if (scope is! List ||
+            scope.length != 1 ||
+            scope.single is! String ||
+            canonical is! String ||
+            unit is! String) {
+          continue;
+        }
+        final key = canonicalizeIngredientName(canonical);
+        if (asked.contains(key)) continue;
+        final forms = facts.matchedFormsByCanonical[key];
+        final gate = row.profileGateJson == null
+            ? null
+            : jsonDecode(row.profileGateJson!);
+        final excludes = gate is Map ? gate['excludes'] : null;
+        final excluded = excludes is Map
+            ? excludes['nutrient_forms_any']
+            : null;
+        if (forms == null ||
+            forms.isEmpty ||
+            !forms.any(scope.contains) ||
+            forms.any(
+              (f) =>
+                  !scope.contains(f) &&
+                  (excluded is! List || !excluded.contains(f)),
+            )) {
+          continue;
+        }
+        if (!mounted) return const {};
+        asked.add(key);
+        var text = '';
+        final amount = await showDialog<double>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              final parsed = double.tryParse(text.trim());
+              final valid = parsed != null && parsed.isFinite && parsed > 0;
+              return AlertDialog(
+                title: const Text('Confirm the daily amount'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total ${scope.single} per day, from all products. Use your actual or intended daily intake, not just the amount in one label serving.',
+                    ),
+                    TextFormField(
+                      key: const ValueKey('confirmed_daily_amount'),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Amount ($unit)',
+                        helperText: 'Leave unknown if you cannot confirm it.',
+                      ),
+                      onChanged: (value) => setDialogState(() => text = value),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Keep unknown'),
+                  ),
+                  TextButton(
+                    onPressed: valid
+                        ? () => Navigator.pop(context, parsed)
+                        : null,
+                    child: const Text('Use confirmed amount'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+        if (amount != null) {
+          totals[key] = StackDoseTotal(
+            canonicalId: key,
+            displayName: scope.single as String,
+            totalValue: amount,
+            unit: unit,
+            isDailyExposureConfirmed: true,
+            formTotals: {scope.single as String: amount},
+            contributions: [
+              StackDoseContribution(
+                stackEntryId: 'current_check',
+                productName: supplement.name,
+                amount: amount,
+                unit: unit,
+              ),
+            ],
+          );
+        }
+      }
+    }
+    return totals;
+  }
+
   Future<void> _checkInteractions() async {
     if (_item1 == null || _item2 == null || _resolving1 || _resolving2) {
       return;
     }
+    final first = _item1!;
+    final second = _item2!;
     setState(() {
       _checking = true;
       _results = null;
@@ -329,8 +479,47 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
         return;
       }
 
-      final results = await runQuickCheckPair(_item1!, _item2!, interactionDb);
+      final supplement = first.isSupplement
+          ? first
+          : second.isSupplement
+          ? second
+          : null;
+      Map<String, dynamic>? detailBlob;
+      if (supplement?.product != null) {
+        try {
+          detailBlob = await ref.read(
+            detailBlobProvider(supplement!.product!.dsldId).future,
+          );
+        } on Object {
+          /* Unknown form retains pairwise review. */
+        }
+      }
+      if (!mounted || !identical(_item1, first) || !identical(_item2, second)) {
+        if (mounted) setState(() => _checking = false);
+        return;
+      }
+      final confirmed = await _confirmDailyAmounts(
+        first,
+        second,
+        interactionDb,
+        detailBlob,
+      );
+      if (!mounted || !identical(_item1, first) || !identical(_item2, second)) {
+        if (mounted) setState(() => _checking = false);
+        return;
+      }
+      final results = await runQuickCheckPair(
+        first,
+        second,
+        interactionDb,
+        supplementDetailBlob: detailBlob,
+        confirmedDailyDoseTotals: confirmed,
+      );
       if (!mounted) return;
+      if (!identical(_item1, first) || !identical(_item2, second)) {
+        setState(() => _checking = false);
+        return;
+      }
       setState(() {
         _results = results;
         _checking = false;

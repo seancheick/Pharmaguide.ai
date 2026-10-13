@@ -1,38 +1,11 @@
-# AI-assistant sharing (ADR-009) — integrated, in PR — October 12, 2026
+# Current handoff — approved pairwise consumer, October 13
 
-Plan: /Users/seancheick/.claude/plans/how-can-we-create-purring-beacon.md (revision 3, approved by Sean).
-State: all lanes built, verified and integrated on branch `feat/ai-assistant-sharing`;
-PR seancheick/Pharmaguide.ai#110 open against main. Pipeline PR #122 merged (catalog_search table +
-publisher). Website PR seancheick/PharmaGuideWebsite#4 open (consent + connections pages). Lane
-worktrees and branches removed after integration. Nothing else is pushed.
+Goal: accurate pipeline-authored form/context consumption; no catalog, bundle, pin, build or release. Baseline404a6b60; branchcodex/pairwise-form-context; appPR113 paired with pipelinePR134.
 
-What landed (owners):
-- AI brief: `lib/services/sharing/ai_brief_builder.dart` + `ai_share_scope.dart` + `clinician_report_data.dart`;
-  `report_text.dart` owns report wording for the PDF and the brief; UI `ai_brief_preview_screen.dart`,
-  `ai_share_scope_switches.dart`; release gate `test/release_gate/ai_brief_no_network_test.dart`.
-- Consented snapshot (app): `lib/features/ai_share/*`, `ai_share_snapshot_client.dart` (the only caller of
-  `ai-share-snapshot`, pinned by `no_health_in_supabase_test`), `ai_share_prefs_store.dart` (device-only).
-- Servers: `supabase/functions/{mcp-public,mcp-personal,ai-share-snapshot}` over `_shared/{mcp_transport,
-  rate_limiter,oauth_token,connection_gate,snapshot_crypto,catalog}.ts`; migrations `20261012*` (written,
-  not applied; see `supabase/MIGRATION_HISTORY.md`); SQL suite `supabase/tests/ai_connector/` via
-  `scripts/test_ai_connector_rls.sh`.
-- Docs: ADR-009 accepted, ADR-010 proposed, AGENTS.md exception, `docs/security/ai-connector-threat-model.md`,
-  `docs/spikes/2026-10-12-engine-service-spike.md` + `tool/engine_spike/`.
+Owner: StackInteractionChecker::pairwiseRuleApplies -> existing ProfileGateEvaluator/MedicationProfileGateEvaluator; ProductHealthFacts and StackDoseSummer share canonical mapped forms and verified allocations. Evidence: owner matrix/glossary/rg, native24 and raw3 receipts. Will NOT create: clinical engine/registry, guessed form/exposure or persistent event clearance. Sean approved FORM_CONTEXT_PROPOSAL_20261013.md.
 
-Evidence: `make check` on the integrated head → analyzer clean, 3,848 tests passed; `deno test
-supabase/functions` → 197 passed; `scripts/test_ai_connector_rls.sh` → passed; website `pnpm test:ai-connector`
-→ 12 passed, typecheck clean; simulator screenshots of the share option, brief preview, Profile row and
-Connected AI assistants screen (session scratchpad).
+Completed: schema4 nullable predicates/migration/version gate; shared stack/detail/QuickCheck form gates; confirmed actual daily amount input; full authored food/procedure criteria and actual procedural selection; transient current proof. Identity/dose/route/procedure/saved dosage/schedule changes invalidate proof, cursor movement does not. Ingredient-only contextual exceptions rejected; keepunknown prompts only once. Existing standalone profile semantics and other risks remain independent.
 
-Gates before the personal connector serves anyone (Sean, dashboard): enable OAuth Server (DCR staging only),
-pre-register Claude / ChatGPT / Claude Code with exact callbacks, asymmetric JWT signing, `personal_mcp_audience`
-+ token hook, apply `20261012*` migrations (and pipeline schema section 9 before the next sync), set
-`AI_SHARE_SNAPSHOT_KEY_V1` for `ai-share-snapshot` and `mcp-personal`, confirm no other `pgrst.db_pre_request`;
-then the S1–S3, S5, S10 staging checks in `supabase/functions/mcp-personal/README.md`.
+Validated runtime: app545c41382ba1f0a4f6746f5e585555b032ef4456 CI38378191655 green, local makecheck clean analysis/3,885tests. Pipeline4b74d1b1 CI38377932566 all4green (20,559/192declared skips),174focused and local546/24declared opt-in skips. Finalnative24 and3raw zero-quality-delta measurements; independent review plus surgical closures pass. Handoff-only closure changes no runtime and reuses these receipts.
 
-Decisions owed to Sean: public server withholds condition/medication/pregnancy-tagged warnings (stated as a
-limitation); whether the phone's share is sufficient consent for `get_my_stack_snapshot`; ADR-010 refactor
-investment; final connected-case privacy copy (three strings) + privacy policy / FTC HBNR review.
-
-Next: merge #110 and #4 when CI is green; apply migrations on staging; run the staging gate; Phase 3 (Apple
-Health import) after launch; Phase 4 per ADR-010 once accepted.
+Next unchecked: owner-approved paired main integration; fingerprint-qualified artifacts, visual acceptance and next release when requested. No further policy question in approved scope. Clinical preparation/causality/other-form holds remain in privateFOLLOWUP_20261013.md and existing pipelineLEDGER. Active unmerged branches preserved; no full catalog or release from this lane.
