@@ -14,7 +14,9 @@ jobs:
   analyze-and-test:
     name: Analyze & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Main already runs near 15 minutes; allow setup + the complete coverage suite.
+    # Individual test timeouts, assertions and coverage remain unchanged.
+    timeout-minutes: 20
 
     steps:
       # Only pharmaguide_core.db still ships via Git LFS. interaction_db.sqlite
