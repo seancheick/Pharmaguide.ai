@@ -52,6 +52,9 @@ jobs:
       - name: Validate catalog importer interaction contracts
         run: python3 -m unittest discover -s scripts/tests -p test_import_catalog_artifact.py
 
+      - name: Validate engine spike build harness
+        run: python3 tool/engine_spike/test/build_harness_test.py
+
       # Fetch the LFS objects (only pharmaguide_core.db now) best-effort and
       # record whether we got them. The catalog-DB tests are tagged `bundle`
       # (see dart_test.yaml) and are excluded when the object is unavailable;
