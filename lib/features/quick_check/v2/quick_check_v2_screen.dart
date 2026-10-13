@@ -344,6 +344,7 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
       clientUpdatedAt: now,
     );
     final totals = <String, StackDoseTotal>{};
+    final asked = <String>{};
     for (final id in supplement.canonicalIds) {
       for (final row in await db.lookupByCanonicalId(id)) {
         if (!StackInteractionChecker.matchesMedicationSubject(row, med) ||
@@ -363,7 +364,7 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
           continue;
         }
         final key = canonicalizeIngredientName(canonical);
-        if (totals.containsKey(key)) continue;
+        if (asked.contains(key)) continue;
         final forms = facts.matchedFormsByCanonical[key];
         final gate = row.profileGateJson == null
             ? null
@@ -383,6 +384,7 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
           continue;
         }
         if (!mounted) return const {};
+        asked.add(key);
         var text = '';
         final amount = await showDialog<double>(
           context: context,
