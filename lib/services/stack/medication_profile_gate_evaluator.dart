@@ -7,7 +7,14 @@ import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart'
 /// Device-local, explicitly confirmed facts; absent values remain unknown.
 @immutable
 class MedicationUseContext {
-  const MedicationUseContext({this.dailyDoseMg, this.route, this.useContext});
+  const MedicationUseContext({
+    this.dailyDoseMg,
+    this.route,
+    this.useContext,
+    this.isCurrentCheck = false,
+  });
+  // Transient confirmation: never persisted or restored from stored context.
+  final bool isCurrentCheck;
   final double? dailyDoseMg;
   final String? route;
   final String? useContext;
@@ -164,8 +171,11 @@ class MedicationProfileGateEvaluator {
     final out = <MedicationProfileWarning>[];
     for (final rule in rules) {
       if (rule.medicationExceptions.any(
-        (e) =>
-            _matchesException(e, medicationIngredientRxcuis, medicationContext),
+        (e) => matchesMedicationException(
+          e,
+          medicationIngredientRxcuis,
+          medicationContext,
+        ),
       )) {
         continue;
       }
@@ -217,12 +227,13 @@ class MedicationProfileGateEvaluator {
     return out;
   }
 
-  bool _matchesException(
+  bool matchesMedicationException(
     Map<String, dynamic> exception,
     Set<String> ingredients,
     MedicationUseContext context,
   ) {
     if (exception.isEmpty ||
+        exception.keys.every((k) => k == 'notes') ||
         exception.keys.any(
           (k) => !const {
             'ingredient_rxcuis',
@@ -230,6 +241,7 @@ class MedicationProfileGateEvaluator {
             'dose_mg_range_inclusive',
             'route',
             'use_context',
+            'notes',
           }.contains(k),
         )) {
       return false;

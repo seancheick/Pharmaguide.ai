@@ -1,3 +1,7 @@
+import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:pharmaguide/core/models/interaction_result.dart';
 // MedicationEntry v2 — production add-medication surface.
 //
 // Sean's rule: same medication engine, same RxNorm API, same
@@ -109,17 +113,28 @@ class _MedicationEntryV2ScreenState
   int _reviewGeneration = 0;
   String? _confirmedRoute;
   String? _confirmedUseContext;
+  bool _pairwiseConfirmationIsFresh = false;
+  String? _requestedProcedure;
+  Map<String, String> _pairwiseConfirmationChoices = {};
+  Map<String, String> _availableProcedures = {};
+  Map<String, String> _pairwiseChoiceProcedures = {};
 
   MedicationUseContext get _medicationContext => MedicationUseContext(
     dailyDoseMg: double.tryParse(_dailyDoseController.text.trim()),
     route: _confirmedRoute,
     useContext: _confirmedUseContext,
+    isCurrentCheck: _pairwiseConfirmationIsFresh,
   );
 
   void _resetMedicationContext() {
     _dailyDoseController.clear();
     _confirmedRoute = null;
     _confirmedUseContext = null;
+    _pairwiseConfirmationIsFresh = false;
+    _requestedProcedure = null;
+    _pairwiseConfirmationChoices = {};
+    _availableProcedures = {};
+    _pairwiseChoiceProcedures = {};
     _contextGeneration++;
     _reviewGeneration++;
     _resolvingClasses = false;
@@ -178,6 +193,19 @@ class _MedicationEntryV2ScreenState
   void initState() {
     super.initState();
     _searchFocusNode.addListener(() => setState(() {}));
+    _doseController.addListener(_savedDoseOrScheduleChanged);
+    _frequencyController.addListener(_savedDoseOrScheduleChanged);
+  }
+
+  void _savedDoseOrScheduleChanged() {
+    if (!mounted || _selectedName == null) return;
+    setState(() {
+      _dailyDoseController.clear();
+      _pairwiseConfirmationIsFresh = false;
+      _confirmedUseContext = null;
+      _contextGeneration++;
+    });
+    _contextChanged();
   }
 
   @override
@@ -429,6 +457,9 @@ class _MedicationEntryV2ScreenState
     List<MedicationProfileWarning> warnings =
         const <MedicationProfileWarning>[];
     var unavailable = false;
+    final pairwiseChoices = <String, String>{};
+    final availableProcedures = <String, String>{};
+    final pairwiseChoiceProcedures = <String, String>{};
     try {
       final profile = await ref.read(loadedProfileProvider.future);
       final userProfileFlags = await ref.read(
@@ -461,6 +492,108 @@ class _MedicationEntryV2ScreenState
         userConditions: profile.conditionsForEvaluator.toSet(),
         userProfileFlags: userProfileFlags,
       );
+      final db = ref.read(interactionDatabaseProvider);
+      final now = DateTime.now().toUtc();
+      final preview = UserStacksLocalData(
+        id: 'current_review',
+        type: 'medication',
+        name: name,
+        rxcui: rxcui,
+        genericRxcui: genericRxcui,
+        ingredientRxcuisCol: jsonEncode(ingredientRxcuis),
+        drugClassesCol: jsonEncode(resolution.mergedInteractionClassIds),
+        addedAt: now,
+        clientUpdatedAt: now,
+      );
+      final candidates = <String, InteractionRow>{};
+      for (final id in {
+        if (rxcui != null) rxcui,
+        if (genericRxcui != null) genericRxcui,
+        ...ingredientRxcuis,
+      }) {
+        for (final row in await db.lookupByRxcui(id)) {
+          candidates[row.id] = row;
+        }
+      }
+      for (final cls in resolution.mergedInteractionClassIds) {
+        for (final row in await db.lookupByDrugClass(cls)) {
+          candidates[row.id] = row;
+        }
+      }
+      final ingredients = StackInteractionChecker.medicationIngredientsFor(
+        preview,
+      );
+      for (final row in candidates.values) {
+        if (!StackInteractionChecker.matchesMedicationSubject(row, preview)) {
+          continue;
+        }
+        if (row.typeAuthored == 'Med-Procedure') {
+          if (row.agent1Type == 'reference') {
+            availableProcedures[row.agent1Id] = row.agent1Name;
+          }
+          if (row.agent2Type == 'reference') {
+            availableProcedures[row.agent2Id] = row.agent2Name;
+          }
+        }
+        final raw = row.medicationExceptionsJson;
+        if (raw == null ||
+            (row.alertStyle != 'food_advisory_note' &&
+                row.typeAuthored != 'Med-Procedure')) {
+          continue;
+        }
+        final exceptions = jsonDecode(raw);
+        if (exceptions is! List) continue;
+        for (final e in exceptions.whereType<Map<String, dynamic>>()) {
+          final ids = e['ingredient_rxcuis'];
+          final label = e['notes'];
+          final use = e['use_context'];
+          if (ids is List &&
+              ingredients.isNotEmpty &&
+              ingredients.every(ids.contains) &&
+              label is String &&
+              use is String) {
+            pairwiseChoices[use] = label;
+            if (row.typeAuthored == 'Med-Procedure') {
+              pairwiseChoiceProcedures[use] = row.agent1Type == 'reference'
+                  ? row.agent1Id
+                  : row.agent2Id;
+            }
+          }
+        }
+      }
+      final checker = StackInteractionChecker();
+      final paired = <InteractionResult>[
+        ...await checker.checkMedicationFoodAdvisories(
+          stackMedications: [preview],
+          db: db,
+          currentMedicationContexts: {preview.id: context},
+        ),
+        if (_requestedProcedure != null &&
+            availableProcedures.containsKey(_requestedProcedure))
+          ...await checker.checkMedicationProcedureInteractions(
+            referenceId: _requestedProcedure!,
+            stackMedications: [preview],
+            db: db,
+            currentMedicationContexts: {preview.id: context},
+          ),
+      ];
+      warnings = [
+        ...warnings,
+        for (final hit in paired)
+          MedicationProfileWarning(
+            id: hit.id,
+            ruleId: hit.id,
+            medicationName: name,
+            severity: hit.severity,
+            evidenceLevel: hit.evidenceLevel,
+            headline: hit.isFoodAdvisoryNote
+                ? 'Food instructions for this medicine'
+                : hit.agent2Name,
+            body: hit.mechanism,
+            management: hit.management,
+            sourceUrls: hit.sourceUrls,
+          ),
+      ];
     } on Object catch (e, st) {
       CrashReportingService().recordError(
         e,
@@ -479,6 +612,9 @@ class _MedicationEntryV2ScreenState
     }
     setState(() {
       _profileReviewWarnings = warnings;
+      _pairwiseConfirmationChoices = pairwiseChoices;
+      _availableProcedures = availableProcedures;
+      _pairwiseChoiceProcedures = pairwiseChoiceProcedures;
       _resolvingProfileReview = false;
       _profileReviewUnavailable = unavailable;
     });
@@ -499,7 +635,10 @@ class _MedicationEntryV2ScreenState
           labelText: 'Total daily dose (mg)',
           helperText: 'Include all doses taken in one day.',
         ),
-        onChanged: (_) => _contextChanged(),
+        onChanged: (_) {
+          _pairwiseConfirmationIsFresh = false;
+          _contextChanged();
+        },
       ),
       DropdownButtonFormField<String>(
         key: ValueKey('medication_route_$_contextGeneration'),
@@ -514,45 +653,97 @@ class _MedicationEntryV2ScreenState
           ),
           DropdownMenuItem(value: 'topical', child: Text('On the skin')),
           DropdownMenuItem(
+            value: 'transdermal',
+            child: Text('A medicine-delivery patch'),
+          ),
+          DropdownMenuItem(
             value: 'other',
             child: Text('Another route / unsure'),
           ),
         ],
         onChanged: (value) {
-          setState(() => _confirmedRoute = value);
+          setState(() {
+            _confirmedRoute = value;
+            _pairwiseConfirmationIsFresh = false;
+          });
           _contextChanged();
         },
       ),
       DropdownButtonFormField<String>(
         key: ValueKey('medication_use_confirmation_$_contextGeneration'),
         isExpanded: true,
-        initialValue: _confirmedUseContext,
+        initialValue:
+            _pairwiseConfirmationChoices.containsKey(_confirmedUseContext)
+            ? null
+            : _confirmedUseContext,
         decoration: const InputDecoration(
           labelText: 'Does one of these apply?',
         ),
-        items: const [
-          DropdownMenuItem(
+        items: [
+          const DropdownMenuItem(
             value: 'clinician_directed_pregnancy_condition',
             child: Text('Clinician-prescribed aspirin for pregnancy'),
           ),
-          DropdownMenuItem(
+          const DropdownMenuItem(
             value: 'cardiovascular_protection',
             child: Text('Aspirin for heart or blood-vessel protection'),
           ),
-          DropdownMenuItem(
+          const DropdownMenuItem(
             value: 'within_product_label_directions',
             child: Text('Topical diclofenac within its label directions'),
           ),
-          DropdownMenuItem(
+          const DropdownMenuItem(
             value: 'unknown',
             child: Text('None of these / unsure'),
           ),
         ],
         onChanged: (value) {
-          setState(() => _confirmedUseContext = value);
+          setState(() {
+            _confirmedUseContext = value;
+            _pairwiseConfirmationIsFresh = _pairwiseConfirmationChoices
+                .containsKey(value);
+          });
           _contextChanged();
         },
       ),
+      for (final entry in _pairwiseConfirmationChoices.entries)
+        if (!_pairwiseChoiceProcedures.containsKey(entry.key) ||
+            _pairwiseChoiceProcedures[entry.key] == _requestedProcedure)
+          CheckboxListTile(
+            key: ValueKey('pairwise_confirmation_${entry.key}'),
+            title: Text(entry.value),
+            value:
+                _confirmedUseContext == entry.key &&
+                _pairwiseConfirmationIsFresh,
+            onChanged: (value) {
+              setState(() {
+                _confirmedUseContext = value == true ? entry.key : null;
+                _pairwiseConfirmationIsFresh = value == true;
+                _contextGeneration++;
+              });
+              _contextChanged();
+            },
+          ),
+      if (_pairwiseConfirmationChoices.isNotEmpty)
+        const Text(
+          'These confirmations apply to this review only. Reconfirm after changing the dose, route or procedure. They do not clear other medicine interactions.',
+        ),
+      for (final procedure in _availableProcedures.entries)
+        CheckboxListTile(
+          key: ValueKey('procedure_review_${procedure.key}'),
+          title: Text('Review ${procedure.value}'),
+          subtitle: const Text(
+            'Select only for an actual planned procedure. Your imaging team decides any medicine hold.',
+          ),
+          value: _requestedProcedure == procedure.key,
+          onChanged: (value) {
+            setState(() {
+              _requestedProcedure = value == true ? procedure.key : null;
+              _pairwiseConfirmationIsFresh = false;
+            });
+            _contextChanged();
+          },
+        ),
     ],
   );
 

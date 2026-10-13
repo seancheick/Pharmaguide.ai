@@ -5,6 +5,7 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 void main() {
@@ -65,6 +66,85 @@ void main() {
     }
   });
 
+  test(
+    'form allocation preserves separate quantities without asserting daily intake',
+    () {
+      final facts = ProductHealthFacts.fromDetailBlob({
+        'ingredients': [
+          {
+            'standard_name': 'Niacin',
+            'quantity': 100,
+            'unit': 'mg',
+            'form_match_status': 'mapped',
+            'matched_forms': [
+              {'form_key': 'nicotinic acid'},
+            ],
+          },
+          {
+            'standard_name': 'Niacin',
+            'quantity': 1500,
+            'unit': 'mg',
+            'form_match_status': 'mapped',
+            'matched_forms': [
+              {'form_key': 'niacinamide'},
+            ],
+          },
+        ],
+      });
+      final totals = const StackDoseSummer().sum([
+        StackItemNutrients(
+          stackEntryId: 'one',
+          productName: 'Mixed B3',
+          ingredients: facts.doseRowsForThresholds,
+        ),
+      ]);
+      expect(totals['niacin']!.formTotals, {
+        'nicotinic acid': 100.0,
+        'niacinamide': 1500.0,
+      });
+      expect(totals['niacin']!.isDailyExposureConfirmed, isFalse);
+    },
+  );
+  test(
+    'unresolved mapped form or dose does not create complete form allocation',
+    () {
+      for (final extra in [
+        {'form_match_status': 'unmapped'},
+        {
+          'dose_data_quality': {'status': 'unresolved_unit'},
+        },
+        {
+          'matched_forms': [
+            {'form_key': 'nicotinic acid'},
+            {'form_key': 'niacinamide'},
+          ],
+        },
+      ]) {
+        final facts = ProductHealthFacts.fromDetailBlob({
+          'ingredients': [
+            {
+              'standard_name': 'Niacin',
+              'quantity': 500,
+              'unit': 'mg',
+              'form_match_status': 'mapped',
+              'matched_forms': [
+                {'form_key': 'nicotinic acid'},
+              ],
+              ...extra,
+            },
+          ],
+        });
+        final totals = const StackDoseSummer().sum([
+          StackItemNutrients(
+            stackEntryId: 'one',
+            productName: 'Unresolved B3',
+            ingredients: facts.doseRowsForThresholds,
+          ),
+        ]);
+        expect(totals['niacin']?.formTotals, isNull, reason: extra.toString());
+      }
+    },
+  );
   group('ProductHealthFacts.fromDetailBlob', () {
     test('merges schema 3 resolved warning refs into shared health facts', () {
       final resolved = InteractionWarning.fromJson(<String, dynamic>{

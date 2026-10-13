@@ -1,4 +1,8 @@
 import 'dart:convert';
+import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart'
+    as gate;
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
@@ -264,7 +268,104 @@ class StackInteractionChecker {
     return results;
   }
 
-  bool _shouldSuppressBelowPairwiseThreshold(
+  /// Pipeline-authored scope, evaluated by the existing shared gate owner.
+  static bool pairwiseRuleApplies(
+    InteractionRow row, {
+    Map<String, Set<String>?> productForms = const {},
+    Map<String, StackDoseTotal>? stackDoseTotals,
+    Set<String> medicationIngredients = const {},
+    MedicationUseContext? currentMedicationContext,
+    bool referenceContext = false,
+  }) {
+    if (row.profileGateJson != null) {
+      try {
+        final raw = jsonDecode(row.profileGateJson!);
+        if (raw is! Map<String, dynamic> ||
+            raw['gate_type'] != 'nutrient_form') {
+          return true;
+        }
+        final requires = raw['requires'];
+        if (requires is! Map ||
+            requires.values.any((v) => v is! List || v.isNotEmpty)) {
+          return true;
+        }
+        final excludes = raw['excludes'];
+        if (excludes is! Map ||
+            excludes.entries.any(
+              (e) =>
+                  e.key != 'nutrient_forms_any' &&
+                  (e.value is! List || (e.value as List).isNotEmpty),
+            )) {
+          return true;
+        }
+        final threshold = _PairwiseDoseThreshold.tryParse(
+          row.doseThresholdJson,
+        );
+        final id =
+            threshold?.agentCanonicalId ??
+            row.agent2CanonicalId ??
+            row.agent1CanonicalId;
+        final key = id == null ? null : canonicalizeIngredientName(id);
+        final forms = productForms[key] ?? productForms[id];
+        final dose = row.doseThresholdJson == null
+            ? null
+            : jsonDecode(row.doseThresholdJson!);
+        final scope = dose is Map ? dose['form_scope'] : null;
+        final allowedExcluded = excludes['nutrient_forms_any'];
+        if (scope is List &&
+            (forms == null ||
+                forms.isEmpty ||
+                forms.any(
+                  (f) =>
+                      !scope.contains(f) &&
+                      (allowedExcluded is! List ||
+                          !allowedExcluded.contains(f)),
+                ))) {
+          return true;
+        }
+        if (forms != null &&
+            forms.isNotEmpty &&
+            !gate
+                .evaluateProfileGate(
+                  raw,
+                  const gate.UserProfile(),
+                  gate.ProductContext(nutrientForms: forms),
+                  baseSeverity: row.severity,
+                )
+                .fires) {
+          return false;
+        }
+      } on Object {
+        return true;
+      }
+    }
+    if (row.medicationExceptionsJson != null &&
+        referenceContext &&
+        currentMedicationContext?.isCurrentCheck == true) {
+      try {
+        final exceptions = jsonDecode(row.medicationExceptionsJson!);
+        if (exceptions is List &&
+            exceptions.whereType<Map<String, dynamic>>().any(
+              (e) =>
+                  e['ingredient_rxcuis'] is List &&
+                  (e['ingredient_rxcuis'] as List).isNotEmpty &&
+                  const MedicationProfileGateEvaluator()
+                      .matchesMedicationException(
+                        Map<String, dynamic>.from(e),
+                        medicationIngredients,
+                        currentMedicationContext!,
+                      ),
+            )) {
+          return false;
+        }
+      } on Object {
+        return true;
+      }
+    }
+    return !_shouldSuppressBelowPairwiseThreshold(row, stackDoseTotals);
+  }
+
+  static bool _shouldSuppressBelowPairwiseThreshold(
     InteractionRow row,
     Map<String, StackDoseTotal>? stackDoseTotals,
   ) {
@@ -286,8 +387,67 @@ class StackInteractionChecker {
     final threshold = _PairwiseDoseThreshold.tryParse(row.doseThresholdJson);
     if (threshold == null) return false;
 
+    var comparableTotals = stackDoseTotals;
+    final rawThreshold = jsonDecode(row.doseThresholdJson!);
+    final formScope = rawThreshold is Map ? rawThreshold['form_scope'] : null;
+    if (formScope != null) {
+      final doseKey = canonicalizeIngredientName(threshold.agentCanonicalId);
+      final total =
+          stackDoseTotals[doseKey] ??
+          stackDoseTotals[threshold.agentCanonicalId];
+      if (formScope is! List ||
+          formScope.isEmpty ||
+          total?.formTotals == null ||
+          total!.hasExcludedContributions ||
+          !total.isDailyExposureConfirmed) {
+        return false;
+      }
+      final amounts = total.formTotals!;
+      Object? profile;
+      try {
+        profile = row.profileGateJson == null
+            ? null
+            : jsonDecode(row.profileGateJson!);
+      } on Object {
+        return false;
+      }
+      final excludes = profile is Map ? profile['excludes'] : null;
+      final excludedForms = excludes is Map
+          ? excludes['nutrient_forms_any']
+          : null;
+      if (amounts.keys.any(
+        (f) =>
+            !formScope.contains(f) &&
+            (excludedForms is! List || !excludedForms.contains(f)),
+      )) {
+        return false;
+      }
+      final scoped = [
+        for (final entry in amounts.entries)
+          if (formScope.contains(entry.key)) entry,
+      ];
+      if (scoped.isEmpty) return false;
+      comparableTotals = {
+        doseKey: StackDoseTotal(
+          canonicalId: total.canonicalId,
+          displayName: total.displayName,
+          totalValue: scoped.fold(0.0, (v, e) => v + e.value),
+          unit: total.unit,
+          contributions: [
+            for (final e in scoped)
+              StackDoseContribution(
+                stackEntryId: '',
+                productName: e.key,
+                amount: e.value,
+                unit: total.unit,
+              ),
+          ],
+        ),
+      };
+    }
+
     final comparison = const StackDoseSummer().compareThreshold(
-      totals: stackDoseTotals,
+      totals: comparableTotals,
       canonicalId: threshold.agentCanonicalId,
       thresholdValue: threshold.value,
       thresholdUnit: threshold.unit,
@@ -330,6 +490,7 @@ class StackInteractionChecker {
     required List<String> newProductCanonicalIds,
     required List<UserStacksLocalData> stackMedications,
     required InteractionDatabase db,
+    Map<String, Set<String>?> productForms = const {},
     String newProductName = 'New product',
     Map<String, StackDoseTotal>? stackDoseTotals,
   }) async {
@@ -450,9 +611,10 @@ class StackInteractionChecker {
       if (!candidate.medicationSpecific && directPairKeys.contains(pairKey)) {
         continue;
       }
-      if (_shouldSuppressBelowPairwiseThreshold(
+      if (!pairwiseRuleApplies(
         candidate.row,
-        stackDoseTotals,
+        productForms: productForms,
+        stackDoseTotals: stackDoseTotals,
       )) {
         continue;
       }
@@ -477,9 +639,90 @@ class StackInteractionChecker {
   /// Food rows are authored with `alert_style='food_advisory_note'` because
   /// the app does not track foods in the user's stack. A matching medication
   /// or drug class is therefore sufficient to surface the note.
+  /// A procedural event must be explicitly supplied; medication presence
+  /// alone never invents a scheduled procedure.
+  Future<List<InteractionResult>> checkMedicationProcedureInteractions({
+    required String referenceId,
+    required List<UserStacksLocalData> stackMedications,
+    required InteractionDatabase db,
+    Map<String, MedicationUseContext> currentMedicationContexts = const {},
+  }) async {
+    if (referenceId.isEmpty) return const [];
+    final hits = <InteractionResult>[];
+    for (final med in stackMedications) {
+      final rows = <String, InteractionRow>{};
+      for (final id in {
+        if (med.rxcui != null) med.rxcui!,
+        if (med.genericRxcui != null) med.genericRxcui!,
+        ..._ingredientRxcuisFor(med),
+      }) {
+        for (final row in await db.lookupByRxcui(id)) {
+          rows[row.id] = row;
+        }
+      }
+      for (final cls in _drugClassesFor(med)) {
+        for (final row in await db.lookupByDrugClass(cls)) {
+          rows[row.id] = row;
+        }
+      }
+      for (final row in rows.values) {
+        if (!matchesMedicationSubject(row, med)) continue;
+        if (row.typeAuthored != 'Med-Procedure' ||
+            !((row.agent1Type == 'reference' && row.agent1Id == referenceId) ||
+                (row.agent2Type == 'reference' &&
+                    row.agent2Id == referenceId))) {
+          continue;
+        }
+        if (!pairwiseRuleApplies(
+          row,
+          medicationIngredients: medicationIngredientsFor(med),
+          currentMedicationContext: currentMedicationContexts[med.id],
+          referenceContext: true,
+        )) {
+          continue;
+        }
+        hits.add(
+          InteractionResult.fromRow(
+            row,
+            source: InteractionSource.pipeline,
+            agent1NameOverride: med.name,
+          ),
+        );
+      }
+    }
+    return hits;
+  }
+
+  static bool matchesMedicationSubject(
+    InteractionRow row,
+    UserStacksLocalData med,
+  ) {
+    final ids = {
+      if (med.rxcui != null) med.rxcui!,
+      if (med.genericRxcui != null) med.genericRxcui!,
+      ..._ingredientRxcuisFor(med),
+    };
+    final classes = _drugClassesFor(med).toSet();
+    return [(row.agent1Type, row.agent1Id), (row.agent2Type, row.agent2Id)].any(
+      (side) =>
+          (side.$1 == 'drug' && ids.contains(side.$2)) ||
+          (side.$1 == 'drug_class' && classes.contains(side.$2)),
+    );
+  }
+
+  static Set<String> medicationIngredientsFor(UserStacksLocalData med) {
+    final ingredients = _ingredientRxcuisFor(med);
+    if (ingredients.isNotEmpty) return ingredients.toSet();
+    final generic = med.genericRxcui?.trim();
+    if (generic != null && generic.isNotEmpty) return {generic};
+    final selected = med.rxcui?.trim();
+    return {if (selected != null && selected.isNotEmpty) selected};
+  }
+
   Future<List<InteractionResult>> checkMedicationFoodAdvisories({
     required List<UserStacksLocalData> stackMedications,
     required InteractionDatabase db,
+    Map<String, MedicationUseContext> currentMedicationContexts = const {},
   }) async {
     if (stackMedications.isEmpty) return const <InteractionResult>[];
 
@@ -510,6 +753,19 @@ class StackInteractionChecker {
 
     void addIfFoodAdvisory(InteractionRow row, String medName) {
       if (row.alertStyle != 'food_advisory_note') return;
+      final relevant = stackMedications
+          .where((m) => m.name == medName)
+          .toList();
+      if (relevant.length == 1 &&
+          !pairwiseRuleApplies(
+            row,
+            medicationIngredients: medicationIngredientsFor(relevant.single),
+            currentMedicationContext:
+                currentMedicationContexts[relevant.single.id],
+            referenceContext: true,
+          )) {
+        return;
+      }
       if (!seenRowIds.add(row.id)) return;
       results.add(
         InteractionResult.fromRow(

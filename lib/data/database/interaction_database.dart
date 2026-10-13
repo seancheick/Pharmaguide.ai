@@ -91,10 +91,9 @@ class InteractionDbMetadata {
 /// `WHERE retired_at IS NULL`.
 ///
 /// The bundle is replaced wholesale on every release. The sole migration
-/// retained here creates the schema-2 warning-rule table for a device that
-/// opens an older local copy before the new bundle swap completes. An empty
-/// migrated table is safe: schema-3 reference resolution fails closed and the
-/// product page shows its warning-check hedge instead of claiming no warning.
+/// retained here adds missing warning/class/pairwise columns when an older
+/// local copy opens before the bundle swap completes. Absent predicates do
+/// not create an exemption; missing warning references retain review.
 @DriftDatabase(
   tables: [
     Interactions,
@@ -112,7 +111,7 @@ class InteractionDatabase extends _$InteractionDatabase {
   InteractionDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -124,11 +123,18 @@ class InteractionDatabase extends _$InteractionDatabase {
       await m.createAll();
     },
     onUpgrade: (migrator, from, to) async {
-      if (from >= 1 && from < 3 && to == 3) {
+      if (from >= 1 && from < 4 && to == 4) {
         if (from < 2) await migrator.createTable(profileWarningRules);
+        if (from < 3) {
+          await migrator.addColumn(
+            drugClassMap,
+            drugClassMap.excludedDrugRxcuisJson,
+          );
+        }
+        await migrator.addColumn(interactions, interactions.profileGateJson);
         await migrator.addColumn(
-          drugClassMap,
-          drugClassMap.excludedDrugRxcuisJson,
+          interactions,
+          interactions.medicationExceptionsJson,
         );
         return;
       }

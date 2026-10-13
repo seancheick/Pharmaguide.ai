@@ -240,3 +240,30 @@ bool isUsableDoseRow(Map<String, dynamic> row) {
 
   return true;
 }
+
+/// Only canonical form keys emitted by the pipeline, including every component.
+/// Raw label words are never sufficient to suppress a pairwise clinical rule.
+Set<String>? readMatchedForms(Map<String, dynamic> row) {
+  final analysis = row['analysis'];
+  final source = analysis is Map
+      ? {...row, ...Map<String, dynamic>.from(analysis)}
+      : row;
+  if (source['form_match_status'] != 'mapped') return null;
+  final forms = <String>{};
+  final matched = source['matched_forms'];
+  if (matched is List && matched.isNotEmpty) {
+    for (final item in matched) {
+      if (item is! Map ||
+          item['form_key'] is! String ||
+          (item['form_key'] as String).trim().isEmpty) {
+        return null;
+      }
+      forms.add((item['form_key'] as String).trim().toLowerCase());
+    }
+  } else {
+    final form = source['matched_form'] ?? source['form_id'];
+    if (form is! String || form.trim().isEmpty) return null;
+    forms.add(form.trim().toLowerCase());
+  }
+  return forms.isEmpty ? null : forms;
+}

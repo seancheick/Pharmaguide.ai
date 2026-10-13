@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 // Tests for the M4 curated-DB lookup methods on
 // [StackInteractionChecker]:
 //
@@ -60,6 +62,9 @@ InteractionsCompanion _row({
   String? alertStyle,
   String? noteBody,
   String? practicalGuidance,
+  String? profileGateJson,
+  String? medicationExceptionsJson,
+  String typeAuthored = 'curated',
 }) {
   return InteractionsCompanion.insert(
     id: id,
@@ -112,7 +117,9 @@ InteractionsCompanion _row({
     practicalGuidance: practicalGuidance == null
         ? const drift.Value.absent()
         : drift.Value(practicalGuidance),
-    typeAuthored: 'curated',
+    profileGateJson: drift.Value(profileGateJson),
+    medicationExceptionsJson: drift.Value(medicationExceptionsJson),
+    typeAuthored: typeAuthored,
     source: 'curated',
     provenance: 'test',
     versionAdded: '1.0.0',
@@ -1699,5 +1706,324 @@ void main() {
       );
       expect(results.single.evidenceLevel, EvidenceLevel.established);
     });
+  });
+  group('approved pairwise form and confirmed context contract', () {
+    late InteractionDatabase db;
+    setUp(() async {
+      db = InteractionDatabase.memory();
+      await db
+          .into(db.interactions)
+          .insert(
+            _row(
+              id: 'NIACIN_FORM',
+              a1Type: 'drug_class',
+              a1Id: 'class:statins',
+              a1Class: 'class:statins',
+              a1Name: 'Statin',
+              a2Type: 'supplement',
+              a2Id: 'C0027996',
+              a2Name: 'Nicotinic acid',
+              a2Canonical: 'vitamin_b3_niacin',
+              doseDependent: 1,
+              direction: 'harmful',
+              materiality: 'dose_dependent',
+              doseThresholdJson: jsonEncode({
+                'agent_canonical_id': 'vitamin_b3_niacin',
+                'value': 1000,
+                'unit': 'mg',
+                'form_scope': ['nicotinic acid'],
+              }),
+              profileGateJson: jsonEncode({
+                'gate_type': 'nutrient_form',
+                'requires': {
+                  'conditions_any': <String>[],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': <String>[],
+                },
+                'excludes': {
+                  'conditions_any': <String>[],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': <String>[],
+                  'product_forms_any': <String>[],
+                  'nutrient_forms_any': ['niacinamide'],
+                },
+              }),
+            ),
+          );
+      await db
+          .into(db.interactions)
+          .insert(
+            _row(
+              id: 'EMSAM_FOOD',
+              a1Type: 'drug_class',
+              a1Id: 'class:maois',
+              a1Class: 'class:maois',
+              a1Name: 'MAOI',
+              a2Type: 'reference',
+              a2Id: 'ref:food',
+              a2Name: 'Food',
+              severity: 'contraindicated',
+              alertStyle: 'food_advisory_note',
+              medicationExceptionsJson: jsonEncode([
+                {
+                  'ingredient_rxcuis': ['9639'],
+                  'dose_mg_exact': 6,
+                  'route': 'transdermal',
+                  'use_context': 'confirmed_no_recent_high_dose',
+                },
+              ]),
+            ),
+          );
+      await db
+          .into(db.interactions)
+          .insert(
+            _row(
+              id: 'CONTRAST',
+              a1Type: 'drug',
+              a1Id: '6809',
+              a1Class: 'class:antidiabetics',
+              a1Name: 'Metformin',
+              a2Type: 'reference',
+              a2Id: 'ref:iodinated_contrast',
+              a2Name: 'Procedure',
+              typeAuthored: 'Med-Procedure',
+              medicationExceptionsJson: jsonEncode([
+                {
+                  'ingredient_rxcuis': ['6809'],
+                  'use_context': 'confirmed_iv_over60_no_risk',
+                },
+              ]),
+            ),
+          );
+    });
+    tearDown(() => db.close());
+    for (final scenario in <(String, Map<String, double>?, Set<String>?, bool)>[
+      ('amide only', {'niacinamide': 1500}, {'niacinamide'}, false),
+      ('acid below', {'nicotinic acid': 999}, {'nicotinic acid'}, false),
+      ('acid at', {'nicotinic acid': 1000}, {'nicotinic acid'}, true),
+      (
+        'mixed known below',
+        {'nicotinic acid': 100, 'niacinamide': 1500},
+        {'nicotinic acid', 'niacinamide'},
+        false,
+      ),
+      (
+        'mixed known at',
+        {'nicotinic acid': 1000, 'niacinamide': 1500},
+        {'nicotinic acid', 'niacinamide'},
+        true,
+      ),
+      ('unknown form', null, null, true),
+      ('unknown acid dose', null, {'nicotinic acid'}, true),
+      (
+        'other B3 form',
+        {'inositol hexanicotinate': 500},
+        {'inositol hexanicotinate'},
+        true,
+      ),
+    ]) {
+      test(scenario.$1, () async {
+        final amount = scenario.$2?.values.fold(0.0, (a, b) => a + b) ?? 1500;
+        final hits = await StackInteractionChecker()
+            .checkMedicationInteractions(
+              newProductCanonicalIds: ['vitamin_b3_niacin'],
+              stackMedications: [
+                _medication(
+                  id: 'statin',
+                  name: 'Statin',
+                  drugClassesJson: '["class:statins"]',
+                ),
+              ],
+              db: db,
+              productForms: {'vitamin_b3_niacin': scenario.$3},
+              stackDoseTotals: {
+                'vitamin_b3_niacin': StackDoseTotal(
+                  canonicalId: 'vitamin_b3_niacin',
+                  displayName: 'B3',
+                  totalValue: amount,
+                  unit: 'mg',
+                  formTotals: scenario.$2,
+                  isDailyExposureConfirmed: true,
+                  contributions: [
+                    StackDoseContribution(
+                      stackEntryId: 'p',
+                      productName: 'P',
+                      amount: amount,
+                      unit: 'mg',
+                    ),
+                  ],
+                ),
+              },
+            );
+        expect(hits.any((r) => r.id == 'NIACIN_FORM'), scenario.$4);
+      });
+    }
+    for (final context in <MedicationUseContext>[
+      const MedicationUseContext(
+        dailyDoseMg: 6,
+        route: 'transdermal',
+        useContext: 'confirmed_no_recent_high_dose',
+        isCurrentCheck: true,
+      ),
+      const MedicationUseContext(
+        dailyDoseMg: 6,
+        route: 'transdermal',
+        useContext: 'confirmed_no_recent_high_dose',
+      ),
+      const MedicationUseContext(
+        dailyDoseMg: 6,
+        route: 'transdermal',
+        isCurrentCheck: true,
+      ),
+      const MedicationUseContext(
+        dailyDoseMg: 9,
+        route: 'transdermal',
+        useContext: 'confirmed_no_recent_high_dose',
+        isCurrentCheck: true,
+      ),
+      const MedicationUseContext(
+        dailyDoseMg: 20,
+        route: 'transdermal',
+        useContext: 'confirmed_no_recent_high_dose',
+        isCurrentCheck: true,
+      ),
+      const MedicationUseContext(
+        dailyDoseMg: 6,
+        route: 'oral',
+        useContext: 'confirmed_no_recent_high_dose',
+        isCurrentCheck: true,
+      ),
+    ]) {
+      test(
+        'EMSAM context ${context.dailyDoseMg}/${context.route}/${context.isCurrentCheck}/${context.useContext}',
+        () async {
+          final hits = await StackInteractionChecker()
+              .checkMedicationFoodAdvisories(
+                stackMedications: [
+                  _medication(
+                    id: 's',
+                    name: 'Selegiline',
+                    rxcui: '9639',
+                    drugClassesJson: '["class:maois"]',
+                  ),
+                ],
+                db: db,
+                currentMedicationContexts: {'s': context},
+              );
+          expect(
+            hits.isEmpty,
+            context.isCurrentCheck &&
+                context.dailyDoseMg == 6 &&
+                context.route == 'transdermal' &&
+                context.useContext != null,
+          );
+        },
+      );
+    }
+    test('procedural context never applies without an actual event', () async {
+      final meds = [_medication(id: 'm', name: 'Metformin', rxcui: '6809')];
+      final checker = StackInteractionChecker();
+      expect(
+        await checker.checkMedicationProcedureInteractions(
+          referenceId: '',
+          stackMedications: meds,
+          db: db,
+        ),
+        isEmpty,
+      );
+      expect(
+        await checker.checkMedicationProcedureInteractions(
+          referenceId: 'ref:iodinated_contrast',
+          stackMedications: meds,
+          db: db,
+        ),
+        hasLength(1),
+      );
+      expect(
+        await checker.checkMedicationProcedureInteractions(
+          referenceId: 'ref:iodinated_contrast',
+          stackMedications: meds,
+          db: db,
+          currentMedicationContexts: {
+            'm': const MedicationUseContext(
+              useContext: 'confirmed_iv_over60_no_risk',
+              isCurrentCheck: true,
+            ),
+          },
+        ),
+        isEmpty,
+      );
+      expect(
+        await checker.checkMedicationProcedureInteractions(
+          referenceId: 'ref:iodinated_contrast',
+          stackMedications: meds,
+          db: db,
+          currentMedicationContexts: {
+            'm': const MedicationUseContext(
+              useContext: 'confirmed_iv_over60_no_risk',
+            ),
+          },
+        ),
+        hasLength(1),
+      );
+    });
+    test(
+      'procedural lookup never treats another drug in the class as metformin',
+      () async {
+        final hits = await StackInteractionChecker()
+            .checkMedicationProcedureInteractions(
+              referenceId: 'ref:iodinated_contrast',
+              stackMedications: [
+                _medication(
+                  id: 'i',
+                  name: 'Insulin',
+                  rxcui: '5856',
+                  drugClassesJson: '["class:antidiabetics"]',
+                ),
+              ],
+              db: db,
+            );
+        expect(hits, isEmpty);
+      },
+    );
+
+    test(
+      'a low label-serving amount cannot establish the actual daily dose',
+      () async {
+        final hits = await StackInteractionChecker()
+            .checkMedicationInteractions(
+              newProductCanonicalIds: ['vitamin_b3_niacin'],
+              stackMedications: [
+                _medication(
+                  id: 's',
+                  name: 'Statin',
+                  drugClassesJson: '["class:statins"]',
+                ),
+              ],
+              db: db,
+              productForms: {
+                'niacin': {'nicotinic acid'},
+              },
+              stackDoseTotals: {
+                'niacin': const StackDoseTotal(
+                  canonicalId: 'niacin',
+                  displayName: 'B3',
+                  totalValue: 500,
+                  unit: 'mg',
+                  formTotals: {'nicotinic acid': 500},
+                  contributions: [
+                    StackDoseContribution(
+                      stackEntryId: 'p',
+                      productName: 'Label',
+                      amount: 500,
+                      unit: 'mg',
+                    ),
+                  ],
+                ),
+              },
+            );
+        expect(hits.any((r) => r.id == 'NIACIN_FORM'), isTrue);
+      },
+    );
   });
 }

@@ -223,6 +223,8 @@ final safetyCheckForAddProvider = FutureProvider.family
           addAll(
             await checker.checkMedicationInteractions(
               newProductCanonicalIds: candidateIds,
+              productForms:
+                  pairwiseDoseResult.formsByProduct[dsldId] ?? const {},
               stackMedications: normalized.rows,
               db: interactionDb,
               newProductName: candidate.productName,
@@ -476,6 +478,8 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       try {
         hits = await checker.checkMedicationInteractions(
           newProductCanonicalIds: canonicalIds,
+          productForms:
+              pairwiseDoseResult.formsByProduct[self.entry.dsldId] ?? const {},
           stackMedications: safetyMedications,
           db: interactionDb,
           newProductName: self.entry.name,
@@ -764,17 +768,28 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   );
 });
 
-Future<({Map<String, StackDoseTotal> totals, bool incomplete})>
+Future<
+  ({
+    Map<String, StackDoseTotal> totals,
+    bool incomplete,
+    Map<String, Map<String, Set<String>?>> formsByProduct,
+  })
+>
 _pairwiseDoseTotalsFor(
   Ref ref, {
   required List<({String stackEntryId, String productName, String dsldId})>
   supplements,
 }) async {
   if (supplements.isEmpty) {
-    return (totals: const <String, StackDoseTotal>{}, incomplete: false);
+    return (
+      totals: const <String, StackDoseTotal>{},
+      incomplete: false,
+      formsByProduct: const <String, Map<String, Set<String>?>>{},
+    );
   }
 
   final items = <StackItemNutrients>[];
+  final formsByProduct = <String, Map<String, Set<String>?>>{};
   var incomplete = false;
   for (final supplement in supplements) {
     Map<String, dynamic>? blob;
@@ -796,6 +811,7 @@ _pairwiseDoseTotalsFor(
       incomplete = true;
       continue;
     }
+    formsByProduct[supplement.dsldId] = facts.matchedFormsByCanonical;
     final ingredients = facts.doseRowsForThresholds;
     if (ingredients.isEmpty) continue;
 
@@ -809,9 +825,17 @@ _pairwiseDoseTotalsFor(
   }
 
   if (items.isEmpty) {
-    return (totals: const <String, StackDoseTotal>{}, incomplete: incomplete);
+    return (
+      totals: const <String, StackDoseTotal>{},
+      incomplete: incomplete,
+      formsByProduct: formsByProduct,
+    );
   }
-  return (totals: const StackDoseSummer().sum(items), incomplete: incomplete);
+  return (
+    totals: const StackDoseSummer().sum(items, formFactsComplete: !incomplete),
+    incomplete: incomplete,
+    formsByProduct: formsByProduct,
+  );
 }
 
 Future<({List<UserStacksLocalData> rows, bool identityIncomplete})>

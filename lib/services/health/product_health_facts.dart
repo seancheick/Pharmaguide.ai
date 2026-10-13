@@ -1,4 +1,6 @@
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/units/dose_units.dart';
+import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/data/database/catalog_schema_bridge.dart';
 import 'package:pharmaguide/services/health/dose_safety.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
@@ -102,15 +104,96 @@ class ProductHealthFacts {
     if (ingredientDoses.isNotEmpty) {
       return [
         for (final entry in ingredientDoses.entries)
-          {
-            'standard_name': entry.key,
-            'quantity': entry.value.value,
-            'unit': entry.value.unit,
-          },
+          ..._doseRowsWithForms(entry.key, entry.value.value, entry.value.unit),
       ];
     }
     if (activeIngredients.isNotEmpty) return activeIngredients;
     return nutrients;
+  }
+
+  List<Map<String, dynamic>> _doseRowsWithForms(
+    String name,
+    double value,
+    String unit,
+  ) {
+    final keys = readDoseNameKeys({'standard_name': name});
+    final rows = activeIngredients
+        .where((r) => readDoseNameKeys(r).any(keys.contains))
+        .toList();
+    final explicit = <Map<String, dynamic>>[];
+    var sum = 0.0;
+    for (final row in rows) {
+      final forms = readMatchedForms(row);
+      final amount = readDoseAmount(row);
+      final converted = amount == null
+          ? null
+          : amountInMass(amount, from: readDoseUnit(row), to: unit);
+      if (!isUsableDoseRow(row) ||
+          forms == null ||
+          forms.length != 1 ||
+          converted == null ||
+          converted <= 0) {
+        explicit.clear();
+        break;
+      }
+      sum += converted;
+      explicit.add({
+        'standard_name': name,
+        'quantity': converted,
+        'unit': unit,
+        'matched_forms': [
+          {'form_key': forms.single},
+        ],
+        'form_match_status': 'mapped',
+      });
+    }
+    if (explicit.isNotEmpty && (sum - value).abs() <= value.abs() * 1e-9) {
+      return explicit;
+    }
+    return [
+      {
+        'standard_name': name,
+        'quantity': value,
+        'unit': unit,
+        'matched_forms': _matchedFormsForDose(name),
+        'form_match_status': _matchedFormsForDose(name) == null
+            ? 'unmapped'
+            : 'mapped',
+      },
+    ];
+  }
+
+  Map<String, Set<String>?> get matchedFormsByCanonical {
+    final out = <String, Set<String>?>{};
+    for (final row in activeIngredients) {
+      final forms = readMatchedForms(row);
+      for (final key in readDoseNameKeys(row)) {
+        if (out.containsKey(key) && out[key] == null) continue;
+        out[key] = forms == null ? null : {...?out[key], ...forms};
+      }
+    }
+    return out;
+  }
+
+  List<Map<String, String>>? _matchedFormsForDose(String name) {
+    final keys = readDoseNameKeys({'standard_name': name});
+    final rows = activeIngredients
+        .where((r) => readDoseNameKeys(r).any(keys.contains))
+        .toList();
+    if (rows.isEmpty) return null;
+    final forms = <String>{};
+    for (final row in rows) {
+      final matched = readMatchedForms(row);
+      if (!isUsableDoseRow(row) ||
+          matched == null ||
+          readDoseAmount(row) == null) {
+        return null;
+      }
+      forms.addAll(matched);
+    }
+    return [
+      for (final form in forms) {'form_key': form},
+    ];
   }
 
   static List<Map<String, dynamic>> _extractUlAnalysis(

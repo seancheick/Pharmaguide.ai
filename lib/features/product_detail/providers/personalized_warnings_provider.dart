@@ -123,6 +123,11 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
       );
 
       return _computePersonalizedWarnings(
+        productForms: detailBlob == null
+            ? const {}
+            : ProductHealthFacts.fromDetailBlob(
+                detailBlob,
+              ).matchedFormsByCanonical,
         product: product,
         canonicalIds: canonicalIds,
         stack: stack,
@@ -141,6 +146,7 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
   required List<UserStacksLocalData> stack,
   required InteractionDatabase interactionDb,
   required Map<String, StackDoseTotal> pairwiseDoseTotals,
+  Map<String, Set<String>?> productForms = const {},
 }) async {
   try {
     final checker = StackInteractionChecker();
@@ -171,6 +177,7 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
     if (medications.isNotEmpty) {
       final hits = await checker.checkMedicationInteractions(
         newProductCanonicalIds: canonicalIds,
+        productForms: productForms,
         stackMedications: medications,
         db: interactionDb,
         newProductName: product.productName,
@@ -212,6 +219,7 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
   );
 
   final items = <StackItemNutrients>[];
+  var formFactsComplete = productDetailBlob != null;
   if (!stackAlreadyContainsProduct && productDetailBlob != null) {
     final ingredients = ProductHealthFacts.fromDetailBlob(
       productDetailBlob,
@@ -242,7 +250,10 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
       );
       rethrow;
     }
-    if (blob == null) continue;
+    if (blob == null) {
+      formFactsComplete = false;
+      continue;
+    }
 
     final ingredients = ProductHealthFacts.fromDetailBlob(
       blob,
@@ -258,7 +269,10 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
   }
 
   if (items.isEmpty) return const <String, StackDoseTotal>{};
-  return const StackDoseSummer().sum(items);
+  return const StackDoseSummer().sum(
+    items,
+    formFactsComplete: formFactsComplete,
+  );
 }
 
 /// Maps an [InteractionResult] from the curated DB to an
