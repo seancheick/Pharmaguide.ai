@@ -208,6 +208,12 @@ class StackUlChecker {
         (tier == NutrientTier.approachingUl || tier == NutrientTier.exceedsUl)
         ? _warningFor(resolved.id, tier)
         : null;
+    final ulAssessmentIndeterminate =
+        ul != null &&
+        (total.hasUnresolvedUlContribution ||
+            (!total.hasUlExposureContract &&
+                safetyAmountInReferenceUnit == null)) &&
+        (total.hasUnitConflict || verdict == null || !verdict.isDefinitive);
 
     return NutrientStatus(
       total: total,
@@ -216,16 +222,13 @@ class StackUlChecker {
       ul: ul,
       pctOfRda: pctOfRda,
       maximumPctOfRda: maximumPctOfRda,
-      pctOfUl: pctOfUl,
+      // The known subtotal may already prove excess, so keep its tier and
+      // warning. It cannot describe the full stack when exposure is unknown.
+      pctOfUl: ulAssessmentIndeterminate ? null : pctOfUl,
       warning: warning,
       rdaIsBaseline: rdaLookup.isBaseline,
       ulIsFallback: ulLookup.isFallback,
-      ulAssessmentIndeterminate:
-          ul != null &&
-          (total.hasUnresolvedUlContribution ||
-              (!total.hasUlExposureContract &&
-                  safetyAmountInReferenceUnit == null)) &&
-          (total.hasUnitConflict || verdict == null || !verdict.isDefinitive),
+      ulAssessmentIndeterminate: ulAssessmentIndeterminate,
     );
   }
 
