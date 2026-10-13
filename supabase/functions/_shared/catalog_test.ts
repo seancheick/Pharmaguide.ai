@@ -52,6 +52,7 @@ export const PIPELINE_BLOB_TOP_LEVEL: Record<string, boolean> = {
 
 /// Every key a public product response may contain (no personal fields).
 export const PUBLIC_FACT_KEYS = new Set([
+  "quality_score_v4_100", "raw_source_path", "owner_row_ref", "source_role", "display_form_label", "form_status", "display_dose_label", "dose_status", "form_evidence", "references_structured", "url", "pmid", "supports_claims", "serving_info", "basis_count", "basis_unit", "min_servings_per_day", "max_servings_per_day", "servings_per_day_source", "basis_reason", "primary_type", "product_role", "label_record", "source_name", "source_record_id", "source_date", "source_updated_date", "label_source_url", "metadata_status", "quality_pillars_v4", "formulation", "dose", "evidence", "transparency", "verification", "safety_hygiene", "score", "max", "reason", "evidence_result_state", "display_state", "safety_summary", "safety_summary_one_liner", "sort", "offset", "total_matches", "next_offset", "supplement_type",
   "identity", "dsld_id", "product_name", "brand_name", "product_line", "form_factor", "upc",
   "product_status", "ingredients", "name", "standard_name", "amount", "unit", "identity_resolved",
   "quality", "quality_tier", "quality_score_status", "quality_score_confidence",
@@ -415,4 +416,45 @@ Deno.test("upper-limit facts preserve authored evidence and do not invent an est
   assertEquals(flags[1].evidence_level, null);
   assertEquals(flags[2].evidence_level, null);
   assert((facts.limitations as string[]).some((s) => s.includes("evidence grade")), "missing grade disclosed");
+});
+
+Deno.test("comparison retains serving basis, source ownership, forms and canonical quality", () => {
+  const facts = toProductFacts(blob({
+    serving_info: { basis_count: 1, basis_unit: "capsule", min_servings_per_day: 1, max_servings_per_day: 3 },
+    row_ledger: [{ row_ref: "ingredientRows[0]", owner_row_ref: null },
+      { row_ref: "ingredientRows[0].nestedRows[0]", owner_row_ref: "ingredientRows[0]" }],
+    ingredients: [
+      { name: "Magnesium", quantity: 135, unit: "mg", raw_source_path: "ingredientRows[0]" },
+      { name: "Magnesium Citrate", quantity: 55, unit: "mg", raw_source_path: "ingredientRows[0].nestedRows[0]", display_form_label: "citrate", form_status: "known" },
+    ],
+    quality_pillars_v4: { dose: { score: 10, max: 20, reason: "Published dose explanation." } },
+  }), row({ quality_score_v4_100: 80 } as Partial<CatalogRow>));
+  assertEquals((facts.quality as Json).quality_score_v4_100, 80);
+  assertEquals((facts.serving_info as Json).max_servings_per_day, 3);
+  const ingredients = facts.ingredients as Json[];
+  assertEquals(ingredients[1].owner_row_ref, "ingredientRows[0]");
+  assertEquals(ingredients[1].display_form_label, "citrate");
+  assertEquals(ingredients[0].amount, 135);
+  assertEquals(((facts.quality_pillars_v4 as Json).dose as Json).reason, "Published dose explanation.");
+});
+
+Deno.test("warning qualifications survive and absent evidence is disclosed", () => {
+  const detail = "a".repeat(520) + " Human harm is unproven.";
+  const facts = toProductFacts(blob({ warnings: [{ title: "Finding", detail, severity: "moderate", source: "registry" }] }), row());
+  assertEquals((facts.warnings as Json[])[0].detail, detail);
+  assert((facts.limitations as string[]).some(x => x.includes("citation")), "missing citation disclosed");
+});
+
+Deno.test("comparison never exposes a suppressed or incomplete score as rankable", () => {
+  for (const overrides of [{quality_score_status:"suppressed_safety"}, {quality_score_status:"not_scored"}, {quality_assessment_status:"partial"}]) {
+    const facts = toProductFacts(blob({quality_assessment_status:overrides.quality_assessment_status ?? "complete"}), row({quality_score_v4_100:99,...overrides}));
+    assertEquals((facts.quality as Json).quality_score_v4_100, null);
+  }
+});
+
+Deno.test("oversized clinical text is omitted with disclosure, not a clipped qualification", () => {
+  const facts = toProductFacts(blob({warnings:[{severity:"moderate",detail:"a".repeat(20001),safety_summary:"Complete shorter statement."}]}),row());
+  assertEquals((facts.warnings as Json[])[0].detail,null);
+  assertEquals((facts.warnings as Json[])[0].safety_summary,"Complete shorter statement.");
+  assert((facts.limitations as string[]).some(x=>x.includes("omitted rather than shortened")),"omission disclosed");
 });

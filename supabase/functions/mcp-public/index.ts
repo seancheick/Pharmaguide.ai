@@ -26,7 +26,11 @@ export const SERVER_INSTRUCTIONS =
   "limitations; do not infer 'no known concerns' from absent warnings. " +
   "Always keep the evidence_level and source with every warning you repeat. " +
   "Where limitations are listed, say what was not assessed. " +
-  "If a search is ambiguous, ask for the barcode or a label photo instead of guessing.";
+  "For comparisons use search_products sort=quality: descending published PharmaGuide quality, not personal suitability. " +
+  "State total_matches, filters and catalog_version; results cover matching product names, not every product containing an ingredient. " +
+  "Compare like products: distinguish single-ingredient, combination and laxative products, and explain published pillar reasons, confidence, serving basis and limitations. " +
+  "Never sum parent/component ingredient rows, recompute a quality score, or invent an evidence grade, source, price or availability. " +
+  "If identifying a person's exact product and a search is ambiguous, ask for the barcode or a label photo; for browsing compare the returned candidates without claiming they are the person's product.";
 
 const SEARCH_LIMIT = 10;
 export const AMBIGUITY_MARGIN = 0.1;
@@ -52,12 +56,18 @@ export const TOOLS = [
     title: "Search the PharmaGuide supplement catalog",
     description:
       "Find supplement products by name, with optional brand and form filters. Returns up to 10 catalog matches " +
-      "with a match_confidence. When `ambiguous` is true, ask the person for the barcode or a label photo before " +
-      "calling get_product.",
+      "with a match_confidence (text relevance, not quality). Use sort=quality to browse/compare by the existing " +
+      "published quality score across all name matches. Fetch get_product for the candidates before comparing. " +
+      "Use next_offset and the returned catalog_version to continue. For exact-product identification only, " +
+      "ambiguous matches need a barcode/photo; browsing alternatives does not.",
     inputSchema: {
       type: "object",
       properties: {
         query: { type: "string", minLength: 1, maxLength: 200, description: "Product name as the person said it." },
+        supplement_type: { type: "string", maxLength: 100, description: "Exact existing catalog classification, e.g. single_mineral. Copy from results to narrow to comparable products." },
+        sort: { type: "string", enum: ["relevance", "quality"], default: "relevance" },
+        offset: { type: "integer", minimum: 0, maximum: 100000, default: 0 },
+        catalog_version: { type: "string", maxLength: 64, description: "For subsequent pages, copy the catalog_version from the preceding response." },
         brand: { type: "string", maxLength: 100 },
         form: { type: "string", maxLength: 60, description: "e.g. capsule, tablet, powder, gummy" },
       },
@@ -142,7 +152,15 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
       if (!query) throw new ToolInputError("query is required");
       const brand = optionalString(args, "brand", 100);
       const form = optionalString(args, "form", 60);
-      const rows = await catalog.store.search({ query, brand, form, limit: SEARCH_LIMIT });
+      const supplement_type = optionalString(args, "supplement_type", 100);
+      const sort = args.sort ?? "relevance";
+      if (sort !== "relevance" && sort !== "quality") throw new ToolInputError("sort must be relevance or quality");
+      const offset = args.offset ?? 0;
+      if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 0 || offset > 100000) throw new ToolInputError("offset must be an integer from 0 to 100000");
+      const requestedVersion = optionalString(args, "catalog_version", 64);
+      const currentVersion = await catalog.currentVersion();
+      if (requestedVersion && requestedVersion !== currentVersion) throw new ToolInputError("Catalog changed; restart search from offset 0.");
+      const rows = await catalog.store.search({ query, brand, form, limit: SEARCH_LIMIT, sort, offset, catalog_version: currentVersion ?? undefined, supplement_type });
       const ambiguous = isAmbiguous(rows);
       const version = rows[0]?.catalog_version ?? await catalog.currentVersion();
       return {
@@ -150,7 +168,13 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
         result: envelope({
           matches: rows.slice(0, SEARCH_LIMIT).map(toMatch),
           ambiguous,
-          next_step: rows.length === 0 ? NEXT_STEP.none : ambiguous ? NEXT_STEP.ambiguous : NEXT_STEP.single,
+          sort, offset,
+          total_matches: rows[0]?.total_matches ?? null,
+          next_offset: rows[0]?.total_matches !== undefined && offset + rows.length < rows[0].total_matches ? offset + rows.length : null,
+          limitations: ["Name-matched catalog results, not a complete ingredient inventory or personalized recommendation. Quality ordering uses the published score, with unscored/incomplete products last; it does not establish safety, availability or price."],
+          next_step: rows.length === 0 ? (offset > 0 ? "No more results on this page; restart from offset 0 if the catalog changed." : NEXT_STEP.none)
+            : sort === "quality" ? "Call get_product for candidates to compare published quality, forms, serving basis, warnings and evidence. Distinguish combination products; never infer personal suitability from rank."
+            : ambiguous ? NEXT_STEP.ambiguous : NEXT_STEP.single,
         }, version, now),
       };
     }
