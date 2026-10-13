@@ -1,0 +1,54 @@
+{
+  "201495": {
+    "source": "pipeline b69ba56a Clean/Enrich/Score/build_detail_blob from frozen DSLD raw label",
+    "serving_info": {
+      "basis_count": 1.0,
+      "basis_unit": "capsule",
+      "min_servings_per_day": 1.0,
+      "max_servings_per_day": 4.0,
+      "servings_per_day_source": "servingSizes",
+      "basis_reason": "ingredient_quantity_variants"
+    },
+    "dosing_summary": "Take 1-4 capsules daily",
+    "dose_row": {
+      "ingredient": "Magnesium",
+      "canonical_id": "magnesium",
+      "quantity": 150.0,
+      "unit": "mg",
+      "converted_unit": "mg",
+      "per_day_min": 150.0,
+      "per_day_max": 600.0,
+      "safety_exposure": {
+        "per_day": 600.0,
+        "unit": "mg"
+      },
+      "raw_source_path": "ingredientRows[0]"
+    }
+  },
+  "184671": {
+    "source": "pipeline b69ba56a Clean/Enrich/Score/build_detail_blob from frozen DSLD raw label",
+    "serving_info": {
+      "basis_count": 1.0,
+      "basis_unit": "capsule",
+      "min_servings_per_day": 1.0,
+      "max_servings_per_day": 4.0,
+      "servings_per_day_source": "servingSizes",
+      "basis_reason": "ingredient_quantity_variants"
+    },
+    "dosing_summary": "Take 1-4 capsules daily",
+    "dose_row": {
+      "ingredient": "Magnesium",
+      "canonical_id": "magnesium",
+      "quantity": 120.0,
+      "unit": "mg",
+      "converted_unit": "mg",
+      "per_day_min": 120.0,
+      "per_day_max": 480.0,
+      "safety_exposure": {
+        "per_day": 480.0,
+        "unit": "mg"
+      },
+      "raw_source_path": "ingredientRows[0]"
+    }
+  }
+}
