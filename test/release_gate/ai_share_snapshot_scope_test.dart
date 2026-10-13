@@ -1,8 +1,11 @@
+import 'dart:async';
+
 // Release gate S4 (ADR-009): the consented snapshot payload IS the AI brief
 // the user previewed, and an excluded category (medications, health profile)
 // never reaches the payload, including findings derived from it.
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show HttpMethod;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
@@ -62,8 +65,13 @@ void main() {
         'ttl_hours',
         'format',
         'payload',
+        'generated_at',
       });
       expect(body['payload'], preview);
+      expect(
+        body['generated_at'],
+        aiShareFixture().generatedAt.toUtc().toIso8601String(),
+      );
       expect(body['format'], 'pharmaguide-brief-markdown/v1');
       expect(body['connection_id'], aiConnectionFixture().connectionId);
       expect(body['ttl_hours'], 24);
@@ -103,6 +111,10 @@ void main() {
 
       final body = backend.uploads.single.body;
       expect(body['payload'], preview);
+      expect(
+        body['generated_at'],
+        aiShareFixture().generatedAt.toUtc().toIso8601String(),
+      );
       expect(body['payload'], contains('Levothyroxine'));
       expect(body['payload'], isNot(contains('Pregnan')));
       expect((body['scope']! as Map)['medication_names'], isTrue);
@@ -157,12 +169,85 @@ void main() {
   });
 
   group('AiShareSnapshotClient', () {
+    test('purge on another client waits for the in-flight upload', () async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final events = <String>[];
+      AiShareSnapshotClient client() => AiShareSnapshotClient(
+        isSignedIn: () => true,
+        invoke: (method, body) async {
+          if (method == HttpMethod.post) {
+            entered.complete();
+            await release.future;
+            events.add('upload');
+            return const AiShareInvokeResponse(
+              status: 201,
+              data: {'snapshot_id': 's1', 'expires_at': '2026-10-14T00:00:00Z'},
+            );
+          }
+          events.add('purge');
+          return const AiShareInvokeResponse(status: 204, data: null);
+        },
+      );
+      final uploading = client().upload(
+        connectionId: 'c-1',
+        scope: AiShareScope.detailedReport,
+        stackRevision: 'r1',
+        ttlHours: 24,
+        payload: 'preview',
+        generatedAt: DateTime.utc(2026, 10, 13),
+      );
+      await entered.future;
+      final purging = client().deleteAll();
+      await pumpEventQueue();
+      expect(events, isEmpty);
+      release.complete();
+      await Future.wait([uploading, purging]);
+      expect(events, ['upload', 'purge']);
+    });
+
+    test('queued upload refuses an account change', () async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final backend = FakeAiShareBackend();
+      var owner = 'first-user';
+      final blocking = AiShareSnapshotClient(
+        isSignedIn: () => true,
+        invoke: (method, body) async {
+          entered.complete();
+          await release.future;
+          return const AiShareInvokeResponse(status: 204, data: null);
+        },
+      ).deleteAll();
+      await entered.future;
+      final client = AiShareSnapshotClient(
+        isSignedIn: () => true,
+        currentUserId: () => owner,
+        invoke: backend.client().invoke,
+      );
+      final upload = client.upload(
+        connectionId: 'c-1',
+        scope: AiShareScope.detailedReport,
+        stackRevision: 'r1',
+        ttlHours: 24,
+        payload: 'preview',
+        generatedAt: DateTime.utc(2026, 10, 13),
+      );
+      final assertion = expectLater(upload, throwsA(isA<AiShareNotSignedIn>()));
+      owner = 'second-user';
+      release.complete();
+      await blocking;
+      await assertion;
+      expect(backend.uploads, isEmpty);
+    });
+
     test('a guest cannot upload: typed failure and nothing is sent', () async {
       final backend = FakeAiShareBackend(signedIn: false);
       final client = backend.client();
       await expectLater(
         client.upload(
           connectionId: 'c-1',
+          generatedAt: DateTime.utc(2026, 10, 12),
           scope: AiShareScope.detailedReport,
           stackRevision: 'r1',
           ttlHours: 24,
@@ -184,6 +269,7 @@ void main() {
       for (final ttl in [0, 1, 24, 168, 720, 721, 100000]) {
         await client.upload(
           connectionId: 'c-1',
+          generatedAt: DateTime.utc(2026, 10, 12),
           scope: AiShareScope.detailedReport,
           stackRevision: 'r1',
           ttlHours: ttl,
@@ -209,6 +295,7 @@ void main() {
         await expectLater(
           client.upload(
             connectionId: 'c-1',
+            generatedAt: DateTime.utc(2026, 10, 12),
             scope: const AiShareScope(supplementNames: false, findings: false),
             stackRevision: 'r1',
             ttlHours: 24,
@@ -219,6 +306,7 @@ void main() {
         await expectLater(
           client.upload(
             connectionId: 'c-1',
+            generatedAt: DateTime.utc(2026, 10, 12),
             scope: AiShareScope.detailedReport,
             stackRevision: 'r1',
             ttlHours: 24,

@@ -11,12 +11,21 @@ class AiConnection {
     required this.createdAt,
     required this.expiresAt,
     this.revokedAt,
+    this.clientName,
+    this.callbackHost,
   });
 
   final String connectionId;
 
   /// The verified OAuth client identifier of the assistant.
   final String clientId;
+
+  /// Verified metadata stored by the website approval route, never inferred
+  /// from a client-supplied name or its identifier.
+  final String? clientName;
+  final String? callbackHost;
+
+  String get displayName => clientName ?? clientId;
 
   /// `active`, `revoked` or `expired`.
   final String status;
@@ -44,11 +53,19 @@ class AiConnection {
     return AiConnection(
       connectionId: id,
       clientId: clientId,
+      clientName: _displayText(row['client_name']),
+      callbackHost: _displayText(row['callback_host']),
       status: status,
       createdAt: createdAt,
       expiresAt: expiresAt,
       revokedAt: revoked == null ? null : DateTime.tryParse('$revoked'),
     );
+  }
+
+  static String? _displayText(Object? value) {
+    if (value is! String || value.length > 200) return null;
+    final text = value.trim();
+    return text.isEmpty ? null : text;
   }
 }
 
@@ -73,7 +90,7 @@ class SupabaseAiConnectionsRepository implements AiConnectionsRepository {
         .from(SupabaseContract.aiConnectionsTable)
         .select(
           'connection_id, client_id, status, created_at, expires_at, '
-          'revoked_at',
+          'revoked_at, client_name, callback_host',
         )
         .eq('user_id', userId)
         .order('created_at', ascending: false);

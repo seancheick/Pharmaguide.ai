@@ -397,7 +397,11 @@ class AiBriefBuilder {
     // Untyped issues carry no provenance a filter can inspect, so they ride
     // only with the full clinical scope. Otherwise they are counted, and the
     // supplement-only recall/banned facts are stated from the typed flags.
-    final fullScope = scope.medicationNames && scope.profile;
+    final fullScope =
+        scope.supplementNames &&
+        scope.supplementAmounts &&
+        scope.medicationNames &&
+        scope.profile;
     final represented = representedIssueHeadlines(signals);
     final candidateIssues = intelligence.issues
         .where((issue) => !represented.contains(issue.headline.trim()))
@@ -502,20 +506,24 @@ class AiBriefBuilder {
   bool _includeSignal(ClinicalSignal signal, AiShareScope scope) {
     return switch (signal.payload) {
       InteractionPayload(:final result) => switch (result.type) {
-        InteractionType.supplementSupplement => true,
-        InteractionType.drugSupplement ||
+        InteractionType.supplementSupplement => scope.supplementNames,
+        InteractionType.drugSupplement =>
+          scope.supplementNames && scope.medicationNames,
         InteractionType.drugDrug => scope.medicationNames,
-        InteractionType.conditionSupplement => scope.profile,
+        InteractionType.conditionSupplement =>
+          scope.supplementNames && scope.profile,
       },
       MedicationProfilePayload() => scope.medicationNames && scope.profile,
       MedicationNutrientPayload() => scope.medicationNames,
-      CumulativeExposurePayload() => scope.supplementAmounts,
+      CumulativeExposurePayload(:final status) =>
+        scope.supplementAmounts && (scope.profile || status.ulIsFallback),
       DoseThresholdPayload(:final alert) =>
         scope.supplementAmounts &&
             (alert.conditionId.trim().isEmpty || scope.profile),
-      RegulatorySafetyPayload() => true,
+      RegulatorySafetyPayload() => scope.supplementNames,
       TimingSeparationPayload(:final optimization) =>
-        !optimization.involvesMedication || scope.medicationNames,
+        scope.supplementNames &&
+            (!optimization.involvesMedication || scope.medicationNames),
     };
   }
 
@@ -571,7 +579,7 @@ class AiBriefBuilder {
     // Amounts are label facts; the comparisons (% of target, % of upper
     // limit, status) are findings and follow the findings switch. Targets
     // are profile-matched and follow the profile switch.
-    final showAssessment = scope.findings;
+    final showAssessment = scope.findings && scope.profile;
     final showTarget = showAssessment && scope.profile;
     out.writeln('## Nutrient totals (supplement labels only)');
     final columns = <String>[
@@ -584,7 +592,13 @@ class AiBriefBuilder {
     ];
     out.writeln('| ${columns.join(' | ')} |');
     out.writeln('|${List.filled(columns.length, '---').join('|')}|');
-    for (final status in sortNutrientStatuses(statuses)) {
+    // Without profile consent even assessment-based ordering is withheld.
+    final ordered = showAssessment
+        ? sortNutrientStatuses(statuses)
+        : ([...statuses]..sort(
+            (a, b) => a.total.displayName.compareTo(b.total.displayName),
+          ));
+    for (final status in ordered) {
       final unquantified = isNutrientUnquantified(status);
       final cells = <String>[
         status.total.displayName,
@@ -604,7 +618,7 @@ class AiBriefBuilder {
         out.writeln('  - ${status.total.displayName}: $caveat');
       }
     }
-    final targetNote = !showAssessment
+    final targetNote = !scope.findings
         ? ''
         : showTarget
         ? ' Targets are the reference intake matched to this profile; '
@@ -634,7 +648,8 @@ class AiBriefBuilder {
     final included = <TimingOptimization>[];
     var withheld = 0;
     for (final item in report.timingOptimizations) {
-      if (!item.involvesMedication || scope.medicationNames) {
+      if (scope.supplementNames &&
+          (!item.involvesMedication || scope.medicationNames)) {
         included.add(item);
       } else {
         withheld++;
@@ -675,7 +690,7 @@ class AiBriefBuilder {
     if (withheld > 0) {
       out.writeln(
         '- $withheld timing ${withheld == 1 ? 'item' : 'items'} involving '
-        'medications withheld because medications were not shared.',
+        '${scope.supplementNames ? 'medications withheld because medications were not shared' : 'categories that were not shared'}.',
       );
     }
     out.writeln();

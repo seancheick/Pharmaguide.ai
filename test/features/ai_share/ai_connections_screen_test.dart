@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/ai_share/ai_connections_screen.dart';
+import 'package:pharmaguide/features/ai_share/ai_connections_repository.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_consent_screen.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
@@ -68,6 +69,30 @@ void main() {
     matching: find.byType(Switch),
   );
 
+  test('connection parser keeps only valid stored display metadata', () {
+    final row = <String, Object?>{
+      'connection_id': 'connection-1',
+      'client_id': 'opaque-client-id',
+      'status': 'active',
+      'created_at': '2026-10-13T00:00:00Z',
+      'expires_at': '2026-11-13T00:00:00Z',
+      'client_name': ' Claude ',
+      'callback_host': ' claude.ai ',
+    };
+    final named = AiConnection.tryParse(row)!;
+    expect(named.displayName, 'Claude');
+    expect(named.callbackHost, 'claude.ai');
+    for (final malformed in [null, '', '   ', 42, 'x' * 201]) {
+      final legacy = AiConnection.tryParse({
+        ...row,
+        'client_name': malformed,
+        'callback_host': malformed,
+      })!;
+      expect(legacy.displayName, 'opaque-client-id');
+      expect(legacy.callbackHost, isNull);
+    }
+  });
+
   testWidgets('guest: explains an account is needed and never queries', (
     tester,
   ) async {
@@ -88,6 +113,38 @@ void main() {
     expect(find.text('claude-ai'), findsOneWidget);
     expect(find.text('2 supplements available to assistants'), findsOneWidget);
     expect(find.text('ACTIVE'), findsOneWidget);
+  });
+
+  testWidgets('shows stored verified assistant name and callback host', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    repo = FakeAiConnectionsRepository([
+      AiConnection.tryParse({
+        'connection_id': 'connection-1',
+        'client_id': 'opaque-client-id',
+        'client_name': 'Claude',
+        'callback_host': 'claude.ai',
+        'status': 'active',
+        'created_at': now.toIso8601String(),
+        'expires_at': now.add(const Duration(days: 1)).toIso8601String(),
+      })!,
+    ]);
+    await tester.pumpWidget(app(signedIn: true));
+    await tester.pumpAndSettle();
+    expect(find.text('Claude'), findsOneWidget);
+    expect(find.textContaining('claude.ai'), findsOneWidget);
+    await tester.tap(find.text('Share more with this assistant'));
+    await tester.pumpAndSettle();
+    final consent = find.byKey(const Key('ai_share_consent_card'));
+    expect(
+      find.descendant(of: consent, matching: find.text('Claude')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: consent, matching: find.text('claude.ai')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('keep updated is off by default and needs a first share', (

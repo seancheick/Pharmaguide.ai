@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:pharmaguide/services/settings/app_preferences.dart';
@@ -49,7 +50,35 @@ class AiSharePrefsStore {
 
   final AppPreferencesStore _store;
 
+  // Shared across instances because sign-out constructs its own store.
+  // This is a cancellation generation, never stored or sent off device.
+  static int _revision = 0;
+  int get revision => _revision;
+  static Future<void>? _pending;
+
+  Future<T> _mutate<T>(Future<T> Function(int generation) action) async {
+    final generation = ++_revision;
+    while (_pending != null) {
+      await _pending;
+    }
+    final done = Completer<void>();
+    _pending = done.future;
+    try {
+      return await action(generation);
+    } finally {
+      _pending = null;
+      done.complete();
+    }
+  }
+
   Future<Map<String, AiShareConnectionPrefs>> readAll() async {
+    while (_pending != null) {
+      await _pending;
+    }
+    return _readAll();
+  }
+
+  Future<Map<String, AiShareConnectionPrefs>> _readAll() async {
     String? raw;
     try {
       raw = await _store.getString(key);
@@ -77,43 +106,54 @@ class AiSharePrefsStore {
 
   /// Records the scope and duration the user just shared. Keeps the
   /// existing opt-in so a re-share never silently turns refresh on or off.
-  Future<void> recordShare(
+  Future<bool> recordShare(
     String connectionId,
     AiShareScope scope,
-    int ttlHours,
-  ) async {
-    final all = Map.of(await readAll());
+    int ttlHours, {
+    int? expectedRevision,
+    bool Function()? isStillOwner,
+    bool? keepUpdated,
+  }) => _mutate((generation) async {
+    bool current() =>
+        (expectedRevision == null ||
+            (generation == expectedRevision + 1 && generation == _revision)) &&
+        (isStillOwner?.call() ?? true);
+    if (!current()) return false;
+    final all = Map.of(await _readAll());
+    if (!current()) return false;
     all[connectionId] = AiShareConnectionPrefs(
       scope: scope.normalized,
       ttlHours: ttlHours,
-      keepUpdated: all[connectionId]?.keepUpdated ?? false,
+      keepUpdated: keepUpdated ?? all[connectionId]?.keepUpdated ?? false,
     );
     await _write(all);
-  }
+    return true;
+  });
 
   /// Turns the opt-in refresh on or off. Turning it on needs a recorded
   /// share: the refresh reuses exactly the scope the user saw then.
-  Future<void> setKeepUpdated(String connectionId, bool on) async {
-    final all = Map.of(await readAll());
-    final current = all[connectionId];
-    if (current == null) {
-      if (!on) return;
-      throw StateError('Share once before keeping this assistant updated.');
-    }
-    all[connectionId] = AiShareConnectionPrefs(
-      scope: current.scope,
-      ttlHours: current.ttlHours,
-      keepUpdated: on,
-    );
-    await _write(all);
-  }
+  Future<void> setKeepUpdated(String connectionId, bool on) =>
+      _mutate((_) async {
+        final all = Map.of(await _readAll());
+        final current = all[connectionId];
+        if (current == null) {
+          if (!on) return;
+          throw StateError('Share once before keeping this assistant updated.');
+        }
+        all[connectionId] = AiShareConnectionPrefs(
+          scope: current.scope,
+          ttlHours: current.ttlHours,
+          keepUpdated: on,
+        );
+        await _write(all);
+      });
 
-  Future<void> forget(String connectionId) async {
-    final all = Map.of(await readAll());
+  Future<void> forget(String connectionId) => _mutate((_) async {
+    final all = Map.of(await _readAll());
     if (all.remove(connectionId) != null) await _write(all);
-  }
+  });
 
-  Future<void> clear() => _store.setString(key, '{}');
+  Future<void> clear() => _mutate((_) => _store.setString(key, '{}'));
 
   Future<void> _write(Map<String, AiShareConnectionPrefs> all) => _store
       .setString(key, jsonEncode(all.map((k, v) => MapEntry(k, v.toJson()))));

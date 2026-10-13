@@ -52,6 +52,7 @@ final clinicianReportDocumentProvider = FutureProvider.autoDispose<Uint8List>((
 });
 
 Future<ClinicianReportData> _collectClinicianReportData(Ref ref) async {
+  final generatedAt = DateTime.now();
   final userDb = ref.read(userDatabaseProvider);
   final profile = await userDb.getProfile();
   final referenceDataRepository = ref.read(
@@ -145,7 +146,7 @@ Future<ClinicianReportData> _collectClinicianReportData(Ref ref) async {
       for (final condition in clinicalProfileSchema.selectableConditions)
         condition.id: condition.label,
     },
-    generatedAt: DateTime.now(),
+    generatedAt: generatedAt,
   );
 }
 

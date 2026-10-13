@@ -33,10 +33,20 @@ class AiShareSnapshotPusher {
   final AiShareSnapshotClient client;
   final Future<ClinicianReportData> Function() loadData;
 
+  Future<void> _pending = Future<void>.value();
+
   /// Re-uploads every opted-in connection. Returns how many succeeded.
   /// Never throws: failures are logged without payload content.
-  Future<int> refreshAfterStackChange() async {
+  Future<int> refreshAfterStackChange() {
+    final result = _pending.then((_) => _refresh());
+    _pending = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return result;
+  }
+
+  Future<int> _refresh() async {
     if (!isSignedIn()) return 0;
+    final owner = client.currentUserId?.call();
+    final consentRevision = prefs.revision;
     final targets = (await prefs.readAll()).entries
         .where((e) => e.value.keepUpdated)
         .toList(growable: false);
@@ -53,8 +63,21 @@ class AiShareSnapshotPusher {
     for (final target in targets) {
       final saved = target.value;
       try {
+        Future<bool> stillConsented() async {
+          final current = await prefs.read(target.key);
+          return prefs.revision == consentRevision &&
+              isSignedIn() &&
+              client.currentUserId?.call() == owner &&
+              current?.keepUpdated == true &&
+              current?.scope == saved.scope &&
+              current?.ttlHours == saved.ttlHours;
+        }
+
+        if (!await stillConsented()) continue;
         await client.upload(
+          canUpload: stillConsented,
           connectionId: target.key,
+          generatedAt: data.generatedAt,
           scope: saved.scope,
           stackRevision: AiShareSnapshotClient.stackRevisionForScope(
             data.stack,
@@ -83,6 +106,9 @@ final aiShareSnapshotPusherProvider = Provider<AiShareSnapshotPusher>((ref) {
     prefs: ref.read(aiSharePrefsStoreProvider),
     client: ref.read(aiShareSnapshotClientProvider),
     loadData: () async {
+      // A mounted preview can retain the previous snapshot. Recollect from
+      // current owners for each serialized refresh before opening a listener.
+      ref.invalidate(clinicianReportDataProvider);
       // Hold the auto-dispose collector open until this read completes.
       final sub = ref.listen(clinicianReportDataProvider.future, (_, _) {});
       try {

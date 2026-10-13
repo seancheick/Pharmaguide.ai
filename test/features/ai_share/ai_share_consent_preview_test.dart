@@ -1,7 +1,11 @@
 // S4 consent preview (ADR-009): destination, categories, duration, the three
 // data locations and the revocation path are all on screen before Share.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
+import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
@@ -18,19 +22,24 @@ void main() {
 
   setUp(() => backend = FakeAiShareBackend());
 
-  Widget app() => ProviderScope(
-    overrides: [
-      clinicianReportDataProvider.overrideWith((ref) async => aiShareFixture()),
-      aiShareSnapshotClientProvider.overrideWithValue(backend.client()),
-      aiSharePrefsStoreProvider.overrideWithValue(
-        AiSharePrefsStore(MemoryPreferencesStore()),
-      ),
-    ],
-    child: MaterialApp(
-      theme: V2Theme.light,
-      home: AiShareConsentScreen(connection: aiConnectionFixture()),
-    ),
-  );
+  Widget app({AiShareSnapshotClient? client, AiSharePrefsStore? preferences}) =>
+      ProviderScope(
+        overrides: [
+          clinicianReportDataProvider.overrideWith(
+            (ref) async => aiShareFixture(),
+          ),
+          aiShareSnapshotClientProvider.overrideWithValue(
+            client ?? backend.client(),
+          ),
+          aiSharePrefsStoreProvider.overrideWithValue(
+            preferences ?? AiSharePrefsStore(MemoryPreferencesStore()),
+          ),
+        ],
+        child: MaterialApp(
+          theme: V2Theme.light,
+          home: AiShareConsentScreen(connection: aiConnectionFixture()),
+        ),
+      );
 
   String card(WidgetTester tester) {
     final texts = tester.widgetList<Text>(
@@ -41,6 +50,58 @@ void main() {
     );
     return texts.map((t) => t.data ?? '').join('\n');
   }
+
+  for (final stop in ['forget', 'clear', 'disable']) {
+    testWidgets('completed upload cannot undo $stop during sharing', (
+      tester,
+    ) async {
+      final prefs = AiSharePrefsStore(MemoryPreferencesStore());
+      final id = aiConnectionFixture().connectionId;
+      await prefs.recordShare(id, AiShareScope.detailedReport, 24);
+      await prefs.setKeepUpdated(id, true);
+      final response = Completer<AiShareInvokeResponse>();
+      final client = AiShareSnapshotClient(
+        isSignedIn: () => true,
+        invoke: (_, _) => response.future,
+      );
+      await tester.pumpWidget(app(client: client, preferences: prefs));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('ai_share_submit')));
+      await tester.pumpAndSettle();
+      switch (stop) {
+        case 'forget':
+          await prefs.forget(id);
+        case 'clear':
+          await prefs.clear();
+        case 'disable':
+          await prefs.setKeepUpdated(id, false);
+      }
+      response.complete(
+        const AiShareInvokeResponse(
+          status: 201,
+          data: {'snapshot_id': 's1', 'expires_at': '2026-10-14T00:00:00Z'},
+        ),
+      );
+      await tester.pumpAndSettle();
+      final saved = await prefs.read(id);
+      if (stop == 'disable') {
+        expect(saved?.keepUpdated, false);
+      } else {
+        expect(saved, isNull);
+      }
+    });
+  }
+
+  testWidgets('bad snapshot request gives actionable clock guidance', (
+    tester,
+  ) async {
+    backend.failWith = const AiShareSnapshotRequestFailed(400);
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ai_share_submit')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Check your device date/time'), findsOneWidget);
+  });
 
   testWidgets('names destination, categories, data locations and how to stop', (
     tester,
