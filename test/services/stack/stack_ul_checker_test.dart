@@ -415,10 +415,40 @@ void main() {
       1360,
       reason: 'the label total appears once',
     );
-    expect(status.pctOfUl, closeTo(40.8, 0.1));
+    expect(status.pctOfUl, isNull);
     expect(status.tier, NutrientTier.aboveTypical);
     expect(status.ulAssessmentIndeterminate, isTrue);
   });
+
+  test(
+    'unresolved stack exposure has no complete UL percentage but keeps known excess warnings',
+    () {
+      for (final amount in [20.0, 45.0]) {
+        final total = NutrientTotal(
+          canonicalId: 'zinc',
+          displayName: 'Zinc',
+          totalAmount: amount,
+          unit: 'mg',
+          contributions: const [],
+          hasUnitConflict: true,
+          ulComparableTotalAmount: amount,
+          ulComparableUnit: 'mg',
+          hasUlExposureContract: true,
+          hasUnresolvedUlContribution: true,
+        );
+        final status = checker
+            .check({'zinc': total}, ageBracket: '19-30', sex: 'Male')
+            .single;
+        expect(status.ulAssessmentIndeterminate, isTrue);
+        expect(status.pctOfUl, isNull);
+        expect(status.shouldWarn, amount > 40);
+        if (amount > 40) {
+          expect(status.tier, NutrientTier.exceedsUl);
+          expect(status.warning, isNotNull);
+        }
+      }
+    },
+  );
 
   group('StackUlChecker — tier classification', () {
     test('noRda tier when nutrient is not in reference data', () {
