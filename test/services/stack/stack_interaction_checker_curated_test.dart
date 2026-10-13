@@ -1988,6 +1988,42 @@ void main() {
     );
 
     test(
+      'ingredient-only pairwise exception cannot clear a contextual warning',
+      () async {
+        await db.customStatement(
+          'UPDATE interactions SET medication_exceptions_json = ? WHERE id = ?',
+          [
+            jsonEncode([
+              {
+                'ingredient_rxcuis': ['9639'],
+              },
+            ]),
+            'EMSAM_FOOD',
+          ],
+        );
+        final hits = await StackInteractionChecker()
+            .checkMedicationFoodAdvisories(
+              stackMedications: [
+                _medication(
+                  id: 's',
+                  name: 'Selegiline',
+                  rxcui: '9639',
+                  drugClassesJson: '["class:maois"]',
+                ),
+              ],
+              db: db,
+              currentMedicationContexts: {
+                's': const MedicationUseContext(
+                  useContext: 'confirmed_no_recent_high_dose',
+                  isCurrentCheck: true,
+                ),
+              },
+            );
+        expect(hits.any((r) => r.id == 'EMSAM_FOOD'), isTrue);
+      },
+    );
+
+    test(
       'a low label-serving amount cannot establish the actual daily dose',
       () async {
         final hits = await StackInteractionChecker()

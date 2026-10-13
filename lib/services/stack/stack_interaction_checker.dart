@@ -347,6 +347,8 @@ class StackInteractionChecker {
         if (exceptions is List &&
             exceptions.whereType<Map<String, dynamic>>().any(
               (e) =>
+                  e['use_context'] is String &&
+                  (e['use_context'] as String).trim().isNotEmpty &&
                   e['ingredient_rxcuis'] is List &&
                   (e['ingredient_rxcuis'] as List).isNotEmpty &&
                   const MedicationProfileGateEvaluator()
