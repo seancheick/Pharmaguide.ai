@@ -294,6 +294,18 @@ export function warningFacts(w: Json): Json {
 /// (pipeline-computed pct_ul), then per-row over_ul / pct_ul. A row with a
 /// pipeline UL message but no structured decision needs the app's unit
 /// conversion; it is disclosed as a limitation, never shown as a finding.
+function upperLimitReference(row: Json): Json {
+  const ref = asObject(row.reference);
+  return {
+    source_owner: "rda_ul_data",
+    evidence_grade_applicable: typeof ref?.evidence_grade_applicable === "boolean" ? ref.evidence_grade_applicable : null,
+    basis_type: capText(ref?.basis_type, 80),
+    source_url: publicSources([ref?.source_url])[0] ?? null,
+    ul_basis: capText(ref?.ul_basis, 100),
+    ul_note: completeText(ref?.ul_note),
+  };
+}
+
 export function upperLimitFacts(rdaUlData: unknown): { flags: Json[]; unconfirmed: boolean } {
   const data = asObject(rdaUlData);
   const rows = data?.analyzed_ingredients;
@@ -313,6 +325,7 @@ export function upperLimitFacts(rdaUlData: unknown): { flags: Json[]; unconfirme
     seen.add(name.toLowerCase());
     flags.push({
       nutrient: name,
+      ...upperLimitReference(flag),
       pipeline_warnings: [capText(message)],
       pct_of_upper_limit: Math.round(pct * 10) / 10,
       evidence_level: capText(flag.evidence_level, 60),
@@ -339,6 +352,7 @@ export function upperLimitFacts(rdaUlData: unknown): { flags: Json[]; unconfirme
     seen.add(name.toLowerCase());
     flags.push({
       nutrient: name,
+      ...upperLimitReference(row),
       pipeline_warnings: messages.slice(0, 5).map((m) => capText(m)),
       pct_of_upper_limit: pct,
       evidence_level: capText(row.evidence_level, 60),
@@ -395,6 +409,39 @@ function ingredientFacts(raw: unknown, ledger: unknown): Json[] {
 
 /// Pure mapper: detail blob + its catalog row -> the only facts a public tool
 /// may return. Throws when the blob is not the requested product.
+function pillarExplanation(value: unknown): Json | null {
+  const exp = asObject(value);
+  if (!exp) return null;
+  const raw = asObject(exp.assessment);
+  const assessment: Json | null = raw ? {} : null;
+  if (raw && assessment) {
+    for (const key of ["method", "deferred_data_dependency", "dose_participation_basis"]) assessment[key] = capText(raw[key], 120);
+    for (const key of ["raw_dose", "normalization_reference", "ul_partial_credit_above_pct", "ul_zero_credit_at_pct", "ul_partial_credit_raw", "supplemental_window_max_raw", "raw_dose_safety_penalty", "safety_hygiene_over_ul_penalty"]) assessment[key] = finiteNumber(raw[key]);
+    assessment.unbenchmarked_purpose_ingredients = stringList(raw.unbenchmarked_purpose_ingredients).slice(0, MAX_INGREDIENTS);
+    assessment.reference_assessments = (Array.isArray(raw.reference_assessments) ? raw.reference_assessments : []).slice(0, MAX_INGREDIENTS).flatMap(value => {
+      const r = asObject(value); if (!r) return [];
+      const out: Json = {};
+      for (const key of ["nutrient", "canonical_id", "unit", "rda_ai_source", "ul_status", "source_label_key"]) out[key] = capText(r[key]);
+      for (const key of ["rda_ai", "ul", "pct_rda", "pct_ul", "per_day_min", "per_day_max"]) out[key] = finiteNumber(r[key]);
+      for (const key of ["scoring_eligible", "skip_ul_check", "ul_gate_eligible"]) out[key] = typeof r[key] === "boolean" ? r[key] : null;
+      out.reference = upperLimitReference(r);
+      const profile = asObject(r.reference_profile);
+      out.reference_profile = profile ? Object.fromEntries(["id", "age_range", "adequacy_basis", "ul_basis"].map(key => [key, capText(profile[key])])) : null;
+      return [out];
+    });
+    assessment.positive_clinical_benchmark_assessments = (Array.isArray(raw.positive_clinical_benchmark_assessments) ? raw.positive_clinical_benchmark_assessments : []).slice(0, MAX_INGREDIENTS).flatMap(value => {
+      const r = asObject(value); if (!r) return [];
+      return [{ record_id: capText(r.record_id), source_row_ref: capText(r.source_row_ref), benchmark_unit: capText(r.benchmark_unit),
+        benchmark_value: finiteNumber(r.benchmark_value), benchmark_maximum: finiteNumber(r.benchmark_maximum), exposure_value: finiteNumber(r.exposure_value),
+        assessment_kind: capText(r.assessment_kind), dose_band: capText(r.dose_band), member_canonical_ids: stringList(r.member_canonical_ids) }];
+    });
+  }
+  return { schema_version: finiteNumber(exp.schema_version), assessment,
+    facts: (Array.isArray(exp.facts) ? exp.facts : []).slice(0, MAX_INGREDIENTS).flatMap(value => {
+      const fact = asObject(value); return fact ? [{ id: capText(fact.id), label: capText(fact.label), value_display: completeText(fact.value_display) }] : [];
+    }) };
+}
+
 export function toProductFacts(blob: unknown, row: CatalogRow): Json {
   const b = asObject(blob);
   if (!b || String(b.dsld_id ?? "") !== String(row.dsld_id)) {
@@ -433,7 +480,7 @@ export function toProductFacts(blob: unknown, row: CatalogRow): Json {
       "Some PharmaGuide warnings for this product apply only to specific conditions, medications, pregnancy or breastfeeding; they are not included in this public view.",
     );
   }
-  if (ul.flags.some((flag) => flag.evidence_level === null)) {
+  if (ul.flags.some((flag) => flag.evidence_level === null && flag.evidence_grade_applicable !== false)) {
     limitations.push("Some upper-limit findings have no published evidence grade; do not infer one from the calculation.");
   }
   if (ul.unconfirmed) {
@@ -474,7 +521,7 @@ export function toProductFacts(blob: unknown, row: CatalogRow): Json {
     quality_pillars_v4: Object.fromEntries(["formulation", "dose", "evidence", "transparency", "verification", "safety_hygiene"].flatMap(key => {
       const pillar = asObject(asObject(b.quality_pillars_v4)?.[key]);
       return pillar ? [[key, { score: finiteNumber(pillar.score), max: finiteNumber(pillar.max), reason: completeText(pillar.reason),
-        evidence_result_state: capText(pillar.evidence_result_state, 60), display_state: capText(pillar.display_state, 60) }]] : [];
+        evidence_result_state: capText(pillar.evidence_result_state, 60), display_state: capText(pillar.display_state, 60), explanation: pillarExplanation(pillar.explanation) }]] : [];
     })),
     quality,
     product_safety_status: safetyStatus,
@@ -508,12 +555,29 @@ export function toMatch(row: CatalogRow): Json {
 }
 
 /// S8 envelope around every tool result.
-export function envelope(data: unknown, catalogVersion: string | null, now = new Date()): Json {
+export function envelope(data: unknown, catalogVersion: string | null, now = new Date(), resultScope: "production_catalog" | "candidate_fixture" = "production_catalog"): Json {
+  const payload = asObject(data);
+  const found = payload?.found === true;
+  const matches = Array.isArray(payload?.matches) ? payload.matches : [];
+  const complete = found && payload?.quality_assessment_status === "complete";
+  const pillars = asObject(payload?.quality_pillars_v4);
+  const pillarScope = (key: string) => {
+    const pillar = asObject(pillars?.[key]);
+    return complete && finiteNumber(pillar?.score) !== null && pillar?.display_state !== "not_assessed" ? "catalog_assessed" : "not_assessed";
+  };
   return {
-    data,
-    name_source: "catalog",
-    catalog_version: catalogVersion,
-    generated_at: now.toISOString(),
+    data, name_source: "catalog", catalog_version: catalogVersion, generated_at: now.toISOString(),
+    result_scope: resultScope, is_exhaustive: false,
+    returned_count: found ? 1 : matches.length,
+    ranking_basis: payload?.sort === "quality" ? "published_quality_score" : payload?.sort === "relevance" ? "name_match_relevance" : null,
+    ranking_is_personal_recommendation: false,
+    assessment_scope: {
+      product_identity: found ? "catalog_record_found" : matches.length ? "candidate_matches" : "not_assessed",
+      label_quality: complete ? "catalog_assessed" : "not_assessed",
+      formulation: pillarScope("formulation"), dose: pillarScope("dose"), evidence: pillarScope("evidence"),
+      medications: "not_assessed", conditions: "not_assessed", pregnancy: "not_assessed",
+      lactation: "not_assessed", allergies: "not_assessed", full_stack: "not_assessed",
+    },
   };
 }
 
