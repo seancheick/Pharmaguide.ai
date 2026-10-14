@@ -37,6 +37,27 @@ const _v4Labels = [
 ];
 
 void main() {
+  testWidgets(
+    'Formulation explains that full credit is not a best-form claim',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          buildScoreBreakdownSection(
+            heroScore: 95,
+            qualityPillarsV4: _v4Pillars(),
+          ),
+        ),
+      );
+      final pillars = tester
+          .widget<PGScoreBreakdownCard>(find.byType(PGScoreBreakdownCard))
+          .pillars;
+      final formulation = pillars.firstWhere((p) => p.label == 'Formulation');
+      expect(formulation.reason, contains('ingredient forms'));
+      expect(formulation.reason, contains('best form'));
+      expect(formulation.reason, contains('Well formulated.'));
+      expect(formulation.score, 17.6);
+    },
+  );
   nativeScaleTests();
   namedActionTests();
   evidenceScopeReconciliationTests();
