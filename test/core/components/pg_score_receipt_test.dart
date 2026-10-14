@@ -159,11 +159,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('How these points add up'), findsOneWidget);
     expect(find.text('Neutral credit'), findsOneWidget);
-    expect(find.text('+11.4'), findsOneWidget);
+    expect(find.text('+11.4286'), findsOneWidget);
+    expect(find.text('−0.0286'), findsOneWidget);
     expect(find.text('Not earned'), findsOneWidget);
     expect(find.text('8.6'), findsOneWidget);
-    // A residue that rounds to 0.0 is not shown as its own row.
-    expect(find.text('Floors, caps and rounding'), findsNothing);
+    // Small adjustments remain visible so the displayed arithmetic reconciles.
+    expect(find.text('Floors, caps and rounding'), findsOneWidget);
   });
 
   testWidgets(

@@ -620,7 +620,7 @@ class _PillarReceipt extends StatelessWidget {
       ('Disclosure credit', receipt.points('disclosure')),
       ('Deductions', receipt.points('deduction')),
       ('Floors, caps and rounding', receipt.adjustments),
-    ].where((row) => (row.$2 * 10).round() != 0).toList();
+    ].where((row) => row.$2.abs() >= 0.00005).toList();
     Widget line(String label, String value, Color color) => Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Row(
@@ -642,7 +642,7 @@ class _PillarReceipt extends StatelessWidget {
         for (final (label, points) in rows)
           line(
             label,
-            PGScoreBreakdownCard.fmtSignedScore(points),
+            '${points < 0 ? '−' : '+'}${points.abs().toStringAsFixed(4).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')}',
             context.v2.fg,
           ),
         if ((receipt.unawarded * 10).round() != 0)
