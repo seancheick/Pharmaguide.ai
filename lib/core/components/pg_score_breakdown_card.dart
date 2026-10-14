@@ -583,7 +583,11 @@ class _PGPillarRow extends StatelessWidget {
                             ],
                             if (pillar.receipt != null) ...[
                               const SizedBox(height: V2Spacing.space8),
-                              _PillarReceipt(receipt: pillar.receipt!),
+                              _PillarReceipt(
+                                receipt: pillar.receipt!,
+                                reviewIncomplete:
+                                    status == V4PillarStatus.notYetAssessed,
+                              ),
                             ],
                             if (_hasAction) ...[
                               const SizedBox(height: V2Spacing.space8),
@@ -610,7 +614,8 @@ class _PGPillarRow extends StatelessWidget {
 /// because it is capacity, not part of the sum.
 class _PillarReceipt extends StatelessWidget {
   final V4PillarReceipt receipt;
-  const _PillarReceipt({required this.receipt});
+  final bool reviewIncomplete;
+  const _PillarReceipt({required this.receipt, required this.reviewIncomplete});
 
   @override
   Widget build(BuildContext context) {
@@ -647,7 +652,7 @@ class _PillarReceipt extends StatelessWidget {
           ),
         if ((receipt.unawarded * 10).round() != 0)
           line(
-            'Not earned',
+            reviewIncomplete ? 'Not yet assessed' : 'Not earned',
             PGScoreBreakdownCard.fmtScore(receipt.unawarded),
             context.v2.fgMuted,
           ),

@@ -147,6 +147,18 @@ void main() {
     });
   });
 
+  testWidgets('unfinished evidence capacity is not described as unearned', (
+    tester,
+  ) async {
+    final pillars = _pillars(evidenceState: 'not_yet_reviewed');
+    (pillars['evidence'] as Map<String, dynamic>)['receipt'] = _receipt({}, 20);
+    await tester.pumpWidget(_section(pillars));
+    await tester.tap(find.text('Evidence'));
+    await tester.pumpAndSettle();
+    expect(find.text('Not earned'), findsNothing);
+    expect(find.text('Not yet assessed'), findsNWidgets(2));
+  });
+
   testWidgets('an expanded pillar shows how its points add up', (tester) async {
     await tester.pumpWidget(
       _section(
