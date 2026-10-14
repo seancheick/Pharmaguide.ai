@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import sqlite3
@@ -33,6 +34,9 @@ class ImportInteractionContract(unittest.TestCase):
             con.executescript(f"PRAGMA user_version={major}; CREATE TABLE interactions(retired_at TEXT); INSERT INTO interactions VALUES(NULL); CREATE TABLE research_pairs(rxcui_a TEXT,rxcui_b TEXT,canonical_id_a TEXT,canonical_id_b TEXT); CREATE TABLE interaction_db_metadata(key TEXT,value TEXT);")
             con.execute('CREATE TABLE drug_class_map(class_id TEXT, excluded_drug_rxcuis_json TEXT)')
             con.execute('INSERT INTO drug_class_map VALUES(?,?)', ('class:nsaids', exclusions))
+            if major >= 4:
+                con.execute('ALTER TABLE interactions ADD COLUMN profile_gate_json TEXT')
+                con.execute('ALTER TABLE interactions ADD COLUMN medication_exceptions_json TEXT')
             meta = dict(schema_version=f'{major}.0.0', total_interactions=1, source_suppai_count=0)
             if major >= 2:
                 con.executescript('CREATE TABLE profile_warning_rules(rule_id TEXT); INSERT INTO profile_warning_rules VALUES("pregnancy");')
@@ -49,8 +53,8 @@ class ImportInteractionContract(unittest.TestCase):
     def run_gate(self):
         return subprocess.run(['bash', str(IMPORTER), str(self.dist), '--min-products', '1', '--dry-run'], text=True, capture_output=True)
 
-    def test_schemas_one_two_three(self):
-        for major in (1,2,3):
+    def test_supported_historical_and_current_schemas(self):
+        for major in (1,2,3,4):
             with self.subTest(major=major):
                 if (self.dist / 'interaction_db.sqlite').exists():
                     (self.dist / 'interaction_db.sqlite').unlink()
@@ -58,6 +62,58 @@ class ImportInteractionContract(unittest.TestCase):
                 result = self.run_gate()
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn('no files written', result.stdout)
+
+    def test_current_reader_schema_is_supported_without_override(self):
+        reader = IMPORTER.parents[1] / 'lib/data/database/interaction_database.dart'
+        major = int(re.search(r'int get schemaVersion => (\d+);', reader.read_text()).group(1))
+        self.interaction(major)
+        result = self.run_gate()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_schema_four_retains_profile_and_class_guards(self):
+        self.interaction(4)
+        self.manifest['profile_warning_rules_count'] = 2
+        self.rehash()
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('profile warning rule count split-brain', result.stderr)
+        self.manifest['profile_warning_rules_count'] = 1
+        self.manifest['drug_class_count'] = 2
+        self.rehash()
+        result = self.run_gate()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('class count', result.stderr)
+
+    def test_schema_four_rejects_missing_reader_columns(self):
+        self.interaction(4)
+        db = self.dist / 'interaction_db.sqlite'
+        for column in ('profile_gate_json', 'medication_exceptions_json'):
+            with self.subTest(column=column):
+                with sqlite3.connect(db) as con:
+                    con.execute(f'ALTER TABLE interactions DROP COLUMN {column}')
+                self.rehash()
+                result = self.run_gate()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('schema-4 interaction column', result.stderr)
+                with sqlite3.connect(db) as con:
+                    con.execute(f'ALTER TABLE interactions ADD COLUMN {column} TEXT')
+
+    def test_schema_four_rejects_malformed_gate_json(self):
+        self.interaction(4)
+        for column, invalid in (('profile_gate_json', '[]'), ('profile_gate_json', 'invalid'),
+                                ('medication_exceptions_json', '{}'), ('medication_exceptions_json', 'null'),
+                                ('profile_gate_json', '{"conditions":NaN}'),
+                                ('profile_gate_json', '{"conditions":Infinity}'),
+                                ('medication_exceptions_json', '[NaN]'),
+                                ('medication_exceptions_json', '[-Infinity]')):
+            with self.subTest(column=column, invalid=invalid):
+                with sqlite3.connect(self.dist / 'interaction_db.sqlite') as con:
+                    con.execute('UPDATE interactions SET profile_gate_json=NULL, medication_exceptions_json=NULL')
+                    con.execute(f'UPDATE interactions SET {column}=?', (invalid,))
+                self.rehash()
+                result = self.run_gate()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('schema-4 interaction JSON', result.stderr)
 
     def test_schema_three_rejects_malformed_exclusions(self):
         for value in ('null', '{}', '[2473]', '["not-an-rxcui"]', 'invalid'):
