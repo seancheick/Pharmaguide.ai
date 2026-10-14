@@ -21,8 +21,10 @@ const List<(String, String, int)> kV4PillarSpec = [
 
 const String kFormulationScope =
     'Reviews ingredient forms, delivery and formulation design, with deductions '
-    'for recorded formulation concerns. Full points mean full credit under '
-    'PharmaGuide’s rules, not proof of the best form or suitability for you.';
+    'for recorded formulation concerns. The same feature is counted once; extra '
+    'delivery credit needs its own supporting evidence. Full points mean full '
+    'credit under PharmaGuide’s rules, not proof of the best form or suitability '
+    'for you.';
 
 const String kFormulaQualityChecksScope =
     'Reviews catalog-level concerns such as recalls, dose-limit findings, '
