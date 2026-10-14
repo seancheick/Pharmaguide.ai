@@ -1,5 +1,6 @@
 import {
   barcodeCandidates,
+  postgrestCatalogStore,
   BLOB_KEYS_READ,
   capText,
   CatalogFacts,
@@ -517,4 +518,23 @@ Deno.test("assessment scope and explanation never infer completion from numeric 
   const exp = ((facts.quality_pillars_v4 as Json).dose as Json).explanation as Json;
   assertEquals((exp.assessment as Json).ul_zero_credit_at_pct, 150);
   for (const key of collectKeys(facts)) assert(PUBLIC_FACT_KEYS.has(key), `unexpected key: ${key}`);
+});
+
+Deno.test("catalog store resolves existing manual IDs and rejects malformed IDs without a request", async () => {
+  const id = "PG_SUB_018F4C797C7E4C709D627FC3B9CE6A11";
+  const urls: string[] = [];
+  const store = postgrestCatalogStore({
+    supabaseUrl: "https://x.supabase.co", serviceKey: "fixture",
+    fetchFn: (url) => {
+      urls.push(url);
+      return Promise.resolve(new Response(JSON.stringify([{ dsld_id: id }])));
+    },
+  });
+  assertEquals((await store.byDsldId(id))?.dsld_id, id);
+  assertEquals(urls.length, 1);
+  assert(urls[0].includes(`dsld_id=eq.${id}`), "catalog must query exact full manual identifier");
+  for (const invalid of ["../1", "PG_SUB_1", id.toLowerCase(), "1&limit=100"]) {
+    assertEquals(await store.byDsldId(invalid), null);
+  }
+  assertEquals(urls.length, 1);
 });

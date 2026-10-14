@@ -69,6 +69,9 @@ export const BLOB_KEYS_READ = [
   "serving_info", "row_ledger", "quality_pillars_v4", "label_record", "primary_type", "product_role",
 ] as const;
 
+// Existing catalog identifiers: NIH label IDs and approved manual-submission IDs.
+export const CATALOG_PRODUCT_ID_PATTERN = "^(?:[0-9]{1,12}|PG_SUB_[0-9A-F]{32})$";
+
 export interface CatalogStore {
   currentVersion(): Promise<string | null>;
   search(args: { query: string; brand?: string; form?: string; limit: number; sort?: "relevance" | "quality"; offset?: number; catalog_version?: string; supplement_type?: string }): Promise<CatalogRow[]>;
@@ -497,7 +500,7 @@ export function toProductFacts(blob: unknown, row: CatalogRow): Json {
 
   return {
     identity: {
-      dsld_id: capText(row.dsld_id, 20),
+      dsld_id: capText(row.dsld_id, 64),
       product_name: capText(b.product_name ?? row.product_name),
       brand_name: capText(b.brand_name ?? row.brand_name, 200),
       product_line: capText(b.product_line ?? row.product_line, 200),
@@ -516,7 +519,7 @@ export function toProductFacts(blob: unknown, row: CatalogRow): Json {
     product_role: capText(b.product_role, 100),
     label_record: (() => {
       const label = asObject(b.label_record);
-      return label ? { source_name: capText(label.source_name, 100), source_record_id: capText(label.source_record_id, 30),
+      return label ? { source_name: capText(label.source_name, 100), source_record_id: capText(label.source_record_id, 64),
         source_date: capText(label.source_date, 40), source_updated_date: capText(label.source_updated_date, 40),
         label_source_url: publicSources([label.label_source_url])[0] ?? null, metadata_status: capText(label.metadata_status, 40) } : null;
     })(),
@@ -540,7 +543,7 @@ export function toMatch(row: CatalogRow): Json {
   const { quality } = publicQuality(row);
   const score = finiteNumber(row.match_score);
   return {
-    dsld_id: capText(row.dsld_id, 20),
+    dsld_id: capText(row.dsld_id, 64),
     product_name: capText(row.product_name),
     brand_name: capText(row.brand_name, 200),
     product_line: capText(row.product_line, 200),
@@ -788,7 +791,7 @@ export function postgrestCatalogStore(opts: {
       return rows(`catalog_search_current?${select}&upc_sku=in.(${safe.join(",")})&order=dsld_id&limit=25`);
     },
     async byDsldId(dsldId) {
-      if (!/^\d{1,12}$/.test(dsldId)) return null;
+      if (!new RegExp(CATALOG_PRODUCT_ID_PATTERN).test(dsldId)) return null;
       const found = await rows(`catalog_search_current?${select}&dsld_id=eq.${dsldId}&limit=1`);
       return found[0] ?? null;
     },
