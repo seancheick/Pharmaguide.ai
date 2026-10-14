@@ -173,7 +173,10 @@ class _FormEvidenceSources extends StatelessWidget {
   Widget build(BuildContext context) {
     final supportLabel = switch (level) {
       'strong' => 'Strong supporting evidence',
-      _ => 'Moderate supporting evidence',
+      'moderate' => 'Moderate supporting evidence',
+      'limited' => 'Limited supporting evidence',
+      'mechanistic_only' => 'Mechanistic evidence only',
+      _ => 'Form evidence not established',
     };
     return Container(
       padding: const EdgeInsets.all(V2Spacing.space12),

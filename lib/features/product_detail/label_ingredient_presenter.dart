@@ -101,8 +101,13 @@ PGActiveIngredient presentActiveIngredient(
   final formEvidenceSources = _parseFormEvidenceSources(formEvidence);
   final formEvidenceLevel =
       formEvidenceSources.isNotEmpty &&
-          (rawFormEvidenceLevel == 'strong' ||
-              rawFormEvidenceLevel == 'moderate')
+          const {
+            'strong',
+            'moderate',
+            'limited',
+            'mechanistic_only',
+            'none',
+          }.contains(rawFormEvidenceLevel)
       ? rawFormEvidenceLevel
       : null;
 
