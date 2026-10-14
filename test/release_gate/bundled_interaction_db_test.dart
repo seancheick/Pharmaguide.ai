@@ -69,7 +69,7 @@ void main() {
 
   group('release gate: bundled interaction DB asset', () {
     test(
-      'catalog importer accepts interaction schemas 1, 2 and 3 as pairs',
+      'catalog importer accepts interaction schemas 1 through 4 as pairs',
       () {
         final importer = File(
           'scripts/import_catalog_artifact.sh',
@@ -84,13 +84,18 @@ void main() {
         expect(supportedSchemas, contains('"1.0.0"'));
         expect(supportedSchemas, contains('"2.0.0"'));
         expect(supportedSchemas, contains('"3.0.0"'));
+        expect(supportedSchemas, contains('"4.0.0"'));
         expect(supportedUserVersions, contains('1'));
         expect(supportedUserVersions, contains('2'));
         expect(supportedUserVersions, contains('3'));
+        expect(supportedUserVersions, contains('4'));
         expect(importer, contains('excluded_drug_rxcuis_json'));
+        expect(importer, contains('profile_gate_json'));
+        expect(importer, contains('medication_exceptions_json'));
+        expect(importer, contains('parse_constant=reject_non_json_constant'));
         expect(
           importer,
-          contains('class exclusion contract validation failed'),
+          contains('interaction layout contract validation failed'),
         );
         expect(
           importer,

@@ -10,4 +10,6 @@ Candidate2026.10.14.14381615426 products; images changed corechecksum tof25fb811
 
 Validation: 10 focused harness tests passed including opt-in actual 131-row candidate; default real-catalog dry-run passed. Fresh review found Python accepted NaN/Infinity unlike Dart; reproduced four failing negative controls, fixed strict JSON constants, all controls pass. Bash syntax and diff check pass. Schema1–3 compatibility and inherited profile/class guards retained.
 
+CI38593689710:3867passed/1failed due old error-message assertion in bundled_interaction_db_test.dart. Reproduced named failure; updated schema1–4 pairing + requiredcolumns/strictJSON assertions; all5 bundled reader tests pass. Production source unchanged. Final CI rerun required.
+
 Next: final review/exact app CI/merge; verify114stagefingerprints stillcurrent; restart canonical release_full.sh --prepared-inputs on both clean origin/main bases (auto-skip corpus/build). Verify-bundle/makecheck; push bundle; public-only Edge deploy; native45-record Codex probe + all22glycinate comparison; guide/LEDGER/roadmap and cleanup. Personal access remainsOFF.
