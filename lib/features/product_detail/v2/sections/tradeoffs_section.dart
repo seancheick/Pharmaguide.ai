@@ -130,7 +130,7 @@ String? _pillarCaption(String? pillar) => switch ((pillar ?? '').trim()) {
   'evidence' => 'Holds back: evidence',
   'transparency' => 'Holds back: transparency',
   'verification' => 'Holds back: testing and brand',
-  'safety_hygiene' => 'Holds back: safety hygiene',
+  'safety_hygiene' => 'Holds back: formula & quality checks',
   _ => null,
 };
 

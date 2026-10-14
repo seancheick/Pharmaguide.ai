@@ -87,7 +87,7 @@ class PGComparePillarRow extends StatelessWidget {
         ),
         const SizedBox(height: V2Spacing.space4),
         Text(
-          score == null || !hasVerdict
+          score == null || (!hasVerdict && score <= 0)
               ? '—'
               : '${PGScoreBreakdownCard.fmtScore(score)}/$max',
           style: V2Typography.monoData(

@@ -142,6 +142,7 @@ List<PGPillar> _buildV4Pillars(
         },
         displayState: p.displayState,
         facts: p.facts,
+        receipt: p.receipt,
         actionLabel: onAction == null ? null : actionLabel,
         onAction: onAction,
       ),
