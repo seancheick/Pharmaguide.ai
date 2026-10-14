@@ -438,50 +438,58 @@ void main() {
       expect(active.formNotePreview, preview);
     });
 
-    test('assessed form carries only valid pipeline form-rating sources', () {
-      final active = presentActiveIngredient({
-        ...row(formState: 'assessed'),
-        'analysis': {
-          'bio_score': 14,
-          'form_note': note,
-          'form_note_preview': preview,
-          'form_evidence': {
-            'evidence_level': 'strong',
-            'references_structured': [
-              {
-                'type': 'pubmed',
-                'authority': 'NCBI PubMed',
-                'pmid': '16554972',
-                'title': 'The absorption of orally supplied beta-alanine.',
-                'url': 'https://pubmed.ncbi.nlm.nih.gov/16554972/',
-              },
-              {
-                'type': 'authoritative_guidance',
-                'authority': 'NIH Office of Dietary Supplements',
-                'title': 'Vitamin A and Carotenoids Fact Sheet',
-                'url':
-                    'https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/',
-              },
-              {
-                'type': 'pubmed',
-                'authority': 'NCBI PubMed',
-                'pmid': 'not-a-pmid',
-                'title': 'Malformed source',
-                'url': 'http://example.com/not-secure',
-              },
-            ],
+    for (final level in [
+      'strong',
+      'moderate',
+      'limited',
+      'mechanistic_only',
+      'none',
+    ]) {
+      test('assessed form preserves $level with valid sources', () {
+        final active = presentActiveIngredient({
+          ...row(formState: 'assessed'),
+          'analysis': {
+            'bio_score': 14,
+            'form_note': note,
+            'form_note_preview': preview,
+            'form_evidence': {
+              'evidence_level': level,
+              'references_structured': [
+                {
+                  'type': 'pubmed',
+                  'authority': 'NCBI PubMed',
+                  'pmid': '16554972',
+                  'title': 'The absorption of orally supplied beta-alanine.',
+                  'url': 'https://pubmed.ncbi.nlm.nih.gov/16554972/',
+                },
+                {
+                  'type': 'authoritative_guidance',
+                  'authority': 'NIH Office of Dietary Supplements',
+                  'title': 'Vitamin A and Carotenoids Fact Sheet',
+                  'url':
+                      'https://ods.od.nih.gov/factsheets/VitaminA-HealthProfessional/',
+                },
+                {
+                  'type': 'pubmed',
+                  'authority': 'NCBI PubMed',
+                  'pmid': 'not-a-pmid',
+                  'title': 'Malformed source',
+                  'url': 'http://example.com/not-secure',
+                },
+              ],
+            },
           },
-        },
-      });
+        });
 
-      expect(active.formEvidenceLevel, 'strong');
-      expect(active.formEvidenceSources, hasLength(2));
-      expect(active.formEvidenceSources.first.pmid, '16554972');
-      expect(
-        active.formEvidenceSources.last.authority,
-        'NIH Office of Dietary Supplements',
-      );
-    });
+        expect(active.formEvidenceLevel, level);
+        expect(active.formEvidenceSources, hasLength(2));
+        expect(active.formEvidenceSources.first.pmid, '16554972');
+        expect(
+          active.formEvidenceSources.last.authority,
+          'NIH Office of Dietary Supplements',
+        );
+      });
+    }
 
     test('unscored row suppresses stale form-rating evidence', () {
       final active = presentActiveIngredient({

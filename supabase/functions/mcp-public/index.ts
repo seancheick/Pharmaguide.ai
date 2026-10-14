@@ -4,6 +4,7 @@
 
 import {
   barcodeCandidates,
+  CATALOG_PRODUCT_ID_PATTERN,
   CatalogFacts,
   type CatalogRow,
   CatalogUnavailableError,
@@ -84,7 +85,7 @@ export const TOOLS = [
       "pipeline-authored warnings with evidence_level and sources, and limitations. No personal profile is checked.",
     inputSchema: {
       type: "object",
-      properties: { dsld_id: { type: "string", pattern: "^[0-9]{1,12}$" } },
+      properties: { dsld_id: { type: "string", pattern: CATALOG_PRODUCT_ID_PATTERN } },
       required: ["dsld_id"],
       additionalProperties: false,
     },
@@ -195,7 +196,7 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
     }
     if (name === "get_product") {
       const dsldId = typeof args.dsld_id === "string" ? args.dsld_id.trim() : "";
-      if (!/^\d{1,12}$/.test(dsldId)) throw new ToolInputError("dsld_id must be the numeric id from search_products");
+      if (!new RegExp(CATALOG_PRODUCT_ID_PATTERN).test(dsldId)) throw new ToolInputError("dsld_id must be the exact catalog id from search_products or lookup_barcode");
       const row = await catalog.store.byDsldId(dsldId);
       if (!row) {
         return {

@@ -38,11 +38,11 @@ async function sha256(text: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function harness(rows: CatalogRow[], opts: { storageDown?: boolean; limiter?: RateLimiter } = {}) {
-  const text = JSON.stringify(BLOB);
+async function harness(rows: CatalogRow[], opts: { storageDown?: boolean; limiter?: RateLimiter; blob?: Json } = {}) {
+  const text = JSON.stringify(opts.blob ?? BLOB);
   const sha = await sha256(text);
   const files = new Map<string, string>([
-    [`${BASE}/storage/v1/object/public/pharmaguide/v${VERSION}/detail_index.json`, JSON.stringify({ "1": { blob_sha256: sha } })],
+    [`${BASE}/storage/v1/object/public/pharmaguide/v${VERSION}/detail_index.json`, JSON.stringify(Object.fromEntries(rows.map((r) => [r.dsld_id, { blob_sha256: sha }])))],
     [`${BASE}/storage/v1/object/public/pharmaguide/shared/details/sha256/${sha.slice(0, 2)}/${sha}.json`, text],
   ]);
   const fetchFn = (url: string) => {
@@ -176,6 +176,32 @@ Deno.test("get_product returns verified facts within the public allowlist", asyn
   assertPublicOnly(result.structuredContent);
 });
 
+Deno.test("manual catalog IDs returned by discovery resolve to the same verified product", async () => {
+  const id = "PG_SUB_018F4C797C7E4C709D627FC3B9CE6A11";
+  const { call } = await harness([row(id)], { blob: { ...BLOB, dsld_id: id, label_record: { source_name: "approved_manual_submission", source_record_id: id, label_source_url: null } } });
+  for (const discovery of [
+    await call("search_products", { query: "Magnesium" }),
+    await call("lookup_barcode", { upc: "693749009016" }),
+  ]) {
+    const match = ((discovery.structuredContent.data as Json).matches as Json[])[0];
+    assertEquals(match.dsld_id, id);
+    const facts = await call("get_product", { dsld_id: match.dsld_id });
+    assertEquals(facts.isError, false);
+    assertEquals((facts.structuredContent.data as Json).found, true);
+    assertEquals(((facts.structuredContent.data as Json).identity as Json).dsld_id, id);
+    assertEquals(((facts.structuredContent.data as Json).label_record as Json).source_record_id, id);
+    assertPublicOnly(facts.structuredContent);
+    assert(!JSON.stringify(facts).includes("dsld.od.nih.gov"), "manual ID must not fabricate a NIH label link");
+  }
+});
+
+Deno.test("get_product rejects malformed IDs before accessing the catalog", async () => {
+  const { call } = await harness([]);
+  for (const id of ["PG_SUB_1", "PG_SUB_018f4c797c7e4c709d627fc3b9ce6a11", "../1", "1/2", "1; drop table", "1234567890123", "PG_SUB_" + "A".repeat(33)]) {
+    assertEquals((await call("get_product", { dsld_id: id })).isError, true, id);
+  }
+});
+
 Deno.test("get_product never implies no concerns when catalog data is unavailable", async () => {
   const { call } = await harness([row("1")], { storageDown: true });
   const result = await call("get_product", { dsld_id: "1" });
@@ -185,7 +211,7 @@ Deno.test("get_product never implies no concerns when catalog data is unavailabl
   assert(!/\bsafe\b/i.test(message.replace("no concerns", "")), "error copy must not say safe");
 });
 
-Deno.test("get_product rejects a non-numeric id and reports an unknown id as not found", async () => {
+Deno.test("get_product rejects an invalid id and reports an unknown id as not found", async () => {
   const { call } = await harness([row("1")]);
   assertEquals((await call("get_product", { dsld_id: "1; drop table" })).isError, true);
   const missing = await call("get_product", { dsld_id: "42" });
