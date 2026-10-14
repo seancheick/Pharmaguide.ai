@@ -52,6 +52,7 @@ export const PIPELINE_BLOB_TOP_LEVEL: Record<string, boolean> = {
 
 /// Every key a public product response may contain (no personal fields).
 export const PUBLIC_FACT_KEYS = new Set([
+  "dose_safety_policy", "ul_pct_threshold", "per_flag_penalty", "cap", "raw_dose", "normalization_reference", "source_owner", "evidence_grade_applicable", "basis_type", "source_url", "ul_basis", "ul_note", "explanation", "schema_version", "assessment", "facts", "id", "label", "value_display", "method", "deferred_data_dependency", "dose_participation_basis", "ul_partial_credit_above_pct", "ul_zero_credit_at_pct", "ul_partial_credit_raw", "supplemental_window_max_raw", "raw_dose_safety_penalty", "safety_hygiene_over_ul_penalty", "unbenchmarked_purpose_ingredients", "reference_assessments", "canonical_id", "rda_ai_source", "ul_status", "source_label_key", "rda_ai", "ul", "pct_rda", "pct_ul", "per_day_min", "per_day_max", "scoring_eligible", "skip_ul_check", "ul_gate_eligible", "reference", "reference_profile", "age_range", "adequacy_basis", "positive_clinical_benchmark_assessments", "record_id", "source_row_ref", "benchmark_unit", "benchmark_value", "benchmark_maximum", "exposure_value", "assessment_kind", "dose_band", "member_canonical_ids",
   "forms", "prefix", "percent",
   "quality_score_v4_100", "raw_source_path", "owner_row_ref", "source_role", "display_form_label", "form_status", "display_dose_label", "dose_status", "form_evidence", "references_structured", "url", "pmid", "supports_claims", "serving_info", "basis_count", "basis_unit", "min_servings_per_day", "max_servings_per_day", "servings_per_day_source", "basis_reason", "primary_type", "product_role", "label_record", "source_name", "source_record_id", "source_date", "source_updated_date", "label_source_url", "metadata_status", "quality_pillars_v4", "formulation", "dose", "evidence", "transparency", "verification", "safety_hygiene", "score", "max", "reason", "evidence_result_state", "display_state", "safety_summary", "safety_summary_one_liner", "sort", "offset", "total_matches", "next_offset", "supplement_type",
   "identity", "dsld_id", "product_name", "brand_name", "product_line", "form_factor", "upc",
@@ -207,6 +208,7 @@ Deno.test("upper-limit flags honor skip_ul_check and ul_gate_eligible", () => {
   );
   assertEquals(fromFlags.upper_limit_flags, [{
     nutrient: "Niacin",
+    source_owner: "rda_ul_data", evidence_grade_applicable: null, basis_type: null, source_url: null, ul_basis: null, ul_note: null,
     pipeline_warnings: [message],
     pct_of_upper_limit: 142.9,
     evidence_level: null,
@@ -473,4 +475,46 @@ Deno.test("oversized clinical text is omitted with disclosure, not a clipped qua
   assertEquals((facts.warnings as Json[])[0].detail,null);
   assertEquals((facts.warnings as Json[])[0].safety_summary,"Complete shorter statement.");
   assert((facts.limitations as string[]).some(x=>x.includes("omitted rather than shortened")),"omission disclosed");
+});
+
+Deno.test("public scope fails closed and UL references are explicit", async () => {
+  const { envelope } = await import("./catalog.ts");
+  const empty = envelope({ found: false }, "v1");
+  assertEquals((empty.assessment_scope as Json).dose, "not_assessed");
+  assertEquals((empty.assessment_scope as Json).medications, "not_assessed");
+  const candidate = envelope({ matches: [toProductFacts(blob(), row())], sort: "quality" }, "v1", new Date(), "candidate_fixture");
+  assertEquals(candidate.result_scope, "candidate_fixture");
+  assertEquals(candidate.is_exhaustive, false);
+  assertEquals(candidate.returned_count, 1);
+  assertEquals(candidate.ranking_basis, "published_quality_score");
+  assertEquals(candidate.ranking_is_personal_recommendation, false);
+  const facts = toProductFacts(blob({ rda_ul_data: { safety_flags: [{ nutrient: "Magnesium", pct_ul: 115.7,
+    warning: "Published concern", reference: { source_url: "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+      basis_type: "authoritative_safety_reference", evidence_grade_applicable: false, ul_basis: "supplemental_only" } }] } }), row());
+  const flag = (facts.upper_limit_flags as Json[])[0];
+  assertEquals(flag.evidence_grade_applicable, false);
+  assertEquals(flag.basis_type, "authoritative_safety_reference");
+  assertEquals(flag.source_owner, "rda_ul_data");
+});
+
+Deno.test("assessment scope and explanation never infer completion from numeric scores alone", async () => {
+  const { envelope } = await import("./catalog.ts");
+  const fake = { found: true, quality_assessment_status: "partial", quality_pillars_v4: { dose: { score: 20 } } };
+  assertEquals((envelope(fake, "v1").assessment_scope as Json).dose, "not_assessed");
+  for (const payload of [{ error: "unavailable" }, { matches: [] }, { found: false }]) {
+    const env = envelope(payload, "v1");
+    assertEquals((env.assessment_scope as Json).product_identity, "not_assessed");
+    assertEquals((env.assessment_scope as Json).label_quality, "not_assessed");
+    assertEquals(env.returned_count, 0);
+  }
+  const facts = toProductFacts(blob({ quality_pillars_v4: { dose: { score: 10, max: 20, explanation: {
+    schema_version: 1, secret: "do not expose", facts: [{ id: "dose_reference_method", label: "Basis", value_display: "Catalog assessment", secret: "do not expose" }],
+    assessment: { method: "rda_ul_proxy_until_dietary_intake_table", ul_zero_credit_at_pct: 150,
+      reference_assessments: [{ nutrient: "Magnesium", per_day_min: 135, per_day_max: 405, ul: 350, secret: "do not expose",
+        reference: { ul_basis: "supplemental_only", secret: "do not expose" } }] }
+  } } } }), row());
+  assert(!JSON.stringify(facts).includes("do not expose"), "arbitrary blob fields must not leak");
+  const exp = ((facts.quality_pillars_v4 as Json).dose as Json).explanation as Json;
+  assertEquals((exp.assessment as Json).ul_zero_credit_at_pct, 150);
+  for (const key of collectKeys(facts)) assert(PUBLIC_FACT_KEYS.has(key), `unexpected key: ${key}`);
 });

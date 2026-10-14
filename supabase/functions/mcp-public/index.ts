@@ -141,6 +141,7 @@ function optionalString(args: Json, key: string, max: number): string | undefine
 export interface ToolDeps {
   catalog: CatalogFacts;
   now?: () => Date;
+  resultScope?: "production_catalog" | "candidate_fixture";
 }
 
 export async function callTool(name: string, args: Json, deps: ToolDeps): Promise<{ result: Json; isError: boolean }> {
@@ -175,7 +176,7 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
           next_step: rows.length === 0 ? (offset > 0 ? "No more results on this page; restart from offset 0 if the catalog changed." : NEXT_STEP.none)
             : sort === "quality" ? "Call get_product for candidates to compare published quality, forms, serving basis, warnings and evidence. Distinguish combination products; never infer personal suitability from rank."
             : ambiguous ? NEXT_STEP.ambiguous : NEXT_STEP.single,
-        }, version, now),
+        }, version, now, deps.resultScope),
       };
     }
     if (name === "lookup_barcode") {
@@ -189,7 +190,7 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
           matches: rows.map(toMatch),
           ambiguous: rows.length > 1,
           next_step: rows.length === 0 ? NEXT_STEP.none : rows.length > 1 ? NEXT_STEP.ambiguous : NEXT_STEP.single,
-        }, version, now),
+        }, version, now, deps.resultScope),
       };
     }
     if (name === "get_product") {
@@ -199,11 +200,11 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
       if (!row) {
         return {
           isError: false,
-          result: envelope({ found: false, next_step: NEXT_STEP.none }, await catalog.currentVersion(), now),
+          result: envelope({ found: false, next_step: NEXT_STEP.none }, await catalog.currentVersion(), now, deps.resultScope),
         };
       }
       const facts = await catalog.productFacts(row);
-      return { isError: false, result: envelope({ found: true, ...facts }, row.catalog_version, now) };
+      return { isError: false, result: envelope({ found: true, ...facts }, row.catalog_version, now, deps.resultScope) };
     }
     throw new ToolInputError(`unknown tool: ${name}`);
   } catch (error) {
@@ -218,7 +219,7 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
         kind: error instanceof CatalogUnavailableError ? "catalog_unavailable" : "unexpected",
       }));
     }
-    return { isError: true, result: envelope({ error: message }, null, now) };
+    return { isError: true, result: envelope({ error: message }, null, now, deps.resultScope) };
   }
 }
 
