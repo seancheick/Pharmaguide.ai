@@ -135,6 +135,7 @@ List<PGPillar> _buildV4Pillars(
         max: p.max,
         score: p.score,
         reason: switch (p.key) {
+          'formulation' => _formulationReason(p.reason),
           'evidence' => _formulaEvidenceReason(p.reason),
           'safety_hygiene' => _formulaQualityChecksReason(p.reason),
           _ => p.reason,
@@ -165,4 +166,9 @@ String _formulaQualityChecksReason(String? pipelineReason) {
   return reason.isEmpty
       ? kFormulaQualityChecksScope
       : '$kFormulaQualityChecksScope $reason';
+}
+
+String _formulationReason(String? pipelineReason) {
+  final reason = pipelineReason?.trim() ?? '';
+  return reason.isEmpty ? kFormulationScope : '$kFormulationScope $reason';
 }
