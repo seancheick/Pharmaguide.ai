@@ -53,6 +53,18 @@ class ImportInteractionContract(unittest.TestCase):
     def run_gate(self):
         return subprocess.run(['bash', str(IMPORTER), str(self.dist), '--min-products', '1', '--dry-run'], text=True, capture_output=True)
 
+    def test_pre_corpus_compatibility_requires_no_candidate_and_rejects_unknown_schemas(self):
+        for catalog, interaction, expected in [('2.5.0', '4.0.0', 0),
+                                                ('99.0.0', '4.0.0', 1),
+                                                ('2.5.0', '99.0.0', 1)]:
+            with self.subTest(catalog=catalog, interaction=interaction):
+                result = subprocess.run(['bash', str(IMPORTER), '--check-compatibility',
+                                         catalog, interaction], text=True, capture_output=True)
+                self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+        result = subprocess.run(['bash', str(IMPORTER), '--check-compatibility', '2.5.0'],
+                                text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+
     def test_supported_historical_and_current_schemas(self):
         for major in (1,2,3,4):
             with self.subTest(major=major):
