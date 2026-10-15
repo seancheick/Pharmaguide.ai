@@ -75,6 +75,8 @@
 #
 #     --min-products N      Require at least N catalog rows (default 2000)
 #     --min-interactions N  Require at least N live interaction rows (default 1)
+#     --check-compatibility C I
+#                           Read-only producer schema check before a corpus run
 #     --allow-schema V      Add catalog schema version V (repeatable)
 #     --allow-interaction-schema V
 #                           Add interaction schema version V (repeatable)
@@ -146,6 +148,39 @@ info() {
 ok() {
   printf '\033[32m[import] OK:\033[0m %s\n' "$*"
 }
+
+# The pre-corpus probe and actual import share these existing schema arrays.
+catalog_schema_supported() {
+  local schema="$1" supported
+  for supported in "${APP_SUPPORTED_SCHEMAS[@]}"; do
+    [[ "$supported" != "$schema" ]] || return 0
+  done
+  return 1
+}
+
+interaction_schema_user_version() {
+  local schema="$1" index
+  for index in "${!APP_SUPPORTED_INTERACTION_SCHEMAS[@]}"; do
+    if [[ "${APP_SUPPORTED_INTERACTION_SCHEMAS[$index]}" == "$schema" ]]; then
+      printf '%s' "${APP_SUPPORTED_INTERACTION_USER_VERSIONS[$index]}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Read-only: checks producer versions before any catalog exists, using the
+# exact same policy as the real importer. Artifact integrity is still final.
+if [[ "${1:-}" == "--check-compatibility" ]]; then
+  if (( $# != 3 )); then
+    err "--check-compatibility requires catalog and interaction schema versions"
+    exit 2
+  fi
+  catalog_schema_supported "$2" || { err "unsupported catalog schema: $2"; exit 1; }
+  interaction_schema_user_version "$3" >/dev/null || { err "unsupported interaction schema: $3"; exit 1; }
+  ok "producer schemas supported: catalog=$2 interaction=$3"
+  exit 0
+fi
 
 while (($# > 0)); do
   case "$1" in
@@ -321,15 +356,7 @@ ok "manifest parsed: db_version=$DB_VERSION schema=$SCHEMA_VERSION products=$PRO
 # Gate 1: schema compatibility
 # ---------------------------------------------------------------------------
 
-schema_accepted=0
-for s in "${APP_SUPPORTED_SCHEMAS[@]}"; do
-  if [[ "$s" == "$SCHEMA_VERSION" ]]; then
-    schema_accepted=1
-    break
-  fi
-done
-
-if (( schema_accepted == 0 )); then
+if ! catalog_schema_supported "$SCHEMA_VERSION"; then
   err "schema_version '$SCHEMA_VERSION' is not in APP_SUPPORTED_SCHEMAS: ${APP_SUPPORTED_SCHEMAS[*]}"
   err "update APP_SUPPORTED_SCHEMAS in this script, or pass --allow-schema $SCHEMA_VERSION if you're intentionally importing a new schema."
   exit 1
@@ -534,17 +561,7 @@ PY
   # Gate I2: interaction schema_version is in the supported list
   # ---------------------------------------------------------------------------
 
-  interaction_schema_accepted=0
-  EXPECTED_INTERACTION_USER_VERSION=""
-  for i in "${!APP_SUPPORTED_INTERACTION_SCHEMAS[@]}"; do
-    if [[ "${APP_SUPPORTED_INTERACTION_SCHEMAS[$i]}" == "$INTERACTION_SCHEMA_VERSION" ]]; then
-      interaction_schema_accepted=1
-      EXPECTED_INTERACTION_USER_VERSION="${APP_SUPPORTED_INTERACTION_USER_VERSIONS[$i]}"
-      break
-    fi
-  done
-
-  if (( interaction_schema_accepted == 0 )); then
+  if ! EXPECTED_INTERACTION_USER_VERSION="$(interaction_schema_user_version "$INTERACTION_SCHEMA_VERSION")"; then
     err "interaction schema_version '$INTERACTION_SCHEMA_VERSION' is not in"
     err "  APP_SUPPORTED_INTERACTION_SCHEMAS: ${APP_SUPPORTED_INTERACTION_SCHEMAS[*]}"
     err "update the Drift wrapper in lib/data/database/interaction_database.dart"
