@@ -380,6 +380,13 @@ class _ProductHeader extends StatelessWidget {
             'Not scored yet',
             style: V2Typography.caption(color: context.v2.fgMuted),
           )
+        // Same rule as the detail hero: an unfinished assessment publishes no
+        // tier, because the unassessed pillar could still move it.
+        else if (productAssessmentIncomplete(product))
+          Text(
+            'Assessment incomplete',
+            style: V2Typography.caption(color: context.v2.fgMuted),
+          )
         else
           PGScoreLine(
             score: score,

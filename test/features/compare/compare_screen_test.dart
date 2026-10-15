@@ -52,6 +52,7 @@ ProductsCoreCompanion _product({
   String? blobSha,
   String? scoreConfidence,
   String? qualityTier,
+  String? qualityAssessmentStatus,
 }) {
   return ProductsCoreCompanion.insert(
     dsldId: dsldId,
@@ -63,6 +64,7 @@ ProductsCoreCompanion _product({
     verdict: drift.Value(verdict),
     qualityScoreConfidence: drift.Value(scoreConfidence),
     qualityTier: drift.Value(qualityTier),
+    qualityAssessmentStatus: drift.Value(qualityAssessmentStatus),
     detailBlobSha256: drift.Value(blobSha),
     exportVersion: 'test',
     exportedAt: '2026-06-01T00:00:00Z',
@@ -153,6 +155,41 @@ void main() {
     // No winner/better language — calm presentation only.
     expect(find.textContaining('better', findRichText: true), findsNothing);
     expect(find.textContaining('winner', findRichText: true), findsNothing);
+
+    await tearDownDbs(tester);
+  });
+
+  testWidgets('an unfinished assessment shows no definitive score or tier', (
+    tester,
+  ) async {
+    // The detail hero says "Assessment incomplete" for these; Compare must not
+    // publish the tier the unassessed pillar could still move.
+    await seed(
+      product: _product(
+        dsldId: 'prod-a',
+        name: 'Alpha Partial',
+        score: 72,
+        qualityTier: 'Good',
+        qualityAssessmentStatus: 'partial',
+      ),
+      blob: _pillarsBlob(formulation: 18),
+    );
+    await seed(
+      product: _product(
+        dsldId: 'prod-b',
+        name: 'Beta Complete',
+        score: 81,
+        qualityTier: 'Very good',
+        qualityAssessmentStatus: 'complete',
+      ),
+      blob: _pillarsBlob(formulation: 14),
+    );
+
+    await pumpCompare(tester);
+
+    expect(find.text('Assessment incomplete'), findsOneWidget);
+    expect(find.textContaining('72', findRichText: true), findsNothing);
+    expect(find.textContaining('Good', findRichText: true), findsNothing);
 
     await tearDownDbs(tester);
   });

@@ -131,6 +131,27 @@ class V4PillarFact {
   });
 }
 
+/// A pillar's pipeline-authored score receipt (V4.1 accounting contract):
+/// signed points grouped by kind, plus capacity the product did not earn.
+/// Pure data; the app sums pipeline entries and never recomputes a score.
+class V4PillarReceipt {
+  /// Signed public points per entry kind (`earned`, `neutral`, `disclosure`,
+  /// `deduction`, `floor`, `cap`, `rounding`). Their sum is the pillar score.
+  final Map<String, double> pointsByKind;
+
+  /// Capacity not earned. Not part of the sum above.
+  final double unawarded;
+
+  const V4PillarReceipt({required this.pointsByKind, required this.unawarded});
+
+  double points(String kind) => pointsByKind[kind] ?? 0;
+
+  /// Floors, caps and rounding together: bounds the pipeline applied to the
+  /// itemized points.
+  double get adjustments =>
+      points('floor') + points('cap') + points('rounding');
+}
+
 /// One parsed v4 pillar value — pure data, no widget types.
 class V4PillarValue {
   /// Blob key, e.g. `formulation` / `safety_hygiene`.
@@ -156,6 +177,9 @@ class V4PillarValue {
   /// pillars without facts.
   final List<V4PillarFact> facts;
 
+  /// Pipeline score receipt; null for blobs that predate it.
+  final V4PillarReceipt? receipt;
+
   const V4PillarValue({
     required this.key,
     required this.label,
@@ -164,6 +188,7 @@ class V4PillarValue {
     this.reason,
     this.displayState,
     this.facts = const [],
+    this.receipt,
   });
 
   /// This pillar's presentation status, resolved from the pipeline's state
@@ -215,6 +240,7 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
               ? (m['display_state'] as String).trim()
               : null,
           facts: _parseFacts(m['explanation']),
+          receipt: _parseReceipt(m['receipt']),
         ),
       );
       // One malformed entry must never take the other five down.
@@ -224,6 +250,37 @@ List<V4PillarValue> parseV4Pillars(Map<String, dynamic>? pillarsBlob) {
     }
   }
   return out;
+}
+
+const _kReceiptKinds = {
+  'earned',
+  'neutral',
+  'disclosure',
+  'deduction',
+  'floor',
+  'cap',
+  'rounding',
+};
+
+/// Parse a pillar's `receipt`. Returns null for a missing or malformed receipt
+/// (an unknown kind or a non-numeric amount), so a bad payload never renders
+/// numbers that would not add up.
+V4PillarReceipt? _parseReceipt(Object? receipt) {
+  if (receipt is! Map) return null;
+  final entries = receipt['entries'];
+  final unawarded = asFiniteDouble(receipt['unawarded']);
+  if (entries is! List || unawarded == null) return null;
+  final byKind = <String, double>{};
+  for (final entry in entries) {
+    if (entry is! Map) return null;
+    final kind = entry['kind'];
+    final points = asFiniteDouble(entry['points']);
+    if (kind is! String || !_kReceiptKinds.contains(kind) || points == null) {
+      return null;
+    }
+    byKind[kind] = (byKind[kind] ?? 0) + points;
+  }
+  return V4PillarReceipt(pointsByKind: byKind, unawarded: unawarded);
 }
 
 /// Parse a pillar's `explanation` block into facts. Only `schema_version == 1`
