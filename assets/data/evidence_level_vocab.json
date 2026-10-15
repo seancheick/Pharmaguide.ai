@@ -1,17 +1,17 @@
 {
   "_metadata": {
-    "description": "Controlled vocabulary for clinical evidence-level study-design tiers plus a non-scoring reference-only tier used by backed_clinical_studies (197 entries). Determines the scoring multiplier for clinical-evidence bonuses. NOTE: ingredient_interaction_rules.json uses a DIFFERENT field also called `evidence_level` containing strength values (established/probable/theoretical) — that is a separate concept and warrants its own evidence_strength_vocab in a future sprint.",
+    "description": "Controlled vocabulary for clinical study-design labels and a reference-only tier. Numerical multipliers are retained for legacy v3 reference compatibility; production v4 owns its own scoring weights.",
     "schema_version": "1.0.0",
     "last_updated": "2026-04-30",
     "total_entries": 6,
     "status": "LOCKED — clinician sign-off",
-    "purpose": "Single source of truth for evidence-tier labels in backed_clinical_studies. The `multiplier` field aligns with scoring_config.json effect_direction_multipliers.",
-    "alignment": "Pipeline source: scripts/data/backed_clinical_studies.json `evidence_level` field. Multiplier weights: scripts/config/scoring_config.json. Flutter consumer: lib/core/constants/severity.dart `EvidenceLevel` enum (legacy mapping; future migration target).",
+    "purpose": "Canonical evidence-tier labels; multiplier values are legacy v3 reference weights, not the production v4 scoring contract.",
+    "alignment": "Study IDs: backed_clinical_studies.json evidence_level. Legacy v3 weights: scripts/config/scoring_config.json. Production v4: scripts/scoring_v4/modules/generic_evidence.py and scripts/scoring_v4/config/quality_score.json.",
     "field_contract": {
       "id": "Stable kebab-case identifier (matches source-data hyphenation, e.g. 'product-human').",
       "name": "User-facing label.",
       "notes": "≤200-char description shown in tap-to-learn modal.",
-      "multiplier": "Numeric multiplier applied to the study's score contribution (matches scoring_config.json).",
+      "multiplier": "Legacy v3 reference weight, matching scoring_config.json; production v4 does not read this field.",
       "tier": "Hierarchy hint: 1=highest, 5=lowest."
     },
     "char_limit_notes": 200,
