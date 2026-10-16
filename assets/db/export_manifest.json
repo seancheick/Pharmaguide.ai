@@ -1,6 +1,6 @@
 {
-  "checksum": "sha256:b1b0f30e4d21e26f2a80fcb432ad36781b47aabfb8af6063c7be8b77da90812e",
-  "checksum_sha256": "b1b0f30e4d21e26f2a80fcb432ad36781b47aabfb8af6063c7be8b77da90812e",
+  "checksum": "sha256:aa00384d450ac268b8921d5889f4a4e388183d4dcf2ed30b3146568a9ae1d850",
+  "checksum_sha256": "aa00384d450ac268b8921d5889f4a4e388183d4dcf2ed30b3146568a9ae1d850",
   "core_projection_manifest": {
     "app_core_column_count": 91,
     "checksum": "sha256:1d2a566f35d94cfdc9b42f0428c93ac6a82b2846f01a881642960a50aa01504f",
@@ -9,103 +9,46 @@
     "path": "core_projection_manifest.json",
     "server_core_column_count": 26
   },
-  "db_version": "2026.10.12.142202",
-  "detail_blob_count": 15407,
-  "detail_blob_unique_count": 15407,
-  "detail_index_checksum": "sha256:2380ec3230eb0b4b5eafcdc0829aa9f64c0a4637890fab66d72aa90bd1d3b1fb",
+  "db_version": "2026.10.15.235610",
+  "detail_blob_count": 15426,
+  "detail_blob_unique_count": 15426,
+  "detail_index_checksum": "sha256:bfdbf8276c179ee598045a29ffb3c55bf4398acc7a4d32f18d6d87d87820f3b2",
   "errors": [],
-  "excluded_by_gate": [
-    {
-      "dsld_id": "17226",
-      "error": "review_queue: identity integrity ingredientRows[15].forms[7]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    },
-    {
-      "dsld_id": "178711",
-      "error": "review_queue: identity integrity ingredientRows[20].nestedRows[0].forms[0]:unresolved_identity_conflict"
-    },
-    {
-      "dsld_id": "17954",
-      "error": "review_queue: identity integrity ingredientRows[4].forms[6]:unresolved_identity_conflict"
-    },
-    {
-      "dsld_id": "183201",
-      "error": "review_queue: identity integrity ingredientRows[4]:unresolved_identity_conflict"
-    },
-    {
-      "dsld_id": "213005",
-      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    },
-    {
-      "dsld_id": "213011",
-      "error": "review_queue: identity integrity ingredientRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    },
-    {
-      "dsld_id": "213013",
-      "error": "review_queue: identity integrity ingredientRows[1]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    },
-    {
-      "dsld_id": "213015",
-      "error": "review_queue: identity integrity ingredientRows[1]:unresolved_identity_conflict; review_queue: identity integrity ingredientRows[1].nestedRows[0]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    },
-    {
-      "dsld_id": "232011",
-      "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    },
-    {
-      "dsld_id": "2528",
-      "error": "review_queue: identity integrity ingredientRows[1].nestedRows[2]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    },
-    {
-      "dsld_id": "278388",
-      "error": "review_queue: identity integrity ingredientRows[4]:unresolved_identity_conflict"
-    },
-    {
-      "dsld_id": "294044",
-      "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict"
-    },
-    {
-      "dsld_id": "327983",
-      "error": "review_queue: identity integrity ingredientRows[1]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    },
-    {
-      "dsld_id": "328450",
-      "error": "review_queue: identity integrity ingredientRows[3]:unresolved_identity_conflict; review_queue: export cannot ship score with failed strict scoring contract."
-    }
-  ],
-  "generated_at": "2026-10-12T14:22:02.339005+00:00",
+  "excluded_by_gate": [],
+  "generated_at": "2026-10-15T23:56:10.465165+00:00",
   "integrity": {
     "contract_failures": 0,
-    "contract_quarantine_count": 14,
-    "coverage_pct": 99.91,
-    "enriched_input_count": 15421,
+    "contract_quarantine_count": 0,
+    "coverage_pct": 100.0,
+    "enriched_input_count": 15426,
     "enriched_only_count": 0,
     "error_count": 0,
-    "excluded_by_gate_count": 14,
-    "exported_count": 15407,
+    "excluded_by_gate_count": 0,
+    "exported_count": 15426,
     "has_banned_substance": 69,
     "has_recalled_ingredient": 0,
-    "quality_score_config_checksum": "sha256:51d2b6d3238fc5777040a322a4e36cdb1b0213934e0ab07736867a296d4ad24c",
-    "scored_input_count": 15421,
+    "quality_score_config_checksum": "sha256:1de31d82d3e1160a43cf35900dbff73e6eb975a40ee0d884c45faf1f55052535",
+    "scored_input_count": 15426,
     "scored_only_count": 0,
-    "skipped_count": 14,
+    "skipped_count": 0,
     "strict_mode": true,
-    "total_skipped": 14,
+    "total_skipped": 0,
     "verdict_blocked": 69,
-    "verdict_not_scored": 210,
+    "verdict_not_scored": 234,
     "verdict_unsafe": 0,
     "warning_count": 0
   },
   "min_app_version": "1.0.0",
   "pipeline_version": "3.4.0",
-  "product_count": 15407,
-  "quality_score_config_checksum": "sha256:51d2b6d3238fc5777040a322a4e36cdb1b0213934e0ab07736867a296d4ad24c",
-  "release_staged_at": "2026-10-12T14:25:53Z",
+  "product_count": 15426,
+  "quality_score_config_checksum": "sha256:1de31d82d3e1160a43cf35900dbff73e6eb975a40ee0d884c45faf1f55052535",
+  "release_staged_at": "2026-10-16T00:00:37Z",
   "schema_version": "2.5.0",
   "score_model": "v4",
   "scoring_version": "4.5.0",
   "warnings": [],
-  "interaction_db_checksum": null,
-  "interaction_db_version": null,
+  "interaction_db_checksum": "2bdb39c3bd7ef8e083818802d37accffd920842bba38bf669329cf8892449002",
+  "interaction_db_version": "1.0.15",
   "pipeline_contract_version": "cleaner_first_source_of_truth_v1",
   "source_of_truth_matrix_version": "1.0.0",
   "strict_gate_summary": {
@@ -117,10 +60,10 @@
       "scoring_contract",
       "export_contract",
       "clinical_drift",
-      "artifact_freshness"
+      "artifact_freshness",
+      "interaction_db_parity"
     ],
     "post_candidate_gates": [
-      "interaction_db_parity",
       "flutter_bundle_parity"
     ],
     "stamped_by": "scripts/audit_source_of_truth_contract.py stamp-manifest"
