@@ -15,6 +15,7 @@ enum FormQuality {
 /// outcomes plus a Low-dose tier for the future `below_clinical_dose`
 /// pipeline signal (Phase 7A).
 enum DoseCallOut {
+  highAtDailyUse, // above UL at multiple labeled servings
   high, //         DoseSafety.exceedsUl
   low, //          pipeline `below_clinical_dose == true`
   notDisclosed, // DoseSafety.skip
@@ -42,7 +43,9 @@ DoseCallOut resolveDoseCallOut({
   );
   switch (doseSafety) {
     case DoseSafety.exceedsUl:
-      return DoseCallOut.high;
+      return usesMultipleDailyServings(ulEntry)
+          ? DoseCallOut.highAtDailyUse
+          : DoseCallOut.high;
     case DoseSafety.skip:
       // The pipeline emits skip_ul_check for retinyl Vitamin A and similar
       // cases even when the dose is disclosed. Do not contradict a real dose
