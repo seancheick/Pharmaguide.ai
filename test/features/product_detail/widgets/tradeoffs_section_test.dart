@@ -66,6 +66,33 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets(
+    'maximum-use export caption does not duplicate the UL consideration',
+    (tester) async {
+      const label =
+          'At maximum labeled daily use: Magnesium exceeds the upper limit (137% of UL)';
+      await _pump(
+        tester,
+        penalties: [_penalty(label, 'Magnesium: 480 vs UL 350')],
+        rdaUlData: {
+          'safety_flags': [
+            {
+              'nutrient': 'Magnesium',
+              'amount': 480,
+              'unit': 'mg',
+              'ul': 350,
+              'pct_ul': 137.14,
+              'ul_gate_eligible': true,
+            },
+          ],
+        },
+      );
+      expect(find.text(label), findsOneWidget);
+      expect(find.text('Magnesium exceeds the upper limit'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   group('Tradeoffs section v2', () {
     testWidgets('empty input hides entirely', (tester) async {
       await _pump(tester);
@@ -85,10 +112,7 @@ void main() {
         ],
       );
 
-      expect(
-        find.text('Additives: Sugar syrup, Palm oil'),
-        findsOneWidget,
-      );
+      expect(find.text('Additives: Sugar syrup, Palm oil'), findsOneWidget);
       expect(find.text('Harmful additive Sugar syrup'), findsNothing);
       expect(find.text('Harmful additive Palm oil'), findsNothing);
     });
