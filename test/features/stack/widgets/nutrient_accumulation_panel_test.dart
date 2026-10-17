@@ -112,6 +112,40 @@ void main() {
     expect(find.textContaining('lower than your full intake'), findsOneWidget);
   });
 
+  testWidgets(
+    'a limit without a profile is shown as not personally assessed',
+    (tester) async {
+      // Dose V4.1 section 4.1B: a missing profile is "not assessed", never an
+      // implied "no concerns"; the general adult screen still runs.
+      const status = NutrientStatus(
+        total: NutrientTotal(
+          canonicalId: 'zinc',
+          displayName: 'Zinc',
+          totalAmount: 12,
+          unit: 'mg',
+          contributions: [],
+        ),
+        tier: NutrientTier.adequate,
+        rda: 8,
+        ul: 40,
+        pctOfRda: 150.0,
+        pctOfUl: 30.0,
+        ulIsFallback: true,
+      );
+      await pumpPanel(
+        tester,
+        override: const AsyncValue<List<NutrientStatus>>.data([status]),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('nutrient-limits-not-personal-notice')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('not assessed for you'), findsOneWidget);
+      expect(find.text('30% UL*'), findsOneWidget);
+    },
+  );
+
   testWidgets('complete totals carry no hedge', (tester) async {
     const status = NutrientStatus(
       total: NutrientTotal(

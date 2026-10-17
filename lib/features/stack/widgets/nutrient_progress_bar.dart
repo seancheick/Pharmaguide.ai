@@ -199,7 +199,8 @@ class NutrientProgressBar extends StatelessWidget {
     // show % target. Showing both would wrap and defeat the compact layout.
     final String text;
     if (ul != null) {
-      text = '${ul.round()}% UL';
+      // * marks a general adult limit, not one assessed for this person.
+      text = status.ulIsFallback ? '${ul.round()}% UL*' : '${ul.round()}% UL';
     } else if (rda != null) {
       final maximumRda = status.maximumPctOfRda;
       final formatted = maximumRda != null && (maximumRda - rda).abs() > 0.05
