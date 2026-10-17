@@ -33,9 +33,14 @@ make check            # analyze + full tests (the CI gate)
 make gen              # build_runner
 make verify-supabase  # anon key is live
 make verify-bundle    # bundled DB matches Supabase storage (pre-release)
-make help             # every target
+make help             # every supported target
+PHARMAGUIDE_IOS_DISTRIBUTION=testflight make build-ios  # signed beta IPA; no upload
+make build-ios        # signed App Store IPA; no upload
 ```
 
+- Canonical app commands and release sequence: `README.md` (Supported commands). Retired
+  UI-toggle commands in historical design notes are not operational instructions. Pipeline
+  operations live in `../Downloads/dsld_clean/scripts/PIPELINE_OPERATIONS_README.md`.
 - Without the Makefile `DART_DEFINES` (Supabase, Sentry, Google client IDs), a build is broken.
 - A fresh worktree runs no tests until you copy `assets/db/interaction_db.sqlite` and run `make gen`
   (both are gitignored).

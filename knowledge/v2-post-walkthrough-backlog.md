@@ -1,3 +1,5 @@
+> **Historical design record — not an operating runbook.** UI-toggle commands, rollout gates, build numbers and signing limitations below describe a past snapshot. Use [Supported commands](../README.md#supported-commands) for current builds and releases; do not execute old command examples.
+
 # v2 Post-Walkthrough Backlog
 
 **Owner:** Sean

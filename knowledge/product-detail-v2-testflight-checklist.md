@@ -1,3 +1,5 @@
+> **Historical design record — not an operating runbook.** UI-toggle commands, rollout gates, build numbers and signing limitations below describe a past snapshot. Use [Supported commands](../README.md#supported-commands) for current builds and releases; do not execute old command examples.
+
 # Product Detail v2 — TestFlight Review Checklist
 
 **Cycle date:** 2026-05-16 → 2026-05-?? (one TestFlight pass)

@@ -115,15 +115,6 @@ required_targets=(
   run-v2
   run-v2-ios
   run-v2-android
-  run-v2pd
-  run-v2pd-ios
-  build-ipa-v2pd
-  run-v2pf
-  run-v2med
-  run-v2search
-  run-v2qc
-  run-v2all
-  build-ipa-v2all
   build-ios
   build-android
 )

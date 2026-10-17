@@ -43,10 +43,10 @@ run-ios: hydrate-interaction-db ## Run on iOS simulator
 run-android: hydrate-interaction-db ## Run on Android emulator
 	$(FLUTTER) run $(DART_DEFINES) -d android
 
-# ─── v2 design system previews ────────────────────────────────────────────────
+# ─── Developer gallery previews ────────────────────────────────────────────────
 # DEV_ROUTE skips the splash → onboarding/home flow and launches directly
 # at the named route. Useful for reviewing v2 prototypes during the
-# design/v2-mobile-polish branch.
+# development UI inspection; these are not release commands.
 
 .PHONY: run-v2
 run-v2: hydrate-interaction-db ## Boot straight into the v2 component gallery
@@ -64,68 +64,10 @@ run-v2-android: hydrate-interaction-db ## v2 gallery on Android emulator
 v2-audit: ## Run the v2 design-system governance audit (hex / serif / TextStyle)
 	@bash scripts/v2_audit.sh
 
-# ─── Phase 11.7g.3 staged route swap ──────────────────────────────────────────
-# `run-v2pd` boots the app with the production /product/:dsldId route flipped
-# to the v2 ConnectedScreen. Legacy widget stays imported — set
-# USE_V2_PRODUCT_DETAIL=false (or omit the flag) to fall back instantly.
-
-.PHONY: run-v2pd
-run-v2pd: hydrate-interaction-db ## Run with /product route swapped to v2 (TestFlight preview mode)
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true
-
-.PHONY: run-v2pd-ios
-run-v2pd-ios: hydrate-interaction-db ## v2 product detail on iOS simulator
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PRODUCT_DETAIL=true -d iPhone
-
-.PHONY: build-ipa-v2pd
-build-ipa-v2pd: hydrate-interaction-db ## Build TestFlight IPA with v2 product detail enabled
-	@PHARMAGUIDE_IOS_DISTRIBUTION=testflight bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES) \
-		--dart-define=USE_V2_PRODUCT_DETAIL=true
-
-# ─── Phase 11.7L.B staged route swap — ProfileSetup v2 ────────────────────────
-# Combine with `run-v2pd` flags as needed — both toggles are independent.
-# Set USE_V2_PROFILE_SETUP=false (or omit) to fall back to the legacy
-# multi-step editor instantly. Logic + providers are identical between
-# the two, so flipping the flag is a pure visual change.
-
-.PHONY: run-v2pf
-run-v2pf: hydrate-interaction-db ## Run with /profile/setup route swapped to v2
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_PROFILE_SETUP=true
-
-.PHONY: run-v2med
-run-v2med: hydrate-interaction-db ## Run with /medication-entry route swapped to v2
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_MEDICATION_ENTRY=true
-
-.PHONY: run-v2search
-run-v2search: hydrate-interaction-db ## Run with /search route swapped to v2 (on-market first)
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_SEARCH=true
-
-.PHONY: run-v2qc
-run-v2qc: hydrate-interaction-db ## Run with /quick-check route swapped to v2
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=USE_V2_QUICK_CHECK=true
-
-.PHONY: run-v2all
-run-v2all: hydrate-interaction-db ## Run with ALL v2 toggles enabled (PD + ProfileSetup + MedicationEntry + Search + QuickCheck)
-	$(FLUTTER) run $(DART_DEFINES) \
-		--dart-define=USE_V2_PRODUCT_DETAIL=true \
-		--dart-define=USE_V2_PROFILE_SETUP=true \
-		--dart-define=USE_V2_MEDICATION_ENTRY=true \
-		--dart-define=USE_V2_SEARCH=true \
-		--dart-define=USE_V2_QUICK_CHECK=true
-
-.PHONY: build-ipa-v2all
-build-ipa-v2all: hydrate-interaction-db ## Build TestFlight IPA with ALL v2 toggles on
-	@PHARMAGUIDE_IOS_DISTRIBUTION=testflight bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES) \
-		--dart-define=USE_V2_PRODUCT_DETAIL=true \
-		--dart-define=USE_V2_PROFILE_SETUP=true \
-		--dart-define=USE_V2_MEDICATION_ENTRY=true \
-		--dart-define=USE_V2_SEARCH=true \
-		--dart-define=USE_V2_QUICK_CHECK=true
-
 # ─── Build ────────────────────────────────────────────────────────────────────
 
 .PHONY: build-ios
-build-ios: hydrate-interaction-db ## Build and verify the next App Store IPA
+build-ios: hydrate-interaction-db ## Build a signed IPA; set PHARMAGUIDE_IOS_DISTRIBUTION=testflight for beta testing
 	@bash scripts/build_ios_release.sh "$(FLUTTER)" $(DART_DEFINES)
 
 .PHONY: build-android
@@ -200,7 +142,7 @@ verify-bundle: ## Verify bundled DB matches Supabase storage (P4 release-safety)
 
 .PHONY: help
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 .DEFAULT_GOAL := help
