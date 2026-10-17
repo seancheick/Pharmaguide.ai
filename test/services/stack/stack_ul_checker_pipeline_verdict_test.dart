@@ -220,9 +220,9 @@ void main() {
       );
     });
 
-    test('pct_ul>=150 exceeds only when over_ul is absent', () {
-      expect(const PipelineUlVerdict(pctUl: 150).exceedsUl, isTrue);
-      expect(const PipelineUlVerdict(pctUl: 149.9).exceedsUl, isFalse);
+    test('pct_ul>100 exceeds only when over_ul is absent (Dose V4.1)', () {
+      expect(const PipelineUlVerdict(pctUl: 100.1).exceedsUl, isTrue);
+      expect(const PipelineUlVerdict(pctUl: 100).exceedsUl, isFalse);
     });
 
     test('empty verdict is not definitive', () {

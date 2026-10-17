@@ -50,8 +50,11 @@
 // `rda_optimal_uls.json` stores per-demographic rows. We look up in
 // priority order:
 // 1. Exact age_range AND group (sex) match.
-// 2. Any row with the requested age_range (regardless of sex).
-// 3. Lowest established demographic UL as a conservative anonymous fallback.
+// 2. Age known, sex not: the lowest adult Male/Female UL at that age.
+// 3. Group known, age not: the lowest UL across that group's adult rows.
+// 4. No profile: the lowest established UL across ordinary adult groups
+//    (pipeline Dose V4.1 section 2.5), never a child's or pregnancy row.
+// Rows 2-4 are flagged as not personal.
 //
 // RDA and UL are read separately — a nutrient can have a UL
 // without an RDA (and vice versa), so we never assume both exist.
@@ -187,22 +190,48 @@ class StackUlChecker {
         (ul != null && ul > 0 && safetyAmountInReferenceUnit != null)
         ? (safetyAmountInReferenceUnit / ul) * 100.0
         : null;
-    // A positive pipeline decision may carry form-aware information the raw
-    // client row cannot reconstruct, so it wins. A negative per-product
-    // decision cannot clear an aggregated stack total: two individually safe
-    // products can exceed the UL together. In that case the stack recompute
-    // wins and the displayed percentage stays aligned with the tier.
-    final pctOfUl =
-        (verdict?.overUl == true ||
-            (verdict?.overUl == null && verdict?.pctUl != null))
-        ? (verdict?.pctUl ?? recomputedPctOfUl)
-        : (recomputedPctOfUl ?? verdict?.pctUl);
+    // One exposure against one reference (Dose V4.1 section 4.1B). A positive
+    // pipeline decision may carry form-aware information and the label's
+    // maximum directed daily use, which the raw client row cannot
+    // reconstruct, so it wins. Its percentage is against the catalog's
+    // general-adult limit: when the row carries that limit, the same exposure
+    // is re-expressed against this person's limit; otherwise the catalog
+    // percentage is shown without a personal limit beside it. A negative
+    // per-product decision cannot clear an aggregated stack total: two
+    // individually safe products can exceed the UL together.
+    final catalogVerdictWins =
+        verdict?.overUl == true ||
+        (verdict?.overUl == null && verdict?.pctUl != null);
+    final catalogUl = verdict?.ul;
+    final rebasedPct =
+        (catalogVerdictWins &&
+            verdict?.pctUl != null &&
+            catalogUl != null &&
+            catalogUl > 0 &&
+            ul != null &&
+            ul > 0)
+        ? verdict!.pctUl! * catalogUl / ul
+        : null;
+    final double? pctOfUl;
+    final double? reportedUl;
+    if (rebasedPct != null) {
+      pctOfUl = recomputedPctOfUl != null && recomputedPctOfUl > rebasedPct
+          ? recomputedPctOfUl
+          : rebasedPct;
+      reportedUl = ul;
+    } else if (catalogVerdictWins) {
+      pctOfUl = verdict?.pctUl ?? recomputedPctOfUl;
+      reportedUl = verdict?.pctUl != null ? null : ul;
+    } else {
+      pctOfUl = recomputedPctOfUl ?? verdict?.pctUl;
+      reportedUl = ul;
+    }
 
     final tier = _classify(
       pctOfRda: pctOfRda,
       pctOfUl: pctOfUl,
       hasEstablishedUl: ul != null,
-      verdict: verdict,
+      verdict: rebasedPct != null ? null : verdict,
     );
     final warning =
         (tier == NutrientTier.approachingUl || tier == NutrientTier.exceedsUl)
@@ -219,7 +248,7 @@ class StackUlChecker {
       total: total,
       tier: tier,
       rda: rda,
-      ul: ul,
+      ul: reportedUl,
       pctOfRda: pctOfRda,
       maximumPctOfRda: maximumPctOfRda,
       // The known subtotal may already prove excess, so keep its tier and
@@ -377,33 +406,56 @@ class StackUlChecker {
       }
     }
 
-    // Age matches but sex didn't: take the LOWEST UL across groups at
-    // that age (conservative — never under-warn an unspecified-sex
-    // user), flagged as non-personalized.
+    // Age matches but sex didn't: the LOWEST adult Male/Female UL at that
+    // age (conservative — never under-warn an unspecified-sex user), flagged
+    // as non-personalized.
     if (ageBracket != null) {
-      double? lowest;
-      for (final g in data) {
-        if (g is! Map<String, dynamic>) continue;
-        if (g['age_range'] == ageBracket) {
-          final v = asFiniteDouble(g['ul']);
-          if (v != null && (lowest == null || v < lowest)) lowest = v;
-        }
-      }
+      final lowest = _lowestUl(
+        data,
+        (g) =>
+            g['age_range'] == ageBracket && _kAdultGroups.contains(g['group']),
+      );
       if (lowest != null) return _UlLookup(lowest, true);
     }
 
-    // Anonymous fallback: choose the lowest established ceiling. `highest_ul`
-    // previously selected the least restrictive group and silently
-    // under-warned adolescents and other unmatched profiles.
-    double? lowest;
-    for (final g in data) {
-      if (g is! Map<String, dynamic>) continue;
-      final v = asFiniteDouble(g['ul']);
-      if (v != null && (lowest == null || v < lowest)) lowest = v;
+    // Group known (Pregnancy, Lactation, Male, Female), age not: the lowest
+    // UL across that group's ordinary adult rows.
+    if (sex != null) {
+      final lowest = _lowestUl(
+        data,
+        (g) => g['group'] == sex && _kAdultAges.contains(g['age_range']),
+      );
+      if (lowest != null) return _UlLookup(lowest, true);
     }
-    if (lowest != null) return _UlLookup(lowest, true);
+
+    // No profile: the general adult screen, the lowest established UL across
+    // ordinary adult groups (pipeline Dose V4.1 section 2.5). Adolescent and
+    // pregnancy rows describe other populations and are not this screen.
+    final adult = _lowestUl(
+      data,
+      (g) =>
+          _kAdultGroups.contains(g['group']) &&
+          _kAdultAges.contains(g['age_range']),
+    );
+    if (adult != null) return _UlLookup(adult, true);
 
     return const _UlLookup(null, false);
+  }
+
+  static const _kAdultGroups = {'Male', 'Female'};
+  static const _kAdultAges = {'19-30', '31-50', '51-70', '71+'};
+
+  static double? _lowestUl(
+    List<dynamic> data,
+    bool Function(Map<String, dynamic>) include,
+  ) {
+    double? lowest;
+    for (final g in data) {
+      if (g is! Map<String, dynamic> || !include(g)) continue;
+      final v = asFiniteDouble(g['ul']);
+      if (v != null && v > 0 && (lowest == null || v < lowest)) lowest = v;
+    }
+    return lowest;
   }
 
   /// Classify into a [NutrientTier]. UL precedence is strict —
@@ -421,7 +473,8 @@ class StackUlChecker {
     // verdict exists.
     if (verdict?.overUl == true) return NutrientTier.exceedsUl;
     if (pctOfUl != null) {
-      if (pctOfUl >= 100.0) return NutrientTier.exceedsUl;
+      // Exactly 100% of a limit is not an exceedance (pipeline Dose V4.1).
+      if (pctOfUl > 100.0) return NutrientTier.exceedsUl;
       if (pctOfUl >= 80.0) return NutrientTier.approachingUl;
     }
     if (pctOfRda == null) return NutrientTier.noRda;
