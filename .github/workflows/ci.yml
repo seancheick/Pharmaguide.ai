@@ -51,6 +51,9 @@ jobs:
       - name: Validate hydration fail-closed logic
         run: bash test/tool/fetch_interaction_db_test.sh
 
+      - name: Validate supported iOS commands and release preflight
+        run: bash test/tool/ios_release_preflight_test.sh
+
       - name: Validate catalog importer interaction contracts
         run: python3 -m unittest discover -s scripts/tests -p test_import_catalog_artifact.py
 

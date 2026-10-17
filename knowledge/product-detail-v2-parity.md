@@ -1,3 +1,5 @@
+> **Historical design record — not an operating runbook.** UI-toggle commands, rollout gates, build numbers and signing limitations below describe a past snapshot. Use [Supported commands](../README.md#supported-commands) for current builds and releases; do not execute old command examples.
+
 # Product Detail v2 — Parity Checklist
 
 Sean 2026-05-15: this is the **anti-regression contract** for the flagship

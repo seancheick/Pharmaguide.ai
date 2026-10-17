@@ -62,10 +62,42 @@ else
   bad 'distribution build does not invoke the preflight'
 fi
 
-if grep -Fq 'PHARMAGUIDE_IOS_DISTRIBUTION=testflight' "$REPO_ROOT/Makefile"; then
-  ok 'TestFlight build targets declare their distribution channel'
+# Execute the canonical Make target in a fixture: no Flutter, secrets, signing
+# or network. The user's chosen distribution must reach the shared builder,
+# and hydration must happen before packaging.
+FIXTURE="$TMP/make-repo"
+mkdir -p "$FIXTURE/scripts" "$FIXTURE/tool"
+cp "$REPO_ROOT/Makefile" "$FIXTURE/Makefile"
+printf 'SUPABASE_URL=https://fixture.invalid\nSUPABASE_ANON_KEY=fixture-anon\n' > "$FIXTURE/.env"
+printf 'echo hydration >> "$PROBE_CALLS"\n' > "$FIXTURE/tool/fetch_interaction_db.sh"
+cat > "$FIXTURE/scripts/build_ios_release.sh" <<'BUILDER'
+echo "build:${PHARMAGUIDE_IOS_DISTRIBUTION:-app-store}" >> "$PROBE_CALLS"
+[[ "$1" == /fixture/flutter ]] || exit 31
+[[ "$*" == *"--dart-define=SUPABASE_URL=https://fixture.invalid"* ]] || exit 32
+[[ "$*" == *"--dart-define=SUPABASE_ANON_KEY=fixture-anon"* ]] || exit 33
+[[ "$*" != *USE_V2_* ]] || exit 34
+BUILDER
+for channel in testflight app-store; do
+  calls="$TMP/calls-$channel"
+  if (cd "$FIXTURE" && PROBE_CALLS="$calls" PHARMAGUIDE_IOS_DISTRIBUTION="$channel" \
+       make build-ios FLUTTER=/fixture/flutter) >/dev/null 2>&1 \
+     && [[ "$(cat "$calls")" == "$(printf 'hydration\nbuild:%s' "$channel")" ]]; then
+    ok "build-ios hydrates then invokes shared builder for $channel with required defines"
+  else
+    bad "build-ios failed canonical $channel packaging contract"
+  fi
+done
+(cd "$FIXTURE" && make -qp) > "$TMP/make-database" 2>/dev/null || true
+if grep -Eq '^(run-v2(pd|pf|med|search|qc|all)(-ios)?|build-ipa[^:]*):' "$TMP/make-database"; then
+  bad 'retired UI-flag targets remain callable'
 else
-  bad 'TestFlight build targets do not declare their distribution channel'
+  ok 'retired UI-flag targets are removed'
+fi
+(cd "$FIXTURE" && make help) > "$TMP/make-help"
+if grep -Eq 'run-v2[[:space:]]' "$TMP/make-help"; then
+  ok 'make help includes the supported gallery preview with a digit in its name'
+else
+  bad 'make help hides supported targets whose names contain digits'
 fi
 
 echo
