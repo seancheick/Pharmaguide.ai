@@ -262,9 +262,9 @@ class ProductHealthFacts {
           (exceedance) => InteractionWarning(
             severity: exceedance.severity,
             evidenceLevel: EvidenceLevel.established,
-            title: 'Exceeds upper limit: ${exceedance.standardName}',
+            title: exceedance.title,
             mechanism: exceedance.warning,
-            management: managementForConfirmedUlExceedance(exceedance.severity),
+            management: exceedance.management,
             displayModeDefault: 'critical',
           ),
         )

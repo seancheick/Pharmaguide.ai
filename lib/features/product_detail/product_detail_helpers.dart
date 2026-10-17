@@ -58,7 +58,10 @@ List<InteractionWarning> filterProductDetailWarningsForProfile({
   required Set<String> userDrugClasses,
   Set<String> userProfileFlags = const <String>{},
 }) {
-  final combinedWarnings = [..._synthesizeUlWarnings(detailBlob), ...warnings];
+  final combinedWarnings = InteractionWarning.dedupe([
+    ..._synthesizeUlWarnings(detailBlob),
+    ...warnings,
+  ]);
 
   // Three-axis dose contract: the pipeline-authored consumer disposition is
   // authoritative. Apply it before profile matching so a matching profile can
@@ -151,9 +154,9 @@ List<InteractionWarning> _synthesizeUlWarnings(Map<String, dynamic>? blob) {
         (e) => InteractionWarning(
           severity: e.severity,
           evidenceLevel: EvidenceLevel.established,
-          title: 'Exceeds upper limit: ${e.standardName}',
+          title: e.title,
           mechanism: e.warning,
-          management: managementForConfirmedUlExceedance(e.severity),
+          management: e.management,
           displayModeDefault: 'critical',
         ),
       )

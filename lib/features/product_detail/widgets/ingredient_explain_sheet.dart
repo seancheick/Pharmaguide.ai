@@ -414,6 +414,7 @@ Color _formAccent(V2Palette p, FormQuality q) {
 
 Color _doseAccent(V2Palette p, DoseCallOut d) {
   switch (d) {
+    case DoseCallOut.highAtDailyUse:
     case DoseCallOut.high:
       return p.avoid;
     case DoseCallOut.low:
@@ -440,6 +441,7 @@ Color _formTint(V2Palette p, FormQuality q) {
 
 Color _doseTint(V2Palette p, DoseCallOut d) {
   switch (d) {
+    case DoseCallOut.highAtDailyUse:
     case DoseCallOut.high:
       return p.avoidTint;
     case DoseCallOut.low:

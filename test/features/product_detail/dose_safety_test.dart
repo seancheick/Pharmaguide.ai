@@ -18,6 +18,32 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/dose_safety.dart';
 
 void main() {
+  test('one nutrient event retains the strongest duplicate-row finding', () {
+    final out = extractUlExceedances([
+      {
+        'standard_name': 'Magnesium',
+        'over_ul': true,
+        'ul_gate_eligible': true,
+        'pct_ul': 137.14,
+        'warnings': ['First explanation'],
+        'servings_per_day_max': 4,
+      },
+      {
+        'standard_name': 'Magnesium',
+        'over_ul': true,
+        'ul_gate_eligible': true,
+        'pct_ul': 300,
+        'warnings': ['Second explanation'],
+        'servings_per_day_max': 4,
+      },
+    ]);
+    expect(out, hasLength(1));
+    expect(out.single.pctOfUl, 300);
+    expect(out.single.warning, contains('Second explanation'));
+    expect(out.single.title, 'Above limit at labeled daily use: Magnesium');
+    expect(out.single.management, contains('not your confirmed intake'));
+  });
+
   group('resolveDoseSafety', () {
     test('Niacin 50 mg vs UL 35 mg with skip_ul_check=false → exceedsUl', () {
       final ingredient = <String, dynamic>{
@@ -515,7 +541,7 @@ void main() {
       expect(out.single.standardName, 'Vitamin D');
     });
 
-    test('emits one UlExceedance per warning when multiple exist', () {
+    test('groups one nutrient event while retaining every explanation', () {
       final ulAnalysis = <Map<String, dynamic>>[
         {
           'standard_name': 'Iron',
@@ -528,9 +554,9 @@ void main() {
         },
       ];
       final out = extractUlExceedances(ulAnalysis);
-      expect(out, hasLength(2));
-      expect(out[0].warning, 'Exceeds UL by 5.0 mg');
-      expect(out[1].warning, contains('zinc deficiency'));
+      expect(out, hasLength(1));
+      expect(out.single.warning, contains('Exceeds UL by 5.0 mg'));
+      expect(out.single.warning, contains('zinc deficiency'));
     });
 
     test('falls back to ingredient field when standard_name is missing', () {

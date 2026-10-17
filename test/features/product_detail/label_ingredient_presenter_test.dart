@@ -4,6 +4,33 @@ import 'package:pharmaguide/features/product_detail/label_ingredient_presenter.d
 import 'package:pharmaguide/features/product_detail/widgets/ingredient_explain_model.dart';
 
 void main() {
+  test(
+    '120 mg serving qualifies the maximum-use warning rather than high dose',
+    () {
+      final active = presentActiveIngredient(
+        const {
+          'name': 'Magnesium',
+          'standard_name': 'Magnesium',
+          'quantity': 120,
+          'unit': 'mg',
+          'bio_score': 12,
+        },
+        ulEntry: const {
+          'standard_name': 'Magnesium',
+          'over_ul': true,
+          'ul_gate_eligible': true,
+          'pct_ul': 137.14,
+          'servings_per_day_max': 4,
+        },
+      );
+      expect(doseChipLabel(active.doseCallOut), 'Check daily amount');
+      expect(
+        doseBlockHeading(active.doseCallOut),
+        'Above limit at labeled daily use',
+      );
+    },
+  );
+
   group('presentActiveIngredient', () {
     test(
       'uses label-first identity, exact dose, hierarchy, and score context',

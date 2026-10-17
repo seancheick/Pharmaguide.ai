@@ -302,7 +302,9 @@ String _semanticsLabel({
 }
 
 bool _isMaterialDoseCallOut(DoseCallOut callOut) =>
-    callOut == DoseCallOut.high || callOut == DoseCallOut.low;
+    callOut == DoseCallOut.high ||
+    callOut == DoseCallOut.highAtDailyUse ||
+    callOut == DoseCallOut.low;
 
 /// The consumer row shows a disclosure chip ONLY where an undisclosed
 /// form/strain actually changes what the user gets — today that is probiotics
@@ -404,6 +406,7 @@ class _DoseChipV2 extends StatelessWidget {
   /// Color mapping mirrors production meaning. Only high and low instantiate
   /// this widget; the remaining cases keep the switch exhaustive.
   static Color _color(DoseCallOut d, V2Palette palette) => switch (d) {
+    DoseCallOut.highAtDailyUse => palette.avoid,
     DoseCallOut.high => palette.avoid,
     DoseCallOut.low => palette.caution,
     DoseCallOut.notDisclosed => palette.fgSubtle,

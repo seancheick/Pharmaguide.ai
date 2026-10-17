@@ -215,11 +215,23 @@ class UlExceedance {
   /// metadata to calculate it. Null is intentionally conservative: an
   /// explicit exceedance without a measurable magnitude stays hard.
   final double? pctOfUl;
+  final bool multipleDailyServings;
+
+  String get title => multipleDailyServings
+      ? 'Above limit at labeled daily use: $standardName'
+      : 'Exceeds upper limit: $standardName';
+
+  String get management => multipleDailyServings
+      ? 'This assessment uses the maximum labeled daily amount, not your '
+            'confirmed intake. Review how much you take and your other sources '
+            'with a healthcare provider.'
+      : managementForConfirmedUlExceedance(severity);
 
   const UlExceedance({
     required this.standardName,
     required this.warning,
     this.pctOfUl,
+    this.multipleDailyServings = false,
   });
 
   /// Shared product-detail/stack disposition for a confirmed UL exceedance.
@@ -270,7 +282,7 @@ double? _resolvedPctOfUl(Map<String, dynamic> entry) {
 List<UlExceedance> extractUlExceedances(List<dynamic>? ulAnalysis) {
   if (ulAnalysis == null || ulAnalysis.isEmpty) return const [];
   final out = <UlExceedance>[];
-  final seenNutrients = <String>{};
+  final nutrientIndexes = <String, int>{};
   for (final rawEntry in ulAnalysis) {
     final entry = _asStringKeyMap(rawEntry);
     if (entry == null) continue;
@@ -288,13 +300,40 @@ List<UlExceedance> extractUlExceedances(List<dynamic>? ulAnalysis) {
       messages.add(msg);
     }
     if (messages.isEmpty) continue;
-    if (!seenNutrients.add(_ulNutrientKey(name))) continue;
+    final key = _ulNutrientKey(name);
     final pctOfUl = _resolvedPctOfUl(entry);
-    for (final msg in messages) {
-      out.add(UlExceedance(standardName: name, warning: msg, pctOfUl: pctOfUl));
+    final previousIndex = nutrientIndexes[key];
+    if (previousIndex != null) {
+      final previous = out[previousIndex];
+      final previousPct = previous.pctOfUl;
+      out[previousIndex] = UlExceedance(
+        standardName: previous.standardName,
+        warning: {...previous.warning.split('\n\n'), ...messages}.join('\n\n'),
+        pctOfUl: previousPct == null || pctOfUl == null
+            ? null
+            : (previousPct > pctOfUl ? previousPct : pctOfUl),
+        multipleDailyServings:
+            previous.multipleDailyServings && usesMultipleDailyServings(entry),
+      );
+      continue;
     }
+    nutrientIndexes[key] = out.length;
+    out.add(
+      UlExceedance(
+        standardName: name,
+        warning: messages.toSet().join('\n\n'),
+        pctOfUl: pctOfUl,
+        multipleDailyServings: usesMultipleDailyServings(entry),
+      ),
+    );
   }
   return out;
+}
+
+/// Presentation context only. The pipeline's exceedance decision is unchanged.
+bool usesMultipleDailyServings(Map<String, dynamic>? entry) {
+  final maximum = asFiniteDouble(entry?['servings_per_day_max']);
+  return maximum != null && maximum > 1;
 }
 
 Map<String, dynamic>? _asStringKeyMap(Object? raw) {

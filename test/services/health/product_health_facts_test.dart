@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
@@ -9,6 +10,43 @@ import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 
 void main() {
+  test('daily-use warning is one event through facts and profile assembly', () {
+    final blob = <String, dynamic>{
+      'rda_ul_data': {
+        'analyzed_ingredients': [
+          {
+            'standard_name': 'Magnesium',
+            'quantity': 120,
+            'unit': 'mg',
+            'over_ul': true,
+            'ul_gate_eligible': true,
+            'pct_ul': 137.14,
+            'servings_per_day_max': 4,
+            'warnings': [
+              'Provides 480 mg per day.',
+              'Supplemental magnesium exceeds UL.',
+            ],
+          },
+        ],
+      },
+    };
+    final facts = ProductHealthFacts.fromDetailBlob(blob);
+    final warnings = filterProductDetailWarningsForProfile(
+      detailBlob: blob,
+      warnings: facts.warnings,
+      userConditions: {},
+      userDrugClasses: {},
+    );
+    expect(warnings, hasLength(1));
+    expect(
+      warnings.single.title,
+      'Above limit at labeled daily use: Magnesium',
+    );
+    expect(warnings.single.mechanism, contains('480 mg'));
+    expect(warnings.single.mechanism, contains('Supplemental magnesium'));
+    expect(warnings.single.management, contains('not your confirmed intake'));
+  });
+
   test('service-layer warning facade exposes the pipeline warning model', () {
     final warning = InteractionWarning.fromJson({
       'severity': 'avoid',

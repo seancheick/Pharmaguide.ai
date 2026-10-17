@@ -165,6 +165,11 @@ String _formExplanationForStatus(String formStatusLabel) {
 
 String _doseExplanationFor(DoseCallOut d) {
   switch (d) {
+    case DoseCallOut.highAtDailyUse:
+      return 'The maximum labeled daily amount exceeds the upper limit used '
+          'for this assessment. This may include several servings; the amount '
+          'beside the ingredient is per serving. Review your actual daily '
+          'amount and other sources with a healthcare provider.';
     case DoseCallOut.high:
       return 'Dose is above the established Upper Limit. Consider reducing '
           'daily intake.';
@@ -202,6 +207,8 @@ String formBlockHeading(FormQuality q) {
 /// Heading copy for the dose block in the sheet.
 String doseBlockHeading(DoseCallOut d) {
   switch (d) {
+    case DoseCallOut.highAtDailyUse:
+      return 'Above limit at labeled daily use';
     case DoseCallOut.high:
       return 'High dose';
     case DoseCallOut.low:
@@ -233,6 +240,8 @@ String formChipLabel(FormQuality q) {
 /// Short label used by the dose chip.
 String doseChipLabel(DoseCallOut d) {
   switch (d) {
+    case DoseCallOut.highAtDailyUse:
+      return 'Check daily amount';
     case DoseCallOut.high:
       return 'High dose';
     case DoseCallOut.low:
