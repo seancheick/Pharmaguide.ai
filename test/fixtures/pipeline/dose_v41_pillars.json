@@ -1,0 +1,705 @@
+{
+ "_source": "dsld_clean claude/dose-v41 0e9119df3: build_scored_artifact(stored enriched input)[quality_pillars_v4]; generated from manifest-owned Pure input, never edited by hand.",
+ "products": {
+  "205309": {
+   "quality_score_v4_100": 76.6,
+   "quality_pillars_v4": {
+    "formulation": {
+     "score": 16.0,
+     "max": 20,
+     "reason": "Well-formulated \u2014 uses high-quality, well-absorbed ingredient forms.",
+     "components": {
+      "raw_formulation": 12.0,
+      "archetype": "generic_single_molecule",
+      "formulation_profile": "generic_iqm",
+      "reference": 15.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "A1_bio_score",
+        "kind": "earned",
+        "source": "formulation.A1_bio_score",
+        "raw": 12.0,
+        "points": 16.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 4.0
+     }
+    },
+    "dose": {
+     "score": 10.0,
+     "max": 20,
+     "reason": "The higher directed daily amounts of Magnesium exceed its established upper limit (137% of the limit at the highest directed use), so Dose is capped at 10. This cap is PharmaGuide scoring policy, not a medical toxicity grade.",
+     "components": {
+      "raw_dose": 22.0,
+      "archetype": "generic_single_molecule",
+      "reference": 22.0,
+      "adequacy_before_safety": 20.0,
+      "safety_ceiling": 10.0
+     },
+     "explanation": {
+      "schema_version": 1,
+      "assessment": {
+       "method": "rda_ul_proxy_until_dietary_intake_table",
+       "assessment_basis": "directed_daily_use",
+       "daily_use": {
+        "minimum_servings": 1.0,
+        "maximum_servings": 4.0,
+        "defaulted": false
+       },
+       "deferred_data_dependency": "typical_dietary_intake",
+       "reference_assessments": [
+        {
+         "nutrient": "Magnesium",
+         "canonical_id": "magnesium",
+         "unit": "mg",
+         "rda_ai": 400,
+         "rda_ai_source": "rda",
+         "ul": 350,
+         "ul_status": "established",
+         "pct_rda": 30.0,
+         "pct_ul": 137.14285714285714,
+         "per_day_min": 120.0,
+         "per_day_max": 480.0,
+         "reference_profile": {
+          "id": "adult_neutral_compatibility",
+          "age_range": "19-30",
+          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
+          "ul_basis": "lower_sourced_adult_male_female_ul"
+         },
+         "reference": {
+          "source_owner": "rda_ul_data",
+          "source_url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+          "basis_type": "authoritative_safety_reference",
+          "evidence_grade_applicable": false,
+          "ul_basis": "supplemental_only",
+          "ul_note": "UL applies to supplemental magnesium only, not food sources"
+         },
+         "scoring_eligible": true,
+         "skip_ul_check": false,
+         "ul_gate_eligible": true,
+         "source_label_key": "label:magnesium:magnesium:120:mg"
+        }
+       ],
+       "supplemental_window_max_raw": 22.0,
+       "positive_clinical_benchmark_assessments": [],
+       "dose_participation_basis": "declared_purpose_equal_weight",
+       "unbenchmarked_purpose_ingredients": [],
+       "raw_dose": 22.0,
+       "normalization_reference": 22.0
+      },
+      "dose_receipt": {
+       "daily_use": {
+        "minimum_servings": 1.0,
+        "maximum_servings": 4.0,
+        "defaulted": false
+       },
+       "aggregation": "declared_purpose_equal_weight",
+       "contributions": [
+        {
+         "ingredient": "magnesium",
+         "assessment": "contribution_policy_target",
+         "reference": "PharmaGuide contribution target (20% of the FDA Daily Value)",
+         "reference_kind": "pharmaguide_policy",
+         "amount_at_minimum": 120.0,
+         "amount_at_maximum": 480.0,
+         "amount_unit": "mg",
+         "amount_per_serving": 120.0,
+         "reference_value": 84.0,
+         "pct_of_reference": 142.86,
+         "points": 20.0
+        }
+       ],
+       "reference_assessments": [
+        {
+         "nutrient": "Magnesium",
+         "canonical_id": "magnesium",
+         "unit": "mg",
+         "rda_ai": 400,
+         "rda_ai_source": "rda",
+         "ul": 350,
+         "ul_status": "established",
+         "pct_rda": 30.0,
+         "pct_ul": 137.14285714285714,
+         "per_day_min": 120.0,
+         "per_day_max": 480.0,
+         "reference_profile": {
+          "id": "adult_neutral_compatibility",
+          "age_range": "19-30",
+          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
+          "ul_basis": "lower_sourced_adult_male_female_ul"
+         },
+         "reference": {
+          "source_owner": "rda_ul_data",
+          "source_url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+          "basis_type": "authoritative_safety_reference",
+          "evidence_grade_applicable": false,
+          "ul_basis": "supplemental_only",
+          "ul_note": "UL applies to supplemental magnesium only, not food sources"
+         },
+         "scoring_eligible": true,
+         "skip_ul_check": false,
+         "ul_gate_eligible": true,
+         "source_label_key": "label:magnesium:magnesium:120:mg"
+        }
+       ],
+       "adequacy_before_safety": 20.0,
+       "upper_reference": {
+        "kind": "established_upper_limit",
+        "nutrient": "Magnesium",
+        "ul": 350.0,
+        "ul_unit": "mg",
+        "ul_population": "general adult",
+        "pct_ul": 137.14285714285714,
+        "pct_ul_at_minimum": 34.2857,
+        "minimum_exceeds": false,
+        "cap_public": 10.0,
+        "policy": "pharmaguide_scoring_policy"
+       },
+       "final": 10.0,
+       "reconciles": true
+      },
+      "facts": [
+       {
+        "id": "dose_reference_method",
+        "label": "Dose assessment basis",
+        "value_display": "Dose uses recorded nutrient references and applicable preparation benchmarks. Adequacy uses the lowest directed daily use; upper-limit checks use the highest. These are catalog assessments, not a personal dose recommendation."
+       },
+       {
+        "id": "dose_safety_ceiling",
+        "label": "Upper-limit scoring rule",
+        "value_display": "When the highest directed daily use exceeds an established upper limit, Dose is at most 10; at 150% of the limit or more it is 0. This product-level cap is applied once, after the ingredient assessment, and never raises a lower score. It is PharmaGuide scoring policy, not a medical toxicity grade. The applicable reference determines which food, supplement or medication sources count; their limits are not interchangeable."
+       },
+       {
+        "id": "dose_contributions",
+        "label": "What Dose assessed",
+        "value_display": "magnesium: PharmaGuide contribution target (20% of the FDA Daily Value) 84 mg, 120-480 mg/day by directions, 143% of it at the lowest daily use (20 points).",
+        "detail": "Each declared purpose ingredient counts equally; adequacy is their average."
+       },
+       {
+        "id": "dose_upper_reference",
+        "label": "Upper-limit check",
+        "value_display": "137% of the Magnesium upper limit of 350 mg (general adult limit) at the highest directed use, 34% at the lowest; Dose is capped at 10 (PharmaGuide scoring policy)."
+       },
+       {
+        "id": "dose_arithmetic",
+        "label": "How Dose adds up",
+        "value_display": "Adequacy 20/20, capped at 10: Dose 10/20."
+       }
+      ]
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "supplemental_window_proxy",
+        "kind": "earned",
+        "source": "dose.supplemental_window_proxy",
+        "raw": 22.0,
+        "points": 20.0
+       },
+       {
+        "id": "dose_safety_ceiling",
+        "kind": "cap",
+        "source": "dose_safety_ceiling",
+        "points": -10.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 10.0
+     }
+    },
+    "evidence": {
+     "score": 15.6,
+     "max": 20,
+     "reason": "Evidence credit is driven by the primary ingredient, not a trial of the whole formula.",
+     "evidence_result_state": "evaluated_applicable",
+     "display_state": "assessed",
+     "components": {
+      "raw_evidence": 14.0,
+      "archetype": "generic_single_molecule",
+      "reference": 18.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "clinical_evidence_pipeline",
+        "kind": "earned",
+        "source": "evidence.clinical_evidence_pipeline",
+        "raw": 7.0,
+        "points": 7.7778
+       },
+       {
+        "id": "primary_evidence_floor",
+        "kind": "floor",
+        "source": "evidence.primary_evidence_floor",
+        "raw": 7.0,
+        "points": 7.7778
+       },
+       {
+        "id": "rounding",
+        "kind": "rounding",
+        "source": "pillar.round_0_1",
+        "points": 0.0444
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 4.4
+     }
+    },
+    "transparency": {
+     "score": 15.0,
+     "max": 15,
+     "reason": "Fully transparent label \u2014 every amount is disclosed.",
+     "components": {
+      "source_dim": "transparency",
+      "raw_score": 10.0,
+      "raw_max": 10.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "clear_disclosure_base",
+        "kind": "neutral",
+        "source": "transparency.clear_disclosure_base",
+        "raw": 6.0,
+        "points": 9.0
+       },
+       {
+        "id": "complete_active_identity_dose_disclosure",
+        "kind": "disclosure",
+        "source": "transparency.complete_active_identity_dose_disclosure",
+        "raw": 4.0,
+        "points": 6.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 0.0
+     }
+    },
+    "verification": {
+     "score": 10.0,
+     "max": 15,
+     "reason": "Manufacturing verified; no independent product testing verified on file \u2014 manufacturer is listed in an audited GMP facility registry, does its own purity testing.",
+     "components": {
+      "cert": 0.0,
+      "coa_batch": 0.0,
+      "gmp": 2.0,
+      "gmp_basis": "manufacturer_facility",
+      "brand_testing": 2.0,
+      "brand_only_cert": 0.0,
+      "reputation": 2.0,
+      "tier": "manufacturing",
+      "fail_open_neutral": false,
+      "quality_system_violation_penalty": 0.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "neutral_baseline",
+        "kind": "neutral",
+        "source": "verification_subscale.neutral_baseline",
+        "raw": 6.0,
+        "points": 6.0
+       },
+       {
+        "id": "gmp",
+        "kind": "earned",
+        "source": "verification.gmp",
+        "raw": 2.0,
+        "points": 2.0
+       },
+       {
+        "id": "brand_testing",
+        "kind": "earned",
+        "source": "verification.brand_testing",
+        "raw": 2.0,
+        "points": 2.0
+       },
+       {
+        "id": "reputation",
+        "kind": "earned",
+        "source": "verification.reputation",
+        "raw": 2.0,
+        "points": 2.0
+       },
+       {
+        "id": "manufacturing_ceiling",
+        "kind": "cap",
+        "source": "verification_subscale.tier_ceilings.manufacturing",
+        "points": -2.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 5.0
+     }
+    },
+    "safety_hygiene": {
+     "score": 10.0,
+     "max": 10,
+     "reason": "Not deducted here: one or more supplemental amounts exceed an established upper limit.",
+     "components": {
+      "clean_base": 10.0,
+      "class_i_recall_penalty": 0.0,
+      "dose_safety_state_counts": {
+       "confirmed_over_threshold": 1
+      }
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "catalog_screen",
+        "kind": "neutral",
+        "source": "safety_hygiene_base",
+        "points": 10.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 0.0
+     }
+    }
+   }
+  },
+  "299065": {
+   "quality_score_v4_100": 86.6,
+   "quality_pillars_v4": {
+    "formulation": {
+     "score": 16.0,
+     "max": 20,
+     "reason": "Well-formulated \u2014 uses high-quality, well-absorbed ingredient forms.",
+     "components": {
+      "raw_formulation": 12.0,
+      "archetype": "generic_single_molecule",
+      "formulation_profile": "generic_iqm",
+      "reference": 15.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "A1_bio_score",
+        "kind": "earned",
+        "source": "formulation.A1_bio_score",
+        "raw": 12.0,
+        "points": 16.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 4.0
+     }
+    },
+    "dose": {
+     "score": 20.0,
+     "max": 20,
+     "reason": "Doses receive high credit against the applicable PharmaGuide dose benchmarks.",
+     "components": {
+      "raw_dose": 22.0,
+      "archetype": "generic_single_molecule",
+      "reference": 22.0
+     },
+     "explanation": {
+      "schema_version": 1,
+      "assessment": {
+       "method": "rda_ul_proxy_until_dietary_intake_table",
+       "assessment_basis": "directed_daily_use",
+       "daily_use": {
+        "minimum_servings": 1.0,
+        "maximum_servings": 1.0,
+        "defaulted": false
+       },
+       "deferred_data_dependency": "typical_dietary_intake",
+       "reference_assessments": [
+        {
+         "nutrient": "Magnesium",
+         "canonical_id": "magnesium",
+         "unit": "mg",
+         "rda_ai": 400,
+         "rda_ai_source": "rda",
+         "ul": 350,
+         "ul_status": "established",
+         "pct_rda": 30.0,
+         "pct_ul": 34.285714285714285,
+         "per_day_min": 120.0,
+         "per_day_max": 120.0,
+         "reference_profile": {
+          "id": "adult_neutral_compatibility",
+          "age_range": "19-30",
+          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
+          "ul_basis": "lower_sourced_adult_male_female_ul"
+         },
+         "reference": {
+          "source_owner": "rda_ul_data",
+          "source_url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+          "basis_type": "authoritative_safety_reference",
+          "evidence_grade_applicable": false,
+          "ul_basis": "supplemental_only",
+          "ul_note": "UL applies to supplemental magnesium only, not food sources"
+         },
+         "scoring_eligible": true,
+         "skip_ul_check": false,
+         "ul_gate_eligible": true,
+         "source_label_key": "label:magnesium:magnesium:120:mg"
+        }
+       ],
+       "supplemental_window_max_raw": 22.0,
+       "positive_clinical_benchmark_assessments": [],
+       "dose_participation_basis": "declared_purpose_equal_weight",
+       "unbenchmarked_purpose_ingredients": [],
+       "raw_dose": 22.0,
+       "normalization_reference": 22.0
+      },
+      "dose_receipt": {
+       "daily_use": {
+        "minimum_servings": 1.0,
+        "maximum_servings": 1.0,
+        "defaulted": false
+       },
+       "aggregation": "declared_purpose_equal_weight",
+       "contributions": [
+        {
+         "ingredient": "magnesium",
+         "assessment": "contribution_policy_target",
+         "reference": "PharmaGuide contribution target (20% of the FDA Daily Value)",
+         "reference_kind": "pharmaguide_policy",
+         "amount_at_minimum": 120.0,
+         "amount_at_maximum": 120.0,
+         "amount_unit": "mg",
+         "amount_per_serving": 120.0,
+         "reference_value": 84.0,
+         "pct_of_reference": 142.86,
+         "points": 20.0
+        }
+       ],
+       "reference_assessments": [
+        {
+         "nutrient": "Magnesium",
+         "canonical_id": "magnesium",
+         "unit": "mg",
+         "rda_ai": 400,
+         "rda_ai_source": "rda",
+         "ul": 350,
+         "ul_status": "established",
+         "pct_rda": 30.0,
+         "pct_ul": 34.285714285714285,
+         "per_day_min": 120.0,
+         "per_day_max": 120.0,
+         "reference_profile": {
+          "id": "adult_neutral_compatibility",
+          "age_range": "19-30",
+          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
+          "ul_basis": "lower_sourced_adult_male_female_ul"
+         },
+         "reference": {
+          "source_owner": "rda_ul_data",
+          "source_url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+          "basis_type": "authoritative_safety_reference",
+          "evidence_grade_applicable": false,
+          "ul_basis": "supplemental_only",
+          "ul_note": "UL applies to supplemental magnesium only, not food sources"
+         },
+         "scoring_eligible": true,
+         "skip_ul_check": false,
+         "ul_gate_eligible": true,
+         "source_label_key": "label:magnesium:magnesium:120:mg"
+        }
+       ],
+       "adequacy_before_safety": 20.0,
+       "upper_reference": null,
+       "final": 20.0,
+       "reconciles": true
+      },
+      "facts": [
+       {
+        "id": "dose_reference_method",
+        "label": "Dose assessment basis",
+        "value_display": "Dose uses recorded nutrient references and applicable preparation benchmarks. Adequacy uses the lowest directed daily use; upper-limit checks use the highest. These are catalog assessments, not a personal dose recommendation."
+       },
+       {
+        "id": "dose_contributions",
+        "label": "What Dose assessed",
+        "value_display": "magnesium: PharmaGuide contribution target (20% of the FDA Daily Value) 84 mg, 120 mg/day by directions, 143% of it at the lowest daily use (20 points).",
+        "detail": "Each declared purpose ingredient counts equally; adequacy is their average."
+       },
+       {
+        "id": "dose_arithmetic",
+        "label": "How Dose adds up",
+        "value_display": "Adequacy 20/20; no upper-limit cap applies: Dose 20/20."
+       }
+      ]
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "supplemental_window_proxy",
+        "kind": "earned",
+        "source": "dose.supplemental_window_proxy",
+        "raw": 22.0,
+        "points": 20.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 0.0
+     }
+    },
+    "evidence": {
+     "score": 15.6,
+     "max": 20,
+     "reason": "Evidence credit is driven by the primary ingredient, not a trial of the whole formula.",
+     "evidence_result_state": "evaluated_applicable",
+     "display_state": "assessed",
+     "components": {
+      "raw_evidence": 14.0,
+      "archetype": "generic_single_molecule",
+      "reference": 18.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "clinical_evidence_pipeline",
+        "kind": "earned",
+        "source": "evidence.clinical_evidence_pipeline",
+        "raw": 7.0,
+        "points": 7.7778
+       },
+       {
+        "id": "primary_evidence_floor",
+        "kind": "floor",
+        "source": "evidence.primary_evidence_floor",
+        "raw": 7.0,
+        "points": 7.7778
+       },
+       {
+        "id": "rounding",
+        "kind": "rounding",
+        "source": "pillar.round_0_1",
+        "points": 0.0444
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 4.4
+     }
+    },
+    "transparency": {
+     "score": 15.0,
+     "max": 15,
+     "reason": "Fully transparent label \u2014 every amount is disclosed.",
+     "components": {
+      "source_dim": "transparency",
+      "raw_score": 10.0,
+      "raw_max": 10.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "clear_disclosure_base",
+        "kind": "neutral",
+        "source": "transparency.clear_disclosure_base",
+        "raw": 6.0,
+        "points": 9.0
+       },
+       {
+        "id": "complete_active_identity_dose_disclosure",
+        "kind": "disclosure",
+        "source": "transparency.complete_active_identity_dose_disclosure",
+        "raw": 4.0,
+        "points": 6.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 0.0
+     }
+    },
+    "verification": {
+     "score": 10.0,
+     "max": 15,
+     "reason": "Manufacturing verified; no independent product testing verified on file \u2014 manufacturer is listed in an audited GMP facility registry, does its own purity testing.",
+     "components": {
+      "cert": 0.0,
+      "coa_batch": 0.0,
+      "gmp": 2.0,
+      "gmp_basis": "manufacturer_facility",
+      "brand_testing": 2.0,
+      "brand_only_cert": 0.0,
+      "reputation": 2.0,
+      "tier": "manufacturing",
+      "fail_open_neutral": false,
+      "quality_system_violation_penalty": 0.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "neutral_baseline",
+        "kind": "neutral",
+        "source": "verification_subscale.neutral_baseline",
+        "raw": 6.0,
+        "points": 6.0
+       },
+       {
+        "id": "gmp",
+        "kind": "earned",
+        "source": "verification.gmp",
+        "raw": 2.0,
+        "points": 2.0
+       },
+       {
+        "id": "brand_testing",
+        "kind": "earned",
+        "source": "verification.brand_testing",
+        "raw": 2.0,
+        "points": 2.0
+       },
+       {
+        "id": "reputation",
+        "kind": "earned",
+        "source": "verification.reputation",
+        "raw": 2.0,
+        "points": 2.0
+       },
+       {
+        "id": "manufacturing_ceiling",
+        "kind": "cap",
+        "source": "verification_subscale.tier_ceilings.manufacturing",
+        "points": -2.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 5.0
+     }
+    },
+    "safety_hygiene": {
+     "score": 10.0,
+     "max": 10,
+     "reason": "No catalog-level formula concerns found in the checks performed. Personal suitability was not assessed.",
+     "components": {
+      "clean_base": 10.0,
+      "class_i_recall_penalty": 0.0
+     },
+     "receipt": {
+      "entries": [
+       {
+        "id": "catalog_screen",
+        "kind": "neutral",
+        "source": "safety_hygiene_base",
+        "points": 10.0
+       }
+      ],
+      "nominal_deductions": 0,
+      "realized_deductions": 0.0,
+      "unawarded": 0.0
+     }
+    }
+   }
+  }
+ }
+}

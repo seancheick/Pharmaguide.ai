@@ -182,9 +182,9 @@ void main() {
         .where((entry) {
           if (entry['nutrient_class'] == 'floor') return false;
           final groups = (entry['data'] as List?) ?? const [];
-          return groups
-              .whereType<Map<String, dynamic>>()
-              .any((group) => group['ul'] != null);
+          return groups.whereType<Map<String, dynamic>>().any(
+            (group) => group['ul'] != null,
+          );
         })
         .map((entry) => entry['id'] as String)
         .toSet();
@@ -197,10 +197,8 @@ void main() {
         isA<Map<String, dynamic>>(),
         reason: '$id needs an authored copy record',
       );
-      final message = (record as Map<String, dynamic>)['message']
-              ?.toString()
-              .trim() ??
-          '';
+      final message =
+          (record as Map<String, dynamic>)['message']?.toString().trim() ?? '';
       expect(
         message.length,
         inInclusiveRange(25, 140),
@@ -237,6 +235,11 @@ void main() {
               displayName: 'Vitamin D',
               totalAmount: adultUl * 1.1,
               unit: vitaminD['unit'] as String,
+              // This copy assertion needs an explicitly qualified vitamin-D
+              // exposure, not a legacy mass with unknown form applicability.
+              ulComparableTotalAmount: adultUl * 1.1,
+              ulComparableUnit: vitaminD['unit'] as String,
+              hasUlExposureContract: true,
               contributions: const [],
             ),
           },

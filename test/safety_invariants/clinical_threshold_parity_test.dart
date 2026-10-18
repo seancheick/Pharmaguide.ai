@@ -1,10 +1,10 @@
 // Clinical-threshold parity gate: the B7 UL-exceedance threshold.
 //
 // PipelineUlVerdict.exceedsUl (lib/services/stack/stack_nutrient_aggregator.dart)
-// falls back to `pctUl >= 150.0` to judge a nutrient "over UL" when the pipeline
-// emitted a percentage but no definitive `over_ul` bool. That 150 mirrors the
-// pipeline's B7 threshold (b7_ul_pct_threshold in quality_score.json /
-// B7_dose_safety.threshold_pct in scoring_config.json).
+// falls back to `pctUl > 100.0` to judge a nutrient "over UL" when the pipeline
+// emitted a percentage but no definitive `over_ul` bool. That 100 mirrors the
+// pipeline's confirmed-exceedance threshold (dose_safety_ceiling.
+// exceeds_above_pct in quality_score.json, Dose V4.1).
 //
 // This test pins the value; the pipeline repo's test_clinical_threshold_parity.py
 // pins the identical value. The two identical pins are the parity contract — the
@@ -22,35 +22,38 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   // MUST equal PINNED_B7_UL_PCT_THRESHOLD in the pipeline repo's
   // scripts/tests/test_clinical_threshold_parity.py.
-  const pinnedB7UlPctThreshold = 150.0;
+  const pinnedB7UlPctThreshold = 100.0;
 
-  test('app B7 UL-exceedance fallback matches the pinned pipeline threshold', () {
-    final src = File(
-      'lib/services/stack/stack_nutrient_aggregator.dart',
-    ).readAsStringSync();
+  test(
+    'app B7 UL-exceedance fallback matches the pinned pipeline threshold',
+    () {
+      final src = File(
+        'lib/services/stack/stack_nutrient_aggregator.dart',
+      ).readAsStringSync();
 
-    // exceedsUl fallback: `return (pctUl ?? 0) >= <threshold>;`
-    final match = RegExp(
-      r'pctUl\s*\?\?\s*0\)\s*>=\s*(\d+(?:\.\d+)?)',
-    ).firstMatch(src);
+      // exceedsUl fallback: `return (pctUl ?? 0) > <threshold>;`
+      final match = RegExp(
+        r'pctUl\s*\?\?\s*0\)\s*>\s*(\d+(?:\.\d+)?)',
+      ).firstMatch(src);
 
-    expect(
-      match,
-      isNotNull,
-      reason:
-          'Could not locate the B7 UL-exceedance fallback (`pctUl ?? 0) >= …`) '
-          'in stack_nutrient_aggregator.dart. If the getter was refactored, '
-          'update this parity test to match the new shape.',
-    );
+      expect(
+        match,
+        isNotNull,
+        reason:
+            'Could not locate the UL-exceedance fallback (`pctUl ?? 0) > …`) '
+            'in stack_nutrient_aggregator.dart. If the getter was refactored, '
+            'update this parity test to match the new shape.',
+      );
 
-    final appThreshold = double.parse(match!.group(1)!);
-    expect(
-      appThreshold,
-      pinnedB7UlPctThreshold,
-      reason:
-          'App B7 fallback ($appThreshold) drifted from the pinned pipeline '
-          'b7_ul_pct_threshold ($pinnedB7UlPctThreshold). Update in lockstep '
-          'with scripts/tests/test_clinical_threshold_parity.py.',
-    );
-  });
+      final appThreshold = double.parse(match!.group(1)!);
+      expect(
+        appThreshold,
+        pinnedB7UlPctThreshold,
+        reason:
+            'App B7 fallback ($appThreshold) drifted from the pinned pipeline '
+            'b7_ul_pct_threshold ($pinnedB7UlPctThreshold). Update in lockstep '
+            'with scripts/tests/test_clinical_threshold_parity.py.',
+      );
+    },
+  );
 }

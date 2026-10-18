@@ -38,6 +38,7 @@ class NutrientContribution {
     required this.amount,
     this.minimumAmount,
     required this.unit,
+    this.hasUlExposureContract = false,
   });
 
   final String stackEntryId;
@@ -52,6 +53,11 @@ class NutrientContribution {
   final double? minimumAmount;
   final String unit;
 
+  /// Whether this contribution carries the pipeline's explicit UL exposure
+  /// contract. A typed sibling cannot qualify a legacy row's form or source.
+  /// Internal provenance only; never persisted or exported.
+  final bool hasUlExposureContract;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -62,7 +68,8 @@ class NutrientContribution {
           ingredientName == other.ingredientName &&
           amount == other.amount &&
           minimumAmount == other.minimumAmount &&
-          unit == other.unit;
+          unit == other.unit &&
+          hasUlExposureContract == other.hasUlExposureContract;
 
   @override
   int get hashCode => Object.hash(
@@ -72,6 +79,7 @@ class NutrientContribution {
     amount,
     minimumAmount,
     unit,
+    hasUlExposureContract,
   );
 }
 
@@ -159,8 +167,9 @@ class NutrientTotal {
   final String? ulComparableUnit;
 
   /// True when the total came through the pipeline's explicit UL-eligibility
-  /// contract. Legacy hand-built totals leave this false and retain the old
-  /// total-vs-UL behavior for compatibility.
+  /// contract on at least one row. Per-contribution provenance distinguishes
+  /// mixed typed/legacy stacks. Legacy compatibility applies only where the
+  /// source UL does not require a qualified form or source.
   final bool hasUlExposureContract;
 
   /// At least one disclosed contribution could not be assigned honestly to
@@ -248,10 +257,10 @@ class NutrientStatus {
   /// for personalized numbers.
   final bool rdaIsBaseline;
 
-  /// True when [ul] came from the reference entry's anonymous `highest_ul`
-  /// fallback instead of an exact demographic match. This is intentionally
-  /// least restrictive, not conservative; UI copy should ask users to add a
-  /// profile for personalized upper-limit checks.
+  /// True when the UL comparison is a catalog screen or uses a partial or
+  /// anonymous demographic reference rather than an exact personal match.
+  /// Known-age screening keeps that age's available limits; anonymous
+  /// screening uses ordinary adult limits. UI must mark these as not personal.
   final bool ulIsFallback;
 
   /// A UL exists, but this label's form/source detail is insufficient for an

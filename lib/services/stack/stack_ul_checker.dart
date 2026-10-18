@@ -50,8 +50,11 @@
 // `rda_optimal_uls.json` stores per-demographic rows. We look up in
 // priority order:
 // 1. Exact age_range AND group (sex) match.
-// 2. Any row with the requested age_range (regardless of sex).
-// 3. Lowest established demographic UL as a conservative anonymous fallback.
+// 2. Age known, sex not: the lowest Male/Female UL at that known age.
+// 3. Group known, age not: the lowest UL across that group's adult rows.
+// 4. No profile: the lowest established UL across ordinary adult groups
+//    (pipeline Dose V4.1 section 2.5), never a child's or pregnancy row.
+// Rows 2-4 are flagged as not personal.
 //
 // RDA and UL are read separately — a nutrient can have a UL
 // without an RDA (and vice versa), so we never assume both exist.
@@ -76,9 +79,9 @@ class StackUlChecker {
   /// values in the reference data. [sex] is "Male" / "Female" /
   /// "Pregnancy" / "Lactation" matching the group field.
   ///
-  /// Both are optional — when null, the checker still runs against the lowest
-  /// established demographic UL. The result is marked as a fallback so the UI
-  /// can explain that completing the profile improves personalization.
+  /// Both are optional. Known age retains its available demographic limits;
+  /// absent demographics use the ordinary-adult screen. Partial matches are
+  /// marked as fallback comparisons rather than fully personal assessments.
   /// [pipelineVerdicts] carries the pipeline's own per-nutrient UL decisions
   /// (keyed by canonical id, from
   /// [StackNutrientAggregator.extractPipelineUlVerdicts]). When a definitive
@@ -126,6 +129,25 @@ class StackUlChecker {
       );
     }
     final entry = resolved.entry;
+    final scopedForms = entry['ul_applies_to_forms'];
+    final hasFormScopedUl = scopedForms is List && scopedForms.isNotEmpty;
+    final legacyContributions = total.contributions.where(
+      (contribution) => !contribution.hasUlExposureContract,
+    );
+    final hasUnqualifiedFormScope =
+        hasFormScopedUl &&
+        (!total.hasUlExposureContract ||
+            legacyContributions.isNotEmpty ||
+            total.excludedContributions.any(
+              (excluded) =>
+                  !excluded.contribution.hasUlExposureContract &&
+                  const {
+                    NutrientExclusionReason.missingUnit,
+                    NutrientExclusionReason.notProvidedUnit,
+                    NutrientExclusionReason.unsupportedUnit,
+                    NutrientExclusionReason.unitConflict,
+                  }.contains(excluded.reason),
+            ));
 
     final expectedUnit = (entry['unit'] ?? '').toString();
     final adequacyAmountInReferenceUnit = _adequacyAmountInReferenceUnit(
@@ -142,23 +164,52 @@ class StackUlChecker {
     );
     final safetyAmount = total.hasUlExposureContract
         ? total.ulComparableTotalAmount
+        : hasFormScopedUl
+        ? null
         : total.totalAmount;
     final safetyUnit = total.hasUlExposureContract
         ? (total.ulComparableUnit ?? '')
         : total.unit;
-    final safetyAmountInReferenceUnit = safetyAmount == null
+    var safetyAmountInReferenceUnit = safetyAmount == null
         ? null
         : _amountInReferenceUnit(
             safetyAmount,
             actualUnit: safetyUnit,
             expectedUnit: expectedUnit,
           );
+    // Legacy intake retains its existing compatibility comparison only for
+    // unscoped ULs. The aggregator's UL subtotal contains qualified rows only,
+    // so adding these disjoint legacy contributions cannot double count them.
+    // Form-scoped references never infer chemical form from the printed mass.
+    if (!hasFormScopedUl &&
+        total.hasUlExposureContract &&
+        legacyContributions.isNotEmpty) {
+      final legacyAmount = legacyContributions.fold<double>(
+        0,
+        (sum, contribution) => sum + contribution.amount,
+      );
+      final legacyInReferenceUnit = _amountInReferenceUnit(
+        legacyAmount,
+        actualUnit: total.unit,
+        expectedUnit: expectedUnit,
+      );
+      safetyAmountInReferenceUnit = legacyInReferenceUnit == null
+          ? null
+          : (safetyAmountInReferenceUnit ?? 0) + legacyInReferenceUnit;
+    }
+    // A pipeline concern remains authoritative even when no raw app-side
+    // amount can be converted. Do not return before projecting that verdict.
+    final catalogVerdictWins =
+        verdict?.overUl == true ||
+        (verdict?.overUl == null && verdict?.pctUl != null);
     if (adequacyAmountInReferenceUnit == null &&
-        safetyAmountInReferenceUnit == null) {
+        safetyAmountInReferenceUnit == null &&
+        !catalogVerdictWins) {
       return NutrientStatus(
         total: total,
         tier: NutrientTier.noRda,
-        ulAssessmentIndeterminate: total.hasUnresolvedUlContribution,
+        ulAssessmentIndeterminate:
+            total.hasUnresolvedUlContribution || hasUnqualifiedFormScope,
       );
     }
 
@@ -187,22 +238,60 @@ class StackUlChecker {
         (ul != null && ul > 0 && safetyAmountInReferenceUnit != null)
         ? (safetyAmountInReferenceUnit / ul) * 100.0
         : null;
-    // A positive pipeline decision may carry form-aware information the raw
-    // client row cannot reconstruct, so it wins. A negative per-product
-    // decision cannot clear an aggregated stack total: two individually safe
-    // products can exceed the UL together. In that case the stack recompute
-    // wins and the displayed percentage stays aligned with the tier.
-    final pctOfUl =
-        (verdict?.overUl == true ||
-            (verdict?.overUl == null && verdict?.pctUl != null))
-        ? (verdict?.pctUl ?? recomputedPctOfUl)
-        : (recomputedPctOfUl ?? verdict?.pctUl);
+    // One exposure against one reference (Dose V4.1 section 4.1B). A positive
+    // pipeline decision may carry form-aware information and the label's
+    // maximum directed daily use, which the raw client row cannot
+    // reconstruct, so it wins. Its percentage is against the catalog's
+    // general-adult limit: when the row carries that limit, the same exposure
+    // is re-expressed against this person's limit; otherwise the catalog
+    // percentage is shown without a personal limit beside it. A negative
+    // per-product decision cannot clear an aggregated stack total: two
+    // individually safe products can exceed the UL together.
+    final catalogUl = verdict?.ul;
+    final rebasedPct =
+        (catalogVerdictWins &&
+            verdict?.pctUl != null &&
+            catalogUl != null &&
+            catalogUl > 0 &&
+            ul != null &&
+            ul > 0)
+        ? verdict!.pctUl! * catalogUl / ul
+        : null;
+    // Without a catalog limit its exposure cannot be rebased. Keep that
+    // conservative concern explicitly non-personal, but never let it replace
+    // an equal or higher verified personal excess. Raw legacy quantities are
+    // not sufficient proof of that personal exposure.
+    final personalExcessWins =
+        total.hasUlExposureContract &&
+        recomputedPctOfUl != null &&
+        recomputedPctOfUl > 100 &&
+        (verdict?.pctUl == null || recomputedPctOfUl >= verdict!.pctUl!);
+    final useUnrebasedCatalog =
+        catalogVerdictWins && rebasedPct == null && !personalExcessWins;
+    final catalogPercentageFallback =
+        rebasedPct == null &&
+        recomputedPctOfUl == null &&
+        verdict?.pctUl != null;
+    final double? pctOfUl;
+    final double? reportedUl;
+    if (rebasedPct != null) {
+      pctOfUl = recomputedPctOfUl != null && recomputedPctOfUl > rebasedPct
+          ? recomputedPctOfUl
+          : rebasedPct;
+      reportedUl = ul;
+    } else if (useUnrebasedCatalog) {
+      pctOfUl = verdict?.pctUl;
+      reportedUl = catalogUl;
+    } else {
+      pctOfUl = recomputedPctOfUl ?? verdict?.pctUl;
+      reportedUl = catalogPercentageFallback ? catalogUl : ul;
+    }
 
     final tier = _classify(
       pctOfRda: pctOfRda,
       pctOfUl: pctOfUl,
       hasEstablishedUl: ul != null,
-      verdict: verdict,
+      verdict: useUnrebasedCatalog ? verdict : null,
     );
     final warning =
         (tier == NutrientTier.approachingUl || tier == NutrientTier.exceedsUl)
@@ -210,16 +299,21 @@ class StackUlChecker {
         : null;
     final ulAssessmentIndeterminate =
         ul != null &&
-        (total.hasUnresolvedUlContribution ||
-            (!total.hasUlExposureContract &&
-                safetyAmountInReferenceUnit == null)) &&
-        (total.hasUnitConflict || verdict == null || !verdict.isDefinitive);
+        ((hasFormScopedUl &&
+                (hasUnqualifiedFormScope ||
+                    total.hasUnresolvedUlContribution)) ||
+            ((total.hasUnresolvedUlContribution ||
+                    (!total.hasUlExposureContract &&
+                        safetyAmountInReferenceUnit == null)) &&
+                (total.hasUnitConflict ||
+                    verdict == null ||
+                    !verdict.isDefinitive)));
 
     return NutrientStatus(
       total: total,
       tier: tier,
       rda: rda,
-      ul: ul,
+      ul: reportedUl,
       pctOfRda: pctOfRda,
       maximumPctOfRda: maximumPctOfRda,
       // The known subtotal may already prove excess, so keep its tier and
@@ -227,7 +321,10 @@ class StackUlChecker {
       pctOfUl: ulAssessmentIndeterminate ? null : pctOfUl,
       warning: warning,
       rdaIsBaseline: rdaLookup.isBaseline,
-      ulIsFallback: ulLookup.isFallback,
+      ulIsFallback:
+          ulLookup.isFallback ||
+          useUnrebasedCatalog ||
+          catalogPercentageFallback,
       ulAssessmentIndeterminate: ulAssessmentIndeterminate,
     );
   }
@@ -347,9 +444,9 @@ class StackUlChecker {
   }
 
   /// Look up UL for the requested demographic. Anonymous users receive the
-  /// lowest established ceiling in the bundled demographic table. That is the
-  /// safe direction when age/sex are unknown; callers receive provenance so
-  /// UI can ask for a profile rather than pretending the value is personal.
+  /// lowest established ordinary-adult ceiling. A known age keeps that age's
+  /// available references, including adolescent rows. Partial matches carry
+  /// provenance so the UI does not present them as fully personal.
   _UlLookup _getUlWithProvenance(
     Map<String, dynamic> entry, {
     required String? ageBracket,
@@ -377,33 +474,56 @@ class StackUlChecker {
       }
     }
 
-    // Age matches but sex didn't: take the LOWEST UL across groups at
-    // that age (conservative — never under-warn an unspecified-sex
-    // user), flagged as non-personalized.
+    // Age matches but sex didn't: the LOWEST Male/Female UL at that known
+    // age, including adolescent rows. It remains flagged as non-personalized
+    // because the group is unknown.
     if (ageBracket != null) {
-      double? lowest;
-      for (final g in data) {
-        if (g is! Map<String, dynamic>) continue;
-        if (g['age_range'] == ageBracket) {
-          final v = asFiniteDouble(g['ul']);
-          if (v != null && (lowest == null || v < lowest)) lowest = v;
-        }
-      }
+      final lowest = _lowestUl(
+        data,
+        (g) =>
+            g['age_range'] == ageBracket && _kAdultGroups.contains(g['group']),
+      );
       if (lowest != null) return _UlLookup(lowest, true);
     }
 
-    // Anonymous fallback: choose the lowest established ceiling. `highest_ul`
-    // previously selected the least restrictive group and silently
-    // under-warned adolescents and other unmatched profiles.
-    double? lowest;
-    for (final g in data) {
-      if (g is! Map<String, dynamic>) continue;
-      final v = asFiniteDouble(g['ul']);
-      if (v != null && (lowest == null || v < lowest)) lowest = v;
+    // Group known (Pregnancy, Lactation, Male, Female), age not: the lowest
+    // UL across that group's ordinary adult rows.
+    if (sex != null) {
+      final lowest = _lowestUl(
+        data,
+        (g) => g['group'] == sex && _kAdultAges.contains(g['age_range']),
+      );
+      if (lowest != null) return _UlLookup(lowest, true);
     }
-    if (lowest != null) return _UlLookup(lowest, true);
+
+    // No profile: the general adult screen, the lowest established UL across
+    // ordinary adult groups (pipeline Dose V4.1 section 2.5). Adolescent and
+    // pregnancy rows describe other populations and are not this screen.
+    final adult = _lowestUl(
+      data,
+      (g) =>
+          _kAdultGroups.contains(g['group']) &&
+          _kAdultAges.contains(g['age_range']),
+    );
+    if (adult != null) return _UlLookup(adult, true);
 
     return const _UlLookup(null, false);
+  }
+
+  static const _kAdultGroups = {'Male', 'Female'};
+  static const _kAdultAges = {'19-30', '31-50', '51-70', '71+'};
+
+  static double? _lowestUl(
+    List<dynamic> data,
+    bool Function(Map<String, dynamic>) include,
+  ) {
+    double? lowest;
+    for (final g in data) {
+      if (g is! Map<String, dynamic> || !include(g)) continue;
+      final v = asFiniteDouble(g['ul']);
+      if (v != null && v > 0 && (lowest == null || v < lowest)) lowest = v;
+    }
+    return lowest;
   }
 
   /// Classify into a [NutrientTier]. UL precedence is strict —
@@ -415,13 +535,12 @@ class StackUlChecker {
     required bool hasEstablishedUl,
     PipelineUlVerdict? verdict,
   }) {
-    // The pipeline's UL verdict takes precedence over the client recompute:
-    // it accounts for elemental-vs-compound mass and form-aware conversions
-    // that raw quantity ÷ reference cannot. Only recompute when no definitive
-    // verdict exists.
+    // An unrebased catalog concern remains conservative and non-personal.
+    // Callers omit it once a personal-reference comparison supplies the tier.
     if (verdict?.overUl == true) return NutrientTier.exceedsUl;
     if (pctOfUl != null) {
-      if (pctOfUl >= 100.0) return NutrientTier.exceedsUl;
+      // Exactly 100% of a limit is not an exceedance (pipeline Dose V4.1).
+      if (pctOfUl > 100.0) return NutrientTier.exceedsUl;
       if (pctOfUl >= 80.0) return NutrientTier.approachingUl;
     }
     if (pctOfRda == null) return NutrientTier.noRda;

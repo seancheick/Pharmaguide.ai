@@ -119,6 +119,33 @@ class _PartialTotalsNotice extends StatelessWidget {
   }
 }
 
+/// Catalog and partial-profile screens are not a fully personal assessment
+/// (Dose V4.1 section 4.1B). Known age can narrow a screening reference, so
+/// do not describe every fallback as an adult limit.
+class _LimitsNotPersonalNotice extends StatelessWidget {
+  const _LimitsNotPersonalNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const Key('nutrient-limits-not-personal-notice'),
+      padding: const EdgeInsets.fromLTRB(
+        V2Spacing.space16,
+        0,
+        V2Spacing.space16,
+        V2Spacing.space8,
+      ),
+      child: Text(
+        'Upper limits marked * are not assessed for you yet. They use '
+        'screening references based on the product or available profile details. '
+        'A personal comparison needs your complete profile and the product’s '
+        'upper-limit reference.',
+        style: V2Typography.bodySm(color: context.v2.fgMuted),
+      ),
+    );
+  }
+}
+
 class _PanelShell extends StatelessWidget {
   const _PanelShell({required this.child});
 
@@ -218,6 +245,10 @@ class _PanelBodyState extends State<_PanelBody> {
           if (widget.incomplete) ...[
             const SizedBox(height: V2Spacing.space8),
             const _PartialTotalsNotice(),
+          ],
+          if (safetyLimits.any((s) => s.ulIsFallback)) ...[
+            const SizedBox(height: V2Spacing.space8),
+            const _LimitsNotPersonalNotice(),
           ],
           if (safetyLimits.isNotEmpty) ...[
             _SectionHeading(

@@ -604,7 +604,7 @@ void main() {
         // 45mg > 40mg UL takes precedence over any RDA-based tiering.
         expect(results.first.rda, 8.0);
         expect(results.first.rdaIsBaseline, isTrue);
-        expect(results.first.ul, 34);
+        expect(results.first.ul, 40);
         expect(results.first.tier, NutrientTier.exceedsUl);
         expect(results.first.warning, contains('copper deficiency'));
       },
@@ -645,7 +645,8 @@ void main() {
       final results = checker.check(
         _totals([_total('zinc', 'Zinc', 10, 'mg')]),
       );
-      expect(results.first.ul, 34);
+      // Dose V4.1 section 2.5: the ordinary-adult screen, not the 14-18 row.
+      expect(results.first.ul, 40);
       expect(results.first.ulIsFallback, isTrue);
     });
 
@@ -812,7 +813,8 @@ void main() {
         ageBracket: '19-30',
         sex: 'Male',
       );
-      expect(results.first.tier, NutrientTier.exceedsUl);
+      // Exactly 100% of the limit is not an exceedance (Dose V4.1).
+      expect(results.first.tier, NutrientTier.approachingUl);
       expect(results.first.pctOfUl, closeTo(100, 0.1));
     });
   });

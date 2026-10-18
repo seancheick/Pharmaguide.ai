@@ -26,13 +26,13 @@ final RegExp _clinicalBandPattern = RegExp(r'[<>]=?\s*\d{2,3}\.0(?![0-9])');
 /// Files permitted to contain classification-band literals today, mapped to the
 /// exact normalized literals they may contain. Two categories, both intentional:
 ///   - stack_ul_checker.dart (50/80/100/200): app-owned UI classification tiers
-///     (intake-adequacy / UL display bands). NOT clinical policy — the pipeline
-///     owns the UL verdict via `over_ul`, which the app defers to. No pipeline
-///     equivalent exists to migrate to; these legitimately live in the app.
-///   - stack_nutrient_aggregator.dart (150.0): the B7 UL-exceedance fallback.
-///     This IS pipeline clinical policy (mirrors b7_ul_pct_threshold) and is
-///     LOCKED to the pipeline value by clinical_threshold_parity_test.dart, so
-///     it cannot silently drift.
+///     (intake-adequacy / UL display bands), plus `> 100.0`, the confirmed
+///     UL-exceedance boundary (exactly 100% is not an exceedance), which matches
+///     dose_safety.dart and the pipeline's Dose V4.1 rule.
+///   - stack_nutrient_aggregator.dart (> 100.0): the UL-exceedance fallback.
+///     This IS pipeline clinical policy (mirrors dose_safety_ceiling.
+///     exceeds_above_pct) and is LOCKED to the pipeline value by
+///     clinical_threshold_parity_test.dart, so it cannot silently drift.
 ///
 /// Known limitations (acceptable — the gate targets the dominant accidental-drift
 /// pattern: a dev copying an inline `>= X.0` comparison to add another band):
@@ -43,8 +43,8 @@ final RegExp _clinicalBandPattern = RegExp(r'[<>]=?\s*\d{2,3}\.0(?![0-9])');
 ///   3. `.0`-float-anchored — an integer band (`>= 80`) is not caught, so that
 ///      count comparisons (`labels.length >= 20`) don't false-positive.
 const Map<String, Set<String>> _allowlist = {
-  'stack_ul_checker.dart': {'>=200.0', '>=100.0', '>=80.0', '>=50.0'},
-  'stack_nutrient_aggregator.dart': {'>=150.0'},
+  'stack_ul_checker.dart': {'>=200.0', '>=100.0', '>100.0', '>=80.0', '>=50.0'},
+  'stack_nutrient_aggregator.dart': {'>100.0'},
 };
 
 const List<String> _scanDirs = ['lib/services/stack', 'lib/services/warnings'];

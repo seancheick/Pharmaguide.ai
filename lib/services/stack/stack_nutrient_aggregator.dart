@@ -175,6 +175,7 @@ class StackNutrientAggregator {
           amount: amount,
           minimumAmount: parsed.adequacyAmount,
           unit: unit,
+          hasUlExposureContract: _hasUlExposureContract(row),
         );
 
         // Intake and UL exposure are deliberately separate. The label total
@@ -185,7 +186,9 @@ class StackNutrientAggregator {
         }
         final canContributeToUl =
             isUlScopedComponent || exclusionReason == null;
-        if (canContributeToUl && isUlEvaluationEligible(row)) {
+        if (canContributeToUl &&
+            _hasUlExposureContract(row) &&
+            isUlEvaluationEligible(row)) {
           final ulAmount = readUlDoseAmount(row);
           final ulUnit = readUlDoseUnit(row);
           if (ulAmount != null && ulAmount >= 0 && ulUnit.isNotEmpty) {
@@ -241,6 +244,7 @@ class StackNutrientAggregator {
               amount: convertedAmount,
               minimumAmount: convertedAdequacyAmount,
               unit: total.unit,
+              hasUlExposureContract: _hasUlExposureContract(row),
             ),
           );
           total.totalAmount += convertedAmount;
@@ -296,7 +300,7 @@ class StackNutrientAggregator {
       row.containsKey('skip_ul_check') ||
       row.containsKey('ul_gate_eligible') ||
       row.containsKey('ul_assessment_status') ||
-      row.containsKey('dose_role');
+      row['dose_role'] == 'ul_scoped_component';
 
   static bool _isUnresolvedUlContribution(Map<String, dynamic> row) {
     if (isUlEvaluationEligible(row)) return false;
@@ -346,7 +350,11 @@ class StackNutrientAggregator {
         final canonical = readCanonicalId(row);
         if (canonical == null || canonical.isEmpty) continue;
 
-        final verdict = PipelineUlVerdict(overUl: overUl, pctUl: pctUl);
+        final verdict = PipelineUlVerdict(
+          overUl: overUl,
+          pctUl: pctUl,
+          ul: asFiniteDouble(row['ul']),
+        );
         final existing = byCanonical[canonical];
         byCanonical[canonical] = existing == null
             ? verdict
@@ -376,17 +384,16 @@ class StackNutrientAggregator {
     } else {
       overUl = null;
     }
+    // Keep the larger percentage together with the limit it was computed
+    // against, so the pair is never split across rows.
     final pctA = a.pctUl;
     final pctB = b.pctUl;
-    final double? pctUl;
-    if (pctA == null) {
-      pctUl = pctB;
-    } else if (pctB == null) {
-      pctUl = pctA;
-    } else {
-      pctUl = pctA >= pctB ? pctA : pctB;
-    }
-    return PipelineUlVerdict(overUl: overUl, pctUl: pctUl);
+    final keepA = pctB == null || (pctA != null && pctA >= pctB);
+    return PipelineUlVerdict(
+      overUl: overUl,
+      pctUl: keepA ? pctA : pctB,
+      ul: keepA ? a.ul : b.ul,
+    );
   }
 
   /// Return false for rows that should never count toward any total:
@@ -548,7 +555,7 @@ class StackNutrientAggregator {
 /// unit conversions the client cannot re-derive. When the verdict is absent
 /// or non-definitive, the client falls back to its own recompute.
 class PipelineUlVerdict {
-  const PipelineUlVerdict({this.overUl, this.pctUl});
+  const PipelineUlVerdict({this.overUl, this.pctUl, this.ul});
 
   /// Pipeline's boolean UL gate. `true` = over the limit, `false` = within,
   /// `null` = the pipeline did not emit a boolean decision for this row.
@@ -557,18 +564,24 @@ class PipelineUlVerdict {
   /// Pipeline's percent-of-UL for the row, when emitted.
   final double? pctUl;
 
+  /// The catalog limit [pctUl] was computed against (the pipeline's
+  /// general-adult screen, in reference units), when the row carries it.
+  /// Lets the checker re-express the same exposure against a person's limit.
+  final double? ul;
+
   /// Whether the pipeline emitted any actionable UL signal at all. A verdict
   /// that is not definitive is ignored and the client recomputes.
   bool get isDefinitive => overUl != null || pctUl != null;
 
   /// Whether the pipeline judged this nutrient OVER its UL. `over_ul` is the
-  /// authoritative gate; `pct_ul >= 150` mirrors the pipeline's B7
-  /// (150%-of-UL) exceedance threshold as a fallback when only the percentage
-  /// was emitted. An explicit `over_ul == false` always wins.
+  /// authoritative gate; `pct_ul > 100` mirrors the pipeline's confirmed
+  /// exceedance (Dose V4.1: exactly 100% is not an exceedance; the 150% band
+  /// is Dose scoring policy only) when only the percentage was emitted. An
+  /// explicit `over_ul == false` always wins.
   bool get exceedsUl {
     if (overUl == true) return true;
     if (overUl == false) return false;
-    return (pctUl ?? 0) >= 150.0;
+    return (pctUl ?? 0) > 100.0;
   }
 }
 

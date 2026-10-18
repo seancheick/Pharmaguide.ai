@@ -6,6 +6,8 @@
 // warning, multiple warnings.
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/nutrient_accumulation_panel.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
+import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 
 void main() {
   Future<void> pumpPanel(
@@ -40,6 +44,91 @@ void main() {
     );
     await tester.pump(); // settle the FutureProvider
   }
+
+  testWidgets('unpaired catalog percentage renders the non-personal marker', (
+    tester,
+  ) async {
+    final checker = StackUlChecker(
+      rdaData:
+          jsonDecode(
+                File(
+                  'assets/reference_data/rda_optimal_uls.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>,
+    );
+    final status = checker
+        .check(
+          {
+            'calcium': const NutrientTotal(
+              canonicalId: 'calcium',
+              displayName: 'Calcium',
+              totalAmount: 900,
+              unit: 'mg',
+              contributions: [],
+              hasUlExposureContract: true,
+              ulComparableTotalAmount: 900,
+              ulComparableUnit: 'mg',
+            ),
+          },
+          ageBracket: '19-30',
+          sex: 'Female',
+          pipelineVerdicts: const {
+            'calcium': PipelineUlVerdict(overUl: true, pctUl: 105),
+          },
+        )
+        .single;
+    await pumpPanel(
+      tester,
+      override: AsyncValue<List<NutrientStatus>>.data([status]),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('105% UL*'), findsOneWidget);
+    expect(find.text('105% UL'), findsNothing);
+    expect(
+      find.byKey(const Key('nutrient-limits-not-personal-notice')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'age-only adolescent warning keeps its age-specific screening notice',
+    (tester) async {
+      final checker = StackUlChecker(
+        rdaData:
+            jsonDecode(
+                  File(
+                    'assets/reference_data/rda_optimal_uls.json',
+                  ).readAsStringSync(),
+                )
+                as Map<String, dynamic>,
+      );
+      final status = checker.check({
+        'zinc': const NutrientTotal(
+          canonicalId: 'zinc',
+          displayName: 'Zinc',
+          totalAmount: 36,
+          unit: 'mg',
+          contributions: [],
+          hasUlExposureContract: true,
+          ulComparableTotalAmount: 36,
+          ulComparableUnit: 'mg',
+        ),
+      }, ageBracket: '14-18').single;
+      await pumpPanel(
+        tester,
+        override: AsyncValue<List<NutrientStatus>>.data([status]),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('106% UL*'), findsOneWidget);
+      expect(find.byKey(const Key('warn-zinc')), findsOneWidget);
+      expect(
+        find.byKey(const Key('nutrient-limits-not-personal-notice')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('lowest limit for adults'), findsNothing);
+    },
+  );
 
   testWidgets('loading state shows progress indicator', (tester) async {
     await pumpPanel(
@@ -110,6 +199,39 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('lower than your full intake'), findsOneWidget);
+  });
+
+  testWidgets('a limit without a profile is shown as not personally assessed', (
+    tester,
+  ) async {
+    // Dose V4.1 section 4.1B: a missing profile is "not assessed", never an
+    // implied "no concerns"; the general adult screen still runs.
+    const status = NutrientStatus(
+      total: NutrientTotal(
+        canonicalId: 'zinc',
+        displayName: 'Zinc',
+        totalAmount: 12,
+        unit: 'mg',
+        contributions: [],
+      ),
+      tier: NutrientTier.adequate,
+      rda: 8,
+      ul: 40,
+      pctOfRda: 150.0,
+      pctOfUl: 30.0,
+      ulIsFallback: true,
+    );
+    await pumpPanel(
+      tester,
+      override: const AsyncValue<List<NutrientStatus>>.data([status]),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('nutrient-limits-not-personal-notice')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('not assessed for you'), findsOneWidget);
+    expect(find.text('30% UL*'), findsOneWidget);
   });
 
   testWidgets('complete totals carry no hedge', (tester) async {
