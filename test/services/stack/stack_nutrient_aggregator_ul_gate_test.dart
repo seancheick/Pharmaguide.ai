@@ -25,6 +25,72 @@ import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 
 void main() {
+  test('producer not_applicable exclusion stays known outside UL scope', () {
+    final stack = [
+      const StackItemNutrients(
+        stackEntryId: 'carotenoid',
+        productName: 'Carotenoid',
+        ingredients: [
+          {
+            'canonical_id': 'vitamin_a',
+            'name': 'Beta-Carotene',
+            'quantity': 5000,
+            'unit': 'mcg',
+            'dose_role': 'nutrient',
+            'skip_ul_check': true,
+            'skip_ul_reason': 'provitamin_a_carotenoid_no_established_ul',
+            'ul_assessment_status': 'not_applicable',
+          },
+        ],
+      ),
+    ];
+    const aggregator = StackNutrientAggregator();
+    final total = aggregator.aggregate(stack)['vitamin_a']!;
+    expect(total.totalAmount, 5000);
+    expect(total.hasUlExposureContract, isTrue);
+    expect(total.hasUnresolvedUlContribution, isFalse);
+    expect(total.ulComparableTotalAmount, isNull);
+    expect(aggregator.extractPipelineUlVerdicts(stack), isEmpty);
+  });
+
+  test(
+    'mixed intake keeps legacy mass outside the pipeline-qualified UL subtotal',
+    () {
+      final totals = const StackNutrientAggregator().aggregate([
+        const StackItemNutrients(
+          stackEntryId: 'typed',
+          productName: 'Typed',
+          ingredients: [
+            {
+              'canonical_id': 'nickel',
+              'name': 'Nickel',
+              'quantity': 0.6,
+              'unit': 'mg',
+              'ul_gate_eligible': true,
+              'safety_exposure': {'per_day': 0.6, 'unit': 'mg'},
+            },
+          ],
+        ),
+        const StackItemNutrients(
+          stackEntryId: 'legacy',
+          productName: 'Legacy',
+          ingredients: [
+            {
+              'canonical_id': 'nickel',
+              'name': 'Nickel',
+              'quantity': 2,
+              'unit': 'mg',
+            },
+          ],
+        ),
+      ]);
+      final total = totals['nickel']!;
+      expect(total.totalAmount, 2.6);
+      expect(total.ulComparableTotalAmount, 0.6);
+      expect(total.contributions, hasLength(2));
+    },
+  );
+
   test('native four-label exports preserve unresolved dose in app totals', () {
     final fixtures =
         jsonDecode(

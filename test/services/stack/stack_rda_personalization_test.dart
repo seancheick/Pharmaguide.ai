@@ -237,6 +237,11 @@ void main() {
               displayName: 'Vitamin D',
               totalAmount: adultUl * 1.1,
               unit: vitaminD['unit'] as String,
+              // This copy assertion needs an explicitly qualified vitamin-D
+              // exposure, not a legacy mass with unknown form applicability.
+              ulComparableTotalAmount: adultUl * 1.1,
+              ulComparableUnit: vitaminD['unit'] as String,
+              hasUlExposureContract: true,
               contributions: const [],
             ),
           },

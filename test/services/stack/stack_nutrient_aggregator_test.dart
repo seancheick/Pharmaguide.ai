@@ -13,6 +13,32 @@ import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 void main() {
   const aggregator = StackNutrientAggregator();
 
+  test('contribution equality retains its pipeline UL contract provenance', () {
+    NutrientContribution contribution(bool typed) => aggregator
+        .aggregate([
+          StackItemNutrients(
+            stackEntryId: 'same',
+            productName: 'Same',
+            ingredients: [
+              {
+                'canonical_id': 'nickel',
+                'name': 'Nickel',
+                'quantity': 0.6,
+                'unit': 'mg',
+                if (typed) 'safety_exposure': {'per_day': 0.6, 'unit': 'mg'},
+              },
+            ],
+          ),
+        ])['nickel']!
+        .contributions
+        .single;
+    final legacy = contribution(false);
+    final qualified = contribution(true);
+    expect(legacy, isNot(qualified));
+    expect({legacy, qualified}, hasLength(2));
+    expect(qualified, contribution(true));
+  });
+
   group('StackNutrientAggregator — empty & trivial cases', () {
     test('empty stack returns empty map', () {
       final result = aggregator.aggregate([]);

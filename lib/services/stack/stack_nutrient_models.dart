@@ -38,6 +38,7 @@ class NutrientContribution {
     required this.amount,
     this.minimumAmount,
     required this.unit,
+    this.hasUlExposureContract = false,
   });
 
   final String stackEntryId;
@@ -52,6 +53,11 @@ class NutrientContribution {
   final double? minimumAmount;
   final String unit;
 
+  /// Whether this contribution carries the pipeline's explicit UL exposure
+  /// contract. A typed sibling cannot qualify a legacy row's form or source.
+  /// Internal provenance only; never persisted or exported.
+  final bool hasUlExposureContract;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -62,7 +68,8 @@ class NutrientContribution {
           ingredientName == other.ingredientName &&
           amount == other.amount &&
           minimumAmount == other.minimumAmount &&
-          unit == other.unit;
+          unit == other.unit &&
+          hasUlExposureContract == other.hasUlExposureContract;
 
   @override
   int get hashCode => Object.hash(
@@ -72,6 +79,7 @@ class NutrientContribution {
     amount,
     minimumAmount,
     unit,
+    hasUlExposureContract,
   );
 }
 
@@ -159,8 +167,9 @@ class NutrientTotal {
   final String? ulComparableUnit;
 
   /// True when the total came through the pipeline's explicit UL-eligibility
-  /// contract. Legacy hand-built totals leave this false and retain the old
-  /// total-vs-UL behavior for compatibility.
+  /// contract on at least one row. Per-contribution provenance distinguishes
+  /// mixed typed/legacy stacks. Legacy compatibility applies only where the
+  /// source UL does not require a qualified form or source.
   final bool hasUlExposureContract;
 
   /// At least one disclosed contribution could not be assigned honestly to

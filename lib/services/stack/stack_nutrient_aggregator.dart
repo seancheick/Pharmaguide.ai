@@ -175,6 +175,7 @@ class StackNutrientAggregator {
           amount: amount,
           minimumAmount: parsed.adequacyAmount,
           unit: unit,
+          hasUlExposureContract: _hasUlExposureContract(row),
         );
 
         // Intake and UL exposure are deliberately separate. The label total
@@ -185,7 +186,9 @@ class StackNutrientAggregator {
         }
         final canContributeToUl =
             isUlScopedComponent || exclusionReason == null;
-        if (canContributeToUl && isUlEvaluationEligible(row)) {
+        if (canContributeToUl &&
+            _hasUlExposureContract(row) &&
+            isUlEvaluationEligible(row)) {
           final ulAmount = readUlDoseAmount(row);
           final ulUnit = readUlDoseUnit(row);
           if (ulAmount != null && ulAmount >= 0 && ulUnit.isNotEmpty) {
@@ -241,6 +244,7 @@ class StackNutrientAggregator {
               amount: convertedAmount,
               minimumAmount: convertedAdequacyAmount,
               unit: total.unit,
+              hasUlExposureContract: _hasUlExposureContract(row),
             ),
           );
           total.totalAmount += convertedAmount;
@@ -296,7 +300,7 @@ class StackNutrientAggregator {
       row.containsKey('skip_ul_check') ||
       row.containsKey('ul_gate_eligible') ||
       row.containsKey('ul_assessment_status') ||
-      row.containsKey('dose_role');
+      row['dose_role'] == 'ul_scoped_component';
 
   static bool _isUnresolvedUlContribution(Map<String, dynamic> row) {
     if (isUlEvaluationEligible(row)) return false;

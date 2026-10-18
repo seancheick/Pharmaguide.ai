@@ -18,6 +18,202 @@ import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 void main() {
   const checker = StackUlChecker(rdaData: _rda);
 
+  group('source-owned form-scoped UL provenance', () {
+    final scopedChecker = StackUlChecker(
+      rdaData: {
+        'consumer_ul_warnings': {
+          'nickel': {'message': 'Pipeline-authored form-scoped warning.'},
+        },
+        'nutrient_recommendations': [
+          {
+            'id': 'nickel',
+            'standard_name': 'Nickel',
+            'unit': 'mg',
+            'ul_applies_to_forms': ['nickel sulfate', 'nickel chloride'],
+            'data': [
+              {'group': 'Male', 'age_range': '19-30', 'ul': 1.0},
+            ],
+          },
+          ..._rda['nutrient_recommendations'] as List,
+        ],
+      },
+    );
+    const aggregator = StackNutrientAggregator();
+
+    test('legacy nickel intake cannot establish a soluble-salt exposure', () {
+      final totals = aggregator.aggregate([_ulItem('legacy', 'nickel', 2)]);
+      final status = scopedChecker
+          .check(totals, ageBracket: '19-30', sex: 'Male')
+          .single;
+      expect(status.total.totalAmount, 2);
+      expect(status.ulAssessmentIndeterminate, isTrue);
+      expect(status.pctOfUl, isNull);
+      expect(status.tier, isNot(NutrientTier.exceedsUl));
+      expect(status.shouldWarn, isFalse);
+    });
+
+    test('an ordinary nutrient role alone is not form-scoped UL proof', () {
+      final totals = aggregator.aggregate([
+        const StackItemNutrients(
+          stackEntryId: 'role-only',
+          productName: 'Role only',
+          ingredients: [
+            {
+              'canonical_id': 'nickel',
+              'name': 'Nickel',
+              'quantity': 2,
+              'unit': 'mg',
+              'dose_role': 'nutrient',
+            },
+          ],
+        ),
+      ]);
+      final status = scopedChecker
+          .check(totals, ageBracket: '19-30', sex: 'Male')
+          .single;
+      expect(status.total.hasUlExposureContract, isFalse);
+      expect(status.ulAssessmentIndeterminate, isTrue);
+      expect(status.pctOfUl, isNull);
+      expect(status.shouldWarn, isFalse);
+    });
+
+    for (final amount in [1.0, 1.2]) {
+      test('qualified nickel $amount mg uses the pipeline exposure', () {
+        final totals = aggregator.aggregate([
+          _ulItem('typed', 'nickel', amount, typed: true),
+        ]);
+        final status = scopedChecker
+            .check(totals, ageBracket: '19-30', sex: 'Male')
+            .single;
+        expect(status.ulAssessmentIndeterminate, isFalse);
+        expect(status.pctOfUl, closeTo(amount * 100, 0.0001));
+        expect(
+          status.tier,
+          amount == 1 ? NutrientTier.approachingUl : NutrientTier.exceedsUl,
+        );
+      });
+    }
+
+    for (final typedAmount in [0.6, 1.2]) {
+      test(
+        'mixed scoped stack retains only the proven $typedAmount mg concern',
+        () {
+          final totals = aggregator.aggregate([
+            _ulItem('typed', 'nickel', typedAmount, typed: true),
+            _ulItem('legacy', 'nickel', 2),
+          ]);
+          final status = scopedChecker
+              .check(totals, ageBracket: '19-30', sex: 'Male')
+              .single;
+          expect(status.total.totalAmount, closeTo(typedAmount + 2, 0.0001));
+          expect(status.ulAssessmentIndeterminate, isTrue);
+          expect(
+            status.pctOfUl,
+            isNull,
+            reason: 'the full stack form scope is unknown',
+          );
+          expect(status.shouldWarn, typedAmount > 1);
+          if (typedAmount > 1) {
+            expect(status.tier, NutrientTier.exceedsUl);
+            expect(status.warning, isNotNull);
+          }
+        },
+      );
+    }
+
+    test(
+      'an excluded legacy unit cannot complete the form-scoped stack percentage',
+      () {
+        final totals = aggregator.aggregate([
+          _ulItem('typed', 'nickel', 0.6, typed: true),
+          const StackItemNutrients(
+            stackEntryId: 'legacy-missing-unit',
+            productName: 'Legacy missing unit',
+            ingredients: [
+              {'canonical_id': 'nickel', 'name': 'Nickel', 'quantity': 2},
+            ],
+          ),
+        ]);
+        final status = scopedChecker
+            .check(totals, ageBracket: '19-30', sex: 'Male')
+            .single;
+        expect(status.total.excludedContributions, hasLength(1));
+        expect(status.ulAssessmentIndeterminate, isTrue);
+        expect(status.pctOfUl, isNull);
+        expect(status.shouldWarn, isFalse);
+      },
+    );
+
+    test('a positive catalog concern survives mixed unknown form scope', () {
+      final totals = aggregator.aggregate([
+        _ulItem('typed', 'nickel', 0.6, typed: true),
+        _ulItem('legacy', 'nickel', 2),
+      ]);
+      final status = scopedChecker
+          .check(
+            totals,
+            ageBracket: '19-30',
+            sex: 'Male',
+            pipelineVerdicts: const {
+              'nickel': PipelineUlVerdict(overUl: true, pctUl: 120, ul: 1),
+            },
+          )
+          .single;
+      expect(status.tier, NutrientTier.exceedsUl);
+      expect(status.shouldWarn, isTrue);
+      expect(status.warning, isNotNull);
+      expect(status.ulAssessmentIndeterminate, isTrue);
+      expect(status.pctOfUl, isNull);
+    });
+
+    test('a positive catalog concern survives an unreadable legacy unit', () {
+      final totals = aggregator.aggregate([
+        const StackItemNutrients(
+          stackEntryId: 'legacy-unit',
+          productName: 'Legacy unit',
+          ingredients: [
+            {
+              'canonical_id': 'nickel',
+              'name': 'Nickel',
+              'quantity': 2,
+              'unit': 'IU',
+            },
+          ],
+        ),
+      ]);
+      final status = scopedChecker
+          .check(
+            totals,
+            ageBracket: '19-30',
+            sex: 'Male',
+            pipelineVerdicts: const {
+              'nickel': PipelineUlVerdict(overUl: true, pctUl: 120, ul: 1),
+            },
+          )
+          .single;
+      expect(status.tier, NutrientTier.exceedsUl);
+      expect(status.shouldWarn, isTrue);
+      expect(status.ulAssessmentIndeterminate, isTrue);
+      expect(status.pctOfUl, isNull);
+    });
+
+    test('unscoped zinc retains exact legacy and mixed stack math', () {
+      for (final typed in [false, true]) {
+        final totals = aggregator.aggregate([
+          _ulItem('first', 'zinc', 20, typed: typed),
+          _ulItem('legacy', 'zinc', 25),
+        ]);
+        final status = scopedChecker
+            .check(totals, ageBracket: '19-30', sex: 'Male')
+            .single;
+        expect(status.total.totalAmount, 45);
+        expect(status.pctOfUl, 112.5);
+        expect(status.tier, NutrientTier.exceedsUl);
+        expect(status.ulAssessmentIndeterminate, isFalse);
+      }
+    });
+  });
+
   test(
     'age-only adolescent keeps its available limit, marked not personal',
     () {
@@ -330,3 +526,25 @@ const _rda = {
     },
   ],
 };
+
+StackItemNutrients _ulItem(
+  String id,
+  String canonical,
+  double amount, {
+  bool typed = false,
+}) => StackItemNutrients(
+  stackEntryId: id,
+  productName: id,
+  ingredients: [
+    {
+      'canonical_id': canonical,
+      'name': canonical,
+      'quantity': amount,
+      'unit': 'mg',
+      if (typed) ...{
+        'ul_gate_eligible': true,
+        'safety_exposure': {'per_day': amount, 'unit': 'mg'},
+      },
+    },
+  ],
+);

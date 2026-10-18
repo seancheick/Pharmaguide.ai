@@ -129,6 +129,25 @@ class StackUlChecker {
       );
     }
     final entry = resolved.entry;
+    final scopedForms = entry['ul_applies_to_forms'];
+    final hasFormScopedUl = scopedForms is List && scopedForms.isNotEmpty;
+    final legacyContributions = total.contributions.where(
+      (contribution) => !contribution.hasUlExposureContract,
+    );
+    final hasUnqualifiedFormScope =
+        hasFormScopedUl &&
+        (!total.hasUlExposureContract ||
+            legacyContributions.isNotEmpty ||
+            total.excludedContributions.any(
+              (excluded) =>
+                  !excluded.contribution.hasUlExposureContract &&
+                  const {
+                    NutrientExclusionReason.missingUnit,
+                    NutrientExclusionReason.notProvidedUnit,
+                    NutrientExclusionReason.unsupportedUnit,
+                    NutrientExclusionReason.unitConflict,
+                  }.contains(excluded.reason),
+            ));
 
     final expectedUnit = (entry['unit'] ?? '').toString();
     final adequacyAmountInReferenceUnit = _adequacyAmountInReferenceUnit(
@@ -145,23 +164,52 @@ class StackUlChecker {
     );
     final safetyAmount = total.hasUlExposureContract
         ? total.ulComparableTotalAmount
+        : hasFormScopedUl
+        ? null
         : total.totalAmount;
     final safetyUnit = total.hasUlExposureContract
         ? (total.ulComparableUnit ?? '')
         : total.unit;
-    final safetyAmountInReferenceUnit = safetyAmount == null
+    var safetyAmountInReferenceUnit = safetyAmount == null
         ? null
         : _amountInReferenceUnit(
             safetyAmount,
             actualUnit: safetyUnit,
             expectedUnit: expectedUnit,
           );
+    // Legacy intake retains its existing compatibility comparison only for
+    // unscoped ULs. The aggregator's UL subtotal contains qualified rows only,
+    // so adding these disjoint legacy contributions cannot double count them.
+    // Form-scoped references never infer chemical form from the printed mass.
+    if (!hasFormScopedUl &&
+        total.hasUlExposureContract &&
+        legacyContributions.isNotEmpty) {
+      final legacyAmount = legacyContributions.fold<double>(
+        0,
+        (sum, contribution) => sum + contribution.amount,
+      );
+      final legacyInReferenceUnit = _amountInReferenceUnit(
+        legacyAmount,
+        actualUnit: total.unit,
+        expectedUnit: expectedUnit,
+      );
+      safetyAmountInReferenceUnit = legacyInReferenceUnit == null
+          ? null
+          : (safetyAmountInReferenceUnit ?? 0) + legacyInReferenceUnit;
+    }
+    // A pipeline concern remains authoritative even when no raw app-side
+    // amount can be converted. Do not return before projecting that verdict.
+    final catalogVerdictWins =
+        verdict?.overUl == true ||
+        (verdict?.overUl == null && verdict?.pctUl != null);
     if (adequacyAmountInReferenceUnit == null &&
-        safetyAmountInReferenceUnit == null) {
+        safetyAmountInReferenceUnit == null &&
+        !catalogVerdictWins) {
       return NutrientStatus(
         total: total,
         tier: NutrientTier.noRda,
-        ulAssessmentIndeterminate: total.hasUnresolvedUlContribution,
+        ulAssessmentIndeterminate:
+            total.hasUnresolvedUlContribution || hasUnqualifiedFormScope,
       );
     }
 
@@ -199,9 +247,6 @@ class StackUlChecker {
     // percentage is shown without a personal limit beside it. A negative
     // per-product decision cannot clear an aggregated stack total: two
     // individually safe products can exceed the UL together.
-    final catalogVerdictWins =
-        verdict?.overUl == true ||
-        (verdict?.overUl == null && verdict?.pctUl != null);
     final catalogUl = verdict?.ul;
     final rebasedPct =
         (catalogVerdictWins &&
@@ -254,10 +299,15 @@ class StackUlChecker {
         : null;
     final ulAssessmentIndeterminate =
         ul != null &&
-        (total.hasUnresolvedUlContribution ||
-            (!total.hasUlExposureContract &&
-                safetyAmountInReferenceUnit == null)) &&
-        (total.hasUnitConflict || verdict == null || !verdict.isDefinitive);
+        ((hasFormScopedUl &&
+                (hasUnqualifiedFormScope ||
+                    total.hasUnresolvedUlContribution)) ||
+            ((total.hasUnresolvedUlContribution ||
+                    (!total.hasUlExposureContract &&
+                        safetyAmountInReferenceUnit == null)) &&
+                (total.hasUnitConflict ||
+                    verdict == null ||
+                    !verdict.isDefinitive)));
 
     return NutrientStatus(
       total: total,
