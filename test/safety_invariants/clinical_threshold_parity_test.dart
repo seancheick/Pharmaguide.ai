@@ -24,33 +24,36 @@ void main() {
   // scripts/tests/test_clinical_threshold_parity.py.
   const pinnedB7UlPctThreshold = 100.0;
 
-  test('app B7 UL-exceedance fallback matches the pinned pipeline threshold', () {
-    final src = File(
-      'lib/services/stack/stack_nutrient_aggregator.dart',
-    ).readAsStringSync();
+  test(
+    'app B7 UL-exceedance fallback matches the pinned pipeline threshold',
+    () {
+      final src = File(
+        'lib/services/stack/stack_nutrient_aggregator.dart',
+      ).readAsStringSync();
 
-    // exceedsUl fallback: `return (pctUl ?? 0) > <threshold>;`
-    final match = RegExp(
-      r'pctUl\s*\?\?\s*0\)\s*>\s*(\d+(?:\.\d+)?)',
-    ).firstMatch(src);
+      // exceedsUl fallback: `return (pctUl ?? 0) > <threshold>;`
+      final match = RegExp(
+        r'pctUl\s*\?\?\s*0\)\s*>\s*(\d+(?:\.\d+)?)',
+      ).firstMatch(src);
 
-    expect(
-      match,
-      isNotNull,
-      reason:
-          'Could not locate the UL-exceedance fallback (`pctUl ?? 0) > …`) '
-          'in stack_nutrient_aggregator.dart. If the getter was refactored, '
-          'update this parity test to match the new shape.',
-    );
+      expect(
+        match,
+        isNotNull,
+        reason:
+            'Could not locate the UL-exceedance fallback (`pctUl ?? 0) > …`) '
+            'in stack_nutrient_aggregator.dart. If the getter was refactored, '
+            'update this parity test to match the new shape.',
+      );
 
-    final appThreshold = double.parse(match!.group(1)!);
-    expect(
-      appThreshold,
-      pinnedB7UlPctThreshold,
-      reason:
-          'App B7 fallback ($appThreshold) drifted from the pinned pipeline '
-          'b7_ul_pct_threshold ($pinnedB7UlPctThreshold). Update in lockstep '
-          'with scripts/tests/test_clinical_threshold_parity.py.',
-    );
-  });
+      final appThreshold = double.parse(match!.group(1)!);
+      expect(
+        appThreshold,
+        pinnedB7UlPctThreshold,
+        reason:
+            'App B7 fallback ($appThreshold) drifted from the pinned pipeline '
+            'b7_ul_pct_threshold ($pinnedB7UlPctThreshold). Update in lockstep '
+            'with scripts/tests/test_clinical_threshold_parity.py.',
+      );
+    },
+  );
 }
