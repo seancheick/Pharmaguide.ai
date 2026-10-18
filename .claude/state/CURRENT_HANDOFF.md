@@ -1,10 +1,28 @@
-# Current handoff — declared-serving dose warnings, October 17
+# Current handoff — Dose V4.1 app batch (D4) on claude/dose-v41, October 17
 
-Goal approved by Sean: product Dose quality uses the declared serving; maximum labeled daily safety remains separate. Pipeline owns scoring and emitted safety; app renders the assessment, never invents personal intake or a UL comparison.
-Owner: lib/services/health/dose_safety.dart::extractUlExceedances and usesMultipleDailyServings; label_ingredient_types.dart::resolveDoseCallOut; ingredient_explain_model.dart shared captions; ProductHealthFacts + profile warning assembly. Evidence: caller census, source input 205309 (UPC766298001753), 197 focused consumer/widget tests, phone viewport capture and complete app CI39051237132 success on bb874363. Will NOT create a clinical threshold, personal-dose recommendation, new persisted/public status or second scorer.
+valid_for_head: dcf3768b
+written_at: 2026-10-17
 
-Implemented: multiple source explanations for one nutrient become one event, with strongest severity and all distinct messages retained. Identical re-synthesis is deduplicated. Multiple labeled servings use Check daily amount / Above limit at labeled daily use and explicit maximum-use/confirmed-intake distinction. A one-serving dose amount stays unchanged. Reviewed bot suggestion to calculate serving UL in Flutter: not applied because context wording does not claim one serving is below UL and app must not recompute pipeline policy. Independent fresh review found no remaining app blocker.
+Goal: app half of the pipeline plan docs/plans/DOSE_V41_PLAN.md §4.1 (Sean D4: app and pipeline
+both done before Sean's run). Pipeline branch: dsld_clean claude/dose-v41 (handoff in its worktree
+.claude/state/CURRENT_HANDOFF.md; review packet docs/plans/DOSE_V41_REVIEW_PACKET.md).
 
-PR127 merged to main as2c8bd521 after exact-source CI; own local/remote branch removed. No new catalog or IPA. Build22 already uploaded by Sean still contains prior runtime/catalog. Pipeline PR154 supplies the serving-based score and must finish its measurement/CI/local qualification before main integration. Sean owns the next corpus run. Reports in sibling pipeline reports/declared_serving_20261017/. Production personal connector remains disabled.
+Owner: lib/services/stack/stack_ul_checker.dart (one exposure against one reference; adult-only
+fallbacks flagged not personal); stack_nutrient_aggregator.dart::PipelineUlVerdict (pct/ul pair,
+`> 100`); nutrient_accumulation_panel.dart::_LimitsNotPersonalNotice; nutrient_progress_bar.dart
+("% UL*"). Will NOT create an app-side Dose calculation, status or threshold; receipts render the
+recorded pipeline result.
 
-Display-only export-caption consumer follow-up: 27 tradeoff/widget-layout tests pass, including the new maximum-daily-use caption without a duplicate UL consideration. App production code is unchanged; this is a tests-only update after the full runtime CI qualification. Pipeline export owner has a one-string scope clarification and 20 owner tests plus actual Pure before/after checks; no score, field, severity or amount changes.
+Commits: 09e49d75 checker defects, 1fb22683 "not assessed" notice, e3c47f57/2c0027d2/25b77bb4
+receipt parity fixture (regenerated from pipeline 369f93aa8), dcf3768b dart format.
+Draft PR seancheick/Pharmaguide.ai#128. Local: flutter analyze clean; full flutter test 3,940 pass
+(on 2c0027d2; later commits are a fixture regen and formatting, both re-tested in their files).
+CI on 2c0027d2 failed only the changed-file dart-format check; CI 39084866574 on dcf3768b green.
+
+Open for Sean: no-profile panel shows the adult-limit % with * and a "not assessed for you" notice
+(plan says "not assessed"); no device screenshot of that panel yet (AGENTS asks for one on
+rendering changes). Attempted 2026-10-17: `flutter run` with SCREENSHOT_MODE=true and
+SCREENSHOT_ROUTE=/stack (seeded stack, no profile) failed to build. The only iPhone runtime is
+iOS 27.0, which Xcode says doesn't match Runner.app's supported platforms; the 18.5/26.5 runtimes
+are rejected on architecture. Host Xcode setup, not app code. `pod install` in this worktree's ios/
+needed LANG=en_US.UTF-8. Merge with the pipeline branch, after Sean approves the packet.
