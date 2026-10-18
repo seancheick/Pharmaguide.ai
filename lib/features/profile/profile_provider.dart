@@ -41,10 +41,13 @@ class ProfileState {
     this.profileFlags = const [],
   });
 
+  // An omitted nullable value preserves state; an explicit null clears it.
+  static const _unchanged = Object();
+
   ProfileState copyWith({
-    String? nickname,
-    String? ageBracket,
-    String? sex,
+    Object? nickname = _unchanged,
+    Object? ageBracket = _unchanged,
+    Object? sex = _unchanged,
     List<String>? goals,
     List<String>? conditions,
     List<String>? drugClasses,
@@ -52,9 +55,13 @@ class ProfileState {
     List<String>? profileFlags,
   }) {
     return ProfileState(
-      nickname: nickname ?? this.nickname,
-      ageBracket: ageBracket ?? this.ageBracket,
-      sex: sex ?? this.sex,
+      nickname: identical(nickname, _unchanged)
+          ? this.nickname
+          : nickname as String?,
+      ageBracket: identical(ageBracket, _unchanged)
+          ? this.ageBracket
+          : ageBracket as String?,
+      sex: identical(sex, _unchanged) ? this.sex : sex as String?,
       goals: goals ?? this.goals,
       conditions: conditions ?? this.conditions,
       drugClasses: drugClasses ?? this.drugClasses,
