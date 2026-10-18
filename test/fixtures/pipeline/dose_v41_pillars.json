@@ -1,5 +1,5 @@
 {
- "_source": "dsld_clean claude/dose-v41 369f93aa8: build_scored_artifact(stored enriched input)['quality_pillars_v4']; regenerate with the pipeline, never by hand.",
+ "_source": "dsld_clean claude/dose-v41 0e9119df3: build_scored_artifact(stored enriched input)[quality_pillars_v4]; generated from manifest-owned Pure input, never edited by hand.",
  "products": {
   "205309": {
    "quality_score_v4_100": 76.6,
@@ -113,6 +113,39 @@
          "points": 20.0
         }
        ],
+       "reference_assessments": [
+        {
+         "nutrient": "Magnesium",
+         "canonical_id": "magnesium",
+         "unit": "mg",
+         "rda_ai": 400,
+         "rda_ai_source": "rda",
+         "ul": 350,
+         "ul_status": "established",
+         "pct_rda": 30.0,
+         "pct_ul": 137.14285714285714,
+         "per_day_min": 120.0,
+         "per_day_max": 480.0,
+         "reference_profile": {
+          "id": "adult_neutral_compatibility",
+          "age_range": "19-30",
+          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
+          "ul_basis": "lower_sourced_adult_male_female_ul"
+         },
+         "reference": {
+          "source_owner": "rda_ul_data",
+          "source_url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+          "basis_type": "authoritative_safety_reference",
+          "evidence_grade_applicable": false,
+          "ul_basis": "supplemental_only",
+          "ul_note": "UL applies to supplemental magnesium only, not food sources"
+         },
+         "scoring_eligible": true,
+         "skip_ul_check": false,
+         "ul_gate_eligible": true,
+         "source_label_key": "label:magnesium:magnesium:120:mg"
+        }
+       ],
        "adequacy_before_safety": 20.0,
        "upper_reference": {
         "kind": "established_upper_limit",
@@ -138,7 +171,7 @@
        {
         "id": "dose_safety_ceiling",
         "label": "Upper-limit scoring rule",
-        "value_display": "When the highest directed daily use exceeds an established upper limit, Dose is at most 10; at 150% of the limit or more it is 0. This product-level cap is applied once, after the ingredient assessment, and never raises a lower score. It is PharmaGuide scoring policy, not a medical toxicity grade. Limits cover total intake from all sources."
+        "value_display": "When the highest directed daily use exceeds an established upper limit, Dose is at most 10; at 150% of the limit or more it is 0. This product-level cap is applied once, after the ingredient assessment, and never raises a lower score. It is PharmaGuide scoring policy, not a medical toxicity grade. The applicable reference determines which food, supplement or medication sources count; their limits are not interchangeable."
        },
        {
         "id": "dose_contributions",
@@ -442,6 +475,39 @@
          "reference_value": 84.0,
          "pct_of_reference": 142.86,
          "points": 20.0
+        }
+       ],
+       "reference_assessments": [
+        {
+         "nutrient": "Magnesium",
+         "canonical_id": "magnesium",
+         "unit": "mg",
+         "rda_ai": 400,
+         "rda_ai_source": "rda",
+         "ul": 350,
+         "ul_status": "established",
+         "pct_rda": 30.0,
+         "pct_ul": 34.285714285714285,
+         "per_day_min": 120.0,
+         "per_day_max": 120.0,
+         "reference_profile": {
+          "id": "adult_neutral_compatibility",
+          "age_range": "19-30",
+          "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
+          "ul_basis": "lower_sourced_adult_male_female_ul"
+         },
+         "reference": {
+          "source_owner": "rda_ul_data",
+          "source_url": "https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/",
+          "basis_type": "authoritative_safety_reference",
+          "evidence_grade_applicable": false,
+          "ul_basis": "supplemental_only",
+          "ul_note": "UL applies to supplemental magnesium only, not food sources"
+         },
+         "scoring_eligible": true,
+         "skip_ul_check": false,
+         "ul_gate_eligible": true,
+         "source_label_key": "label:magnesium:magnesium:120:mg"
         }
        ],
        "adequacy_before_safety": 20.0,

@@ -248,10 +248,10 @@ class NutrientStatus {
   /// for personalized numbers.
   final bool rdaIsBaseline;
 
-  /// True when [ul] came from the reference entry's anonymous `highest_ul`
-  /// fallback instead of an exact demographic match. This is intentionally
-  /// least restrictive, not conservative; UI copy should ask users to add a
-  /// profile for personalized upper-limit checks.
+  /// True when the UL comparison is a catalog screen or uses a partial or
+  /// anonymous demographic reference rather than an exact personal match.
+  /// Known-age screening keeps that age's available limits; anonymous
+  /// screening uses ordinary adult limits. UI must mark these as not personal.
   final bool ulIsFallback;
 
   /// A UL exists, but this label's form/source detail is insufficient for an

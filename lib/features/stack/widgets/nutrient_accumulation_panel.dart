@@ -119,9 +119,9 @@ class _PartialTotalsNotice extends StatelessWidget {
   }
 }
 
-/// Without a matched profile, limits come from the general adult screen
-/// (Dose V4.1 section 4.1B): say so before any number is read, so a figure
-/// under that screen never reads as a personal "no concerns".
+/// Catalog and partial-profile screens are not a fully personal assessment
+/// (Dose V4.1 section 4.1B). Known age can narrow a screening reference, so
+/// do not describe every fallback as an adult limit.
 class _LimitsNotPersonalNotice extends StatelessWidget {
   const _LimitsNotPersonalNotice();
 
@@ -136,9 +136,10 @@ class _LimitsNotPersonalNotice extends StatelessWidget {
         V2Spacing.space8,
       ),
       child: Text(
-        'Upper limits marked * are not assessed for you yet. They use the '
-        'lowest limit for adults; add your age and sex in your profile to '
-        'compare with your own limits.',
+        'Upper limits marked * are not assessed for you yet. They use '
+        'screening references based on the product or available profile details. '
+        'A personal comparison needs your complete profile and the product’s '
+        'upper-limit reference.',
         style: V2Typography.bodySm(color: context.v2.fgMuted),
       ),
     );

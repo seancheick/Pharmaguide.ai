@@ -3,18 +3,167 @@
 // reference.
 //
 // 1. Exactly 100% of a limit is not an exceedance (pipeline §2.4).
-// 2. Without a matched profile it screens against the lowest established limit
+// 2. Without demographic information it screens against the lowest established limit
 //    across ordinary adult groups (pipeline §2.5), never a child's or a
 //    pregnancy row, and says the limit is not personal.
 // 3. Percentage, tier and warning come from the same reference.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
 
 void main() {
   const checker = StackUlChecker(rdaData: _rda);
+
+  test(
+    'age-only adolescent keeps its available limit, marked not personal',
+    () {
+      final status = checker.check({
+        'zinc': _total('zinc', 36),
+      }, ageBracket: '14-18').single;
+      expect(status.ul, 34);
+      expect(status.pctOfUl, closeTo(105.882, 0.001));
+      expect(status.tier, NutrientTier.exceedsUl);
+      expect(status.ulIsFallback, isTrue);
+    },
+  );
+
+  test('catalog percentage without its limit is marked not personal', () {
+    final status = checker
+        .check(
+          {'calcium': _total('calcium', 900)},
+          ageBracket: '19-30',
+          sex: 'Female',
+          pipelineVerdicts: const {
+            'calcium': PipelineUlVerdict(overUl: true, pctUl: 105),
+          },
+        )
+        .single;
+    expect(status.ul, isNull);
+    expect(status.pctOfUl, 105);
+    expect(status.tier, NutrientTier.exceedsUl);
+    expect(status.ulIsFallback, isTrue);
+  });
+
+  test(
+    'unpaired catalog percent preserves a stronger verified personal total',
+    () {
+      final status = checker
+          .check(
+            {'calcium': _total('calcium', 5000)},
+            ageBracket: '19-30',
+            sex: 'Female',
+            pipelineVerdicts: const {
+              'calcium': PipelineUlVerdict(overUl: true, pctUl: 105),
+            },
+          )
+          .single;
+      expect(status.ul, 2500);
+      expect(status.pctOfUl, 200);
+      expect(status.tier, NutrientTier.exceedsUl);
+      expect(status.ulIsFallback, isFalse);
+    },
+  );
+
+  test(
+    'boolean-only catalog concern does not label a personal percent as excess',
+    () {
+      final status = checker
+          .check(
+            {'calcium': _total('calcium', 900)},
+            ageBracket: '19-30',
+            sex: 'Female',
+            pipelineVerdicts: const {
+              'calcium': PipelineUlVerdict(overUl: true),
+            },
+          )
+          .single;
+      expect(status.ul, isNull);
+      expect(status.pctOfUl, isNull);
+      expect(status.tier, NutrientTier.exceedsUl);
+      expect(status.ulIsFallback, isTrue);
+    },
+  );
+
+  test('boolean-only catalog concern keeps a proven personal breach', () {
+    final status = checker
+        .check(
+          {'calcium': _total('calcium', 5000)},
+          ageBracket: '19-30',
+          sex: 'Female',
+          pipelineVerdicts: const {'calcium': PipelineUlVerdict(overUl: true)},
+        )
+        .single;
+    expect(status.ul, 2500);
+    expect(status.pctOfUl, 200);
+    expect(status.tier, NutrientTier.exceedsUl);
+    expect(status.ulIsFallback, isFalse);
+  });
+
+  test(
+    'profile edits and clearing refresh the watched personal comparison',
+    () {
+      final notifier = ProfileNotifier();
+      final container = ProviderContainer(
+        overrides: [profileProvider.overrideWith((ref) => notifier)],
+      );
+      addTearDown(container.dispose);
+      final statusProvider = Provider((ref) {
+        final profile = ref.watch(profileProvider);
+        return checker
+            .check(
+              {'calcium': _total('calcium', 5000)},
+              ageBracket: profile.ageBracket,
+              sex: profile.sex,
+            )
+            .single;
+      });
+      notifier.setAgeBracket('19-30');
+      notifier.setSex('Female');
+      expect(container.read(statusProvider).pctOfUl, 200);
+      expect(container.read(statusProvider).ulIsFallback, isFalse);
+      notifier.setAgeBracket(null);
+      final clearedAge = container.read(statusProvider);
+      expect(clearedAge.pctOfUl, 250);
+      expect(clearedAge.ul, 2000);
+      expect(clearedAge.ulIsFallback, isTrue);
+      notifier.setSex(null);
+      expect(container.read(statusProvider).ulIsFallback, isTrue);
+      expect(container.read(statusProvider).pctOfUl, 250);
+      notifier.setAgeBracket('19-30');
+      notifier.setSex('Female');
+      expect(container.read(statusProvider).pctOfUl, 200);
+      expect(container.read(statusProvider).ulIsFallback, isFalse);
+    },
+  );
+
+  test('legacy unverified quantity cannot override a catalog concern', () {
+    final status = checker
+        .check(
+          {
+            'calcium': const NutrientTotal(
+              canonicalId: 'calcium',
+              displayName: 'Calcium',
+              totalAmount: 5000,
+              unit: 'mg',
+              contributions: [],
+            ),
+          },
+          ageBracket: '19-30',
+          sex: 'Female',
+          pipelineVerdicts: const {
+            'calcium': PipelineUlVerdict(overUl: true, pctUl: 105),
+          },
+        )
+        .single;
+    expect(status.ul, isNull);
+    expect(status.pctOfUl, 105);
+    expect(status.ulIsFallback, isTrue);
+    expect(status.tier, NutrientTier.exceedsUl);
+  });
 
   test('exactly 100% of the limit is not an exceedance', () {
     final status = checker
@@ -123,6 +272,9 @@ NutrientTotal _total(String id, double amount) => NutrientTotal(
   totalAmount: amount,
   unit: 'mg',
   contributions: const [],
+  hasUlExposureContract: true,
+  ulComparableTotalAmount: amount,
+  ulComparableUnit: 'mg',
 );
 
 const _rda = {

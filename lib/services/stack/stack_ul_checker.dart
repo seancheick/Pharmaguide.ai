@@ -50,7 +50,7 @@
 // `rda_optimal_uls.json` stores per-demographic rows. We look up in
 // priority order:
 // 1. Exact age_range AND group (sex) match.
-// 2. Age known, sex not: the lowest adult Male/Female UL at that age.
+// 2. Age known, sex not: the lowest Male/Female UL at that known age.
 // 3. Group known, age not: the lowest UL across that group's adult rows.
 // 4. No profile: the lowest established UL across ordinary adult groups
 //    (pipeline Dose V4.1 section 2.5), never a child's or pregnancy row.
@@ -79,9 +79,9 @@ class StackUlChecker {
   /// values in the reference data. [sex] is "Male" / "Female" /
   /// "Pregnancy" / "Lactation" matching the group field.
   ///
-  /// Both are optional — when null, the checker still runs against the lowest
-  /// established demographic UL. The result is marked as a fallback so the UI
-  /// can explain that completing the profile improves personalization.
+  /// Both are optional. Known age retains its available demographic limits;
+  /// absent demographics use the ordinary-adult screen. Partial matches are
+  /// marked as fallback comparisons rather than fully personal assessments.
   /// [pipelineVerdicts] carries the pipeline's own per-nutrient UL decisions
   /// (keyed by canonical id, from
   /// [StackNutrientAggregator.extractPipelineUlVerdicts]). When a definitive
@@ -212,6 +212,21 @@ class StackUlChecker {
             ul > 0)
         ? verdict!.pctUl! * catalogUl / ul
         : null;
+    // Without a catalog limit its exposure cannot be rebased. Keep that
+    // conservative concern explicitly non-personal, but never let it replace
+    // an equal or higher verified personal excess. Raw legacy quantities are
+    // not sufficient proof of that personal exposure.
+    final personalExcessWins =
+        total.hasUlExposureContract &&
+        recomputedPctOfUl != null &&
+        recomputedPctOfUl > 100 &&
+        (verdict?.pctUl == null || recomputedPctOfUl >= verdict!.pctUl!);
+    final useUnrebasedCatalog =
+        catalogVerdictWins && rebasedPct == null && !personalExcessWins;
+    final catalogPercentageFallback =
+        rebasedPct == null &&
+        recomputedPctOfUl == null &&
+        verdict?.pctUl != null;
     final double? pctOfUl;
     final double? reportedUl;
     if (rebasedPct != null) {
@@ -219,19 +234,19 @@ class StackUlChecker {
           ? recomputedPctOfUl
           : rebasedPct;
       reportedUl = ul;
-    } else if (catalogVerdictWins) {
-      pctOfUl = verdict?.pctUl ?? recomputedPctOfUl;
-      reportedUl = verdict?.pctUl != null ? null : ul;
+    } else if (useUnrebasedCatalog) {
+      pctOfUl = verdict?.pctUl;
+      reportedUl = catalogUl;
     } else {
       pctOfUl = recomputedPctOfUl ?? verdict?.pctUl;
-      reportedUl = ul;
+      reportedUl = catalogPercentageFallback ? catalogUl : ul;
     }
 
     final tier = _classify(
       pctOfRda: pctOfRda,
       pctOfUl: pctOfUl,
       hasEstablishedUl: ul != null,
-      verdict: rebasedPct != null ? null : verdict,
+      verdict: useUnrebasedCatalog ? verdict : null,
     );
     final warning =
         (tier == NutrientTier.approachingUl || tier == NutrientTier.exceedsUl)
@@ -256,7 +271,10 @@ class StackUlChecker {
       pctOfUl: ulAssessmentIndeterminate ? null : pctOfUl,
       warning: warning,
       rdaIsBaseline: rdaLookup.isBaseline,
-      ulIsFallback: ulLookup.isFallback,
+      ulIsFallback:
+          ulLookup.isFallback ||
+          useUnrebasedCatalog ||
+          catalogPercentageFallback,
       ulAssessmentIndeterminate: ulAssessmentIndeterminate,
     );
   }
@@ -376,9 +394,9 @@ class StackUlChecker {
   }
 
   /// Look up UL for the requested demographic. Anonymous users receive the
-  /// lowest established ceiling in the bundled demographic table. That is the
-  /// safe direction when age/sex are unknown; callers receive provenance so
-  /// UI can ask for a profile rather than pretending the value is personal.
+  /// lowest established ordinary-adult ceiling. A known age keeps that age's
+  /// available references, including adolescent rows. Partial matches carry
+  /// provenance so the UI does not present them as fully personal.
   _UlLookup _getUlWithProvenance(
     Map<String, dynamic> entry, {
     required String? ageBracket,
@@ -406,9 +424,9 @@ class StackUlChecker {
       }
     }
 
-    // Age matches but sex didn't: the LOWEST adult Male/Female UL at that
-    // age (conservative — never under-warn an unspecified-sex user), flagged
-    // as non-personalized.
+    // Age matches but sex didn't: the LOWEST Male/Female UL at that known
+    // age, including adolescent rows. It remains flagged as non-personalized
+    // because the group is unknown.
     if (ageBracket != null) {
       final lowest = _lowestUl(
         data,
@@ -467,10 +485,8 @@ class StackUlChecker {
     required bool hasEstablishedUl,
     PipelineUlVerdict? verdict,
   }) {
-    // The pipeline's UL verdict takes precedence over the client recompute:
-    // it accounts for elemental-vs-compound mass and form-aware conversions
-    // that raw quantity ÷ reference cannot. Only recompute when no definitive
-    // verdict exists.
+    // An unrebased catalog concern remains conservative and non-personal.
+    // Callers omit it once a personal-reference comparison supplies the tier.
     if (verdict?.overUl == true) return NutrientTier.exceedsUl;
     if (pctOfUl != null) {
       // Exactly 100% of a limit is not an exceedance (pipeline Dose V4.1).
