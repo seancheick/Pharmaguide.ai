@@ -1,5 +1,5 @@
 {
- "_source": "dsld_clean claude/dose-v41 66830a6ed: build_scored_artifact(stored enriched input)['quality_pillars_v4']; regenerate with the pipeline, never by hand.",
+ "_source": "dsld_clean claude/dose-v41 8fd261577: build_scored_artifact(stored enriched input)['quality_pillars_v4']; regenerate with the pipeline, never by hand.",
  "products": {
   "205309": {
    "quality_score_v4_100": 76.6,
@@ -106,7 +106,7 @@
          "reference_kind": "pharmaguide_policy",
          "amount_at_minimum": 120.0,
          "amount_at_maximum": 480.0,
-         "unit": "mg",
+         "amount_unit": "mg",
          "reference_value": 84.0,
          "pct_of_reference": 142.86,
          "points": 20.0
@@ -436,7 +436,7 @@
          "reference_kind": "pharmaguide_policy",
          "amount_at_minimum": 120.0,
          "amount_at_maximum": 120.0,
-         "unit": "mg",
+         "amount_unit": "mg",
          "reference_value": 84.0,
          "pct_of_reference": 142.86,
          "points": 20.0
