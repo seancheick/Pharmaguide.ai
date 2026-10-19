@@ -81,6 +81,9 @@ Widget buildTradeoffsSection({
         ulAnalysis: rdaReferenceIsCurrent ? healthFacts.ulAnalysis : const [],
         existing: penaltyConsiderations,
       ),
+      ..._buildChildUlConsiderations(
+        rdaReferenceIsCurrent ? healthFacts.childUlNotes : const [],
+      ),
     ]),
   );
   if (pros.isEmpty && considerations.isEmpty && safetySummary == null) {
@@ -187,6 +190,32 @@ List<PGTradeoff> _buildUlConsiderations({
     addFromFlag(row);
   }
 
+  return out;
+}
+
+/// Child upper-limit notes from the pipeline (`rda_ul_data.child_ul_screen`).
+/// The pipeline decides which child limit a children's product exceeds and
+/// writes the sentence; the app renders it, naming the children it concerns,
+/// so it never reads as an adult limit.
+List<PGTradeoff> _buildChildUlConsiderations(List<Map<String, dynamic>> notes) {
+  final out = <PGTradeoff>[];
+  final seen = <String>{};
+  for (final note in notes) {
+    if (note['status'] != 'over_limit') continue;
+    final nutrient = _stringValue(note['nutrient']);
+    final population = note['ul_population'];
+    final children = population is Map
+        ? _stringValue(population['label'])
+        : null;
+    if (nutrient == null || children == null) continue;
+    if (!seen.add('${_ulKey(nutrient)}|$children')) continue;
+    out.add(
+      PGTradeoff(
+        headline: '$nutrient: above the upper limit for $children',
+        caption: _stringValue(note['warning']),
+      ),
+    );
+  }
   return out;
 }
 
