@@ -549,4 +549,81 @@ void main() {
       expect(c.moderate, 0);
     });
   });
+
+  // Children are not the scored population; on a children's product the
+  // pipeline states the applicable child limit on its own labelled list.
+  group('child upper-limit notes', () {
+    const zincNote = {
+      'nutrient': 'Zinc',
+      'status': 'over_limit',
+      'amount': 15,
+      'unit': 'mg',
+      'ul': 7,
+      'pct_ul': 214.29,
+      'ul_population': {'label': 'children 1-3'},
+      'warning':
+          'Provides 15 mg per day on its own, 214% of the upper limit for '
+          'children 1-3 of 7 mg, before other sources are counted.',
+    };
+
+    testWidgets('names the children whose limit applies', (tester) async {
+      await _pump(
+        tester,
+        rdaUlData: {
+          'safety_flags': const <Map<String, Object>>[],
+          'child_ul_screen': const [zincNote],
+        },
+      );
+      expect(
+        find.text('Zinc: above the upper limit for children 1-3'),
+        findsOneWidget,
+      );
+      expect(find.text(zincNote['warning']! as String), findsOneWidget);
+      expect(find.text('Zinc exceeds the upper limit'), findsNothing);
+    });
+
+    testWidgets('a note that is not over the limit renders nothing', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rdaUlData: {
+          'child_ul_screen': const [
+            {
+              'nutrient': 'Calcium',
+              'status': 'not_assessable',
+              'reason': 'pediatric_ul_row_missing_for_stated_age',
+            },
+          ],
+        },
+      );
+      expect(find.textContaining('Calcium'), findsNothing);
+    });
+
+    testWidgets('an adult exceedance and a child note stay separate', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rdaUlData: {
+          'safety_flags': const [
+            {
+              'nutrient': 'Zinc',
+              'amount': 45,
+              'unit': 'mg',
+              'ul': 40,
+              'pct_ul': 112.5,
+              'ul_gate_eligible': true,
+            },
+          ],
+          'child_ul_screen': const [zincNote],
+        },
+      );
+      expect(find.text('Zinc exceeds the upper limit'), findsOneWidget);
+      expect(
+        find.text('Zinc: above the upper limit for children 1-3'),
+        findsOneWidget,
+      );
+    });
+  });
 }

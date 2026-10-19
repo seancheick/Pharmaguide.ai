@@ -21,6 +21,7 @@ class ProductHealthFacts {
     required this.ingredientContextRows,
     required this.nutrients,
     required this.ulSafetyFlags,
+    this.childUlNotes = const [],
     required this.interactionSummary,
     required this.warnings,
     required this.allergens,
@@ -52,6 +53,11 @@ class ProductHealthFacts {
   /// parse raw `rda_ul_data` independently.
   final List<Map<String, dynamic>> ulSafetyFlags;
 
+  /// Pipeline child upper-limit notes (`rda_ul_data.child_ul_screen`). The
+  /// score is for adults; on a children's product the pipeline states which
+  /// child limit the product exceeds. Never an adult UL flag.
+  final List<Map<String, dynamic>> childUlNotes;
+
   /// Candidate rows for ingredient-specific profile-gate context such as
   /// nutrient form and dose. Includes active rows, RDA/UL rows, and
   /// ingredient-quality rows so warning filtering does not need to reparse
@@ -78,6 +84,7 @@ class ProductHealthFacts {
       inactiveIngredients: _extractMapList(blob['inactive_ingredients']),
       ulAnalysis: ulAnalysis,
       ulSafetyFlags: _extractUlSafetyFlags(blob),
+      childUlNotes: _extractChildUlNotes(blob),
       ingredientContextRows: ingredientContextRows,
       nutrients: nutrients,
       interactionSummary: _extractMap(blob['interaction_summary']),
@@ -210,6 +217,14 @@ class ProductHealthFacts {
     final rdaUlData = blob['rda_ul_data'];
     if (rdaUlData is! Map) return const [];
     return _extractMapList(rdaUlData['safety_flags']);
+  }
+
+  static List<Map<String, dynamic>> _extractChildUlNotes(
+    Map<String, dynamic> blob,
+  ) {
+    final rdaUlData = blob['rda_ul_data'];
+    if (rdaUlData is! Map) return const [];
+    return _extractMapList(rdaUlData['child_ul_screen']);
   }
 
   static List<Map<String, dynamic>> _extractNutrients(
