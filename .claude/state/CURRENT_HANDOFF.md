@@ -1,6 +1,6 @@
 # Current handoff — qualified informational child UL reader, October19
 
-Sean authorized takeover and approved `rda_ul_data.child_ul_screen` plus its app reader on October19. PR129 is qualified for the authorized merge alongside pipeline PR169. Runtime1fa5381e; canonical reference/checksumf87622cb. This handoff update changes documentation only. No operator pipeline, catalog import/publication or IPA.
+Sean authorized takeover and approved `rda_ul_data.child_ul_screen` plus its app reader on October19. PR129 merged at ef8d5566; pipeline PR169 merged at22d7b8ffd. Both primary checkouts contain the qualified heads. Runtime1fa5381e; canonical reference/checksumf87622cb. This handoff update changes documentation only. No operator pipeline, catalog import/publication or IPA.
 
 Owner: ProductHealthFacts.childUlNotes parses the optional pipeline field; tradeoffs_section renders confirmed notes with their source-owned age group and warning. Pipeline remains the score/safety owner. Canonical reference/manifest writer is pipeline scripts/sync_flutter_reference_data.py. Will NOT create a scorer, profile owner, second reference registry or invented approval.
 
@@ -10,4 +10,4 @@ Pipeline output-changing candidate71a5ddc7 passed all4whole-fastCI39294429877gro
 
 Boundaries: all1113blobs are diagnostic premerge evidence, not a new full catalog. Existing stored marker/canary controls were reused read-only with explicit provenance; no release stamp forged. Bundle remains the previous catalog until Sean runs the one final necessary Clean→Enrich→Score pass and separate release/import gates pass. Other F1 Evidence/F2 blend-identity lanes remain separately owned and unfinished. Do not call the phone updated, start a corpus job or build an IPA.
 
-Next: merge qualified pair and verify origin/main containment, preserve other lanes/drafts, then wait for remaining planned source integration before Sean's operator run. Coordination stays in shared handoffs; no cross-chat messages. WorkOS personal access remains disabled and separate.
+Next: preserve other lanes/drafts and wait for remaining planned source integration before Sean's operator run. The qualified pair is merged and containment verified. Coordination stays in shared handoffs; no cross-chat messages. WorkOS personal access remains disabled and separate.
