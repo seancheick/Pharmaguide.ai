@@ -62,30 +62,6 @@ models:
       contextLength: 32768
 
   # --- LOCAL AGENT: Best coding model for 16GB RAM ---
-  - name: Local Agent 14B
-    provider: ollama
-    model: qwen2.5-coder:14b
-    apiBase: http://127.0.0.1:11434
-    roles:
-      - chat
-      - edit
-      - apply
-    defaultCompletionOptions:
-      temperature: 0.1
-      contextLength: 16384
-
-  # --- AUTOCOMPLETE: Fast, always-on tab completion ---
-  - name: Local Autocomplete 1.5B
-    provider: ollama
-    model: qwen2.5-coder:1.5b
-    apiBase: http://127.0.0.1:11434
-    roles:
-      - autocomplete
-    defaultCompletionOptions:
-      temperature: 0.0
-      contextLength: 4096
-
-  # --- EMBEDDINGS: For codebase indexing and search ---
   - name: Local Embeddings
     provider: ollama
     model: nomic-embed-text:v1.5

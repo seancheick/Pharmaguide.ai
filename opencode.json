@@ -28,12 +28,6 @@
       "models": {
         "gemma4:latest": {
           "name": "Gemma4 8B (tools+thinking, 128K ctx)"
-        },
-        "qwen2.5-coder:14b": {
-          "name": "Qwen 2.5 Coder 14B (code-specialized)"
-        },
-        "qwen3.5:latest": {
-          "name": "Qwen 3.5 10B (256K ctx)"
         }
       }
     }
