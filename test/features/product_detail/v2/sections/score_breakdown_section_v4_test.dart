@@ -230,68 +230,74 @@ void main() {
 }
 
 void evidenceScopeReconciliationTests() {
-  testWidgets('limited formula evidence and strong Vitamin D ingredient evidence '
-      'render together without changing the formula score', (tester) async {
-    final pillars = _v4Pillars();
-    pillars['evidence'] = {
-      'score': 6.8,
-      'max': 20,
-      'reason': 'Limited human evidence for these ingredients.',
-    };
+  testWidgets(
+    'limited formula evidence and strong Vitamin D ingredient evidence '
+    'render together without changing the formula score',
+    (tester) async {
+      final pillars = _v4Pillars();
+      pillars['evidence'] = {
+        'score': 6.8,
+        'max': 20,
+        'reason': 'Limited human evidence for these ingredients.',
+      };
 
-    await tester.pumpWidget(
-      _wrap(
-        Column(
-          children: [
-            buildScoreBreakdownSection(
-              heroScore: 84.4,
-              qualityPillarsV4: pillars,
-            ),
-            buildEvidenceSection(
-              evidenceData: const {
-                'match_count': 1,
-                'clinical_matches': [
-                  {
-                    'ingredient': 'Vitamin D3',
-                    'evidence_level': 'ingredient-human',
-                    'study_type': 'systematic_review_meta',
-                    'effect_direction': 'positive_strong',
-                    'references_structured': [
-                      {'pmid': '30293909', 'title': 'Vitamin D review'},
-                      {'pmid': '28202713', 'title': 'Vitamin D meta-analysis'},
-                    ],
-                  },
-                ],
-              },
-            ),
-          ],
+      await tester.pumpWidget(
+        _wrap(
+          Column(
+            children: [
+              buildScoreBreakdownSection(
+                heroScore: 84.4,
+                qualityPillarsV4: pillars,
+              ),
+              buildEvidenceSection(
+                evidenceData: const {
+                  'match_count': 1,
+                  'clinical_matches': [
+                    {
+                      'ingredient': 'Vitamin D3',
+                      'evidence_level': 'ingredient-human',
+                      'study_type': 'systematic_review_meta',
+                      'effect_direction': 'positive_strong',
+                      'references_structured': [
+                        {'pmid': '30293909', 'title': 'Vitamin D review'},
+                        {
+                          'pmid': '28202713',
+                          'title': 'Vitamin D meta-analysis',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('6.8/20'), findsOneWidget);
-    expect(
-      find.text('Ingredient evidence: Strong · 2 studies · meta-analysis'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Vitamin D3: strong ingredient evidence · 2 human studies'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Product evidence: Strong'), findsNothing);
+      expect(find.text('6.8/20'), findsOneWidget);
+      expect(
+        find.text('Ingredient evidence: Strong · 2 studies · meta-analysis'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Vitamin D3: strong ingredient evidence · 2 human studies'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Product evidence: Strong'), findsNothing);
 
-    await tester.tap(find.text('Evidence'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Evidence'));
+      await tester.pumpAndSettle();
 
-    expect(
-      find.text('Limited human evidence for these ingredients.'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Formula-wide evidence'), findsNothing);
-    expect(find.text('Analysis metadata'), findsNothing);
-    expect(find.textContaining('analysis coverage'), findsNothing);
-    expect(find.textContaining('matched evidence record'), findsNothing);
-  });
+      expect(
+        find.text('Limited human evidence for these ingredients.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Formula-wide evidence'), findsNothing);
+      expect(find.text('Analysis metadata'), findsNothing);
+      expect(find.textContaining('analysis coverage'), findsNothing);
+      expect(find.textContaining('matched evidence record'), findsNothing);
+    },
+  );
 
   testWidgets('exact-product evidence is claimed only for product-human data', (
     tester,
