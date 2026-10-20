@@ -6,7 +6,8 @@ import 'package:pharmaguide/features/product_detail/v2/sections/score_breakdown_
 import 'package:pharmaguide/features/product_detail/v2/sections/tradeoffs_section.dart';
 
 // V4.1 accounting contract (pipeline AUDIT.md §8): every pillar point the
-// pipeline awards is visible and its receipt shows how the points add up.
+// pipeline awards is visible. The receipt is parsed for parity checks, but the
+// user card shows only the reason and one key fact (Sean, 2026-10-20).
 
 Map<String, dynamic> _receipt(Map<String, double> byKind, double unawarded) => {
   'entries': [
@@ -147,37 +148,43 @@ void main() {
     });
   });
 
-  testWidgets('unfinished evidence capacity is not described as unearned', (
-    tester,
-  ) async {
-    final pillars = _pillars(evidenceState: 'not_yet_reviewed');
-    (pillars['evidence'] as Map<String, dynamic>)['receipt'] = _receipt({}, 20);
-    await tester.pumpWidget(_section(pillars));
-    await tester.tap(find.text('Evidence'));
-    await tester.pumpAndSettle();
-    expect(find.text('Not earned'), findsNothing);
-    expect(find.text('Not yet assessed'), findsNWidgets(2));
-  });
-
-  testWidgets('an expanded pillar shows how its points add up', (tester) async {
-    await tester.pumpWidget(
-      _section(
-        _pillars(
-          doseReceipt: _receipt({'neutral': 11.4286, 'rounding': -0.0286}, 8.6),
+  testWidgets(
+    'an expanded pillar shows its reason, not the points arithmetic',
+    (tester) async {
+      await tester.pumpWidget(
+        _section(
+          _pillars(
+            doseReceipt: _receipt({
+              'neutral': 11.4286,
+              'rounding': -0.0286,
+            }, 8.6),
+          ),
         ),
-      ),
-    );
-    await tester.tap(find.text('Dose'));
-    await tester.pumpAndSettle();
-    expect(find.text('How these points add up'), findsOneWidget);
-    expect(find.text('Neutral credit'), findsOneWidget);
-    expect(find.text('+11.4286'), findsOneWidget);
-    expect(find.text('−0.0286'), findsOneWidget);
-    expect(find.text('Not earned'), findsOneWidget);
-    expect(find.text('8.6'), findsOneWidget);
-    // Small adjustments remain visible so the displayed arithmetic reconciles.
-    expect(find.text('Floors, caps and rounding'), findsOneWidget);
-  });
+      );
+      await tester.tap(find.text('Dose'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Dose disclosed, but adequacy cannot be determined.'),
+        findsOneWidget,
+      );
+      for (final hidden in [
+        'How these points add up',
+        'Earned',
+        'Neutral credit',
+        'Disclosure credit',
+        'Deductions',
+        'Floors, caps and rounding',
+        'Not earned',
+        '+11.4286',
+        '−0.0286',
+        '8.6',
+      ]) {
+        expect(find.text(hidden), findsNothing, reason: hidden);
+      }
+      // The pillar sum stays: it is the one place the six scores add up.
+      expect(find.text('= 56/100'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'the sixth-pillar drag caption uses the pillar name the app shows',

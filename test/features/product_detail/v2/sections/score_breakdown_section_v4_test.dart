@@ -38,7 +38,7 @@ const _v4Labels = [
 
 void main() {
   testWidgets(
-    'Formulation explains that full credit is not a best-form claim',
+    'Formulation shows the pipeline reason alone, without an app scope paragraph',
     (tester) async {
       await tester.pumpWidget(
         _wrap(
@@ -52,9 +52,8 @@ void main() {
           .widget<PGScoreBreakdownCard>(find.byType(PGScoreBreakdownCard))
           .pillars;
       final formulation = pillars.firstWhere((p) => p.label == 'Formulation');
-      expect(formulation.reason, contains('ingredient forms'));
-      expect(formulation.reason, contains('best form'));
-      expect(formulation.reason, contains('Well formulated.'));
+      // Sean, 2026-10-20: one sentence of reason; no app-authored policy text.
+      expect(formulation.reason, 'Well formulated.');
       expect(formulation.score, 17.6);
     },
   );
@@ -285,11 +284,10 @@ void evidenceScopeReconciliationTests() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text(
-        'Formula-wide evidence reflects the full ingredient profile, not one strongly supported ingredient. Limited human evidence for these ingredients.',
-      ),
+      find.text('Limited human evidence for these ingredients.'),
       findsOneWidget,
     );
+    expect(find.textContaining('Formula-wide evidence'), findsNothing);
     expect(find.text('Analysis metadata'), findsNothing);
     expect(find.textContaining('analysis coverage'), findsNothing);
     expect(find.textContaining('matched evidence record'), findsNothing);

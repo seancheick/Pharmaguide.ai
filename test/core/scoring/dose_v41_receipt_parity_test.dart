@@ -47,39 +47,36 @@ void main() {
   }
 
   test(
-    '205309: the Dose cap is itemized and its receipt facts render verbatim',
+    '205309: the Dose cap is itemized and its one consumer fact renders verbatim',
     () {
       final dose = pillarsOf('205309').firstWhere((p) => p.key == 'dose');
       expect(dose.score, 10.0);
       expect(dose.receipt!.points('cap'), closeTo(-10.0, 1e-9));
-      final facts = {for (final f in dose.facts) f.id: f.valueDisplay};
       expect(
-        facts['dose_arithmetic'],
-        'Adequacy 20/20, capped at 10: Dose 10/20.',
+        dose.reason,
+        'The higher directed daily amounts of Magnesium exceed its established '
+        'upper limit (137% of the limit at the highest directed use), so Dose '
+        'is capped at 10.',
       );
+      // Only the pipeline's consumer fact reaches the app; audit detail
+      // (arithmetic, policy, contributions) stays in the blob.
+      expect(dose.facts.length, 1);
+      expect(dose.facts.single.id, 'dose_upper_limit_result');
       expect(
-        facts['dose_upper_reference'],
-        contains('137% of the Magnesium upper limit of 350 mg'),
-      );
-      expect(
-        facts['dose_upper_reference'],
-        contains('PharmaGuide scoring policy'),
-      );
-      expect(
-        facts['dose_contributions'],
-        contains('120-480 mg/day by directions'),
-      );
-      expect(
-        facts['dose_reference_method'],
-        contains('lowest directed daily use'),
+        dose.facts.single.valueDisplay,
+        'Up to 480 mg a day: 137% of the 350 mg Magnesium upper limit '
+        '(general adult)',
       );
     },
   );
 
-  test('299065: no cap, so no upper-limit fact', () {
+  test('299065: no cap, and a policy target is never shown as a reference', () {
     final dose = pillarsOf('299065').firstWhere((p) => p.key == 'dose');
     expect(dose.score, 20.0);
     expect(dose.receipt!.points('cap'), 0);
-    expect(dose.facts.any((f) => f.id == 'dose_upper_reference'), isFalse);
+    // Its only reference is PharmaGuide's 20%-of-DV contribution target:
+    // scoring policy, so no consumer fact; the reason stands alone.
+    expect(dose.facts, isEmpty);
+    expect(dose.reason, isNotNull);
   });
 }
