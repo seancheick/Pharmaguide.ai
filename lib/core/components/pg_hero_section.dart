@@ -36,15 +36,13 @@ enum HeroScoreDisplay {
 }
 
 /// Decide what the hero's score slot renders. Precedence mirrors the
-/// verdict enum (BLOCKED > NOT_SCORED > low coverage > scored): the
-/// blocked banner beats everything, the not-scored hedge is more
-/// specific than the coverage hedge, and a null score can NEVER
-/// produce a tier line regardless of flags.
+/// verdict enum (BLOCKED > NOT_SCORED > scored): the blocked banner beats
+/// everything, and a null score can NEVER produce a tier line regardless of
+/// flags. Analysis coverage is rendered by its own pipeline-backed surface.
 HeroScoreDisplay heroScoreDisplayFor({
   required int? score,
   required bool isBlocked,
   required bool isNotScored,
-  required bool lowCoverage,
   bool limitedAssessment = false,
   bool assessmentIncomplete = false,
 }) {
@@ -56,7 +54,6 @@ HeroScoreDisplay heroScoreDisplayFor({
   // made. Deliberately NOT limitedScore: that keeps the number for comparison,
   // and an incomplete assessment has nothing to compare.
   if (assessmentIncomplete) return HeroScoreDisplay.assessmentIncomplete;
-  if (lowCoverage) return HeroScoreDisplay.notScored;
   if (limitedAssessment) return HeroScoreDisplay.limitedScore;
   return HeroScoreDisplay.tierScore;
 }
@@ -152,11 +149,6 @@ class PGHeroSection extends StatelessWidget {
   /// as an endorsement above the does-not-recommend banner.
   final bool isBlocked;
 
-  /// True when the product's mapped_coverage is below the 0.3 trust
-  /// floor (core/scoring/coverage.dart). Suppresses the tier-colored
-  /// score: a low-coverage product must never render a positive verdict.
-  final bool lowCoverage;
-
   /// True when v4 confidence is low even though a score is available.
   final bool limitedAssessment;
 
@@ -192,7 +184,6 @@ class PGHeroSection extends StatelessWidget {
     this.isNotScored = false,
     this.assessmentIncomplete = false,
     this.isBlocked = false,
-    this.lowCoverage = false,
     this.limitedAssessment = false,
     this.scoreConfidence,
     this.scoreConfidenceDrivers = const [],
@@ -218,7 +209,6 @@ class PGHeroSection extends StatelessWidget {
       isBlocked: isBlocked,
       isNotScored: isNotScored,
       assessmentIncomplete: assessmentIncomplete,
-      lowCoverage: lowCoverage,
       limitedAssessment: confidenceLabel == 'Limited',
     );
     final showTrustChips = heroShowsTrustChips(

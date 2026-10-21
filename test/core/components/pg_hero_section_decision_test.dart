@@ -20,12 +20,7 @@ void main() {
   group('heroScoreDisplayFor — pure render decision', () {
     test('scored + trusted coverage renders the tier score line', () {
       expect(
-        heroScoreDisplayFor(
-          score: 85,
-          isBlocked: false,
-          isNotScored: false,
-          lowCoverage: false,
-        ),
+        heroScoreDisplayFor(score: 85, isBlocked: false, isNotScored: false),
         HeroScoreDisplay.tierScore,
       );
     });
@@ -36,7 +31,6 @@ void main() {
           score: 84,
           isBlocked: false,
           isNotScored: false,
-          lowCoverage: false,
           limitedAssessment: true,
         ),
         HeroScoreDisplay.limitedScore,
@@ -45,48 +39,28 @@ void main() {
 
     test('blocked renders nothing in the score slot (banner owns it)', () {
       expect(
-        heroScoreDisplayFor(
-          score: 85,
-          isBlocked: true,
-          isNotScored: false,
-          lowCoverage: false,
-        ),
+        heroScoreDisplayFor(score: 85, isBlocked: true, isNotScored: false),
         HeroScoreDisplay.none,
       );
     });
 
-    test('blocked wins over low coverage', () {
+    test('blocked wins when a score is absent', () {
       expect(
-        heroScoreDisplayFor(
-          score: null,
-          isBlocked: true,
-          isNotScored: false,
-          lowCoverage: true,
-        ),
+        heroScoreDisplayFor(score: null, isBlocked: true, isNotScored: false),
         HeroScoreDisplay.none,
       );
     });
 
     test('not-scored renders the not-scored hedge', () {
       expect(
-        heroScoreDisplayFor(
-          score: null,
-          isBlocked: false,
-          isNotScored: true,
-          lowCoverage: false,
-        ),
+        heroScoreDisplayFor(score: null, isBlocked: false, isNotScored: true),
         HeroScoreDisplay.notScored,
       );
     });
 
-    test('not-scored wins over low coverage (more specific hedge)', () {
+    test('not-scored wins whenever its status is explicit', () {
       expect(
-        heroScoreDisplayFor(
-          score: null,
-          isBlocked: false,
-          isNotScored: true,
-          lowCoverage: true,
-        ),
+        heroScoreDisplayFor(score: null, isBlocked: false, isNotScored: true),
         HeroScoreDisplay.notScored,
       );
     });
@@ -94,25 +68,15 @@ void main() {
     test('null score without the isNotScored flag still renders the '
         'not-scored hedge — a tier line can never be fabricated', () {
       expect(
-        heroScoreDisplayFor(
-          score: null,
-          isBlocked: false,
-          isNotScored: false,
-          lowCoverage: false,
-        ),
+        heroScoreDisplayFor(score: null, isBlocked: false, isNotScored: false),
         HeroScoreDisplay.notScored,
       );
     });
 
-    test('scored but mapped_coverage < 0.3 suppresses the quality verdict', () {
+    test('a scored product keeps its pipeline quality verdict', () {
       expect(
-        heroScoreDisplayFor(
-          score: 85,
-          isBlocked: false,
-          isNotScored: false,
-          lowCoverage: true,
-        ),
-        HeroScoreDisplay.notScored,
+        heroScoreDisplayFor(score: 85, isBlocked: false, isNotScored: false),
+        HeroScoreDisplay.tierScore,
       );
     });
   });
@@ -170,23 +134,21 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets(
-      'low coverage replaces the tier score with a neutral fallback',
-      (tester) async {
-        await pump(
-          tester,
-          const PGHeroSection(
-            imageWidget: SizedBox(),
-            productName: 'Test Product',
-            brandName: 'Test Brand',
-            score: 85,
-            lowCoverage: true,
-          ),
-        );
-        expect(find.text('85/100'), findsNothing);
-        expect(find.text('Product quality score unavailable.'), findsOneWidget);
-      },
-    );
+    testWidgets('coverage does not hide the pipeline quality score', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const PGHeroSection(
+          imageWidget: SizedBox(),
+          productName: 'Test Product',
+          brandName: 'Test Brand',
+          score: 85,
+        ),
+      );
+      expect(find.text('85/100'), findsOneWidget);
+      expect(find.text('Product quality score unavailable.'), findsNothing);
+    });
 
     testWidgets('trusted coverage still renders the tier score line', (
       tester,

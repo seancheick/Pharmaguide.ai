@@ -68,6 +68,7 @@ import 'package:pharmaguide/features/product_detail/v2/sections/formulation_sect
 import 'package:pharmaguide/features/product_detail/v2/sections/hero_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/live_safety_alert_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_match_section.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/label_mismatch_action.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/manufacturer_violations_section.dart';
@@ -560,6 +561,27 @@ class _ProductDetailV2ConnectedState
     final evidenceData = _blobMap(detailBlob, 'evidence_data');
     final qualityPillarsV4 = _blobMap(detailBlob, 'quality_pillars_v4');
     final probioticDetail = _blobMap(detailBlob, 'probiotic_detail');
+    final mappedCoverage = _product?.mappedCoverage ?? 0.0;
+    final proprietaryBlendDetail = _blobMap(
+      detailBlob,
+      'proprietary_blend_detail',
+    );
+    final productStatus = _blobMap(detailBlob, 'product_status');
+    final unmappedActives = _blobMap(detailBlob, 'unmapped_actives');
+    final labelLedgerAudit = _blobMap(detailBlob, 'label_ledger_audit');
+    final labelLedgerAuditPresent =
+        detailBlob?.containsKey('label_ledger_audit') == true;
+    final hasProprietaryBlends =
+        proprietaryBlendDetail?['has_proprietary_blends'] == true;
+    final showLabelConfidence = labelConfidenceHasAnySignal(
+      mappedCoverage: mappedCoverage,
+      hasProprietaryBlends: hasProprietaryBlends,
+      isNotScored: isNotScored,
+      productStatus: productStatus,
+      unmappedActives: unmappedActives,
+      labelLedgerAudit: labelLedgerAudit,
+      labelLedgerAuditPresent: labelLedgerAuditPresent,
+    );
     final showClinicalEvidence =
         showDeepDive && hasRenderableClinicalEvidence(evidenceData);
     final certificationDetail = _blobMap(detailBlob, 'certification_detail');
@@ -741,6 +763,23 @@ class _ProductDetailV2ConnectedState
                         bottomBanner: heroBottomBanner,
                       ),
                       const SizedBox(height: V2Spacing.space12),
+
+                      // Coverage is independent of quality and safety. A
+                      // scored product keeps its pipeline score while this
+                      // card states how much of its label was analyzed.
+                      if (showLabelConfidence) ...[
+                        buildLabelConfidenceSection(
+                          context: context,
+                          mappedCoverage: mappedCoverage,
+                          hasProprietaryBlends: hasProprietaryBlends,
+                          isNotScored: isNotScored,
+                          productStatus: productStatus,
+                          unmappedActives: unmappedActives,
+                          labelLedgerAudit: labelLedgerAudit,
+                          labelLedgerAuditPresent: labelLedgerAuditPresent,
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
 
                       // ---- 1b. Live recall / ban alerts -----------------
                       // Fast-lane alerts published between catalog releases.
