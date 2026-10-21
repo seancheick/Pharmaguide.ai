@@ -134,42 +134,13 @@ List<PGPillar> _buildV4Pillars(
         label: p.label,
         max: p.max,
         score: p.score,
-        reason: switch (p.key) {
-          'formulation' => _formulationReason(p.reason),
-          'evidence' => _formulaEvidenceReason(p.reason),
-          'safety_hygiene' => _formulaQualityChecksReason(p.reason),
-          _ => p.reason,
-        },
+        reason: p.reason,
         displayState: p.displayState,
         facts: p.facts,
-        receipt: p.receipt,
         actionLabel: onAction == null ? null : actionLabel,
         onAction: onAction,
       ),
     );
   }
   return out;
-}
-
-/// Evidence is an aggregate pillar, while the clinical-evidence section may
-/// describe one strongly supported ingredient. Keep those scopes visibly
-/// separate without changing the pipeline-authored score or reason.
-String _formulaEvidenceReason(String? pipelineReason) {
-  const scope =
-      'Formula-wide evidence reflects the full ingredient profile, not one '
-      'strongly supported ingredient.';
-  final reason = pipelineReason?.trim() ?? '';
-  return reason.isEmpty ? scope : '$scope $reason';
-}
-
-String _formulaQualityChecksReason(String? pipelineReason) {
-  final reason = pipelineReason?.trim() ?? '';
-  return reason.isEmpty
-      ? kFormulaQualityChecksScope
-      : '$kFormulaQualityChecksScope $reason';
-}
-
-String _formulationReason(String? pipelineReason) {
-  final reason = pipelineReason?.trim() ?? '';
-  return reason.isEmpty ? kFormulationScope : '$kFormulationScope $reason';
 }

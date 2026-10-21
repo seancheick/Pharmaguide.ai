@@ -6,8 +6,9 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
-/// One pipeline-backed score pillar. The app renders [reason] and [facts]
-/// verbatim; it does not create supplemental scoring explanations.
+/// One pipeline-backed score pillar. The app renders the one-sentence [reason]
+/// and the pipeline's one consumer fact verbatim; it does not create
+/// supplemental scoring explanations or show the points arithmetic.
 class PGPillar {
   final String label;
   final double? score;
@@ -19,9 +20,6 @@ class PGPillar {
   /// zero means from the number.
   final String? displayState;
   final List<V4PillarFact> facts;
-
-  /// The pipeline's score receipt for this pillar; null on older blobs.
-  final V4PillarReceipt? receipt;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -45,7 +43,6 @@ class PGPillar {
     this.reason,
     this.displayState,
     this.facts = const [],
-    this.receipt,
     this.actionLabel,
     this.onAction,
     this.microExplanation,
@@ -414,10 +411,7 @@ class _PGPillarRow extends StatelessWidget {
       pillar.onAction != null;
 
   bool get _hasDetails =>
-      (!_isExactZero && _hasReason) ||
-      pillar.facts.isNotEmpty ||
-      pillar.receipt != null ||
-      _hasAction;
+      (!_isExactZero && _hasReason) || pillar.facts.isNotEmpty || _hasAction;
 
   String _semanticsLabel({
     required bool hasScore,
@@ -581,14 +575,6 @@ class _PGPillarRow extends StatelessWidget {
                               const SizedBox(height: V2Spacing.space8),
                               _PillarFact(fact: fact),
                             ],
-                            if (pillar.receipt != null) ...[
-                              const SizedBox(height: V2Spacing.space8),
-                              _PillarReceipt(
-                                receipt: pillar.receipt!,
-                                reviewIncomplete:
-                                    status == V4PillarStatus.notYetAssessed,
-                              ),
-                            ],
                             if (_hasAction) ...[
                               const SizedBox(height: V2Spacing.space8),
                               TextButton(
@@ -609,58 +595,6 @@ class _PGPillarRow extends StatelessWidget {
   }
 }
 
-/// How a pillar's points add up, from the pipeline receipt. Rows are the
-/// receipt's own kinds; only the labels are app copy. "Not earned" sits apart
-/// because it is capacity, not part of the sum.
-class _PillarReceipt extends StatelessWidget {
-  final V4PillarReceipt receipt;
-  final bool reviewIncomplete;
-  const _PillarReceipt({required this.receipt, required this.reviewIncomplete});
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = <(String, double)>[
-      ('Earned', receipt.points('earned')),
-      ('Neutral credit', receipt.points('neutral')),
-      ('Disclosure credit', receipt.points('disclosure')),
-      ('Deductions', receipt.points('deduction')),
-      ('Floors, caps and rounding', receipt.adjustments),
-    ].where((row) => row.$2.abs() >= 0.00005).toList();
-    Widget line(String label, String value, Color color) => Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(label, style: V2Typography.caption(color: color)),
-          ),
-          Text(value, style: V2Typography.monoData(color: color)),
-        ],
-      ),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'How these points add up',
-          style: V2Typography.caption(color: context.v2.fgMuted),
-        ),
-        for (final (label, points) in rows)
-          line(
-            label,
-            '${points < 0 ? '−' : '+'}${points.abs().toStringAsFixed(4).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')}',
-            context.v2.fg,
-          ),
-        if ((receipt.unawarded * 10).round() != 0)
-          line(
-            reviewIncomplete ? 'Not yet assessed' : 'Not earned',
-            PGScoreBreakdownCard.fmtScore(receipt.unawarded),
-            context.v2.fgMuted,
-          ),
-      ],
-    );
-  }
-}
-
 class _PillarFact extends StatelessWidget {
   final V4PillarFact fact;
   const _PillarFact({required this.fact});
@@ -671,13 +605,6 @@ class _PillarFact extends StatelessWidget {
     children: [
       Text(fact.label, style: V2Typography.caption(color: context.v2.fgMuted)),
       Text(fact.valueDisplay, style: V2Typography.bodySm(color: context.v2.fg)),
-      if (fact.detail != null) ...[
-        const SizedBox(height: 2),
-        Text(
-          fact.detail!,
-          style: V2Typography.caption(color: context.v2.fgMuted),
-        ),
-      ],
     ],
   );
 }

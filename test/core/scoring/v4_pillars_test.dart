@@ -95,37 +95,63 @@ void main() {
     expect(out.first.reason, isNull);
   });
 
-  // --- Task 1: schema-v1 explanation facts + presentation status ---
+  // --- Consumer fact (schema v2) + presentation status ---
 
-  test('parses schema_version 1 explanation facts in order, verbatim', () {
+  test('shows only the one schema-2 consumer fact, verbatim', () {
     final blob = _fullBlob();
     (blob['dose'] as Map<String, dynamic>)['explanation'] = {
-      'schema_version': 1,
+      'schema_version': 2,
       'facts': [
         {
-          'id': 'epa_dha_per_day',
-          'label': 'EPA + DHA per day',
-          'value_display': '660 mg/day',
-          'detail': 'From the label-directed daily serving.',
+          'id': 'dose_arithmetic',
+          'label': 'How Dose adds up',
+          'value_display': 'Adequacy 20/20; no upper-limit cap applies.',
+          'audience': 'audit',
         },
         {
-          'id': 'omega_form',
-          'label': 'Molecular form',
-          'value_display': 'Ethyl ester',
+          'id': 'dose_amount_vs_reference',
+          'label': 'Amount vs reference',
+          'value_display': '950 mg EPA + DHA a day; reference 250 mg',
+          'audience': 'consumer',
+        },
+        {
+          'id': 'second_consumer',
+          'label': 'Never shown',
+          'value_display': 'A second consumer fact is not rendered',
+          'audience': 'consumer',
         },
       ],
     };
     final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
-    expect(dose.facts.length, 2);
-    expect(dose.facts[0].id, 'epa_dha_per_day');
-    expect(dose.facts[0].label, 'EPA + DHA per day');
-    expect(dose.facts[0].valueDisplay, '660 mg/day');
-    expect(dose.facts[0].detail, 'From the label-directed daily serving.');
-    expect(dose.facts[1].id, 'omega_form');
-    expect(dose.facts[1].valueDisplay, 'Ethyl ester');
+    expect(dose.facts.length, 1);
+    expect(dose.facts.single.id, 'dose_amount_vs_reference');
+    expect(dose.facts.single.label, 'Amount vs reference');
+    expect(
+      dose.facts.single.valueDisplay,
+      '950 mg EPA + DHA a day; reference 250 mg',
+    );
   });
 
-  test('ignores explanation with unsupported schema_version', () {
+  test('an older schema-1 blob shows the reason only, never every fact', () {
+    final blob = _fullBlob();
+    (blob['dose'] as Map<String, dynamic>)['reason'] = 'Dose reason.';
+    (blob['dose'] as Map<String, dynamic>)['explanation'] = {
+      'schema_version': 1,
+      'facts': [
+        {
+          'id': 'dose_contributions',
+          'label': 'What Dose assessed',
+          'value_display': 'vitamin_c: RDA/AI 90 mg (20 points).',
+        },
+        {'id': 'x', 'label': 'X', 'value_display': 'y', 'audience': 'consumer'},
+      ],
+    };
+    final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
+    expect(dose.facts, isEmpty);
+    expect(dose.reason, 'Dose reason.');
+  });
+
+  test('a schema-2 fact without audience is audit detail', () {
     final blob = _fullBlob();
     (blob['dose'] as Map<String, dynamic>)['explanation'] = {
       'schema_version': 2,
@@ -137,17 +163,32 @@ void main() {
     expect(dose.facts, isEmpty);
   });
 
-  test('omits malformed facts but keeps valid ones', () {
+  test('skips a malformed consumer fact and keeps the valid one', () {
     final blob = _fullBlob();
     (blob['dose'] as Map<String, dynamic>)['explanation'] = {
-      'schema_version': 1,
+      'schema_version': 2,
       'facts': [
-        {'id': 'ok', 'label': 'L', 'value_display': 'good'},
-        {'id': '', 'label': 'L', 'value_display': 'no id'},
-        {'id': 'no_label', 'value_display': 'no label'},
-        {'id': 'no_value_display', 'label': 'L'},
-        {'id': 'legacy_display', 'label': 'L', 'display': 'not accepted'},
+        {
+          'id': '',
+          'label': 'L',
+          'value_display': 'no id',
+          'audience': 'consumer',
+        },
+        {'id': 'no_label', 'value_display': 'no label', 'audience': 'consumer'},
+        {'id': 'no_value_display', 'label': 'L', 'audience': 'consumer'},
+        {
+          'id': 'legacy_display',
+          'label': 'L',
+          'display': 'not accepted',
+          'audience': 'consumer',
+        },
         'not a map',
+        {
+          'id': 'ok',
+          'label': 'L',
+          'value_display': 'good',
+          'audience': 'consumer',
+        },
       ],
     };
     final dose = parseV4Pillars(blob).firstWhere((p) => p.key == 'dose');
@@ -249,8 +290,10 @@ void main() {
     });
 
     test('unresolved applicability is neither unreviewed nor a verdict', () {
-      final p =
-          evidencePillar(score: 0, displayState: 'applicability_unestablished');
+      final p = evidencePillar(
+        score: 0,
+        displayState: 'applicability_unestablished',
+      );
 
       expect(p.status, V4PillarStatus.applicabilityNotEstablished);
       expect(p.status, isNot(V4PillarStatus.notYetAssessed));
