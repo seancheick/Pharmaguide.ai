@@ -20,7 +20,6 @@ import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
-import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
 
 FitScoreService _buildService() {
@@ -34,7 +33,6 @@ FitScoreService _buildService() {
     e2b: E2bAgeCalculator(const <String, dynamic>{
       'nutrient_recommendations': <dynamic>[],
     }),
-    e2c: E2cMedicalCalculator(),
   );
 }
 

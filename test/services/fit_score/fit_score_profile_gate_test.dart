@@ -1,15 +1,15 @@
-// Cross-surface consistency tests — Fit Score / E2c must agree with the
+// Cross-surface consistency tests — personal relevance must agree with the
 // product detail screen's profile_gate evaluator.
 //
 // The bug this prevents: detail screen suppresses the topical-aloe
 // pregnancy alert via excludes.product_forms_any, but Fit Score still
-// penalizes the product because it reads condition_summary directly.
+// marks the product because it reads condition_summary directly.
 // Without this test, the two surfaces silently disagree.
 //
 // Spec from dev review: 4 required scenarios:
-//   1. topical aloe + pregnancy: no warning AND no Fit Score / E2c penalty
-//   2. oral aloe + pregnancy: warning AND penalty still apply
-//   3. stale condition_summary without matching gated warning: no penalty
+//   1. topical aloe + pregnancy: no warning and no personal-risk result
+//   2. oral aloe + pregnancy: warning and personal-risk result still apply
+//   3. stale condition_summary without matching gated warning: no result
 //   4. drug-class gate still works
 
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +17,6 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
-import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
@@ -26,7 +25,6 @@ FitScoreService _service() => FitScoreService(
   e1: E1DosageCalculator(const {}),
   e2a: E2aGoalCalculator(const {}),
   e2b: E2bAgeCalculator(const {}),
-  e2c: E2cMedicalCalculator(),
 );
 
 Map<String, dynamic> _emptyExcludes() => const {
@@ -73,7 +71,7 @@ Map<String, dynamic> _aloePregnancyConditionSummary() => const {
 void main() {
   group('Fit Score profile_gate consistency — aloe pregnancy', () {
     test(
-      'topical-only aloe + pregnant user → no penalty (matches detail screen)',
+      'topical-only aloe + pregnant user → no risk (matches detail screen)',
       () {
         final result = _service().calculate(
           nutrients: const [],
@@ -85,15 +83,6 @@ void main() {
           productForm: 'topical_only',
         );
 
-        // E2c starts at 8.0; an avoid penalty would drop it. With the gate
-        // suppressing the warning, no penalty applies → e2c stays at 8.0.
-        expect(
-          result.e2c,
-          8.0,
-          reason:
-              'topical_only excludes the pregnancy alert; '
-              'E2c must NOT penalize',
-        );
         expect(
           result.maxRelevantSeverity,
           isNull,
@@ -102,32 +91,23 @@ void main() {
       },
     );
 
-    test(
-      'oral aloe + pregnant user → penalty applies (warning still fires)',
-      () {
-        final result = _service().calculate(
-          nutrients: const [],
-          productClusters: const [],
-          interactionSummary: _aloePregnancyConditionSummary(),
-          userConditions: const ['pregnancy'],
-          warnings: [_aloePregnancyWarning()],
-          userProfileFlags: const {'pregnant'},
-          productForm: 'capsule', // oral form — gate excludes only topical_only
-        );
+    test('oral aloe + pregnant user → risk applies (warning still fires)', () {
+      final result = _service().calculate(
+        nutrients: const [],
+        productClusters: const [],
+        interactionSummary: _aloePregnancyConditionSummary(),
+        userConditions: const ['pregnancy'],
+        warnings: [_aloePregnancyWarning()],
+        userProfileFlags: const {'pregnant'},
+        productForm: 'capsule', // oral form — gate excludes only topical_only
+      );
 
-        // E2c penalty for avoid severity must be applied → e2c < 8.0.
-        expect(
-          result.e2c,
-          lessThan(8.0),
-          reason: 'oral aloe is not excluded; E2c must penalize',
-        );
-        expect(result.maxRelevantSeverity, equals('avoid'));
-      },
-    );
+      expect(result.maxRelevantSeverity, equals('avoid'));
+    });
   });
 
   group('Fit Score profile_gate consistency — per-warning context', () {
-    test('beta-carotene vitamin A warning is dropped from E2c penalty', () {
+    test('beta-carotene vitamin A warning is dropped from personal risk', () {
       final result = _service().calculate(
         nutrients: const [],
         productClusters: const [],
@@ -161,22 +141,16 @@ void main() {
             const ProductContext(nutrientForm: 'beta_carotene'),
       );
 
-      expect(
-        result.e2c,
-        8.0,
-        reason:
-            'The warning is only about preformed retinol; beta-carotene '
-            'must not create a pregnancy E2c penalty.',
-      );
+      expect(result.maxRelevantSeverity, isNull);
     });
   });
 
   group('Fit Score profile_gate consistency — stale aggregation', () {
-    test('condition_summary entry without matching warning → no penalty '
+    test('condition_summary entry without matching warning → no result '
         '(fail closed)', () {
       // Pipeline emits a stale condition_summary entry but the warnings
       // list lacks any rule tagged with that condition. Without backing
-      // evidence we must NOT penalize.
+      // evidence we must NOT report it as personally relevant.
       final result = _service().calculate(
         nutrients: const [],
         productClusters: const [],
@@ -198,8 +172,7 @@ void main() {
 
       // When no warnings list is passed, the gate filter is bypassed
       // entirely (legacy fallback). When warnings list IS passed but
-      // contains nothing tagged with the condition, the filter drops
-      // the entry → no penalty.
+      // contains nothing tagged with the condition, the filter drops it.
       // The empty-list case takes the legacy path, so Fit Score still
       // applies the penalty. Re-test with one irrelevant warning to
       // exercise the "no relevant warning" branch:
@@ -240,71 +213,56 @@ void main() {
         userProfileFlags: const {'pregnant'},
       );
 
-      expect(
-        result2.e2c,
-        8.0,
-        reason:
-            'No warning is tagged with pregnancy — stale '
-            'aggregation must be dropped (fail closed) so the user '
-            'is not penalized for an unverified condition.',
-      );
+      expect(result2.maxRelevantSeverity, isNull);
       // Sanity check on the bypass path (warnings empty == legacy
-      // behavior): result preserves the unfiltered penalty.
-      expect(result.e2c, lessThan(8.0));
+      // behavior): result preserves the unfiltered relevance.
+      expect(result.maxRelevantSeverity, 'avoid');
     });
   });
 
   group('Fit Score profile_gate consistency — drug-class gate', () {
-    test(
-      'anticoagulant warning fires for user on anticoagulants → penalty',
-      () {
-        final result = _service().calculate(
-          nutrients: const [],
-          productClusters: const [],
-          interactionSummary: const {
-            'condition_summary': <String, dynamic>{},
-            'drug_class_summary': {
-              'anticoagulants': {
-                'label': 'Anticoagulants',
-                'highest_severity': 'caution',
-                'ingredients': ['Ginkgo'],
-              },
+    test('anticoagulant warning fires for user on anticoagulants → risk', () {
+      final result = _service().calculate(
+        nutrients: const [],
+        productClusters: const [],
+        interactionSummary: const {
+          'condition_summary': <String, dynamic>{},
+          'drug_class_summary': {
+            'anticoagulants': {
+              'label': 'Anticoagulants',
+              'highest_severity': 'caution',
+              'ingredients': ['Ginkgo'],
             },
           },
-          userConditions: const [],
-          userDrugClasses: const ['anticoagulants'],
-          warnings: [
-            InteractionWarning(
-              severity: Severity.caution,
-              evidenceLevel: EvidenceLevel.probable,
-              title: 'Bleeding risk',
-              mechanism: 'm',
-              management: 'a',
-              drugClassIds: const ['anticoagulants'],
-              profileGate: {
-                'gate_type': 'drug_class',
-                'requires': {
-                  'conditions_any': <String>[],
-                  'drug_classes_any': ['anticoagulants'],
-                  'profile_flags_any': <String>[],
-                },
-                'excludes': _emptyExcludes(),
-                'dose': null,
+        },
+        userConditions: const [],
+        userDrugClasses: const ['anticoagulants'],
+        warnings: [
+          InteractionWarning(
+            severity: Severity.caution,
+            evidenceLevel: EvidenceLevel.probable,
+            title: 'Bleeding risk',
+            mechanism: 'm',
+            management: 'a',
+            drugClassIds: const ['anticoagulants'],
+            profileGate: {
+              'gate_type': 'drug_class',
+              'requires': {
+                'conditions_any': <String>[],
+                'drug_classes_any': ['anticoagulants'],
+                'profile_flags_any': <String>[],
               },
-            ),
-          ],
-        );
+              'excludes': _emptyExcludes(),
+              'dose': null,
+            },
+          ),
+        ],
+      );
 
-        expect(
-          result.e2c,
-          lessThan(8.0),
-          reason: 'drug-class gate must still penalize when it fires',
-        );
-        expect(result.maxRelevantSeverity, equals('caution'));
-      },
-    );
+      expect(result.maxRelevantSeverity, equals('caution'));
+    });
 
-    test('anticoagulant entry without matching warning → no penalty', () {
+    test('anticoagulant entry without matching warning → no risk', () {
       final result = _service().calculate(
         nutrients: const [],
         productClusters: const [],
@@ -343,13 +301,7 @@ void main() {
         ],
       );
 
-      expect(
-        result.e2c,
-        8.0,
-        reason:
-            'No warning tagged with anticoagulants; stale '
-            'drug_class_summary entry must be dropped.',
-      );
+      expect(result.maxRelevantSeverity, isNull);
     });
   });
 }

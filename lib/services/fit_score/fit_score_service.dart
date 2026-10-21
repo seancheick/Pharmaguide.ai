@@ -5,7 +5,6 @@ import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
-import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_summary_filter.dart';
@@ -14,7 +13,6 @@ class FitScoreService {
   final E1DosageCalculator e1;
   final E2aGoalCalculator e2a;
   final E2bAgeCalculator e2b;
-  final E2cMedicalCalculator e2c;
 
   /// E2a goal-match confidence floor for the "Strong match" tier. E2a is on
   /// a 0.0..2.0 scale (`2.0 * matchedRatio * avgConfidence`, see
@@ -23,12 +21,7 @@ class FitScoreService {
   /// average goal-match confidence of >= 0.75. Below it → "Good fit".
   static const double strongMatchE2aFloor = 1.5;
 
-  FitScoreService({
-    required this.e1,
-    required this.e2a,
-    required this.e2b,
-    required this.e2c,
-  });
+  FitScoreService({required this.e1, required this.e2a, required this.e2b});
 
   FitScoreResult calculate({
     required List<Map<String, dynamic>> nutrients,
@@ -44,8 +37,8 @@ class FitScoreService {
     double mappedCoverage = 1.0,
     // v6.0 profile_gate inputs — when [warnings] is non-empty, the
     // condition_summary / drug_class_summary are filtered against each
-    // warning's profile_gate before any penalty is computed. Keeps Fit
-    // Score consistent with the product detail screen, which suppresses
+    // warning's profile_gate before personal relevance is computed. Keeps the
+    // result consistent with the product detail screen, which suppresses
     // alerts via the same evaluator.
     //
     // When [warnings] is empty (legacy callers / pre-v6.0 cached blobs),
@@ -62,9 +55,9 @@ class FitScoreService {
         .where((goal) => goal != SchemaIds.goalNone)
         .toList(growable: false);
 
-    // Apply v6.0 profile_gate filtering once, at the entry point. Both
-    // _RelevantMatch (assessment) and E2c (penalty) consume the gated
-    // summary so they never disagree about which conditions fire.
+    // Apply v6.0 profile_gate filtering once, at the entry point so personal
+    // relevance and the warning surface cannot disagree about which targets
+    // fire.
     final gatedSummary = warnings.isEmpty
         ? interactionSummary
         : _applyProfileGateFilter(
@@ -99,14 +92,6 @@ class FitScoreService {
       ageBracket: ageBracket,
       sex: sex,
     );
-    final e2cScore = e2c.calculate(
-      interactionSummary: gatedSummary,
-      userConditions: userConditions,
-      userDrugClasses: userDrugClasses,
-    );
-
-    final scoreFit20 = e1Score + e2aScore + e2bScore + e2cScore;
-
     final missingFields = <String>[];
     if (ageBracket == null) missingFields.add('age');
     if (sex == null) missingFields.add('sex');
@@ -114,7 +99,6 @@ class FitScoreService {
       missingFields.add('goals');
     }
 
-    final maxPossible = _maxPossible(ageBracket, sex, evaluatorGoals);
     final assessment = _buildAssessment(
       e1Score: e1Score,
       e2aScore: e2aScore,
@@ -129,13 +113,7 @@ class FitScoreService {
     );
 
     return FitScoreResult(
-      scoreFit20: scoreFit20,
-      e1: e1Score,
-      e2a: e2aScore,
-      e2b: e2bScore,
-      e2c: e2cScore,
       missingFields: missingFields,
-      maxPossible: maxPossible,
       state: assessment.state,
       reasons: assessment.reasons,
       maxRelevantSeverity: assessment.maxRelevantSeverity,
@@ -199,21 +177,6 @@ class FitScoreService {
       'condition_summary': gatedCondition,
       'drug_class_summary': gatedDrug,
     };
-  }
-
-  double _maxPossible(String? ageBracket, String? sex, List<String> goals) {
-    double max = 80.0; // Base quality
-    max += _maxPossibleE1(ageBracket, sex);
-    if (goals.isNotEmpty) max += 2.0; // E2a
-    if (ageBracket != null) max += 3.0; // E2b
-    max += 8.0; // E2c always runs (no conditions = full points)
-    return max;
-  }
-
-  double _maxPossibleE1(String? ageBracket, String? sex) {
-    if (ageBracket == null) return 4.0;
-    if (sex == null) return 0.0;
-    return 7.0;
   }
 
   List<String> _selectedGoalMatches({

@@ -15,27 +15,22 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 // Enum names + ordering are unchanged — only the user-facing display
 // label moves.
 enum Severity {
-  contraindicated(weight: 5, e2cPenalty: -8, label: 'Do not use'),
-  avoid(weight: 4, e2cPenalty: -5, label: 'Not recommended'),
-  caution(weight: 3, e2cPenalty: -3, label: 'Use caution'),
-  monitor(weight: 2, e2cPenalty: -1, label: 'Monitor'),
+  contraindicated(weight: 5, label: 'Do not use'),
+  avoid(weight: 4, label: 'Not recommended'),
+  caution(weight: 3, label: 'Use caution'),
+  monitor(weight: 2, label: 'Monitor'),
   // Informational tier — the profile-less rendering of rules whose
   // intrinsic severity is `avoid` or `caution`. Zero E2C penalty: the
   // user's profile hasn't declared the triggering condition / drug
   // class, so the warning is context, not a score hit. Emitted by the
   // pipeline as `severity_contextual` under schema v5.2.
-  informational(weight: 1, e2cPenalty: 0, label: 'Informational'),
-  safe(weight: 0, e2cPenalty: 0, label: 'Safe');
+  informational(weight: 1, label: 'Informational'),
+  safe(weight: 0, label: 'Safe');
 
   final int weight;
-  final int e2cPenalty;
   final String label;
 
-  const Severity({
-    required this.weight,
-    required this.e2cPenalty,
-    required this.label,
-  });
+  const Severity({required this.weight, required this.label});
 
   /// A "hard" warning — `contraindicated` or `avoid`. The single source of
   /// truth for the check that was previously hand-copied across ~10 sites

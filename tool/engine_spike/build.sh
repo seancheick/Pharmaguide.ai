@@ -61,7 +61,7 @@ if command -v node >/dev/null; then
   timing "$B/node.out"; cpu "$B/node.time"; echo
 fi
 
-echo "== Full-closure probe (imports all 29 engine files; compile-only)"
+echo "== Full-closure probe (imports all 28 engine files; compile-only)"
 "$DART" compile js -O2 $PKG $SPIKE/bin/closure_probe.dart -o "$B/closure_probe.js" > "$B/probe.js.log" 2>&1
 echo "probe js: compiled"
 "$DART" compile exe $PKG $SPIKE/bin/closure_probe.dart -o "$B/closure_probe.exe" > "$B/probe.exe.log" 2>&1

@@ -69,12 +69,14 @@ Map<String, dynamic> _connectedLabelRecord() {
 Future<void> _seedConnectedProduct(
   CoreDatabase coreDb, {
   bool blocked = false,
+  double mappedCoverage = 1,
 }) async {
   await _seedProduct(
     coreDb,
     dsldId: _connectedDsldId,
     productName: 'Connected Label Trust Product',
     blocked: blocked,
+    mappedCoverage: mappedCoverage,
   );
 }
 
@@ -83,6 +85,7 @@ Future<void> _seedProduct(
   required String dsldId,
   required String productName,
   bool blocked = false,
+  double mappedCoverage = 1,
 }) async {
   await coreDb
       .into(coreDb.productsCore)
@@ -94,7 +97,7 @@ Future<void> _seedProduct(
           exportedAt: '2026-07-19T00:00:00Z',
           qualityScoreV4100: const Value(88),
           qualityScoreStatus: const Value('scored'),
-          mappedCoverage: const Value(1),
+          mappedCoverage: Value(mappedCoverage),
           verdict: Value(blocked ? 'BLOCKED' : 'SAFE'),
           productSafetyStatus: Value(blocked ? 'blocked' : null),
           blockingReason: Value(blocked ? 'banned_ingredient' : null),
@@ -162,10 +165,15 @@ Future<void> _pumpConnectedScreen(
   List<int>? fitCalls,
   bool settle = true,
   bool blocked = false,
+  double mappedCoverage = 1,
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
-  await _seedConnectedProduct(coreDb, blocked: blocked);
+  await _seedConnectedProduct(
+    coreDb,
+    blocked: blocked,
+    mappedCoverage: mappedCoverage,
+  );
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
@@ -324,6 +332,25 @@ List<Map<String, dynamic>> _analysisLedger() => [
 
 void main() {
   group('connected unavailable states', () {
+    testWidgets('low coverage keeps the score and shows coverage beside it', (
+      tester,
+    ) async {
+      await _pumpConnectedScreen(
+        tester,
+        mappedCoverage: 0.2,
+        initialSection: null,
+        detailBlob: {
+          'ingredients': const <Map<String, dynamic>>[],
+          'display_ingredients': [_activeLedgerRow('Active row', 0)],
+          'quality_pillars_v4': _connectedV4Pillars(),
+        },
+      );
+
+      expect(find.text('88/100'), findsOneWidget);
+      expect(find.text('Analysis coverage: Limited'), findsOneWidget);
+      expect(find.text('Product quality score unavailable.'), findsNothing);
+    });
+
     testWidgets('fit failure is visible and cannot look like an all-clear', (
       tester,
     ) async {
@@ -619,13 +646,12 @@ void main() {
   });
 
   group('connected transparency disclosure action', () {
-    final trueBlendFlags = <({String name, Object value})>[
+    final nonBooleanBlendFlags = <({String name, Object value})>[
       (name: 'numeric one', value: 1),
-      (name: 'boolean true', value: true),
       (name: 'string one', value: '1'),
       (name: 'string true', value: 'true'),
     ];
-    for (final flag in trueBlendFlags) {
+    for (final flag in nonBooleanBlendFlags) {
       testWidgets('keeps bare ${flag.name} blend audit flag internal', (
         tester,
       ) async {
@@ -645,6 +671,25 @@ void main() {
         expect(disclosure, findsNothing);
       });
     }
+
+    testWidgets('shows the authored boolean proprietary-blend signal', (
+      tester,
+    ) async {
+      await _pumpConnectedScreen(
+        tester,
+        initialSection: null,
+        detailBlob: {
+          'ingredients': const <Map<String, dynamic>>[],
+          'display_ingredients': [_activeLedgerRow('Active row', 0)],
+          'quality_pillars_v4': _connectedV4Pillars(),
+          'proprietary_blend_detail': const {'has_proprietary_blends': true},
+        },
+      );
+
+      final disclosure = find.text('Blend amounts not disclosed');
+      await _scrollConnectedTowardTop(tester);
+      expect(disclosure, findsOneWidget);
+    });
 
     final falseBlendFlags = <({String name, Object value})>[
       (name: 'numeric zero', value: 0),
@@ -1053,7 +1098,7 @@ void main() {
       },
     );
 
-    testWidgets('connected screen keeps unsupported label audit internal', (
+    testWidgets('connected screen shows unsupported label audit honestly', (
       tester,
     ) async {
       await _pumpConnectedScreen(
@@ -1085,8 +1130,8 @@ void main() {
       );
 
       await _scrollConnectedTowardTop(tester);
-      expect(find.text('Label completeness unavailable'), findsNothing);
-      expect(find.textContaining('Label data unavailable'), findsNothing);
+      expect(find.text('Label completeness unavailable'), findsOneWidget);
+      expect(find.textContaining('Label data unavailable'), findsOneWidget);
       expect(find.text('Label completeness: 100%'), findsNothing);
       expect(find.textContaining('Analysis coverage'), findsNothing);
     });
@@ -1098,7 +1143,7 @@ void main() {
     ];
     for (final auditCase in malformedAuditCases) {
       testWidgets(
-        'connected screen keeps present ${auditCase.name} audit internal',
+        'connected screen shows present ${auditCase.name} audit as unavailable',
         (tester) async {
           await _pumpConnectedScreen(
             tester,
@@ -1121,8 +1166,8 @@ void main() {
           );
 
           await _scrollConnectedTowardTop(tester);
-          expect(find.text('Label completeness unavailable'), findsNothing);
-          expect(find.textContaining('Label data unavailable'), findsNothing);
+          expect(find.text('Label completeness unavailable'), findsOneWidget);
+          expect(find.textContaining('Label data unavailable'), findsOneWidget);
           expect(find.textContaining('Label completeness:'), findsNothing);
           expect(find.textContaining('Analysis coverage'), findsNothing);
         },

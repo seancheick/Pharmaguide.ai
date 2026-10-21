@@ -1,8 +1,4 @@
-// FIX 2 (P1) — gating.dart previously had no low-coverage gate at all:
-// `productIsNotScored` only catches a null score, so a scored product with
-// mapped_coverage < 0.3 sailed straight into the confident tier-colored
-// hero score line. `productHasLowCoverage` is the product-row-level gate
-// the hero adapter (sections/hero_section.dart) threads into PGHeroSection.
+// Product safety and quality remain independent of the legacy verdict.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
@@ -34,28 +30,6 @@ ProductsCoreData _row({
 }
 
 void main() {
-  group('productHasLowCoverage', () {
-    test('coverage below the 0.3 floor is low', () {
-      expect(productHasLowCoverage(_row(mappedCoverage: 0.2)), isTrue);
-    });
-
-    test('null coverage is low (unknown ≠ trustworthy)', () {
-      expect(productHasLowCoverage(_row(mappedCoverage: null)), isTrue);
-    });
-
-    test('null product is low (nothing to trust)', () {
-      expect(productHasLowCoverage(null), isTrue);
-    });
-
-    test('coverage at the floor is trusted (floor is `< 0.3`)', () {
-      expect(productHasLowCoverage(_row(mappedCoverage: 0.3)), isFalse);
-    });
-
-    test('healthy coverage is trusted', () {
-      expect(productHasLowCoverage(_row(mappedCoverage: 0.9)), isFalse);
-    });
-  });
-
   group('independent consumer semantics', () {
     test('safety status is invariant across quality scores and tiers', () {
       for (final quality in [

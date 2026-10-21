@@ -207,8 +207,20 @@ void main() {
           reason: '${fixture.expectedInteractionId} must author a valid enum',
         );
         final expectedSeverity = Severity.values.byName(authoredSeverity);
+        final exactProduct =
+            fixture.expectedInteractionId == 'DSI_LEVOTHYROXINE_CALCIUM'
+            ? await coreDb.findById('177088')
+            : null;
+        if (fixture.expectedInteractionId == 'DSI_LEVOTHYROXINE_CALCIUM') {
+          expect(
+            exactProduct,
+            isNotNull,
+            reason: 'Frozen real calcium control DSLD 177088 must be bundled',
+          );
+        }
         final supplement = QuickCheckItem.supplement(
-          await _productForCanonicalId(coreDb, fixture.canonicalId),
+          exactProduct ??
+              await _productForCanonicalId(coreDb, fixture.canonicalId),
         );
         final medication = QuickCheckItem.medication(
           name: fixture.medicationName,
@@ -243,6 +255,11 @@ void main() {
           reason:
               '${fixture.canonicalId} must retain its exact authored severity',
         );
+        if (fixture.expectedInteractionId == 'DSI_LEVOTHYROXINE_CALCIUM') {
+          expect(result.mechanism.toLowerCase(), contains('absorption'));
+          expect(result.management.toLowerCase(), contains('4 hours'));
+          expect(result.sourceUrls, isNotEmpty);
+        }
       }
 
       final suppressedPpiMagnesium = await runQuickCheckPair(
@@ -263,6 +280,23 @@ void main() {
             'PPI → magnesium is a suppressed medication-depletion record, '
             'not an active pairwise Quick Check interaction',
       );
+
+      final calciumProduct = await coreDb.findById('177088');
+      final ironProduct = await coreDb.findById('17105');
+      expect(calciumProduct, isNotNull);
+      expect(ironProduct, isNotNull);
+      final stackInteractions = await runPairCheck(
+        calciumProduct!,
+        ironProduct!,
+        interactionDb,
+      );
+      final calciumIron = stackInteractions.singleWhere(
+        (result) => result.id == 'SSI_IRON_CALCIUM',
+      );
+      expect(calciumIron.severity, Severity.caution);
+      expect(calciumIron.mechanism, isNotEmpty);
+      expect(calciumIron.management, isNotEmpty);
+      expect(calciumIron.sourceUrls, isNotEmpty);
     },
   );
 

@@ -17,13 +17,7 @@ import 'package:pharmaguide/features/product_detail/product_detail_helpers.dart'
 
 FitScoreResult _result(List<String> reasons) {
   return FitScoreResult(
-    scoreFit20: 0,
-    e1: 0,
-    e2a: 0,
-    e2b: 0,
-    e2c: 0,
     missingFields: const [],
-    maxPossible: 100,
     state: FitAssessmentState.goodFit,
     reasons: reasons,
     // Full coverage — these tests exercise goal-label extraction, not
@@ -43,7 +37,7 @@ void main() {
     });
 
     test('reason without "your … goal" pattern → null', () {
-      // E2c medical-compatibility reasons, dosage feedback, etc.
+      // Medical-relevance reasons, dosage feedback, etc.
       // None of these match the goal pattern.
       expect(
         topGoalLabelFromFit(

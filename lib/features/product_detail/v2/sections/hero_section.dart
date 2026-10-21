@@ -26,7 +26,6 @@ import 'package:pharmaguide/core/presentation/package_identity.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
-import 'package:pharmaguide/features/product_detail/v2/gating.dart';
 import 'package:pharmaguide/features/product_detail/widgets/product_image_viewer.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 
@@ -233,10 +232,6 @@ Widget buildHeroSection({
     isNotScored: isNotScored,
     assessmentIncomplete: assessmentIncomplete,
     isBlocked: isBlocked,
-    // Defensive release guard: an incomplete record must never receive a
-    // positive quality verdict. Consumer copy stays neutral; the underlying
-    // catalog diagnosis belongs to the release gate.
-    lowCoverage: productHasLowCoverage(product),
     limitedAssessment: hasLimitedAssessmentConfidence(
       product?.qualityScoreConfidence,
     ),

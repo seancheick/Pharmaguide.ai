@@ -19,13 +19,7 @@ FitScoreResult _fit({
   double mappedCoverage = 1,
 }) {
   return FitScoreResult(
-    scoreFit20: 10,
-    e1: 0,
-    e2a: 0,
-    e2b: 0,
-    e2c: 0,
     missingFields: const [],
-    maxPossible: 100,
     state: state,
     reasons: reasons,
     mappedCoverage: mappedCoverage,
