@@ -1,8 +1,6 @@
-# Export fidelity integration
-Goal: preserve explicit pipeline nutrient-analysis decisions in the app. No pipeline, release, IPA or publication.
-Owner: lib/services/health/product_health_facts.dart::_extractNutrients — evidence: fit_score_provider consumes healthFacts.nutrients; explicit empty analyzed_ingredients previously fell back to raw compound mass. Will NOT create a converter, nutrient identity owner or safety policy.
-Baseline origin/main 8d0b9b0b. Branch codex/export-fidelity, paired pipeline codex/export-fidelity-integration.
-Change: an explicitly present analyzed_ingredients field is authoritative even empty; genuinely legacy blobs lacking the field retain fallback. Ingredient display rows remain intact.
-Validation: fail-first empty-analysis regression reproduced; 75 focused ProductHealthFacts/stack UL tests passed. make gen completed using preserved local interaction DB. Final CI and review pending; no catalog/release readiness claimed.
-Evidence: /Users/seancheick/pg_quality/export_fidelity_integration_20261021/.
-Next: complete paired candidate validation, CI, merge and preserve evidence before branch/worktree cleanup.
+# Export fidelity integration — source complete
+Owner: lib/services/health/product_health_facts.dart::_extractNutrients. Explicit pipeline nutrient analysis remains authoritative even empty; raw ingredient display and genuinely legacy fallback remain available. No new converter, safety policy or clinical owner.
+App PR131 merged at952df373 after exact runtime abf421ab passed CI39524221406; 75 focused health-facts/stack checks and43 Dose V4.1 acceptance tests pass. make gen completed. Fresh independent review has no app finding.
+Paired pipeline PR234 corrects reproductive target scope and export fidelity; its final runtime CI is still pending. Source measurements and unique evidence are preserved at /Users/seancheick/pg_quality/export_fidelity_integration_20261021/.
+No pipeline, catalog, release or IPA was run. Catalog/artifact acceptance awaits Sean's rerun from the earliest stale stage; source completion is not release readiness. Existing source and private local assets remain preserved.
+Next: complete paired pipeline integration, then qualify regenerated catalog/app artifacts under Sean's operation.
