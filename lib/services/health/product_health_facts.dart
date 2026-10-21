@@ -231,9 +231,10 @@ class ProductHealthFacts {
     Map<String, dynamic> blob,
   ) {
     final rdaUlData = blob['rda_ul_data'];
-    if (rdaUlData is Map) {
-      final rows = _extractMapList(rdaUlData['analyzed_ingredients']);
-      if (rows.isNotEmpty) return rows;
+    if (rdaUlData is Map && rdaUlData.containsKey('analyzed_ingredients')) {
+      // An explicit empty/unknown analysis is the pipeline's decision. Raw
+      // label mass must not recreate a nutrient exposure the owner withheld.
+      return _extractMapList(rdaUlData['analyzed_ingredients']);
     }
 
     final direct = _extractMapList(blob['ingredients']);

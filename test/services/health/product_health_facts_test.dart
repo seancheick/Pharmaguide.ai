@@ -392,6 +392,26 @@ void main() {
       expect(facts.ingredientNames, ['Magnesium', 'Cinnamon Extract']);
     });
 
+    test(
+      'explicit empty pipeline nutrient analysis never borrows raw doses',
+      () {
+        final facts = ProductHealthFacts.fromDetailBlob({
+          'rda_ul_data': {'analyzed_ingredients': <Object>[]},
+          'ingredients': [
+            {
+              'name': 'Potassium Iodide',
+              'canonical_id': 'iodine',
+              'quantity': 130,
+              'unit': 'mg',
+            },
+          ],
+        });
+        expect(facts.nutrients, isEmpty);
+        expect(facts.activeIngredients, hasLength(1));
+        expect(facts.ingredientNames, contains('Potassium Iodide'));
+      },
+    );
+
     test('falls back through known legacy ingredient shapes', () {
       final direct = ProductHealthFacts.fromDetailBlob({
         'ingredients': [
