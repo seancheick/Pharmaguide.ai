@@ -5,13 +5,7 @@ void main() {
   group('FitScoreResult', () {
     test('displayText with complete profile', () {
       const result = FitScoreResult(
-        scoreFit20: 15.0,
-        e1: 5.0,
-        e2a: 2.0,
-        e2b: 3.0,
-        e2c: 5.0,
         missingFields: [],
-        maxPossible: 100.0,
         state: FitAssessmentState.strongMatch,
         mappedCoverage: 1.0,
       );
@@ -20,13 +14,7 @@ void main() {
 
     test('displayText with missing fields', () {
       const result = FitScoreResult(
-        scoreFit20: 8.0,
-        e1: 5.0,
-        e2a: 0.0,
-        e2b: 3.0,
-        e2c: 0.0,
         missingFields: ['goals', 'conditions'],
-        maxPossible: 90.0,
         state: FitAssessmentState.incompleteProfile,
         mappedCoverage: 1.0,
       );

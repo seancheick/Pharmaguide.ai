@@ -29,7 +29,6 @@ import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
-import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -50,7 +49,6 @@ final fitScoreServiceProvider = FutureProvider<FitScoreService>((ref) async {
     e1: E1DosageCalculator(rdaData),
     e2a: E2aGoalCalculator(goalData),
     e2b: E2bAgeCalculator(rdaData),
-    e2c: E2cMedicalCalculator(),
   );
 });
 
@@ -78,8 +76,8 @@ final fitScoreForProductProvider = FutureProvider.family
         evaluatorProfileFlagsProvider.future,
       );
       // Include the classes of meds the user added to their stack (same
-      // resolved source stack safety uses) so the medical (E2c) penalty
-      // reflects added medications, not just the profile picker chips.
+      // resolved source stack safety uses) so medical relevance reflects
+      // added medications, not just the profile picker chips.
       final stackMedicationClassIds = await ref.watch(
         currentStackMedicationClassIdsProvider.future,
       );

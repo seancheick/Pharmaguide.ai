@@ -33,7 +33,7 @@ below remain unverified, and ADR-010 remains a proposal. Local receipts:
 ## Answer
 
 **Yes, for both targets, with no TypeScript and no change to `lib/`.** The unchanged engine sources
-(all 29 files in `lib/services/{fit_score,warnings,stack}/` plus their transitive `core/` imports)
+(all 29 files then present in `lib/services/{fit_score,warnings,stack}/` plus their transitive `core/` imports; 28 remain after the October 21 dead FitScore calculator removal)
 compile with `dart compile js -O2` and `dart compile exe` once four files and two Flutter libraries are
 swapped at compile time. The pre-add check and depletion check produced byte-identical findings on the
 Dart VM, AOT native, Deno 2.7.10 and Node 18. Those findings also equal what the real app path produces:
@@ -47,7 +47,7 @@ The biggest piece of work is moving the orchestration out of the Riverpod provid
 ## 1. Engine map: what blocks a server build
 
 Method: transitive import closure of the engine entry files (`tool/engine_spike/bin/closure_probe.dart`
-imports all 29). The closure is 71 files and about 16.8k lines. Riverpod appears **nowhere** in the engine
+imported all 29 at the time). The closure was 71 files and about 16.8k lines. Riverpod appears **nowhere** in the engine
 directories. It appears only in the orchestration providers.
 
 | Blocker | Symbols actually used | Reached from |
@@ -158,7 +158,7 @@ Files in the spike:
   check, the O(n²) stack pivot, food advisories and depletion).
 - **`bin/engine_spike.dart`**: entry point. Line 1 of its output is the canonical findings JSON from
   `lib/findings_codec.dart`; line 2 is `TIMING`.
-- **`bin/closure_probe.dart`**: a compile-only probe that imports all 29 engine files.
+- **`bin/closure_probe.dart`**: a compile-only probe that imports all 28 current engine files.
 - **`test/golden_parity_test.dart`**: the app-side golden check.
 - **`build.sh`**: builds the overlay, runs the VM, compiles and runs exe and JS (Deno and Node), compiles
   the probe and checks parity.

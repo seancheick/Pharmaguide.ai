@@ -56,14 +56,6 @@ void main() {
       expect(Severity.isKnownString('unknown'), isFalse);
       expect(Severity.isKnownString(''), isFalse);
     });
-
-    test('e2cPenalty returns correct values', () {
-      expect(Severity.contraindicated.e2cPenalty, -8);
-      expect(Severity.avoid.e2cPenalty, -5);
-      expect(Severity.caution.e2cPenalty, -3);
-      expect(Severity.monitor.e2cPenalty, -1);
-      expect(Severity.safe.e2cPenalty, 0);
-    });
   });
 
   group('EvidenceLevel', () {

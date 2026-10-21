@@ -5,21 +5,13 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/services/fit_score/fit_display.dart';
 
-/// Build a minimal [FitScoreResult] suitable for `computeFitDisplay`
-/// — the assessment `state` is authoritative for display; score stays
-/// internal/debug-only.
+/// Build a minimal [FitScoreResult] suitable for `computeFitDisplay`.
+/// The categorical assessment state is the sole fit-display contract.
 FitScoreResult _result({
-  required double scoreFit20,
   FitAssessmentState state = FitAssessmentState.goodFit,
 }) {
   return FitScoreResult(
-    scoreFit20: scoreFit20,
-    e1: 0,
-    e2a: 0,
-    e2b: 0,
-    e2c: 0,
     missingFields: const [],
-    maxPossible: 100,
     state: state,
     // Full coverage — these tests exercise state-driven display, not
     // the coverage gate.
@@ -29,31 +21,31 @@ FitScoreResult _result({
 
 void main() {
   group('computeFitDisplay — risk-gate (highest priority)', () {
-    test('Contraindicated → Hidden, even with a high fit fraction', () {
+    test('Contraindicated → Hidden, even with a strong assessment', () {
       final out = computeFitDisplay(
         verdict: Severity.contraindicated,
-        fitResult: _result(scoreFit20: 19),
+        fitResult: _result(),
       );
       expect(out, isA<FitHidden>());
       expect((out as FitHidden).verdict, Severity.contraindicated);
     });
 
-    test('Avoid → Hidden, even with a high fit fraction', () {
+    test('Avoid → Hidden, even with a strong assessment', () {
       final out = computeFitDisplay(
         verdict: Severity.avoid,
-        fitResult: _result(scoreFit20: 18.4),
+        fitResult: _result(),
       );
       expect(out, isA<FitHidden>());
       expect((out as FitHidden).verdict, Severity.avoid);
     });
 
     test(
-      'Avoid + low fit fraction → still Hidden (risk-gate, not score-gate)',
+      'Avoid + limited assessment → still Hidden (risk-gate, not score-gate)',
       () {
-        // Sanity: hide regardless of the underlying fit fraction.
+        // Sanity: hide regardless of the underlying fit assessment.
         final out = computeFitDisplay(
           verdict: Severity.avoid,
-          fitResult: _result(scoreFit20: 2),
+          fitResult: _result(),
         );
         expect(out, isA<FitHidden>());
       },
@@ -61,12 +53,12 @@ void main() {
   });
 
   group('computeFitDisplay — caution/monitor pass-through', () {
-    test('Caution + fit 16/20 → GoodMatch (caution does not hide fit)', () {
+    test('Caution + goodFit → GoodMatch (caution does not hide fit)', () {
       // Spec test: caution doesn't gate fit, just adds an alert that
       // the UI renders alongside the verdict headline.
       final out = computeFitDisplay(
         verdict: Severity.caution,
-        fitResult: _result(scoreFit20: 16, state: FitAssessmentState.goodFit),
+        fitResult: _result(state: FitAssessmentState.goodFit),
       );
       expect(out, isA<FitGoodMatch>());
     });
@@ -74,10 +66,7 @@ void main() {
     test('Caution + strong assessment → GoodMatch cap', () {
       final out = computeFitDisplay(
         verdict: Severity.caution,
-        fitResult: _result(
-          scoreFit20: 18,
-          state: FitAssessmentState.strongMatch,
-        ),
+        fitResult: _result(state: FitAssessmentState.strongMatch),
       );
       expect(out, isA<FitGoodMatch>());
     });
@@ -85,23 +74,17 @@ void main() {
     test('Monitor + strong assessment → GoodMatch cap', () {
       final out = computeFitDisplay(
         verdict: Severity.monitor,
-        fitResult: _result(
-          scoreFit20: 17.5,
-          state: FitAssessmentState.strongMatch,
-        ),
+        fitResult: _result(state: FitAssessmentState.strongMatch),
       );
       expect(out, isA<FitGoodMatch>());
     });
 
-    test('Informational + fit 6/20 → NotRecommended', () {
+    test('Informational + notRecommended → NotRecommended', () {
       // Informational severity (a context-only warning) doesn't gate
-      // and doesn't change the tier band. A low fraction is still low.
+      // and doesn't change the tier band. A limited assessment stays limited.
       final out = computeFitDisplay(
         verdict: Severity.informational,
-        fitResult: _result(
-          scoreFit20: 6,
-          state: FitAssessmentState.notRecommended,
-        ),
+        fitResult: _result(state: FitAssessmentState.notRecommended),
       );
       expect(out, isA<FitNotRecommended>());
     });
@@ -111,10 +94,7 @@ void main() {
     test('Safe + strongMatch state → StrongMatch', () {
       final out = computeFitDisplay(
         verdict: Severity.safe,
-        fitResult: _result(
-          scoreFit20: 19,
-          state: FitAssessmentState.strongMatch,
-        ),
+        fitResult: _result(state: FitAssessmentState.strongMatch),
       );
       expect(out, isA<FitStrongMatch>());
     });
@@ -122,51 +102,36 @@ void main() {
     test('Safe + goodFit state → GoodMatch', () {
       final out = computeFitDisplay(
         verdict: Severity.safe,
-        fitResult: _result(scoreFit20: 17, state: FitAssessmentState.goodFit),
+        fitResult: _result(state: FitAssessmentState.goodFit),
       );
       expect(out, isA<FitGoodMatch>());
     });
 
-    test(
-      'Safe + limitedFit state → LimitedFit even with high internal score',
-      () {
-        final out = computeFitDisplay(
-          verdict: Severity.safe,
-          fitResult: _result(
-            scoreFit20: 19,
-            state: FitAssessmentState.limitedFit,
-          ),
-        );
-        expect(out, isA<FitLimitedFit>());
-      },
-    );
+    test('Safe + limitedFit state → LimitedFit', () {
+      final out = computeFitDisplay(
+        verdict: Severity.safe,
+        fitResult: _result(state: FitAssessmentState.limitedFit),
+      );
+      expect(out, isA<FitLimitedFit>());
+    });
 
     test('Safe + notRecommended state → NotRecommended', () {
       final out = computeFitDisplay(
         verdict: Severity.safe,
-        fitResult: _result(
-          scoreFit20: 18,
-          state: FitAssessmentState.notRecommended,
-        ),
+        fitResult: _result(state: FitAssessmentState.notRecommended),
       );
       expect(out, isA<FitNotRecommended>());
     });
   });
 
   group('computeFitDisplay — incomplete profile', () {
-    test(
-      'Safe + incompleteProfile → FitIncomplete (regardless of fit fraction)',
-      () {
-        final out = computeFitDisplay(
-          verdict: Severity.safe,
-          fitResult: _result(
-            scoreFit20: 15,
-            state: FitAssessmentState.incompleteProfile,
-          ),
-        );
-        expect(out, isA<FitIncomplete>());
-      },
-    );
+    test('Safe + incompleteProfile → FitIncomplete', () {
+      final out = computeFitDisplay(
+        verdict: Severity.safe,
+        fitResult: _result(state: FitAssessmentState.incompleteProfile),
+      );
+      expect(out, isA<FitIncomplete>());
+    });
 
     test('Caution + incompleteProfile → FitIncomplete (still incomplete)', () {
       // Profile incompleteness applies even when there are alerts —
@@ -174,10 +139,7 @@ void main() {
       // becomes the "complete your profile" affordance.
       final out = computeFitDisplay(
         verdict: Severity.caution,
-        fitResult: _result(
-          scoreFit20: 16,
-          state: FitAssessmentState.incompleteProfile,
-        ),
+        fitResult: _result(state: FitAssessmentState.incompleteProfile),
       );
       expect(out, isA<FitIncomplete>());
     });
@@ -189,10 +151,7 @@ void main() {
       // incomplete — the alert message is the priority signal.
       final out = computeFitDisplay(
         verdict: Severity.avoid,
-        fitResult: _result(
-          scoreFit20: 0,
-          state: FitAssessmentState.incompleteProfile,
-        ),
+        fitResult: _result(state: FitAssessmentState.incompleteProfile),
       );
       expect(out, isA<FitHidden>());
     });

@@ -12,7 +12,6 @@ import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
-import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
 
 const _dsldId = 'fit-provider-test';
@@ -21,7 +20,6 @@ FitScoreService _service() => FitScoreService(
   e1: E1DosageCalculator(const {'nutrient_recommendations': <Object>[]}),
   e2a: E2aGoalCalculator(const {'user_goal_mappings': <Object>[]}),
   e2b: E2bAgeCalculator(const {'nutrient_recommendations': <Object>[]}),
-  e2c: E2cMedicalCalculator(),
 );
 
 void main() {

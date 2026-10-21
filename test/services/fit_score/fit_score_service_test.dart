@@ -4,12 +4,11 @@ import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
-import 'package:pharmaguide/services/fit_score/e2c_medical_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
 
 void main() {
   group('FitScoreService', () {
-    test('calculates combined score with full profile', () {
+    test('returns a categorical assessment with a complete profile', () {
       final service = FitScoreService(
         e1: E1DosageCalculator(const <String, dynamic>{
           'nutrient_recommendations': <dynamic>[],
@@ -20,7 +19,6 @@ void main() {
         e2b: E2bAgeCalculator(const <String, dynamic>{
           'nutrient_recommendations': <dynamic>[],
         }),
-        e2c: E2cMedicalCalculator(),
       );
 
       final result = service.calculate(
@@ -32,9 +30,8 @@ void main() {
         userGoals: ['GOAL_SLEEP_QUALITY'],
       );
 
-      // E1: 0 (no nutrients), E2a: 0 (no clusters), E2b: 0 (no nutrients), E2c: 8.0 (no interactions)
-      expect(result.e2c, 8.0);
-      expect(result.scoreFit20, 8.0);
+      expect(result.state, FitAssessmentState.limitedFit);
+      expect(result.maxRelevantSeverity, isNull);
     });
 
     test('reports missing fields', () {
@@ -48,7 +45,6 @@ void main() {
         e2b: E2bAgeCalculator(const <String, dynamic>{
           'nutrient_recommendations': <dynamic>[],
         }),
-        e2c: E2cMedicalCalculator(),
       );
 
       final result = service.calculate(
@@ -62,40 +58,6 @@ void main() {
       expect(result.missingFields, contains('goals'));
     });
 
-    test('maxPossible adjusts based on profile', () {
-      final service = FitScoreService(
-        e1: E1DosageCalculator(const <String, dynamic>{
-          'nutrient_recommendations': <dynamic>[],
-        }),
-        e2a: E2aGoalCalculator(const <String, dynamic>{
-          'user_goal_mappings': <dynamic>[],
-        }),
-        e2b: E2bAgeCalculator(const <String, dynamic>{
-          'nutrient_recommendations': <dynamic>[],
-        }),
-        e2c: E2cMedicalCalculator(),
-      );
-
-      // No profile: max = 80 + 4 + 8 = 92 (E1 baseline mode, no E2a, no E2b)
-      final empty = service.calculate(
-        nutrients: const <Map<String, dynamic>>[],
-        productClusters: const <String>[],
-        interactionSummary: const <String, dynamic>{},
-      );
-      expect(empty.maxPossible, 92.0);
-
-      // Full profile: max = 80 + 7 + 2 + 3 + 8 = 100
-      final full = service.calculate(
-        nutrients: const <Map<String, dynamic>>[],
-        productClusters: const <String>[],
-        interactionSummary: const <String, dynamic>{},
-        ageBracket: '19-30',
-        sex: 'Male',
-        userGoals: const ['GOAL_SLEEP_QUALITY'],
-      );
-      expect(full.maxPossible, 100.0);
-    });
-
     test('explicit no-goals choice is not scored or treated as missing', () {
       final service = FitScoreService(
         e1: E1DosageCalculator(const <String, dynamic>{
@@ -107,7 +69,6 @@ void main() {
         e2b: E2bAgeCalculator(const <String, dynamic>{
           'nutrient_recommendations': <dynamic>[],
         }),
-        e2c: E2cMedicalCalculator(),
       );
 
       final result = service.calculate(
@@ -120,35 +81,12 @@ void main() {
         userGoals: const <String>[SchemaIds.goalNone],
       );
 
-      expect(result.e2a, 0);
-      expect(result.maxPossible, 98);
       expect(result.missingFields, isNot(contains('goals')));
       expect(
         result.reasons,
         isNot(contains('Does not strongly support your selected goals.')),
       );
     });
-
-    test(
-      'maxPossible reflects degraded E1 behavior when age exists without sex',
-      () {
-        final service = FitScoreService(
-          e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
-          e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),
-          e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
-          e2c: E2cMedicalCalculator(),
-        );
-
-        final partial = service.calculate(
-          nutrients: const [],
-          productClusters: const [],
-          interactionSummary: const {},
-          ageBracket: '19-30',
-        );
-
-        expect(partial.maxPossible, 91.0);
-      },
-    );
 
     test('prefers pipeline goal matches over local cluster fallback', () {
       final service = FitScoreService(
@@ -163,7 +101,6 @@ void main() {
           ],
         }),
         e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
-        e2c: E2cMedicalCalculator(),
       );
 
       final result = service.calculate(
@@ -177,7 +114,6 @@ void main() {
         userGoals: const ['GOAL_SLEEP_QUALITY'],
       );
 
-      expect(result.e2a, 1.6);
       expect(result.state, FitAssessmentState.strongMatch);
       expect(result.reasons, contains('Supports your Sleep Quality goal.'));
     });
@@ -187,7 +123,6 @@ void main() {
         e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
         e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),
         e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
-        e2c: E2cMedicalCalculator(),
       );
 
       final result = service.calculate(
@@ -223,7 +158,6 @@ void main() {
             ],
           }),
           e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
-          e2c: E2cMedicalCalculator(),
         );
 
         final result = service.calculate(
@@ -235,7 +169,6 @@ void main() {
           userGoals: const ['GOAL_SLEEP_QUALITY'],
         );
 
-        expect(result.e2a, 2.0);
         expect(result.state, FitAssessmentState.goodFit);
         expect(
           result.reasons,
@@ -248,7 +181,6 @@ void main() {
       e1: E1DosageCalculator({'nutrient_recommendations': <Object>[]}),
       e2a: E2aGoalCalculator({'user_goal_mappings': <Object>[]}),
       e2b: E2bAgeCalculator({'nutrient_recommendations': <Object>[]}),
-      e2c: E2cMedicalCalculator(),
     );
 
     test('tolerates untyped condition/drug summaries (jsonDecode shape) '
@@ -296,8 +228,7 @@ void main() {
       );
 
       expect(result.maxRelevantSeverity, isNull);
-      // No interaction penalty — e2c full marks.
-      expect(result.e2c, 8.0);
+      expect(result.state, isNot(FitAssessmentState.notRecommended));
     });
   });
 }
