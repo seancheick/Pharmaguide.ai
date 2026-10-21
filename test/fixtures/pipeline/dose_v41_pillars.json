@@ -1,5 +1,5 @@
 {
- "_source": "dsld_clean claude/dose-v41 0e9119df3: build_scored_artifact(stored enriched input)[quality_pillars_v4]; generated from manifest-owned Pure input, never edited by hand.",
+ "_source": "dsld_clean claude/score-explanation-cleanup-915b07 0cfc37195: build_scored_artifact(stored enriched input)[quality_pillars_v4]; generated from manifest-owned Pure input, never edited by hand.",
  "products": {
   "205309": {
    "quality_score_v4_100": 76.6,
@@ -32,7 +32,7 @@
     "dose": {
      "score": 10.0,
      "max": 20,
-     "reason": "The higher directed daily amounts of Magnesium exceed its established upper limit (137% of the limit at the highest directed use), so Dose is capped at 10. This cap is PharmaGuide scoring policy, not a medical toxicity grade.",
+     "reason": "The higher directed daily amounts of Magnesium exceed its established upper limit (137% of the limit at the highest directed use), so Dose is capped at 10.",
      "components": {
       "raw_dose": 22.0,
       "archetype": "generic_single_molecule",
@@ -41,16 +41,15 @@
       "safety_ceiling": 10.0
      },
      "explanation": {
-      "schema_version": 1,
+      "schema_version": 2,
       "assessment": {
-       "method": "rda_ul_proxy_until_dietary_intake_table",
+       "method": "source_qualified_contribution_and_completed_neutral",
        "assessment_basis": "directed_daily_use",
        "daily_use": {
         "minimum_servings": 1.0,
         "maximum_servings": 4.0,
         "defaulted": false
        },
-       "deferred_data_dependency": "typical_dietary_intake",
        "reference_assessments": [
         {
          "nutrient": "Magnesium",
@@ -68,7 +67,7 @@
           "id": "adult_neutral_compatibility",
           "age_range": "19-30",
           "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
+          "ul_basis": "lowest_established_ul_across_label_population"
          },
          "reference": {
           "source_owner": "rda_ul_data",
@@ -130,7 +129,7 @@
           "id": "adult_neutral_compatibility",
           "age_range": "19-30",
           "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
+          "ul_basis": "lowest_established_ul_across_label_population"
          },
          "reference": {
           "source_owner": "rda_ul_data",
@@ -166,28 +165,39 @@
        {
         "id": "dose_reference_method",
         "label": "Dose assessment basis",
-        "value_display": "Dose uses recorded nutrient references and applicable preparation benchmarks. Adequacy uses the lowest directed daily use; upper-limit checks use the highest. These are catalog assessments, not a personal dose recommendation."
+        "value_display": "Dose uses recorded nutrient references and applicable preparation benchmarks. Adequacy uses the lowest directed daily use; upper-limit checks use the highest. These are catalog assessments, not a personal dose recommendation.",
+        "audience": "audit"
        },
        {
         "id": "dose_safety_ceiling",
         "label": "Upper-limit scoring rule",
-        "value_display": "When the highest directed daily use exceeds an established upper limit, Dose is at most 10; at 150% of the limit or more it is 0. This product-level cap is applied once, after the ingredient assessment, and never raises a lower score. It is PharmaGuide scoring policy, not a medical toxicity grade. The applicable reference determines which food, supplement or medication sources count; their limits are not interchangeable."
+        "value_display": "When the highest directed daily use exceeds an established upper limit, Dose is at most 10; at 150% of the limit or more it is 0. This product-level cap is applied once, after the ingredient assessment, and never raises a lower score. It is PharmaGuide scoring policy, not a medical toxicity grade. The applicable reference determines which food, supplement or medication sources count; their limits are not interchangeable.",
+        "audience": "audit"
+       },
+       {
+        "id": "dose_upper_limit_result",
+        "label": "Upper limit",
+        "value_display": "Up to 480 mg a day: 137% of the 350 mg Magnesium upper limit (general adult)",
+        "audience": "consumer"
        },
        {
         "id": "dose_contributions",
         "label": "What Dose assessed",
-        "value_display": "magnesium: PharmaGuide contribution target (20% of the FDA Daily Value) 84 mg, 120-480 mg/day by directions, 143% of it at the lowest daily use (20 points).",
-        "detail": "Each declared purpose ingredient counts equally; adequacy is their average."
+        "value_display": "Magnesium: PharmaGuide contribution target (20% of the FDA Daily Value) 84 mg, 120-480 mg/day by directions, 143% of it at the lowest daily use (20 points).",
+        "detail": "Each declared purpose ingredient counts equally; adequacy is their average.",
+        "audience": "audit"
        },
        {
         "id": "dose_upper_reference",
         "label": "Upper-limit check",
-        "value_display": "137% of the Magnesium upper limit of 350 mg (general adult limit) at the highest directed use, 34% at the lowest; Dose is capped at 10 (PharmaGuide scoring policy)."
+        "value_display": "137% of the Magnesium upper limit of 350 mg (general adult limit) at the highest directed use, 34% at the lowest; Dose is capped at 10 (PharmaGuide scoring policy).",
+        "audience": "audit"
        },
        {
         "id": "dose_arithmetic",
         "label": "How Dose adds up",
-        "value_display": "Adequacy 20/20, capped at 10: Dose 10/20."
+        "value_display": "Adequacy 20/20, capped at 10: Dose 10/20.",
+        "audience": "audit"
        }
       ]
      },
@@ -405,16 +415,15 @@
       "reference": 22.0
      },
      "explanation": {
-      "schema_version": 1,
+      "schema_version": 2,
       "assessment": {
-       "method": "rda_ul_proxy_until_dietary_intake_table",
+       "method": "source_qualified_contribution_and_completed_neutral",
        "assessment_basis": "directed_daily_use",
        "daily_use": {
         "minimum_servings": 1.0,
         "maximum_servings": 1.0,
         "defaulted": false
        },
-       "deferred_data_dependency": "typical_dietary_intake",
        "reference_assessments": [
         {
          "nutrient": "Magnesium",
@@ -432,7 +441,7 @@
           "id": "adult_neutral_compatibility",
           "age_range": "19-30",
           "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
+          "ul_basis": "lowest_established_ul_across_label_population"
          },
          "reference": {
           "source_owner": "rda_ul_data",
@@ -494,7 +503,7 @@
           "id": "adult_neutral_compatibility",
           "age_range": "19-30",
           "adequacy_basis": "higher_sourced_adult_male_female_rda_ai",
-          "ul_basis": "lower_sourced_adult_male_female_ul"
+          "ul_basis": "lowest_established_ul_across_label_population"
          },
          "reference": {
           "source_owner": "rda_ul_data",
@@ -519,18 +528,21 @@
        {
         "id": "dose_reference_method",
         "label": "Dose assessment basis",
-        "value_display": "Dose uses recorded nutrient references and applicable preparation benchmarks. Adequacy uses the lowest directed daily use; upper-limit checks use the highest. These are catalog assessments, not a personal dose recommendation."
+        "value_display": "Dose uses recorded nutrient references and applicable preparation benchmarks. Adequacy uses the lowest directed daily use; upper-limit checks use the highest. These are catalog assessments, not a personal dose recommendation.",
+        "audience": "audit"
        },
        {
         "id": "dose_contributions",
         "label": "What Dose assessed",
-        "value_display": "magnesium: PharmaGuide contribution target (20% of the FDA Daily Value) 84 mg, 120 mg/day by directions, 143% of it at the lowest daily use (20 points).",
-        "detail": "Each declared purpose ingredient counts equally; adequacy is their average."
+        "value_display": "Magnesium: PharmaGuide contribution target (20% of the FDA Daily Value) 84 mg, 120 mg/day by directions, 143% of it at the lowest daily use (20 points).",
+        "detail": "Each declared purpose ingredient counts equally; adequacy is their average.",
+        "audience": "audit"
        },
        {
         "id": "dose_arithmetic",
         "label": "How Dose adds up",
-        "value_display": "Adequacy 20/20; no upper-limit cap applies: Dose 20/20."
+        "value_display": "Adequacy 20/20; no upper-limit cap applies: Dose 20/20.",
+        "audience": "audit"
        }
       ]
      },
@@ -680,7 +692,7 @@
     "safety_hygiene": {
      "score": 10.0,
      "max": 10,
-     "reason": "No catalog-level formula concerns found in the checks performed. Personal suitability was not assessed.",
+     "reason": "No catalog-level formula concerns were found in the checks performed; personal suitability was not assessed.",
      "components": {
       "clean_base": 10.0,
       "class_i_recall_penalty": 0.0

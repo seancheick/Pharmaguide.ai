@@ -131,12 +131,13 @@ void main() {
         var evidenceActions = 0;
         final pillars = _v4Pillars(evidence: 12, formulation: 13.9);
         (pillars['evidence'] as Map<String, dynamic>)['explanation'] = {
-          'schema_version': 1,
+          'schema_version': 2,
           'facts': [
             {
               'id': 'human_trials',
               'label': 'Human trials',
               'value_display': 'Limited',
+              'audience': 'consumer',
             },
           ],
         };

@@ -19,13 +19,6 @@ const List<(String, String, int)> kV4PillarSpec = [
   ('safety_hygiene', 'Formula & quality checks', 10),
 ];
 
-const String kFormulationScope =
-    'Reviews ingredient forms, delivery and formulation design, with deductions '
-    'for recorded formulation concerns. The same feature is counted once; extra '
-    'delivery credit needs its own supporting evidence. Full points mean full '
-    'credit under PharmaGuide’s rules, not proof of the best form or suitability '
-    'for you.';
-
 const String kFormulaQualityChecksScope =
     'Reviews catalog-level concerns such as recalls, dose-limit findings, '
     'additives, and formulation flags. It does not assess whether this '
@@ -105,29 +98,25 @@ bool v4PillarStatusHasNoVerdict(V4PillarStatus status) =>
     status == V4PillarStatus.applicabilityNotEstablished ||
     status == V4PillarStatus.notApplicable;
 
-/// One pipeline-authored explanation fact for a pillar. Pure display data —
-/// the pipeline owns the copy; the app renders [valueDisplay] verbatim and never
-/// synthesizes rationale of its own.
+/// The one pipeline-authored key fact shown under a pillar's reason. Pure
+/// display data — the pipeline chooses and words it; the app renders
+/// [valueDisplay] verbatim and never synthesizes rationale of its own.
 class V4PillarFact {
-  /// Stable fact id, e.g. `epa_dha_per_day`.
+  /// Stable fact id, e.g. `dose_upper_limit_result`.
   final String id;
 
-  /// Short label, e.g. "EPA + DHA per day". Never empty.
+  /// Short label, e.g. "Upper limit". Never empty.
   final String label;
 
   /// Consumer-ready value string from the pipeline contract's `value_display`,
-  /// e.g. "660 mg/day". Never empty (a fact with no `value_display` is dropped
-  /// as malformed).
+  /// e.g. "950 mg EPA + DHA a day; reference 250 mg". Never empty (a fact with
+  /// no `value_display` is dropped as malformed).
   final String valueDisplay;
-
-  /// Optional pipeline-authored context for the fact.
-  final String? detail;
 
   const V4PillarFact({
     required this.id,
     required this.label,
     required this.valueDisplay,
-    this.detail,
   });
 }
 
@@ -173,8 +162,8 @@ class V4PillarValue {
   /// older blobs that predate it. Never computed here.
   final String? displayState;
 
-  /// Pipeline-authored explanation facts (schema v1). Empty for old blobs and
-  /// pillars without facts.
+  /// The pipeline's consumer fact for this pillar: at most one. Empty for old
+  /// blobs and pillars without one.
   final List<V4PillarFact> facts;
 
   /// Pipeline score receipt; null for blobs that predate it.
@@ -283,21 +272,21 @@ V4PillarReceipt? _parseReceipt(Object? receipt) {
   return V4PillarReceipt(pointsByKind: byKind, unawarded: unawarded);
 }
 
-/// Parse a pillar's `explanation` block into facts. Only `schema_version == 1`
-/// is honored; any other version (or a missing/malformed block) yields no
-/// facts, keeping old blobs valid. Each fact must carry a non-empty `id` and
-/// `value_display`; malformed facts are dropped individually, and pipeline strings
-/// are preserved verbatim.
+/// Parse a pillar's `explanation` block into its consumer fact. Only
+/// `schema_version == 2` facts marked `audience: "consumer"` are shown (Sean,
+/// 2026-10-20: one reason sentence plus at most one key fact); audit facts stay
+/// in the blob for the pipeline dashboard. An older blob (schema 1, no
+/// audience) yields no facts, so it shows the reason only. A malformed fact is
+/// dropped, and pipeline strings are preserved verbatim.
 List<V4PillarFact> _parseFacts(Object? explanation) {
   if (explanation is! Map) return const [];
-  if (asFiniteDouble(explanation['schema_version'])?.toInt() != 1) {
+  if (asFiniteDouble(explanation['schema_version'])?.toInt() != 2) {
     return const [];
   }
   final rawFacts = explanation['facts'];
   if (rawFacts is! List) return const [];
-  final out = <V4PillarFact>[];
   for (final rf in rawFacts) {
-    if (rf is! Map) continue;
+    if (rf is! Map || rf['audience'] != 'consumer') continue;
     final id = rf['id'] is String ? (rf['id'] as String).trim() : '';
     final label = rf['label'] is String ? rf['label'] as String : '';
     final valueDisplay = rf['value_display'] is String
@@ -306,18 +295,8 @@ List<V4PillarFact> _parseFacts(Object? explanation) {
     if (id.isEmpty || label.trim().isEmpty || valueDisplay.trim().isEmpty) {
       continue;
     }
-    final rawDetail = rf['detail'];
-    final detail = rawDetail is String && rawDetail.trim().isNotEmpty
-        ? rawDetail
-        : null;
-    out.add(
-      V4PillarFact(
-        id: id,
-        label: label,
-        valueDisplay: valueDisplay,
-        detail: detail,
-      ),
-    );
+    // The pipeline emits at most one; a second is never rendered.
+    return [V4PillarFact(id: id, label: label, valueDisplay: valueDisplay)];
   }
-  return out;
+  return const [];
 }
