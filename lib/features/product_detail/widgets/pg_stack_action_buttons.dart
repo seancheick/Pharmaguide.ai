@@ -40,7 +40,7 @@ class PGStackActionButtons extends ConsumerWidget {
 
   /// True when the product carries a blocked or unsafe catalog status.
   /// Drives the
-  /// "See higher-quality options" primary swap.
+  /// "Compare other products" primary swap.
   final bool isUnsafe;
 
   /// Tap target when the unsafe-state primary fires. Screen wires
@@ -306,7 +306,7 @@ class _SeeHigherQualityButton extends StatelessWidget {
         minimumSize: const Size.fromHeight(52),
       ),
       icon: const Icon(Icons.shield_outlined, size: 20),
-      label: const Text('See higher-quality options'),
+      label: const Text('Compare other products'),
     );
   }
 }

@@ -218,7 +218,7 @@ class UlExceedance {
   final bool multipleDailyServings;
 
   String get title => multipleDailyServings
-      ? 'Above limit at labeled daily use: $standardName'
+      ? 'Above limit at maximum directed use: $standardName'
       : 'Exceeds upper limit: $standardName';
 
   String get management => multipleDailyServings

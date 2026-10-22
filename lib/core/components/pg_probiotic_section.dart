@@ -183,10 +183,11 @@ class _PGProbioticSectionState extends State<PGProbioticSection> {
                 icon: verifiedCount > 0
                     ? Icons.verified_outlined
                     : Icons.search_off_outlined,
-                label: verifiedCount > 0
-                    ? '$verifiedCount of $namedCount matched to verified research'
-                    : (widget.researchNote ??
-                          'No verified strain-specific research matches'),
+                label:
+                    widget.researchNote ??
+                    (verifiedCount > 0
+                        ? '$verifiedCount of $namedCount matched to verified research'
+                        : 'No verified strain-specific research matches'),
                 color: verifiedCount > 0 ? context.v2.safe : context.v2.fgMuted,
               ),
             ],

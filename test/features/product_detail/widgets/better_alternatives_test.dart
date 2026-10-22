@@ -229,7 +229,7 @@ void main() {
         final coreDb = CoreDatabase.memory();
         await tester.pumpWidget(_wrap(coreDb, _section()));
         await tester.pumpAndSettle();
-        expect(find.text('Similar higher-quality options'), findsNothing);
+        expect(find.text('Other products to compare'), findsNothing);
         // Defensive — old title also absent.
         expect(find.text('Higher quality alternatives'), findsNothing);
         await coreDb.close();
@@ -237,7 +237,7 @@ void main() {
     );
 
     testWidgets(
-      'title is "Similar higher-quality options" (Phase 11.7L.F follow-up)',
+      'title is "Other products to compare" (Phase 11.7L.F follow-up)',
       (tester) async {
         // Sean 2026-05-16: the new ranker mixes strict-quality picks
         // with intent/family/audience matches, so the title now
@@ -257,7 +257,7 @@ void main() {
         await tester.pumpWidget(_wrap(coreDb, _section()));
         await tester.pumpAndSettle();
 
-        expect(find.text('Similar higher-quality options'), findsOneWidget);
+        expect(find.text('Other products to compare'), findsOneWidget);
         // Defensive: the previous title strings shouldn't linger.
         expect(find.text('Higher quality alternatives'), findsNothing);
         expect(find.text('Better Alternatives'), findsNothing);
@@ -428,15 +428,39 @@ void main() {
       await tester.pumpWidget(_wrap(coreDb, _section()));
       await tester.pumpAndSettle();
 
-      expect(find.text('Similar higher-quality options'), findsNothing);
+      expect(find.text('Other products to compare'), findsNothing);
       // Defensive — old title also absent.
       expect(find.text('Higher quality alternatives'), findsNothing);
       await coreDb.close();
     });
 
     // Simulator walkthrough 2026-10-01: the empty card sat under a sticky
-    // "See higher-quality options" button and read as a contradiction. The
+    // "Compare other products" button and read as a contradiction. The
     // button now hides when there are no alternatives, so the card goes too.
+    testWidgets('blocked unscored product makes no higher-score claim', (
+      tester,
+    ) async {
+      final coreDb = CoreDatabase.memory();
+      await _seedCurrent(coreDb);
+      await _seedProduct(
+        coreDb,
+        dsldId: 'alt-1',
+        productName: 'Comparison Multi',
+        brandName: 'BrandA',
+        qualityScoreV4100: 70,
+        category: 'multivitamin',
+      );
+      await tester.pumpWidget(
+        _wrap(coreDb, _section(isBlocked: true, score100: null)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Other products to compare'), findsOneWidget);
+      expect(find.textContaining('higher catalog scores'), findsNothing);
+      expect(find.textContaining('may not be interchangeable'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await coreDb.close();
+    });
+
     testWidgets('blocked product with no match renders nothing', (
       tester,
     ) async {
@@ -449,7 +473,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No comparable alternatives found'), findsNothing);
-      expect(find.text('Similar higher-quality options'), findsNothing);
+      expect(find.text('Other products to compare'), findsNothing);
       await coreDb.close();
     });
   });

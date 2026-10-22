@@ -208,7 +208,7 @@ String formBlockHeading(FormQuality q) {
 String doseBlockHeading(DoseCallOut d) {
   switch (d) {
     case DoseCallOut.highAtDailyUse:
-      return 'Above limit at labeled daily use';
+      return 'Above limit at maximum directed use';
     case DoseCallOut.high:
       return 'High dose';
     case DoseCallOut.low:

@@ -87,7 +87,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Add to my stack'), findsOneWidget);
-      expect(find.text('See higher-quality options'), findsNothing);
+      expect(find.text('Compare other products'), findsNothing);
       expect(find.text('Log dose'), findsNothing);
       expect(
         find.byKey(const Key('product-favorite-heart')),
@@ -112,7 +112,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('See higher-quality options'), findsOneWidget);
+        expect(find.text('Compare other products'), findsOneWidget);
         expect(find.text('Add to my stack'), findsNothing);
         expect(find.text('Log dose'), findsNothing);
 
@@ -188,7 +188,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('See higher-quality options'), findsOneWidget);
+        expect(find.text('Compare other products'), findsOneWidget);
         expect(find.text('In your stack'), findsNothing);
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -233,7 +233,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('See higher-quality options'), findsNothing);
+      expect(find.text('Compare other products'), findsNothing);
       expect(find.text('Add to my stack'), findsNothing);
       await tester.tap(find.text('Scan another product'));
       await tester.pumpAndSettle();
@@ -255,7 +255,7 @@ void main() {
       await tester.pumpWidget(_wrap(coreDb, userDb, isUnsafe: true));
       await tester.pumpAndSettle();
 
-      expect(find.text('See higher-quality options'), findsNothing);
+      expect(find.text('Compare other products'), findsNothing);
       expect(find.text('In your stack'), findsOneWidget);
       expect(find.text('Remove'), findsOneWidget);
 
@@ -282,7 +282,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('See higher-quality options'));
+        await tester.tap(find.text('Compare other products'));
         await tester.pumpAndSettle();
         expect(taps, 1);
 

@@ -26,7 +26,7 @@ void main() {
       expect(doseChipLabel(active.doseCallOut), 'Check daily amount');
       expect(
         doseBlockHeading(active.doseCallOut),
-        'Above limit at labeled daily use',
+        'Above limit at maximum directed use',
       );
     },
   );
