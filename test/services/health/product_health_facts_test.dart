@@ -40,7 +40,7 @@ void main() {
     expect(warnings, hasLength(1));
     expect(
       warnings.single.title,
-      'Above limit at labeled daily use: Magnesium',
+      'Above limit at maximum directed use: Magnesium',
     );
     expect(warnings.single.mechanism, contains('480 mg'));
     expect(warnings.single.mechanism, contains('Supplemental magnesium'));

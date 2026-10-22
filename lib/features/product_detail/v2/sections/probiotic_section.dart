@@ -21,6 +21,7 @@ import 'package:pharmaguide/core/extensions/json_helpers.dart';
 Widget buildProbioticSection({
   required Map<String, dynamic>? probioticDetail,
   bool embedded = false,
+  String? assessmentNote,
   void Function(List<String> sourceUrls)? onTapSources,
 }) {
   if (probioticDetail == null) return const SizedBox.shrink();
@@ -137,7 +138,7 @@ Widget buildProbioticSection({
 
   return PGProbioticSection(
     embedded: embedded,
-    researchNote: researchNote,
+    researchNote: assessmentNote ?? researchNote,
     totalCfuLabel: totalCfuLabel.isNotEmpty ? totalCfuLabel : null,
     totalStrainCount: strainNames.isNotEmpty ? strainNames.length : null,
     hasSurvivabilityCoating: hasSurvivability,

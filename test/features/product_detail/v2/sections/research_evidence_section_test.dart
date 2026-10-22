@@ -79,6 +79,41 @@ Widget _supportHarness({
 }
 
 void main() {
+  testWidgets('probiotic card preserves the canonical applicability gap', (
+    tester,
+  ) async {
+    const reason =
+        'Research is recorded; applicability to this preparation is unresolved.';
+    await tester.pumpWidget(
+      _supportHarness(
+        evidenceData: null,
+        evidence: const [],
+        canonicalIds: const [],
+        qualityPillarsV4: const {
+          'evidence': {
+            'score': 0,
+            'max': 20,
+            'display_state': 'applicability_unestablished',
+            'reason': reason,
+          },
+        },
+        probioticDetail: const {
+          'probiotic_blends': [
+            {
+              'strains': ['GR-1', 'RC-14'],
+            },
+          ],
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(reason), findsOneWidget);
+    expect(
+      find.text('No verified strain-specific research matches'),
+      findsNothing,
+    );
+  });
+
   testWidgets('renders a neutral studied-combinations chip', (tester) async {
     await tester.pumpWidget(_harness(evidence: [_evidence()]));
     await tester.pumpAndSettle();

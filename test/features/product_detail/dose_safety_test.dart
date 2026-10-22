@@ -40,7 +40,7 @@ void main() {
     expect(out, hasLength(1));
     expect(out.single.pctOfUl, 300);
     expect(out.single.warning, contains('Second explanation'));
-    expect(out.single.title, 'Above limit at labeled daily use: Magnesium');
+    expect(out.single.title, 'Above limit at maximum directed use: Magnesium');
     expect(out.single.management, contains('not your confirmed intake'));
   });
 

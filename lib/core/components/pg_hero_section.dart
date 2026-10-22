@@ -476,11 +476,7 @@ class _Subtitle extends StatelessWidget {
       );
     }
 
-    return Text.rich(
-      TextSpan(children: spans),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-    );
+    return Text.rich(TextSpan(children: spans), softWrap: true);
   }
 
   TextSpan _dotSpan(BuildContext context) => TextSpan(

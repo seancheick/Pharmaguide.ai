@@ -18,6 +18,29 @@ import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 
 void main() {
+  testWidgets(
+    'long quality labels remain readable at phone width and large text',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MediaQuery(
+              data: MediaQueryData(textScaler: TextScaler.linear(2)),
+              child: SizedBox(
+                width: 280,
+                child: PGScoreLine(score: 68, prominent: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      final label = tester.widget<Text>(find.text('Needs improvement'));
+      expect(label.maxLines, isNull);
+      expect(label.overflow, isNot(TextOverflow.ellipsis));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   Future<void> pump(
     WidgetTester tester,
     ThemeData theme,

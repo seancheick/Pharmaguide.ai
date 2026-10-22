@@ -128,6 +128,16 @@ class ResearchSupportSection extends ConsumerWidget {
       qualityPillarsV4,
     ).where((pillar) => pillar.key == 'evidence').firstOrNull;
     final pillarPresentation = _evidencePillarPresentation(evidencePillar);
+    // Render the producer's assessment; strain badge counts cannot replace
+    // a product-level applicability or review limitation.
+    final assessmentNote =
+        const {
+          'applicability_unestablished',
+          'not_yet_reviewed',
+          'not_applicable',
+        }.contains(evidencePillar?.displayState)
+        ? evidencePillar?.reason
+        : null;
     final research = canonicalIds.isEmpty
         ? const <ResearchPairEvidence>[]
         : ref
@@ -154,6 +164,7 @@ class ResearchSupportSection extends ConsumerWidget {
             ? null
             : buildProbioticSection(
                 probioticDetail: probioticDetail,
+                assessmentNote: assessmentNote,
                 embedded: true,
                 onTapSources: onTapProbioticSources,
               ),
@@ -162,6 +173,7 @@ class ResearchSupportSection extends ConsumerWidget {
 
     final probiotic = buildProbioticSection(
       probioticDetail: probioticDetail,
+      assessmentNote: assessmentNote,
       onTapSources: onTapProbioticSources,
     );
     if (research.isNotEmpty && probioticDetail != null) {

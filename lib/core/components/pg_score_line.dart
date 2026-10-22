@@ -122,10 +122,7 @@ class PGScoreLine extends StatelessWidget {
                 ),
               ),
               if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
-              // Tier label wraps in Flexible + ellipsis so the row
-              // can survive tight column widths (e.g. 130pt slot
-              // in Home's Recent-scans carousel). Long labels like
-              // Tier labels can overflow otherwise.
+              // Preserve the full quality label at narrow widths and large text.
               if (!limitedConfidence)
                 Flexible(
                   child: Text(
@@ -137,8 +134,7 @@ class PGScoreLine extends StatelessWidget {
                           fontSize: headlineSize,
                           fontWeight: headlineWeight,
                         ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                   ),
                 ),
             ],
