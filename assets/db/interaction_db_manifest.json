@@ -1,7 +1,7 @@
 {
   "built_at": "2026-10-12T22:45:00Z",
-  "checksum": "sha256:6cc6dd16c5f2fced896b71cbda3608dbececdf6c0dfc3a659f4f308916abb5fb",
-  "checksum_sha256": "6cc6dd16c5f2fced896b71cbda3608dbececdf6c0dfc3a659f4f308916abb5fb",
+  "checksum": "sha256:aa115b645efefffc1f4b5d5bcf4e24a7c9e1e16ce846d8a8a405eee98ae16020",
+  "checksum_sha256": "aa115b645efefffc1f4b5d5bcf4e24a7c9e1e16ce846d8a8a405eee98ae16020",
   "db_version": "1.0.15",
   "integrity": {
     "integrity_check": "ok",
@@ -12,7 +12,7 @@
   "pipeline_version": "3.4.0",
   "profile_warning_rules_count": 154,
   "profile_warning_rules_version": "6.3.0",
-  "release_staged_at": "2026-10-21T14:21:16Z",
+  "release_staged_at": "2026-10-22T01:38:55Z",
   "schema_version": "4.0.0",
   "source_drafts_count": 131,
   "source_suppai_count": 31768,
