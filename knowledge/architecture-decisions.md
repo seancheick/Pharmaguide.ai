@@ -203,7 +203,7 @@
 - **Three data locations.** Shared data can be stored by PharmaGuide, transmitted to the AI provider, and retained in the provider's chat history. Revocation reaches the first and ends the second; it cannot reach the third, and the consent copy says so. A supplement list sent to a provider is a new disclosure even when PharmaGuide stores nothing new, so it gets the same consent preview.
 - **Security requirements S1–S10**, each with an automated test (full table: `docs/security/ai-connector-threat-model.md`):
   - S1 Database isolation: restrictive `client_id IS NULL` RLS on user-owned tables, Storage, SECURITY DEFINER RPCs and user-JWT functions; MCP servers verify the JWT themselves and never forward it.
-  - S2 Resource binding: an access-token hook stamps the personal MCP audience, and a token minted for another resource is rejected.
+  - S2 Resource binding: verify the issuer actually binds tokens to the requested MCP resource; audience stamping alone is insufficient. Legacy Supabase third-party issuance remains disabled.
   - S3 Client identity: production accepts only pre-registered clients with exact callback URIs; DCR runs on staging only.
   - S4 Consent preview: destination, categories, duration, the three data locations and the revocation path.
   - S5 Revocation and purge: disconnect, sign-out and account deletion delete snapshots and log rows; an unexpired token loses access immediately.
@@ -214,6 +214,16 @@
   - S10 Grant-level authorization: every personal tool call resolves to an active, unexpired connection and enforces that connection's own categories.
 - **Completeness rule.** "No known concerns" is permitted only when identity resolution, the relevant medication list, amounts/doses and the evaluated rule sets are all present for the shared scope. `mapped_coverage` is one input, never sufficient on its own. Otherwise the answer lists exactly what was not assessed ("not fully checked: medications not shared; 2 ingredients unresolved").
 - **Wording rule.** No tool output makes an unsupported declaration that a product or regimen is safe. Pipeline- and clinician-authored classifications (for example "unsafe" or "contraindicated") pass through verbatim with their `evidence_level` and source.
+
+**October 23 accepted refinement (Sean):** WorkOS durable consent is the assistant OAuth owner;
+Supabase retains ordinary app identity and all existing data owners. OAuth automatic renewal lasts
+until disconnect. Bind phone approval to the verified issuer/sub/client/sid, never mutable metadata
+or the latest connection. A repeated active consent retains existing scope; disconnected consent
+stays revoked and reconnect requires a new SID. Same-token pinned UserInfo supplements local JWT
+and connection checks. Disconnect blocks/purges locally before provider revocation and retains a
+retry barrier on failure. Snapshot lifetime and explicit sharing remain independent. The existing
+threat-model execution register owns evidence and rollout gates; this refinement does not enable
+personal production access or change clinical decisions.
 
 **Consequences:**
 - `test/safety_invariants/no_health_in_supabase_test.dart` gains exactly the snapshot path in its allowlist, nothing broader. `test/release_gate/phi_medication_no_sync_test.dart` stays unchanged.

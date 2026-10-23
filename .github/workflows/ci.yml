@@ -40,6 +40,9 @@ jobs:
       - name: Edge Function tests
         run: deno test --allow-read --allow-env supabase/functions
 
+      - name: AI connector database isolation and phone approval
+        run: bash scripts/test_ai_connector_rls.sh
+
       # interaction_db.sqlite is distributed as a versioned GitHub Release asset
       # (not Git LFS). Hydrate + verify it BEFORE analyze/test/package.
       # fetch_interaction_db.sh fails closed on a bad checksum, header, size, or

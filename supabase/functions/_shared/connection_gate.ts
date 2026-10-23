@@ -25,13 +25,16 @@ export interface AiConnection {
   scope: unknown;
   status: ConnectionStatus | string;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
+  oauth_issuer?: string | null;
+  consent_id?: string | null;
   revoked_at: string | null;
 }
 
 /// Service-role reads of public.ai_connections. Every method is filtered by
 /// the verified user and client, never by a value the caller supplies.
 export interface ConnectionRepository {
+  findByConsent?(userId: string, clientId: string, issuer: string, consentId: string): Promise<AiConnection | null>;
   findBySession(
     userId: string,
     clientId: string,
@@ -70,6 +73,10 @@ function deny(reason: string): GateResult {
 export function evaluate(connection: AiConnection, now: Date): GateResult {
   if (connection.status === "revoked" || connection.revoked_at !== null) return deny(GATE_REASONS.revoked);
   if (connection.status !== "active") return deny(GATE_REASONS.expired);
+  if (connection.expires_at === null) {
+    return connection.oauth_issuer?.startsWith("https://") && connection.consent_id?.startsWith("app_consent_")
+      ? {ok: true, connection} : deny(GATE_REASONS.expired);
+  }
   const expiresAt = Date.parse(connection.expires_at);
   // An unparseable expiry is treated as already expired: fail closed.
   if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime()) {
@@ -83,6 +90,15 @@ export async function resolveConnection(
   repository: ConnectionRepository,
   now: Date = new Date(),
 ): Promise<GateResult> {
+  if (token.provider === "workos") {
+    const bound = await repository.findByConsent?.(token.sub, token.clientId, token.issuer, token.consentId);
+    if (!bound) return deny(GATE_REASONS.noConnection);
+    if (bound.user_id !== token.sub || bound.client_id !== token.clientId ||
+      bound.oauth_issuer !== token.issuer || bound.consent_id !== token.consentId) {
+      return deny(GATE_REASONS.otherSession);
+    }
+    return evaluate(bound, now);
+  }
   const { sub, clientId, sessionId } = token;
   if (sessionId) {
     const bound = await repository.findBySession(sub, clientId, sessionId);

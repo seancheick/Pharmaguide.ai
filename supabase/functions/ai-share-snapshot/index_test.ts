@@ -409,3 +409,13 @@ Deno.test("production containment denies new snapshots but preserves authenticat
     { connectionId: null, userId: USER_A },
   ]);
 });
+
+Deno.test("durable WorkOS connection does not make its shared snapshot permanent", async () => {
+  const c = connection({expires_at: null, oauth_issuer: "https://issuer.authkit.app", consent_id: "app_consent_durable"});
+  const s = await setup([c]);
+  const response = await s.handler(request("POST", await appToken(s), share(c.connection_id, {ttl_hours: 48})));
+  assertEquals(response.status, 201);
+  assertEquals((await response.json()).expires_at, new Date(NOW.getTime() + 48 * HOUR).toISOString());
+  c.status = "revoked";
+  assertEquals((await s.handler(request("POST", await appToken(s), share(c.connection_id)))).status, 403);
+});

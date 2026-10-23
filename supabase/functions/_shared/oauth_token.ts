@@ -2,7 +2,7 @@
 //
 // Supabase Auth's OAuth server issues JWTs with role "authenticated", `sub`,
 // `client_id` and `session_id`. The MCP server verifies every token itself and
-// never forwards it: the signature against the project's JWKS (asymmetric
+// never forwards it to the database: the signature against the project's JWKS (asymmetric
 // algorithms only), the exact issuer, expiry, the audience stamped by
 // public.custom_access_token_hook, and the presence of `sub` and `client_id`.
 // verifyAppSessionToken is the mirror image for ai-share-snapshot: the same
@@ -33,6 +33,8 @@ export type TokenRejection =
   | "missing_subject"
   | "missing_session"
   | "wrong_role"
+  | "userinfo_rejected"
+  | "missing_scope"
   // App-session verification only (verifyAppSessionToken):
   | "assistant_token"
   | "anonymous_user";
@@ -43,7 +45,7 @@ export class TokenRejected extends Error {
   }
 }
 
-export interface OAuthTokenConfig {
+interface OAuthTokenBaseConfig {
   /// Exact `iss`, e.g. https://<ref>.supabase.co/auth/v1
   issuer: string;
   /// Exact `aud`: the personal MCP URL the token hook stamps.
@@ -52,16 +54,33 @@ export interface OAuthTokenConfig {
   now?: () => Date;
 }
 
-export interface VerifiedOAuthToken {
+export type OAuthTokenConfig = OAuthTokenBaseConfig & (
+  | { provider?: "supabase" }
+  | { provider: "workos"; allowedClientIds: readonly string[];
+      userInfoFetch?: typeof fetch; userInfoTimeoutMs?: number }
+);
+
+export type VerifiedOAuthToken = VerifiedSupabaseOAuthToken | {
+  provider: "workos";
+  sub: string;
+  clientId: string;
+  consentId: string;
+  issuer: string;
+  sessionId?: never;
+  claims: JWTPayload;
+};
+
+interface VerifiedSupabaseOAuthToken {
+  provider?: "supabase";
   sub: string;
   clientId: string;
   sessionId: string;
   claims: JWTPayload;
 }
 
-export function remoteJwks(supabaseUrl: string): JWTVerifyGetKey {
+export function remoteJwks(supabaseUrl: string, provider: "supabase" | "workos" = "supabase"): JWTVerifyGetKey {
   return createRemoteJWKSet(
-    new URL("/auth/v1/.well-known/jwks.json", supabaseUrl),
+    new URL(provider === "workos" ? "/oauth2/jwks" : "/auth/v1/.well-known/jwks.json", supabaseUrl),
   );
 }
 
@@ -124,6 +143,53 @@ export async function verifyOAuthAccessToken(
   const claims = await verifySignedClaims(token, config);
   const sub = nonblankString(claims.sub);
   if (!sub) throw new TokenRejected("missing_subject");
+  if (config.provider === "workos") {
+    // The issuer is operator configuration, never token-controlled. Standalone
+    // WorkOS uses the Supabase external user UUID as sub and consent ID as sid.
+    let issuer: URL;
+    try { issuer = new URL(config.issuer); } catch { throw new TokenRejected("wrong_issuer"); }
+    if (issuer.protocol !== "https:" || issuer.username || issuer.password ||
+      issuer.origin !== config.issuer) throw new TokenRejected("wrong_issuer");
+    if (claims.aud !== config.audience) throw new TokenRejected("wrong_audience");
+    const clientId = nonblankString(claims.client_id);
+    if (!clientId || !config.allowedClientIds.includes(clientId)) {
+      throw new TokenRejected("not_an_oauth_client_token");
+    }
+    const consentId = nonblankString(claims.sid);
+    if (!consentId || !/^app_consent_[A-Za-z0-9_-]+$/.test(consentId)) {
+      throw new TokenRejected("missing_session");
+    }
+    const now = Math.floor((config.now?.() ?? new Date()).getTime() / 1000);
+    if (typeof claims.iat !== "number" || !Number.isFinite(claims.iat) ||
+      claims.iat > now || claims.iat >= claims.exp!) throw new TokenRejected("malformed");
+    if (typeof claims.scope !== "string" || !claims.scope.split(/\s+/).includes("openid")) {
+      throw new TokenRejected("missing_scope");
+    }
+    // Live grant check on every request: reuse only this already-verified token.
+    // Do not cache success: a revoked consent must stop existing access tokens.
+    const requestedTimeout = config.userInfoTimeoutMs ?? 5000;
+    if (!Number.isFinite(requestedTimeout) || requestedTimeout < 1 || requestedTimeout > 10000) {
+      throw new TokenRejected("malformed");
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), requestedTimeout);
+    try {
+      const response = await (config.userInfoFetch ?? fetch)(`${config.issuer}/oauth2/userinfo`, {
+        method: "POST", redirect: "error", cache: "no-store", signal: controller.signal,
+        headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+      });
+      if (!response.ok) throw new TokenRejected("userinfo_rejected");
+      const info = await response.json();
+      if (!info || typeof info !== "object" || info.sub !== sub) {
+        throw new TokenRejected("userinfo_rejected");
+      }
+    } catch {
+      throw new TokenRejected("userinfo_rejected");
+    } finally {
+      clearTimeout(timer);
+    }
+    return { provider: "workos", sub, clientId, consentId, issuer: config.issuer, claims };
+  }
   if (claims.role !== "authenticated") throw new TokenRejected("wrong_role");
   const clientId = nonblankString(claims.client_id);
   if (!clientId) throw new TokenRejected("not_an_oauth_client_token");

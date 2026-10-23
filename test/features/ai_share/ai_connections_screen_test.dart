@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +18,7 @@ import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
 import 'package:pharmaguide/services/sharing/clinician_report_document_provider.dart';
 
 import 'ai_share_test_fixtures.dart';
+import '../../support/app_fonts.dart';
 
 final _synced = DateTime.utc(2026, 10, 12, 13);
 
@@ -25,6 +30,7 @@ List<UserStacksLocalData> _rows() => [
 ];
 
 void main() {
+  setUpAll(loadAppFonts);
   late FakeAiShareBackend backend;
   late AiSharePrefsStore prefs;
   late FakeAiConnectionsRepository repo;
@@ -39,8 +45,9 @@ void main() {
     signInTaps = 0;
   });
 
-  Widget app({required bool signedIn}) => ProviderScope(
+  Widget app({required bool signedIn, bool pairing = false}) => ProviderScope(
     overrides: [
+      aiPairingEnabledProvider.overrideWithValue(pairing),
       authStateProvider.overrideWith((ref) {
         final service = AuthStateService();
         if (signedIn) service.onSignedIn();
@@ -68,6 +75,181 @@ void main() {
     of: find.byKey(const Key('ai_keep_updated')),
     matching: find.byType(Switch),
   );
+
+  testWidgets(
+    'pairing previews destination before explicit approval, never shares',
+    (tester) async {
+      repo.preview = (code) async {
+        expect(code, 'ABCDEFGHJKMN');
+        return AiPairingPreview(
+          clientName: 'Codex',
+          callbackHost: 'chatgpt.com',
+          expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+        );
+      };
+      var approvals = 0;
+      repo.approve = (_) async {
+        approvals++;
+      };
+      await tester.pumpWidget(app(signedIn: true, pairing: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enter approval code'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'abcd-efgh jkmn');
+      await tester.tap(find.text('Preview destination'));
+      await tester.pumpAndSettle();
+      expect(find.text('Codex'), findsOneWidget);
+      expect(find.text('chatgpt.com'), findsOneWidget);
+      expect(approvals, 0);
+      await tester.tap(find.text('Approve request'));
+      await tester.pumpAndSettle();
+      expect(approvals, 1);
+      expect(
+        find.textContaining('Return to your assistant or browser'),
+        findsOneWidget,
+      );
+      expect(backend.calls, isEmpty);
+    },
+  );
+
+  testWidgets('late pairing response after closing is ignored', (tester) async {
+    final pending = Completer<AiPairingPreview>();
+    repo.preview = (_) => pending.future;
+    await tester.pumpWidget(app(signedIn: true, pairing: true));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enter approval code'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'ABCDEFGHJKMN');
+    await tester.tap(find.text('Preview destination'));
+    await tester.pump();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    pending.complete(
+      AiPairingPreview(
+        clientName: 'Codex',
+        callbackHost: 'chatgpt.com',
+        expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Codex'), findsNothing);
+  });
+
+  for (final outcome in [
+    'expired',
+    'account changed',
+    'cancel',
+    'error',
+    'signed out',
+  ]) {
+    testWidgets('pairing fails closed or cancels: $outcome', (tester) async {
+      var approvals = 0;
+      var cancellations = 0;
+      final pending = Completer<AiPairingPreview>();
+      repo.preview = (_) => pending.future;
+      repo.approve = (_) async {
+        approvals++;
+      };
+      repo.cancel = (_) async {
+        cancellations++;
+      };
+      await tester.pumpWidget(app(signedIn: true, pairing: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enter approval code'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'ABCDEFGHJKMN');
+      await tester.tap(find.text('Preview destination'));
+      await tester.pump();
+      if (outcome == 'account changed') {
+        repo.pairingSessionIdentity = 'other-account';
+      }
+      if (outcome == 'signed out') {
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(TextField)),
+        );
+        container.read(authStateProvider.notifier).onSignedOut();
+      }
+      if (outcome == 'error') {
+        pending.completeError(StateError('secret error payload'));
+      } else {
+        pending.complete(
+          AiPairingPreview(
+            clientName: 'Codex',
+            callbackHost: 'chatgpt.com',
+            expiresAt: DateTime.now().add(const Duration(seconds: 2)),
+          ),
+        );
+      }
+      await tester.pumpAndSettle();
+      if (outcome == 'expired') {
+        await tester.pump(const Duration(seconds: 3));
+        expect(find.textContaining('This code has expired'), findsOneWidget);
+        await tester.tap(find.text('Approve request'));
+      } else if (outcome == 'cancel') {
+        await tester.tap(find.text('Cancel request'));
+        await tester.pumpAndSettle();
+        expect(cancellations, 1);
+        expect(find.text('Check this destination'), findsNothing);
+      } else {
+        expect(find.text('Approve request'), findsNothing);
+        expect(
+          find.textContaining('This request could not be completed'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('secret error payload'), findsNothing);
+      }
+      expect(approvals, 0);
+      expect(backend.calls, isEmpty);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    });
+  }
+
+  testWidgets('phone preview fits long destination at larger text size', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    repo.preview = (_) async => AiPairingPreview(
+      clientName: 'Codex desktop assistant',
+      callbackHost: 'verified-assistant-callback.example.com',
+      expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+    );
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: const Key('pairing_render'),
+        child: app(signedIn: true, pairing: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enter approval code'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'ABCDEFGHJKMN');
+    await tester.tap(find.text('Preview destination'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Cancel request'));
+    expect(tester.takeException(), isNull);
+    final output = Platform.environment['PG_PAIRING_RENDER_PATH'];
+    if (output != null) {
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.byKey(const Key('pairing_render')),
+      );
+      await tester.runAsync(() async {
+        final image = await boundary.toImage();
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File(output).writeAsBytes(bytes!.buffer.asUint8List());
+        image.dispose();
+      });
+    }
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
 
   test('connection parser keeps only valid stored display metadata', () {
     final row = <String, Object?>{
@@ -111,7 +293,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('claude-ai'), findsOneWidget);
-    expect(find.text('2 supplements available to assistants'), findsOneWidget);
+    expect(find.text('Personal access is not enabled'), findsOneWidget);
+    expect(find.text('Enter approval code'), findsNothing);
     expect(find.text('ACTIVE'), findsOneWidget);
   });
 
@@ -146,6 +329,50 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'durable connection shows until disconnect, independent of snapshots',
+    (tester) async {
+      repo = FakeAiConnectionsRepository([
+        AiConnection.tryParse({
+          'connection_id': 'durable-connection',
+          'client_id': 'codex-client',
+          'client_name': 'Codex',
+          'callback_host': '127.0.0.1',
+          'status': 'active',
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+          'expires_at': null,
+          'oauth_issuer': 'https://issuer.authkit.app',
+          'consent_id': 'app_consent_durable',
+        })!,
+      ]);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: const Key('durable_render'),
+          child: app(signedIn: true, pairing: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Until you disconnect'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      final output = Platform.environment['PG_DURABLE_RENDER_PATH'];
+      if (output != null) {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(const Key('durable_render')),
+        );
+        await tester.runAsync(() async {
+          final image = await boundary.toImage();
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File(output).writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+      }
+    },
+  );
 
   testWidgets('keep updated is off by default and needs a first share', (
     tester,
