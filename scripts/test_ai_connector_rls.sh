@@ -12,6 +12,8 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 docker_bin="${DOCKER_BIN:-docker}"
 if ! command -v "$docker_bin" >/dev/null 2>&1; then
   docker_bin=/Applications/Docker.app/Contents/Resources/bin/docker
+  # Docker Desktop resolves its credential helper through PATH.
+  export PATH="$(dirname "$docker_bin"):$PATH"
 fi
 test_container="pharmaguide-ai-connector-test-$$-$RANDOM"
 cleanup() { "$docker_bin" rm --force "$test_container" >/dev/null 2>&1 || true; }
@@ -44,4 +46,67 @@ for migration in "$repo_dir"/supabase/migrations/*.sql; do
 done
 psql_test -q < "$repo_dir/supabase/tests/ai_connector/restrictive_rls.sql"
 psql_test -q < "$repo_dir/supabase/tests/ai_connector/snapshots_pre_request.sql"
+psql_test -q < "$repo_dir/supabase/tests/ai_connector/phone_pairing.sql"
+# Hold the completion transaction open after it consumes the challenge. A
+# second independent connection must wait and then see the committed consume.
+psql_test -q <<'SQL' &
+SET application_name='aic-pair-complete-race';
+BEGIN;
+SELECT aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),'race','pair-client','https://chatgpt.com/callback') ? 'connection_id','first concurrent completion');
+SELECT pg_sleep(2);
+COMMIT;
+SQL
+pair_race_pid=$!
+pair_race_ready=false
+for attempt in {1..40}; do
+  if [[ "$(psql_test -Atq -c "SELECT count(*) FROM pg_stat_activity WHERE application_name='aic-pair-complete-race' AND wait_event='PgSleep'")" == 1 ]]; then
+    pair_race_ready=true
+    break
+  fi
+  sleep 0.05
+done
+if [[ "$pair_race_ready" != true ]]; then
+  wait "$pair_race_pid"
+  echo 'Pairing concurrency fixture failed to overlap.' >&2
+  exit 1
+fi
+psql_test -q <<'SQL'
+SELECT aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),'race','pair-client','https://chatgpt.com/callback') ? 'error','concurrent replay blocked');
+SELECT aic.assert((SELECT count(*)=1 FROM public.ai_connections WHERE client_id='pair-client' AND status='active'),'one active connection after concurrent completion');
+SQL
+wait "$pair_race_pid"
+# A disconnect holds the identical lock while a delayed completion arrives.
+psql_test -q <<'SQL'
+SELECT aic.assert(aic.pair_start('disconnect-race','KLMNPQRSTUVW') ? 'expires_at','disconnect race fixture');
+BEGIN;
+SELECT aic.phone(1,102);
+SELECT aic.assert(public.approve_ai_connection_pairing('KLMNPQRSTUVW')->>'approved'='true','disconnect race phone approval');
+COMMIT;
+SQL
+psql_test -q <<'SQL' &
+SET application_name='aic-pair-disconnect-race';
+BEGIN;
+SELECT public.revoke_ai_connection_pairings(aic.user_id(1),'pair-client');
+SELECT pg_sleep(2);
+COMMIT;
+SQL
+pair_race_pid=$!
+pair_race_ready=false
+for attempt in {1..40}; do
+  if [[ "$(psql_test -Atq -c "SELECT count(*) FROM pg_stat_activity WHERE application_name='aic-pair-disconnect-race' AND wait_event='PgSleep'")" == 1 ]]; then
+    pair_race_ready=true
+    break
+  fi
+  sleep 0.05
+done
+if [[ "$pair_race_ready" != true ]]; then
+  wait "$pair_race_pid"
+  echo 'Pairing disconnect fixture failed to overlap.' >&2
+  exit 1
+fi
+psql_test -q <<'SQL'
+SELECT aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),'disconnect-race','pair-client','https://chatgpt.com/callback') ? 'error','delayed complete cannot revive disconnected approval');
+SELECT aic.assert(NOT EXISTS(SELECT FROM public.ai_connections WHERE client_id='pair-client' AND status='active'),'disconnect race leaves no active connection');
+SQL
+wait "$pair_race_pid"
 echo 'AI connector SQL tests passed.'

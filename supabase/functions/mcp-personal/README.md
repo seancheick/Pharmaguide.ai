@@ -52,13 +52,32 @@ Deno tests sign fixture tokens with an ephemeral RSA key and use injected reposi
 
 Public testing is available now at `https://mcp.pharmaguide.io/public` (website PR6, CI38467026860, live smoke verified). Codex discovers its three tools as `pharmaguide_public`. This endpoint exposes no personal connector.
 
-## October 23 connection usability candidate
+## October 23 public connection usability deployment
 
 Both production containment paths use the shared explanation in `connection_gate.ts`;
 transient failures keep their existing messages. Authenticated deletion remains available.
 The canonical setup and acceptance guide is [mcp-public/README.md](../mcp-public/README.md).
 Runtime `20c5f4fc` passed CI `40008166478`; 114 focused connector tests passed, including
-containment and deletion. The public candidate passed 15 HTTP checks, six actual Codex
-calls and four complete detail comparisons against production. Claude Code needs local
-sign-in before its client acceptance test can finish. These are candidate receipts;
-main merge, deployment and live acceptance remain pending. Personal activation is excluded.
+containment and deletion. Pipeline PR243 and app PR134 merged with Sean's approval;
+public v4, personal v3 and snapshot v3 were deployed October23. All15live HTTP checks
+and six actual Codex MCP calls passed on the public endpoint. Claude acceptance was
+explicitly deferred by Sean due token quota. Personal activation was excluded.
+
+## October 23 personal connection implementation
+
+Sean approved OAuth, phone approval, read-only scoped snapshots and Codex-first acceptance.
+The existing phone approval work is tracked in `docs/security/ai-connector-threat-model.md`
+(the October23 implementation plan). The production personal and snapshot handlers remain
+contained. Website/app pairing rollout flags default off; this work does not enable the issuer.
+
+A newer WorkOS engineering reply dated October20 confirms that an immutable per-authorization
+identifier is not available and has no delivery date. Their `sid` identifies reusable consent;
+refresh reads its current state. Resource-required enforcement was built but still awaiting
+deployment in that reply. Neither an audience-only check nor a mutable connection claim closes
+our exact-grant requirement. The October15 private retest already reproduces the old-refresh/new-
+consent problem. No self-hosted issuer is introduced and no provider workaround is assumed.
+
+Remaining acceptance: supported immutable grant binding, fresh hosted issuer adversarial tests,
+phone and browser end-to-end confirmation with two accounts, snapshot scope/refresh/expiry/
+disconnect, real Codex private calls and S9 review. A separate signed-in session is a useful
+confirmation boundary, not hardware attestation or proof of physical device possession.

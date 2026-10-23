@@ -198,6 +198,17 @@ class FakeAiConnectionsRepository implements AiConnectionsRepository {
 
   final List<AiConnection> connections;
   int loads = 0;
+  @override
+  Object? pairingSessionIdentity = 'test-user';
+  Future<AiPairingPreview> Function(String)? preview;
+  Future<void> Function(String)? approve;
+  Future<void> Function(String)? cancel;
+  @override
+  Future<AiPairingPreview> previewPairing(String code) => preview!(code);
+  @override
+  Future<void> approvePairing(String code) => approve!(code);
+  @override
+  Future<void> cancelPairing(String code) => cancel!(code);
 
   @override
   Future<List<AiConnection>> listMine() async {

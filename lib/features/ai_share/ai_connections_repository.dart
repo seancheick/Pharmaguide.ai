@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -69,16 +70,134 @@ class AiConnection {
   }
 }
 
+/// A verified destination returned by the signed-in pairing RPC.
+class AiPairingPreview {
+  const AiPairingPreview({
+    required this.clientName,
+    required this.callbackHost,
+    required this.expiresAt,
+  });
+  final String clientName;
+  final String callbackHost;
+  final DateTime expiresAt;
+
+  static String normalizeCode(String value) {
+    final code = value.toUpperCase().replaceAll(RegExp(r'[\s-]'), '');
+    if (!RegExp(r'^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$').hasMatch(code)) {
+      throw const AiPairingException();
+    }
+    return code;
+  }
+
+  static AiPairingPreview parse(Object? value, DateTime now) {
+    if (value is! Map || value.containsKey('error')) {
+      throw const AiPairingException();
+    }
+    final name = AiConnection._displayText(value['client_name']);
+    final host = AiConnection._displayText(value['callback_host']);
+    final expiry = DateTime.tryParse('${value['expires_at']}');
+    if (name == null ||
+        host == null ||
+        expiry == null ||
+        !expiry.isAfter(now)) {
+      throw const AiPairingException();
+    }
+    return AiPairingPreview(
+      clientName: name,
+      callbackHost: host,
+      expiresAt: expiry,
+    );
+  }
+}
+
+/// Deliberately carries no remote error, code, token or health data.
+class AiPairingException implements Exception {
+  const AiPairingException();
+}
+
 /// Reads the signed-in user's connections. An interface so screens are
 /// tested without the global Supabase client.
 abstract interface class AiConnectionsRepository {
   Future<List<AiConnection>> listMine();
+  Object? get pairingSessionIdentity;
+  Future<AiPairingPreview> previewPairing(String code);
+  Future<void> approvePairing(String code);
+  Future<void> cancelPairing(String code);
 }
 
 class SupabaseAiConnectionsRepository implements AiConnectionsRepository {
   SupabaseAiConnectionsRepository([this._client]);
 
   final SupabaseClient? _client;
+
+  @override
+  Object? get pairingSessionIdentity {
+    try {
+      final session = (_client ?? Supabase.instance.client).auth.currentSession;
+      if (session == null || session.isExpired) return null;
+      // Identity comparison only; the server verifies JWTs and authorization.
+      final payload = jsonDecode(
+        utf8.decode(
+          base64Url.decode(
+            base64Url.normalize(session.accessToken.split('.')[1]),
+          ),
+        ),
+      );
+      final id = payload is Map ? payload['session_id'] : null;
+      if (id is! String || id.isEmpty) return null;
+      return (session.user.id, id);
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<Map<dynamic, dynamic>> _pairingRpc(String name, String input) async {
+    final code = AiPairingPreview.normalizeCode(input);
+    try {
+      final client = _client ?? Supabase.instance.client;
+      final identity = pairingSessionIdentity;
+      if (identity == null) throw const AiPairingException();
+      final result = await client.rpc<Object?>(name, params: {'p_code': code});
+      // A response from an old account or replaced session cannot authorize UI.
+      if (pairingSessionIdentity != identity ||
+          result is! Map ||
+          result.containsKey('error')) {
+        throw const AiPairingException();
+      }
+      return result;
+    } on Object {
+      throw const AiPairingException();
+    }
+  }
+
+  @override
+  Future<AiPairingPreview> previewPairing(String code) async =>
+      AiPairingPreview.parse(
+        await _pairingRpc('preview_ai_connection_pairing', code),
+        DateTime.now(),
+      );
+
+  @override
+  Future<void> approvePairing(String code) async {
+    if ((await _pairingRpc(
+          'approve_ai_connection_pairing',
+          code,
+        ))['approved'] !=
+        true) {
+      throw const AiPairingException();
+    }
+  }
+
+  @override
+  Future<void> cancelPairing(String code) async {
+    if ((await _pairingRpc(
+          'cancel_my_ai_connection_pairing',
+          code,
+        ))['cancelled'] !=
+        true) {
+      throw const AiPairingException();
+    }
+  }
 
   @override
   Future<List<AiConnection>> listMine() async {

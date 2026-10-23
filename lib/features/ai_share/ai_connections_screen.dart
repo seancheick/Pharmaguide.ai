@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +12,6 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/features/ai_share/ai_connections_repository.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_consent_screen.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_providers.dart';
-import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
@@ -95,33 +95,35 @@ class _SignedInBody extends ConsumerWidget {
     final connections = ref.watch(aiConnectionsProvider);
     final prefs =
         ref.watch(aiShareConnectionPrefsProvider).asData?.value ?? const {};
-    final rows = ref.watch(activeStackProvider).asData?.value ?? const [];
-    // What the personal connector can already read: supplements this device
-    // has synced. Medications never sync; they reach an assistant only in a
-    // snapshot the user previews and shares.
-    final available = rows
-        .where((e) => e.type == 'supplement' && e.syncedAt != null)
-        .length;
+    final pairingEnabled = ref.watch(aiPairingEnabledProvider);
 
     return ListView(
       padding: const EdgeInsets.all(V2Spacing.space24),
       children: [
         Text(
-          '$available ${available == 1 ? 'supplement' : 'supplements'} '
-          'available to assistants',
+          'Personal access is not enabled',
           style: V2Typography.titleSm(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space8),
         Text(
-          'Your synced supplement list. Medications and your health profile '
-          'reach an assistant only in a snapshot you preview and share.',
+          'Assistant access is currently unavailable. You can still manage '
+          'existing connections. Health snapshots require a separate preview and share.',
           style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space24),
+        if (pairingEnabled) ...[
+          PGPillButton(
+            label: 'Enter approval code',
+            icon: Icons.phonelink_lock_outlined,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const _PairingScreen()),
+            ),
+          ),
+          const SizedBox(height: V2Spacing.space24),
+        ],
         switch (connections) {
           AsyncData(:final value) when value.isEmpty => Text(
-            'No assistants connected yet. Connect PharmaGuide from your AI '
-            'assistant, then come back here to choose what to share.',
+            'No assistants connected yet.',
             style: V2Typography.body(color: context.v2.fgMuted),
           ),
           AsyncData(:final value) => Column(
@@ -156,6 +158,213 @@ class _SignedInBody extends ConsumerWidget {
           ),
         },
       ],
+    );
+  }
+}
+
+class _PairingScreen extends ConsumerStatefulWidget {
+  const _PairingScreen();
+  @override
+  ConsumerState<_PairingScreen> createState() => _PairingScreenState();
+}
+
+class _PairingScreenState extends ConsumerState<_PairingScreen> {
+  final _controller = TextEditingController();
+  late final AiConnectionsRepository _repository;
+  Object? _sessionIdentity;
+  String? _code;
+  AiPairingPreview? _preview;
+  Timer? _expiryTimer;
+  bool _busy = false;
+  bool _approved = false;
+  bool _expired = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _repository = ref.read(aiConnectionsRepositoryProvider);
+    _sessionIdentity = _repository.pairingSessionIdentity;
+  }
+
+  @override
+  void dispose() {
+    _expiryTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _sameAccount =>
+      _sessionIdentity != null &&
+      ref.read(authStateProvider) == AuthMode.signedIn &&
+      _repository.pairingSessionIdentity == _sessionIdentity;
+
+  Future<void> _perform(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (!_sameAccount) throw const AiPairingException();
+      await action();
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error =
+              'This request could not be completed. Check your account and code, or request a new code.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadPreview() => _perform(() async {
+    final code = AiPairingPreview.normalizeCode(_controller.text);
+    final preview = await _repository.previewPairing(code);
+    if (!mounted) return;
+    if (!_sameAccount || !preview.expiresAt.isAfter(DateTime.now())) {
+      throw const AiPairingException();
+    }
+    setState(() {
+      _code = code;
+      _preview = preview;
+      _expired = false;
+    });
+    _controller.clear();
+    _expiryTimer?.cancel();
+    _expiryTimer = Timer(preview.expiresAt.difference(DateTime.now()), () {
+      if (mounted) {
+        setState(() {
+          _expired = true;
+        });
+      }
+    });
+  });
+
+  Future<void> _approve() => _perform(() async {
+    if (_preview == null || !_preview!.expiresAt.isAfter(DateTime.now())) {
+      throw const AiPairingException();
+    }
+    await _repository.approvePairing(_code!);
+    if (!mounted) return;
+    if (!_sameAccount || !_preview!.expiresAt.isAfter(DateTime.now())) {
+      throw const AiPairingException();
+    }
+    _expiryTimer?.cancel();
+    setState(() {
+      _approved = true;
+      _code = null;
+    });
+  });
+
+  Future<void> _cancel() => _perform(() async {
+    await _repository.cancelPairing(_code!);
+    if (mounted && _sameAccount) Navigator.of(context).pop();
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final signedIn = ref.watch(authStateProvider) == AuthMode.signedIn;
+    final preview = _preview;
+    final enabled = signedIn && _sameAccount && !_busy;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Approve an assistant')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(V2Spacing.space24),
+          children: [
+            if (!signedIn || !_sameAccount)
+              const Text(
+                'Your account changed. Close this page and sign in again before approving.',
+              ),
+            if (_approved) ...[
+              Text(
+                'Request approved',
+                style: V2Typography.titleSm(color: context.v2.fg),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              const Text(
+                'Return to your assistant or browser to finish connecting. Approval has not shared a health snapshot.',
+              ),
+            ] else if (preview == null) ...[
+              const Text(
+                'Enter the code shown in your assistant or browser. Use the same PharmaGuide account on both.',
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              TextField(
+                controller: _controller,
+                enabled: enabled,
+                autocorrect: false,
+                enableSuggestions: false,
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 32,
+                decoration: const InputDecoration(
+                  labelText: 'Approval code',
+                  hintText: 'ABCD-EFGH-JKMN',
+                ),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              PGPillButton(
+                label: 'Preview destination',
+                onPressed: enabled ? _loadPreview : null,
+              ),
+            ] else ...[
+              Text(
+                'Check this destination',
+                style: V2Typography.titleSm(color: context.v2.fg),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              Text(
+                preview.clientName,
+                style: V2Typography.titleSm(color: context.v2.fg),
+              ),
+              const SizedBox(height: V2Spacing.space8),
+              Text(
+                preview.callbackHost,
+                style: V2Typography.body(color: context.v2.fg),
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              Text(
+                'Expires ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(preview.expiresAt.toLocal()))}',
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              const Text(
+                'Approve only a request you started for this assistant and destination. This step approves the connection request. You choose and preview any health snapshot separately.',
+              ),
+              const SizedBox(height: V2Spacing.space24),
+              if (_expired)
+                const Text(
+                  'This code has expired. Request a new code in your assistant or browser.',
+                ),
+              PGPillButton(
+                label: 'Approve request',
+                onPressed: enabled && !_expired ? _approve : null,
+              ),
+              TextButton(
+                onPressed: enabled ? _cancel : null,
+                child: const Text('Cancel request'),
+              ),
+            ],
+            if (_busy)
+              const Padding(
+                padding: EdgeInsets.all(V2Spacing.space16),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    semanticsLabel: 'Checking request',
+                  ),
+                ),
+              ),
+            if (_error != null)
+              Semantics(liveRegion: true, child: Text(_error!)),
+          ],
+        ),
+      ),
     );
   }
 }

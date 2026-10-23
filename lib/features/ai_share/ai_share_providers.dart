@@ -28,3 +28,11 @@ final aiShareConnectionPrefsProvider =
     FutureProvider.autoDispose<Map<String, AiShareConnectionPrefs>>(
       (ref) => ref.watch(aiSharePrefsStoreProvider).readAll(),
     );
+
+/// Enables only the phone-approval entry, never personal reads or snapshots.
+final aiPairingEnabledProvider = Provider<bool>(
+  (ref) => const bool.fromEnvironment(
+    'PHARMAGUIDE_AI_PAIRING_ENABLED',
+    defaultValue: false,
+  ),
+);
