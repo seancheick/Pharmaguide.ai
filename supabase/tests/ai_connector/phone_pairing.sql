@@ -142,3 +142,115 @@ BEGIN;
 SELECT aic.phone(1,102);
 SELECT public.approve_ai_connection_pairing('JKLMNPQRSTUV');
 COMMIT;
+
+-- Durable WorkOS registration is service-only and creates no authority.
+SELECT aic.assert(to_regprocedure('public.read_ai_connection_generation(uuid)') IS NOT NULL,'WorkOS generation seam exists');
+CREATE FUNCTION aic.work_register(p_sid text,p_client text DEFAULT 'workos-client',p_user integer DEFAULT 1,p_issuer text DEFAULT 'https://fixture.authkit.app',p_generation integer DEFAULT NULL) RETURNS jsonb
+LANGUAGE sql AS $$ SELECT public.register_workos_ai_pairing(aic.user_id(p_user),p_client,p_issuer,p_sid,'Verified WorkOS Codex','https://chatgpt.com/callback',encode(extensions.digest(gen_random_uuid()::text,'sha256'),'hex'),coalesce(p_generation,public.read_ai_connection_generation(aic.user_id(p_user)))) $$;
+UPDATE public.ai_connection_pairing_limits SET start_window=now()-interval '11 minutes',lookup_window=now()-interval '11 minutes';
+DO $$ DECLARE a text; b text; cid uuid; gen integer; r jsonb; BEGIN
+ PERFORM aic.assert(NOT has_function_privilege('authenticated','public.register_workos_ai_pairing(uuid,text,text,text,text,text,text,integer)','EXECUTE'),'registration service only');
+ PERFORM aic.assert(NOT has_function_privilege('authenticated','public.begin_ai_connection_revocation(uuid,text)','EXECUTE'),'revocation barrier service only');
+ r:=aic.work_register('sid-one'); a:=r->>'authorization_id';
+ PERFORM aic.assert(a::uuid IS NOT NULL,'opaque server generated setup ID');
+ PERFORM aic.assert((SELECT browser_session_id IS NULL AND expires_at-created_at BETWEEN interval '299 seconds' AND interval '301 seconds' FROM public.ai_connection_pairings WHERE authorization_id=a),'unattached pending five minute expiry');
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_connections WHERE client_id='workos-client'),'registration grants no authority');
+ PERFORM aic.assert(public.start_ai_connection_pairing(aic.user_id(1),aic.user_id(101),'legacy-bypass','workos-client','Legacy','https://chatgpt.com/callback',repeat('f',64)) ? 'error','legacy route cannot cancel durable pending');
+ PERFORM aic.assert(aic.work_register('sid-one')->>'authorization_id'=a,'same identity retries reuse pending');
+ PERFORM aic.assert(aic.work_register('sid-one','other-client') ? 'error','consent cannot change client');
+ PERFORM aic.assert(aic.work_register('sid-one','workos-client',2) ? 'error','consent cannot change user');
+ PERFORM aic.assert(aic.work_register('bad-issuer','workos-client',1,'https://fixture.authkit.app/path') ? 'error','issuer must be explicit HTTPS origin');
+ PERFORM aic.assert(public.preview_workos_ai_pairing(aic.user_id(2),a) ? 'error','wrong user cannot preview');
+ PERFORM aic.assert(public.preview_workos_ai_pairing(aic.user_id(1),a)->>'client_name'='Verified WorkOS Codex','preview uses trusted registered metadata');
+ PERFORM aic.assert(public.start_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'wrong-client','Spoofed','https://chatgpt.com/callback',repeat('a',64)) ? 'error','cannot attach other client');
+ PERFORM aic.assert(public.start_ai_connection_pairing(aic.user_id(2),aic.user_id(103),a,'workos-client','Spoofed','https://chatgpt.com/callback',repeat('a',64)) ? 'error','cannot attach other user');
+ PERFORM aic.assert(public.start_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'workos-client','Spoofed','https://chatgpt.com/callback',encode(extensions.digest('MNPQRSTUVWXY','sha256'),'hex')) ? 'expires_at','attach live browser');
+ PERFORM aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'workos-client','https://chatgpt.com/callback') ? 'error','no authority before phone');
+ PERFORM aic.phone(1,101);
+ PERFORM aic.assert(public.approve_ai_connection_pairing('MNPQRSTUVWXY') ? 'error','same browser cannot approve WorkOS');
+ PERFORM aic.phone(1,102);
+ PERFORM aic.assert(public.approve_ai_connection_pairing('MNPQRSTUVWXY')->>'approved'='true','different live phone approves WorkOS');
+ PERFORM set_config('role','none',true);
+ r:=public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'workos-client','https://chatgpt.com/callback'); cid:=(r->>'connection_id')::uuid;
+ PERFORM aic.assert(cid IS NOT NULL,'WorkOS atomic completion');
+ PERFORM aic.assert((SELECT expires_at IS NULL AND session_id IS NULL AND oauth_issuer='https://fixture.authkit.app' AND consent_id='sid-one' FROM public.ai_connections WHERE connection_id=cid),'durable consent explicit and separate from Supabase session');
+ UPDATE public.ai_connections SET scope='{"categories":["supplements","medications"]}' WHERE connection_id=cid;
+ INSERT INTO public.ai_share_snapshots(connection_id,user_id,format,scope,ciphertext,nonce,key_version,expires_at)
+ VALUES(cid,aic.user_id(1),'pharmaguide-brief-markdown/v1','{}','\x00','\x00',1,now()+interval '1 hour');
+ b:=aic.work_register('sid-one')->>'authorization_id';
+ PERFORM aic.assert(public.start_ai_connection_pairing(aic.user_id(1),aic.user_id(101),b,'workos-client','Spoofed','https://chatgpt.com/callback',encode(extensions.digest('NPQRSTUVWXYZ','sha256'),'hex')) ? 'expires_at','repeat exact consent pairing');
+ PERFORM aic.phone(1,102); PERFORM public.approve_ai_connection_pairing('NPQRSTUVWXYZ');
+ PERFORM set_config('role','none',true);
+ PERFORM aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),b,'workos-client','https://chatgpt.com/callback')->>'connection_id'=cid::text,'duplicate exact approval retains connection');
+ PERFORM aic.assert((SELECT scope='{"categories":["supplements","medications"]}'::jsonb FROM public.ai_connections WHERE connection_id=cid) AND EXISTS(SELECT FROM public.ai_share_snapshots WHERE connection_id=cid),'duplicate approval retains scope and snapshot');
+ -- Cancelling an attached but unconsumed retry must also leave authority alone.
+ r:=aic.work_register('sid-one');
+ PERFORM aic.assert(public.start_ai_connection_pairing(aic.user_id(1),aic.user_id(101),r->>'authorization_id','workos-client','Spoofed','https://chatgpt.com/callback',repeat('e',64)) ? 'expires_at','unconsumed retry attaches');
+ PERFORM public.cancel_ai_connection_pairing(aic.user_id(1),aic.user_id(101),r->>'authorization_id');
+ PERFORM aic.assert((SELECT status='active' FROM public.ai_connections WHERE connection_id=cid)
+ AND EXISTS(SELECT FROM public.ai_share_snapshots WHERE connection_id=cid),'unconsumed retry cancellation preserves original authority');
+ -- A repeat approval reuses the original authority; cancellation cannot own it.
+ PERFORM public.cancel_ai_connection_pairing(aic.user_id(1),aic.user_id(101),b);
+ PERFORM aic.assert((SELECT status='active' FROM public.ai_connections WHERE connection_id=cid)
+ AND EXISTS(SELECT FROM public.ai_share_snapshots WHERE connection_id=cid),'repeat compensation preserves original connection and snapshot');
+ PERFORM aic.assert((SELECT revoking_client_id IS NULL FROM public.ai_connection_pairing_limits WHERE user_id=aic.user_id(1)),'repeat cancellation does not revoke provider authority');
+ UPDATE public.ai_share_snapshots SET generated_at=now()-interval '2 hours',expires_at=now()-interval '1 hour' WHERE connection_id=cid;
+ PERFORM public.purge_expired_ai_share_snapshots();
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_share_snapshots WHERE connection_id=cid) AND (SELECT status='active' FROM public.ai_connections WHERE connection_id=cid),'snapshot expires independently of durable consent');
+ INSERT INTO public.ai_share_snapshots(connection_id,user_id,format,scope,ciphertext,nonce,key_version,expires_at)
+ VALUES(cid,aic.user_id(1),'pharmaguide-brief-markdown/v1','{}','\x00','\x00',1,now()+interval '1 hour');
+ PERFORM aic.assert(aic.work_register('sid-two') ? 'error','other active consent for same client denied');
+ PERFORM aic.assert(aic.work_register('sid-one','workos-client',1,'https://other.authkit.app') ? 'error','other issuer cannot replace active client');
+ BEGIN UPDATE public.ai_connections SET client_id='hijack' WHERE connection_id=cid; RAISE EXCEPTION 'FAIL immutable owner'; EXCEPTION WHEN check_violation THEN NULL; END;
+ BEGIN UPDATE public.ai_connections SET oauth_issuer=NULL,consent_id=NULL WHERE connection_id=cid; RAISE EXCEPTION 'FAIL explicit null expiry'; EXCEPTION WHEN check_violation THEN NULL; END;
+ gen:=public.read_ai_connection_generation(aic.user_id(1));
+ r:=public.begin_ai_connection_revocation(aic.user_id(1),'workos-client');
+ PERFORM aic.assert((r->>'generation')::integer=gen+1,'disconnect increments generation');
+ PERFORM aic.assert(public.begin_ai_connection_revocation(aic.user_id(1),'workos-client')=r,'same disconnect retry keeps generation');
+ PERFORM aic.assert(public.begin_ai_connection_revocation(aic.user_id(1),'other-client') ? 'error','other client cannot overwrite barrier');
+ PERFORM aic.assert(aic.work_register('sid-new','new-client') ? 'error','user barrier blocks registration');
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_share_snapshots WHERE connection_id=cid),'disconnect purges snapshot');
+ PERFORM aic.assert(public.finish_ai_connection_revocation(aic.user_id(1),'workos-client',gen) ? 'error','stale provider completion cannot clear barrier');
+ PERFORM aic.assert(public.finish_ai_connection_revocation(aic.user_id(1),'other-client',gen+1) ? 'error','wrong client cannot clear barrier');
+ PERFORM aic.assert(public.finish_ai_connection_revocation(aic.user_id(1),'workos-client',gen+1)->>'finished'='true','exact provider completion clears barrier');
+ PERFORM aic.assert(aic.work_register('sid-new','new-client',1,'https://fixture.authkit.app',gen) ? 'error','UserInfo before revoke cannot register after finish');
+ PERFORM aic.assert(aic.work_register('sid-one') ? 'error','revoked consent is permanent tombstone');
+ BEGIN UPDATE public.ai_connections SET status='active',revoked_at=NULL WHERE connection_id=cid; RAISE EXCEPTION 'FAIL tombstone revival'; EXCEPTION WHEN check_violation THEN NULL; END;
+ -- Cancel a pending, never-approved consent and prove delayed registration cannot revive it.
+ b:=aic.work_register('cancel-sid','cancel-client')->>'authorization_id';
+ PERFORM aic.assert(b IS NOT NULL,'cancel pending fixture');
+ PERFORM public.revoke_ai_connection_pairings(aic.user_id(1),'cancel-client');
+ PERFORM aic.assert((SELECT revoking_client_id='cancel-client' FROM public.ai_connection_pairing_limits WHERE user_id=aic.user_id(1)),'legacy revoke cannot bypass WorkOS barrier');
+ PERFORM public.finish_ai_connection_revocation(aic.user_id(1),'cancel-client',public.read_ai_connection_generation(aic.user_id(1)));
+ PERFORM aic.assert(aic.work_register('cancel-sid','cancel-client') ? 'error','cancelled pending consent cannot revive');
+ PERFORM aic.assert(public.preview_workos_ai_pairing(aic.user_id(1),b) ? 'error','cancelled pending unavailable');
+END $$;
+UPDATE public.ai_connection_pairing_limits SET start_window=now()-interval '11 minutes',lookup_window=now()-interval '11 minutes';
+SELECT aic.assert(pg_get_function_result('public.cancel_ai_connection_pairing(uuid,uuid,text)'::regprocedure)='jsonb','cancel atomically reports revocation ownership');
+-- Deny is available immediately after preview, before the browser attaches a phone code.
+DO $$ DECLARE a text; b text; result jsonb; gen integer; BEGIN
+ a:=aic.work_register('deny-before-start','deny-client')->>'authorization_id';
+ PERFORM aic.assert(public.preview_workos_ai_pairing(aic.user_id(1),a)->>'client_id'='deny-client','preview unbound setup before denial');
+ PERFORM public.cancel_ai_connection_pairing(aic.user_id(2),aic.user_id(103),a);
+ PERFORM public.cancel_ai_connection_pairing(aic.user_id(1),aic.user_id(999),a);
+ PERFORM public.cancel_ai_connection_pairing(aic.user_id(1),aic.user_id(104),a);
+ PERFORM aic.assert((SELECT cancelled_at IS NULL FROM public.ai_connection_pairings WHERE authorization_id=a),'wrong owner and non-live or OAuth sessions cannot deny unbound setup');
+ result:=public.cancel_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a);
+ gen:=(result->>'revocation_generation')::integer;
+ PERFORM aic.assert(result->>'client_id'='deny-client' AND result->>'cancelled'='true' AND gen IS NOT NULL,'unbound Deny atomically returns provider generation');
+ PERFORM aic.assert((SELECT revoking_client_id='deny-client' AND revocation_generation=gen FROM public.ai_connection_pairing_limits WHERE user_id=aic.user_id(1)),'unbound Deny persists recoverable barrier');
+ PERFORM aic.assert((SELECT cancelled_at IS NOT NULL AND browser_session_id IS NULL FROM public.ai_connection_pairings WHERE authorization_id=a),'owner Deny cancels unbound WorkOS setup');
+ PERFORM aic.assert(public.preview_workos_ai_pairing(aic.user_id(1),a) ? 'error','denied setup cannot preview');
+ PERFORM aic.assert(aic.work_register('another-consent','deny-client') ? 'error','Deny barrier blocks new registration');
+ PERFORM aic.assert(public.finish_ai_connection_revocation(aic.user_id(1),'deny-client',gen-1) ? 'error','stale finish cannot clear Deny barrier');
+ PERFORM aic.assert(public.finish_ai_connection_revocation(aic.user_id(1),'deny-client',gen)->>'finished'='true','provider finishes Deny');
+ PERFORM aic.assert(aic.work_register('deny-before-start','deny-client') ? 'error','denied unbound consent cannot revive');
+ b:=aic.work_register('deny-after-start','deny-bound-client')->>'authorization_id';
+ PERFORM aic.assert(public.start_ai_connection_pairing(aic.user_id(1),aic.user_id(101),b,'deny-bound-client','Verified WorkOS Codex','https://chatgpt.com/callback',repeat('9',64)) ? 'expires_at','attach browser before denial');
+ PERFORM public.cancel_ai_connection_pairing(aic.user_id(1),aic.user_id(102),b);
+ PERFORM aic.assert((SELECT cancelled_at IS NULL FROM public.ai_connection_pairings WHERE authorization_id=b),'attached setup still requires exact browser for cancellation');
+ PERFORM public.cancel_ai_connection_pairing(aic.user_id(1),aic.user_id(101),b);
+ PERFORM aic.assert((SELECT cancelled_at IS NOT NULL FROM public.ai_connection_pairings WHERE authorization_id=b),'attached browser can deny');
+ PERFORM public.finish_ai_connection_revocation(aic.user_id(1),'deny-bound-client',public.read_ai_connection_generation(aic.user_id(1)));
+END $$;
+UPDATE public.ai_connection_pairing_limits SET start_window=now()-interval '11 minutes',lookup_window=now()-interval '11 minutes';

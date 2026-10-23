@@ -152,7 +152,7 @@ void main() {
         .connection;
     expect(find.text('Maximum sharing time'), findsOneWidget);
     expect(find.text('Available to the assistant for'), findsNothing);
-    final expiry = formatReportDate(connection.expiresAt.toLocal());
+    final expiry = formatReportDate(connection.expiresAt!.toLocal());
     final clarification = find.text(
       'Sharing ends after this time or when your assistant connection expires '
       'on $expiry, whichever comes first.',

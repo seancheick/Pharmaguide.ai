@@ -246,7 +246,7 @@ DO $$ BEGIN
     INSERT INTO public.ai_connections (user_id, client_id, expires_at, status)
     VALUES (aic.user_id(1), 'client-other', NULL, 'active');
     RAISE EXCEPTION 'FAIL: connection without expiry';
-  EXCEPTION WHEN not_null_violation THEN NULL;
+  EXCEPTION WHEN check_violation THEN NULL;
   END;
   PERFORM aic.assert(
     (SELECT array_agg(column_name::text ORDER BY ordinal_position) FROM information_schema.columns

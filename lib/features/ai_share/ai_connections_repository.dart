@@ -12,6 +12,8 @@ class AiConnection {
     required this.createdAt,
     required this.expiresAt,
     this.revokedAt,
+    this.oauthIssuer,
+    this.consentId,
     this.clientName,
     this.callbackHost,
   });
@@ -31,12 +33,16 @@ class AiConnection {
   /// `active`, `revoked` or `expired`.
   final String status;
   final DateTime createdAt;
-  final DateTime expiresAt;
+  final DateTime? expiresAt;
+  final String? oauthIssuer;
+  final String? consentId;
   final DateTime? revokedAt;
 
   /// Only an active, unexpired connection can receive a share.
   bool isLiveAt(DateTime now) =>
-      status == 'active' && revokedAt == null && expiresAt.isAfter(now);
+      status == 'active' &&
+      revokedAt == null &&
+      (expiresAt?.isAfter(now) ?? (oauthIssuer != null && consentId != null));
 
   /// Null when a required column is missing or malformed: such a row is
   /// never shown as shareable.
@@ -49,7 +55,16 @@ class AiConnection {
     if (id is! String || clientId is! String || status is! String) {
       return null;
     }
-    if (createdAt == null || expiresAt == null) return null;
+    final issuer = row['oauth_issuer'];
+    final consent = row['consent_id'];
+    final durable =
+        row.containsKey('expires_at') &&
+        row['expires_at'] == null &&
+        issuer is String &&
+        Uri.tryParse(issuer)?.scheme == 'https' &&
+        consent is String &&
+        consent.startsWith('app_consent_');
+    if (createdAt == null || (expiresAt == null && !durable)) return null;
     final revoked = row['revoked_at'];
     return AiConnection(
       connectionId: id,
@@ -60,6 +75,8 @@ class AiConnection {
       createdAt: createdAt,
       expiresAt: expiresAt,
       revokedAt: revoked == null ? null : DateTime.tryParse('$revoked'),
+      oauthIssuer: issuer is String ? issuer : null,
+      consentId: consent is String ? consent : null,
     );
   }
 
@@ -209,7 +226,7 @@ class SupabaseAiConnectionsRepository implements AiConnectionsRepository {
         .from(SupabaseContract.aiConnectionsTable)
         .select(
           'connection_id, client_id, status, created_at, expires_at, '
-          'revoked_at, client_name, callback_host',
+          'revoked_at, client_name, callback_host, oauth_issuer, consent_id',
         )
         .eq('user_id', userId)
         .order('created_at', ascending: false);

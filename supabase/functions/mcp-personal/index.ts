@@ -20,6 +20,7 @@ import { withOAuthProtectedResource } from "jsr:@supabase/server@1.9.1";
 import {
   type AiConnection,
   type ConnectionRepository,
+  GATE_REASONS,
   PERSONAL_ACCESS_DISABLED_MESSAGE,
   requireCategory,
   resolveConnection,
@@ -158,6 +159,12 @@ export interface AccessLog {
 }
 
 export interface PersonalMcpDeps {
+  /// Verified-token setup uses the same pairing owner as the website/phone.
+  setup?: {
+    generation(userId: string): Promise<number>;
+    register(token: Extract<VerifiedOAuthToken, {provider: "workos"}>, generation: number): Promise<string>;
+    websiteUrl: string;
+  };
   verifyToken: (token: string | null) => Promise<VerifiedOAuthToken>;
   connections: ConnectionRepository;
   stacks: StackRepository;
@@ -325,9 +332,10 @@ export function createHandler(deps: PersonalMcpDeps): (request: Request) => Prom
     const early = transport.preflight(request);
     if (early) return early;
 
+    const bearer = bearerToken(request.headers.get("authorization"));
     let token: VerifiedOAuthToken;
     try {
-      token = await deps.verifyToken(bearerToken(request.headers.get("authorization")));
+      token = await deps.verifyToken(bearer);
     } catch (error) {
       if (error instanceof TokenRejected) {
         // withOAuthProtectedResource adds WWW-Authenticate: Bearer resource_metadata="..."
@@ -337,6 +345,47 @@ export function createHandler(deps: PersonalMcpDeps): (request: Request) => Prom
     }
 
     const gate = await resolveConnection(token, deps.connections, now());
+    if (token.provider === "workos" && deps.setup) {
+      // Setup discovery contains no personal data. A valid identity with a
+      // revoked binding gets a correlated tool error, never data or registration.
+      if (!limiter.take(`${token.issuer}:${token.sub}:${token.clientId}`)) {
+        return transport.rpcError(null, -32000, HTTP_MESSAGES.rateLimited, 429);
+      }
+      return transport.dispatch(request, {
+        serverInfo: SERVER_INFO, instructions: SERVER_INSTRUCTIONS,
+        tools: [...TOOLS, {
+          name: "connect_my_pharmaguide", title: "Approve PharmaGuide on your phone",
+          description: "Starts phone approval for this assistant. Returns a PharmaGuide setup link; reads no personal information. Already approved connections stay connected.",
+          inputSchema: {type: "object", properties: {}, additionalProperties: false},
+          annotations: {readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false},
+        }],
+        callTool: async (id, name) => {
+          if (!gate.ok && gate.reason !== GATE_REASONS.noConnection) {
+            return transport.toolResult(id, {error: gate.reason, next_step: "Reconnect PharmaGuide in your assistant and approve the new connection on your phone."}, true);
+          }
+          if (name !== "connect_my_pharmaguide") {
+            if (!gate.ok) return transport.toolResult(id, {error: "Phone approval is required. Run connect_my_pharmaguide, open its setup link and approve in PharmaGuide before retrying."}, true);
+            return callTool(id, name, token, gate.connection);
+          }
+          if (gate.ok) return transport.toolResult(id, {connected: true, message: "This assistant is already approved. Personal reads remain limited to your connection and shared snapshot."}, false);
+          const generation = await deps.setup!.generation(token.sub);
+          // Capture generation BEFORE the asynchronous provider-active check.
+          // A disconnect in between makes registration fail atomically in SQL.
+          const live = await deps.verifyToken(bearer);
+          if (live.provider !== "workos" || token.provider !== "workos" ||
+            live.issuer !== token.issuer || live.sub !== token.sub ||
+            live.clientId !== token.clientId || live.consentId !== token.consentId) {
+            throw new TokenRejected("userinfo_rejected");
+          }
+          const reference = await deps.setup!.register(live, generation);
+          if (!/^[0-9a-f-]{36}$/i.test(reference)) throw Error("Invalid setup reference");
+          const url = new URL(deps.setup!.websiteUrl);
+          if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) throw Error("Invalid setup destination");
+          url.searchParams.set("authorization_id", reference);
+          return transport.toolResult(id, {connected: false, setup_url: url.toString(), message: "Open this PharmaGuide link, sign in and approve on your phone. Then retry the personal tool. No personal information has been shared."}, false);
+        },
+      });
+    }
     if (!gate.ok) return transport.rpcError(null, -32003, gate.reason, gate.status);
     const connection: AiConnection = gate.connection;
 
@@ -381,11 +430,13 @@ export function postgrestRepositories(
   supabaseUrl: string,
   serviceKey: string,
   fetchFn: FetchLike = (input, init) => fetch(input, init),
+  workosSetup?: {websiteUrl: string; clients: Readonly<Record<string, {name: string; redirectUri: string}>>},
 ): {
   connections: ConnectionRepository;
   stacks: StackRepository;
   snapshots: SnapshotRepository;
   accessLog: AccessLog;
+  setup?: PersonalMcpDeps["setup"];
 } {
   const base = `${supabaseUrl.replace(/\/$/, "")}/rest/v1`;
   const headers = {
@@ -394,7 +445,7 @@ export function postgrestRepositories(
     "content-type": "application/json",
   };
   const connectionColumns =
-    "connection_id,user_id,client_id,session_id,scope,status,created_at,expires_at,revoked_at";
+    "connection_id,user_id,client_id,session_id,scope,status,created_at,expires_at,revoked_at,oauth_issuer,consent_id";
 
   async function rows<T>(path: string, params: Record<string, string>, init: RequestInit = {}): Promise<T[]> {
     const response = await fetchFn(`${base}/${path}?${new URLSearchParams(params)}`, {
@@ -406,8 +457,49 @@ export function postgrestRepositories(
     return text ? JSON.parse(text) as T[] : [];
   }
 
+  async function rpc(name: string, args: Record<string, unknown>): Promise<Record<string, unknown> | number> {
+    const response = await fetchFn(`${base}/rpc/${name}`, {
+      method: "POST", headers, body: JSON.stringify(args), cache: "no-store",
+    });
+    if (!response.ok) throw Error("Connection setup unavailable");
+    const result = await response.json();
+    if (result?.error) throw Error("Connection setup unavailable");
+    return result;
+  }
+
   return {
+    setup: workosSetup ? {
+      websiteUrl: workosSetup.websiteUrl,
+      async generation(userId) {
+        const generation = await rpc("read_ai_connection_generation", {p_user_id: userId});
+        if (typeof generation !== "number" || !Number.isSafeInteger(generation) || generation < 0) throw Error("Invalid generation");
+        return generation;
+      },
+      async register(token, generation) {
+        const client = workosSetup.clients[token.clientId];
+        if (!client) throw Error("Unrecognized assistant");
+        // An unreachable initial code hash: only the signed-in browser later
+        // creates/displays the real phone approval code through the same owner.
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+        const codeHash = Array.from(hash, b => b.toString(16).padStart(2, "0")).join("");
+        const result = await rpc("register_workos_ai_pairing", {
+          p_user_id: token.sub, p_client_id: token.clientId, p_oauth_issuer: token.issuer,
+          p_consent_id: token.consentId, p_client_name: client.name,
+          p_redirect_uri: client.redirectUri, p_code_hash: codeHash, p_expected_generation: generation,
+        });
+        if (typeof result !== "object" || typeof result.authorization_id !== "string") throw Error("Invalid setup reference");
+        return result.authorization_id;
+      },
+    } : undefined,
     connections: {
+      async findByConsent(userId, clientId, issuer, consentId) {
+        const found = await rows<AiConnection>("ai_connections", {
+          select: connectionColumns, user_id: `eq.${userId}`, client_id: `eq.${clientId}`,
+          oauth_issuer: `eq.${issuer}`, consent_id: `eq.${consentId}`, limit: "1",
+        });
+        return found[0] ?? null;
+      },
       async findBySession(userId, clientId, sessionId) {
         const found = await rows<AiConnection>("ai_connections", {
           select: connectionColumns,
@@ -482,10 +574,9 @@ export function postgrestRepositories(
   };
 }
 
-// ADR-009 S2 prerequisite: the current issuer cannot prove the requested
-// resource. Keep discovery available, but never accept even previously issued
-// tokens in production. The injected createHandler above exercises the dormant
-// implementation with synthetic data until a reviewed issuer repair closes S2.
+// ADR-009 rollout containment: durable WorkOS behavior is qualified in injected
+// tests, but hosted phone/snapshot acceptance and explicit activation remain open.
+// Keep production personal reads disabled while preserving discovery.
 export function createProductionHandler(deps: PersonalMcpDeps): (request: Request) => Promise<Response> {
   return withOAuthProtectedResource(
     { resourceServer: deps.resourceUrl, authorizationServer: deps.authorizationServer },

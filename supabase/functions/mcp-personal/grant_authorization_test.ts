@@ -157,3 +157,93 @@ Deno.test("an already bound connection still requires a live Auth session", asyn
   assertEquals(response.status, 403);
   assertEquals(h.stacks.requestedUsers.length, 0);
 });
+
+Deno.test("WorkOS resolves only exact consent and durable expiry never revives revoked grants", async () => {
+  const { resolveConnection, evaluate } = await import("../_shared/connection_gate.ts");
+  const token = {provider: "workos" as const, sub: USER_A, clientId: CLAUDE,
+    issuer: "https://issuer.authkit.app", consentId: "app_consent_current", claims: {}};
+  const row = connection({expires_at: null, oauth_issuer: token.issuer, consent_id: token.consentId});
+  let result = row;
+  const repository = {
+    findBySession: () => { throw Error("Must not use Supabase session lookup"); },
+    findLatest: () => { throw Error("Must not use latest connection"); },
+    bindSession: () => { throw Error("Must not bind a Supabase session"); },
+    findByConsent: async (user: string, client: string, issuer: string, sid: string) => {
+      assertEquals([user, client, issuer, sid], [USER_A, CLAUDE, token.issuer, token.consentId]);
+      return result;
+    },
+  };
+  assert((await resolveConnection(token, repository)).ok, "exact durable consent");
+  for (const changed of [{user_id: "another-user"}, {client_id: "another-client"},
+    {oauth_issuer: "https://other.example"}, {consent_id: "app_consent_old"},
+    {status: "revoked", revoked_at: new Date().toISOString()}]) {
+    result = {...row, ...changed};
+    assert(!(await resolveConnection(token, repository)).ok, "wrong/revoked identity denied");
+  }
+  assert(!evaluate(connection({expires_at: null}), new Date()).ok, "null legacy expiry denied");
+});
+
+Deno.test("WorkOS setup is explicit, rechecks live token after generation read, and never reads personal data", async () => {
+  const {createHandler} = await import("./index.ts");
+  const events: string[] = [];
+  const verified = {provider: "workos" as const, sub: USER_A, clientId: CLAUDE,
+    issuer: "https://issuer.authkit.app", consentId: "app_consent_pending", claims: {}};
+  const h = await harness();
+  const handler = createHandler({
+    verifyToken: async () => {events.push("verify"); return verified;},
+    connections: {...h.connections, findBySession: async () => null, findLatest: async () => null,
+      bindSession: async () => null, findByConsent: async () => null},
+    stacks: h.stacks, snapshots: h.snapshots, keyring: null, accessLog: h.log,
+    resourceUrl: "https://mcp.pharmaguide.io/personal", authorizationServer: verified.issuer,
+    setup: {
+      generation: async () => {events.push("generation"); return 4;},
+      register: async (identity, generation) => {
+        assertEquals(identity, verified); assertEquals(generation, 4); events.push("register");
+        return "00000000-0000-0000-0000-000000000123";
+      },
+      websiteUrl: "https://pharmaguide.io/oauth/authorize",
+    },
+  });
+  assertEquals((await handler(rpc("fictional", "initialize"))).status, 200);
+  assertEquals(events, ["verify"]);
+  events.length = 0;
+  const blocked = await body(await handler(callSupplements("fictional")));
+  assert(blocked.result.isError, "unapproved personal call is an explicit tool error");
+  assertEquals(h.stacks.requestedUsers.length, 0);
+  events.length = 0;
+  const setup = await body(await handler(rpc("fictional", "tools/call", {name: "connect_my_pharmaguide"})));
+  assertEquals(events, ["verify", "generation", "verify", "register"]);
+  assert(!setup.result.isError, "setup URL delivered");
+  assert(JSON.stringify(setup).includes("authorization_id=00000000-0000-0000-0000-000000000123"), "opaque setup reference");
+  assertEquals(h.stacks.requestedUsers.length, 0);
+});
+
+Deno.test("WorkOS disconnected tools return correlated errors without reads or registration", async () => {
+  const {createHandler} = await import("./index.ts");
+  const h = await harness();
+  const verified = {provider: "workos" as const, sub: USER_A, clientId: CLAUDE,
+    issuer: "https://issuer.authkit.app", consentId: "app_consent_revoked", claims: {}};
+  const row = connection({user_id: USER_A, client_id: CLAUDE, session_id: null,
+    oauth_issuer: verified.issuer, consent_id: verified.consentId, expires_at: null,
+    status: "revoked", revoked_at: new Date().toISOString()});
+  let registrations = 0;
+  const handler = createHandler({
+    verifyToken: async () => verified,
+    connections: {findBySession: async () => null, findLatest: async () => null, bindSession: async () => null, findByConsent: async () => row},
+    stacks: h.stacks, snapshots: h.snapshots, keyring: null, accessLog: h.log,
+    resourceUrl: "https://mcp.pharmaguide.io/personal", authorizationServer: verified.issuer,
+    setup: {generation: async () => 0, register: async () => {registrations++; return row.connection_id;},
+      websiteUrl: "https://pharmaguide.io/oauth/authorize"},
+  });
+  for (const name of ["get_my_supplements", "get_my_stack_snapshot", "connect_my_pharmaguide"]) {
+    const response = await handler(rpc("fictional", "tools/call", {name}));
+    assertEquals(response.status, 200, "valid identity receives a protocol-level denial");
+    const result = await body(response);
+    assert(result.id !== null, "response is correlated with the request");
+    assert(result.result.isError, "no tool succeeds after disconnect");
+    assert(JSON.stringify(result).includes(GATE_REASONS.revoked), "denial reason preserved");
+  }
+  assertEquals(registrations, 0);
+  assertEquals(h.stacks.requestedUsers.length, 0);
+  assertEquals(h.snapshots.reads.length, 0);
+});

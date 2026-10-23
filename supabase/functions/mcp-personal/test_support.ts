@@ -111,7 +111,7 @@ export class FakeConnections implements ConnectionRepository {
   }
   bindSession(connectionId: string, sessionId: string) {
     const row = this.rows.find((r) => r.connection_id === connectionId && (r.session_id === null || r.session_id === sessionId));
-    if (!row || row.status !== "active" || row.revoked_at !== null || Date.parse(row.expires_at) <= NOW.getTime()) return Promise.resolve(null);
+    if (!row || row.status !== "active" || row.revoked_at !== null || (row.expires_at === null || Date.parse(row.expires_at) <= NOW.getTime())) return Promise.resolve(null);
     row.session_id = sessionId;
     return Promise.resolve({ ...row });
   }

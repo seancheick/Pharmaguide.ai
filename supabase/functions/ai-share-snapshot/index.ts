@@ -228,7 +228,7 @@ export function createHandler(deps: ShareDeps): (request: Request) => Promise<Re
 
     // A share never outlives its connection.
     const expiresAt = new Date(
-      Math.min(at.getTime() + ttlHours * HOUR_MS, Date.parse(connection.expires_at)),
+      Math.min(at.getTime() + ttlHours * HOUR_MS, (connection.expires_at === null ? Infinity : Date.parse(connection.expires_at))),
     );
     const row = await sealSnapshotRow(deps.keyring, {
       snapshotId: crypto.randomUUID(),
@@ -285,7 +285,7 @@ export function postgrestShareStore(
   return {
     async findConnection(connectionId, userId) {
       const text = await call("ai_connections", {
-        select: "connection_id,user_id,client_id,session_id,scope,status,created_at,expires_at,revoked_at",
+        select: "connection_id,user_id,client_id,session_id,scope,status,created_at,expires_at,revoked_at,oauth_issuer,consent_id",
         connection_id: `eq.${connectionId}`,
         user_id: `eq.${userId}`,
         limit: "1",

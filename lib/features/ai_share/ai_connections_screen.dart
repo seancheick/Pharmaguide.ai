@@ -398,7 +398,7 @@ class _ConnectionCard extends ConsumerWidget {
           caption:
               '${connection.callbackHost == null ? '' : '${connection.callbackHost} · '}'
               'Connected ${formatReportDate(connection.createdAt.toLocal())} '
-              '· Access ends ${formatReportDate(connection.expiresAt.toLocal())}',
+              '· ${connection.expiresAt == null ? 'Until you disconnect' : 'Access ends ${formatReportDate(connection.expiresAt!.toLocal())}'}',
         ),
         if (live) ...[
           PGSettingsTile(

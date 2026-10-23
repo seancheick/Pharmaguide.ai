@@ -22,6 +22,32 @@ Future<void> signIn(
 
 void main() {
   test(
+    'durable connection requires explicit WorkOS identity and stays revocable',
+    () {
+      final row = <String, Object?>{
+        'connection_id': 'connection',
+        'client_id': 'codex',
+        'status': 'active',
+        'created_at': '2026-10-23T00:00:00Z',
+        'expires_at': null,
+        'oauth_issuer': 'https://issuer.authkit.app',
+        'consent_id': 'app_consent_exact',
+      };
+      final connection = AiConnection.tryParse(row);
+      expect(connection, isNotNull);
+      expect(connection!.isLiveAt(DateTime.utc(2027)), isTrue);
+      expect(
+        AiConnection.tryParse({
+          ...row,
+          'status': 'revoked',
+        })!.isLiveAt(DateTime.utc(2027)),
+        isFalse,
+      );
+      expect(AiConnection.tryParse({...row, 'oauth_issuer': null}), isNull);
+      expect(AiConnection.tryParse({...row, 'expires_at': 'invalid'}), isNull);
+    },
+  );
+  test(
     'preview and cancel use canonical RPCs and require valid replies',
     () async {
       final calls = <http.Request>[];

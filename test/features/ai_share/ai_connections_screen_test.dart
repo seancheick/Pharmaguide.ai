@@ -330,6 +330,50 @@ void main() {
     );
   });
 
+  testWidgets(
+    'durable connection shows until disconnect, independent of snapshots',
+    (tester) async {
+      repo = FakeAiConnectionsRepository([
+        AiConnection.tryParse({
+          'connection_id': 'durable-connection',
+          'client_id': 'codex-client',
+          'client_name': 'Codex',
+          'callback_host': '127.0.0.1',
+          'status': 'active',
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+          'expires_at': null,
+          'oauth_issuer': 'https://issuer.authkit.app',
+          'consent_id': 'app_consent_durable',
+        })!,
+      ]);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: const Key('durable_render'),
+          child: app(signedIn: true, pairing: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Until you disconnect'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      final output = Platform.environment['PG_DURABLE_RENDER_PATH'];
+      if (output != null) {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(const Key('durable_render')),
+        );
+        await tester.runAsync(() async {
+          final image = await boundary.toImage();
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File(output).writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+      }
+    },
+  );
+
   testWidgets('keep updated is off by default and needs a first share', (
     tester,
   ) async {

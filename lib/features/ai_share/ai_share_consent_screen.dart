@@ -117,9 +117,11 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 Text(
-                  'Sharing ends after this time or when your assistant connection '
-                  'expires on ${formatReportDate(widget.connection.expiresAt.toLocal())}, '
-                  'whichever comes first.',
+                  widget.connection.expiresAt == null
+                      ? 'Sharing ends after this time or when you disconnect the assistant, whichever comes first.'
+                      : 'Sharing ends after this time or when your assistant connection '
+                            'expires on ${formatReportDate(widget.connection.expiresAt!.toLocal())}, '
+                            'whichever comes first.',
                   style: V2Typography.bodySm(color: context.v2.fgMuted),
                 ),
                 const SizedBox(height: V2Spacing.space16),

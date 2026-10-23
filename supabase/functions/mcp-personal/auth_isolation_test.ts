@@ -1,6 +1,6 @@
 // S1: only a verified OAuth client token reaches data, only its own user's
 // rows are read, and the OAuth token is never forwarded to the database.
-import { isOAuthClientToken } from "../_shared/oauth_token.ts";
+import { isOAuthClientToken, localJwks, TokenRejected, verifyOAuthAccessToken } from "../_shared/oauth_token.ts";
 import { postgrestRepositories } from "./index.ts";
 import {
   assert,
@@ -153,4 +153,94 @@ Deno.test("user-JWT functions can recognise an OAuth client token", async () => 
   assert(!isOAuthClientToken(`Bearer ${await sign(key, claimsFor(USER_A, null))}`), "app session");
   assert(!isOAuthClientToken(null), "no header");
   assert(!isOAuthClientToken("Bearer not-a-jwt"), "garbage");
+});
+
+
+Deno.test("WorkOS checks signed claims before UserInfo and returns a consent identity", async () => {
+  const key = await signingKey("workos");
+  const issuer = "https://auth.example.com";
+  const base: import("npm:jose@6.2.12").JWTPayload = { ...claimsFor(USER_A, CLAUDE), iss: issuer, sid: "app_consent_example", scope: "openid profile" };
+  delete base.role;
+  delete base.session_id;
+  let calls = 0;
+  let expectedToken = "";
+  const config = {
+    provider: "workos" as const, issuer, audience: base.aud as string,
+    keys: localJwks({ keys: [key.jwk] }), now: () => new Date("2026-10-12T12:00:00Z"),
+    allowedClientIds: [CLAUDE],
+    userInfoFetch: (input: string | URL | Request, init?: RequestInit) => {
+      calls++;
+      assertEquals(String(input), `${issuer}/oauth2/userinfo`);
+      assertEquals(init?.method, "POST");
+      assertEquals(init?.redirect, "error");
+      assertEquals(init?.cache, "no-store");
+      assertEquals(new Headers(init?.headers).get("authorization"), `Bearer ${expectedToken}`);
+      assert(init?.signal, "bounded request");
+      return Promise.resolve(Response.json({ sub: USER_A }, { status: 201 }));
+    },
+  };
+  expectedToken = await sign(key, base);
+  const verified = await verifyOAuthAccessToken(expectedToken, config);
+  assertEquals(verified.provider, "workos");
+  assertEquals(verified.sessionId, undefined);
+  assert("consentId" in verified, "provider identity");
+  assertEquals(verified.consentId, "app_consent_example");
+  assertEquals(calls, 1);
+  const invalid: Record<string, unknown>[] = [
+    { iss: "https://other.example.com" }, { aud: "elsewhere" },
+    { aud: [base.aud, "elsewhere"] }, { aud: [base.aud] }, { client_id: "other" }, { client_id: "" },
+    { sub: " " }, { sub: undefined }, { sid: undefined }, { sid: "session_wrong" }, { sid: "app_consent_" },
+    { sid: "app_consent_" + "x".repeat(256) }, { scope: "profile" }, { scope: ["openid"] },
+    { exp: 1 }, { exp: undefined }, { iat: undefined }, { iat: "1" },
+    { iat: 9999999999 },
+  ];
+  for (const patch of invalid) {
+    try {
+      await verifyOAuthAccessToken(await sign(key, { ...base, ...patch } as import("npm:jose@6.2.12").JWTPayload), config);
+      throw new Error(`accepted ${JSON.stringify(patch)}`);
+    } catch (error) { assert(error instanceof TokenRejected, String(error)); }
+  }
+  for (const token of [null, "malformed", await sign(await signingKey("workos"), base)]) {
+    try { await verifyOAuthAccessToken(token, config); throw new Error("accepted bad signature"); }
+    catch (error) { assert(error instanceof TokenRejected, String(error)); }
+  }
+  assertEquals(calls, 1, "invalid local claims never reach UserInfo");
+});
+
+Deno.test("WorkOS UserInfo fails closed on revoked, redirected, mismatched, malformed and timed out responses", async () => {
+  const key = await signingKey("workos");
+  const claims = { ...claimsFor(USER_A, CLAUDE), iss: "https://auth.example.com", sid: "app_consent_example", scope: "openid" };
+  const token = await sign(key, claims);
+  const config = { provider: "workos" as const, issuer: claims.iss, audience: claims.aud as string,
+    allowedClientIds: [CLAUDE], keys: localJwks({ keys: [key.jwk] }), now: () => new Date("2026-10-12T12:00:00Z"), userInfoTimeoutMs: 10 };
+  const responses = [
+    () => Promise.resolve(new Response("", { status: 401 })),
+    () => Promise.resolve(new Response("", { status: 302 })),
+    () => Promise.resolve(Response.json({ sub: USER_B })),
+    () => Promise.resolve(new Response("not json")),
+    () => Promise.resolve(Response.json(null)),
+    () => Promise.reject(new TypeError("redirect refused")),
+    (_input: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+    }),
+  ];
+  for (const userInfoFetch of responses) {
+    try { await verifyOAuthAccessToken(token, { ...config, userInfoFetch }); throw new Error("accepted UserInfo failure"); }
+    catch (error) { assert(error instanceof TokenRejected, String(error)); }
+  }
+});
+
+
+Deno.test("WorkOS rechecks the same token each request after consent revocation", async () => {
+  const key = await signingKey("workos");
+  const claims = { ...claimsFor(USER_A, CLAUDE), iss: "https://auth.example.com", sid: "app_consent_example", scope: "openid" };
+  const token = await sign(key, claims);
+  let calls = 0;
+  const config = { provider: "workos" as const, issuer: claims.iss, audience: claims.aud as string,
+    allowedClientIds: [CLAUDE], keys: localJwks({ keys: [key.jwk] }), now: () => new Date("2026-10-12T12:00:00Z"),
+    userInfoFetch: () => Promise.resolve(++calls === 1 ? Response.json({ sub: USER_A }, { status: 201 }) : new Response(null, { status: 401 })) };
+  await verifyOAuthAccessToken(token, config);
+  try { await verifyOAuthAccessToken(token, config); throw new Error("cached revoked grant"); }
+  catch (error) { assert(error instanceof TokenRejected, String(error)); }
+  assertEquals(calls, 2);
 });
