@@ -78,7 +78,10 @@ Deno.test("production containment denies previously issued personal tokens and k
     });
     const response = await h.handler(request);
     assertEquals(response.status, 503, name);
-    assertEquals((await body(response)).error.message, "PharmaGuide is unavailable right now. Try again shortly.");
+    const message = (await body(response)).error.message;
+    assertEquals(message.includes("Personal connections and snapshot sharing are not enabled"), true);
+    assertEquals(message.includes("https://mcp.pharmaguide.io/public"), true);
+    assertEquals(/try again|reconnect/i.test(message), false);
   }
   assertEquals(h.stacks.requestedUsers, [], "no personal read");
   assertEquals(h.log.entries, [], "no access log write");

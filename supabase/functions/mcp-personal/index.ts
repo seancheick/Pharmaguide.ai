@@ -20,6 +20,7 @@ import { withOAuthProtectedResource } from "jsr:@supabase/server@1.9.1";
 import {
   type AiConnection,
   type ConnectionRepository,
+  PERSONAL_ACCESS_DISABLED_MESSAGE,
   requireCategory,
   resolveConnection,
 } from "../_shared/connection_gate.ts";
@@ -488,7 +489,7 @@ export function postgrestRepositories(
 export function createProductionHandler(deps: PersonalMcpDeps): (request: Request) => Promise<Response> {
   return withOAuthProtectedResource(
     { resourceServer: deps.resourceUrl, authorizationServer: deps.authorizationServer },
-    () => Promise.resolve(transport.rpcError(null, -32603, HTTP_MESSAGES.unavailable, 503)),
+    () => Promise.resolve(transport.rpcError(null, -32603, PERSONAL_ACCESS_DISABLED_MESSAGE, 503)),
   );
 }
 

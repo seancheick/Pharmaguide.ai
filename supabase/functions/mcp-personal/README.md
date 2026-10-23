@@ -1,6 +1,6 @@
 # mcp-personal
 
-**Production personal access is disabled until S2 is repaired.** Every personal MCP request returns 503, including requests with previously issued tokens; protected-resource discovery metadata remains available. Snapshot POST uploads also return 503, while authenticated DELETE/purge stays available. Containment was merged in PR114/main14152b88 and deployed on October13.
+**Production personal access is disabled until S2 is repaired.** Every personal MCP request returns 503, including requests with previously issued tokens; protected-resource discovery metadata remains available. Snapshot POST uploads also return 503, while authenticated DELETE/purge stays available. The candidate containment response explicitly explains that personal connections and snapshot sharing are not enabled and points to the public catalog; it does not invite repeated login/retry attempts. Containment was merged in PR114/main14152b88 and deployed on October13.
 
 The dependency-injected implementation has two read-only tools for synthetic testing:
 
