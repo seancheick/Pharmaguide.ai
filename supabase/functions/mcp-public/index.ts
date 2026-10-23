@@ -56,7 +56,9 @@ export const TOOLS = [
     name: "search_products",
     title: "Search the PharmaGuide supplement catalog",
     description:
-      "Find supplement products by name, with optional brand and form filters. Returns up to 10 catalog matches " +
+      "Find supplement products by name, with optional brand and form filters. Full-text matches take precedence; " +
+      "fuzzy alternatives appear only when no full-text matches exist within the filters. This is text search, " +
+      "not an exact ingredient/form-chemistry filter: verify each candidate with get_product. Returns up to 10 catalog matches " +
       "with a match_confidence (text relevance, not quality). Use sort=quality to browse/compare by the existing " +
       "published quality score across all name matches. Fetch get_product for the candidates before comparing. " +
       "Use next_offset and the returned catalog_version to continue. For exact-product identification only, " +
@@ -171,9 +173,9 @@ export async function callTool(name: string, args: Json, deps: ToolDeps): Promis
           matches: rows.slice(0, SEARCH_LIMIT).map(toMatch),
           ambiguous,
           sort, offset,
-          total_matches: rows[0]?.total_matches ?? null,
+          total_matches: rows[0]?.total_matches ?? (rows.length === 0 && offset === 0 ? 0 : null),
           next_offset: rows[0]?.total_matches !== undefined && offset + rows.length < rows[0].total_matches ? offset + rows.length : null,
-          limitations: ["Name-matched catalog results, not a complete ingredient inventory or personalized recommendation. Quality ordering uses the published score, with unscored/incomplete products last; it does not establish safety, availability or price."],
+          limitations: ["Name-matched catalog results, not a complete ingredient inventory or personalized recommendation. Full-text matches take precedence within the filters; otherwise results are fuzzy alternatives that require identity verification. Quality ordering uses the published score, with unscored/incomplete products last; it does not establish safety, availability or price."],
           next_step: rows.length === 0 ? (offset > 0 ? "No more results on this page; restart from offset 0 if the catalog changed." : NEXT_STEP.none)
             : sort === "quality" ? "Call get_product for candidates to compare published quality, forms, serving basis, warnings and evidence. Distinguish combination products; never infer personal suitability from rank."
             : ambiguous ? NEXT_STEP.ambiguous : NEXT_STEP.single,

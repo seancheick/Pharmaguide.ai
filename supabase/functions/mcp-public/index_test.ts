@@ -284,3 +284,11 @@ Deno.test("comparison filter uses catalog classification and stale pages fail ex
   assertEquals((result.structuredContent.data as Json).next_offset, null);
   assertEquals((await h.call("search_products", {query:"magnesium", offset:10, catalog_version:"old"})).isError, true);
 });
+
+Deno.test("empty first search page reports zero without inventing an out-of-range total", async () => {
+  const h = await harness([]);
+  const first = (await h.call("search_products", { query: "missing" })).structuredContent.data as Json;
+  assertEquals(first.total_matches, 0);
+  const later = (await h.call("search_products", { query: "missing", offset: 10 })).structuredContent.data as Json;
+  assertEquals(later.total_matches, null);
+});

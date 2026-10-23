@@ -1,11 +1,5 @@
-# Assessment explanation audit — source integrated; regeneration/device acceptance pending
-
-PR133 merged657c7c0e; local/main and origin/main match. Runtime905d7b10, golden updatesb674e340; exact CI39844629244 passed. Local clean analysis and3965tests passed. Completed local/remote branch removed. Focused research/comparison/phone-width/large-text consumers pass; local analysis clean. Independent review fixed blocked/unscored alternatives copy fail-first; no outstanding source finding.
-
-Owner: existing ResearchSupportSection / buildProbioticSection render pipeline display_state/reason; shared alternatives and PGScoreLine/PGHeroSection render canonical comparison qualifications and wrap. Will NOT create clinical inference, a scorer, new export fields, intake tracking or personalized scores.
-
-Changes: canonical probiotic applicability notes supersede badge-count conclusion; neutral qualified comparison copy, including blocked/unscored products; maximum-directed-use label; wrap complete tier/directions. No score/ranking/safety calculation changes. Pipeline counterpart PR241 merged14215663e after exact CI39846842277 passed; audit docs fa6fb249. No catalog import, corpus pipeline or release.
-
-Device smoke blocked before launch by existing GoogleMLKit simulator architecture support; no screenshot claimed. Widget checks do not qualify the eventual rebuilt catalog. Preserve unrelated user pubspec.yaml and lib/core/utils/app_version.dart edits. Prior pre-beta evidence remains in Git; current receipts ~/pg_quality/assessment_audit_20261022/.
-
-Next: Sean runs one Clean-first producer regeneration; verify catalog and real Flutter screens after that. Do not claim release readiness yet.
+# MCP connection flow — October 23
+Goal: honest disabled-personal messages, public discovery guidance, existing README connection guide and protocol acceptance. Baseline6b4ea48c. Pipeline search counterpart /Users/seancheick/.codex/worktrees/mcp-connection-flow/dsld_clean.
+Owner: _shared/connection_gate.ts for shared connection policy; mcp-personal::createProductionHandler and ai-share-snapshot::createProductionHandler for containment; mcp-public::callTool for result guidance; mcp-public/README.md for setup. Evidence: rg callers/stems and pipeline matrix/GLOSSARY. Will NOT create clinical logic, scorer, new public field or alternate search owner.
+Owned: these functions, existing focused tests and README. Personal stays disabled; authenticated deletion retained. Prior assessment audit integrated PR133; regeneration/device acceptance remains with prior lane.
+Next: fail-first tests; fixes; full Edge suite and transport/client smoke. No deployment or main push without Sean.
