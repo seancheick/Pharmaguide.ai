@@ -167,3 +167,13 @@ personal and snapshot functions. The latter two retain containment and authentic
 snapshot deletion; this is not authorization to activate personal sharing.
 Run the acceptance prompt against the deployed URL in both clients after deployment.
 Local fixture acceptance does not prove that production contains the candidate.
+
+### Deployment verification — October 23, 2026
+
+Pipeline PR #243 and app PR #134 are merged. The search migration was applied as
+Supabase version `20261023191950`; deployed functions are mcp-public v4, mcp-personal v3
+and ai-share-snapshot v3. All 15 live HTTP checks and six actual Codex MCP calls passed
+against the branded public endpoint, using catalog `2026.10.22.012241`. Personal and
+snapshot creation still return 503 with the explicit disabled message; unauthenticated
+snapshot deletion returns 401. Claude Code acceptance is deferred at Sean's request
+because its token quota is exhausted. Public product lookup needs no PharmaGuide login.
