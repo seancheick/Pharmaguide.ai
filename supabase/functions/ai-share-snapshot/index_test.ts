@@ -393,6 +393,10 @@ Deno.test("production containment denies new snapshots but preserves authenticat
   const token = await appToken(s);
   const upload = await s.handler(request("POST", token, share(s.live.connection_id)));
   assertEquals(upload.status, 503);
+  const message = (await upload.json()).error;
+  assertEquals(message.includes("Personal connections and snapshot sharing are not enabled"), true);
+  assertEquals(message.includes("https://mcp.pharmaguide.io/public"), true);
+  assertEquals(/try again|reconnect/i.test(message), false);
   assertEquals(s.store.rows.size, 0, "no sensitive snapshot stored");
   const denied = await s.handler(request("DELETE", null, { all: true }));
   assertEquals(denied.status, 401, "purge still requires app authentication");

@@ -1,6 +1,6 @@
 # mcp-personal
 
-**Production personal access is disabled until S2 is repaired.** Every personal MCP request returns 503, including requests with previously issued tokens; protected-resource discovery metadata remains available. Snapshot POST uploads also return 503, while authenticated DELETE/purge stays available. Containment was merged in PR114/main14152b88 and deployed on October13.
+**Production personal access is disabled until S2 is repaired.** Every personal MCP request returns 503, including requests with previously issued tokens; protected-resource discovery metadata remains available. Snapshot POST uploads also return 503, while authenticated DELETE/purge stays available. The candidate containment response explicitly explains that personal connections and snapshot sharing are not enabled and points to the public catalog; it does not invite repeated login/retry attempts. Containment was merged in PR114/main14152b88 and deployed on October13.
 
 The dependency-injected implementation has two read-only tools for synthetic testing:
 
@@ -51,3 +51,14 @@ supabase functions serve mcp-personal --env-file <local environment file>
 Deno tests sign fixture tokens with an ephemeral RSA key and use injected repositories. The SQL suite uses a disposable Docker database and accepts no remote database URL. Rate limits and catalog caches are per function instance, not global. Never put real keys or health payloads in test logs.
 
 Public testing is available now at `https://mcp.pharmaguide.io/public` (website PR6, CI38467026860, live smoke verified). Codex discovers its three tools as `pharmaguide_public`. This endpoint exposes no personal connector.
+
+## October 23 connection usability candidate
+
+Both production containment paths use the shared explanation in `connection_gate.ts`;
+transient failures keep their existing messages. Authenticated deletion remains available.
+The canonical setup and acceptance guide is [mcp-public/README.md](../mcp-public/README.md).
+Runtime `20c5f4fc` passed CI `40008166478`; 114 focused connector tests passed, including
+containment and deletion. The public candidate passed 15 HTTP checks, six actual Codex
+calls and four complete detail comparisons against production. Claude Code needs local
+sign-in before its client acceptance test can finish. These are candidate receipts;
+main merge, deployment and live acceptance remain pending. Personal activation is excluded.

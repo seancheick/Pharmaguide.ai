@@ -11,7 +11,7 @@
 // encrypted with AES-256-GCM (_shared/snapshot_crypto.ts) and only the
 // ciphertext is stored, one row per connection. The payload is never logged
 // and never returned.
-import { type AiConnection, evaluate } from "../_shared/connection_gate.ts";
+import { type AiConnection, evaluate, PERSONAL_ACCESS_DISABLED_MESSAGE } from "../_shared/connection_gate.ts";
 import {
   bearerToken,
   remoteJwks,
@@ -319,7 +319,7 @@ export function postgrestShareStore(
 export function createProductionHandler(deps: ShareDeps): (request: Request) => Promise<Response> {
   const handler = createHandler(deps);
   return (request) => request.method === "POST"
-    ? Promise.resolve(json({ error: MESSAGES.unavailable }, 503))
+    ? Promise.resolve(json({ error: PERSONAL_ACCESS_DISABLED_MESSAGE }, 503))
     : handler(request);
 }
 

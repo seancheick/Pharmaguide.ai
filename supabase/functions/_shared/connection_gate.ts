@@ -8,6 +8,13 @@
 // the access token itself is unexpired.
 import type { VerifiedOAuthToken } from "./oauth_token.ts";
 
+// Shared production-containment explanation. Transient failures keep their own
+// retry messages; disabled personal access must not send clients into retries.
+export const PERSONAL_ACCESS_DISABLED_MESSAGE =
+  "Personal connections and snapshot sharing are not enabled. " +
+  "Public product lookup is available without sign-in at https://mcp.pharmaguide.io/public. " +
+  "That connector cannot read your supplement list, medications or health profile.";
+
 export type ConnectionStatus = "active" | "revoked" | "expired";
 
 export interface AiConnection {
