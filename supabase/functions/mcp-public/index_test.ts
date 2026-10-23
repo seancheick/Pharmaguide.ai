@@ -138,6 +138,7 @@ Deno.test("tools/list exposes exactly the three read-only tools", async () => {
 });
 
 Deno.test("name and photo identification use visible details and preserve both label versions", async () => {
+  assert(!SERVER_INSTRUCTIONS.includes("ask for the barcode or a label photo"), "ambiguous search must not automatically request a photo already supplied");
   const { call } = await harness([row("205309", { match_score: 0.82 }), row("299065", { match_score: 0.82 })]);
   const response = await call("search_products", { query: "Pure Encapsulations Magnesium Glycinate" });
   const data = response.structuredContent.data as Json;

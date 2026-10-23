@@ -36,7 +36,7 @@ export const SERVER_INSTRUCTIONS =
   "Explain Dose from its published explanation facts: minimum and maximum directed daily amounts, applicable reference, and the actual deduction or cap. Do not apply newer policy to an older published score. A default daily frequency does not prove printed directions; a lower amount below an upper limit does not establish personal safety. " +
   "Compare like products: distinguish single-ingredient, combination and laxative products, and explain published pillar reasons, confidence, serving basis and limitations. " +
   "Never sum parent/component ingredient rows, recompute a quality score, or invent an evidence grade, source, price or availability. " +
-  "If identifying a person's exact product and a search is ambiguous, ask for the barcode or a label photo; for browsing compare the returned candidates without claiming they are the person's product.";
+  "If identifying a person's exact product and a search is ambiguous, use supplied legible label details first; ask only for the missing distinguishing detail or panel. For browsing compare returned candidates without claiming they are the person's product.";
 
 const SEARCH_LIMIT = 10;
 export const AMBIGUITY_MARGIN = 0.1;
