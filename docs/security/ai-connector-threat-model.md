@@ -147,14 +147,14 @@ No real health data or raw token logs. WorkOS staging tests observed repeat cons
 on reconnect, five old refresh generations rejected before/after reconnect, delayed code exchange
 rejected after revocation, and missing-resource authorization rejected. Same-token UserInfo returned
 401 for old access after disconnect and reconnect, and 201 for current access. This revocation
-behavior is observed, not a documented timing SLA. The PKCE application correctly rejects creating
+behavior is observed, not a documented timing SLA. A later concurrent refresh/revoke test returned a new token during the overlap, then rejected that access/refresh credential after revocation and again after reconnect; only the new consent worked. The PKCE application correctly rejects creating
 a client secret; PKCE was not disabled.
 
 - [x] Implement exact-consent auth, pairing, durable connection and snapshot consumers using existing owners.
 - [x] Focused auth/authorization/snapshot and Flutter tests, disposable SQL races and website checks.
 - [x] Independent security review and fail-first regressions: unbound denial now cancels; pending-only denial atomically starts the revocation barrier and exposes retry; repeated setup cancellation preserves existing access.
 - [x] Actual installed Codex synthetic transport: OAuth login, discovery, approval-required error, opaque setup link, simulated approval, scoped supplement read, encrypted snapshot read, missing/expired snapshot messages, repeated connection and old-credential denial. Phone approval and repositories were synthetic adapters, not live database/device acceptance. Fixed the observed disconnected-call timeout with a correlated tool error; no authorization was relaxed.
-- [ ] Exact-candidate combined CI before merge. Previous app f5bd37ff CI40024429810 and website a712f62 CI40024209263 passed, but do not cover these edits.
+- [x] Exact implementation candidates passed combined CI: app 44febbd9 / CI40030396012; website 63ba1b2 / CI40030380010 (including production build), plus Vercel preview. Subsequent receipt updates change documentation only.
 - [ ] Deploy reviewed test configuration with both migrations in timestamp order, then verify hosted database isolation, two-account browser/phone approval, scoped encrypted snapshot retrieval/refresh/expiry, disconnect/reconnect and old-token denial through Codex.
 - [ ] Real-device approval and S9 review before personal activation. Production factories and rollout flags remain off.
 
@@ -162,4 +162,4 @@ WorkOS is retained: the fresh durable-consent tests pass, so a replacement provi
 by the current evidence. Pre-registered Codex configuration is qualified first; arbitrary-client
 CIMD/DCR onboarding is not claimed or enabled.
 
-Final focused candidate checks: 79 Deno tests, 32 Flutter tests, 41 website connector tests, focused analysis/typecheck and disposable SQL with Deny/completion races passed. Synthetic test grant revoked and Codex test credentials removed. Durable UI rendered at 390x844; production containment remains visible. Exact-candidate CI pending.
+Final focused candidate checks: 79 Deno tests, 32 Flutter tests, 41 website connector tests, focused analysis/typecheck and disposable SQL with Deny/completion races passed. Synthetic test grant revoked and Codex test credentials removed. Durable UI rendered at 390x844; production containment remains visible. Implementation candidate CI passed as recorded above. Merge/release approval remains with Sean.
