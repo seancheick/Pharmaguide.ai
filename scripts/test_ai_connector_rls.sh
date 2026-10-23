@@ -21,7 +21,7 @@ trap cleanup EXIT
 "$docker_bin" run --detach --name "$test_container" \
   -p 127.0.0.1::5432 \
   -e POSTGRES_PASSWORD=disposable-fixture-only \
-  public.ecr.aws/supabase/postgres:17.6.1.132 >/dev/null
+  docker.io/supabase/postgres:17.6.1.132@sha256:e09e93a61ed1560caf4be79c9eb29401875bea74b12aec4657cb08bf34ea3a13 >/dev/null
 ready=false
 for attempt in {1..80}; do
   if "$docker_bin" exec "$test_container" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then
