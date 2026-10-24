@@ -14,7 +14,7 @@ import {
   postgrestCatalogStore,
   toMatch,
 } from "../_shared/catalog.ts";
-import { McpTransport } from "../_shared/mcp_transport.ts";
+import { McpTransport, PHARMAGUIDE_SERVER_BRANDING } from "../_shared/mcp_transport.ts";
 import { RateLimiter } from "../_shared/rate_limiter.ts";
 import { resolveSupabaseAdminKey } from "../_shared/supabase_server_keys.ts";
 
@@ -244,7 +244,7 @@ const transport = new McpTransport({
 export function createHandler(deps: ToolDeps & { limiter?: RateLimiter }) {
   const limiter = deps.limiter ?? new RateLimiter();
   const server = {
-    serverInfo: { name: "pharmaguide-public", title: "PharmaGuide (public catalog)", version: "0.1.0" },
+    serverInfo: { name: "pharmaguide-public", title: "PharmaGuide (public catalog)", version: "0.1.0", ...PHARMAGUIDE_SERVER_BRANDING },
     instructions: SERVER_INSTRUCTIONS,
     tools: TOOLS,
     async callTool(id: unknown, name: string, args: Json): Promise<Response> {

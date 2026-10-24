@@ -244,3 +244,15 @@ Deno.test("WorkOS rechecks the same token each request after consent revocation"
   catch (error) { assert(error instanceof TokenRejected, String(error)); }
   assertEquals(calls, 2);
 });
+
+Deno.test("personal initialize uses the same public brand without reading health data", async () => {
+  const h = await harness();
+  const token = await sign(h.key, claimsFor(USER_A, CLAUDE));
+  const response = await h.handler(rpc(token, "initialize", { protocolVersion: "2025-11-25" }));
+  const json = await body(response);
+  assertEquals(json.result.serverInfo.icons, [{
+    src: "https://pharmaguide.io/icon1.png", mimeType: "image/png", sizes: ["192x192"],
+  }]);
+  assertEquals(json.result.serverInfo.websiteUrl, "https://pharmaguide.io");
+  assertEquals(h.stacks.requestedUsers.length, 0, "metadata reads no stack");
+});

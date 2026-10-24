@@ -22,8 +22,19 @@ export function cleanText(value: unknown, max: number): string {
   return Array.from(flat).slice(0, max).join("");
 }
 
+// Existing website app icon is the brand asset owner. No copied icon or
+// second asset registry; supporting clients load this public HTTPS PNG.
+export const PHARMAGUIDE_SERVER_BRANDING = {
+  websiteUrl: "https://pharmaguide.io",
+  icons: [{ src: "https://pharmaguide.io/icon1.png", mimeType: "image/png", sizes: ["192x192"] }],
+};
+
 export interface McpServer {
-  serverInfo: { name: string; title: string; version: string };
+  serverInfo: {
+    name: string; title: string; version: string;
+    websiteUrl?: string;
+    icons?: { src: string; mimeType: string; sizes: string[] }[];
+  };
   instructions: string;
   tools: ReadonlyArray<{ name: string }>;
   /// Called only for a tool listed in `tools`; returns the whole response.
