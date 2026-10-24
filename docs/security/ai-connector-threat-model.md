@@ -5,11 +5,11 @@ MCP (`supabase/functions/mcp-public`), the personal MCP (`supabase/functions/mcp
 consent and connections pages on the website, and the app's AI-share consent flow (Phase 2
 snapshots).
 
-Current status, October 23, 2026: public MCP is deployed and usable in Codex. Personal
-production reads and snapshot uploads remain deliberately disabled; authenticated deletion
-remains available. The candidate now uses WorkOS's durable consent model, with Supabase retaining
-app identity and data ownership. Fresh hosted synthetic tests pass the disconnect/reconnect
-boundary described below. WorkOS support is no longer the implementation blocker. Private hosted phone/snapshot acceptance passed. The current two-account, deletion and S9 review receipts appear below; production configuration and controlled activation remain open.
+Current status, October24,2026: public catalog and personal MCP are deployed. Codex is qualified
+against normal production OAuth/read/snapshot endpoints, including automatic renewal and immediate
+revocation. Existing WorkOS and Supabase owners remain authoritative. See the production release
+boundary below for exact candidate CI, two-account qualification, selected-scope tests and limits.
+Sean deferred other assistant acceptance so he can test Claude separately.
 
 The former Supabase audience-stamping hook did not prove requested-resource binding. Its
 containment remains enabled and ordinary app sessions are unchanged. WorkOS tokens are verified
@@ -158,7 +158,7 @@ a client secret; PKCE was not disabled.
 - [ ] Finish controlled test runtime configuration; verify hosted database isolation, two-account browser/phone approval, scoped encrypted snapshot retrieval/refresh/expiry, disconnect/reconnect and old-token denial through Codex. Physical phone connected; actual WorkOS OAuth, phone approval, durable hosted connection and Codex supplement read passed. Phone-authored scoped snapshot retrieval, automatic remove/restore updates, opt-out persistence and real revocation passed; Post-fix freshness acceptance passed; same-phone browser return and root navigation passed on physical touch.
 - [x] Real-device approval, scoped snapshots, freshness/opt-out, revocation and return navigation passed.
 - [x] Hosted two-account RPC/RLS/snapshot isolation and real-provider account-deletion qualification passed on disposable accounts; OAuth identity injection in the isolation layer is explicitly distinguished from prior real OAuth evidence.
-- [ ] Publish reviewed S9 disclosures and finish production configuration/controlled acceptance before activation. Production factories and rollout flags remain off.
+- [x] Publish reviewed S9 disclosures and complete production configuration/acceptance; public Codex activation is recorded in the release boundary below.
 
 WorkOS is retained: the fresh durable-consent tests pass, so a replacement provider is not warranted
 by the current evidence. Pre-registered Codex configuration is qualified first; arbitrary-client
@@ -180,7 +180,7 @@ in WorkOS, using existing website assets. Light/dark saved previews and the real
 consent screen were verified; both real consent images loaded at 192×192 without letter fallbacks.
 The visual check was cancelled before Allow access. Its exact-account test window was removed,
 the normal contained website source was redeployed, and no new connection or snapshot remained.
-Normal personal reads/uploads remain 503. Branding evidence is in the private operator folder
+At the branding-only checkpoint, normal personal reads/uploads remained503. Branding evidence is in the private operator folder
 `~/pg_quality/workos_branding_20261024/verification.json`.
 
 The later connection-list UX uses the existing live gate and revocation barrier: active connections
@@ -188,28 +188,36 @@ and retryable cleanup stay visible; ended connections are collapsed into history
 passed full CI40110147051 and 75 focused owner/consumer tests; final phone installation and Sean's
 screenshot confirmed collapsed history (5). This UI change does not requalify broader access scopes.
 
-The remaining release work is concrete:
+Public Codex activation is complete with Sean's explicit October24 authorization. App PR144/main
+9ace97a5 (runtime candidate cd608862, CI40118612663) and website PR14/maina790dd4
+(candidate d68630b, CI40119305487) are merged. Both existing factories use the existing explicit
+AI_CONNECTOR_PAIRING_ENABLED switch; defaultoff preserves discovery/deletion for rollback.
+Production normal MCP and snapshot functions are deployed, Supabase/Vercel switches are true,
+and the public phone build is installed. Temporary exact-user website keys were removed.
 
-- Confirm the initial release scope. The real acceptance covered the registered Codex
-  client and the selected supplement-only snapshot (names/findings); other assistants
-  and broader medication/profile categories are not qualified. Do not silently expose
-  unqualified categories when enabling the normal snapshot writer. Extend the existing
-  scope/UI owners to enforce the chosen rollout boundary, or qualify the broader scope.
-- Close the remaining live-flow limits before broad rollout: the two-account receipt
-  proves hosted Supabase/RLS/RPC isolation with injected WorkOS identity, not two full
-  independent browser/OAuth flows. The old access token was expired at the later
-  after-reconnect replay; test that case while it is still unexpired. Unexpired denial
-  immediately after disconnect and old refresh denial after reconnect already passed.
-- Prepare the coordinated activation change using the existing handlers: normal
-  `mcp-personal::createProductionHandler` still hard-returns 503, and
-  `ai-share-snapshot::createProductionHandler` still blocks POST (DELETE remains live).
-  Website setup and phone approval-entry flags also remain off. Reuse the validated
-  `createHandler`/dependency composition, retain exact issuer/resource/client/callback
-  checks, align disabled-state copy, and validate the completed release candidate in CI.
-- Obtain explicit launch authorization, deploy the coordinated change and phone build,
-  then verify one fresh production connection through approval, scoped read/update,
-  disconnect and credential denial. Keep the existing denial/deletion paths available
-  for rollback. No public activation is authorized by the logo-only task.
+Qualification closed the earlier live limits: two disposable accounts used real WorkOS browser
+PKCE OAuth and distinct real Supabase phone sessions. Both got only their own snapshot; foreign
+approval/write/read/delete paths were denied. Old consent credentials stayed denied after fresh
+phone approval while the old access token still had164 seconds remaining. Existing Dart-generated
+synthetic fixtures exercised60 normalized scope combinations through enabled factories/hosted
+repositories, then minimal/full scopes and isolation passed on the normal deployed endpoints and
+production encryption keyring. This is synthetic transport/privacy qualification, not clinical
+validation or two human Google sign-ins.
+
+Installed Codex performed normal public OAuth and successful list/snapshot/setup calls, then
+renewed access/refresh credentials automatically without another login. Final normal disconnect
+returned both tools401 and UserInfo401 with231 seconds remaining on the renewed access token;
+refresh returned400 invalid_grant. Prior physical-phone update/restore/opt-out and disconnect
+receipts remain applicable. Sanitized current receipts: ~/pg_quality/public_activation_20261024/.
+
+Claude static PKCE registration, exact callback and branding are prepared; its real connection
+test was explicitly deferred by Sean so he can test Claude himself. No ChatGPT/Gemini/Perplexity/
+Muse personal compatibility claim is made. Their registration/acceptance is follow-up work and
+does not hold up the active Codex release. CIMD/DCR remains disabled.
+
+Rollback uses the existing switch in BOTH Supabase and Vercel; redeploy website configuration
+and verify reads/uploads503 while discovery, authenticated deletion and revocation recovery
+remain available. Installed phone entry does not grant access without server/phone approval.
 
 ### Completed activation preparation
 
