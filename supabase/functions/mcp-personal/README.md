@@ -120,14 +120,15 @@ same callback in the production WorkOS application and the website/MCP trusted-c
 Do not reuse the private loopback-resource callback.
 
 Operator setup, **after** production issuer/client registration is available and the release
-checks permit OAuth acceptance (replace the placeholder with the actual reviewed client ID):
+checks permit OAuth acceptance. This Mac has a tested bundled Codex CLI (`0.164.0-alpha.11.1`); its Homebrew `codex` is `0.159.0` and does not infer discovery scopes during initial add. Use the tested binary for this setup:
 
 ```bash
-codex -c mcp_oauth_callback_port=3199 mcp add pharmaguide_personal \
+PG_CODEX="/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
+"$PG_CODEX" -c mcp_oauth_callback_port=3199 mcp add pharmaguide_personal \
   --url https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal \
-  --oauth-client-id '<reviewed-production-client-id>' \
+  --oauth-client-id client_01M5NXSNSESQFXNCBNPA547059 \
   --oauth-resource https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal
-codex -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal --scopes openid,offline_access
+"$PG_CODEX" -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal --scopes openid,offline_access
 ```
 
 `mcp add` starts OAuth immediately. Its first command therefore uses a process-only fixed-port
@@ -137,8 +138,8 @@ override alone cannot bootstrap a new server entry, so use the command above for
 and the per-server setting below for subsequent logins.
 
 Protected-resource discovery advertises `scopes_supported: ["openid", "offline_access"]`.
-Installed Codex default login was verified to request both through this metadata. The explicit
-`--scopes` in the command also supports a client or older deployment that does not infer them.
+The bundled `0.164.0-alpha.11.1` default login was verified to request both through this metadata; the installed Homebrew `0.159.0` did not. The explicit
+`--scopes` in the login command is required for clients such as Homebrew `0.159.0` that do not infer them.
 `openid` is required by the existing verifier and UserInfo check; `offline_access` requests the
 approved refresh capability. Neither grants supplement or snapshot access without the existing
 phone-approved connection and per-share scope. A login that omits them must be repeated with the
