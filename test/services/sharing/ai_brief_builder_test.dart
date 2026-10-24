@@ -363,14 +363,10 @@ void main() {
       expect(text, isNot(contains('withheld')));
     });
 
-    test('supplement schedule is marked as user-entered', () {
-      expect(
-        text,
-        contains(
-          '- Vitamin D3 - as entered by the user (not verified against the '
-          'label): 5000 IU, daily',
-        ),
-      );
+    test('legacy supplement schedule consent never shares free-text doses', () {
+      expect(text, isNot(contains('as entered by the user')));
+      expect(text, isNot(contains('5000 IU, daily')));
+      expect(text, contains('10 mg, daily'));
     });
 
     test('flags an unresolved declared medication class as partial', () {

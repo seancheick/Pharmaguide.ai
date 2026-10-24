@@ -1,6 +1,6 @@
 // S7 and S8: one log row per tool call with no payload, no data without a log
 // row, and tool output that is capped, tagged and enveloped.
-import { buildSupplementsEnvelope, cleanText, LIMITS, NOT_INCLUDED, SERVER_INSTRUCTIONS } from "./index.ts";
+import { buildSupplementsEnvelope, cleanText, LIMITS, NEXT_STEP, NOT_INCLUDED, SERVER_INSTRUCTIONS, SNAPSHOT_NEXT_STEP, SNAPSHOT_REASONS, TOOLS } from "./index.ts";
 import { assert, assertEquals, body, callSupplements, CLAUDE, claimsFor, harness, NOW, rpc, sign, USER_A } from "./test_support.ts";
 
 const migration = new URL("../../migrations/20261012120100_ai_connections.sql", import.meta.url);
@@ -73,4 +73,31 @@ Deno.test("personal instructions require a complete shared assessment for reassu
   assert(SERVER_INSTRUCTIONS.includes("amounts/doses"), "dose coverage required");
   assert(SERVER_INSTRUCTIONS.includes("evaluated rule sets"), "evaluated checks required");
   assert(SERVER_INSTRUCTIONS.includes("not fully checked"), "incomplete checks disclosed");
+});
+
+Deno.test("supplement guidance distinguishes synced records from the current phone", () => {
+  const tool = TOOLS.find((item) => item.name === "get_my_supplements")!;
+  for (const text of [SERVER_INSTRUCTIONS, NEXT_STEP, tool.description]) {
+    assert(text.includes("synced") && text.includes("phone"), "discloses account/phone divergence");
+    assert(text.includes("generated_at") && text.includes("retrieval time") && text.includes("not the last sync time"),
+      "response generation is not a freshness guarantee");
+  }
+  for (const text of [SERVER_INSTRUCTIONS, NEXT_STEP]) {
+    assert(text.includes("get_my_stack_snapshot") && /[Pp]refer/.test(text), "prefer the app-authored context");
+    assert(/confirm/i.test(text) && /differ|discrepan/i.test(text), "confirm discrepancies instead of choosing an assumed current list");
+    assert(text.includes("scope"), "snapshot preference stays within approved scope");
+  }
+});
+
+Deno.test("snapshot freshness guidance does not claim visibility into the current phone", () => {
+  assert(SNAPSHOT_NEXT_STEP.includes("synced account supplement records"), "stale observes the synced account list");
+  assert(SNAPSHOT_NEXT_STEP.includes("cannot confirm the current phone list"), "does not promise complete phone freshness");
+});
+
+Deno.test("sharing directions use existing assistant access controls", () => {
+  for (const text of [SERVER_INSTRUCTIONS, NEXT_STEP, ...Object.values(SNAPSHOT_REASONS)]) {
+    assert(text.includes("Manage assistant access") && text.includes("Save access settings"),
+      "names the real app controls");
+    assert(!/share more/i.test(text), "no obsolete sharing instruction");
+  }
 });

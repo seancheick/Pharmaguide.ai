@@ -113,7 +113,7 @@ SELECT aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_
 INSERT INTO auth.sessions(id,user_id,created_at) VALUES(aic.user_id(101),aic.user_id(1),now());
 -- Forced storage failure verifies connection creation cannot consume a code.
 CREATE FUNCTION aic.fail_pair_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
- IF NEW.client_id='pair-client' THEN RAISE EXCEPTION 'fixture write failure' USING ERRCODE='Z0002'; END IF;
+ IF NEW.client_id IN('pair-client','phone-atomic-client') THEN RAISE EXCEPTION 'fixture write failure' USING ERRCODE='Z0002'; END IF;
  RETURN NEW;
 END $$;
 CREATE TRIGGER aic_fail_pair BEFORE INSERT ON public.ai_connections FOR EACH ROW EXECUTE FUNCTION aic.fail_pair_insert();
@@ -169,9 +169,26 @@ DO $$ DECLARE a text; b text; cid uuid; gen integer; r jsonb; BEGIN
  PERFORM aic.phone(1,101);
  PERFORM aic.assert(public.approve_ai_connection_pairing('MNPQRSTUVWXY') ? 'error','same browser cannot approve WorkOS');
  PERFORM aic.phone(1,102);
- PERFORM aic.assert(public.approve_ai_connection_pairing('MNPQRSTUVWXY')->>'approved'='true','different live phone approves WorkOS');
+ r:=public.approve_ai_connection_pairing('MNPQRSTUVWXY');
+ PERFORM aic.assert(r->>'approved'='true','different live phone approves WorkOS');
+ PERFORM aic.assert(r ? 'connection_id','phone approval completes WorkOS without browser');
+ PERFORM aic.assert(public.approve_ai_connection_pairing('MNPQRSTUVWXY')->>'connection_id'=r->>'connection_id','same phone retry preserves completed connection');
  PERFORM set_config('role','none',true);
- r:=public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'workos-client','https://chatgpt.com/callback'); cid:=(r->>'connection_id')::uuid;
+ cid:=(r->>'connection_id')::uuid;
+ PERFORM aic.assert((SELECT status='active' FROM public.ai_connections WHERE connection_id=cid),'phone completion persists before browser returns');
+ PERFORM aic.assert(public.ai_connection_pairing_status(aic.user_id(1),aic.user_id(101),a)->>'connection_id'=cid::text,'browser status observes phone completion');
+ PERFORM aic.assert(public.preview_workos_ai_pairing(aic.user_id(1),a)->>'connection_id'=cid::text,'browser preview observes phone completion');
+ PERFORM aic.assert(public.complete_ai_connection_pairing(aic.user_id(2),aic.user_id(103),a,'workos-client','https://chatgpt.com/callback') ? 'error','completed receipt rejects wrong user');
+ PERFORM aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(102),a,'workos-client','https://chatgpt.com/callback') ? 'error','completed receipt rejects wrong browser');
+ PERFORM aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'wrong-client','https://chatgpt.com/callback') ? 'error','completed receipt rejects wrong client');
+ PERFORM aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'workos-client','https://wrong.test') ? 'error','completed receipt rejects wrong redirect');
+ UPDATE public.ai_connection_pairings SET expires_at=clock_timestamp()-interval '1 second' WHERE authorization_id=a;
+ PERFORM aic.assert(public.ai_connection_pairing_status(aic.user_id(1),aic.user_id(101),a)->>'connection_id'=cid::text,'completed receipt survives challenge expiry');
+ UPDATE auth.sessions SET not_after=now()-interval '1 second' WHERE id=aic.user_id(102);
+ PERFORM aic.assert(public.ai_connection_pairing_status(aic.user_id(1),aic.user_id(101),a) ? 'error','completed receipt still checks phone session');
+ UPDATE auth.sessions SET not_after=NULL WHERE id=aic.user_id(102);
+ r:=public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'workos-client','https://chatgpt.com/callback');
+ PERFORM aic.assert(r->>'connection_id'=cid::text,'browser completion idempotently preserves phone result');
  PERFORM aic.assert(cid IS NOT NULL,'WorkOS atomic completion');
  PERFORM aic.assert((SELECT expires_at IS NULL AND session_id IS NULL AND oauth_issuer='https://fixture.authkit.app' AND consent_id='sid-one' FROM public.ai_connections WHERE connection_id=cid),'durable consent explicit and separate from Supabase session');
  UPDATE public.ai_connections SET scope='{"categories":["supplements","medications"]}' WHERE connection_id=cid;
@@ -215,6 +232,8 @@ DO $$ DECLARE a text; b text; cid uuid; gen integer; r jsonb; BEGIN
  PERFORM aic.assert(public.finish_ai_connection_revocation(aic.user_id(1),'workos-client',gen+1)->>'finished'='true','exact provider completion clears barrier');
  PERFORM aic.assert(aic.work_register('sid-new','new-client',1,'https://fixture.authkit.app',gen) ? 'error','UserInfo before revoke cannot register after finish');
  PERFORM aic.assert(aic.work_register('sid-one') ? 'error','revoked consent is permanent tombstone');
+ PERFORM aic.assert(public.ai_connection_pairing_status(aic.user_id(1),aic.user_id(101),a) ? 'error','revoked phone completion no longer resolves');
+ PERFORM aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'workos-client','https://chatgpt.com/callback') ? 'error','revoked receipt cannot resurrect consent');
  BEGIN UPDATE public.ai_connections SET status='active',revoked_at=NULL WHERE connection_id=cid; RAISE EXCEPTION 'FAIL tombstone revival'; EXCEPTION WHEN check_violation THEN NULL; END;
  -- Cancel a pending, never-approved consent and prove delayed registration cannot revive it.
  b:=aic.work_register('cancel-sid','cancel-client')->>'authorization_id';
@@ -253,4 +272,39 @@ DO $$ DECLARE a text; b text; result jsonb; gen integer; BEGIN
  PERFORM aic.assert((SELECT cancelled_at IS NOT NULL FROM public.ai_connection_pairings WHERE authorization_id=b),'attached browser can deny');
  PERFORM public.finish_ai_connection_revocation(aic.user_id(1),'deny-bound-client',public.read_ai_connection_generation(aic.user_id(1)));
 END $$;
+UPDATE public.ai_connection_pairing_limits SET start_window=now()-interval '11 minutes',lookup_window=now()-interval '11 minutes';
+
+-- Failed phone completion must not leave an approval or partial connection.
+CREATE TRIGGER aic_fail_pair BEFORE INSERT ON public.ai_connections FOR EACH ROW EXECUTE FUNCTION aic.fail_pair_insert();
+DO $$ DECLARE a text; failed boolean:=false; BEGIN
+ a:=aic.work_register('phone-atomic-sid','phone-atomic-client')->>'authorization_id';
+ PERFORM aic.assert(public.start_ai_connection_pairing(aic.user_id(1),aic.user_id(101),a,'phone-atomic-client','Verified WorkOS Codex','https://chatgpt.com/callback',encode(extensions.digest('STUVWXYZA234','sha256'),'hex')) ? 'expires_at','phone atomic fixture');
+ PERFORM public.begin_ai_connection_revocation(aic.user_id(1),'phone-unrelated');
+ PERFORM aic.phone(1,102);
+ PERFORM aic.assert(public.approve_ai_connection_pairing('STUVWXYZA234') ? 'error','phone approval fails closed during provider barrier');
+ PERFORM set_config('role','none',true);
+ PERFORM aic.assert((SELECT approved_session_id IS NULL AND consumed_at IS NULL FROM public.ai_connection_pairings WHERE authorization_id=a),'barrier failure leaves no approval');
+ PERFORM public.finish_ai_connection_revocation(aic.user_id(1),'phone-unrelated',public.read_ai_connection_generation(aic.user_id(1)));
+ BEGIN
+  PERFORM aic.phone(1,102);
+  PERFORM public.approve_ai_connection_pairing('STUVWXYZA234');
+ EXCEPTION WHEN SQLSTATE 'Z0002' THEN failed:=true; END;
+ PERFORM set_config('role','none',true);
+ PERFORM aic.assert(failed,'phone connection storage failure exercised');
+ PERFORM aic.assert((SELECT approved_session_id IS NULL AND consumed_at IS NULL FROM public.ai_connection_pairings WHERE authorization_id=a),'storage failure rolls back phone approval');
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_connections WHERE client_id='phone-atomic-client'),'storage failure creates no authority');
+END $$;
+DROP TRIGGER aic_fail_pair ON public.ai_connections;
+BEGIN;
+SELECT aic.phone(1,102);
+SELECT aic.assert(public.approve_ai_connection_pairing('STUVWXYZA234') ? 'connection_id','phone retry completes after storage recovery');
+COMMIT;
+INSERT INTO auth.sessions(id,user_id,created_at) VALUES(aic.user_id(106),aic.user_id(1),now());
+BEGIN;
+SELECT aic.phone(1,106);
+SELECT aic.assert(public.approve_ai_connection_pairing('STUVWXYZA234') ? 'error','another live phone cannot replay completed receipt');
+COMMIT;
+DELETE FROM auth.sessions WHERE id=aic.user_id(106);
+SELECT public.begin_ai_connection_revocation(aic.user_id(1),'phone-atomic-client');
+SELECT public.finish_ai_connection_revocation(aic.user_id(1),'phone-atomic-client',public.read_ai_connection_generation(aic.user_id(1)));
 UPDATE public.ai_connection_pairing_limits SET start_window=now()-interval '11 minutes',lookup_window=now()-interval '11 minutes';

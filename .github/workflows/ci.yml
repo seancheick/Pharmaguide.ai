@@ -118,7 +118,7 @@ jobs:
         # `bundle` when the LFS step above could not materialize
         # assets/db — see that step for why.
         # --coverage writes coverage/lcov.info; the next step parses it.
-        run: flutter test --coverage --exclude-tags "$EXCLUDE_TAGS" test/core/ test/services/ test/features/ test/release_gate/ test/data/ test/scripts/ test/safety_invariants/ test/safety/
+        run: flutter test --coverage --exclude-tags "$EXCLUDE_TAGS" test/core/ test/services/ test/features/ test/release_gate/ test/data/ test/scripts/ test/safety_invariants/ test/safety/ test/app_deep_link_test.dart
 
       - name: Coverage summary
         # Parses coverage/lcov.info to compute line coverage across all

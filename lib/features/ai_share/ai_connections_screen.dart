@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
@@ -24,17 +25,62 @@ import 'package:url_launcher/url_launcher.dart';
 /// where every sensitive share starts: the user picks a connection, chooses
 /// what to include, previews the exact text and shares it. Guests see why
 /// an account is needed and nothing is queried.
-class AiConnectionsScreen extends ConsumerWidget {
+class AiConnectionsScreen extends ConsumerStatefulWidget {
   const AiConnectionsScreen({super.key, this.onSignIn, this.onOpenExternal});
 
   final VoidCallback? onSignIn;
   final Future<bool> Function(Uri uri)? onOpenExternal;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AiConnectionsScreen> createState() =>
+      _AiConnectionsScreenState();
+}
+
+class _AiConnectionsScreenState extends ConsumerState<AiConnectionsScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        ref.read(authStateProvider) == AuthMode.signedIn) {
+      ref.invalidate(aiConnectionsProvider);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final signedIn = ref.watch(authStateProvider) == AuthMode.signedIn;
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(
+          onPressed: () {
+            final navigator = Navigator.of(context);
+            if (navigator.canPop()) {
+              navigator.pop();
+            } else {
+              context.go(Routes.profile);
+            }
+          },
+        ),
+        actions: [
+          if (signedIn)
+            IconButton(
+              tooltip: 'Refresh connections',
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: () => ref.invalidate(aiConnectionsProvider),
+            ),
+        ],
         surfaceTintColor: Colors.transparent,
         title: Text(
           'Connected AI assistants',
@@ -43,9 +89,11 @@ class AiConnectionsScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: signedIn
-            ? _SignedInBody(onOpenExternal: onOpenExternal)
+            ? _SignedInBody(onOpenExternal: widget.onOpenExternal)
             : _GuestBody(
-                onSignIn: onSignIn ?? () => context.push(Routes.authInvitation),
+                onSignIn:
+                    widget.onSignIn ??
+                    () => context.push(Routes.authInvitation),
               ),
       ),
     );
@@ -101,13 +149,16 @@ class _SignedInBody extends ConsumerWidget {
       padding: const EdgeInsets.all(V2Spacing.space24),
       children: [
         Text(
-          'Personal access is not enabled',
+          pairingEnabled
+              ? 'Your assistant connections'
+              : 'Personal access is not enabled',
           style: V2Typography.titleSm(color: context.v2.fg),
         ),
         const SizedBox(height: V2Spacing.space8),
         Text(
-          'Assistant access is currently unavailable. You can still manage '
-          'existing connections. Health snapshots require a separate preview and share.',
+          'Public personal access is not enabled yet. Existing approved test '
+          'connections can read your synced supplement list. You choose which '
+          'additional details each assistant can read.',
           style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space24),
@@ -115,9 +166,14 @@ class _SignedInBody extends ConsumerWidget {
           PGPillButton(
             label: 'Enter approval code',
             icon: Icons.phonelink_lock_outlined,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const _PairingScreen()),
-            ),
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AiPairingScreen(),
+                ),
+              );
+              ref.invalidate(aiConnectionsProvider);
+            },
           ),
           const SizedBox(height: V2Spacing.space24),
         ],
@@ -162,13 +218,14 @@ class _SignedInBody extends ConsumerWidget {
   }
 }
 
-class _PairingScreen extends ConsumerStatefulWidget {
-  const _PairingScreen();
+class AiPairingScreen extends ConsumerStatefulWidget {
+  const AiPairingScreen({super.key, this.initialCode});
+  final String? initialCode;
   @override
-  ConsumerState<_PairingScreen> createState() => _PairingScreenState();
+  ConsumerState<AiPairingScreen> createState() => AiPairingScreenState();
 }
 
-class _PairingScreenState extends ConsumerState<_PairingScreen> {
+class AiPairingScreenState extends ConsumerState<AiPairingScreen> {
   final _controller = TextEditingController();
   late final AiConnectionsRepository _repository;
   Object? _sessionIdentity;
@@ -185,6 +242,14 @@ class _PairingScreenState extends ConsumerState<_PairingScreen> {
     super.initState();
     _repository = ref.read(aiConnectionsRepositoryProvider);
     _sessionIdentity = _repository.pairingSessionIdentity;
+    if (widget.initialCode != null) {
+      _controller.text = widget.initialCode!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && ref.read(aiPairingEnabledProvider) && _sameAccount) {
+          unawaited(_loadPreview());
+        }
+      });
+    }
   }
 
   @override
@@ -251,30 +316,52 @@ class _PairingScreenState extends ConsumerState<_PairingScreen> {
     if (_preview == null || !_preview!.expiresAt.isAfter(DateTime.now())) {
       throw const AiPairingException();
     }
-    await _repository.approvePairing(_code!);
+    final connectionId = await _repository.approvePairing(_code!);
     if (!mounted) return;
     if (!_sameAccount || !_preview!.expiresAt.isAfter(DateTime.now())) {
       throw const AiPairingException();
     }
     _expiryTimer?.cancel();
+    if (connectionId != null) {
+      ref.invalidate(aiConnectionsProvider);
+      PGToast.show(context, '${_preview!.clientName} is connected.');
+      _viewConnections();
+      return;
+    }
     setState(() {
       _approved = true;
       _code = null;
     });
   });
 
+  void _viewConnections() {
+    ref.invalidate(aiConnectionsProvider);
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go(Routes.aiConnections);
+    }
+  }
+
   Future<void> _cancel() => _perform(() async {
     await _repository.cancelPairing(_code!);
-    if (mounted && _sameAccount) Navigator.of(context).pop();
+    if (mounted && _sameAccount) _viewConnections();
   });
 
   @override
   Widget build(BuildContext context) {
     final signedIn = ref.watch(authStateProvider) == AuthMode.signedIn;
     final preview = _preview;
-    final enabled = signedIn && _sameAccount && !_busy;
+    final enabled =
+        signedIn &&
+        _sameAccount &&
+        !_busy &&
+        ref.watch(aiPairingEnabledProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Approve an assistant')),
+      appBar: AppBar(
+        leading: BackButton(onPressed: _viewConnections),
+        title: const Text('Approve an assistant'),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(V2Spacing.space24),
@@ -285,12 +372,17 @@ class _PairingScreenState extends ConsumerState<_PairingScreen> {
               ),
             if (_approved) ...[
               Text(
-                'Request approved',
+                'Approved on this phone',
                 style: V2Typography.titleSm(color: context.v2.fg),
               ),
               const SizedBox(height: V2Spacing.space16),
               const Text(
-                'Return to your assistant or browser to finish connecting. Approval has not shared a health snapshot.',
+                'Keep the connection page open on your computer while it finishes. Then view your connections below. No health snapshot has been shared.',
+              ),
+              const SizedBox(height: V2Spacing.space16),
+              PGPillButton(
+                label: 'View connections',
+                onPressed: _viewConnections,
               ),
             ] else if (preview == null) ...[
               const Text(
@@ -303,7 +395,40 @@ class _PairingScreenState extends ConsumerState<_PairingScreen> {
                 autocorrect: false,
                 enableSuggestions: false,
                 textCapitalization: TextCapitalization.characters,
-                maxLength: 32,
+                inputFormatters: [
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    final raw = newValue.text.toUpperCase().replaceAll(
+                      RegExp(r'[\s-]'),
+                      '',
+                    );
+                    if (raw.length > 12 ||
+                        !RegExp(r'^[A-Z0-9]*$').hasMatch(raw)) {
+                      return oldValue;
+                    }
+                    final before = newValue.text
+                        .substring(
+                          0,
+                          newValue.selection.extentOffset.clamp(
+                            0,
+                            newValue.text.length,
+                          ),
+                        )
+                        .replaceAll(RegExp(r'[\s-]'), '')
+                        .length;
+                    final formatted = [
+                      for (var i = 0; i < raw.length; i += 4)
+                        raw.substring(i, (i + 4).clamp(0, raw.length)),
+                    ].join('-');
+                    final cursor = before == 0 ? 0 : before + (before - 1) ~/ 4;
+                    return TextEditingValue(
+                      text: formatted,
+                      selection: TextSelection.collapsed(
+                        offset: cursor.clamp(0, formatted.length),
+                      ),
+                    );
+                  }),
+                ],
+                maxLength: 14,
                 decoration: const InputDecoration(
                   labelText: 'Approval code',
                   hintText: 'ABCD-EFGH-JKMN',
@@ -398,26 +523,55 @@ class _ConnectionCard extends ConsumerWidget {
           caption:
               '${connection.callbackHost == null ? '' : '${connection.callbackHost} · '}'
               'Connected ${formatReportDate(connection.createdAt.toLocal())} '
-              '· ${connection.expiresAt == null ? 'Until you disconnect' : 'Access ends ${formatReportDate(connection.expiresAt!.toLocal())}'}',
+              '· ${!live
+                  ? 'Access ended'
+                  : connection.expiresAt == null
+                  ? 'Until you disconnect'
+                  : 'Access ends ${formatReportDate(connection.expiresAt!.toLocal())}'}',
         ),
         if (live) ...[
           PGSettingsTile(
-            icon: Icons.ios_share_rounded,
-            title: 'Share more with this assistant',
-            caption: 'Choose what to include and preview it first',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => AiShareConsentScreen(connection: connection),
-              ),
-            ),
+            icon: Icons.tune_rounded,
+            title: 'Manage assistant access',
+            caption:
+                'Your synced supplement list is already accessible. '
+                'Choose additional details and preview what the assistant can read.',
+            onTap: () async {
+              // Read the existing owner at entry, even if the card's async
+              // preferences have not loaded yet. Never replace them with defaults.
+              AiShareConnectionPrefs? settings;
+              try {
+                settings = await ref
+                    .read(aiSharePrefsStoreProvider)
+                    .read(connection.connectionId);
+              } on Object {
+                if (context.mounted) {
+                  PGToast.show(
+                    context,
+                    'Access settings could not be loaded. Try again.',
+                    variant: PGToastVariant.error,
+                  );
+                }
+                return;
+              }
+              if (!context.mounted) return;
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => AiShareConsentScreen(
+                    connection: connection,
+                    initialSettings: settings,
+                  ),
+                ),
+              );
+            },
           ),
           PGSettingsTile(
             key: const Key('ai_keep_updated'),
             icon: Icons.sync_rounded,
             title: 'Keep this assistant updated',
             caption: saved == null
-                ? 'Available after your first share'
-                : 'Uses the categories and duration you last chose when your '
+                ? 'First choose additional details in Manage assistant access'
+                : 'While you use PharmaGuide, updates use the categories and duration you last chose when your '
                       'stack changes, including new entries in those categories.',
             trailing: Switch.adaptive(
               value: saved?.keepUpdated ?? false,
@@ -460,6 +614,7 @@ class _ConnectionCard extends ConsumerWidget {
   }
 
   Future<void> _disconnect(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -487,9 +642,9 @@ class _ConnectionCard extends ConsumerWidget {
     try {
       await ref.read(aiSharePrefsStoreProvider).forget(connection.connectionId);
     } on Object {
-      if (context.mounted) {
-        PGToast.show(
-          context,
+      if (messenger.mounted) {
+        PGToast.showWith(
+          messenger,
           'Could not stop sharing. Try again.',
           variant: PGToastVariant.error,
         );
@@ -512,11 +667,34 @@ class _ConnectionCard extends ConsumerWidget {
     }
     final open =
         onOpenExternal ??
-        (Uri uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
-    await open(Uri.parse(aiConnectionsWebUrl));
-    if (!deleted && context.mounted) {
-      PGToast.show(
-        context,
+        (Uri uri) async {
+          if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+            return true;
+          }
+          return launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+        };
+    var opened = false;
+    try {
+      final destination = Uri.parse(aiConnectionsWebUrl);
+      if (destination.scheme == 'https' &&
+          destination.host.isNotEmpty &&
+          destination.userInfo.isEmpty) {
+        opened = await open(destination);
+      }
+    } on Object {
+      opened = false;
+    }
+    if (!opened && messenger.mounted) {
+      PGToast.showWith(
+        messenger,
+        'The connections page could not open. Access has not been ended. Try Disconnect again.',
+        variant: PGToastVariant.error,
+      );
+      return;
+    }
+    if (!deleted && messenger.mounted) {
+      PGToast.showWith(
+        messenger,
         'Shared data could not be deleted yet. Try Disconnect again.',
         variant: PGToastVariant.error,
       );

@@ -35,7 +35,8 @@ class AiShareScope {
   /// Verified label amounts as nutrient totals (never free-text doses).
   final bool supplementAmounts;
 
-  /// Free-text dose and frequency the user typed for a supplement.
+  /// Retired device-preference field, retained only to read older records.
+  /// Normalization always disables it; supplement amounts come from labels.
   final bool supplementSchedule;
 
   /// Medication names. Off by default.
@@ -55,7 +56,7 @@ class AiShareScope {
   AiShareScope get normalized => AiShareScope(
     supplementNames: supplementNames,
     supplementAmounts: supplementNames && supplementAmounts,
-    supplementSchedule: supplementNames && supplementSchedule,
+    supplementSchedule: false,
     medicationNames: medicationNames,
     medicationSchedule: medicationNames && medicationSchedule,
     profile: profile,

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -38,6 +39,108 @@ void main() {
       expect(out, isNull);
     });
   });
+
+  testWidgets('same-route assistant return closes browser and refreshes once', (
+    tester,
+  ) async {
+    final events = <String>[];
+    final router = GoRouter(
+      initialLocation: Routes.aiConnections,
+      redirect: (_, state) => redirectPharmaGuideDeepLink(
+        state.uri,
+        closeBrowser: () async {
+          events.add('closed');
+        },
+        refreshConnections: () {
+          events.add('refreshed');
+        },
+      ),
+      routes: [
+        GoRoute(
+          path: Routes.aiConnections,
+          builder: (_, _) => const Text('Connections'),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: WidgetsApp.router(
+          color: const Color(0xff000000),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(events, isEmpty);
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'flutter/navigation',
+      const JSONMethodCodec().encodeMethodCall(
+        const MethodCall('pushRouteInformation', {
+          'location': 'pharmaguide:///ai-connections',
+        }),
+      ),
+      (_) {},
+    );
+    await tester.pumpAndSettle();
+    expect(events, ['closed', 'refreshed']);
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      Routes.aiConnections,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      events,
+      hasLength(2),
+      reason: 'normalized redirect must not trigger a loop',
+    );
+  });
+
+  test(
+    'unrelated links and approval links never close browser or refresh',
+    () async {
+      for (final link in [
+        'pharmaguide:///stack',
+        'pharmaguide://auth/callback?code=synthetic',
+        'pharmaguide:///ai-connections?code=ABCDEFGHJKMN',
+        '/ai-connections',
+        'https://example.com/ai-connections',
+      ]) {
+        var touched = false;
+        final uri = Uri.parse(link);
+        final result = await redirectPharmaGuideDeepLink(
+          uri,
+          closeBrowser: () async {
+            touched = true;
+          },
+          refreshConnections: () {
+            touched = true;
+          },
+        );
+        expect(result, normalizePharmaGuideDeepLink(uri));
+        expect(touched, isFalse);
+      }
+    },
+  );
+
+  test(
+    'browser-close failure still refreshes and routes assistant return',
+    () async {
+      var refreshed = false;
+      final result = await redirectPharmaGuideDeepLink(
+        Uri.parse('pharmaguide:///ai-connections'),
+        closeBrowser: () async {
+          throw StateError('no active browser');
+        },
+        refreshConnections: () {
+          refreshed = true;
+        },
+      );
+      expect(result, Routes.aiConnections);
+      expect(refreshed, isTrue);
+    },
+  );
 
   group('compareSelfRedirect', () {
     test('/compare/X/X redirects to /product/X', () {

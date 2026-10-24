@@ -54,7 +54,10 @@ class AiShareSnapshotClient {
     );
   }
 
-  static const functionName = 'ai-share-snapshot';
+  static const functionName = String.fromEnvironment(
+    'PHARMAGUIDE_AI_SNAPSHOT_FUNCTION',
+    defaultValue: 'ai-share-snapshot',
+  );
   static const payloadFormat = 'pharmaguide-brief-markdown/v1';
   static const minTtlHours = 24;
   static const maxTtlHours = 720;

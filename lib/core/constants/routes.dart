@@ -5,6 +5,7 @@ abstract final class Routes {
   static const scan = '/scan';
   static const stack = '/stack';
   static const profile = '/profile';
+  static const aiConnections = '/ai-connections';
   static const profileSetup = '/profile/setup';
   static const onboarding = '/onboarding';
   static const search = '/search';

@@ -161,7 +161,7 @@ BEGIN
   INSERT INTO auth.users (id) VALUES (aic.user_id(3));
   INSERT INTO public.ai_connections (connection_id, user_id, client_id, scope, created_at, expires_at)
   VALUES ('10000000-0000-0000-0000-000000000003', aic.user_id(3), 'client-chatgpt', '{}',
-          now() - interval '2 days', now() - interval '1 day');
+          now() - interval '2 days', now() + interval '1 day');
   INSERT INTO public.ai_share_snapshots (connection_id, user_id, format, scope, ciphertext, nonce, key_version,
                                          generated_at, expires_at)
   VALUES ('10000000-0000-0000-0000-000000000001', aic.user_id(1), 'pharmaguide-brief-markdown/v1', '{}',
@@ -170,6 +170,9 @@ BEGIN
           '\x00', '\x00', 1, now(), now() + interval '1 day'),
          ('10000000-0000-0000-0000-000000000003', aic.user_id(3), 'pharmaguide-brief-markdown/v1', '{}',
           '\x00', '\x00', 1, now() - interval '2 days', now() + interval '1 day');
+  -- The snapshot was uploaded while its connection was live; expiry follows.
+  UPDATE public.ai_connections SET expires_at=now()-interval '1 day'
+  WHERE connection_id='10000000-0000-0000-0000-000000000003';
   SELECT * INTO purged FROM public.purge_expired_ai_share_snapshots();
   PERFORM aic.assert(purged.snapshots_deleted = 2 AND purged.connections_expired = 1,
     'purge reports two snapshots and one connection, got ' || purged::text);
@@ -257,3 +260,25 @@ BEGIN
 EXCEPTION WHEN SQLSTATE 'Z0001' THEN NULL;
 END $$;
 RESET role;
+-- A stale upload must not recreate data after Disconnect has purged it.
+DO $$ DECLARE cid uuid; BEGIN
+ INSERT INTO public.ai_connections(user_id,client_id,expires_at)
+ VALUES(aic.user_id(1),'snapshot-write-guard',now()+interval '1 day') RETURNING connection_id INTO cid;
+ INSERT INTO public.ai_share_snapshots(connection_id,user_id,format,scope,ciphertext,nonce,key_version,expires_at)
+ VALUES(cid,aic.user_id(1),'pharmaguide-brief-markdown/v1','{}','\x00','\x00',1,now()+interval '1 hour');
+ UPDATE public.ai_share_snapshots SET ciphertext='\x01' WHERE connection_id=cid;
+ UPDATE public.ai_connections SET status='revoked',revoked_at=clock_timestamp() WHERE connection_id=cid;
+ BEGIN
+  UPDATE public.ai_share_snapshots SET ciphertext='\x02' WHERE connection_id=cid;
+  RAISE EXCEPTION 'FAIL: snapshot update accepted revoked connection';
+ EXCEPTION WHEN check_violation THEN NULL; END;
+ PERFORM public.revoke_ai_connection_pairings(aic.user_id(1),'snapshot-write-guard');
+ BEGIN
+  INSERT INTO public.ai_share_snapshots(connection_id,user_id,format,scope,ciphertext,nonce,key_version,expires_at)
+  VALUES(cid,aic.user_id(1),'pharmaguide-brief-markdown/v1','{}','\x00','\x00',1,now()+interval '1 hour');
+  RAISE EXCEPTION 'FAIL: late snapshot upload recreated revoked data';
+ EXCEPTION WHEN check_violation THEN NULL; END;
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_share_snapshots WHERE connection_id=cid),'revoked snapshot stays purged');
+ RAISE EXCEPTION 'aic rollback' USING ERRCODE='Z0001';
+EXCEPTION WHEN SQLSTATE 'Z0001' THEN NULL;
+END $$;

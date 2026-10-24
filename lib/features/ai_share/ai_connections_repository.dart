@@ -138,7 +138,7 @@ abstract interface class AiConnectionsRepository {
   Future<List<AiConnection>> listMine();
   Object? get pairingSessionIdentity;
   Future<AiPairingPreview> previewPairing(String code);
-  Future<void> approvePairing(String code);
+  Future<String?> approvePairing(String code);
   Future<void> cancelPairing(String code);
 }
 
@@ -195,14 +195,20 @@ class SupabaseAiConnectionsRepository implements AiConnectionsRepository {
       );
 
   @override
-  Future<void> approvePairing(String code) async {
-    if ((await _pairingRpc(
-          'approve_ai_connection_pairing',
-          code,
-        ))['approved'] !=
-        true) {
+  Future<String?> approvePairing(String code) async {
+    final result = await _pairingRpc('approve_ai_connection_pairing', code);
+    if (result['approved'] != true) throw const AiPairingException();
+    final id = result['connection_id'];
+    if (id == null) {
+      return null; // Legacy approval still needs browser completion.
+    }
+    if (id is! String ||
+        !RegExp(
+          r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$',
+        ).hasMatch(id)) {
       throw const AiPairingException();
     }
+    return id;
   }
 
   @override

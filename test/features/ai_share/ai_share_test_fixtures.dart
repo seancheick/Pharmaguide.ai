@@ -202,11 +202,16 @@ class FakeAiConnectionsRepository implements AiConnectionsRepository {
   Object? pairingSessionIdentity = 'test-user';
   Future<AiPairingPreview> Function(String)? preview;
   Future<void> Function(String)? approve;
+  String? approvedConnectionId;
   Future<void> Function(String)? cancel;
   @override
   Future<AiPairingPreview> previewPairing(String code) => preview!(code);
   @override
-  Future<void> approvePairing(String code) => approve!(code);
+  Future<String?> approvePairing(String code) async {
+    await approve!(code);
+    return approvedConnectionId;
+  }
+
   @override
   Future<void> cancelPairing(String code) => cancel!(code);
 

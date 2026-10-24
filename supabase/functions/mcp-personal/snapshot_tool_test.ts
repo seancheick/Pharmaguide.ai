@@ -20,11 +20,11 @@ import {
 
 const PAYLOAD = "# PharmaGuide brief\n\n- Magnesium Glycinate\n- Warfarin 5 mg (medication)\n";
 const SCOPE = {
-  supplementNames: true,
-  supplementAmounts: false,
-  supplementSchedule: false,
-  medicationNames: true,
-  medicationSchedule: false,
+  supplement_names: true,
+  supplement_amounts: false,
+  supplement_schedule: false,
+  medication_names: true,
+  medication_schedule: false,
   profile: false,
   findings: true,
 };
