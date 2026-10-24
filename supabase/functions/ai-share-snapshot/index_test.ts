@@ -410,6 +410,19 @@ Deno.test("production containment denies new snapshots but preserves authenticat
   ]);
 });
 
+Deno.test("enabled production preserves authenticated scoped upload and revocation", async () => {
+  const s = await setup(undefined, undefined, deps => createProductionHandler(deps, true));
+  assertEquals((await s.handler(request("POST", null, share(s.live.connection_id)))).status, 401);
+  assertEquals(s.store.rows.size, 0);
+  const token = await appToken(s);
+  assertEquals((await s.handler(request("POST", token, share(s.live.connection_id)))).status, 201);
+  assertEquals(s.store.rows.size, 1);
+  s.live.status = "revoked";
+  assertEquals((await s.handler(request("POST", token, share(s.live.connection_id)))).status, 403);
+  assertEquals((await s.handler(request("DELETE", token, {connection_id: s.live.connection_id}))).status, 204);
+  assertEquals(s.store.rows.size, 0);
+});
+
 Deno.test("durable WorkOS connection does not make its shared snapshot permanent", async () => {
   const c = connection({expires_at: null, oauth_issuer: "https://issuer.authkit.app", consent_id: "app_consent_durable"});
   const s = await setup([c]);

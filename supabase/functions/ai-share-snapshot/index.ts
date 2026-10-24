@@ -316,11 +316,10 @@ export function postgrestShareStore(
   };
 }
 
-// Do not collect new sensitive snapshots while personal reads are contained
-// for ADR-009 S2. Keep the existing authenticated deletion/sign-out path live.
-export function createProductionHandler(deps: ShareDeps): (request: Request) => Promise<Response> {
+// Reuse the setup/read rollout switch; authenticated deletion stays live during rollback.
+export function createProductionHandler(deps: ShareDeps, enabled = false): (request: Request) => Promise<Response> {
   const handler = createHandler(deps);
-  return (request) => request.method === "POST"
+  return (request) => !enabled && request.method === "POST"
     ? Promise.resolve(json({ error: PERSONAL_ACCESS_DISABLED_MESSAGE }, 503))
     : handler(request);
 }
@@ -345,6 +344,6 @@ if (import.meta.main) {
       verifySession: (token) => verifyAppSessionToken(token, { issuer, keys }),
       store: postgrestShareStore(supabaseUrl, serviceKey),
       keyring,
-    }));
+    }, Deno.env.get("AI_CONNECTOR_PAIRING_ENABLED") === "true"));
   }
 }

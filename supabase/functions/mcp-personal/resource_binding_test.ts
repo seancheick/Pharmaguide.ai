@@ -93,6 +93,19 @@ Deno.test("production containment denies previously issued personal tokens and k
   assertEquals((await body(metadata)).resource, AUDIENCE);
 });
 
+Deno.test("enabled production uses the existing authenticated connection gate", async () => {
+  const h = await harness({handlerFactory: deps => createProductionHandler(deps, true)});
+  assertEquals((await h.handler(callSupplements("invalid"))).status, 401);
+  assertEquals(h.stacks.requestedUsers, []);
+  const own = await h.handler(callSupplements(await sign(h.key, claimsFor(USER_A, CLAUDE))));
+  assertEquals(own.status, 200);
+  assertEquals(h.stacks.requestedUsers, [USER_A]);
+  h.connections.rows[0].status = "revoked";
+  const ended = await h.handler(callSupplements(await sign(h.key, claimsFor(USER_A, CLAUDE))));
+  assertEquals(ended.status, 403);
+  assertEquals(h.stacks.requestedUsers, [USER_A], "revocation prevents another read");
+});
+
 Deno.test("checked-in OAuth server config requires pre-registered clients", async () => {
   const config = await Deno.readTextFile(new URL("../../config.toml", import.meta.url));
   const oauth = config.split("[auth.oauth_server]")[1]?.split(/^\[/m)[0] ?? "";
@@ -156,6 +169,32 @@ Deno.test("production WorkOS configuration fails closed and never falls back to 
   assertEquals((await handler(callSupplements("fixture"))).status, 503);
   const metadata = await handler(new Request(`${deps.resourceUrl}/oauth-protected-resource`));
   assertEquals((await body(metadata)).authorization_servers, [valid.WORKOS_ISSUER]);
+});
+
+Deno.test("production admits only registered supported assistant destinations", async () => {
+  const base: Record<string, string> = {
+    SUPABASE_URL: "https://project.supabase.co", SUPABASE_SECRET_KEY: "fixture-only",
+    WORKOS_ISSUER: "https://issuer.authkit.app", MCP_PERSONAL_RESOURCE_URL: AUDIENCE,
+    MCP_PERSONAL_WEBSITE_URL: "https://pharmaguide.io/oauth/authorize", ...TEST_KEYRING_ENV,
+  };
+  for (const [kind, redirect_uri] of [
+    ["codex", "http://127.0.0.1:3199/callback/fixture"],
+    ["claude", "https://claude.ai/api/mcp/auth_callback"],
+    ["chatgpt", "https://chatgpt.com/connector_platform_oauth_redirect"],
+    ["chatgpt", "https://chatgpt.com/connector/oauth/fixture"],
+    ["claude_code", "http://localhost:4545/callback"],
+  ]) {
+    const configured = (redirect: string) => (name: string) => ({...base,
+      AI_CONNECTOR_TRUSTED_CLIENTS: JSON.stringify([{client_id:"client_fixture",name:"Reviewed assistant",kind,redirect_uri:redirect}]),
+    })[name];
+    const deps = await createProductionDependencies(configured(redirect_uri));
+    assertEquals(Boolean(deps.setup), true, kind);
+    for (const bad of [redirect_uri + "?extra=1", redirect_uri.replace(/localhost|127\.0\.0\.1|claude\.ai|chatgpt\.com/, "attacker.example")]) {
+      let rejected = false;
+      try { await createProductionDependencies(configured(bad)); } catch { rejected = true; }
+      assertEquals(rejected, true, `${kind} callback rejected`);
+    }
+  }
 });
 
 Deno.test("production composition verifies pinned WorkOS grant and registers only trusted setup metadata", async () => {

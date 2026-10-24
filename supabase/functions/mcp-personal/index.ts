@@ -607,18 +607,17 @@ export function postgrestRepositories(
   };
 }
 
-// ADR-009 rollout containment: durable WorkOS behavior is qualified in injected
-// tests, but hosted phone/snapshot acceptance and explicit activation remain open.
-// Keep production personal reads disabled while preserving discovery.
-export function createProductionHandler(deps: PersonalMcpDeps): (request: Request) => Promise<Response> {
+// The existing rollout switch controls setup, personal reads and snapshot uploads.
+// Default-off retains discovery and a safe rollback without changing consent state.
+export function createProductionHandler(deps: PersonalMcpDeps, enabled = false): (request: Request) => Promise<Response> {
+  if (enabled) return createHandler(deps);
   return withPersonalOAuthMetadata(
     deps,
     () => Promise.resolve(transport.rpcError(null, -32603, PERSONAL_ACCESS_DISABLED_MESSAGE, 503)),
   );
 }
 
-// The deployed entrypoint composes the same verifier/repositories as qualification.
-// This prepares WorkOS wiring only: createProductionHandler remains hard-disabled.
+// Production uses the same verifier, consent gate and repositories as qualification.
 export async function createProductionDependencies(
   get: (name: string) => string | undefined,
   request: typeof fetch = fetch,
@@ -638,26 +637,30 @@ export async function createProductionDependencies(
   const websiteUrl = httpsUrl("MCP_PERSONAL_WEBSITE_URL");
   const serviceKey = resolveSupabaseAdminKey(get);
   if (!serviceKey) throw Error("Personal MCP configuration unavailable");
-  // Same operator-owned JSON shape as the website. This rollout qualifies only
-  // exact pre-registered Codex callbacks, never arbitrary client metadata.
+  // Same operator-owned registrations as the website. Every destination is
+  // exact and pre-registered; client-supplied names never become authority.
   const entries: unknown = JSON.parse(get("AI_CONNECTOR_TRUSTED_CLIENTS") ?? "null");
   if (!Array.isArray(entries) || entries.length === 0 || entries.length > 100) {
     throw Error("Personal MCP configuration unavailable");
   }
   const clients: Record<string, {name: string; redirectUri: string}> = Object.create(null);
   for (const entry of entries) {
-    if (!entry || typeof entry !== "object" || entry.kind !== "codex" ||
+    if (!entry || typeof entry !== "object" || !["codex", "claude", "chatgpt", "claude_code"].includes(entry.kind) ||
       typeof entry.client_id !== "string" || !/^[A-Za-z0-9_-]{1,255}$/.test(entry.client_id) ||
       Object.hasOwn(clients, entry.client_id) || typeof entry.name !== "string" ||
       !entry.name.trim() || entry.name.length > 200 || typeof entry.redirect_uri !== "string") {
       throw Error("Personal MCP configuration unavailable");
     }
     const callback = new URL(entry.redirect_uri);
-    if (callback.protocol !== "http:" || callback.hostname !== "127.0.0.1" ||
-      callback.username || callback.password || callback.search || callback.hash ||
-      !/^\/callback\/[A-Za-z0-9_-]{1,128}$/.test(callback.pathname) || entry.redirect_uri.includes("..")) {
-      throw Error("Personal MCP configuration unavailable");
-    }
+    const clean = !callback.username && !callback.password && !callback.search && !callback.hash && !entry.redirect_uri.includes("..");
+    const allowed = entry.kind === "codex"
+      ? callback.protocol === "http:" && callback.hostname === "127.0.0.1" && /^\/callback\/[A-Za-z0-9_-]{1,128}$/.test(callback.pathname)
+      : entry.kind === "claude_code"
+      ? callback.protocol === "http:" && ["localhost", "127.0.0.1"].includes(callback.hostname) && callback.pathname === "/callback"
+      : callback.protocol === "https:" && callback.port === "" && (entry.kind === "claude"
+        ? callback.hostname === "claude.ai" && callback.pathname === "/api/mcp/auth_callback"
+        : callback.hostname === "chatgpt.com" && (callback.pathname === "/connector_platform_oauth_redirect" || /^\/connector\/oauth\/[A-Za-z0-9_-]{1,128}$/.test(callback.pathname)));
+    if (!clean || !allowed) throw Error("Personal MCP configuration unavailable");
     clients[entry.client_id] = {name: entry.name.trim(), redirectUri: entry.redirect_uri};
   }
   // Require the same configured keyring as the snapshot writer; never silently
@@ -677,7 +680,10 @@ export async function createProductionDependencies(
 if (import.meta.main) {
   let handler: (request: Request) => Promise<Response>;
   try {
-    handler = createProductionHandler(await createProductionDependencies(name => Deno.env.get(name)));
+    handler = createProductionHandler(
+      await createProductionDependencies(name => Deno.env.get(name)),
+      Deno.env.get("AI_CONNECTOR_PAIRING_ENABLED") === "true",
+    );
   } catch {
     // Missing or malformed config never falls back to the retired OAuth issuer.
     // No config values, credentials or provider payloads are logged.
