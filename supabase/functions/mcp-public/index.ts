@@ -28,10 +28,15 @@ export const SERVER_INSTRUCTIONS =
   "Always keep the evidence_level and source with every warning you repeat. " +
   "Where limitations are listed, say what was not assessed. " +
   "For comparisons use search_products sort=quality: descending published PharmaGuide quality, not personal suitability. " +
-  "State total_matches, filters and catalog_version; results cover matching product names, not every product containing an ingredient. " +
+  "For browsing state the matching scope and relevant filters; keep catalog_version and internal identifiers out of ordinary answers unless requested for troubleshooting. Results cover matching product names, not every product containing an ingredient. " +
+  "Accept product names and photos as normal starting points. Read supplied photos first: use visible brand, name, form, strength, Facts panel and directions to search and verify candidates. Use a legible barcode if present; never invent unreadable digits or ask the person to type information already visible. This server receives text identifiers, not images; photo reading is performed by the assistant. " +
+  "Lead with the identified product and its published quality_tier verbatim, then explain the actual quality_pillars_v4 reasons and facts, including strengths, deductions and incomplete assessments. Never replace a published tier or calculate a new score. " +
+  "Prefer the pillar reason and facts marked audience=consumer, matching the app's explanation. Keep audit arithmetic for follow-up questions; use the Dose receipt to explain a requested deduction accurately. " +
+  "When the same named product has materially different recorded directions, explain both records briefly using the directions and published ratings. Say these are catalog label records and the person's bottle is not yet confirmed; do not assume a newer record is their bottle or that a default frequency is printed label text. " +
+  "Explain Dose from its published explanation facts: minimum and maximum directed daily amounts, applicable reference, and the actual deduction or cap. Do not apply newer policy to an older published score. A default daily frequency does not prove printed directions; a lower amount below an upper limit does not establish personal safety. " +
   "Compare like products: distinguish single-ingredient, combination and laxative products, and explain published pillar reasons, confidence, serving basis and limitations. " +
   "Never sum parent/component ingredient rows, recompute a quality score, or invent an evidence grade, source, price or availability. " +
-  "If identifying a person's exact product and a search is ambiguous, ask for the barcode or a label photo; for browsing compare the returned candidates without claiming they are the person's product.";
+  "If identifying a person's exact product and a search is ambiguous, use supplied legible label details first; ask only for the missing distinguishing detail or panel. For browsing compare returned candidates without claiming they are the person's product.";
 
 const SEARCH_LIMIT = 10;
 export const AMBIGUITY_MARGIN = 0.1;
@@ -109,8 +114,7 @@ export const TOOLS = [
 
 const NEXT_STEP = {
   ambiguous:
-    "Several catalog products match. Ask the person for the barcode (UPC) or a photo of the label's Supplement " +
-    "Facts panel, then call lookup_barcode or get_product with the exact dsld_id. Do not guess between them.",
+    "Several catalog records match. Read any supplied photos and fetch candidate details first. Distinguish them using visible form, strength and directions; do not lead with UPC lists. If identity remains uncertain, ask one short question about the distinguishing detail or request a clear photo of the missing front, Supplement Facts or directions panel. A barcode photo is optional. Do not guess or claim a catalog record is the person's bottle without supporting details.",
   none:
     "No catalog match. Ask for the barcode or the exact product name and brand. PharmaGuide has not evaluated " +
     "a product it cannot find, so do not describe it as having no concerns.",

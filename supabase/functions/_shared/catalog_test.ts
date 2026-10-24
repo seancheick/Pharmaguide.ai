@@ -11,6 +11,23 @@ import {
   toProductFacts,
 } from "./catalog.ts";
 
+Deno.test("new Dose receipt preserves optional-use deduction without inventing a cap", () => {
+  const facts = toProductFacts(blob({ quality_pillars_v4: { dose: {
+    score: 18, max: 20, explanation: { dose_receipt: {
+      daily_use: { minimum_servings: 1, maximum_servings: 4, defaulted: false },
+      adequacy_before_safety: 20, final: 18, reconciles: true,
+      upper_reference: { nutrient: "Magnesium", ul: 350, deduction_public: 2, amount_mg_day: 480, amount_mg_day_at_minimum: 120 },
+    } },
+  } } }), row());
+  const dose = (facts.quality_pillars_v4 as Json).dose as Json;
+  const receipt = (dose.explanation as Json).dose_receipt as Json;
+  assertEquals(receipt.final, 18);
+  assertEquals((receipt.upper_reference as Json).deduction_public, 2);
+  assertEquals((receipt.upper_reference as Json).cap_public, null);
+  assertEquals((receipt.daily_use as Json).defaulted, false);
+  for (const key of collectKeys(facts)) assert(PUBLIC_FACT_KEYS.has(key), `unexpected key: ${key}`);
+});
+
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -53,6 +70,8 @@ export const PIPELINE_BLOB_TOP_LEVEL: Record<string, boolean> = {
 
 /// Every key a public product response may contain (no personal fields).
 export const PUBLIC_FACT_KEYS = new Set([
+  "audience",
+  "dose_receipt", "assessment_status", "adequacy_before_safety", "final", "reconciles", "daily_use", "minimum_servings", "maximum_servings", "defaulted", "upper_reference", "kind", "ul_unit", "ul_population", "policy", "quantity_operator", "pct_ul_at_minimum", "amount_mg_day", "amount_mg_day_at_minimum", "exceeds_above_mg_day", "cap_public", "deduction_public", "minimum_exceeds",
   "dose_safety_policy", "ul_pct_threshold", "per_flag_penalty", "cap", "raw_dose", "normalization_reference", "source_owner", "evidence_grade_applicable", "basis_type", "source_url", "ul_basis", "ul_note", "explanation", "schema_version", "assessment", "facts", "id", "label", "value_display", "method", "deferred_data_dependency", "dose_participation_basis", "ul_partial_credit_above_pct", "ul_zero_credit_at_pct", "ul_partial_credit_raw", "supplemental_window_max_raw", "raw_dose_safety_penalty", "safety_hygiene_over_ul_penalty", "unbenchmarked_purpose_ingredients", "reference_assessments", "canonical_id", "rda_ai_source", "ul_status", "source_label_key", "rda_ai", "ul", "pct_rda", "pct_ul", "per_day_min", "per_day_max", "scoring_eligible", "skip_ul_check", "ul_gate_eligible", "reference", "reference_profile", "age_range", "adequacy_basis", "positive_clinical_benchmark_assessments", "record_id", "source_row_ref", "benchmark_unit", "benchmark_value", "benchmark_maximum", "exposure_value", "assessment_kind", "dose_band", "member_canonical_ids",
   "forms", "prefix", "percent",
   "quality_score_v4_100", "raw_source_path", "owner_row_ref", "source_role", "display_form_label", "form_status", "display_dose_label", "dose_status", "form_evidence", "references_structured", "url", "pmid", "supports_claims", "serving_info", "basis_count", "basis_unit", "min_servings_per_day", "max_servings_per_day", "servings_per_day_source", "basis_reason", "primary_type", "product_role", "label_record", "source_name", "source_record_id", "source_date", "source_updated_date", "label_source_url", "metadata_status", "quality_pillars_v4", "formulation", "dose", "evidence", "transparency", "verification", "safety_hygiene", "score", "max", "reason", "evidence_result_state", "display_state", "safety_summary", "safety_summary_one_liner", "sort", "offset", "total_matches", "next_offset", "supplement_type",

@@ -83,6 +83,8 @@ async function harness(rows: CatalogRow[], opts: { storageDown?: boolean; limite
 // Every key a public tool response may contain. A personal field (profile,
 // medication, condition, user id ...) appearing anywhere fails this test.
 const PUBLIC_RESPONSE_KEYS = new Set([
+  "audience",
+  "dose_receipt", "assessment_status", "adequacy_before_safety", "final", "reconciles", "daily_use", "minimum_servings", "maximum_servings", "defaulted", "upper_reference", "kind", "ul_unit", "ul_population", "policy", "quantity_operator", "pct_ul_at_minimum", "amount_mg_day", "amount_mg_day_at_minimum", "exceeds_above_mg_day", "cap_public", "deduction_public", "minimum_exceeds",
   "dose_safety_policy", "ul_pct_threshold", "per_flag_penalty", "cap", "raw_dose", "normalization_reference", "source_owner", "evidence_grade_applicable", "basis_type", "source_url", "ul_basis", "ul_note", "explanation", "schema_version", "assessment", "facts", "id", "label", "value_display", "method", "deferred_data_dependency", "dose_participation_basis", "ul_partial_credit_above_pct", "ul_zero_credit_at_pct", "ul_partial_credit_raw", "supplemental_window_max_raw", "raw_dose_safety_penalty", "safety_hygiene_over_ul_penalty", "unbenchmarked_purpose_ingredients", "reference_assessments", "canonical_id", "rda_ai_source", "ul_status", "source_label_key", "rda_ai", "ul", "pct_rda", "pct_ul", "per_day_min", "per_day_max", "scoring_eligible", "skip_ul_check", "ul_gate_eligible", "reference", "reference_profile", "age_range", "adequacy_basis", "positive_clinical_benchmark_assessments", "record_id", "source_row_ref", "benchmark_unit", "benchmark_value", "benchmark_maximum", "exposure_value", "assessment_kind", "dose_band", "member_canonical_ids", "result_scope", "is_exhaustive", "returned_count", "ranking_basis", "ranking_is_personal_recommendation", "assessment_scope", "product_identity", "label_quality", "medications", "conditions", "pregnancy", "lactation", "allergies", "full_stack",
   "quality_score_v4_100", "raw_source_path", "owner_row_ref", "source_role", "display_form_label", "form_status", "display_dose_label", "dose_status", "form_evidence", "references_structured", "url", "pmid", "supports_claims", "serving_info", "basis_count", "basis_unit", "min_servings_per_day", "max_servings_per_day", "servings_per_day_source", "basis_reason", "primary_type", "product_role", "label_record", "source_name", "source_record_id", "source_date", "source_updated_date", "label_source_url", "metadata_status", "quality_pillars_v4", "formulation", "dose", "evidence", "transparency", "verification", "safety_hygiene", "score", "max", "reason", "evidence_result_state", "display_state", "safety_summary", "safety_summary_one_liner", "sort", "offset", "total_matches", "next_offset", "supplement_type",
   "data", "name_source", "catalog_version", "generated_at", "error", "found", "next_step", "matches",
@@ -133,6 +135,20 @@ Deno.test("tools/list exposes exactly the three read-only tools", async () => {
   const { body } = await rpc("tools/list");
   assertEquals(body.result.tools.map((t: Json) => t.name), ["search_products", "get_product", "lookup_barcode"]);
   for (const tool of body.result.tools) assertEquals((tool.annotations as Json).readOnlyHint, true);
+});
+
+Deno.test("name and photo identification use visible details and preserve both label versions", async () => {
+  assert(!SERVER_INSTRUCTIONS.includes("ask for the barcode or a label photo"), "ambiguous search must not automatically request a photo already supplied");
+  const { call } = await harness([row("205309", { match_score: 0.82 }), row("299065", { match_score: 0.82 })]);
+  const response = await call("search_products", { query: "Pure Encapsulations Magnesium Glycinate" });
+  const data = response.structuredContent.data as Json;
+  assertEquals((data.matches as Json[]).map(x => x.dsld_id), ["205309", "299065"]);
+  assertEquals(data.ambiguous, true);
+  assert(String(data.next_step).includes("Read any supplied photos"), "use existing photo before requesting another");
+  assert(String(data.next_step).includes("missing front, Supplement Facts or directions panel"), "ask only for missing detail");
+  for (const text of ["explain both records briefly", "quality_tier verbatim", "Do not apply newer policy to an older published score", "never invent unreadable digits", "photo reading is performed by the assistant"]) {
+    assert(SERVER_INSTRUCTIONS.includes(text), `missing conversation safeguard: ${text}`);
+  }
 });
 
 Deno.test("ambiguity: close scores or a shared product line", () => {

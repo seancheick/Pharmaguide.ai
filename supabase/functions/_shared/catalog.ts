@@ -441,9 +441,27 @@ function pillarExplanation(value: unknown): Json | null {
         assessment_kind: capText(r.assessment_kind), dose_band: capText(r.dose_band), member_canonical_ids: stringList(r.member_canonical_ids) }];
     });
   }
-  return { schema_version: finiteNumber(exp.schema_version), assessment,
+  const receipt = asObject(exp.dose_receipt);
+  const daily = asObject(receipt?.daily_use);
+  const upper = asObject(receipt?.upper_reference);
+  const doseReceipt: Json | null = receipt ? {
+    assessment_status: capText(receipt.assessment_status),
+    adequacy_before_safety: finiteNumber(receipt.adequacy_before_safety),
+    final: finiteNumber(receipt.final),
+    reconciles: typeof receipt.reconciles === "boolean" ? receipt.reconciles : null,
+    daily_use: daily ? {
+      minimum_servings: finiteNumber(daily.minimum_servings), maximum_servings: finiteNumber(daily.maximum_servings),
+      defaulted: typeof daily.defaulted === "boolean" ? daily.defaulted : null,
+    } : null,
+    upper_reference: upper ? {
+      ...Object.fromEntries(["kind", "nutrient", "ul_unit", "ul_population", "policy", "quantity_operator"].map(key => [key, capText(upper[key])])),
+      ...Object.fromEntries(["ul", "pct_ul", "pct_ul_at_minimum", "amount_mg_day", "amount_mg_day_at_minimum", "exceeds_above_mg_day", "cap_public", "deduction_public"].map(key => [key, finiteNumber(upper[key])])),
+      minimum_exceeds: typeof upper.minimum_exceeds === "boolean" ? upper.minimum_exceeds : null,
+    } : null,
+  } : null;
+  return { schema_version: finiteNumber(exp.schema_version), assessment, dose_receipt: doseReceipt,
     facts: (Array.isArray(exp.facts) ? exp.facts : []).slice(0, MAX_INGREDIENTS).flatMap(value => {
-      const fact = asObject(value); return fact ? [{ id: capText(fact.id), label: capText(fact.label), value_display: completeText(fact.value_display) }] : [];
+      const fact = asObject(value); return fact ? [{ id: capText(fact.id), label: capText(fact.label), value_display: completeText(fact.value_display), audience: capText(fact.audience, 40) }] : [];
     }) };
 }
 
