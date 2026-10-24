@@ -1,4 +1,5 @@
-import { createProductionHandler } from "./index.ts";
+import { localJwks } from "../_shared/oauth_token.ts";
+import { createProductionDependencies, createProductionHandler } from "./index.ts";
 // Synthetic handler tests exercise audience checks and connection isolation.
 // These are not proof of original requested-resource binding by the issuer.
 // Production containment below denies all personal reads until S2 is repaired.
@@ -15,6 +16,8 @@ import {
   harness,
   sign,
   USER_A,
+  signingKey,
+  TEST_KEYRING_ENV,
 } from "./test_support.ts";
 
 Deno.test("a token stamped for an attacker resource is rejected", async () => {
@@ -95,4 +98,100 @@ Deno.test("checked-in OAuth server config requires pre-registered clients", asyn
   const oauth = config.split("[auth.oauth_server]")[1]?.split(/^\[/m)[0] ?? "";
   assertEquals(/^allow_dynamic_registration\s*=\s*false\s*$/m.test(oauth), true,
     "ADR-009 production config must not accept dynamic client registrations");
+});
+
+Deno.test("production WorkOS configuration fails closed and never falls back to Supabase OAuth", async () => {
+  const valid: Record<string, string> = {
+    SUPABASE_URL: "https://project.supabase.co", SUPABASE_SECRET_KEY: "fixture-only",
+    WORKOS_ISSUER: "https://issuer.authkit.app",
+    MCP_PERSONAL_RESOURCE_URL: "https://mcp.pharmaguide.io/personal",
+    MCP_PERSONAL_WEBSITE_URL: "https://pharmaguide.io/oauth/authorize",
+    AI_CONNECTOR_TRUSTED_CLIENTS: JSON.stringify([{client_id: "client_fixture", name: "Codex", kind: "codex", redirect_uri: "http://127.0.0.1:12345/callback/fixture"}]),
+    AI_SHARE_SNAPSHOT_KEY_V1: btoa("x".repeat(32)),
+  };
+  for (const key of Object.keys(valid)) {
+    const env = {...valid}; delete env[key];
+    let rejected = false;
+    try { await createProductionDependencies(name => env[name]); } catch { rejected = true; }
+    assertEquals(rejected, true, `missing ${key}`);
+  }
+  for (const [key, value] of [
+    ["WORKOS_ISSUER", "http://issuer.authkit.app"],
+    ["WORKOS_ISSUER", "https://issuer.authkit.app/path"],
+    ["MCP_PERSONAL_RESOURCE_URL", "https://mcp.pharmaguide.io/personal?alternate=1"],
+    ["MCP_PERSONAL_WEBSITE_URL", "https://user:password@pharmaguide.io/oauth/authorize"],
+    ["AI_CONNECTOR_TRUSTED_CLIENTS", "[]"],
+    ["AI_CONNECTOR_TRUSTED_CLIENTS", "malformed JSON"],
+    ["AI_CONNECTOR_TRUSTED_CLIENTS", JSON.stringify([...JSON.parse(valid.AI_CONNECTOR_TRUSTED_CLIENTS), ...JSON.parse(valid.AI_CONNECTOR_TRUSTED_CLIENTS)])],
+    ["AI_CONNECTOR_TRUSTED_CLIENTS", valid.AI_CONNECTOR_TRUSTED_CLIENTS.replace('"kind":"codex"', '"kind":"unknown"')],
+    ["AI_CONNECTOR_TRUSTED_CLIENTS", valid.AI_CONNECTOR_TRUSTED_CLIENTS.replace("127.0.0.1", "attacker.example")],
+    ["AI_SHARE_SNAPSHOT_KEY_V1", "not-a-key"],
+  ]) {
+    let rejected = false;
+    try { await createProductionDependencies(name => ({...valid, [key]: value})[name]); } catch { rejected = true; }
+    assertEquals(rejected, true, `invalid ${key}`);
+  }
+  const deps = await createProductionDependencies(name => valid[name]);
+  assertEquals(deps.authorizationServer, valid.WORKOS_ISSUER);
+  assertEquals(deps.resourceUrl, valid.MCP_PERSONAL_RESOURCE_URL);
+  assertEquals(deps.setup?.websiteUrl, valid.MCP_PERSONAL_WEBSITE_URL);
+  assertEquals(deps.keyring?.current, 1);
+  const handler = createProductionHandler(deps);
+  assertEquals((await handler(callSupplements("fixture"))).status, 503);
+  const metadata = await handler(new Request(`${deps.resourceUrl}/oauth-protected-resource`));
+  assertEquals((await body(metadata)).authorization_servers, [valid.WORKOS_ISSUER]);
+});
+
+Deno.test("production composition verifies pinned WorkOS grant and registers only trusted setup metadata", async () => {
+  const key = await signingKey("production-wiring");
+  const env: Record<string, string> = {
+    SUPABASE_URL: "https://project.supabase.co", SUPABASE_SECRET_KEY: "fixture-only",
+    WORKOS_ISSUER: "https://issuer.authkit.app", MCP_PERSONAL_RESOURCE_URL: AUDIENCE,
+    MCP_PERSONAL_WEBSITE_URL: "https://pharmaguide.io/oauth/authorize",
+    AI_CONNECTOR_TRUSTED_CLIENTS: JSON.stringify([{client_id: "client_fixture", name: "Reviewed Codex", kind: "codex", redirect_uri: "http://127.0.0.1:12345/callback/fixture"}]),
+    ...TEST_KEYRING_ENV,
+  };
+  const calls: {url: string; init?: RequestInit}[] = [];
+  let live = true;
+  const request: typeof fetch = (input, init) => {
+    const url = String(input); calls.push({url, init});
+    if (url === `${env.WORKOS_ISSUER}/oauth2/userinfo`) {
+      assertEquals((init as RequestInit)?.redirect, "error"); assertEquals((init as RequestInit)?.cache, "no-store");
+      return Promise.resolve(Response.json(live ? {sub: USER_A} : {error: "revoked"}, {status: live ? 200 : 401}));
+    }
+    if (url.endsWith("/rpc/read_ai_connection_generation")) return Promise.resolve(Response.json(2));
+    if (url.endsWith("/rpc/register_workos_ai_pairing")) return Promise.resolve(Response.json({authorization_id: "opaque-setup-reference"}));
+    throw Error("Unexpected network call");
+  };
+  const deps = await createProductionDependencies(name => env[name], request, (issuer, provider) => {
+    assertEquals(issuer, env.WORKOS_ISSUER); assertEquals(provider, "workos");
+    return localJwks({keys: [key.jwk]});
+  });
+  const now = Math.floor(Date.now() / 1000);
+  const claims = {iss: env.WORKOS_ISSUER, aud: AUDIENCE, sub: USER_A, client_id: "client_fixture", sid: "app_consent_fixture", iat: now - 1, exp: now + 600, scope: "openid"};
+  const raw = await sign(key, claims);
+  const token = await deps.verifyToken(raw);
+  assertEquals(token.provider, "workos");
+  if (token.provider !== "workos") throw Error("wrong verifier");
+  const generation = await deps.setup!.generation(token.sub);
+  assertEquals(await deps.setup!.register(token, generation), "opaque-setup-reference");
+  const registration = JSON.parse(calls.at(-1)!.init!.body as string);
+  assertEquals(registration.p_user_id, USER_A);
+  assertEquals(registration.p_oauth_issuer, env.WORKOS_ISSUER);
+  assertEquals(registration.p_consent_id, "app_consent_fixture");
+  assertEquals(registration.p_expected_generation, 2);
+  assertEquals(registration.p_client_name, "Reviewed Codex");
+  assertEquals(registration.p_redirect_uri, "http://127.0.0.1:12345/callback/fixture");
+  assertEquals(JSON.stringify(calls.slice(1)).includes(raw), false, "bearer never reaches database");
+  for (const changed of [{aud: ATTACKER_AUDIENCE}, {iss: "https://other.authkit.app"}, {client_id: "client_other"}]) {
+    const before = calls.length;
+    let denied = false;
+    try { await deps.verifyToken(await sign(key, {...claims, ...changed})); } catch { denied = true; }
+    assertEquals(denied, true); assertEquals(calls.length, before, "reject before UserInfo or data access");
+  }
+  live = false;
+  let denied = false;
+  try { await deps.verifyToken(raw); } catch { denied = true; }
+  assertEquals(denied, true, "same token fails after live consent revocation");
+  assertEquals(calls.at(-1)!.url, `${env.WORKOS_ISSUER}/oauth2/userinfo`);
 });

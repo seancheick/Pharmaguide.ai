@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
@@ -375,6 +376,40 @@ class _ConsentCard extends StatelessWidget {
             'The assistant receives it when it asks, and may keep it in your '
             'chat history. Disconnecting cannot erase what the assistant '
             'already kept.',
+          ),
+          line(
+            Icons.privacy_tip_outlined,
+            "The assistant provider's own retention and training settings apply. "
+            'Review them before saving health information.',
+          ),
+          TextButton(
+            onPressed: () async {
+              // Same privacy destination and native link owner as Settings.
+              final uri = Uri.https('pharmaguide.io', '/privacy');
+              var opened = false;
+              try {
+                opened = await launchUrl(
+                  uri,
+                  mode: LaunchMode.externalApplication,
+                );
+                if (!opened) {
+                  opened = await launchUrl(
+                    uri,
+                    mode: LaunchMode.inAppBrowserView,
+                  );
+                }
+              } on Object {
+                opened = false;
+              }
+              if (!opened && context.mounted) {
+                PGToast.show(
+                  context,
+                  'Could not open link. Try again.',
+                  variant: PGToastVariant.error,
+                );
+              }
+            },
+            child: const Text('Privacy policy'),
           ),
           line(
             Icons.link_off_rounded,

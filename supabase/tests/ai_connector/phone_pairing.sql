@@ -308,3 +308,29 @@ DELETE FROM auth.sessions WHERE id=aic.user_id(106);
 SELECT public.begin_ai_connection_revocation(aic.user_id(1),'phone-atomic-client');
 SELECT public.finish_ai_connection_revocation(aic.user_id(1),'phone-atomic-client',public.read_ai_connection_generation(aic.user_id(1)));
 UPDATE public.ai_connection_pairing_limits SET start_window=now()-interval '11 minutes',lookup_window=now()-interval '11 minutes';
+
+-- Account deletion must block every client before asynchronous provider cleanup.
+DO $$ DECLARE g integer; old_g integer; r jsonb; BEGIN
+ r:=aic.work_register('account-delete-pending','delete-pending-client',2);
+ PERFORM aic.assert(r ? 'authorization_id','pending account deletion fixture');
+ old_g:=(public.begin_ai_connection_revocation(aic.user_id(2),'delete-old-client')->>'generation')::integer;
+ INSERT INTO public.ai_connections(user_id,client_id,expires_at) VALUES
+ (aic.user_id(2),'delete-client-a',now()+interval '1 day'),
+ (aic.user_id(2),'delete-client-b',now()+interval '1 day');
+ INSERT INTO public.ai_share_snapshots(connection_id,user_id,format,scope,ciphertext,nonce,key_version,expires_at)
+ SELECT connection_id,user_id,'pharmaguide-brief-markdown/v1','{}','\x00','\x00',1,now()+interval '1 hour'
+ FROM public.ai_connections WHERE user_id=aic.user_id(2) AND client_id IN('delete-client-a','delete-client-b');
+ r:=public.begin_ai_connection_revocation(aic.user_id(2),NULL);
+ PERFORM aic.assert(r ? 'generation','account deletion enters atomic global barrier');
+ g:=(r->>'generation')::integer;
+ PERFORM aic.assert(g>old_g,'account deletion supersedes in-flight client revocation');
+ PERFORM aic.assert(public.finish_ai_connection_revocation(aic.user_id(2),'delete-old-client',old_g) ? 'error','old provider completion cannot clear deletion barrier');
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_connection_pairings WHERE user_id=aic.user_id(2) AND cancelled_at IS NULL),'all pending approvals cancelled');
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_connections WHERE user_id=aic.user_id(2) AND status='active'),'all account clients revoked');
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_share_snapshots WHERE user_id=aic.user_id(2)),'all account snapshots purged');
+ PERFORM aic.assert(public.begin_ai_connection_revocation(aic.user_id(2),NULL)->>'generation'=g::text,'account deletion retry preserves generation');
+ PERFORM aic.assert(public.begin_ai_connection_revocation(aic.user_id(2),'delete-client-a') ? 'error','client disconnect cannot replace deletion barrier');
+ PERFORM aic.assert(public.finish_ai_connection_revocation(aic.user_id(2),repeat('!',256),g) ? 'error','finish cannot clear account deletion barrier');
+ PERFORM aic.assert(aic.work_register('delete-race-sid','delete-new-client',2) ? 'error','new consent blocked during failed account deletion');
+ PERFORM aic.assert(public.read_ai_connection_generation(aic.user_id(2))=g,'rejected operations preserve deletion generation');
+END $$;

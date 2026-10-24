@@ -6,7 +6,8 @@
 //     (deleting the auth user removes ai_connections and mcp_access_log rows).
 //   - revokeGrant ending refresh tokens, and the website Disconnect route
 //     marking the row revoked, are staging checks (README "Gate").
-//   - Snapshot purge belongs to Phase 2 (ai_share_snapshots does not exist yet).
+//   - Account deletion handler behavior and provider retry are exercised by
+//     delete-account/index_test.ts; hosted receipts verify provider erasure.
 import { GATE_REASONS } from "../_shared/connection_gate.ts";
 import { assert, assertEquals, body, callSupplements, CLAUDE, claimsFor, harness, NOW, sign, USER_A } from "./test_support.ts";
 
@@ -37,12 +38,16 @@ Deno.test("a connection that expires mid-session closes on the next call", async
   assertEquals((await h.handler(callSupplements(token))).status, 403, "after expiry");
 });
 
-Deno.test("delete-account removes the user's ai_connections before deleting the user", async () => {
+Deno.test("delete-account blocks all clients and retains revocation tombstones until auth deletion", async () => {
   const source = await Deno.readTextFile(new URL("delete-account/index.ts", functionsDir));
-  const purge = source.indexOf('.from("ai_connections")');
+  const barrier = source.indexOf('"begin_ai_connection_revocation"');
+  const provider = source.indexOf('const lookup = await providerRequest(');
   const deleteUser = source.indexOf("auth.admin.deleteUser(");
-  assert(purge > 0, "delete-account must delete ai_connections rows");
-  assert(purge < deleteUser, "connections are purged before the auth user is deleted");
+  assert(barrier > 0, "account deletion must use the atomic revocation owner");
+  assert(source.includes("p_client_id: null"), "the barrier must cover all clients");
+  assert(barrier < provider && provider < deleteUser, "block and purge locally, then erase provider, then auth user");
+  assert(!source.includes('.from("ai_connections")'), "do not discard consent tombstones before provider cleanup succeeds");
+  assert(!source.includes('"finish_ai_connection_revocation"'), "only final auth cascade clears account-deletion barrier");
 });
 
 Deno.test("user-JWT functions refuse OAuth client tokens", async () => {
