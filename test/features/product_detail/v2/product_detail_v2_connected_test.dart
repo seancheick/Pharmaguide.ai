@@ -331,6 +331,53 @@ List<Map<String, dynamic>> _analysisLedger() => [
 ];
 
 void main() {
+  group('source-backed blend disclosure', () {
+    for (final level in ['full', 'partial', 'none', 'invalid']) {
+      testWidgets('renders the pipeline $level disclosure without guessing', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': [
+              _activeLedgerRow('Declared preparation', 0),
+            ],
+            'quality_pillars_v4': _connectedV4Pillars(),
+            'proprietary_blend_detail': {
+              'has_proprietary_blends': true,
+              'blends': [
+                {
+                  'name': 'Label preparation',
+                  'disclosure_level': level,
+                  'total_weight': 500,
+                  'unit': 'mg',
+                },
+              ],
+            },
+          },
+        );
+        expect(find.text('88/100'), findsOneWidget);
+        expect(find.text('Blend amounts not disclosed'), findsNothing);
+        if (level == 'full') {
+          expect(find.text('Analysis coverage: Partial'), findsNothing);
+        } else {
+          expect(find.text('Analysis coverage: Partial'), findsOneWidget);
+          expect(
+            find.text(
+              level == 'partial'
+                  ? 'Some blend amounts not disclosed'
+                  : level == 'none'
+                  ? 'Blend composition incomplete'
+                  : 'Blend disclosure not verified',
+            ),
+            findsOneWidget,
+          );
+        }
+      });
+    }
+  });
   group('connected unavailable states', () {
     testWidgets('low coverage keeps the score and shows coverage beside it', (
       tester,
@@ -666,7 +713,7 @@ void main() {
           },
         );
 
-        final disclosure = find.text('Blend amounts not disclosed');
+        final disclosure = find.text('Blend disclosure not verified');
         await _scrollConnectedTowardBottomUntil(tester, disclosure);
         expect(disclosure, findsNothing);
       });
@@ -686,7 +733,7 @@ void main() {
         },
       );
 
-      final disclosure = find.text('Blend amounts not disclosed');
+      final disclosure = find.text('Blend disclosure not verified');
       await _scrollConnectedTowardTop(tester);
       expect(disclosure, findsOneWidget);
     });
@@ -710,7 +757,7 @@ void main() {
           },
         );
 
-        final disclosure = find.text('Blend amounts not disclosed');
+        final disclosure = find.text('Blend disclosure not verified');
         await _scrollConnectedTowardBottomUntil(tester, disclosure);
         expect(disclosure, findsNothing);
       });

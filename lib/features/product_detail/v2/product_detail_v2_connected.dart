@@ -576,6 +576,7 @@ class _ProductDetailV2ConnectedState
     final showLabelConfidence = labelConfidenceHasAnySignal(
       mappedCoverage: mappedCoverage,
       hasProprietaryBlends: hasProprietaryBlends,
+      proprietaryBlendDetail: proprietaryBlendDetail,
       isNotScored: isNotScored,
       productStatus: productStatus,
       unmappedActives: unmappedActives,
@@ -772,6 +773,7 @@ class _ProductDetailV2ConnectedState
                           context: context,
                           mappedCoverage: mappedCoverage,
                           hasProprietaryBlends: hasProprietaryBlends,
+                          proprietaryBlendDetail: proprietaryBlendDetail,
                           isNotScored: isNotScored,
                           productStatus: productStatus,
                           unmappedActives: unmappedActives,

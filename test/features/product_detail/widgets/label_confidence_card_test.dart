@@ -8,6 +8,7 @@ Future<void> _pump(
   WidgetTester tester, {
   double mappedCoverage = 1.0,
   bool hasProprietaryBlends = false,
+  Map<String, dynamic>? proprietaryBlendDetail,
   bool isNotScored = false,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
@@ -23,6 +24,7 @@ Future<void> _pump(
               context: context,
               mappedCoverage: mappedCoverage,
               hasProprietaryBlends: hasProprietaryBlends,
+              proprietaryBlendDetail: proprietaryBlendDetail,
               isNotScored: isNotScored,
               productStatus: productStatus,
               unmappedActives: unmappedActives,
@@ -56,6 +58,45 @@ Map<String, dynamic> _audit({
 
 void main() {
   group('labelConfidenceHasAnySignal', () {
+    test('a fully disclosed blend is not an analysis limitation', () {
+      expect(
+        labelConfidenceHasAnySignal(
+          mappedCoverage: 1,
+          hasProprietaryBlends: true,
+          isNotScored: false,
+          proprietaryBlendDetail: {
+            'blends': [
+              {'disclosure_level': 'full'},
+            ],
+          },
+        ),
+        isFalse,
+      );
+    });
+    testWidgets('full disclosure preserves independent low-coverage warning', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        mappedCoverage: 0.2,
+        hasProprietaryBlends: true,
+        proprietaryBlendDetail: {
+          'blends': [
+            {'disclosure_level': 'full'},
+          ],
+        },
+      );
+      expect(find.text('Analysis coverage: Limited'), findsOneWidget);
+      expect(find.text('Limited analysis coverage'), findsOneWidget);
+      expect(find.textContaining('blend amounts'), findsNothing);
+    });
+    testWidgets('legacy flag alone cannot claim hidden component doses', (
+      tester,
+    ) async {
+      await _pump(tester, hasProprietaryBlends: true);
+      expect(find.text('Blend disclosure not verified'), findsOneWidget);
+      expect(find.textContaining('doses are hidden'), findsNothing);
+    });
     test('high confidence (no signals) → false', () {
       expect(
         labelConfidenceHasAnySignal(
@@ -198,10 +239,20 @@ void main() {
       expect(find.text('Analysis coverage is incomplete'), findsOneWidget);
     });
 
-    testWidgets('proprietary blend → blend row visible', (tester) async {
-      await _pump(tester, hasProprietaryBlends: true);
+    testWidgets('partial blend → source-specific blend row visible', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        hasProprietaryBlends: true,
+        proprietaryBlendDetail: {
+          'blends': [
+            {'disclosure_level': 'partial'},
+          ],
+        },
+      );
       expect(find.text('Analysis coverage: Partial'), findsOneWidget);
-      expect(find.text('Blend amounts not disclosed'), findsOneWidget);
+      expect(find.text('Some blend amounts not disclosed'), findsOneWidget);
     });
 
     testWidgets('product status → status row visible', (tester) async {
@@ -257,7 +308,7 @@ void main() {
       expect(find.text('Analysis coverage: Limited'), findsOneWidget);
       expect(find.text('Not enough verified data to score'), findsOneWidget);
       expect(find.text('Limited analysis coverage'), findsOneWidget);
-      expect(find.text('Blend amounts not disclosed'), findsOneWidget);
+      expect(find.text('Blend disclosure not verified'), findsOneWidget);
       expect(find.text('1 ingredient could not be mapped'), findsOneWidget);
       expect(find.text('Reformulated'), findsOneWidget);
     });

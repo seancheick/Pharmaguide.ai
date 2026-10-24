@@ -9,13 +9,13 @@
 //
 // Sean's rules (2026-05-15):
 //   • Preserve production's tier rules verbatim (note vs partial vs limited).
-//   • Preserve `hasAnySignal` gate semantics — caller passes the boolean.
+//   • Presence is not opacity; use the pipeline disclosure tiers for the gate.
 //   • Preserve the row order: isNotScored → mappedCoverage → blends →
 //     unmapped → productStatus.
 //   • Never red. This card is a calm caveat block; recalled / banned
 //     products go through the hero BlockedBanner instead.
-//   • No invented copy — row body strings preserve the approved
-//     production wording.
+//   • Blend copy reflects the existing pipeline tier. Missing detail is
+//     unverified disclosure, not proof that the manufacturer hid doses.
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -29,7 +29,7 @@ enum LabelConfidenceTier {
   /// issue. Header reads "Product note".
   note,
 
-  /// Some label data missing or proprietary blend obscures doses.
+  /// Some label data or blend-disclosure verification is incomplete.
   /// Header reads "Label confidence: Partial".
   partial,
 
@@ -43,6 +43,7 @@ enum LabelConfidenceTier {
 LabelConfidenceTier computeLabelConfidenceTier({
   required double mappedCoverage,
   required bool hasProprietaryBlends,
+  Map<String, dynamic>? proprietaryBlendDetail,
   required bool isNotScored,
   Map<String, dynamic>? unmappedActives,
 }) {
@@ -50,7 +51,10 @@ LabelConfidenceTier computeLabelConfidenceTier({
     return LabelConfidenceTier.limited;
   }
   if (mappedCoverage < 0.5) return LabelConfidenceTier.partial;
-  if (hasProprietaryBlends) return LabelConfidenceTier.partial;
+  if (_blendDisclosureItem(hasProprietaryBlends, proprietaryBlendDetail) !=
+      null) {
+    return LabelConfidenceTier.partial;
+  }
   if (unmappedTotal(unmappedActives) > 0) return LabelConfidenceTier.partial;
   // No data-quality issue — only signal is product_status. Status is
   // informational, not a label-confidence problem.
@@ -163,11 +167,56 @@ String? productStatusType(Map<String, dynamic>? blob) {
 // lines 148–191.
 // =========================================================================
 
+/// Present the pipeline's disclosure tier; blend presence alone proves no
+/// hidden quantities. Missing/unsupported metadata stays an explicit limitation.
+PGLabelConfidenceItem? _blendDisclosureItem(
+  bool hasProprietaryBlends,
+  Map<String, dynamic>? detail,
+) {
+  final raw = detail?['blends'];
+  if (!hasProprietaryBlends && (raw is! List || raw.isEmpty)) return null;
+  final levels = raw is List
+      ? raw.map((row) => row is Map ? row['disclosure_level'] : null).toList()
+      : const <Object?>[];
+  if (levels.isNotEmpty && levels.every((level) => level == 'full')) {
+    return null;
+  }
+  if (levels.isEmpty ||
+      levels.any(
+        (level) => !const ['full', 'partial', 'none'].contains(level),
+      )) {
+    return const PGLabelConfidenceItem(
+      icon: Icons.visibility_off_outlined,
+      title: 'Blend disclosure not verified',
+      body:
+          'This record identifies a blend, but its component-amount '
+          'disclosure has not been verified.',
+    );
+  }
+  if (levels.contains('none')) {
+    return const PGLabelConfidenceItem(
+      icon: Icons.visibility_off_outlined,
+      title: 'Blend composition incomplete',
+      body:
+          'Our label record does not establish the complete blend '
+          'composition and individual component amounts.',
+    );
+  }
+  return const PGLabelConfidenceItem(
+    icon: Icons.visibility_off_outlined,
+    title: 'Some blend amounts not disclosed',
+    body:
+        'At least one blend lists a total amount, but some component '
+        'amounts are not individually disclosed.',
+  );
+}
+
 /// Build the row list for the PGLabelConfidenceCard. Each rendered row
 /// corresponds 1:1 to production's `_Row` / `_StatusRow` calls.
 List<PGLabelConfidenceItem> buildLabelConfidenceItems({
   required double mappedCoverage,
   required bool hasProprietaryBlends,
+  Map<String, dynamic>? proprietaryBlendDetail,
   required bool isNotScored,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
@@ -224,18 +273,11 @@ List<PGLabelConfidenceItem> buildLabelConfidenceItems({
     );
   }
 
-  if (hasProprietaryBlends) {
-    items.add(
-      const PGLabelConfidenceItem(
-        icon: Icons.visibility_off_outlined,
-        title: 'Blend amounts not disclosed',
-        body:
-            'This product lists a proprietary blend, so individual '
-            'ingredient doses are hidden. Our analysis cannot evaluate '
-            'per-ingredient amounts.',
-      ),
-    );
-  }
+  final blendDisclosure = _blendDisclosureItem(
+    hasProprietaryBlends,
+    proprietaryBlendDetail,
+  );
+  if (blendDisclosure != null) items.add(blendDisclosure);
 
   final unmapped = unmappedTotal(unmappedActives);
   if (unmapped > 0) {
@@ -434,6 +476,7 @@ String coverageSemanticsLabel({
   required LabelConfidenceTier tier,
   required double mappedCoverage,
   required bool hasProprietaryBlends,
+  Map<String, dynamic>? proprietaryBlendDetail,
   required bool isNotScored,
   Map<String, dynamic>? unmappedActives,
   Map<String, dynamic>? labelLedgerAudit,
@@ -449,7 +492,8 @@ String coverageSemanticsLabel({
   final hasAnalysisSignal =
       isNotScored ||
       mappedCoverage < 0.5 ||
-      hasProprietaryBlends ||
+      _blendDisclosureItem(hasProprietaryBlends, proprietaryBlendDetail) !=
+          null ||
       unmappedTotal(unmappedActives) > 0;
   if (hasAnalysisSignal) {
     final coverageBody = isLowCoverage(mappedCoverage)

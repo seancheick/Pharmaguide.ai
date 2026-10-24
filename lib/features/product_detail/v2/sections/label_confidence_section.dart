@@ -49,6 +49,7 @@ Widget buildLabelConfidenceSection({
   required BuildContext context,
   required double mappedCoverage,
   required bool hasProprietaryBlends,
+  Map<String, dynamic>? proprietaryBlendDetail,
   required bool isNotScored,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
@@ -58,6 +59,7 @@ Widget buildLabelConfidenceSection({
   final tier = computeLabelConfidenceTier(
     mappedCoverage: mappedCoverage,
     hasProprietaryBlends: hasProprietaryBlends,
+    proprietaryBlendDetail: proprietaryBlendDetail,
     isNotScored: isNotScored,
     unmappedActives: unmappedActives,
   );
@@ -85,6 +87,7 @@ Widget buildLabelConfidenceSection({
   final items = buildLabelConfidenceItems(
     mappedCoverage: mappedCoverage,
     hasProprietaryBlends: hasProprietaryBlends,
+    proprietaryBlendDetail: proprietaryBlendDetail,
     isNotScored: isNotScored,
     productStatus: productStatus,
     unmappedActives: unmappedActives,
@@ -96,11 +99,7 @@ Widget buildLabelConfidenceSection({
 
   if (items.isEmpty) return const SizedBox.shrink();
 
-  final hasAnalysisSignal =
-      isNotScored ||
-      mappedCoverage < 0.5 ||
-      hasProprietaryBlends ||
-      unmappedTotal(unmappedActives) > 0;
+  final hasAnalysisSignal = tier != LabelConfidenceTier.note;
   final header = !hasLabelLedgerException
       ? composeHeader(tier)
       : hasAnalysisSignal
@@ -113,6 +112,7 @@ Widget buildLabelConfidenceSection({
       tier: tier,
       mappedCoverage: mappedCoverage,
       hasProprietaryBlends: hasProprietaryBlends,
+      proprietaryBlendDetail: proprietaryBlendDetail,
       isNotScored: isNotScored,
       unmappedActives: unmappedActives,
       labelLedgerAudit: labelLedgerAudit,
@@ -138,16 +138,23 @@ Widget buildLabelConfidenceSection({
 bool labelConfidenceHasAnySignal({
   required double mappedCoverage,
   required bool hasProprietaryBlends,
+  Map<String, dynamic>? proprietaryBlendDetail,
   required bool isNotScored,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
   Map<String, dynamic>? labelLedgerAudit,
   bool labelLedgerAuditPresent = false,
 }) {
-  if (isNotScored) return true;
-  if (mappedCoverage < 0.5) return true;
-  if (hasProprietaryBlends) return true;
-  if (unmappedTotal(unmappedActives) > 0) return true;
+  if (computeLabelConfidenceTier(
+        mappedCoverage: mappedCoverage,
+        isNotScored: isNotScored,
+        hasProprietaryBlends: hasProprietaryBlends,
+        proprietaryBlendDetail: proprietaryBlendDetail,
+        unmappedActives: unmappedActives,
+      ) !=
+      LabelConfidenceTier.note) {
+    return true;
+  }
   if (productStatusLabel(productStatus) != null) return true;
   // A ledger audit is only a signal when it reports an EXCEPTION; a clean
   // 100%-complete label stays invisible.
