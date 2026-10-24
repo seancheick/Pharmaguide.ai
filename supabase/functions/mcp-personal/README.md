@@ -151,11 +151,12 @@ This per-server setting leaves other MCP servers' callback configuration unchang
 global `mcp_oauth_callback_port` setting is unnecessary. The per-server configuration was verified
 against installed Codex `0.164.0-alpha.11.1`: two isolated local
 metadata probes generated the same callback with S256, and an occupied port failed rather than
-falling back. The canonical hosted-resource probe currently stops at its intentional root 503,
-before producing an authorization URL; its derived callback still needs a real production
-metadata/login check after deployment and explicit acceptance authorization. No grant was created
-by these probes. Verify two fresh logins with the registered client and inspect the actual redirect
-URI before declaring production onboarding ready.
+falling back. The controlled production test then verified the actual registered callback,
+Google/WorkOS login, phone approval, automatic refresh, scoped snapshot reads, updates and opt-out,
+disconnect and a fresh reconnect. The fresh grant used a different consent ID; old refresh
+credentials remained invalid. Both grants were disconnected, including a final native phone
+Disconnect that rejected an unexpired access token and purged the snapshot. These were exact-user,
+time-bounded tests; normal public personal reads and uploads remain intentionally disabled.
 
 Primary references: [WorkOS Standalone Connect](https://workos.com/docs/authkit/connect/standalone),
 [WorkOS discovery](https://workos.com/docs/reference/workos-connect/metadata/oauth-authorization-server),
