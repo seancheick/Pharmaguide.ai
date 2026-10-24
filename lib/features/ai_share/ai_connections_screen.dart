@@ -203,6 +203,7 @@ class _SignedInBody extends ConsumerWidget {
           ),
         switch (connections) {
           AsyncData() => Column(
+            key: const Key('ai_connection_groups'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (pendingClient != null)
@@ -799,8 +800,21 @@ class _ConnectionCardState extends ConsumerState<_ConnectionCard> {
           _localEnded = true;
           _needsRetry = !success;
         });
-        ref.invalidate(aiConnectionsProvider);
         ref.invalidate(aiPendingRevocationProvider);
+        if (success) {
+          ref.invalidate(aiConnectionsProvider);
+        } else {
+          // Keep the existing retry card until the canonical cleanup barrier
+          // has loaded. Refreshing rows first could move it into hidden history.
+          try {
+            await ref.read(aiPendingRevocationProvider.future);
+            if (mounted && repository.pairingSessionIdentity == identity) {
+              ref.invalidate(aiConnectionsProvider);
+            }
+          } on Object {
+            // The status-error retry remains visible alongside this card.
+          }
+        }
       }
     } on Object {
       if (mounted && repository.pairingSessionIdentity == identity) {

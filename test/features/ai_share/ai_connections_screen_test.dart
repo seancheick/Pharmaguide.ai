@@ -49,6 +49,7 @@ void main() {
     required bool signedIn,
     bool pairing = false,
     String? approvalCode,
+    Future<String?> Function()? pendingRevocation,
   }) => ProviderScope(
     overrides: [
       aiPairingEnabledProvider.overrideWithValue(pairing),
@@ -62,6 +63,8 @@ void main() {
       aiShareSnapshotClientProvider.overrideWithValue(backend.client()),
       aiSharePrefsStoreProvider.overrideWithValue(prefs),
       aiConnectionsRepositoryProvider.overrideWithValue(repo),
+      if (pendingRevocation != null)
+        aiPendingRevocationProvider.overrideWith((ref) => pendingRevocation()),
     ],
     child: MaterialApp(
       theme: V2Theme.light,
@@ -368,6 +371,45 @@ void main() {
       expect(find.text('Retry disconnect'), findsNothing);
     },
   );
+
+  for (final cleanup in ['loaded', 'error']) {
+    testWidgets(
+      'partial disconnect stays visible while cleanup status $cleanup',
+      (tester) async {
+        final pendingStatus = Completer<String?>();
+        var loadingCleanup = false;
+        repo.onDisconnect = (_) async {
+          repo.connections[0] = aiConnectionFixture(status: 'revoked');
+          loadingCleanup = true;
+          return AiDisconnectResult.localAccessEnded;
+        };
+        await tester.pumpWidget(
+          app(
+            signedIn: true,
+            pendingRevocation: () =>
+                loadingCleanup ? pendingStatus.future : Future.value(null),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Disconnect'));
+        await tester.tap(find.text('Disconnect'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+        await tester.pumpAndSettle();
+        expect(find.text('NEEDS ATTENTION'), findsOneWidget);
+        expect(find.text('Connection history (1)'), findsNothing);
+        if (cleanup == 'error') {
+          pendingStatus.completeError(StateError('offline status'));
+        } else {
+          pendingStatus.complete(repo.connections.first.clientId);
+        }
+        await tester.pumpAndSettle();
+        expect(find.text('Retry disconnect'), findsOneWidget);
+        expect(find.text('NEEDS ATTENTION'), findsOneWidget);
+        expect(find.text('Connection history (1)'), findsNothing);
+      },
+    );
+  }
 
   for (final outcome in ['success', 'partial', 'offline']) {
     testWidgets('native disconnect $outcome is truthful and retryable', (
