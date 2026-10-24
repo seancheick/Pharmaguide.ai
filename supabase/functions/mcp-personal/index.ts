@@ -265,6 +265,32 @@ export const HTTP_MESSAGES = {
   unavailable: "PharmaGuide is unavailable right now. Try again shortly.",
 } as const;
 
+// @supabase/server 1.9.1 owns discovery URLs and the 401 challenge, but its
+// configuration does not expose scopes_supported. Extend that same document
+// so default MCP clients request the identity scope required by our verifier
+// and offline_access for the approved durable OAuth connection.
+function withPersonalOAuthMetadata(
+  deps: PersonalMcpDeps,
+  handler: (request: Request) => Promise<Response>,
+): (request: Request) => Promise<Response> {
+  const protectedHandler = withOAuthProtectedResource(
+    {resourceServer: deps.resourceUrl, authorizationServer: deps.authorizationServer},
+    handler,
+  );
+  return async request => {
+    const response = await protectedHandler(request);
+    if (request.method !== "GET" ||
+      !new URL(request.url).pathname.endsWith("/oauth-protected-resource") ||
+      response.status !== 200) return response;
+    const metadata = await response.json();
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    return new Response(JSON.stringify({...metadata, scopes_supported: ["openid", "offline_access"]}), {
+      status: response.status, headers,
+    });
+  };
+}
+
 export function createHandler(deps: PersonalMcpDeps): (request: Request) => Promise<Response> {
   const limiter = deps.limiter ?? new RateLimiter(30, 30 / 60_000);
   const now = deps.now ?? (() => new Date());
@@ -424,10 +450,7 @@ export function createHandler(deps: PersonalMcpDeps): (request: Request) => Prom
     }
   }
 
-  return withOAuthProtectedResource(
-    { resourceServer: deps.resourceUrl, authorizationServer: deps.authorizationServer },
-    guarded,
-  );
+  return withPersonalOAuthMetadata(deps, guarded);
 }
 
 // ---------------------------------------------------------------------------
@@ -588,8 +611,8 @@ export function postgrestRepositories(
 // tests, but hosted phone/snapshot acceptance and explicit activation remain open.
 // Keep production personal reads disabled while preserving discovery.
 export function createProductionHandler(deps: PersonalMcpDeps): (request: Request) => Promise<Response> {
-  return withOAuthProtectedResource(
-    { resourceServer: deps.resourceUrl, authorizationServer: deps.authorizationServer },
+  return withPersonalOAuthMetadata(
+    deps,
     () => Promise.resolve(transport.rpcError(null, -32603, PERSONAL_ACCESS_DISABLED_MESSAGE, 503)),
   );
 }

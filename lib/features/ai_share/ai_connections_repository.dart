@@ -1,7 +1,21 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Configured website origin also owns authenticated connection cleanup.
+const aiConnectionsWebUrl = String.fromEnvironment(
+  'PHARMAGUIDE_AI_CONNECTIONS_URL',
+  defaultValue: 'https://pharmaguide.io/account/connections',
+);
+
+enum AiDisconnectResult { disconnected, localAccessEnded }
+
+/// Never contains remote payloads, credentials or health information.
+class AiDisconnectException implements Exception {
+  const AiDisconnectException();
+}
 
 /// One approved assistant connection (an `ai_connections` row, ADR-009 S10).
 class AiConnection {
@@ -136,6 +150,8 @@ class AiPairingException implements Exception {
 /// tested without the global Supabase client.
 abstract interface class AiConnectionsRepository {
   Future<List<AiConnection>> listMine();
+  Future<AiDisconnectResult> disconnect(String clientId);
+  Future<String?> pendingRevocation();
   Object? get pairingSessionIdentity;
   Future<AiPairingPreview> previewPairing(String code);
   Future<String?> approvePairing(String code);
@@ -143,15 +159,104 @@ abstract interface class AiConnectionsRepository {
 }
 
 class SupabaseAiConnectionsRepository implements AiConnectionsRepository {
-  SupabaseAiConnectionsRepository([this._client]);
+  SupabaseAiConnectionsRepository([this._client, this._httpClient]);
+
+  final http.Client? _httpClient;
 
   final SupabaseClient? _client;
+
+  Future<(int, Map<String, dynamic>)> _connectionRequest(
+    Map<String, String> body,
+  ) async {
+    final transport = _httpClient ?? http.Client();
+    try {
+      final destination = Uri.parse(aiConnectionsWebUrl);
+      if (destination.scheme != 'https' ||
+          destination.host.isEmpty ||
+          destination.userInfo.isNotEmpty) {
+        throw const AiDisconnectException();
+      }
+      final client = _client ?? Supabase.instance.client;
+      final user = client.auth.currentUser?.id;
+      if (user == null) throw const AiDisconnectException();
+      final originalIdentity = pairingSessionIdentity;
+      var session = client.auth.currentSession;
+      if (session == null || session.isExpired) {
+        session = (await client.auth.refreshSession().timeout(
+          const Duration(seconds: 15),
+        )).session;
+      }
+      final identity = pairingSessionIdentity;
+      if (session == null ||
+          session.isExpired ||
+          identity == null ||
+          identity != originalIdentity ||
+          session.user.id != user) {
+        throw const AiDisconnectException();
+      }
+      final request =
+          http.Request(
+              'POST',
+              Uri.parse(destination.origin).resolve('/api/ai-connections'),
+            )
+            ..followRedirects = false
+            ..headers.addAll({
+              'authorization': 'Bearer ${session.accessToken}',
+              'content-type': 'application/json',
+            })
+            ..body = jsonEncode(body);
+      final response = await (() async => http.Response.fromStream(
+        await transport.send(request),
+      ))().timeout(const Duration(seconds: 20));
+      if (pairingSessionIdentity != identity) {
+        throw const AiDisconnectException();
+      }
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) throw const AiDisconnectException();
+      return (response.statusCode, decoded);
+    } on Object {
+      throw const AiDisconnectException();
+    } finally {
+      if (_httpClient == null) transport.close();
+    }
+  }
+
+  @override
+  Future<AiDisconnectResult> disconnect(String clientId) async {
+    final (status, body) = await _connectionRequest({
+      'action': 'disconnect',
+      'client_id': clientId,
+    });
+    if (status == 200 && body['disconnected'] == true) {
+      return AiDisconnectResult.disconnected;
+    }
+    if (status == 503 &&
+        body['provider_handled'] == true &&
+        body['local_access_ended'] == true) {
+      return AiDisconnectResult.localAccessEnded;
+    }
+    throw const AiDisconnectException();
+  }
+
+  @override
+  Future<String?> pendingRevocation() async {
+    final (status, body) = await _connectionRequest({
+      'action': 'revocation_status',
+    });
+    final id = body['client_id'];
+    if (status != 200 ||
+        !body.containsKey('client_id') ||
+        (id != null && (id is! String || id.isEmpty))) {
+      throw const AiDisconnectException();
+    }
+    return id as String?;
+  }
 
   @override
   Object? get pairingSessionIdentity {
     try {
       final session = (_client ?? Supabase.instance.client).auth.currentSession;
-      if (session == null || session.isExpired) return null;
+      if (session == null) return null;
       // Identity comparison only; the server verifies JWTs and authorization.
       final payload = jsonDecode(
         utf8.decode(
@@ -173,7 +278,9 @@ class SupabaseAiConnectionsRepository implements AiConnectionsRepository {
     try {
       final client = _client ?? Supabase.instance.client;
       final identity = pairingSessionIdentity;
-      if (identity == null) throw const AiPairingException();
+      if (identity == null || client.auth.currentSession?.isExpired != false) {
+        throw const AiPairingException();
+      }
       final result = await client.rpc<Object?>(name, params: {'p_code': code});
       // A response from an old account or replaced session cannot authorize UI.
       if (pairingSessionIdentity != identity ||

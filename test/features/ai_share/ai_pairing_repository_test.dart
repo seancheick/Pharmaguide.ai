@@ -10,10 +10,11 @@ Future<void> signIn(
   String user = 'user-a',
   String session = 'session-a',
   int version = 0,
+  int lifetime = 3600,
 }) => client.auth.setInitialSession(
   jsonEncode({
     'access_token':
-        '${base64Url.encode(utf8.encode('{}'))}.${base64Url.encode(utf8.encode(jsonEncode({'sub': user, 'session_id': session, 'exp': DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600, 'version': version})))}.signature',
+        '${base64Url.encode(utf8.encode('{}'))}.${base64Url.encode(utf8.encode(jsonEncode({'sub': user, 'session_id': session, 'exp': DateTime.now().millisecondsSinceEpoch ~/ 1000 + lifetime, 'version': version})))}.signature',
     'token_type': 'bearer',
     'refresh_token': 'synthetic',
     'user': {'id': user},
@@ -21,6 +22,134 @@ Future<void> signIn(
 );
 
 void main() {
+  test(
+    'disconnect refreshes expired app session and rejects late account replacement',
+    () async {
+      var refreshes = 0;
+      final client = SupabaseClient(
+        'https://example.test',
+        'anon',
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/auth/v1/token');
+          refreshes++;
+          final refreshed = SupabaseClient('https://example.test', 'anon');
+          await signIn(refreshed, version: 2);
+          final json = jsonEncode(refreshed.auth.currentSession!.toJson());
+          await refreshed.dispose();
+          return http.Response(
+            json,
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      await signIn(client, lifetime: -60);
+      var changeAccount = false;
+      var calls = 0;
+      final repo = SupabaseAiConnectionsRepository(
+        client,
+        MockClient((request) async {
+          calls++;
+          if (changeAccount) {
+            await signIn(client, user: 'other', session: 'other-session');
+          }
+          return http.Response('{"disconnected":true}', 200);
+        }),
+      );
+      expect(
+        await repo.disconnect('client_test'),
+        AiDisconnectResult.disconnected,
+      );
+      expect(refreshes, 1);
+      expect(calls, 1);
+      changeAccount = true;
+      await expectLater(
+        repo.disconnect('client_test'),
+        throwsA(isA<AiDisconnectException>()),
+      );
+      await client.dispose();
+      final signedOut = SupabaseClient('https://example.test', 'anon');
+      final noSession = SupabaseAiConnectionsRepository(
+        signedOut,
+        MockClient((_) async => throw StateError('must not send')),
+      );
+      await expectLater(
+        noSession.disconnect('client_test'),
+        throwsA(isA<AiDisconnectException>()),
+      );
+      await signedOut.dispose();
+    },
+  );
+
+  test(
+    'pending revocation uses existing server barrier and rejects unknown response',
+    () async {
+      final client = SupabaseClient('https://example.test', 'anon');
+      await signIn(client);
+      var body = '{"client_id":"client_pending"}';
+      final repo = SupabaseAiConnectionsRepository(
+        client,
+        MockClient((request) async {
+          expect(jsonDecode(request.body), {'action': 'revocation_status'});
+          return http.Response(body, 200);
+        }),
+      );
+      expect(await repo.pendingRevocation(), 'client_pending');
+      body = '{"client_id":null}';
+      expect(await repo.pendingRevocation(), isNull);
+      body = '{}';
+      await expectLater(
+        repo.pendingRevocation(),
+        throwsA(isA<AiDisconnectException>()),
+      );
+      await client.dispose();
+    },
+  );
+
+  test(
+    'native disconnect uses authenticated exact origin and reports partial revocation',
+    () async {
+      final client = SupabaseClient('https://example.test', 'anon');
+      await signIn(client);
+      var status = 200;
+      var body = <String, Object?>{'disconnected': true};
+      final repo = SupabaseAiConnectionsRepository(
+        client,
+        MockClient((request) async {
+          expect(
+            request.url.toString(),
+            'https://pharmaguide.io/api/ai-connections',
+          );
+          expect(request.followRedirects, isFalse);
+          expect(request.headers['authorization'], startsWith('Bearer '));
+          expect(jsonDecode(request.body), {
+            'action': 'disconnect',
+            'client_id': 'client_test',
+          });
+          return http.Response(jsonEncode(body), status);
+        }),
+      );
+      expect(
+        await repo.disconnect('client_test'),
+        AiDisconnectResult.disconnected,
+      );
+      status = 503;
+      body = {'provider_handled': true, 'local_access_ended': true};
+      expect(
+        await repo.disconnect('client_test'),
+        AiDisconnectResult.localAccessEnded,
+      );
+      for (final code in [200, 302, 401, 503]) {
+        status = code;
+        body = {};
+        await expectLater(
+          repo.disconnect('client_test'),
+          throwsA(isA<AiDisconnectException>()),
+        );
+      }
+      await client.dispose();
+    },
+  );
   test(
     'durable connection requires explicit WorkOS identity and stays revocable',
     () {

@@ -20,12 +20,6 @@ import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
 import 'package:pharmaguide/services/sharing/clinician_report_document_provider.dart';
 import 'package:pharmaguide/services/sharing/report_text.dart';
 
-/// Website page where every assistant connection can be revoked.
-const aiConnectionsWebUrl = String.fromEnvironment(
-  'PHARMAGUIDE_AI_CONNECTIONS_URL',
-  defaultValue: 'https://pharmaguide.io/account/connections',
-);
-
 /// Consent, preview and share for one connected assistant (ADR-009 S4).
 ///
 /// The payload is the AI brief built on this device for the chosen scope.

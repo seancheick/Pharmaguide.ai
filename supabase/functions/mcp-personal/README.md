@@ -120,27 +120,43 @@ same callback in the production WorkOS application and the website/MCP trusted-c
 Do not reuse the private loopback-resource callback.
 
 Operator setup, **after** production issuer/client registration is available and the release
-checks permit OAuth acceptance (replace the placeholder with the actual reviewed client ID):
+checks permit OAuth acceptance. This Mac has a tested bundled Codex CLI (`0.164.0-alpha.11.1`); its Homebrew `codex` is `0.159.0` and does not infer discovery scopes during initial add. Use the tested binary for this setup:
 
 ```bash
-codex mcp add pharmaguide_personal \
+PG_CODEX="/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
+"$PG_CODEX" -c mcp_oauth_callback_port=3199 mcp add pharmaguide_personal \
   --url https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal \
-  --oauth-client-id '<reviewed-production-client-id>' \
+  --oauth-client-id client_01M5NXSNSESQFXNCBNPA547059 \
   --oauth-resource https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal
-codex -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal
+"$PG_CODEX" -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal --scopes openid,offline_access
 ```
+
+`mcp add` starts OAuth immediately. Its first command therefore uses a process-only fixed-port
+override; it does not persist a global callback setting. Installed Codex was checked against
+local metadata: this add command requested port 3199, S256 and both scopes. A per-server port
+override alone cannot bootstrap a new server entry, so use the command above for initial add
+and the per-server setting below for subsequent logins.
+
+Protected-resource discovery advertises `scopes_supported: ["openid", "offline_access"]`.
+The bundled `0.164.0-alpha.11.1` default login was verified to request both through this metadata; the installed Homebrew `0.159.0` did not. The explicit
+`--scopes` in the login command is required for clients such as Homebrew `0.159.0` that do not infer them.
+`openid` is required by the existing verifier and UserInfo check; `offline_access` requests the
+approved refresh capability. Neither grants supplement or snapshot access without the existing
+phone-approved connection and per-share scope. A login that omits them must be repeated with the
+correct scopes; the verifier's missing-scope rejection remains intentional.
 
 For repeat logins, set `callback_port = 3199` in the existing
 `[mcp_servers.pharmaguide_personal.oauth]` configuration table, preserving its client settings.
-This per-server setting leaves other MCP servers' callback configuration unchanged; a global
-`mcp_oauth_callback_port` setting is unnecessary. The per-server configuration was verified
+This per-server setting leaves other MCP servers' callback configuration unchanged; persisting a
+global `mcp_oauth_callback_port` setting is unnecessary. The per-server configuration was verified
 against installed Codex `0.164.0-alpha.11.1`: two isolated local
 metadata probes generated the same callback with S256, and an occupied port failed rather than
-falling back. The canonical hosted-resource probe currently stops at its intentional root 503,
-before producing an authorization URL; its derived callback still needs a real production
-metadata/login check after deployment and explicit acceptance authorization. No grant was created
-by these probes. Verify two fresh logins with the registered client and inspect the actual redirect
-URI before declaring production onboarding ready.
+falling back. The controlled production test then verified the actual registered callback,
+Google/WorkOS login, phone approval, automatic refresh, scoped snapshot reads, updates and opt-out,
+disconnect and a fresh reconnect. The fresh grant used a different consent ID; old refresh
+credentials remained invalid. Both grants were disconnected, including a final native phone
+Disconnect that rejected an unexpired access token and purged the snapshot. These were exact-user,
+time-bounded tests; normal public personal reads and uploads remain intentionally disabled.
 
 Primary references: [WorkOS Standalone Connect](https://workos.com/docs/authkit/connect/standalone),
 [WorkOS discovery](https://workos.com/docs/reference/workos-connect/metadata/oauth-authorization-server),

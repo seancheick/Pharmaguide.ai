@@ -14,10 +14,8 @@ import 'package:pharmaguide/features/ai_share/ai_connections_repository.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_consent_screen.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_providers.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
-import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
 import 'package:pharmaguide/services/sharing/report_text.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Settings → Connected AI assistants (ADR-009).
 ///
@@ -26,10 +24,9 @@ import 'package:url_launcher/url_launcher.dart';
 /// what to include, previews the exact text and shares it. Guests see why
 /// an account is needed and nothing is queried.
 class AiConnectionsScreen extends ConsumerStatefulWidget {
-  const AiConnectionsScreen({super.key, this.onSignIn, this.onOpenExternal});
+  const AiConnectionsScreen({super.key, this.onSignIn});
 
   final VoidCallback? onSignIn;
-  final Future<bool> Function(Uri uri)? onOpenExternal;
 
   @override
   ConsumerState<AiConnectionsScreen> createState() =>
@@ -55,6 +52,7 @@ class _AiConnectionsScreenState extends ConsumerState<AiConnectionsScreen>
     if (state == AppLifecycleState.resumed &&
         ref.read(authStateProvider) == AuthMode.signedIn) {
       ref.invalidate(aiConnectionsProvider);
+      ref.invalidate(aiPendingRevocationProvider);
     }
   }
 
@@ -78,7 +76,10 @@ class _AiConnectionsScreenState extends ConsumerState<AiConnectionsScreen>
             IconButton(
               tooltip: 'Refresh connections',
               icon: const Icon(Icons.refresh_rounded),
-              onPressed: () => ref.invalidate(aiConnectionsProvider),
+              onPressed: () {
+                ref.invalidate(aiConnectionsProvider);
+                ref.invalidate(aiPendingRevocationProvider);
+              },
             ),
         ],
         surfaceTintColor: Colors.transparent,
@@ -89,7 +90,7 @@ class _AiConnectionsScreenState extends ConsumerState<AiConnectionsScreen>
       ),
       body: SafeArea(
         child: signedIn
-            ? _SignedInBody(onOpenExternal: widget.onOpenExternal)
+            ? const _SignedInBody()
             : _GuestBody(
                 onSignIn:
                     widget.onSignIn ??
@@ -134,13 +135,13 @@ class _GuestBody extends StatelessWidget {
 }
 
 class _SignedInBody extends ConsumerWidget {
-  const _SignedInBody({required this.onOpenExternal});
-
-  final Future<bool> Function(Uri uri)? onOpenExternal;
+  const _SignedInBody();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final connections = ref.watch(aiConnectionsProvider);
+    final pending = ref.watch(aiPendingRevocationProvider);
+    final pendingClient = pending.asData?.value;
     final prefs =
         ref.watch(aiShareConnectionPrefsProvider).asData?.value ?? const {};
     final pairingEnabled = ref.watch(aiPairingEnabledProvider);
@@ -173,10 +174,26 @@ class _SignedInBody extends ConsumerWidget {
                 ),
               );
               ref.invalidate(aiConnectionsProvider);
+              ref.invalidate(aiPendingRevocationProvider);
             },
           ),
           const SizedBox(height: V2Spacing.space24),
         ],
+        if (pending.hasError)
+          TextButton(
+            onPressed: () => ref.invalidate(aiPendingRevocationProvider),
+            child: const Text('Disconnect status could not be checked. Retry'),
+          ),
+        if (pendingClient != null &&
+            connections.hasValue &&
+            !connections.requireValue.any((c) => c.clientId == pendingClient))
+          _ConnectionCard(
+            key: ValueKey(pendingClient),
+            connection: null,
+            prefs: null,
+            pendingRevocation: true,
+            retryClientId: pendingClient,
+          ),
         switch (connections) {
           AsyncData(:final value) when value.isEmpty => Text(
             'No assistants connected yet.',
@@ -188,9 +205,10 @@ class _SignedInBody extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: V2Spacing.space16),
                   child: _ConnectionCard(
+                    key: ValueKey(c.connectionId),
                     connection: c,
                     prefs: prefs[c.connectionId],
-                    onOpenExternal: onOpenExternal,
+                    pendingRevocation: pendingClient == c.clientId,
                   ),
                 ),
             ],
@@ -205,7 +223,10 @@ class _SignedInBody extends ConsumerWidget {
               PGPillButton(
                 label: 'Try again',
                 icon: Icons.refresh_rounded,
-                onPressed: () => ref.invalidate(aiConnectionsProvider),
+                onPressed: () {
+                  ref.invalidate(aiConnectionsProvider);
+                  ref.invalidate(aiPendingRevocationProvider);
+                },
               ),
             ],
           ),
@@ -324,6 +345,7 @@ class AiPairingScreenState extends ConsumerState<AiPairingScreen> {
     _expiryTimer?.cancel();
     if (connectionId != null) {
       ref.invalidate(aiConnectionsProvider);
+      ref.invalidate(aiPendingRevocationProvider);
       PGToast.show(context, '${_preview!.clientName} is connected.');
       _viewConnections();
       return;
@@ -336,6 +358,7 @@ class AiPairingScreenState extends ConsumerState<AiPairingScreen> {
 
   void _viewConnections() {
     ref.invalidate(aiConnectionsProvider);
+    ref.invalidate(aiPendingRevocationProvider);
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     } else {
@@ -498,21 +521,53 @@ class AiPairingScreenState extends ConsumerState<AiPairingScreen> {
   }
 }
 
-class _ConnectionCard extends ConsumerWidget {
+class _ConnectionCard extends ConsumerStatefulWidget {
   const _ConnectionCard({
+    super.key,
     required this.connection,
     required this.prefs,
-    required this.onOpenExternal,
+    required this.pendingRevocation,
+    this.retryClientId,
   });
 
-  final AiConnection connection;
+  final AiConnection? connection;
+  final String? retryClientId;
   final AiShareConnectionPrefs? prefs;
-  final Future<bool> Function(Uri uri)? onOpenExternal;
+  final bool pendingRevocation;
+  @override
+  ConsumerState<_ConnectionCard> createState() => _ConnectionCardState();
+}
+
+class _ConnectionCardState extends ConsumerState<_ConnectionCard> {
+  bool _busy = false;
+  bool _localEnded = false;
+  bool _needsRetry = false;
+  AiConnection get connection => widget.connection!;
+  AiShareConnectionPrefs? get prefs => widget.prefs;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final live = connection.isLiveAt(DateTime.now());
-    final status = switch (connection.status) {
+  Widget build(BuildContext context) {
+    if (widget.connection == null) {
+      return PGSettingsGroup(
+        eyebrow: 'Access ended',
+        children: [
+          PGSettingsTile(
+            icon: Icons.link_off_rounded,
+            title: _busy ? 'Disconnecting…' : 'Retry disconnect',
+            caption:
+                'PharmaGuide access ended. Finish disconnecting the provider.',
+            onTap: _busy ? null : () => _disconnect(context, ref),
+          ),
+        ],
+      );
+    }
+    final live =
+        !_localEnded &&
+        !widget.pendingRevocation &&
+        connection.isLiveAt(DateTime.now());
+    final status = switch (_localEnded || widget.pendingRevocation
+        ? 'revoked'
+        : connection.status) {
       'active' when live => 'Active',
       'active' || 'expired' => 'Expired',
       _ => 'Disconnected',
@@ -579,17 +634,25 @@ class _ConnectionCard extends ConsumerWidget {
                       'stack changes, including new entries in those categories.',
             trailing: Switch.adaptive(
               value: saved?.keepUpdated ?? false,
-              onChanged: saved == null
+              onChanged: saved == null || _busy
                   ? null
                   : (on) => _setKeepUpdated(context, ref, on),
             ),
           ),
+        ],
+        if (live || _needsRetry || widget.pendingRevocation) ...[
           PGSettingsTile(
             icon: Icons.link_off_rounded,
-            title: 'Disconnect',
-            caption: 'Delete what you shared and end access',
+            title: _busy
+                ? 'Disconnecting…'
+                : (_needsRetry || widget.pendingRevocation)
+                ? 'Retry disconnect'
+                : 'Disconnect',
+            caption: (_needsRetry || widget.pendingRevocation)
+                ? 'PharmaGuide access ended. Finish disconnecting the provider.'
+                : 'Delete what you shared and end access',
             destructive: true,
-            onTap: () => _disconnect(context, ref),
+            onTap: _busy ? null : () => _disconnect(context, ref),
           ),
         ],
       ],
@@ -618,15 +681,18 @@ class _ConnectionCard extends ConsumerWidget {
   }
 
   Future<void> _disconnect(BuildContext context, WidgetRef ref) async {
+    if (_busy) return;
+    setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
+    final repository = ref.read(aiConnectionsRepositoryProvider);
+    final prefsStore = ref.read(aiSharePrefsStoreProvider);
+    final identity = repository.pairingSessionIdentity;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Disconnect this assistant?'),
         content: const Text(
-          'PharmaGuide deletes what you shared with this assistant, then '
-          'opens pharmaguide.io so you can end its access. Disconnecting '
-          'cannot erase what the assistant already kept in your chat.',
+          'PharmaGuide ends this assistant’s access and deletes what you shared. Disconnecting cannot erase what the assistant already kept in your chat.',
         ),
         actions: [
           TextButton(
@@ -641,66 +707,56 @@ class _ConnectionCard extends ConsumerWidget {
         ],
       ),
     );
-    if (confirmed != true) return;
-
-    try {
-      await ref.read(aiSharePrefsStoreProvider).forget(connection.connectionId);
-    } on Object {
-      if (messenger.mounted) {
-        PGToast.showWith(
-          messenger,
-          'Could not stop sharing. Try again.',
-          variant: PGToastVariant.error,
-        );
-      }
+    if (!mounted) return;
+    if (confirmed != true ||
+        identity == null ||
+        repository.pairingSessionIdentity != identity) {
+      setState(() => _busy = false);
       return;
     }
-    ref.invalidate(aiShareConnectionPrefsProvider);
-    var deleted = true;
+    String message;
+    var success = false;
+    var updatesStopped = false;
     try {
-      await ref
-          .read(aiShareSnapshotClientProvider)
-          .delete(connection.connectionId);
-    } on Object catch (error, stackTrace) {
-      deleted = false;
-      CrashReportingService().recordError(
-        error,
-        stackTrace,
-        hint: 'ai_share:disconnect_delete_failed',
+      if (widget.connection != null) {
+        await prefsStore.forget(connection.connectionId);
+      }
+      updatesStopped = true;
+      if (!mounted) return;
+      ref.invalidate(aiShareConnectionPrefsProvider);
+      if (repository.pairingSessionIdentity != identity) {
+        throw const AiDisconnectException();
+      }
+      final result = await repository.disconnect(
+        widget.connection?.clientId ?? widget.retryClientId!,
       );
-    }
-    final open =
-        onOpenExternal ??
-        (Uri uri) async {
-          if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-            return true;
-          }
-          return launchUrl(uri, mode: LaunchMode.inAppBrowserView);
-        };
-    var opened = false;
-    try {
-      final destination = Uri.parse(aiConnectionsWebUrl);
-      if (destination.scheme == 'https' &&
-          destination.host.isNotEmpty &&
-          destination.userInfo.isEmpty) {
-        opened = await open(destination);
+      if (repository.pairingSessionIdentity != identity) {
+        throw const AiDisconnectException();
+      }
+      success = result == AiDisconnectResult.disconnected;
+      message = success
+          ? 'Assistant disconnected. Access has ended.'
+          : 'PharmaGuide access has ended. Provider disconnect is unfinished. Retry disconnect.';
+      if (mounted) {
+        setState(() {
+          _localEnded = true;
+          _needsRetry = !success;
+        });
+        ref.invalidate(aiConnectionsProvider);
+        ref.invalidate(aiPendingRevocationProvider);
       }
     } on Object {
-      opened = false;
+      message = updatesStopped
+          ? 'Disconnect could not be confirmed. Automatic updates are off. Try again.'
+          : 'Could not stop sharing. Try again.';
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    if (!opened && messenger.mounted) {
+    if ((repository.pairingSessionIdentity == identity) && messenger.mounted) {
       PGToast.showWith(
         messenger,
-        'The connections page could not open. Access has not been ended. Try Disconnect again.',
-        variant: PGToastVariant.error,
-      );
-      return;
-    }
-    if (!deleted && messenger.mounted) {
-      PGToast.showWith(
-        messenger,
-        'Shared data could not be deleted yet. Try Disconnect again.',
-        variant: PGToastVariant.error,
+        message,
+        variant: success ? PGToastVariant.success : PGToastVariant.error,
       );
     }
   }

@@ -198,6 +198,19 @@ class FakeAiConnectionsRepository implements AiConnectionsRepository {
 
   final List<AiConnection> connections;
   int loads = 0;
+  int disconnectCalls = 0;
+  String? pendingClient;
+  Future<AiDisconnectResult> Function(String)? onDisconnect;
+  @override
+  Future<String?> pendingRevocation() async => pendingClient;
+  @override
+  Future<AiDisconnectResult> disconnect(String clientId) async {
+    disconnectCalls++;
+    return onDisconnect == null
+        ? AiDisconnectResult.disconnected
+        : await onDisconnect!(clientId);
+  }
+
   @override
   Object? pairingSessionIdentity = 'test-user';
   Future<AiPairingPreview> Function(String)? preview;
@@ -224,6 +237,7 @@ class FakeAiConnectionsRepository implements AiConnectionsRepository {
 
 class MemoryPreferencesStore implements AppPreferencesStore {
   final values = <String, Object>{};
+  Future<void> Function()? beforeWrite;
 
   @override
   Future<bool?> getBool(String key) async => values[key] as bool?;
@@ -235,5 +249,8 @@ class MemoryPreferencesStore implements AppPreferencesStore {
   Future<void> setBool(String key, bool value) async => values[key] = value;
 
   @override
-  Future<void> setString(String key, String value) async => values[key] = value;
+  Future<void> setString(String key, String value) async {
+    await beforeWrite?.call();
+    values[key] = value;
+  }
 }

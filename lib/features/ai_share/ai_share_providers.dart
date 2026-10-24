@@ -36,3 +36,8 @@ final aiPairingEnabledProvider = Provider<bool>(
     defaultValue: false,
   ),
 );
+
+/// Existing server barrier keeps provider cleanup retryable after relaunch.
+final aiPendingRevocationProvider = FutureProvider.autoDispose<String?>(
+  (ref) => ref.watch(aiConnectionsRepositoryProvider).pendingRevocation(),
+);

@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'dart:io';
@@ -37,26 +36,19 @@ void main() {
   late FakeAiShareBackend backend;
   late AiSharePrefsStore prefs;
   late FakeAiConnectionsRepository repo;
-  late List<Uri> opened;
   late int signInTaps;
-  var externalOpens = true;
-  Future<bool>? externalPending;
 
   setUp(() {
     backend = FakeAiShareBackend();
     prefs = AiSharePrefsStore(MemoryPreferencesStore());
     repo = FakeAiConnectionsRepository([aiConnectionFixture()]);
-    opened = [];
     signInTaps = 0;
-    externalOpens = true;
-    externalPending = null;
   });
 
   Widget app({
     required bool signedIn,
     bool pairing = false,
     String? approvalCode,
-    bool nativeLauncher = false,
   }) => ProviderScope(
     overrides: [
       aiPairingEnabledProvider.overrideWithValue(pairing),
@@ -75,17 +67,7 @@ void main() {
       theme: V2Theme.light,
       home: approvalCode != null
           ? AiPairingScreen(initialCode: approvalCode)
-          : AiConnectionsScreen(
-              onSignIn: () => signInTaps++,
-              onOpenExternal: nativeLauncher
-                  ? null
-                  : (uri) async {
-                      opened.add(uri);
-                      return externalPending == null
-                          ? externalOpens
-                          : await externalPending!;
-                    },
-            ),
+          : AiConnectionsScreen(onSignIn: () => signInTaps++),
     ),
   );
 
@@ -240,97 +222,124 @@ void main() {
     expect(find.textContaining('Access ended'), findsOneWidget);
   });
 
-  for (final scenario in [
-    'external succeeds',
-    'fallback succeeds',
-    'both refuse',
-    'external throws',
-    'fallback throws',
-  ]) {
-    testWidgets('disconnect native browser: $scenario', (tester) async {
-      const channel = MethodChannel('plugins.flutter.io/url_launcher');
-      final calls = <MethodCall>[];
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
-        call,
-      ) async {
-        calls.add(call);
-        if ((scenario == 'external throws' && calls.length == 1) ||
-            (scenario == 'fallback throws' && calls.length == 2)) {
-          throw PlatformException(code: 'channel-error');
-        }
-        return scenario == 'external succeeds' ||
-            (scenario == 'fallback succeeds' && calls.length == 2);
-      });
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          channel,
-          null,
-        ),
+  testWidgets(
+    'account switch while preferences write cannot disconnect new account',
+    (tester) async {
+      final store = MemoryPreferencesStore();
+      prefs = AiSharePrefsStore(store);
+      await prefs.recordShare(
+        repo.connections.first.connectionId,
+        AiShareScope.detailedReport,
+        24,
+        keepUpdated: true,
       );
-      await tester.pumpWidget(app(signedIn: true, nativeLauncher: true));
+      final write = Completer<void>();
+      store.beforeWrite = () => write.future;
+      await tester.pumpWidget(app(signedIn: true));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Disconnect'));
+      await tester.tap(find.text('Disconnect'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+      await tester.pump();
+      repo.pairingSessionIdentity = 'different-account';
+      write.complete();
+      await tester.pumpAndSettle();
+      expect(repo.disconnectCalls, 0);
+      expect(
+        find.text('Assistant disconnected. Access has ended.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'pending cleanup with no connection row can retry after reopening',
+    (tester) async {
+      repo.connections.clear();
+      repo.pendingClient = 'client_orphan';
+      repo.onDisconnect = (id) async {
+        expect(id, 'client_orphan');
+        repo.pendingClient = null;
+        return AiDisconnectResult.disconnected;
+      };
+      await tester.pumpWidget(app(signedIn: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Retry disconnect'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+      await tester.pumpAndSettle();
+      expect(repo.disconnectCalls, 1);
+      expect(find.text('Retry disconnect'), findsNothing);
+    },
+  );
+
+  for (final outcome in ['success', 'partial', 'offline']) {
+    testWidgets('native disconnect $outcome is truthful and retryable', (
+      tester,
+    ) async {
+      await prefs.recordShare(
+        repo.connections.first.connectionId,
+        AiShareScope.detailedReport,
+        24,
+        keepUpdated: true,
+      );
+      final pending = Completer<AiDisconnectResult>();
+      repo.onDisconnect = (_) => pending.future;
+      await tester.pumpWidget(app(signedIn: true));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Disconnect'));
       await tester.tap(find.text('Disconnect'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
       await tester.pumpAndSettle();
-      final fallback =
-          scenario != 'external succeeds' && scenario != 'external throws';
-      expect(calls, hasLength(fallback ? 2 : 1));
-      expect(calls.first.method, 'launch');
-      expect((calls.first.arguments as Map)['useSafariVC'], isFalse);
-      if (fallback) {
-        expect((calls.last.arguments as Map)['useSafariVC'], isTrue);
+      expect(repo.disconnectCalls, 1);
+      expect(await prefs.read(repo.connections.first.connectionId), isNull);
+      await tester.tap(find.text('Disconnecting…'));
+      await tester.pump();
+      expect(repo.disconnectCalls, 1);
+      if (outcome == 'offline') {
+        pending.completeError(const AiDisconnectException());
+      } else {
+        repo.connections[0] = aiConnectionFixture(status: 'revoked');
+        if (outcome == 'partial') {
+          repo.pendingClient = repo.connections.first.clientId;
+        }
+        pending.complete(
+          outcome == 'success'
+              ? AiDisconnectResult.disconnected
+              : AiDisconnectResult.localAccessEnded,
+        );
       }
-      for (final call in calls) {
-        expect((call.arguments as Map)['url'], aiConnectionsWebUrl);
-        expect((call.arguments as Map)['headers'], isEmpty);
+      await tester.pumpAndSettle();
+      expect(backend.deletes, isEmpty);
+      if (outcome == 'success') {
+        expect(
+          find.text('Assistant disconnected. Access has ended.'),
+          findsOneWidget,
+        );
+      } else if (outcome == 'partial') {
+        expect(find.text('Retry disconnect'), findsOneWidget);
+        await tester.tap(find.byTooltip('Refresh connections'));
+        await tester.pumpAndSettle();
+        expect(find.text('Retry disconnect'), findsOneWidget);
+        repo.onDisconnect = (_) async {
+          repo.pendingClient = null;
+          return AiDisconnectResult.disconnected;
+        };
+        await tester.ensureVisible(find.text('Retry disconnect'));
+        await tester.tap(find.text('Retry disconnect'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+        await tester.pumpAndSettle();
+        expect(repo.disconnectCalls, 2);
+        expect(find.text('Retry disconnect'), findsNothing);
+      } else {
+        expect(find.textContaining('could not be confirmed'), findsOneWidget);
+        expect(find.text('Disconnect'), findsOneWidget);
       }
-      expect(
-        find.textContaining('Access has not been ended'),
-        scenario.endsWith('succeeds') ? findsNothing : findsOneWidget,
-      );
     });
   }
-
-  testWidgets('failed launch remains visible after connection card refresh', (
-    tester,
-  ) async {
-    final pending = Completer<bool>();
-    externalPending = pending.future;
-    await tester.pumpWidget(app(signedIn: true));
-    await tester.pumpAndSettle();
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AiConnectionsScreen)),
-    );
-    await tester.ensureVisible(find.text('Disconnect'));
-    await tester.tap(find.text('Disconnect'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
-    await tester.pumpAndSettle();
-    expect(opened, hasLength(1));
-    repo.connections.clear();
-    container.invalidate(aiConnectionsProvider);
-    await tester.pumpAndSettle();
-    expect(find.text('Disconnect'), findsNothing);
-    pending.complete(false);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Access has not been ended'), findsOneWidget);
-  });
-
-  testWidgets('failed browser launch explains access is not ended', (
-    tester,
-  ) async {
-    externalOpens = false;
-    await tester.pumpWidget(app(signedIn: true));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Disconnect'));
-    await tester.tap(find.text('Disconnect'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Access has not been ended'), findsOneWidget);
-  });
 
   testWidgets(
     'pairing previews destination before explicit approval, never shares',
@@ -731,27 +740,29 @@ void main() {
     expect(backend.calls, isEmpty, reason: 'opting in uploads nothing');
   });
 
-  testWidgets('disconnect deletes this connection\'s snapshots, forgets the '
-      'device record and opens the website to end access', (tester) async {
-    final id = aiConnectionFixture().connectionId;
-    await prefs.recordShare(id, AiShareScope.detailedReport, 24);
-    await tester.pumpWidget(app(signedIn: true));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'disconnect forgets device preferences and uses canonical cleanup API',
+    (tester) async {
+      final id = aiConnectionFixture().connectionId;
+      await prefs.recordShare(id, AiShareScope.detailedReport, 24);
+      await tester.pumpWidget(app(signedIn: true));
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Disconnect'));
-    await tester.tap(find.text('Disconnect'));
-    await tester.pumpAndSettle();
-    expect(
-      find.textContaining('cannot erase what the assistant already kept'),
-      findsWidgets,
-    );
-    await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Disconnect'));
+      await tester.tap(find.text('Disconnect'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('cannot erase what the assistant already kept'),
+        findsWidgets,
+      );
+      await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+      await tester.pumpAndSettle();
 
-    expect(backend.deletes.single.body, {'connection_id': id});
-    expect(await prefs.read(id), isNull);
-    expect(opened, [Uri.parse('https://pharmaguide.io/account/connections')]);
-  });
+      expect(backend.deletes, isEmpty);
+      expect(await prefs.read(id), isNull);
+      expect(repo.disconnectCalls, 1);
+    },
+  );
 
   testWidgets('disconnected connection caption says access ended', (
     tester,
