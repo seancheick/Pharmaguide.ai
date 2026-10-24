@@ -231,7 +231,8 @@ class FakeAiConnectionsRepository implements AiConnectionsRepository {
   @override
   Future<List<AiConnection>> listMine() async {
     loads++;
-    return connections;
+    // Match a fetched result: later server mutations do not alter prior loads.
+    return List.of(connections);
   }
 }
 
