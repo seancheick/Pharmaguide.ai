@@ -100,6 +100,22 @@ Deno.test("checked-in OAuth server config requires pre-registered clients", asyn
     "ADR-009 production config must not accept dynamic client registrations");
 });
 
+Deno.test("personal discovery advertises required identity and durable refresh scopes", async () => {
+  for (const factory of [undefined, createProductionHandler]) {
+    const h = await harness(factory ? {handlerFactory: factory} : {});
+    for (const suffix of ['/oauth-protected-resource', '/.well-known/oauth-protected-resource']) {
+      const response = await h.handler(new Request(`${AUDIENCE}${suffix}`));
+      assertEquals(response.status, 200);
+      const metadata = await body(response);
+      assertEquals(metadata.resource, AUDIENCE);
+      assertEquals(metadata.scopes_supported, ['openid', 'offline_access']);
+      assertEquals(response.headers.get('access-control-allow-origin'), '*');
+    }
+    assertEquals(h.stacks.requestedUsers, []);
+    assertEquals(h.log.entries, []);
+  }
+});
+
 Deno.test("production WorkOS configuration fails closed and never falls back to Supabase OAuth", async () => {
   const valid: Record<string, string> = {
     SUPABASE_URL: "https://project.supabase.co", SUPABASE_SECRET_KEY: "fixture-only",

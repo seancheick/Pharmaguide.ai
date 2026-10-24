@@ -127,8 +127,16 @@ codex mcp add pharmaguide_personal \
   --url https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal \
   --oauth-client-id '<reviewed-production-client-id>' \
   --oauth-resource https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal
-codex -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal
+codex -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal --scopes openid,offline_access
 ```
+
+Protected-resource discovery advertises `scopes_supported: ["openid", "offline_access"]`.
+Installed Codex default login was verified to request both through this metadata. The explicit
+`--scopes` in the command also supports a client or older deployment that does not infer them.
+`openid` is required by the existing verifier and UserInfo check; `offline_access` requests the
+approved refresh capability. Neither grants supplement or snapshot access without the existing
+phone-approved connection and per-share scope. A login that omits them must be repeated with the
+correct scopes; the verifier's missing-scope rejection remains intentional.
 
 For repeat logins, set `callback_port = 3199` in the existing
 `[mcp_servers.pharmaguide_personal.oauth]` configuration table, preserving its client settings.
