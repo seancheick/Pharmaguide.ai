@@ -4,6 +4,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
 import 'package:pharmaguide/services/sharing/report_text.dart';
 import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
@@ -141,6 +142,34 @@ void main() {
     expect(find.text('24 hours'), findsOneWidget);
   });
 
+  testWidgets('provider privacy disclosure and policy link precede sharing', (
+    tester,
+  ) async {
+    final calls = <MethodCall>[];
+    const channel = MethodChannel('plugins.flutter.io/url_launcher');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      calls.add(call);
+      return true;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    expect(card(tester), contains('retention and training settings'));
+    expect(card(tester), contains('before saving health information'));
+    await tester.ensureVisible(find.text('Privacy policy'));
+    await tester.tap(find.text('Privacy policy'));
+    await tester.pumpAndSettle();
+    expect(calls.single.arguments['url'], 'https://pharmaguide.io/privacy');
+    expect(backend.calls, isEmpty, reason: 'reading privacy never shares');
+  });
+
   testWidgets('switching a category on updates the card before sharing', (
     tester,
   ) async {
@@ -177,6 +206,7 @@ void main() {
     );
     expect(clarification, findsOneWidget);
     await tester.ensureVisible(find.text('30 days'));
+    await tester.ensureVisible(find.text('30 days'));
     await tester.tap(find.text('30 days'));
     await tester.pumpAndSettle();
     expect(clarification, findsOneWidget);
@@ -191,6 +221,7 @@ void main() {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('30 days'));
     await tester.tap(find.text('30 days'));
     await tester.pumpAndSettle();
     final share = find.byKey(const Key('ai_share_submit'));

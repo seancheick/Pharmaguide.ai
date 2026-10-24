@@ -30,7 +30,12 @@ function audit(outcome: string, objectCount = 0): void {
   );
 }
 
-Deno.serve(async (request: Request): Promise<Response> => {
+export async function handleAccountDeletion(
+  request: Request,
+  readEnvironment: (name: string) => string | undefined = (name) =>
+    Deno.env.get(name),
+  fetchFn: typeof fetch = fetch,
+): Promise<Response> {
   if (request.method !== "POST") {
     audit("method_not_allowed");
     return json({ error: "Method not allowed" }, 405);
@@ -45,7 +50,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
   // never be able to delete the account.
   if (isOAuthClientToken(authorization)) {
     audit("oauth_client_refused");
-    return json({ error: "Account deletion is available only in PharmaGuide" }, 403);
+    return json({
+      error: "Account deletion is available only in PharmaGuide",
+    }, 403);
   }
 
   let body: Record<string, unknown>;
@@ -73,12 +80,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return json({ error: "Type DELETE to confirm" }, 400);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseUrl = readEnvironment("SUPABASE_URL");
   let publicKey: string | undefined;
   let adminKey: string | undefined;
   try {
-    publicKey = resolveSupabasePublicKey();
-    adminKey = resolveSupabaseAdminKey();
+    publicKey = resolveSupabasePublicKey(readEnvironment);
+    adminKey = resolveSupabaseAdminKey(readEnvironment);
   } catch {
     publicKey = undefined;
     adminKey = undefined;
@@ -89,20 +96,72 @@ Deno.serve(async (request: Request): Promise<Response> => {
   }
 
   const userClient = createClient(supabaseUrl, publicKey, {
-    global: { headers: { Authorization: authorization } },
+    global: { headers: { Authorization: authorization }, fetch: fetchFn },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: authData, error: authError } = await userClient.auth.getUser();
+  const { data: authData, error: authError } = await userClient.auth
+    .getUser();
   if (authError || !authData.user) {
     audit("invalid_authentication");
     return json({ error: "Authentication required" }, 401);
   }
 
   const admin = createClient(supabaseUrl, adminKey, {
+    global: { fetch: fetchFn },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   try {
+    // Reuse the database revocation owner: atomically block every pending/new
+    // approval and revoke/purge every client before asynchronous provider cleanup.
+    // NULL is the account-deletion barrier and is never cleared by Disconnect.
+    const { data: barrier, error: barrierError } = await admin.rpc(
+      "begin_ai_connection_revocation",
+      { p_user_id: authData.user.id, p_client_id: null },
+    );
+    if (
+      barrierError || !barrier || barrier.error ||
+      !Number.isInteger(barrier.generation)
+    ) {
+      throw new Error("Account deletion barrier unavailable");
+    }
+
+    const workosKey = readEnvironment("WORKOS_API_KEY")?.trim();
+    if (!workosKey) throw new Error("Provider cleanup unavailable");
+    // WorkOS external_id is the verified Supabase user ID. Never select by email.
+    // https://workos.com/docs/reference/authkit/user
+    const providerRequest = (path: string, method = "GET") =>
+      fetchFn(
+        `https://api.workos.com/user_management/users/${path}`,
+        {
+          method,
+          headers: { Authorization: `Bearer ${workosKey}` },
+          redirect: "error",
+          signal: AbortSignal.timeout(10_000),
+        },
+      );
+    const lookup = await providerRequest(
+      `external_id/${encodeURIComponent(authData.user.id)}`,
+    );
+    if (lookup.status !== 404) {
+      if (!lookup.ok) throw new Error("Provider lookup failed");
+      const providerUser = await lookup.json();
+      if (
+        providerUser.external_id !== authData.user.id ||
+        typeof providerUser.id !== "string" ||
+        !/^user_[A-Za-z0-9]+$/.test(providerUser.id)
+      ) {
+        throw new Error("Provider identity mismatch");
+      }
+      const removed = await providerRequest(
+        encodeURIComponent(providerUser.id),
+        "DELETE",
+      );
+      if (!removed.ok && removed.status !== 404) {
+        throw new Error("Provider deletion failed");
+      }
+    }
+
     // Storage objects must be removed through the Storage API before auth user
     // deletion cascades the manifest rows. Deleting storage.objects with SQL
     // would orphan the underlying files.
@@ -122,28 +181,18 @@ Deno.serve(async (request: Request): Promise<Response> => {
       offset < objectPaths.length;
       offset += MAX_OBJECTS_PER_DELETE
     ) {
-      const chunk = objectPaths.slice(offset, offset + MAX_OBJECTS_PER_DELETE);
+      const chunk = objectPaths.slice(
+        offset,
+        offset + MAX_OBJECTS_PER_DELETE,
+      );
       await removeStorageObjectsOrThrow(
         admin.storage.from(PHOTO_BUCKET),
         chunk,
       );
     }
 
-    // S5: end every AI connection explicitly (the access-log rows cascade)
-    // rather than relying on the auth.users cascade alone. A project where
-    // the ai_connections migration is not applied yet has no connections, so
-    // a missing table must not block account deletion.
-    const { error: connectionError } = await admin
-      .from("ai_connections")
-      .delete()
-      .eq("user_id", authData.user.id);
-    if (
-      connectionError &&
-      !["PGRST205", "42P01"].includes(connectionError.code ?? "")
-    ) {
-      throw connectionError;
-    }
-
+    // Retain revoked consent tombstones and the deletion barrier until the
+    // final auth-user cascade. Failures leave the app identity available to retry.
     const { error: deleteError } = await admin.auth.admin.deleteUser(
       authData.user.id,
     );
@@ -160,4 +209,6 @@ Deno.serve(async (request: Request): Promise<Response> => {
       500,
     );
   }
-});
+}
+
+if (import.meta.main) Deno.serve((request) => handleAccountDeletion(request));

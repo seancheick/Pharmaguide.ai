@@ -74,6 +74,81 @@ configuration and Supabase settings. `AI_CONNECTOR_PAIRING_ENABLED` defaults off
 `PHARMAGUIDE_AI_PAIRING_ENABLED`, also off by default. Arbitrary-client CIMD/DCR onboarding is not
 qualified; this batch targets the exact pre-registered Codex client.
 
+## Contained production runtime configuration
+
+`createProductionDependencies` in `index.ts` composes the existing WorkOS verifier,
+PostgREST repositories and snapshot keyring. The candidate entrypoint no longer falls back
+to Supabase OAuth. **`createProductionHandler` still returns 503 for personal calls:**
+configuration alone does not activate access. Missing or malformed configuration also returns
+503, without logging configuration values. A complete configuration advertises the pinned
+WorkOS issuer in protected-resource discovery.
+
+Required server settings:
+
+| Setting | Value contract |
+| --- | --- |
+| `SUPABASE_URL` | Exact HTTPS project origin |
+| `SUPABASE_SECRET_KEY` | Server-only admin credential; existing `SUPABASE_SECRET_KEYS` bundle or legacy service-role resolver also supported |
+| `WORKOS_ISSUER` | Exact HTTPS AuthKit origin for the reviewed environment; no path, query or trailing slash |
+| `MCP_PERSONAL_RESOURCE_URL` | Exact HTTPS hosted personal MCP resource/audience, no query or fragment |
+| `MCP_PERSONAL_WEBSITE_URL` | Reviewed HTTPS website `/oauth/authorize` setup page, no query or fragment |
+| `AI_CONNECTOR_TRUSTED_CLIENTS` | Same JSON array as the website: `{client_id,name,kind,redirect_uri}`. This contained rollout accepts only `kind: "codex"`, nonduplicate IDs and exact reviewed `http://127.0.0.1[:port]/callback/<id>` callbacks |
+| `AI_SHARE_SNAPSHOT_KEY_V1` (and retained rotation versions) | Base64 32-byte encryption keys shared with the existing snapshot writer; at least one valid key is mandatory |
+
+The MCP runtime does not need `WORKOS_API_KEY`: live token validity uses the pinned UserInfo
+endpoint. The website's standalone-completion/revocation owner and account-deletion owner need
+that server-only key from the same WorkOS environment. Never copy staging identities or old
+loopback test URLs into production configuration.
+
+The original acceptance callback is tied to its loopback MCP URL. Codex's callback-specific mode
+derives the path ID from the full MCP server URL; its default listener port is ephemeral.
+For bounded pre-registration, configure a fixed Codex OAuth callback listener port, register its
+exact callback for the final hosted resource, and verify fresh login twice before rollout.
+Do not widen callbacks or enable arbitrary-client registration to bypass this check. Current
+Codex also supports issuer-bound callbacks in some configurations; verify the installed client's
+actual authorization request rather than assuming a path from another version.
+
+The canonical resource already published in protected-resource metadata is:
+
+`https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal`
+
+Set `MCP_PERSONAL_RESOURCE_URL` to that exact value, without a trailing slash. No new branded
+route is required. For the callback-specific Codex mode and fixed listener port `3199`, the
+source-derived exact callback is `http://127.0.0.1:3199/callback/S6tE1k6DOX3Z`.
+The ID is base64url of the first nine SHA-256 bytes of the canonical resource URL. Record that
+same callback in the production WorkOS application and the website/MCP trusted-client entry.
+Do not reuse the private loopback-resource callback.
+
+Operator setup, **after** production issuer/client registration is available and the release
+checks permit OAuth acceptance (replace the placeholder with the actual reviewed client ID):
+
+```bash
+codex mcp add pharmaguide_personal \
+  --url https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal \
+  --oauth-client-id '<reviewed-production-client-id>' \
+  --oauth-resource https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal
+codex -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal
+```
+
+For repeat logins, set `callback_port = 3199` in the existing
+`[mcp_servers.pharmaguide_personal.oauth]` configuration table, preserving its client settings.
+This per-server setting leaves other MCP servers' callback configuration unchanged; a global
+`mcp_oauth_callback_port` setting is unnecessary. The per-server configuration was verified
+against installed Codex `0.164.0-alpha.11.1`: two isolated local
+metadata probes generated the same callback with S256, and an occupied port failed rather than
+falling back. The canonical hosted-resource probe currently stops at its intentional root 503,
+before producing an authorization URL; its derived callback still needs a real production
+metadata/login check after deployment and explicit acceptance authorization. No grant was created
+by these probes. Verify two fresh logins with the registered client and inspect the actual redirect
+URI before declaring production onboarding ready.
+
+Primary references: [WorkOS Standalone Connect](https://workos.com/docs/authkit/connect/standalone),
+[WorkOS discovery](https://workos.com/docs/reference/workos-connect/metadata/oauth-authorization-server),
+[Codex callback identity source](https://github.com/openai/codex/blob/main/codex-rs/rmcp-client/src/oauth_callback.rs),
+[Codex configuration reference](https://developers.openai.com/codex/config-reference).
+Generic WorkOS MCP guidance recommends CIMD; this exact-client qualification does not establish
+CIMD/DCR support or public onboarding readiness.
+
 ## Local checks
 
 ```bash

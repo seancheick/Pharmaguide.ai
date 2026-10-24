@@ -422,6 +422,7 @@ void main() {
     expect(previews, 1);
     expect(approvals, 0);
     expect(find.text('Check this destination'), findsOneWidget);
+    expect(find.textContaining('adults aged 18 and over'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 

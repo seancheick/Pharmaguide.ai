@@ -366,6 +366,10 @@ class AiPairingScreenState extends ConsumerState<AiPairingScreen> {
         child: ListView(
           padding: const EdgeInsets.all(V2Spacing.space24),
           children: [
+            const Text(
+              'Assistant connections are for adults aged 18 and over.',
+            ),
+            const SizedBox(height: V2Spacing.space16),
             if (!signedIn || !_sameAccount)
               const Text(
                 'Your account changed. Close this page and sign in again before approving.',

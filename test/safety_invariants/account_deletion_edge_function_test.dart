@@ -16,7 +16,7 @@ void main() {
       final removeIndex = source.indexOf('removeStorageObjectsOrThrow(');
       final deleteUserIndex = source.indexOf('auth.admin.deleteUser');
 
-      expect(source, contains('userClient.auth.getUser'));
+      expect(source, matches(RegExp(r'userClient\.auth\s*\.getUser')));
       expect(listIndex, greaterThanOrEqualTo(0));
       expect(removeIndex, greaterThan(listIndex));
       expect(deleteUserIndex, greaterThan(removeIndex));

@@ -594,33 +594,71 @@ export function createProductionHandler(deps: PersonalMcpDeps): (request: Reques
   );
 }
 
-if (import.meta.main) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
-  const resourceUrl = Deno.env.get("MCP_PERSONAL_RESOURCE_URL")?.trim();
-  let serviceKey: string | undefined;
-  try {
-    serviceKey = resolveSupabaseAdminKey();
-  } catch {
-    serviceKey = undefined;
+// The deployed entrypoint composes the same verifier/repositories as qualification.
+// This prepares WorkOS wiring only: createProductionHandler remains hard-disabled.
+export async function createProductionDependencies(
+  get: (name: string) => string | undefined,
+  request: typeof fetch = fetch,
+  keysForIssuer: typeof remoteJwks = remoteJwks,
+): Promise<PersonalMcpDeps> {
+  function httpsUrl(name: string, originOnly = false): string {
+    const value = get(name)?.trim();
+    if (!value) throw Error("Personal MCP configuration unavailable");
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash ||
+      (originOnly && url.origin !== value)) throw Error("Personal MCP configuration unavailable");
+    return value;
   }
-  if (!supabaseUrl || !resourceUrl || !serviceKey) {
-    // Fail closed: without its audience or keys this server serves nothing.
-    Deno.serve(() => transport.rpcError(null, -32603, HTTP_MESSAGES.unavailable, 503));
-  } else {
-    const issuer = `${supabaseUrl.replace(/\/$/, "")}/auth/v1`;
-    const keys = remoteJwks(supabaseUrl);
-    let keyring: Keyring | null = null;
-    try {
-      keyring = await keyringFromEnv((name) => Deno.env.get(name));
-    } catch {
-      console.error(JSON.stringify({ event: "mcp_personal_snapshot_key_unavailable" }));
+  const supabaseUrl = httpsUrl("SUPABASE_URL", true);
+  const issuer = httpsUrl("WORKOS_ISSUER", true);
+  const resourceUrl = httpsUrl("MCP_PERSONAL_RESOURCE_URL");
+  const websiteUrl = httpsUrl("MCP_PERSONAL_WEBSITE_URL");
+  const serviceKey = resolveSupabaseAdminKey(get);
+  if (!serviceKey) throw Error("Personal MCP configuration unavailable");
+  // Same operator-owned JSON shape as the website. This rollout qualifies only
+  // exact pre-registered Codex callbacks, never arbitrary client metadata.
+  const entries: unknown = JSON.parse(get("AI_CONNECTOR_TRUSTED_CLIENTS") ?? "null");
+  if (!Array.isArray(entries) || entries.length === 0 || entries.length > 100) {
+    throw Error("Personal MCP configuration unavailable");
+  }
+  const clients: Record<string, {name: string; redirectUri: string}> = Object.create(null);
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object" || entry.kind !== "codex" ||
+      typeof entry.client_id !== "string" || !/^[A-Za-z0-9_-]{1,255}$/.test(entry.client_id) ||
+      Object.hasOwn(clients, entry.client_id) || typeof entry.name !== "string" ||
+      !entry.name.trim() || entry.name.length > 200 || typeof entry.redirect_uri !== "string") {
+      throw Error("Personal MCP configuration unavailable");
     }
-    Deno.serve(createProductionHandler({
-      verifyToken: (token) => verifyOAuthAccessToken(token, { issuer, audience: resourceUrl, keys }),
-      ...postgrestRepositories(supabaseUrl, serviceKey),
-      keyring,
-      resourceUrl,
-      authorizationServer: issuer,
-    }));
+    const callback = new URL(entry.redirect_uri);
+    if (callback.protocol !== "http:" || callback.hostname !== "127.0.0.1" ||
+      callback.username || callback.password || callback.search || callback.hash ||
+      !/^\/callback\/[A-Za-z0-9_-]{1,128}$/.test(callback.pathname) || entry.redirect_uri.includes("..")) {
+      throw Error("Personal MCP configuration unavailable");
+    }
+    clients[entry.client_id] = {name: entry.name.trim(), redirectUri: entry.redirect_uri};
   }
+  // Require the same configured keyring as the snapshot writer; never silently
+  // start a partially configured personal runtime with unreadable snapshots.
+  const keyring = await keyringFromEnv(get);
+  const keys = keysForIssuer(issuer, "workos");
+  return {
+    ...postgrestRepositories(supabaseUrl, serviceKey, (input, init) => request(input, init), {websiteUrl, clients}),
+    verifyToken: token => verifyOAuthAccessToken(token, {
+      provider: "workos", issuer, audience: resourceUrl, keys,
+      allowedClientIds: Object.keys(clients), userInfoFetch: request,
+    }),
+    keyring, resourceUrl, authorizationServer: issuer,
+  };
+}
+
+if (import.meta.main) {
+  let handler: (request: Request) => Promise<Response>;
+  try {
+    handler = createProductionHandler(await createProductionDependencies(name => Deno.env.get(name)));
+  } catch {
+    // Missing or malformed config never falls back to the retired OAuth issuer.
+    // No config values, credentials or provider payloads are logged.
+    handler = () => Promise.resolve(transport.rpcError(null, -32603, HTTP_MESSAGES.unavailable, 503));
+  }
+  Deno.serve(handler);
 }
