@@ -797,6 +797,21 @@ void main() {
     expect(find.text('ACTIVE'), findsOneWidget);
   });
 
+  testWidgets('public entry explains access without disabled test wording', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(signedIn: true, pairing: true));
+    await tester.pumpAndSettle();
+    expect(find.text('Your assistant connections'), findsOneWidget);
+    expect(find.text('Enter approval code'), findsOneWidget);
+    expect(find.textContaining('not enabled yet'), findsNothing);
+    expect(find.textContaining('approved test'), findsNothing);
+    expect(
+      find.textContaining('You choose which additional details'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows stored verified assistant name and callback host', (
     tester,
   ) async {
