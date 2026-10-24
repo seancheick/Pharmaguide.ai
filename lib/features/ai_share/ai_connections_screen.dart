@@ -613,11 +613,12 @@ class _ConnectionCardState extends ConsumerState<_ConnectionCard> {
         ],
       );
     }
-    final live =
-        !_localEnded &&
-        !widget.pendingRevocation &&
-        connection.isLiveAt(DateTime.now());
-    final status = widget.pendingRevocation
+    final accessEnded =
+        _localEnded ||
+        widget.pendingRevocation ||
+        !connection.isLiveAt(DateTime.now());
+    final live = !accessEnded && !_needsRetry;
+    final status = widget.pendingRevocation || _needsRetry
         ? 'Needs attention'
         : switch (_localEnded || connection.revokedAt != null
               ? 'revoked'
@@ -637,7 +638,7 @@ class _ConnectionCardState extends ConsumerState<_ConnectionCard> {
               '${connection.callbackHost == null ? '' : '${connection.callbackHost} · '}'
               'Connected ${formatReportDate(connection.createdAt.toLocal())} '
               '· ${!live
-                  ? 'Access ended'
+                  ? (accessEnded ? 'Access ended' : 'Disconnect not confirmed')
                   : connection.expiresAt == null
                   ? 'Until you disconnect'
                   : 'Access ends ${formatReportDate(connection.expiresAt!.toLocal())}'}',
@@ -703,7 +704,9 @@ class _ConnectionCardState extends ConsumerState<_ConnectionCard> {
                 ? 'Retry disconnect'
                 : 'Disconnect',
             caption: (_needsRetry || widget.pendingRevocation)
-                ? 'PharmaGuide access ended. Finish disconnecting the provider.'
+                ? (accessEnded
+                      ? 'PharmaGuide access ended. Finish disconnecting the provider.'
+                      : 'Disconnect could not be confirmed. Try again.')
                 : 'Delete what you shared and end access',
             destructive: true,
             onTap: _busy ? null : () => _disconnect(context, ref),
@@ -800,6 +803,9 @@ class _ConnectionCardState extends ConsumerState<_ConnectionCard> {
         ref.invalidate(aiPendingRevocationProvider);
       }
     } on Object {
+      if (mounted && repository.pairingSessionIdentity == identity) {
+        setState(() => _needsRetry = true);
+      }
       message = updatesStopped
           ? 'Disconnect could not be confirmed. Automatic updates are off. Try again.'
           : 'Could not stop sharing. Try again.';

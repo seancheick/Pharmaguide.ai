@@ -433,8 +433,28 @@ void main() {
         expect(repo.disconnectCalls, 2);
         expect(find.text('Retry disconnect'), findsNothing);
       } else {
-        expect(find.textContaining('could not be confirmed'), findsOneWidget);
-        expect(find.text('Disconnect'), findsOneWidget);
+        expect(
+          find.text(
+            'Disconnect could not be confirmed. Automatic updates are off. Try again.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Retry disconnect'), findsOneWidget);
+        expect(find.text('NEEDS ATTENTION'), findsOneWidget);
+        expect(find.textContaining('Access ended'), findsNothing);
+        expect(find.text('Manage assistant access'), findsNothing);
+        repo.onDisconnect = (_) async {
+          repo.connections[0] = aiConnectionFixture(status: 'revoked');
+          return AiDisconnectResult.disconnected;
+        };
+        await tester.ensureVisible(find.text('Retry disconnect'));
+        await tester.tap(find.text('Retry disconnect'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+        await tester.pumpAndSettle();
+        expect(repo.disconnectCalls, 2);
+        expect(find.text('Retry disconnect'), findsNothing);
+        expect(find.text('Connection history (1)'), findsOneWidget);
       }
     });
   }
