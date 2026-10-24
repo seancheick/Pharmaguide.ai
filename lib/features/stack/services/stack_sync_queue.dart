@@ -645,7 +645,7 @@ class StackSyncService {
   }
 
   /// Map a local stack row to the remote Supabase shape. Injects the
-  /// authenticated user id and converts Dart DateTimes to ISO-8601.
+  /// authenticated user id and sends explicit UTC instants for server comparisons.
   Map<String, dynamic> _rowToRemote(UserStacksLocalData row, String userId) {
     return {
       'id': row.id,
@@ -654,9 +654,9 @@ class StackSyncService {
       'name': row.name,
       'dsld_id': row.dsldId,
       'ingredient_keys': row.ingredientKeys,
-      'added_at': row.addedAt.toIso8601String(),
-      'client_updated_at': row.clientUpdatedAt.toIso8601String(),
-      'deleted_at': row.deletedAt?.toIso8601String(),
+      'added_at': row.addedAt.toUtc().toIso8601String(),
+      'client_updated_at': row.clientUpdatedAt.toUtc().toIso8601String(),
+      'deleted_at': row.deletedAt?.toUtc().toIso8601String(),
     };
   }
 }

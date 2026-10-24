@@ -14,12 +14,16 @@ import 'package:pharmaguide/features/stack/widgets/ai_share_scope_switches.dart'
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/sharing/ai_brief_builder.dart';
 import 'package:pharmaguide/services/sharing/ai_share_scope.dart';
+import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
 import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
 import 'package:pharmaguide/services/sharing/clinician_report_document_provider.dart';
 import 'package:pharmaguide/services/sharing/report_text.dart';
 
 /// Website page where every assistant connection can be revoked.
-const aiConnectionsWebUrl = 'https://pharmaguide.io/account/connections';
+const aiConnectionsWebUrl = String.fromEnvironment(
+  'PHARMAGUIDE_AI_CONNECTIONS_URL',
+  defaultValue: 'https://pharmaguide.io/account/connections',
+);
 
 /// Consent, preview and share for one connected assistant (ADR-009 S4).
 ///
@@ -29,9 +33,14 @@ const aiConnectionsWebUrl = 'https://pharmaguide.io/account/connections';
 /// profile stay off until switched on, and findings that would disclose
 /// them stay out with them (enforced by [AiBriefBuilder]).
 class AiShareConsentScreen extends ConsumerStatefulWidget {
-  const AiShareConsentScreen({super.key, required this.connection});
+  const AiShareConsentScreen({
+    super.key,
+    required this.connection,
+    this.initialSettings,
+  });
 
   final AiConnection connection;
+  final AiShareConnectionPrefs? initialSettings;
 
   @override
   ConsumerState<AiShareConsentScreen> createState() =>
@@ -45,6 +54,17 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
   int _durationIndex = 0;
   bool _sharing = false;
 
+  @override
+  void initState() {
+    super.initState();
+    final saved = widget.initialSettings;
+    if (saved != null) {
+      _scope = saved.scope.normalized;
+      final durationIndex = _durations.indexOf(saved.ttlHours);
+      _durationIndex = durationIndex < 0 ? 0 : durationIndex;
+    }
+  }
+
   void _update(AiShareScope Function(AiShareScope) change) {
     setState(() => _scope = change(_scope).normalized);
   }
@@ -56,7 +76,7 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
       appBar: AppBar(
         surfaceTintColor: Colors.transparent,
         title: Text(
-          'Share with this assistant',
+          'Assistant access',
           style: V2Typography.titleSm(color: context.v2.fg),
         ),
       ),
@@ -98,6 +118,14 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  'This assistant can already read your synced supplement list. '
+                  'The choices below apply only to an additional, read-only copy '
+                  'of your details. They do not remove access to your synced list; '
+                  'disconnect the assistant to end all access.',
+                  style: V2Typography.bodySm(color: context.v2.fgMuted),
+                ),
+                const SizedBox(height: V2Spacing.space16),
                 _ConsentCard(
                   clientName: widget.connection.displayName,
                   callbackHost: widget.connection.callbackHost,
@@ -106,7 +134,7 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
                 ),
                 const SizedBox(height: V2Spacing.space16),
                 Text(
-                  'Maximum sharing time',
+                  'Additional details available for',
                   style: V2Typography.titleSm(color: context.v2.fg),
                 ),
                 const SizedBox(height: V2Spacing.space8),
@@ -118,8 +146,8 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
                 const SizedBox(height: V2Spacing.space16),
                 Text(
                   widget.connection.expiresAt == null
-                      ? 'Sharing ends after this time or when you disconnect the assistant, whichever comes first.'
-                      : 'Sharing ends after this time or when your assistant connection '
+                      ? 'Access to this additional copy ends after this time or when you disconnect the assistant, whichever comes first.'
+                      : 'Access to this additional copy ends after this time or when your assistant connection '
                             'expires on ${formatReportDate(widget.connection.expiresAt!.toLocal())}, '
                             'whichever comes first.',
                   style: V2Typography.bodySm(color: context.v2.fgMuted),
@@ -159,7 +187,7 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
           ),
           child: PGPillButton(
             key: const Key('ai_share_submit'),
-            label: _sharing ? 'Sharing…' : 'Share',
+            label: _sharing ? 'Saving…' : 'Save access settings',
             icon: Icons.ios_share_rounded,
             expand: true,
             onPressed: _sharing || _scope.isEmpty
@@ -239,8 +267,10 @@ class _AiShareConsentScreenState extends ConsumerState<AiShareConsentScreen> {
     } on AiShareSnapshotRequestFailed catch (error) {
       _fail(
         failureText(
-          error.status == 400
-              ? 'Check your device date/time and refresh the preview before sharing again.'
+          error.status == 503
+              ? 'Sharing is currently unavailable. This share could not be confirmed. You can remove shared data from your connections.'
+              : error.status == 400
+              ? 'The share request was not accepted. Refresh the preview and try again.'
               : 'The share did not complete. Try again.',
         ),
       );

@@ -110,7 +110,6 @@ class AiBriefBuilder {
         'names',
         if (scope.supplementAmounts)
           'verified label amounts as nutrient totals',
-        if (scope.supplementSchedule) 'dose and frequency as entered',
       ];
       out.writeln('- Supplements: ${parts.join(', ')}');
     } else {
@@ -180,15 +179,6 @@ class AiBriefBuilder {
         : null;
     for (final item in supplements) {
       final line = StringBuffer('- ${item.name.trim()}');
-      if (scope.supplementSchedule) {
-        final schedule = medicationScheduleText(item);
-        if (schedule != 'Not recorded') {
-          line.write(
-            ' - as entered by the user (not verified against the '
-            'label): $schedule',
-          );
-        }
-      }
       if (coverage != null) {
         line.write(' - nutrient totals: ${coverage.labelFor(item.id)}');
         for (final note in coverage.notesFor(item.id)) {

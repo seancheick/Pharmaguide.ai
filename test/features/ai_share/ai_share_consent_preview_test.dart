@@ -93,7 +93,22 @@ void main() {
     });
   }
 
-  testWidgets('bad snapshot request gives actionable clock guidance', (
+  testWidgets('disabled snapshot endpoint gives honest availability guidance', (
+    tester,
+  ) async {
+    backend.failWith = const AiShareSnapshotRequestFailed(503);
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ai_share_submit')));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Sharing is currently unavailable'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Shared. Available'), findsNothing);
+  });
+
+  testWidgets('invalid snapshot request does not blame the device clock', (
     tester,
   ) async {
     backend.failWith = const AiShareSnapshotRequestFailed(400);
@@ -101,7 +116,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('ai_share_submit')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Check your device date/time'), findsOneWidget);
+    expect(
+      find.textContaining('The share request was not accepted'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('names destination, categories, data locations and how to stop', (
@@ -150,11 +168,11 @@ void main() {
     final connection = tester
         .widget<AiShareConsentScreen>(find.byType(AiShareConsentScreen))
         .connection;
-    expect(find.text('Maximum sharing time'), findsOneWidget);
+    expect(find.text('Additional details available for'), findsOneWidget);
     expect(find.text('Available to the assistant for'), findsNothing);
     final expiry = formatReportDate(connection.expiresAt!.toLocal());
     final clarification = find.text(
-      'Sharing ends after this time or when your assistant connection expires '
+      'Access to this additional copy ends after this time or when your assistant connection expires '
       'on $expiry, whichever comes first.',
     );
     expect(clarification, findsOneWidget);

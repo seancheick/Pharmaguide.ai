@@ -36,15 +36,6 @@ class AiShareScopeSwitches extends StatelessWidget {
             ),
           ),
         PGSettingsTile(
-          icon: Icons.edit_calendar_outlined,
-          title: 'Supplement dose as you entered it',
-          caption: 'Free text, not verified against the label.',
-          trailing: Switch.adaptive(
-            value: scope.supplementSchedule,
-            onChanged: (v) => onScope((s) => s.copyWith(supplementSchedule: v)),
-          ),
-        ),
-        PGSettingsTile(
           icon: Icons.medication_outlined,
           title: 'Medications',
           caption: 'Names. Findings that involve them come along.',

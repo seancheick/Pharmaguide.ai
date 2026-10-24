@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
@@ -26,6 +27,7 @@ import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/core/widgets/pg_tab_bar.dart';
 import 'package:pharmaguide/dev/v2_gallery.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_providers.dart';
+import 'package:pharmaguide/features/ai_share/ai_connections_screen.dart';
 // Phase 11.11 hygiene (2026-05-17): legacy v1 widget imports removed
 // after the route-coherence promotion proved stable. Production
 // routes (`/product/:dsldId`, `/search`, `/quick-check`,
@@ -104,6 +106,30 @@ String? normalizePharmaGuideDeepLink(Uri uri) {
 
   final query = uri.query.isEmpty ? '' : '?${uri.query}';
   return '$normalizedPath$query';
+}
+
+/// Router receipt boundary for a return from assistant connection management.
+/// The injected actions keep native browser handling testable without an OS UI.
+@visibleForTesting
+Future<String?> redirectPharmaGuideDeepLink(
+  Uri uri, {
+  required Future<void> Function() closeBrowser,
+  required VoidCallback refreshConnections,
+}) async {
+  final location = normalizePharmaGuideDeepLink(uri);
+  // Only the explicit custom-scheme return, not ordinary builds of this
+  // route or approval-code links, dismisses the native browser. Its launch
+  // Future completes on initial load, so it cannot signal dismissal.
+  if (location == Routes.aiConnections) {
+    try {
+      await closeBrowser();
+    } on Object {
+      // No browser may be open (for example, a return from external Safari).
+      // A native close failure must not lose navigation or refreshed state.
+    }
+    refreshConnections();
+  }
+  return location;
 }
 
 /// Redirect target for the `/compare/:idA/:idB` route. Comparing a
@@ -638,7 +664,18 @@ GoRouter _buildRouter({
     // An unknown path (an old `pharmaguide://chat` link, a typo) used to land
     // on go_router's bare "Page Not Found" with no tab bar. Go home instead.
     onException: (_, __, router) => router.go(Routes.home),
-    redirect: (_, state) => normalizePharmaGuideDeepLink(state.uri),
+    redirect: (context, state) => redirectPharmaGuideDeepLink(
+      state.uri,
+      closeBrowser: closeInAppWebView,
+      refreshConnections: () {
+        if (context.mounted) {
+          ProviderScope.containerOf(
+            context,
+            listen: false,
+          ).invalidate(aiConnectionsProvider);
+        }
+      },
+    ),
     routes: withDevPreviewRoutes([
       ShellRoute(
         builder: (context, state, child) => _AppShell(child: child),
@@ -687,6 +724,15 @@ GoRouter _buildRouter({
             builder: (_, __) => const SettingsV2Connected(),
           ),
         ],
+      ),
+      GoRoute(
+        path: Routes.aiConnections,
+        builder: (_, state) {
+          final code = state.uri.queryParameters['code'];
+          return code == null
+              ? const AiConnectionsScreen()
+              : AiPairingScreen(initialCode: code);
+        },
       ),
       // Sub-pages live outside the shell — they have their own app bar with
       // back button and (for product detail) a sticky action bar. Nesting

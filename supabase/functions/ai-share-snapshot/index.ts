@@ -34,11 +34,11 @@ export type { SnapshotRow };
 
 /// The app's AiShareScope categories. Missing keys mean "not shared".
 export const SCOPE_KEYS = [
-  "supplementNames",
-  "supplementAmounts",
-  "supplementSchedule",
-  "medicationNames",
-  "medicationSchedule",
+  "supplement_names",
+  "supplement_amounts",
+  "supplement_schedule",
+  "medication_names",
+  "medication_schedule",
   "profile",
   "findings",
 ] as const;
@@ -93,6 +93,8 @@ export function clampTtlHours(value: unknown): number {
 export function normalizeScope(value: unknown): Record<string, boolean> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new BadRequest();
   const input = value as Record<string, unknown>;
+  // The app owns this wire format. Retired free-text supplement doses are never shared.
+  if (input.supplement_schedule === true) throw new BadRequest();
   for (const key of Object.keys(input)) {
     if (!(SCOPE_KEYS as readonly string[]).includes(key)) throw new BadRequest();
     if (typeof input[key] !== "boolean") throw new BadRequest();

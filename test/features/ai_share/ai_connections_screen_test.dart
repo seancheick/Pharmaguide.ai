@@ -1,3 +1,6 @@
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/constants/routes.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
@@ -36,6 +39,8 @@ void main() {
   late FakeAiConnectionsRepository repo;
   late List<Uri> opened;
   late int signInTaps;
+  var externalOpens = true;
+  Future<bool>? externalPending;
 
   setUp(() {
     backend = FakeAiShareBackend();
@@ -43,9 +48,16 @@ void main() {
     repo = FakeAiConnectionsRepository([aiConnectionFixture()]);
     opened = [];
     signInTaps = 0;
+    externalOpens = true;
+    externalPending = null;
   });
 
-  Widget app({required bool signedIn, bool pairing = false}) => ProviderScope(
+  Widget app({
+    required bool signedIn,
+    bool pairing = false,
+    String? approvalCode,
+    bool nativeLauncher = false,
+  }) => ProviderScope(
     overrides: [
       aiPairingEnabledProvider.overrideWithValue(pairing),
       authStateProvider.overrideWith((ref) {
@@ -61,13 +73,19 @@ void main() {
     ],
     child: MaterialApp(
       theme: V2Theme.light,
-      home: AiConnectionsScreen(
-        onSignIn: () => signInTaps++,
-        onOpenExternal: (uri) async {
-          opened.add(uri);
-          return true;
-        },
-      ),
+      home: approvalCode != null
+          ? AiPairingScreen(initialCode: approvalCode)
+          : AiConnectionsScreen(
+              onSignIn: () => signInTaps++,
+              onOpenExternal: nativeLauncher
+                  ? null
+                  : (uri) async {
+                      opened.add(uri);
+                      return externalPending == null
+                          ? externalOpens
+                          : await externalPending!;
+                    },
+            ),
     ),
   );
 
@@ -75,6 +93,244 @@ void main() {
     of: find.byKey(const Key('ai_keep_updated')),
     matching: find.byType(Switch),
   );
+
+  testWidgets('deep-linked connections can return to profile navigation', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: Routes.aiConnections,
+      routes: [
+        GoRoute(
+          path: Routes.aiConnections,
+          builder: (_, _) => const AiConnectionsScreen(),
+        ),
+        GoRoute(
+          path: Routes.profile,
+          builder: (_, _) => const Scaffold(body: Text('Profile navigation')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith(
+            (ref) => AuthStateService()..onSignedOut(),
+          ),
+        ],
+        child: MaterialApp.router(theme: V2Theme.light, routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(BackButton), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Profile navigation'), findsOneWidget);
+    expect(router.routeInformationProvider.value.uri.path, Routes.profile);
+  });
+
+  for (final action in ['cancel', 'back']) {
+    testWidgets('root approval $action returns to connections', (tester) async {
+      var cancellations = 0;
+      repo.preview = (_) async => AiPairingPreview(
+        clientName: 'Codex',
+        callbackHost: 'chatgpt.com',
+        expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+      );
+      repo.cancel = (_) async {
+        cancellations++;
+      };
+      final router = GoRouter(
+        initialLocation: '${Routes.aiConnections}?code=ABCDEFGHJKMN',
+        routes: [
+          GoRoute(
+            path: Routes.aiConnections,
+            builder: (_, state) => state.uri.hasQuery
+                ? const AiPairingScreen(initialCode: 'ABCDEFGHJKMN')
+                : const Scaffold(body: Text('Connections destination')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            aiPairingEnabledProvider.overrideWithValue(true),
+            authStateProvider.overrideWith(
+              (ref) => AuthStateService()..onSignedIn(),
+            ),
+            aiConnectionsRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: MaterialApp.router(theme: V2Theme.light, routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+      if (action == 'cancel') {
+        await tester.tap(find.text('Cancel request'));
+      } else {
+        expect(find.byType(BackButton), findsOneWidget);
+        await tester.tap(find.byType(BackButton));
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('Connections destination'), findsOneWidget);
+      expect(cancellations, action == 'cancel' ? 1 : 0);
+    });
+  }
+
+  testWidgets('connections opened from settings return to the previous page', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith(
+            (ref) => AuthStateService()..onSignedOut(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: V2Theme.light,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AiConnectionsScreen(),
+                  ),
+                ),
+                child: const Text('Settings origin'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Settings origin'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Settings origin'), findsOneWidget);
+  });
+
+  testWidgets(
+    'refresh connections updates revocation without lifecycle event',
+    (tester) async {
+      await tester.pumpWidget(app(signedIn: true));
+      await tester.pumpAndSettle();
+      final before = repo.loads;
+      repo.connections[0] = aiConnectionFixture(status: 'revoked');
+      await tester.tap(find.byTooltip('Refresh connections'));
+      await tester.pumpAndSettle();
+      expect(repo.loads, greaterThan(before));
+      expect(find.textContaining('Access ended'), findsOneWidget);
+      expect(find.text('Disconnect'), findsNothing);
+    },
+  );
+
+  testWidgets('returning from browser refreshes revoked connections', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(signedIn: true));
+    await tester.pumpAndSettle();
+    final before = repo.loads;
+    repo.connections[0] = aiConnectionFixture(status: 'revoked');
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(repo.loads, greaterThan(before));
+    expect(find.textContaining('Access ended'), findsOneWidget);
+  });
+
+  for (final scenario in [
+    'external succeeds',
+    'fallback succeeds',
+    'both refuse',
+    'external throws',
+    'fallback throws',
+  ]) {
+    testWidgets('disconnect native browser: $scenario', (tester) async {
+      const channel = MethodChannel('plugins.flutter.io/url_launcher');
+      final calls = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        calls.add(call);
+        if ((scenario == 'external throws' && calls.length == 1) ||
+            (scenario == 'fallback throws' && calls.length == 2)) {
+          throw PlatformException(code: 'channel-error');
+        }
+        return scenario == 'external succeeds' ||
+            (scenario == 'fallback succeeds' && calls.length == 2);
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      await tester.pumpWidget(app(signedIn: true, nativeLauncher: true));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Disconnect'));
+      await tester.tap(find.text('Disconnect'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+      await tester.pumpAndSettle();
+      final fallback =
+          scenario != 'external succeeds' && scenario != 'external throws';
+      expect(calls, hasLength(fallback ? 2 : 1));
+      expect(calls.first.method, 'launch');
+      expect((calls.first.arguments as Map)['useSafariVC'], isFalse);
+      if (fallback) {
+        expect((calls.last.arguments as Map)['useSafariVC'], isTrue);
+      }
+      for (final call in calls) {
+        expect((call.arguments as Map)['url'], aiConnectionsWebUrl);
+        expect((call.arguments as Map)['headers'], isEmpty);
+      }
+      expect(
+        find.textContaining('Access has not been ended'),
+        scenario.endsWith('succeeds') ? findsNothing : findsOneWidget,
+      );
+    });
+  }
+
+  testWidgets('failed launch remains visible after connection card refresh', (
+    tester,
+  ) async {
+    final pending = Completer<bool>();
+    externalPending = pending.future;
+    await tester.pumpWidget(app(signedIn: true));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AiConnectionsScreen)),
+    );
+    await tester.ensureVisible(find.text('Disconnect'));
+    await tester.tap(find.text('Disconnect'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+    await tester.pumpAndSettle();
+    expect(opened, hasLength(1));
+    repo.connections.clear();
+    container.invalidate(aiConnectionsProvider);
+    await tester.pumpAndSettle();
+    expect(find.text('Disconnect'), findsNothing);
+    pending.complete(false);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Access has not been ended'), findsOneWidget);
+  });
+
+  testWidgets('failed browser launch explains access is not ended', (
+    tester,
+  ) async {
+    externalOpens = false;
+    await tester.pumpWidget(app(signedIn: true));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Disconnect'));
+    await tester.tap(find.text('Disconnect'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ai_disconnect_confirm')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Access has not been ended'), findsOneWidget);
+  });
 
   testWidgets(
     'pairing previews destination before explicit approval, never shares',
@@ -96,6 +352,10 @@ void main() {
       await tester.tap(find.text('Enter approval code'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'abcd-efgh jkmn');
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'ABCD-EFGH-JKMN',
+      );
       await tester.tap(find.text('Preview destination'));
       await tester.pumpAndSettle();
       expect(find.text('Codex'), findsOneWidget);
@@ -105,12 +365,81 @@ void main() {
       await tester.pumpAndSettle();
       expect(approvals, 1);
       expect(
-        find.textContaining('Return to your assistant or browser'),
+        find.textContaining('Keep the connection page open'),
         findsOneWidget,
       );
       expect(backend.calls, isEmpty);
     },
   );
+
+  testWidgets('confirmed phone approval returns to refreshed connections', (
+    tester,
+  ) async {
+    repo.preview = (_) async => AiPairingPreview(
+      clientName: 'Codex',
+      callbackHost: 'chatgpt.com',
+      expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+    );
+    repo.approve = (_) async {};
+    repo.approvedConnectionId = '6f1c2a3b-0000-4000-8000-000000000001';
+    await tester.pumpWidget(app(signedIn: true, pairing: true));
+    await tester.pumpAndSettle();
+    final loads = repo.loads;
+    await tester.tap(find.text('Enter approval code'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'ABCDEFGHJKMN');
+    await tester.tap(find.text('Preview destination'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Approve request'));
+    await tester.pumpAndSettle();
+    expect(find.text('Your assistant connections'), findsOneWidget);
+    expect(find.text('Approved on this phone'), findsNothing);
+    expect(repo.loads, greaterThan(loads));
+    expect(backend.calls, isEmpty);
+  });
+
+  testWidgets('app link previews exact code but never approves automatically', (
+    tester,
+  ) async {
+    var previews = 0;
+    var approvals = 0;
+    repo.preview = (code) async {
+      previews++;
+      expect(code, 'ABCDEFGHJKMN');
+      return AiPairingPreview(
+        clientName: 'Codex',
+        callbackHost: 'chatgpt.com',
+        expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+      );
+    };
+    repo.approve = (_) async {
+      approvals++;
+    };
+    await tester.pumpWidget(
+      app(signedIn: true, pairing: true, approvalCode: 'ABCD-EFGH-JKMN'),
+    );
+    await tester.pumpAndSettle();
+    expect(previews, 1);
+    expect(approvals, 0);
+    expect(find.text('Check this destination'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('app link cannot enable disabled phone approvals', (
+    tester,
+  ) async {
+    var previews = 0;
+    repo.preview = (_) async {
+      previews++;
+      throw const AiPairingException();
+    };
+    await tester.pumpWidget(app(signedIn: true, approvalCode: 'ABCDEFGHJKMN'));
+    await tester.pumpAndSettle();
+    expect(previews, 0);
+    await tester.tap(find.text('Preview destination'));
+    await tester.pumpAndSettle();
+    expect(previews, 0);
+  });
 
   testWidgets('late pairing response after closing is ignored', (tester) async {
     final pending = Completer<AiPairingPreview>();
@@ -317,7 +646,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Claude'), findsOneWidget);
     expect(find.textContaining('claude.ai'), findsOneWidget);
-    await tester.tap(find.text('Share more with this assistant'));
+    await tester.tap(find.text('Manage assistant access'));
     await tester.pumpAndSettle();
     final consent = find.byKey(const Key('ai_share_consent_card'));
     expect(
@@ -423,13 +752,58 @@ void main() {
     expect(opened, [Uri.parse('https://pharmaguide.io/account/connections')]);
   });
 
+  testWidgets('disconnected connection caption says access ended', (
+    tester,
+  ) async {
+    repo = FakeAiConnectionsRepository([
+      aiConnectionFixture(status: 'revoked'),
+    ]);
+    await tester.pumpWidget(app(signedIn: true));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Access ended'), findsOneWidget);
+    expect(find.textContaining('Access ends '), findsNothing);
+    expect(find.textContaining('Until you disconnect'), findsNothing);
+  });
+
+  for (final hours in [168, 720]) {
+    testWidgets('manage preserves saved scope and $hours hour duration', (
+      tester,
+    ) async {
+      final id = aiConnectionFixture().connectionId;
+      await prefs.recordShare(id, AiShareScope.simpleList, hours);
+      await prefs.setKeepUpdated(id, true);
+      await tester.pumpWidget(app(signedIn: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Manage assistant access'));
+      await tester.pumpAndSettle();
+      expect(backend.calls, isEmpty, reason: 'opening settings never shares');
+      final switches = tester.widgetList<Switch>(find.byType(Switch));
+      expect(
+        switches.where((s) => s.value).length,
+        0,
+        reason: 'only saved supplement names are enabled',
+      );
+      await tester.tap(find.byKey(const Key('ai_share_submit')));
+      await tester.pumpAndSettle();
+      expect(
+        backend.uploads.single.body['scope'],
+        AiShareScope.simpleList.toJson(),
+      );
+      expect(backend.uploads.single.body['ttl_hours'], hours);
+      final saved = await prefs.read(id);
+      expect(saved?.scope, AiShareScope.simpleList);
+      expect(saved?.ttlHours, hours);
+      expect(saved?.keepUpdated, true);
+    });
+  }
+
   testWidgets('share more opens the consent screen for that connection', (
     tester,
   ) async {
     await tester.pumpWidget(app(signedIn: true));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Share more with this assistant'));
+    await tester.tap(find.text('Manage assistant access'));
     await tester.pumpAndSettle();
 
     expect(find.byType(AiShareConsentScreen), findsOneWidget);

@@ -172,9 +172,59 @@ if [[ "$pair_race_ready" != true ]]; then
   exit 1
 fi
 psql_test -q <<'SQL'
+DO $$ DECLARE cid uuid; BEGIN
+ SELECT connection_id INTO cid FROM public.ai_connections WHERE client_id='deny-race-client';
+ PERFORM aic.assert(cid IS NOT NULL,'phone already created connection before concurrent denial');
+ BEGIN
+  INSERT INTO public.ai_share_snapshots(connection_id,user_id,format,scope,ciphertext,nonce,key_version,expires_at)
+  VALUES(cid,aic.user_id(1),'pharmaguide-brief-markdown/v1','{}','\x00','\x00',1,now()+interval '1 hour');
+  RAISE EXCEPTION 'FAIL: concurrent upload defeated revocation purge';
+ EXCEPTION WHEN check_violation THEN NULL; END;
+ PERFORM aic.assert(NOT EXISTS(SELECT FROM public.ai_share_snapshots WHERE connection_id=cid),'concurrent late upload stays purged');
+END $$;
 SELECT aic.assert(public.complete_ai_connection_pairing(aic.user_id(1),aic.user_id(101),(SELECT authorization_id FROM public.ai_connection_pairings WHERE consent_id='deny-race-sid'),'deny-race-client','https://chatgpt.com/callback') ? 'error','concurrent completion cannot defeat Deny');
 SELECT aic.assert(NOT EXISTS(SELECT FROM public.ai_connections WHERE client_id='deny-race-client' AND status='active'),'Deny race leaves no active authority');
 SELECT public.finish_ai_connection_revocation(aic.user_id(1),'deny-race-client',public.read_ai_connection_generation(aic.user_id(1)));
+SQL
+wait "$pair_race_pid"
+# The actual upload uses ON CONFLICT UPDATE. Exercise its existing-row branch
+# first, then let Disconnect wait for that write and purge the committed result.
+psql_test -q <<'SQL'
+INSERT INTO public.ai_connections(user_id,client_id,expires_at)
+VALUES(aic.user_id(1),'snapshot-upsert-race',now()+interval '1 day');
+INSERT INTO public.ai_share_snapshots(connection_id,user_id,format,scope,ciphertext,nonce,key_version,expires_at)
+SELECT connection_id,user_id,'pharmaguide-brief-markdown/v1','{}','\x00','\x00',1,now()+interval '1 hour'
+FROM public.ai_connections WHERE client_id='snapshot-upsert-race';
+SQL
+psql_test -q <<'SQL' &
+SET application_name='aic-snapshot-upsert-race';
+BEGIN;
+INSERT INTO public.ai_share_snapshots(connection_id,user_id,format,scope,ciphertext,nonce,key_version,expires_at)
+SELECT connection_id,user_id,'pharmaguide-brief-markdown/v1','{}','\x02','\x00',1,now()+interval '1 hour'
+FROM public.ai_connections WHERE client_id='snapshot-upsert-race'
+ON CONFLICT(connection_id) DO UPDATE SET ciphertext=excluded.ciphertext;
+SELECT aic.assert((SELECT encode(s.ciphertext,'hex')='02' FROM public.ai_share_snapshots s JOIN public.ai_connections c USING(connection_id) WHERE c.client_id='snapshot-upsert-race'),'existing snapshot conflict update exercised');
+SELECT pg_sleep(2);
+COMMIT;
+SQL
+pair_race_pid=$!
+pair_race_ready=false
+for attempt in {1..40}; do
+  if [[ "$(psql_test -Atq -c "SELECT count(*) FROM pg_stat_activity WHERE application_name='aic-snapshot-upsert-race' AND wait_event='PgSleep'")" == 1 ]]; then
+    pair_race_ready=true
+    break
+  fi
+  sleep 0.05
+done
+if [[ "$pair_race_ready" != true ]]; then
+  wait "$pair_race_pid"
+  echo 'Snapshot upsert fixture failed to overlap.' >&2
+  exit 1
+fi
+psql_test -q <<'SQL'
+SELECT public.revoke_ai_connection_pairings(aic.user_id(1),'snapshot-upsert-race');
+SELECT aic.assert(NOT EXISTS(SELECT FROM public.ai_share_snapshots s JOIN public.ai_connections c USING(connection_id) WHERE c.client_id='snapshot-upsert-race'),'disconnect purges overlapping conflict update');
+SELECT aic.assert(NOT EXISTS(SELECT FROM public.ai_connections WHERE client_id='snapshot-upsert-race' AND status='active'),'upsert cannot preserve revoked authority');
 SQL
 wait "$pair_race_pid"
 echo 'AI connector SQL tests passed.'

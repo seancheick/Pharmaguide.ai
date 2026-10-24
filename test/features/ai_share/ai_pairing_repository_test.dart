@@ -75,6 +75,14 @@ void main() {
       final repo = SupabaseAiConnectionsRepository(client);
       expect((await repo.previewPairing('abcd-efgh jkmn')).clientName, 'Codex');
       expect(calls.last.url.path, '/rest/v1/rpc/preview_ai_connection_pairing');
+      response = {
+        'approved': true,
+        'connection_id': '6f1c2a3b-0000-4000-8000-000000000001',
+      };
+      expect(
+        await repo.approvePairing('ABCDEFGHJKMN'),
+        '6f1c2a3b-0000-4000-8000-000000000001',
+      );
       response = {'cancelled': true};
       await repo.cancelPairing('abcd-efgh jkmn');
       expect(

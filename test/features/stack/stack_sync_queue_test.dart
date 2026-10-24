@@ -1,9 +1,15 @@
-// Batched stack-sync queue logic — the pure Drift layer that feeds
-// StackSyncService's single batched upsert. The network half is covered
-// by the PHI release gate (static) and the debounce by
-// test/core/utils/async_debouncer_test.dart; here we verify the
-// dirty/synced_at semantics the batch path depends on.
+// Stack-sync queue semantics and the real sender's wire contract.
+// Mock HTTP keeps payload verification offline. The PHI release gate also
+// checks the column allowlist; debounce has its own focused tests.
 
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/connectivity_service.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -11,6 +17,7 @@ import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late UserDatabase db;
   late StackSyncQueue queue;
 
@@ -28,6 +35,7 @@ void main() {
     String type = 'supplement',
     String? dsldId,
     DateTime? syncedAt,
+    DateTime? addedAt,
     DateTime? deletedAt,
     DateTime? clientUpdatedAt,
   }) {
@@ -40,6 +48,7 @@ void main() {
             type: Value(type),
             dsldId: Value(dsldId),
             syncedAt: Value(syncedAt),
+            addedAt: addedAt == null ? const Value.absent() : Value(addedAt),
             deletedAt: Value(deletedAt),
             clientUpdatedAt: clientUpdatedAt == null
                 ? const Value.absent()
@@ -47,6 +56,120 @@ void main() {
           ),
         );
   }
+
+  test('push sends UTC instants for local stack timestamps', () async {
+    const owner = '00000000-0000-0000-0000-000000000001';
+    final requests = <Map<String, dynamic>>[];
+    final now = DateTime.now().toUtc();
+    final tokenClaims = base64Url
+        .encode(
+          utf8.encode(
+            jsonEncode({
+              'sub': owner,
+              'exp':
+                  now.add(const Duration(hours: 1)).millisecondsSinceEpoch ~/
+                  1000,
+            }),
+          ),
+        )
+        .replaceAll('=', '');
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(
+      url: 'https://stack-sync.invalid',
+      publishableKey: 'fixture-only',
+      debug: false,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.implicit,
+        autoRefreshToken: false,
+        detectSessionInUri: false,
+        localStorage: EmptyLocalStorage(),
+      ),
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/auth/v1/token') {
+          return http.Response(
+            jsonEncode({
+              'access_token': 'eyJhbGciOiJIUzI1NiJ9.$tokenClaims.fixture',
+              'refresh_token': 'fixture-only',
+              'token_type': 'bearer',
+              'expires_in': 3600,
+              'user': {
+                'id': owner,
+                'aud': 'authenticated',
+                'created_at': now.toIso8601String(),
+                'app_metadata': <String, dynamic>{},
+                'user_metadata': <String, dynamic>{},
+              },
+            }),
+            200,
+            request: request,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        expect(request.url.path, '/rest/v1/user_stacks');
+        expect(request.method, 'POST');
+        requests.addAll(
+          (jsonDecode(request.body) as List).cast<Map<String, dynamic>>(),
+        );
+        return http.Response(
+          '[]',
+          201,
+          request: request,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+    addTearDown(() => Supabase.instance.dispose());
+    await Supabase.instance.client.auth.signInWithPassword(
+      email: 'fixture@example.invalid',
+      password: 'fixture-only',
+    );
+    final added = DateTime.parse('2026-10-23T20:00:42-04:00').toLocal();
+    final updated = DateTime.parse('2026-10-23T20:01:48-04:00').toLocal();
+    final deleted = DateTime.parse('2026-10-23T20:02:00-04:00').toLocal();
+    expect(
+      updated.isUtc,
+      isFalse,
+      reason: 'exercise the local DateTime wire path',
+    );
+    await insertRow(
+      'deleted',
+      dsldId: '1',
+      addedAt: added,
+      clientUpdatedAt: updated,
+      deletedAt: deleted,
+    );
+    await insertRow(
+      'active',
+      dsldId: '2',
+      addedAt: added,
+      clientUpdatedAt: updated,
+    );
+    final service = StackSyncService(
+      queue,
+      _SignedInAuth(),
+      _OnlineConnectivity(),
+      readOwnerUid: () async => owner,
+    );
+    addTearDown(service.dispose);
+    expect(await service.pushAll(force: true), SyncResult.ok);
+    expect(requests, hasLength(2));
+    for (final row in requests) {
+      expect(row['added_at'], '2026-10-24T00:00:42.000Z');
+      expect(row['client_updated_at'], '2026-10-24T00:01:48.000Z');
+      expect(DateTime.parse(row['client_updated_at'] as String).isUtc, isTrue);
+      expect(
+        DateTime.parse(
+          row['client_updated_at'] as String,
+        ).isAtSameMomentAs(updated),
+        isTrue,
+      );
+      expect(
+        row['deleted_at'],
+        row['id'] == 'deleted' ? '2026-10-24T00:02:00.000Z' : null,
+      );
+    }
+    expect(await queue.pendingCount(), 0);
+  });
 
   group('StackSyncQueue batched sync semantics', () {
     test(
@@ -201,4 +324,24 @@ void main() {
       expect(await queue.tombstoneRows(), isEmpty);
     });
   });
+}
+
+class _SignedInAuth implements AuthStateService {
+  @override
+  bool get isGuest => false;
+  @override
+  bool get isSignedIn => true;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _OnlineConnectivity implements ConnectivityService {
+  @override
+  ConnectionStatus get current => ConnectionStatus.online;
+  @override
+  void markSyncing() {}
+  @override
+  void syncComplete() {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

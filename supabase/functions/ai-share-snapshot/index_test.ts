@@ -31,7 +31,7 @@ import {
   USER_A,
   USER_B,
 } from "../mcp-personal/test_support.ts";
-import { createHandler, createProductionHandler, type ShareStore, type SnapshotRow } from "./index.ts";
+import { createHandler, createProductionHandler, normalizeScope, SCOPE_KEYS, type ShareStore, type SnapshotRow } from "./index.ts";
 
 const KEY_V1 = btoa(String.fromCharCode(...new Uint8Array(32).map((_, i) => i + 1)));
 const KEY_V2 = btoa(String.fromCharCode(...new Uint8Array(32).map((_, i) => 200 - i)));
@@ -39,11 +39,11 @@ const URL_ = "https://project-ref.supabase.co/functions/v1/ai-share-snapshot";
 const PAYLOAD = "# PharmaGuide brief\n\n- Magnesium Glycinate\n- Warfarin 5 mg (medication)\n";
 const HOUR = 3_600_000;
 const FULL_SCOPE = {
-  supplementNames: true,
-  supplementAmounts: true,
-  supplementSchedule: false,
-  medicationNames: true,
-  medicationSchedule: false,
+  supplement_names: true,
+  supplement_amounts: true,
+  supplement_schedule: false,
+  medication_names: true,
+  medication_schedule: false,
   profile: false,
   findings: true,
 };
@@ -288,14 +288,14 @@ Deno.test("format, scope and payload are validated", async () => {
   assertEquals((await s.handler(request("POST", token, "{not json"))).status, 400);
   const exact = await s.handler(request("POST", token, share(s.live.connection_id, { payload: "a".repeat(64 * 1024) })));
   assertEquals(exact.status, 201, "64 KB exactly is allowed");
-  const partial = await s.handler(request("POST", token, share(s.live.connection_id, { scope: { supplementNames: true } })));
+  const partial = await s.handler(request("POST", token, share(s.live.connection_id, { scope: { supplement_names: true } })));
   assertEquals(partial.status, 201);
   assertEquals(s.store.rows.get(s.live.connection_id)!.scope, {
-    supplementNames: true,
-    supplementAmounts: false,
-    supplementSchedule: false,
-    medicationNames: false,
-    medicationSchedule: false,
+    supplement_names: true,
+    supplement_amounts: false,
+    supplement_schedule: false,
+    medication_names: false,
+    medication_schedule: false,
     profile: false,
     findings: false,
   }, "missing categories are stored as not shared");
@@ -418,4 +418,20 @@ Deno.test("durable WorkOS connection does not make its shared snapshot permanent
   assertEquals((await response.json()).expires_at, new Date(NOW.getTime() + 48 * HOUR).toISOString());
   c.status = "revoked";
   assertEquals((await s.handler(request("POST", await appToken(s), share(c.connection_id)))).status, 403);
+});
+
+Deno.test("snapshot scope wire keys match the actual Dart serializer", async () => {
+  const source = await Deno.readTextFile(new URL("../../../lib/services/sharing/ai_share_scope.dart", import.meta.url));
+  const serializer = source.split("Map<String, bool> toJson() => {")[1]?.split("};")[0];
+  assert(typeof serializer === "string", "Dart wire serializer must be inspected when its shape changes");
+  const keys = [...serializer.matchAll(/'([a-z_]+)':/g)].map(match => match[1]).sort();
+  assertEquals(keys, [...SCOPE_KEYS].sort());
+  const scope = Object.fromEntries(keys.map(key => [key, key !== "supplement_schedule"]));
+  const normalized = normalizeScope(scope);
+  for (const key of keys) assertEquals(normalized[key], scope[key]);
+  for (const invalid of [{supplementNames: true}, {supplement_schedule: true}]) {
+    let rejected = false;
+    try { normalizeScope(invalid); } catch { rejected = true; }
+    assert(rejected, "wrong wire format and retired supplement free-text dose must be refused");
+  }
 });
