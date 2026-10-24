@@ -127,12 +127,14 @@ codex mcp add pharmaguide_personal \
   --url https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal \
   --oauth-client-id '<reviewed-production-client-id>' \
   --oauth-resource https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal
-codex -c mcp_oauth_callback_port=3199 mcp login pharmaguide_personal
+codex -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal
 ```
 
-Persist `mcp_oauth_callback_port = 3199` in the existing Codex configuration for repeat logins
-(or use the installed client's equivalent per-server callback-port setting). This fixed-port
-configuration was verified against installed Codex `0.164.0-alpha.11.1`: two isolated local
+For repeat logins, set `callback_port = 3199` in the existing
+`[mcp_servers.pharmaguide_personal.oauth]` configuration table, preserving its client settings.
+This per-server setting leaves other MCP servers' callback configuration unchanged; a global
+`mcp_oauth_callback_port` setting is unnecessary. The per-server configuration was verified
+against installed Codex `0.164.0-alpha.11.1`: two isolated local
 metadata probes generated the same callback with S256, and an occupied port failed rather than
 falling back. The canonical hosted-resource probe currently stops at its intentional root 503,
 before producing an authorization URL; its derived callback still needs a real production
