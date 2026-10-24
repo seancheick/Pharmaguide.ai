@@ -123,12 +123,18 @@ Operator setup, **after** production issuer/client registration is available and
 checks permit OAuth acceptance (replace the placeholder with the actual reviewed client ID):
 
 ```bash
-codex mcp add pharmaguide_personal \
+codex -c mcp_oauth_callback_port=3199 mcp add pharmaguide_personal \
   --url https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal \
   --oauth-client-id '<reviewed-production-client-id>' \
   --oauth-resource https://omayamxacvacrnvdvzhr.supabase.co/functions/v1/mcp-personal
 codex -c mcp_servers.pharmaguide_personal.oauth.callback_port=3199 mcp login pharmaguide_personal --scopes openid,offline_access
 ```
+
+`mcp add` starts OAuth immediately. Its first command therefore uses a process-only fixed-port
+override; it does not persist a global callback setting. Installed Codex was checked against
+local metadata: this add command requested port 3199, S256 and both scopes. A per-server port
+override alone cannot bootstrap a new server entry, so use the command above for initial add
+and the per-server setting below for subsequent logins.
 
 Protected-resource discovery advertises `scopes_supported: ["openid", "offline_access"]`.
 Installed Codex default login was verified to request both through this metadata. The explicit
@@ -140,8 +146,8 @@ correct scopes; the verifier's missing-scope rejection remains intentional.
 
 For repeat logins, set `callback_port = 3199` in the existing
 `[mcp_servers.pharmaguide_personal.oauth]` configuration table, preserving its client settings.
-This per-server setting leaves other MCP servers' callback configuration unchanged; a global
-`mcp_oauth_callback_port` setting is unnecessary. The per-server configuration was verified
+This per-server setting leaves other MCP servers' callback configuration unchanged; persisting a
+global `mcp_oauth_callback_port` setting is unnecessary. The per-server configuration was verified
 against installed Codex `0.164.0-alpha.11.1`: two isolated local
 metadata probes generated the same callback with S256, and an occupied port failed rather than
 falling back. The canonical hosted-resource probe currently stops at its intentional root 503,
