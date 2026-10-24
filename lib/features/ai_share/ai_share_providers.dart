@@ -33,7 +33,7 @@ final aiShareConnectionPrefsProvider =
 final aiPairingEnabledProvider = Provider<bool>(
   (ref) => const bool.fromEnvironment(
     'PHARMAGUIDE_AI_PAIRING_ENABLED',
-    defaultValue: false,
+    defaultValue: true,
   ),
 );
 

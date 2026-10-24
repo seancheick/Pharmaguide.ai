@@ -174,9 +174,12 @@ class _SignedInBody extends ConsumerWidget {
         ),
         const SizedBox(height: V2Spacing.space8),
         Text(
-          'Public personal access is not enabled yet. Existing approved test '
-          'connections can read your synced supplement list. You choose which '
-          'additional details each assistant can read.',
+          pairingEnabled
+              ? 'Connected assistants can read your synced supplement list. '
+                    'You choose which additional details each assistant can read '
+                    'in Access settings. Disconnect at any time.'
+              : 'Personal connections are currently unavailable. You can still '
+                    'manage existing connections and end their access.',
           style: V2Typography.bodySm(color: context.v2.fgMuted),
         ),
         const SizedBox(height: V2Spacing.space24),
