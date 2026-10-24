@@ -173,7 +173,46 @@ October24 continuation: corrected canonical stack sender timestamps to UTC after
 October 24 final disconnect acceptance: the physical phone completed protected hosted sign-in and revoked the current Codex grant. Both personal tools rejected the frozen current access token with HTTP 401 while it remained unexpired, returning no data. Original disconnected refresh credentials remained HTTP 400 invalid_grant after reconnect. Hosted verification found zero snapshots, retained consent revocation tombstone and a cleared provider revocation barrier. Both normal public personal endpoints remain HTTP 503. Automatic-update remove/restore changed the selected snapshot; opt-out preserved its payload and marked it stale. Sanitized receipts reside in the private operator acceptance folder. The final physical Return to PharmaGuide tap closed the native browser and refreshed all three rows to Disconnected/Access ended; root Back returned Profile. Mirroring taps did not reliably deliver this browser action. The actual Flutter navigation-channel regression also passed. The ordinary production-entrypoint Make build was installed and home verified; the temporary acceptance entrypoint and diagnostics were removed. No public activation or final CI qualification is claimed.
 
 
-## October 23 activation review — current bounded batch
+## Production release boundary — updated October 24, 2026
+
+Production service branding and the existing PharmaGuide Codex application logos are now saved
+in WorkOS, using existing website assets. Light/dark saved previews and the real hosted OAuth
+consent screen were verified; both real consent images loaded at 192×192 without letter fallbacks.
+The visual check was cancelled before Allow access. Its exact-account test window was removed,
+the normal contained website source was redeployed, and no new connection or snapshot remained.
+Normal personal reads/uploads remain 503. Branding evidence is in the private operator folder
+`~/pg_quality/workos_branding_20261024/verification.json`.
+
+The later connection-list UX uses the existing live gate and revocation barrier: active connections
+and retryable cleanup stay visible; ended connections are collapsed into history. Candidate cb98e8c2
+passed full CI40110147051 and 75 focused owner/consumer tests; final phone installation and Sean's
+screenshot confirmed collapsed history (5). This UI change does not requalify broader access scopes.
+
+The remaining release work is concrete:
+
+- Confirm the initial release scope. The real acceptance covered the registered Codex
+  client and the selected supplement-only snapshot (names/findings); other assistants
+  and broader medication/profile categories are not qualified. Do not silently expose
+  unqualified categories when enabling the normal snapshot writer. Extend the existing
+  scope/UI owners to enforce the chosen rollout boundary, or qualify the broader scope.
+- Close the remaining live-flow limits before broad rollout: the two-account receipt
+  proves hosted Supabase/RLS/RPC isolation with injected WorkOS identity, not two full
+  independent browser/OAuth flows. The old access token was expired at the later
+  after-reconnect replay; test that case while it is still unexpired. Unexpired denial
+  immediately after disconnect and old refresh denial after reconnect already passed.
+- Prepare the coordinated activation change using the existing handlers: normal
+  `mcp-personal::createProductionHandler` still hard-returns 503, and
+  `ai-share-snapshot::createProductionHandler` still blocks POST (DELETE remains live).
+  Website setup and phone approval-entry flags also remain off. Reuse the validated
+  `createHandler`/dependency composition, retain exact issuer/resource/client/callback
+  checks, align disabled-state copy, and validate the completed release candidate in CI.
+- Obtain explicit launch authorization, deploy the coordinated change and phone build,
+  then verify one fresh production connection through approval, scoped read/update,
+  disconnect and credential denial. Keep the existing denial/deletion paths available
+  for rollback. No public activation is authorized by the logo-only task.
+
+### Completed activation preparation
+
 
 Owner: existing SQL pairing/revocation gates, MCP verifier/repositories, account-deletion function and website privacy disclosure. No second auth or health-data owner is introduced.
 

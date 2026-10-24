@@ -17,6 +17,16 @@ It changes presentation only: tools, catalog facts, authentication and personal-
 containment are unchanged. Clients choose whether and when to render/cache MCP icons;
 a letter fallback before discovery, or in a client without icon support, is client UI.
 
+Production WorkOS branding was completed on October 24, 2026: the existing
+PharmaGuide environment has light/dark logo icons, full-logo fallbacks and favicons;
+the existing PharmaGuide Codex Connect application has both logo variants. Saved
+settings and light/dark previews were checked. The actual hosted OAuth consent page
+loaded both PharmaGuide images at 192×192 without letter fallbacks. The visual test
+stopped at Cancel, before Allow access; it created no access grant or snapshot. Its
+exact-account temporary setup window was removed afterward. Personal reads/uploads
+remain disabled. The WorkOS admin mock consent preview still uses a letter placeholder
+for its issuer; this was not present on the real hosted consent page.
+
 To replace the logo later:
 
 1. In the website repo, replace `src/app/icon1.png` (192×192), `icon2.png` (512×512),
@@ -29,7 +39,8 @@ To replace the logo later:
    shared constant above, its owner tests, then deploy both MCP functions.
 3. In **WorkOS → the intended environment → Branding → Edit branding**, set the
    display name to PharmaGuide and upload the same mark to the light/dark **Logo icon**
-   slots and the 32×32 favicon to light/dark **Favicon**. Keep Logo display = Logo icon.
+   slots, the same existing mark to the light/dark **Logo** fallbacks, and the
+   32×32 favicon to light/dark **Favicon**. Keep Logo display = Logo icon.
    Save, reload and inspect both appearance previews. Environment branding is separate
    from the requesting OAuth application's logo.
 4. In **WorkOS → Connect → Applications → the existing PharmaGuide Codex application**,

@@ -56,18 +56,21 @@ The existing SQL harness separately verifies ownership, revocation barriers and 
 Current evidence and the single execution register live in
 [the threat model](../../../docs/security/ai-connector-threat-model.md).
 
-Before personal production activation:
+### Remaining before public personal activation — October 24, 2026
 
-- Finish exact-candidate CI and independent review.
-- Apply both phone-pairing and durable-consent migrations in timestamp order before the coordinated
-  website. Disconnect uses these RPCs even with setup disabled.
-- Configure a reviewed test deployment with exact WorkOS issuer, resource and pre-registered client
-  callbacks. `postgrestRepositories` accepts the existing trusted client names/redirects for setup;
-  do not infer callback details from opaque standalone authorization IDs or JWT claims.
-- Exercise the real browser → app approval → SQL → encrypted snapshot → Codex flow, two-account
-  isolation, resource/callback/PKCE negatives, refresh, expiry and disconnect/reconnect with old tokens.
-- Complete S9 review and obtain release authorization. The production factory still returns 503;
-  the CLI entry point remains contained. Testing the injected implementation does not activate it.
+Private production Codex qualification, migrations, configured production WorkOS,
+scoped encrypted snapshots, automatic updates/opt-out, native disconnect, account
+cleanup and the bounded adult-DTC S9 technical review are complete; see the threat
+model execution register for receipts and limits. The connection-history UX passed
+CI40110147051 and was installed/confirmed on the phone. Production service/client
+logos were verified on the real hosted WorkOS consent screen, then cancelled without
+a new access grant. These results do not activate the normal factories.
+
+The single remaining-release checklist and qualification limits live in the
+[threat model execution register](../../../docs/security/ai-connector-threat-model.md#production-release-boundary--updated-october-24-2026).
+In particular, activating access requires a coordinated change to the currently
+hard-disabled normal handlers and website/phone flags; it is not accomplished by
+adding logos or configuration alone. No public activation is authorized by this task.
 
 Website: `WORKOS_ISSUER` (exact HTTPS origin), server-only `WORKOS_API_KEY`, existing trusted-client
 configuration and Supabase settings. `AI_CONNECTOR_PAIRING_ENABLED` defaults off. App pairing uses
