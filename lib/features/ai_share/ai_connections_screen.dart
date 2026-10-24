@@ -142,6 +142,23 @@ class _SignedInBody extends ConsumerWidget {
     final connections = ref.watch(aiConnectionsProvider);
     final pending = ref.watch(aiPendingRevocationProvider);
     final pendingClient = pending.asData?.value;
+    final rows = connections.asData?.value ?? const <AiConnection>[];
+    final now = DateTime.now();
+    // The existing connection gate owns live access; the existing server
+    // barrier owns unfinished provider cleanup. History is presentation only.
+    final pendingConnection = rows
+        .where((c) => c.clientId == pendingClient)
+        .firstOrNull;
+    final active = rows
+        .where((c) => c.clientId != pendingClient && c.isLiveAt(now))
+        .toList();
+    final history = rows
+        .where(
+          (c) =>
+              !c.isLiveAt(now) &&
+              c.connectionId != pendingConnection?.connectionId,
+        )
+        .toList();
     final prefs =
         ref.watch(aiShareConnectionPrefsProvider).asData?.value ?? const {};
     final pairingEnabled = ref.watch(aiPairingEnabledProvider);
@@ -184,32 +201,67 @@ class _SignedInBody extends ConsumerWidget {
             onPressed: () => ref.invalidate(aiPendingRevocationProvider),
             child: const Text('Disconnect status could not be checked. Retry'),
           ),
-        if (pendingClient != null &&
-            connections.hasValue &&
-            !connections.requireValue.any((c) => c.clientId == pendingClient))
-          _ConnectionCard(
-            key: ValueKey(pendingClient),
-            connection: null,
-            prefs: null,
-            pendingRevocation: true,
-            retryClientId: pendingClient,
-          ),
         switch (connections) {
-          AsyncData(:final value) when value.isEmpty => Text(
-            'No assistants connected yet.',
-            style: V2Typography.body(color: context.v2.fgMuted),
-          ),
-          AsyncData(:final value) => Column(
+          AsyncData() => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final c in value)
+              if (pendingClient != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: V2Spacing.space16),
+                  child: _ConnectionCard(
+                    key: ValueKey(
+                      pendingConnection?.connectionId ?? pendingClient,
+                    ),
+                    connection: pendingConnection,
+                    prefs: null,
+                    pendingRevocation: true,
+                    retryClientId: pendingClient,
+                  ),
+                ),
+              if (active.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: V2Spacing.space16),
+                  child: Text(
+                    'No active connections.',
+                    style: V2Typography.body(color: context.v2.fgMuted),
+                  ),
+                ),
+              for (final c in active)
                 Padding(
                   padding: const EdgeInsets.only(bottom: V2Spacing.space16),
                   child: _ConnectionCard(
                     key: ValueKey(c.connectionId),
                     connection: c,
                     prefs: prefs[c.connectionId],
-                    pendingRevocation: pendingClient == c.clientId,
+                    pendingRevocation: false,
                   ),
+                ),
+              if (history.isNotEmpty)
+                ExpansionTile(
+                  key: const Key('ai_connection_history'),
+                  tilePadding: EdgeInsets.zero,
+                  title: Text(
+                    'Connection history (${history.length})',
+                    style: V2Typography.bodyMedium(color: context.v2.fg),
+                  ),
+                  subtitle: Text(
+                    'Disconnected and expired assistants',
+                    style: V2Typography.bodySm(color: context.v2.fgMuted),
+                  ),
+                  children: [
+                    for (final c in history)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: V2Spacing.space16,
+                        ),
+                        child: _ConnectionCard(
+                          key: ValueKey(c.connectionId),
+                          connection: c,
+                          prefs: null,
+                          pendingRevocation: false,
+                        ),
+                      ),
+                  ],
                 ),
             ],
           ),
@@ -549,7 +601,7 @@ class _ConnectionCardState extends ConsumerState<_ConnectionCard> {
   Widget build(BuildContext context) {
     if (widget.connection == null) {
       return PGSettingsGroup(
-        eyebrow: 'Access ended',
+        eyebrow: 'Needs attention',
         children: [
           PGSettingsTile(
             icon: Icons.link_off_rounded,
@@ -565,13 +617,15 @@ class _ConnectionCardState extends ConsumerState<_ConnectionCard> {
         !_localEnded &&
         !widget.pendingRevocation &&
         connection.isLiveAt(DateTime.now());
-    final status = switch (_localEnded || widget.pendingRevocation
-        ? 'revoked'
-        : connection.status) {
-      'active' when live => 'Active',
-      'active' || 'expired' => 'Expired',
-      _ => 'Disconnected',
-    };
+    final status = widget.pendingRevocation
+        ? 'Needs attention'
+        : switch (_localEnded || connection.revokedAt != null
+              ? 'revoked'
+              : connection.status) {
+            'active' when live => 'Active',
+            'active' || 'expired' => 'Expired',
+            _ => 'Disconnected',
+          };
     final saved = prefs;
     return PGSettingsGroup(
       eyebrow: status,

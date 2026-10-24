@@ -76,6 +76,97 @@ void main() {
     matching: find.byType(Switch),
   );
 
+  testWidgets('twenty ended connections stay in collapsed history', (
+    tester,
+  ) async {
+    repo = FakeAiConnectionsRepository([
+      for (var i = 0; i < 20; i++)
+        aiConnectionFixture(
+          id: 'old-$i',
+          clientId: 'Old assistant $i',
+          status: i.isEven ? 'revoked' : 'expired',
+        ),
+    ]);
+    await tester.pumpWidget(app(signedIn: true));
+    await tester.pumpAndSettle();
+    expect(find.text('No active connections.'), findsOneWidget);
+    expect(find.text('Connection history (20)'), findsOneWidget);
+    expect(find.text('Old assistant 0'), findsNothing);
+    expect(find.text('Disconnect'), findsNothing);
+    await tester.tap(find.text('Connection history (20)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Old assistant 0'), findsOneWidget);
+    expect(find.text('Old assistant 19'), findsOneWidget);
+    expect(find.text('Manage assistant access'), findsNothing);
+    await tester.ensureVisible(find.text('Connection history (20)'));
+    await tester.tap(find.text('Connection history (20)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Old assistant 0'), findsNothing);
+  });
+
+  testWidgets('active connection and pending cleanup stay outside history', (
+    tester,
+  ) async {
+    repo = FakeAiConnectionsRepository([
+      aiConnectionFixture(id: 'active', clientId: 'Current assistant'),
+      aiConnectionFixture(
+        id: 'pending',
+        clientId: 'Pending assistant',
+        status: 'revoked',
+      ),
+      aiConnectionFixture(
+        id: 'older-pending',
+        clientId: 'Pending assistant',
+        status: 'revoked',
+      ),
+      aiConnectionFixture(
+        id: 'old',
+        clientId: 'Old assistant',
+        status: 'revoked',
+      ),
+    ]);
+    repo.pendingClient = 'Pending assistant';
+    await tester.pumpWidget(app(signedIn: true));
+    await tester.pumpAndSettle();
+    expect(find.text('Current assistant'), findsOneWidget);
+    expect(find.text('Pending assistant'), findsOneWidget);
+    expect(find.text('NEEDS ATTENTION'), findsOneWidget);
+    expect(find.text('Old assistant'), findsNothing);
+    expect(find.text('Connection history (2)'), findsOneWidget);
+    expect(find.text('Retry disconnect'), findsOneWidget);
+    repo.pendingClient = null;
+    await tester.tap(find.byTooltip('Refresh connections'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pending assistant'), findsNothing);
+    expect(find.text('Connection history (3)'), findsOneWidget);
+    expect(find.text('Current assistant'), findsOneWidget);
+  });
+
+  testWidgets(
+    'expired access stays in history even with an active row status',
+    (tester) async {
+      final now = DateTime.now().toUtc();
+      repo = FakeAiConnectionsRepository([
+        AiConnection(
+          connectionId: 'expired',
+          clientId: 'Expired assistant',
+          status: 'active',
+          createdAt: now.subtract(const Duration(days: 2)),
+          expiresAt: now.subtract(const Duration(days: 1)),
+        ),
+      ]);
+      await tester.pumpWidget(app(signedIn: true));
+      await tester.pumpAndSettle();
+      expect(find.text('Expired assistant'), findsNothing);
+      expect(find.text('No active connections.'), findsOneWidget);
+      await tester.tap(find.text('Connection history (1)'));
+      await tester.pumpAndSettle();
+      expect(find.text('EXPIRED'), findsOneWidget);
+      expect(find.text('Disconnect'), findsNothing);
+      expect(find.text('Manage assistant access'), findsNothing);
+    },
+  );
+
   testWidgets('deep-linked connections can return to profile navigation', (
     tester,
   ) async {
@@ -203,7 +294,8 @@ void main() {
       await tester.tap(find.byTooltip('Refresh connections'));
       await tester.pumpAndSettle();
       expect(repo.loads, greaterThan(before));
-      expect(find.textContaining('Access ended'), findsOneWidget);
+      expect(find.text('Connection history (1)'), findsOneWidget);
+      expect(find.textContaining('Access ended'), findsNothing);
       expect(find.text('Disconnect'), findsNothing);
     },
   );
@@ -219,6 +311,9 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
     expect(repo.loads, greaterThan(before));
+    expect(find.text('Connection history (1)'), findsOneWidget);
+    await tester.tap(find.text('Connection history (1)'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Access ended'), findsOneWidget);
   });
 
@@ -318,6 +413,9 @@ void main() {
           find.text('Assistant disconnected. Access has ended.'),
           findsOneWidget,
         );
+        expect(find.text('Connection history (1)'), findsOneWidget);
+        expect(find.text('claude-ai'), findsNothing);
+        expect(find.text('Disconnect'), findsNothing);
       } else if (outcome == 'partial') {
         expect(find.text('Retry disconnect'), findsOneWidget);
         await tester.tap(find.byTooltip('Refresh connections'));
@@ -771,6 +869,9 @@ void main() {
       aiConnectionFixture(status: 'revoked'),
     ]);
     await tester.pumpWidget(app(signedIn: true));
+    await tester.pumpAndSettle();
+    expect(find.text('Connection history (1)'), findsOneWidget);
+    await tester.tap(find.text('Connection history (1)'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Access ended'), findsOneWidget);
     expect(find.textContaining('Access ends '), findsNothing);
