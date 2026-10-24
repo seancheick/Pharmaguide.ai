@@ -32,7 +32,7 @@ import {
   type VerifiedOAuthToken,
   verifyOAuthAccessToken,
 } from "../_shared/oauth_token.ts";
-import { cleanText, McpTransport } from "../_shared/mcp_transport.ts";
+import { cleanText, McpTransport, PHARMAGUIDE_SERVER_BRANDING } from "../_shared/mcp_transport.ts";
 import { RateLimiter } from "../_shared/rate_limiter.ts";
 import {
   type Keyring,
@@ -254,7 +254,7 @@ const transport = new McpTransport({
   "Access-Control-Expose-Headers": "mcp-session-id, www-authenticate",
 });
 
-const SERVER_INFO = { name: "pharmaguide-personal", title: "PharmaGuide (your supplements)", version: "0.1.0" };
+const SERVER_INFO = { name: "pharmaguide-personal", title: "PharmaGuide (your supplements)", version: "0.1.0", ...PHARMAGUIDE_SERVER_BRANDING };
 
 export const HTTP_MESSAGES = {
   unauthorized:

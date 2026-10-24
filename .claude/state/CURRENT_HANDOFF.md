@@ -1,3 +1,10 @@
+# Connector branding — active October 24, 2026
+Goal: reuse PharmaGuide logo in MCP discovery and production WorkOS consent; document future replacements; merge/push reviewed batch. Public personal access stays disabled.
+Baseline: app main33c04c89; website main2ce144e. Prior qualification remains valid, summarized below.
+Owner: supabase/functions/_shared/mcp_transport.ts::McpTransport.dispatch (shared initialize metadata); existing serverInfo declarations in mcp-public/index.ts and mcp-personal/index.ts; website src/app/icon1.png and shared Logo; WorkOS environment Branding and existing Connect application. Evidence: rg serverInfo/icons/logo in these owners; pipeline matrix/glossary searched. Will NOT create another brand asset registry, OAuth client, permission, clinical or connection owner.
+Owned files: shared transport, both serverInfo callsites, existing MCP owner regressions and README; website master-plan branding instructions only if needed. Class: additive public MCP metadata (behavioral contract); failing regression, owner/consumer Deno suite, typecheck, exact candidate CI, live initialize and installed Codex status. Normal personal factory remains disabled.
+Next: reproduce missing icons, extend existing metadata, configure existing WorkOS image slots, verify, merge and deploy only unchanged containment factories.
+
 # Personal connector — private production qualification completed
 
 Goal: complete the authorized private production Codex qualification, integrate tested fixes and leave public personal access disabled. Owner: existing MCP verifier/handler/repositories, SQL connection/revocation/snapshot gates, website verified-user API and native AiConnectionsRepository/screens. Evidence: owner tests, independent review and real hosted receipts. Will NOT create another auth/sync/clinical owner, persisted status or credential system.

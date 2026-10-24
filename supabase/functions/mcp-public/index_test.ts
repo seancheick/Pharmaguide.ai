@@ -130,6 +130,15 @@ Deno.test("initialize carries the copy rules verbatim and negotiates the protoco
   assertEquals(odd.body.result.protocolVersion, "2025-06-18");
 });
 
+Deno.test("initialize advertises the existing PharmaGuide logo", async () => {
+  const { rpc } = await harness([]);
+  const { body } = await rpc("initialize", { protocolVersion: "2025-11-25" });
+  assertEquals(body.result.serverInfo.icons, [{
+    src: "https://pharmaguide.io/icon1.png", mimeType: "image/png", sizes: ["192x192"],
+  }]);
+  assertEquals(body.result.serverInfo.websiteUrl, "https://pharmaguide.io");
+});
+
 Deno.test("tools/list exposes exactly the three read-only tools", async () => {
   const { rpc } = await harness([]);
   const { body } = await rpc("tools/list");
