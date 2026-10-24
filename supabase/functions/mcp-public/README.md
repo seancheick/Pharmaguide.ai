@@ -8,6 +8,45 @@ Tools: `search_products(query, brand?, form?, supplement_type?, sort?, offset?, 
 result is wrapped as `{ data, name_source: "catalog", catalog_version, generated_at }`. Product
 facts come from `_shared/catalog.ts`, which mirrors the app's semantics owners (see its header).
 
+## Connection logo and future changes
+
+Both public and personal MCP `initialize` responses use
+`_shared/mcp_transport.ts::PHARMAGUIDE_SERVER_BRANDING`. It advertises the existing
+website icon at **https://pharmaguide.io/icon1.png** (192×192 PNG), plus the website URL.
+It changes presentation only: tools, catalog facts, authentication and personal-access
+containment are unchanged. Clients choose whether and when to render/cache MCP icons;
+a letter fallback before discovery, or in a client without icon support, is client UI.
+
+To replace the logo later:
+
+1. In the website repo, replace `src/app/icon1.png` (192×192), `icon2.png` (512×512),
+   `icon.png` (32×32) and `apple-icon.png` (180×180) with matching exports. The existing
+   shared website `Logo` also uses `public/brand/logo-icon.webp`; update its PNG/WebP
+   source assets to keep the website consistent. Keep the public URLs stable.
+2. Validate/build and deploy the website. Check `https://pharmaguide.io/icon1.png`
+   returns a PNG without sign-in and inspect it visually. No MCP deployment is needed
+   if the URL, dimensions and MIME type remain the same. If they change, update the
+   shared constant above, its owner tests, then deploy both MCP functions.
+3. In **WorkOS → the intended environment → Branding → Edit branding**, set the
+   display name to PharmaGuide and upload the same mark to the light/dark **Logo icon**
+   slots and the 32×32 favicon to light/dark **Favicon**. Keep Logo display = Logo icon.
+   Save, reload and inspect both appearance previews. Environment branding is separate
+   from the requesting OAuth application's logo.
+4. In **WorkOS → Connect → Applications → the existing PharmaGuide Codex application**,
+   edit its light/dark logos, save and verify. Preserve its client ID, callback,
+   scopes and other security settings. Repeat image-only updates for any separately
+   registered assistant application and staging environment that you actually use.
+   A real third-party assistant should keep its own identity/logo; do not relabel it
+   as PharmaGuide.
+5. Restart/reconnect the MCP client to refresh discovery; a new logo does not require
+   new data permissions. Directory/plugin listings have their own artwork settings;
+   update their existing listing/manifest when publishing. No directory listing is
+   created by changing MCP or WorkOS branding.
+
+WorkOS supports separate [OAuth application names and light/dark logos](https://workos.com/docs/authkit/connect/oauth).
+MCP defines [`serverInfo.icons`](https://modelcontextprotocol.io/specification/2025-11-25/schema#implementation).
+Codex/ChatGPT plugin packages have separate [listing icon requirements](https://developers.openai.com/plugins/deploy/submission).
+
 ## Prerequisites
 
 - Pipeline `scripts/sql/supabase_schema.sql` section 9 applied (`catalog_search`, the
