@@ -1,26 +1,33 @@
-# Current handoff — Product-detail clarity and responsive score batch
+# Current handoff — iOS 26 simulator and score-label correction
 
 Date: 2026-10-25
-Branch: `codex/product-detail-clarity`
-Baseline: `802edbb6`
+Branch: `codex/ios26-simulator-tier-labels`
+Baseline: `1e85f885`
 
-Goal: repair the user-observed product-detail hierarchy and narrow score wrapping through reusable owners, while keeping actionable safety prominent. The paired pipeline branch owns ingredient structure and score-explanation truth. Sean will run the pipeline later; no catalog rebuild, import, release, or publication belongs to this lane.
+Goal: restore the supported Apple-silicon iOS 26+ simulator path, verify the signed-out authentication entry point, and correct product-detail score labels/layout observed during the live run. No pipeline, catalog, clinical, release, or publication work belongs to this lane.
 
 Owner Check:
+- Simulator compatibility: `ios/Podfile` using the ML Kit plugin's shipped `apple_silicon_simulator.rb` helper.
+- Development launch contract: `Makefile::run-ios` and `run-v2-ios`; all runtime configuration still comes from the existing `DART_DEFINES` owner.
 - Score layout: `lib/core/components/pg_score_line.dart::PGScoreLine`.
-- Personal summary: `lib/core/components/pg_review_before_use_card.dart::PGReviewBeforeUseCard` and `review_before_use_section.dart`.
-- Coverage display: existing `mapped_coverage`/ledger consumer in product-detail gating; no new calculator or field.
-- Research pairs: `lib/services/stack/research_pair_lookup.dart::ResearchPairLookup.lookupForProduct`.
-- Additive projection: `tradeoffs_section.dart`, bounded by the existing inactive-ingredient detail list.
-- Will NOT create: a second score, safety verdict, coverage state, profile state, or parallel card family.
+- Tier display vocabulary: `lib/core/scoring/score_tier.dart::ScoreTierMeta.label`; catalog aliases continue to parse through `_catalogTierFromLabel`.
+- Will NOT create: a second auth configuration path, score, tier calculation, safety verdict, or pipeline field.
 
-Implemented commits:
-- `465ace1c` makes prominent score layouts stack the tier below the score, compacts clean profile and Good-to-Know rows, removes proprietary-blend disclosure from global Analysis Coverage, and filters same-product research pairs.
-- `c2b487b8` compacts long additive summaries only when the detailed inactive-ingredient list is present, so names are never discarded without a drill-down source.
+Implemented:
+- Opted the Podfile into the ML Kit package's Apple-silicon simulator patch so arm64 iOS 26 simulators build.
+- Upgraded the local Flutter stable toolchain from 3.44.6 to 3.47.8 for Xcode 27 compatibility; accepted Flutter's lock/analyzer migrations.
+- Made simulator device selection explicit with `make run-ios IOS_DEVICE=<name-or-UDID>` and stopped Make from echoing injected configuration values.
+- Kept prominent product-detail score and tier on one line; compact recent-scan cards retain their deliberate stacked treatment.
+- Applied Sean's display ladder: Elite / Excellent / Very good / Good / Fair / Poor, while retaining legacy catalog aliases such as Exceptional, Needs improvement, and Weak.
 
-Safety/accessibility invariants:
-- Warning and danger personal rows still auto-expand; only clean `No known concerns` summaries start compact and remain tappable for profile details/editing.
-- Proprietary-blend limitations remain visible in ingredient and score content but no longer falsely label a fully mapped product as globally partial.
-- Compact and prominent score variants preserve score/tier semantics while preventing narrow-card word wrapping.
+Verification:
+- `make verify-supabase`: HTTP 200.
+- `pod install`: 25 dependencies / 53 pods; ML Kit reports Apple-silicon simulator support enabled for five frameworks.
+- Live `make run-ios IOS_DEVICE=DB137D33-E2D6-4D15-92E4-F65E2A737A9B`: Xcode build succeeded on iOS 26.5; Supabase initialized; clean signed-out onboarding rendered.
+- Live auth probe through the real `/dev/v2/auth` route: Google authorization reached the genuine `accounts.google.com` credential form. No credentials were entered.
+- Focused score, product-detail, simulator-contract, and auth suite: 108 tests passed with golden tests excluded. The golden-only run showed a 0.03% pixel drift after the Flutter 3.47 toolchain update; no golden was rewritten.
+- `make analyze`: no issues.
+- `git diff --check`: clean.
 
-Verification: focused widget/helper suites pass; the additive follow-up suite passed 29 tests. Exact-head `make check` passed with a clean analyzer and all 4,021 tests. Three adversarial passes found and closed four edge classes; the final cumulative review reports no actionable findings and independently reran the seven focused classification cases. Exact-head CI and connected-device visual acceptance remain before claiming integration. Apple-silicon simulator build is blocked by existing ML Kit transitive libraries missing arm64 slices for the iOS 26+ simulator; use the connected physical iPhone if available and record the result.
+Open validation:
+- Exact-head CI after push. The user must enter their own Google/Apple/email credentials to verify account-specific completion; credential entry was intentionally not automated.
