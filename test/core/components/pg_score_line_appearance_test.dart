@@ -107,6 +107,34 @@ void main() {
     },
   );
 
+  testWidgets('product hero wraps at full size only when it cannot fit', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: SizedBox(
+              width: 180,
+              child: PGScoreLine(
+                score: 58,
+                qualityTier: 'Fair',
+                prominent: true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final scoreRect = tester.getRect(find.text('58/100'));
+    final tierRect = tester.getRect(find.text('Fair'));
+    expect(tierRect.top, greaterThanOrEqualTo(scoreRect.bottom));
+    expect(scoreRect.height, greaterThan(40));
+    expect(tester.takeException(), isNull);
+  });
+
   Future<void> pump(
     WidgetTester tester,
     ThemeData theme,

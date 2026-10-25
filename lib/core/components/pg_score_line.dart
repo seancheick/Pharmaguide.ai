@@ -140,22 +140,23 @@ class PGScoreLine extends StatelessWidget {
             ],
           )
         : prominent
-        ? FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (!limitedConfidence) ...[
-                  scoreDot(),
-                  const SizedBox(width: V2Spacing.space8),
+        ? Wrap(
+            spacing: V2Spacing.space8,
+            runSpacing: 2,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!limitedConfidence) ...[
+                    scoreDot(),
+                    const SizedBox(width: V2Spacing.space8),
+                  ],
+                  scoreLabel(),
                 ],
-                scoreLabel(),
-                if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
-                if (!limitedConfidence) tierText(),
-              ],
-            ),
+              ),
+              if (!limitedConfidence) tierText(),
+            ],
           )
         : Row(
             crossAxisAlignment: CrossAxisAlignment.center,

@@ -28,6 +28,7 @@ Verification:
 - Focused score, product-detail, simulator-contract, and auth suite: 108 tests passed with golden tests excluded. The golden-only run showed a 0.03% pixel drift after the Flutter 3.47 toolchain update; no golden was rewritten.
 - `make analyze`: no issues.
 - `git diff --check`: clean.
+- Adversarial PR review found prominent-score scaling could defeat larger accessibility text; replaced it with a full-size responsive wrap and added a constrained 2x-text regression test.
 
 Open validation:
 - Exact-head CI after push. The user must enter their own Google/Apple/email credentials to verify account-specific completion; credential entry was intentionally not automated.
