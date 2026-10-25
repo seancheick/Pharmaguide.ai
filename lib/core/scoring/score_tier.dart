@@ -23,16 +23,15 @@ enum ScoreTier { elite, excellent, strong, acceptable, weak, poor }
 extension ScoreTierMeta on ScoreTier {
   /// User-facing label rendered next to the score.
   ///
-  /// Renamed 2026-09-13 to the catalog's ladder (Exceptional / Excellent /
-  /// Very good / Good / Needs improvement / Poor): "Acceptable" read as a
-  /// grudging pass, and "Strong" collided with the evidence-strength
-  /// vocabulary shown beside it. Enum members keep their old ids.
+  /// Consumer ladder: Elite / Excellent / Very good / Good / Fair / Poor.
+  /// Enum members retain the pipeline's historic ids, and the parser below
+  /// continues to accept older shipped labels.
   String get label => switch (this) {
-    ScoreTier.elite => 'Exceptional',
+    ScoreTier.elite => 'Elite',
     ScoreTier.excellent => 'Excellent',
     ScoreTier.strong => 'Very good',
     ScoreTier.acceptable => 'Good',
-    ScoreTier.weak => 'Needs improvement',
+    ScoreTier.weak => 'Fair',
     ScoreTier.poor => 'Poor',
   };
 
@@ -117,11 +116,11 @@ ScoreTier? _catalogTierFromLabel(String? value) {
   // Current catalog names first, then the names catalogs shipped before
   // 2026-09-13, so a cached older catalog still resolves to the right tier.
   return switch ((value ?? '').trim().toLowerCase()) {
-    'exceptional' || 'elite' => ScoreTier.elite,
+    'elite' || 'exceptional' => ScoreTier.elite,
     'excellent' => ScoreTier.excellent,
     'very good' || 'strong' => ScoreTier.strong,
     'good' || 'acceptable' => ScoreTier.acceptable,
-    'needs improvement' || 'weak' => ScoreTier.weak,
+    'fair' || 'needs improvement' || 'weak' => ScoreTier.weak,
     'poor' => ScoreTier.poor,
     _ => null,
   };

@@ -91,25 +91,25 @@ void main() {
     test('current catalog labels parse case-insensitively', () {
       expect(
         [
-          'exceptional',
+          'elite',
           'EXCELLENT',
           'Very good',
           'good',
-          'Needs improvement',
+          'Fair',
           'poor',
         ].map((label) => catalogTier(qualityTier: label, legacyScore: 0)),
         ScoreTier.values,
       );
     });
 
-    test('labels from catalogs shipped before 2026-09-13 still resolve', () {
+    test('older catalog labels still resolve', () {
       expect(
         [
-          'elite',
+          'Exceptional',
           'EXCELLENT',
           'Strong',
           'acceptable',
-          'Weak',
+          'Needs improvement',
           'poor',
         ].map((label) => catalogTier(qualityTier: label, legacyScore: 0)),
         ScoreTier.values,
@@ -233,11 +233,11 @@ void main() {
     test('locked label copy matches spec', () {
       // Pin the user-visible labels — any future "let's rename
       // Excellent to Premium" needs to update this test deliberately.
-      expect(ScoreTier.elite.label, 'Exceptional');
+      expect(ScoreTier.elite.label, 'Elite');
       expect(ScoreTier.excellent.label, 'Excellent');
       expect(ScoreTier.strong.label, 'Very good');
       expect(ScoreTier.acceptable.label, 'Good');
-      expect(ScoreTier.weak.label, 'Needs improvement');
+      expect(ScoreTier.weak.label, 'Fair');
       expect(ScoreTier.poor.label, 'Poor');
     });
 
@@ -268,7 +268,7 @@ void main() {
     });
 
     test('color hue ordering holds in both appearances', () {
-      // Defensive: Exceptional/Excellent/Good should all read as
+      // Defensive: Elite/Excellent/Good should all read as
       // "positive" (green-side) and the red value should be lower than
       // their green value. Conversely Poor/Low Quality should be
       // "concerning" (red-side, red >= green). Both ramps are derived by
