@@ -15,6 +15,7 @@ export LANG := en_US.UTF-8
 export LC_ALL := en_US.UTF-8
 
 FLUTTER := $(HOME)/Development/flutter/bin/flutter
+IOS_DEVICE ?= iPhone
 
 DART_DEFINES := \
 	--dart-define=SUPABASE_URL=$(SUPABASE_URL) \
@@ -33,15 +34,15 @@ hydrate-interaction-db: ## Fetch and verify the pinned clinical interaction DB
 
 .PHONY: run
 run: hydrate-interaction-db ## Run app on connected device (debug)
-	$(FLUTTER) run $(DART_DEFINES)
+	@$(FLUTTER) run $(DART_DEFINES)
 
 .PHONY: run-ios
 run-ios: hydrate-interaction-db ## Run on iOS simulator
-	$(FLUTTER) run $(DART_DEFINES) -d iPhone
+	@$(FLUTTER) run $(DART_DEFINES) -d "$(IOS_DEVICE)"
 
 .PHONY: run-android
 run-android: hydrate-interaction-db ## Run on Android emulator
-	$(FLUTTER) run $(DART_DEFINES) -d android
+	@$(FLUTTER) run $(DART_DEFINES) -d android
 
 # ─── Developer gallery previews ────────────────────────────────────────────────
 # DEV_ROUTE skips the splash → onboarding/home flow and launches directly
@@ -50,15 +51,15 @@ run-android: hydrate-interaction-db ## Run on Android emulator
 
 .PHONY: run-v2
 run-v2: hydrate-interaction-db ## Boot straight into the v2 component gallery
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2
+	@$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2
 
 .PHONY: run-v2-ios
 run-v2-ios: hydrate-interaction-db ## v2 gallery on iOS simulator
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d iPhone
+	@$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d "$(IOS_DEVICE)"
 
 .PHONY: run-v2-android
 run-v2-android: hydrate-interaction-db ## v2 gallery on Android emulator
-	$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d android
+	@$(FLUTTER) run $(DART_DEFINES) --dart-define=DEV_ROUTE=/dev/v2 -d android
 
 .PHONY: v2-audit
 v2-audit: ## Run the v2 design-system governance audit (hex / serif / TextStyle)
