@@ -114,6 +114,11 @@ class PGReviewBeforeUseCard extends StatefulWidget {
   /// auto-expands when ≥1 row is danger-tier.
   final bool startExpanded;
 
+  /// Collapses supporting copy and the footer into a single header row until
+  /// the person asks for details. Safety rows still follow the normal
+  /// auto-expand rules, so danger content is never hidden by this option.
+  final bool compactWhenCollapsed;
+
   const PGReviewBeforeUseCard({
     super.key,
     required this.tone,
@@ -124,6 +129,7 @@ class PGReviewBeforeUseCard extends StatefulWidget {
     this.footer,
     this.collapseThreshold = 3,
     this.startExpanded = false,
+    this.compactWhenCollapsed = false,
   });
 
   @override
@@ -159,8 +165,8 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
   ///    contraindication / allergen match behind a chevron)
   /// 3. Otherwise → collapsed; banner shows alone with a chevron
   bool _shouldAutoExpand() {
-    if (widget.rows.isEmpty) return false;
     if (widget.startExpanded) return true;
+    if (widget.rows.isEmpty) return false;
     final hasDanger = widget.rows.any(
       (r) => (r.rowTone ?? widget.tone) == PGReviewTone.danger,
     );
@@ -173,7 +179,14 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
     final tone = widget.tone.tint(context.v2);
     final rows = widget.rows;
     final hasRows = rows.isNotEmpty;
-    final isInteractive = hasRows; // banner is tappable when rows exist
+    final hasCollapsedDetails =
+        widget.compactWhenCollapsed &&
+        (widget.eyebrow != null ||
+            widget.body != null ||
+            widget.footer != null ||
+            hasRows);
+    final isInteractive = hasRows || hasCollapsedDetails;
+    final showSupportingCopy = !widget.compactWhenCollapsed || _expanded;
 
     return Container(
       decoration: BoxDecoration(
@@ -184,6 +197,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Tone-tinted banner header (3pt left accent strip). Whole
@@ -206,7 +220,13 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                         Container(width: 3, color: tone),
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.all(V2Spacing.space16),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: V2Spacing.space16,
+                              vertical:
+                                  widget.compactWhenCollapsed && !_expanded
+                                  ? V2Spacing.space12
+                                  : V2Spacing.space16,
+                            ),
                             color: tone.withValues(alpha: 0.06),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,7 +238,8 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      if (widget.eyebrow != null) ...[
+                                      if (showSupportingCopy &&
+                                          widget.eyebrow != null) ...[
                                         Text(
                                           widget.eyebrow!.toUpperCase(),
                                           style: V2Typography.eyebrow(
@@ -246,7 +267,8 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                                             ),
                                         ],
                                       ),
-                                      if (widget.body != null) ...[
+                                      if (showSupportingCopy &&
+                                          widget.body != null) ...[
                                         const SizedBox(
                                           height: V2Spacing.space4,
                                         ),
@@ -309,7 +331,7 @@ class _PGReviewBeforeUseCardState extends State<PGReviewBeforeUseCard> {
                   )
                 : const SizedBox(width: double.infinity),
           ),
-          if (widget.footer != null) ...[
+          if (widget.footer != null && showSupportingCopy) ...[
             Divider(color: context.v2.outline, height: 1, thickness: 0.5),
             Padding(
               // Tighter vertically than horizontally: the footer's usual

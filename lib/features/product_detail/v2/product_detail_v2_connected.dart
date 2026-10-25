@@ -562,21 +562,13 @@ class _ProductDetailV2ConnectedState
     final qualityPillarsV4 = _blobMap(detailBlob, 'quality_pillars_v4');
     final probioticDetail = _blobMap(detailBlob, 'probiotic_detail');
     final mappedCoverage = _product?.mappedCoverage ?? 0.0;
-    final proprietaryBlendDetail = _blobMap(
-      detailBlob,
-      'proprietary_blend_detail',
-    );
     final productStatus = _blobMap(detailBlob, 'product_status');
     final unmappedActives = _blobMap(detailBlob, 'unmapped_actives');
     final labelLedgerAudit = _blobMap(detailBlob, 'label_ledger_audit');
     final labelLedgerAuditPresent =
         detailBlob?.containsKey('label_ledger_audit') == true;
-    final hasProprietaryBlends =
-        proprietaryBlendDetail?['has_proprietary_blends'] == true;
     final showLabelConfidence = labelConfidenceHasAnySignal(
       mappedCoverage: mappedCoverage,
-      hasProprietaryBlends: hasProprietaryBlends,
-      proprietaryBlendDetail: proprietaryBlendDetail,
       isNotScored: isNotScored,
       productStatus: productStatus,
       unmappedActives: unmappedActives,
@@ -772,8 +764,6 @@ class _ProductDetailV2ConnectedState
                         buildLabelConfidenceSection(
                           context: context,
                           mappedCoverage: mappedCoverage,
-                          hasProprietaryBlends: hasProprietaryBlends,
-                          proprietaryBlendDetail: proprietaryBlendDetail,
                           isNotScored: isNotScored,
                           productStatus: productStatus,
                           unmappedActives: unmappedActives,

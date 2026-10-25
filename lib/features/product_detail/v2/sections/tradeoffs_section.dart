@@ -353,7 +353,9 @@ List<PGTradeoff> _collapseAdditiveConcerns(List<PGTradeoff> items) {
     PGTradeoff(
       headline: additiveNames.length == 1
           ? 'Additive: ${additiveNames.first}'
-          : 'Additives: ${additiveNames.join(", ")}',
+          : additiveNames.length <= 2
+          ? 'Additives: ${additiveNames.join(", ")}'
+          : 'Additives: ${additiveNames.length} listed',
     ),
     ...remaining,
   ];

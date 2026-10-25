@@ -51,9 +51,9 @@ bool shouldShowProfileRelevance({required bool isBlocked}) => !isBlocked;
 
 /// LabelConfidence card renders when:
 ///   • product is not blocked AND
-///   • at least one of the 5 underlying signals fires
-///     (mappedCoverage threshold, hasProprietaryBlends, isNotScored,
-///      productStatus, unmappedActives)
+///   • at least one analysis or label-record signal fires
+///     (mappedCoverage threshold, isNotScored, productStatus,
+///      unmappedActives, or a label-ledger exception)
 ///
 /// Production sliver guard:
 ///   `if (!isBlocked && LabelConfidenceCard.hasAnySignal(...))` (line 403)

@@ -380,9 +380,10 @@ void main() {
         ],
       );
 
+      expect(find.text('Additives: 5 listed'), findsOneWidget);
       expect(
         find.text('Additives: Sugar, Palm, Red 40, Yellow 5, Aspartame'),
-        findsOneWidget,
+        findsNothing,
       );
       expect(find.text('Proprietary blend'), findsOneWidget);
       expect(find.text('Below RDA'), findsOneWidget);

@@ -12,8 +12,10 @@ ResearchPairsCompanion _researchPair({
   required String canonicalId,
   required String rxcui,
   required int paperCount,
+  String? canonicalIdB,
   String entityAName = 'Vitamin K',
   String entityBName = 'Warfarin',
+  String entityBType = 'drug',
 }) {
   return ResearchPairsCompanion.insert(
     pairId: pairId,
@@ -22,9 +24,9 @@ ResearchPairsCompanion _researchPair({
     entityAName: entityAName,
     entityBName: entityBName,
     entityAType: 'supplement',
-    entityBType: 'drug',
+    entityBType: entityBType,
     canonicalIdA: Value(canonicalId),
-    canonicalIdB: const Value(null),
+    canonicalIdB: Value(canonicalIdB),
     rxcuiA: const Value(null),
     rxcuiB: Value(rxcui),
     paperCount: paperCount,
@@ -99,6 +101,32 @@ void main() {
     expect(results.single.pairLabel, 'Vitamin K + Warfarin');
     expect(results.single.topPmids, ['12345']);
   });
+
+  test(
+    'drops pairs whose two supplement identities are in this product',
+    () async {
+      await db
+          .into(db.researchPairs)
+          .insert(
+            _researchPair(
+              pairId: 'creatine-family-self-pair',
+              canonicalId: 'creatine',
+              canonicalIdB: 'creatine_monohydrate',
+              rxcui: '',
+              paperCount: 10,
+              entityAName: 'Creatine',
+              entityBName: 'Creatine Monohydrate',
+              entityBType: 'supplement',
+            ),
+          );
+
+      final results = await ResearchPairLookup(db).lookupForProduct(
+        canonicalIds: const ['creatine', 'creatine_monohydrate'],
+      );
+
+      expect(results, isEmpty);
+    },
+  );
 
   test('prioritizes medication-context research evidence', () async {
     await db
