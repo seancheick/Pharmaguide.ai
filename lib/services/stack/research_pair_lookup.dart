@@ -49,6 +49,7 @@ class ResearchPairLookup {
         .where(
           (row) =>
               canonicalSet.any(row.involvesCanonicalId) &&
+              !_bothCanonicalSidesBelongToProduct(row, canonicalSet) &&
               _hasDisplayableEvidence(row),
         )
         .toList(growable: false);
@@ -87,6 +88,19 @@ class ResearchPairLookup {
   static bool _hasDisplayableEvidence(ResearchPairEvidence row) {
     return row.paperCount > 0 &&
         (row.topSentences.isNotEmpty || row.topPmids.isNotEmpty);
+  }
+
+  static bool _bothCanonicalSidesBelongToProduct(
+    ResearchPairEvidence row,
+    Set<String> productCanonicalIds,
+  ) {
+    final sideA = row.canonicalIdA?.trim().toLowerCase();
+    final sideB = row.canonicalIdB?.trim().toLowerCase();
+    if (sideA == null || sideA.isEmpty || sideB == null || sideB.isEmpty) {
+      return false;
+    }
+    return productCanonicalIds.contains(sideA) &&
+        productCanonicalIds.contains(sideB);
   }
 
   static int _compareEvidence(ResearchPairEvidence a, ResearchPairEvidence b) {

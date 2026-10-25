@@ -153,6 +153,9 @@ void main() {
         _summary(fitResult: _fit(), hasPregnancyOrBreastfeeding: true),
       );
       expect(find.text('No known concerns'), findsOneWidget);
+      expect(find.text(kLifeStageClinicianNote), findsNothing);
+      await tester.tap(find.text('No known concerns'));
+      await tester.pumpAndSettle();
       expect(find.text(kLifeStageClinicianNote), findsOneWidget);
     });
   });
@@ -499,13 +502,22 @@ void main() {
   });
 
   group('ProfileRelevanceSection rendering', () {
-    testWidgets('renders the clean profile decision even without a goal', (
-      tester,
-    ) async {
+    testWidgets('clean profile decision is one collapsed row', (tester) async {
       await _pump(tester, _summary());
 
-      expect(find.text('FOR YOU'), findsOneWidget);
       expect(find.text(kNoProfileConcernsHeadline), findsOneWidget);
+      expect(find.text('FOR YOU'), findsNothing);
+      expect(find.text('Add goals'), findsNothing);
+      expect(find.text('Edit profile'), findsNothing);
+      expect(
+        tester.getSize(find.byType(PGReviewBeforeUseCard)).height,
+        lessThanOrEqualTo(64),
+      );
+
+      await tester.tap(find.text(kNoProfileConcernsHeadline));
+      await tester.pumpAndSettle();
+
+      expect(find.text('FOR YOU'), findsOneWidget);
       expect(find.text('Add goals'), findsOneWidget);
     });
 
@@ -564,6 +576,9 @@ void main() {
       await _pump(tester, summary);
 
       expect(find.text('Check this product for you'), findsOneWidget);
+      expect(find.text('Add profile information'), findsNothing);
+      await tester.tap(find.text('Check this product for you'));
+      await tester.pumpAndSettle();
       expect(find.text('Add profile information'), findsOneWidget);
       final action = tester.widget<PGPillButton>(find.byType(PGPillButton));
       expect(action.variant, PGPillVariant.ghost);
@@ -605,6 +620,9 @@ void main() {
         ),
       );
 
+      expect(find.text('Why this fits you'), findsNothing);
+      await tester.tap(find.text(kNoProfileConcernsHeadline));
+      await tester.pumpAndSettle();
       expect(find.text('Why this fits you'), findsOneWidget);
       expect(find.text('Edit profile'), findsOneWidget);
       final action = tester.widget<PGPillButton>(find.byType(PGPillButton));
@@ -648,8 +666,9 @@ void main() {
 
       await tester.pumpWidget(MaterialApp(home: Scaffold(body: section)));
 
-      expect(find.text('GOOD TO KNOW'), findsOneWidget);
-      await tester.tap(find.text('Information for your profile'));
+      expect(find.text('Good to know'), findsOneWidget);
+      expect(find.text('Gluten-free'), findsNothing);
+      await tester.tap(find.text('Good to know'));
       await tester.pumpAndSettle();
       expect(find.text('Gluten-free'), findsOneWidget);
       expect(find.text('Soy-free'), findsNothing);
@@ -700,7 +719,7 @@ void main() {
 
       expect(section, isNotNull);
       await tester.pumpWidget(MaterialApp(home: Scaffold(body: section!)));
-      expect(find.text('GOOD TO KNOW'), findsOneWidget);
+      expect(find.text('Good to know'), findsOneWidget);
       expect(find.text('Review this product'), findsNothing);
     });
 
@@ -722,7 +741,7 @@ void main() {
 
       expect(section, isNotNull);
       await tester.pumpWidget(MaterialApp(home: Scaffold(body: section!)));
-      expect(find.text('GOOD TO KNOW'), findsOneWidget);
+      expect(find.text('Good to know'), findsOneWidget);
       expect(find.text('Review this product'), findsNothing);
     });
 

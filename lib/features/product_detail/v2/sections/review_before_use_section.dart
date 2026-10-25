@@ -356,6 +356,7 @@ class ProfileRelevanceSection extends StatelessWidget {
         ? 'Add goals'
         : 'Edit profile';
     final hasReasons = summary.whyThisFitsReasons.isNotEmpty;
+    final canStartCompact = summary.rows.isEmpty;
 
     return PGReviewBeforeUseCard(
       eyebrow: 'For You',
@@ -364,6 +365,7 @@ class ProfileRelevanceSection extends StatelessWidget {
       body: summary.body,
       rows: summary.rows,
       startExpanded: summary.startExpanded,
+      compactWhenCollapsed: canStartCompact,
       footer: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -433,9 +435,9 @@ Widget? buildGeneralNotesSection({
   if (profileNotes.isNotEmpty || reassuringClaims.isNotEmpty) {
     sections.add(
       PGReviewBeforeUseCard(
-        eyebrow: 'Good to know',
         tone: PGReviewTone.info,
-        title: 'Information for your profile',
+        title: 'Good to know',
+        compactWhenCollapsed: true,
         rows: [
           for (final warning in sortWarningsBySeverity(profileNotes))
             _rowForProfileNote(warning, onTapCitations: onTapCitations),
@@ -472,9 +474,9 @@ Widget? buildGeneralNotesSection({
     }
     sections.add(
       PGReviewBeforeUseCard(
-        eyebrow: 'Good to know',
         tone: PGReviewTone.info,
         title: 'Product context',
+        compactWhenCollapsed: true,
         rows: [
           for (final warning in productContext)
             _rowForProfileNote(warning, onTapCitations: onTapCitations),

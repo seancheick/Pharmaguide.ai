@@ -333,49 +333,39 @@ List<Map<String, dynamic>> _analysisLedger() => [
 void main() {
   group('source-backed blend disclosure', () {
     for (final level in ['full', 'partial', 'none', 'invalid']) {
-      testWidgets('renders the pipeline $level disclosure without guessing', (
-        tester,
-      ) async {
-        await _pumpConnectedScreen(
-          tester,
-          initialSection: null,
-          detailBlob: {
-            'ingredients': const <Map<String, dynamic>>[],
-            'display_ingredients': [
-              _activeLedgerRow('Declared preparation', 0),
-            ],
-            'quality_pillars_v4': _connectedV4Pillars(),
-            'proprietary_blend_detail': {
-              'has_proprietary_blends': true,
-              'blends': [
-                {
-                  'name': 'Label preparation',
-                  'disclosure_level': level,
-                  'total_weight': 500,
-                  'unit': 'mg',
-                },
+      testWidgets(
+        'does not turn $level blend disclosure into global coverage',
+        (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: {
+              'ingredients': const <Map<String, dynamic>>[],
+              'display_ingredients': [
+                _activeLedgerRow('Declared preparation', 0),
               ],
+              'quality_pillars_v4': _connectedV4Pillars(),
+              'proprietary_blend_detail': {
+                'has_proprietary_blends': true,
+                'blends': [
+                  {
+                    'name': 'Label preparation',
+                    'disclosure_level': level,
+                    'total_weight': 500,
+                    'unit': 'mg',
+                  },
+                ],
+              },
             },
-          },
-        );
-        expect(find.text('88/100'), findsOneWidget);
-        expect(find.text('Blend amounts not disclosed'), findsNothing);
-        if (level == 'full') {
-          expect(find.text('Analysis coverage: Partial'), findsNothing);
-        } else {
-          expect(find.text('Analysis coverage: Partial'), findsOneWidget);
-          expect(
-            find.text(
-              level == 'partial'
-                  ? 'Some blend amounts not disclosed'
-                  : level == 'none'
-                  ? 'Blend composition incomplete'
-                  : 'Blend disclosure not verified',
-            ),
-            findsOneWidget,
           );
-        }
-      });
+          expect(find.text('88/100'), findsOneWidget);
+          expect(find.text('Blend amounts not disclosed'), findsNothing);
+          expect(find.textContaining('Analysis coverage'), findsNothing);
+          expect(find.text('Some blend amounts not disclosed'), findsNothing);
+          expect(find.text('Blend composition incomplete'), findsNothing);
+          expect(find.text('Blend disclosure not verified'), findsNothing);
+        },
+      );
     }
   });
   group('connected unavailable states', () {
@@ -692,7 +682,7 @@ void main() {
     });
   });
 
-  group('connected transparency disclosure action', () {
+  group('connected blend metadata stays out of global coverage', () {
     final nonBooleanBlendFlags = <({String name, Object value})>[
       (name: 'numeric one', value: 1),
       (name: 'string one', value: '1'),
@@ -719,7 +709,7 @@ void main() {
       });
     }
 
-    testWidgets('shows the authored boolean proprietary-blend signal', (
+    testWidgets('keeps the authored boolean proprietary-blend signal local', (
       tester,
     ) async {
       await _pumpConnectedScreen(
@@ -734,8 +724,8 @@ void main() {
       );
 
       final disclosure = find.text('Blend disclosure not verified');
-      await _scrollConnectedTowardTop(tester);
-      expect(disclosure, findsOneWidget);
+      await _scrollConnectedTowardBottomUntil(tester, disclosure);
+      expect(disclosure, findsNothing);
     });
 
     final falseBlendFlags = <({String name, Object value})>[

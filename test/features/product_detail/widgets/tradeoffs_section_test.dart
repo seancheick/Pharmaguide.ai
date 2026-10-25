@@ -368,6 +368,13 @@ void main() {
     testWidgets('collapse happens before the concern cap', (tester) async {
       await _pump(
         tester,
+        inactives: const [
+          {'name': 'Sugar'},
+          {'name': 'Palm'},
+          {'name': 'Red 40'},
+          {'name': 'Yellow 5'},
+          {'name': 'Aspartame'},
+        ],
         penalties: [
           _penalty('Harmful additive Sugar'),
           _penalty('Harmful additive Palm'),
@@ -380,15 +387,33 @@ void main() {
         ],
       );
 
+      expect(find.text('Additives: 5 listed'), findsOneWidget);
       expect(
         find.text('Additives: Sugar, Palm, Red 40, Yellow 5, Aspartame'),
-        findsOneWidget,
+        findsNothing,
       );
       expect(find.text('Proprietary blend'), findsOneWidget);
       expect(find.text('Below RDA'), findsOneWidget);
       expect(find.text('Old reformulation'), findsOneWidget);
       expect(find.textContaining('Show'), findsNothing);
     });
+
+    testWidgets(
+      'additive compaction keeps names when ingredient details are absent',
+      (tester) async {
+        await _pump(
+          tester,
+          penalties: [
+            _penalty('Harmful additive Sugar'),
+            _penalty('Harmful additive Palm'),
+            _penalty('Harmful additive Red 40'),
+          ],
+        );
+
+        expect(find.text('Additives: 3 listed'), findsNothing);
+        expect(find.text('Additives: Sugar, Palm, Red 40'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'shows verified UL exceedances even when score penalty threshold does not fire',

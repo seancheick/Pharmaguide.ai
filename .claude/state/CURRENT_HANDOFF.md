@@ -1,13 +1,26 @@
-# Public personal Codex activation — completed October24,2026
+# Current handoff — Product-detail clarity and responsive score batch
 
-Goal: finish qualification, enable public personal access, merge/push and install phone build. Sean authorized activation; later explicitly deferred Claude/other-client tests and requested closeout.
+Date: 2026-10-25
+Branch: `codex/product-detail-clarity`
+Baseline: `802edbb6`
 
-Owner: existing mcp-personal production dependencies/handler, _shared/oauth_token verifier and connection_gate, ai-share-snapshot, SQL phone/revocation/deletion barriers, website trusted-client/callback owner, Dart scope/brief and phone entry. Evidence: source diff and existing owner/consumer tests. Will NOT create: another OAuth, token registry, clinical engine or sync owner.
+Goal: repair the user-observed product-detail hierarchy and narrow score wrapping through reusable owners, while keeping actionable safety prominent. The paired pipeline branch owns ingredient structure and score-explanation truth. Sean will run the pipeline later; no catalog rebuild, import, release, or publication belongs to this lane.
 
-Integrated app PR144/main9ace97a5, runtime candidate cd608862, full CI40118612663 green. Website PR14/maina790dd4, candidate d68630b, CI40119305487 green. Deno261, Flutter95, website connector63/privacy12/routing2, analyze/typecheck and independent review pass. verify-bundle passed20 live blobs. Normal production functions deployed from main; shared explicit AI_CONNECTOR_PAIRING_ENABLED=true in Supabase and Vercel, no test-user exceptions. Website deployed ready with production aliases; final public phone build installed/launched in release mode. No new migration.
+Owner Check:
+- Score layout: `lib/core/components/pg_score_line.dart::PGScoreLine`.
+- Personal summary: `lib/core/components/pg_review_before_use_card.dart::PGReviewBeforeUseCard` and `review_before_use_section.dart`.
+- Coverage display: existing `mapped_coverage`/ledger consumer in product-detail gating; no new calculator or field.
+- Research pairs: `lib/services/stack/research_pair_lookup.dart::ResearchPairLookup.lookupForProduct`.
+- Additive projection: `tradeoffs_section.dart`, bounded by the existing inactive-ingredient detail list.
+- Will NOT create: a second score, safety verdict, coverage state, profile state, or parallel card family.
 
-Two disposable accounts completed real WorkOS browser PKCE OAuth + distinct Supabase phone sessions. Hosted isolation and scoped encrypted repository roundtrips passed60 normalized Dart-fixture combinations per account; minimal/full scopes + isolation passed normal production endpoints/keyring. Old access/refresh denied after fresh phone approval with164 seconds remaining. Installed Codex normal OAuth/read/setup/snapshot and automatic access/refresh renewal passed. Final production disconnect denied both tools/UserInfo with231 seconds remaining; refresh400 invalid_grant. Prior physical phone update/restore/opt-out and native disconnect evidence retained, not misrepresented as rerun. Synthetic qualification is not clinical validation or two human Google sign-ins.
+Implemented commits:
+- `465ace1c` makes prominent score layouts stack the tier below the score, compacts clean profile and Good-to-Know rows, removes proprietary-blend disclosure from global Analysis Coverage, and filters same-product research pairs.
+- `c2b487b8` compacts long additive summaries only when the detailed inactive-ingredient list is present, so names are never discarded without a drill-down source.
 
-Both test accounts disconnected and deleted through existing production delete-account owner; hosted SQL confirms fixture accounts0/connections0/snapshots0. Private credentials and ephemeral test profile cleanup completed at closeout. Receipts ~/pg_quality/public_activation_20261024/. No real health details printed. Original Sean stack untouched in this batch.
+Safety/accessibility invariants:
+- Warning and danger personal rows still auto-expand; only clean `No known concerns` summaries start compact and remain tappable for profile details/editing.
+- Proprietary-blend limitations remain visible in ingredient and score content but no longer falsely label a fully mapped product as globally partial.
+- Compact and prominent score variants preserve score/tier semantics while preventing narrow-card word wrapping.
 
-Claude static public PKCE registration/callback/logo and trusted config prepared; user will test its unconnected Claude custom connector later. Claude Code signedout. ChatGPT/Gemini/Perplexity/Muse personal qualification remains separate and is not advertised as passed. Muse does not block active Codex. Setup and rollback instructions are in supabase/functions/mcp-personal/README.md; future branding guide remains mcp-public/README.md. Rollback turns existing flag false in BOTH services, preserving discovery/deletion/revocation recovery.
+Verification: focused widget/helper suites pass; the additive follow-up suite passed 29 tests. Exact-head `make check` passed with a clean analyzer and all 4,021 tests. Three adversarial passes found and closed four edge classes; the final cumulative review reports no actionable findings and independently reran the seven focused classification cases. Exact-head CI and connected-device visual acceptance remain before claiming integration. Apple-silicon simulator build is blocked by existing ML Kit transitive libraries missing arm64 slices for the iOS 26+ simulator; use the connected physical iPhone if available and record the result.

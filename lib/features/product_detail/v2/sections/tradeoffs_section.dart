@@ -84,7 +84,7 @@ Widget buildTradeoffsSection({
       ..._buildChildUlConsiderations(
         rdaReferenceIsCurrent ? healthFacts.childUlNotes : const [],
       ),
-    ]),
+    ], inactiveIngredients: detailBlob['inactive_ingredients'] as List?),
   );
   if (pros.isEmpty && considerations.isEmpty && safetySummary == null) {
     return const SizedBox.shrink();
@@ -325,7 +325,10 @@ String _softenAdditiveLanguage(String headline) {
   return 'Additive: $remainder';
 }
 
-List<PGTradeoff> _collapseAdditiveConcerns(List<PGTradeoff> items) {
+List<PGTradeoff> _collapseAdditiveConcerns(
+  List<PGTradeoff> items, {
+  required List<dynamic>? inactiveIngredients,
+}) {
   final additiveNames = <String>[];
   final seen = <String>{};
   final remaining = <PGTradeoff>[];
@@ -349,15 +352,47 @@ List<PGTradeoff> _collapseAdditiveConcerns(List<PGTradeoff> items) {
   }
 
   if (additiveNames.isEmpty) return items;
+  final inactiveNames = <String>{};
+  for (final raw in inactiveIngredients ?? const []) {
+    if (raw is! Map) continue;
+    for (final key in const [
+      'name',
+      'raw_source_text',
+      'standardName',
+      'display_name',
+      'label_display_name',
+    ]) {
+      final value = raw[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        inactiveNames.add(_normalizedIngredientLabel(value));
+      }
+    }
+  }
+  final detailsAvailableElsewhere = additiveNames.every((name) {
+    final normalized = _normalizedIngredientLabel(name);
+    return inactiveNames.any(
+      (candidate) =>
+          candidate == normalized ||
+          candidate.contains(normalized) ||
+          normalized.contains(candidate),
+    );
+  });
   return [
     PGTradeoff(
       headline: additiveNames.length == 1
           ? 'Additive: ${additiveNames.first}'
+          : additiveNames.length <= 2
+          ? 'Additives: ${additiveNames.join(", ")}'
+          : detailsAvailableElsewhere
+          ? 'Additives: ${additiveNames.length} listed'
           : 'Additives: ${additiveNames.join(", ")}',
     ),
     ...remaining,
   ];
 }
+
+String _normalizedIngredientLabel(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
 
 final RegExp _allergenSourcePrefix = RegExp(
   r'^\s*declared allergen sources?[:\s]\s*',

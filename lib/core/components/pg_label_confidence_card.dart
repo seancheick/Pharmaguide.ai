@@ -5,7 +5,7 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 
 /// One caveat row in the label-confidence card. Caller composes from the
 /// pipeline blob (production parses `productStatus`, `unmappedActives`,
-/// `hasProprietaryBlends`, `mappedCoverage`, `isNotScored` separately
+/// `mappedCoverage`, `isNotScored`, and label-ledger results separately
 /// and emits a `_Row` per signal — v2 takes the rows directly).
 class PGLabelConfidenceItem {
   final IconData icon;
@@ -174,9 +174,7 @@ class _LabelConfidenceRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : Border(
-                bottom: BorderSide(color: context.v2.outline, width: 0.4),
-              ),
+            : Border(bottom: BorderSide(color: context.v2.outline, width: 0.4)),
       ),
       child: wrapped,
     );

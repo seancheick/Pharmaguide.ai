@@ -73,6 +73,81 @@ class PGScoreLine extends StatelessWidget {
     final headlineSize = prominent ? 22.0 : (compact ? 14.0 : 18.0);
     final dot = compact ? 8.0 : dotSize;
     final headlineWeight = prominent ? FontWeight.w600 : FontWeight.w500;
+    final stackTier = compact || prominent;
+
+    Widget scoreText() => FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        '$displayScore/100',
+        style:
+            V2Typography.bodyMedium(
+              color: prominent
+                  ? limitedConfidence
+                        ? context.v2.fg
+                        : tier.textColor(brightness)
+                  : context.v2.fg,
+            ).copyWith(
+              fontSize: headlineSize,
+              fontWeight: headlineWeight,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+      ),
+    );
+
+    Widget tierText() => Text(
+      tier.label,
+      style: V2Typography.bodyMedium(
+        color: tier.textColor(brightness),
+      ).copyWith(fontSize: headlineSize, fontWeight: headlineWeight),
+      softWrap: true,
+    );
+
+    Widget scoreDot() => Container(
+      width: dot,
+      height: dot,
+      decoration: BoxDecoration(
+        color: tier.color(brightness),
+        shape: BoxShape.circle,
+      ),
+    );
+
+    final headline = stackTier
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!limitedConfidence) ...[
+                    scoreDot(),
+                    const SizedBox(width: V2Spacing.space8),
+                  ],
+                  Flexible(child: scoreText()),
+                ],
+              ),
+              if (!limitedConfidence) ...[
+                const SizedBox(height: 2),
+                Padding(
+                  padding: EdgeInsets.only(left: dot + V2Spacing.space8),
+                  child: tierText(),
+                ),
+              ],
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (!limitedConfidence) ...[
+                scoreDot(),
+                const SizedBox(width: V2Spacing.space8),
+              ],
+              Flexible(child: scoreText()),
+              if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
+              if (!limitedConfidence) Flexible(child: tierText()),
+            ],
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,62 +158,7 @@ class PGScoreLine extends StatelessWidget {
               ? '$displayScore out of 100, limited confidence'
               : '$displayScore out of 100, ${tier.label}',
           excludeSemantics: true,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (!limitedConfidence) ...[
-                Container(
-                  width: dot,
-                  height: dot,
-                  decoration: BoxDecoration(
-                    color: tier.color(brightness),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: V2Spacing.space8),
-              ],
-              // Score numeric + tier label kept as separate Text widgets
-              // (matches production — `find.text('Elite')` matches
-              // in widget tests this way).
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '$displayScore/100',
-                    style:
-                        V2Typography.bodyMedium(
-                          color: prominent
-                              ? limitedConfidence
-                                    ? context.v2.fg
-                                    : tier.textColor(brightness)
-                              : context.v2.fg,
-                        ).copyWith(
-                          fontSize: headlineSize,
-                          fontWeight: headlineWeight,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                  ),
-                ),
-              ),
-              if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
-              // Preserve the full quality label at narrow widths and large text.
-              if (!limitedConfidence)
-                Flexible(
-                  child: Text(
-                    tier.label,
-                    style:
-                        V2Typography.bodyMedium(
-                          color: tier.textColor(brightness),
-                        ).copyWith(
-                          fontSize: headlineSize,
-                          fontWeight: headlineWeight,
-                        ),
-                    softWrap: true,
-                  ),
-                ),
-            ],
-          ),
+          child: headline,
         ),
         if (confidenceLabel != null) ...[
           const SizedBox(height: 2),

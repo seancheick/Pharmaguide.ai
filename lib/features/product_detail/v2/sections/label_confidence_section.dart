@@ -4,7 +4,6 @@
 // independent pipeline label-ledger audit:
 //
 //   mappedCoverage         (_product.mappedCoverage)
-//   hasProprietaryBlends   (detailBlob.proprietary_blend_detail.has_proprietary_blends)
 //   isNotScored            (productIsNotScored gate)
 //   productStatus          (detailBlob.product_status)
 //   unmappedActives        (detailBlob.unmapped_actives)
@@ -17,8 +16,7 @@
 //   • Preserve `hasAnySignal` gate semantics. Caller passes the boolean
 //     via `shouldShowLabelConfidence`.
 //   • Preserve tier rules verbatim (note / partial / limited).
-//   • Preserve row order — isNotScored → coverage → blends → unmapped →
-//     productStatus.
+//   • Preserve row order — isNotScored → coverage → unmapped → productStatus.
 //   • Never red. Calm caveat block, not a warning.
 //   • Tap on the product-status row opens the same explanation sheet
 //     production renders via PGModal.
@@ -48,8 +46,6 @@ import 'package:pharmaguide/features/product_detail/v2/sections/label_confidence
 Widget buildLabelConfidenceSection({
   required BuildContext context,
   required double mappedCoverage,
-  required bool hasProprietaryBlends,
-  Map<String, dynamic>? proprietaryBlendDetail,
   required bool isNotScored,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
@@ -58,8 +54,6 @@ Widget buildLabelConfidenceSection({
 }) {
   final tier = computeLabelConfidenceTier(
     mappedCoverage: mappedCoverage,
-    hasProprietaryBlends: hasProprietaryBlends,
-    proprietaryBlendDetail: proprietaryBlendDetail,
     isNotScored: isNotScored,
     unmappedActives: unmappedActives,
   );
@@ -86,8 +80,6 @@ Widget buildLabelConfidenceSection({
   // Standard partial / limited tier path — full PGLabelConfidenceCard.
   final items = buildLabelConfidenceItems(
     mappedCoverage: mappedCoverage,
-    hasProprietaryBlends: hasProprietaryBlends,
-    proprietaryBlendDetail: proprietaryBlendDetail,
     isNotScored: isNotScored,
     productStatus: productStatus,
     unmappedActives: unmappedActives,
@@ -111,8 +103,6 @@ Widget buildLabelConfidenceSection({
     label: coverageSemanticsLabel(
       tier: tier,
       mappedCoverage: mappedCoverage,
-      hasProprietaryBlends: hasProprietaryBlends,
-      proprietaryBlendDetail: proprietaryBlendDetail,
       isNotScored: isNotScored,
       unmappedActives: unmappedActives,
       labelLedgerAudit: labelLedgerAudit,
@@ -137,8 +127,6 @@ Widget buildLabelConfidenceSection({
 /// the sliver without depending on the production widget transitively.
 bool labelConfidenceHasAnySignal({
   required double mappedCoverage,
-  required bool hasProprietaryBlends,
-  Map<String, dynamic>? proprietaryBlendDetail,
   required bool isNotScored,
   Map<String, dynamic>? productStatus,
   Map<String, dynamic>? unmappedActives,
@@ -148,8 +136,6 @@ bool labelConfidenceHasAnySignal({
   if (computeLabelConfidenceTier(
         mappedCoverage: mappedCoverage,
         isNotScored: isNotScored,
-        hasProprietaryBlends: hasProprietaryBlends,
-        proprietaryBlendDetail: proprietaryBlendDetail,
         unmappedActives: unmappedActives,
       ) !=
       LabelConfidenceTier.note) {

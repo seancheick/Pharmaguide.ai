@@ -18,6 +18,52 @@ import 'package:pharmaguide/core/scoring/score_tier.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 
 void main() {
+  testWidgets('compact cards place the tier below the score', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 132,
+            child: PGScoreLine(
+              score: 61,
+              qualityTier: 'Needs improvement',
+              compact: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final scoreRect = tester.getRect(find.text('61/100'));
+    final tierRect = tester.getRect(find.text('Needs improvement'));
+    expect(tierRect.top, greaterThanOrEqualTo(scoreRect.bottom));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('product hero places a long tier below the score', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 200,
+            child: PGScoreLine(
+              score: 58,
+              qualityTier: 'Needs improvement',
+              prominent: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final scoreRect = tester.getRect(find.text('58/100'));
+    final tierRect = tester.getRect(find.text('Needs improvement'));
+    expect(tierRect.top, greaterThanOrEqualTo(scoreRect.bottom));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'long quality labels remain readable at phone width and large text',
     (tester) async {
