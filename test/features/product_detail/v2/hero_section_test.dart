@@ -185,7 +185,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Limited assessment'), findsNothing);
-      expect(find.text('Needs improvement'), findsNothing);
+      expect(find.text('Fair'), findsNothing);
     },
   );
 

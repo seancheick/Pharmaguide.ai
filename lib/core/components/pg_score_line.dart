@@ -73,26 +73,28 @@ class PGScoreLine extends StatelessWidget {
     final headlineSize = prominent ? 22.0 : (compact ? 14.0 : 18.0);
     final dot = compact ? 8.0 : dotSize;
     final headlineWeight = prominent ? FontWeight.w600 : FontWeight.w500;
-    final stackTier = compact || prominent;
+    final stackTier = compact;
+
+    Widget scoreLabel() => Text(
+      '$displayScore/100',
+      style:
+          V2Typography.bodyMedium(
+            color: prominent
+                ? limitedConfidence
+                      ? context.v2.fg
+                      : tier.textColor(brightness)
+                : context.v2.fg,
+          ).copyWith(
+            fontSize: headlineSize,
+            fontWeight: headlineWeight,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+    );
 
     Widget scoreText() => FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
-      child: Text(
-        '$displayScore/100',
-        style:
-            V2Typography.bodyMedium(
-              color: prominent
-                  ? limitedConfidence
-                        ? context.v2.fg
-                        : tier.textColor(brightness)
-                  : context.v2.fg,
-            ).copyWith(
-              fontSize: headlineSize,
-              fontWeight: headlineWeight,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-      ),
+      child: scoreLabel(),
     );
 
     Widget tierText() => Text(
@@ -100,7 +102,8 @@ class PGScoreLine extends StatelessWidget {
       style: V2Typography.bodyMedium(
         color: tier.textColor(brightness),
       ).copyWith(fontSize: headlineSize, fontWeight: headlineWeight),
-      softWrap: true,
+      maxLines: prominent ? 1 : null,
+      softWrap: !prominent,
     );
 
     Widget scoreDot() => Container(
@@ -135,6 +138,24 @@ class PGScoreLine extends StatelessWidget {
                 ),
               ],
             ],
+          )
+        : prominent
+        ? FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (!limitedConfidence) ...[
+                  scoreDot(),
+                  const SizedBox(width: V2Spacing.space8),
+                ],
+                scoreLabel(),
+                if (!limitedConfidence) const SizedBox(width: V2Spacing.space8),
+                if (!limitedConfidence) tierText(),
+              ],
+            ),
           )
         : Row(
             crossAxisAlignment: CrossAxisAlignment.center,

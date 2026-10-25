@@ -35,12 +35,12 @@ void main() {
     );
 
     final scoreRect = tester.getRect(find.text('61/100'));
-    final tierRect = tester.getRect(find.text('Needs improvement'));
+    final tierRect = tester.getRect(find.text('Fair'));
     expect(tierRect.top, greaterThanOrEqualTo(scoreRect.bottom));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('product hero places a long tier below the score', (
+  testWidgets('product hero keeps a long tier beside the score', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -59,8 +59,28 @@ void main() {
     );
 
     final scoreRect = tester.getRect(find.text('58/100'));
-    final tierRect = tester.getRect(find.text('Needs improvement'));
-    expect(tierRect.top, greaterThanOrEqualTo(scoreRect.bottom));
+    final tierRect = tester.getRect(find.text('Fair'));
+    expect(tierRect.center.dy, closeTo(scoreRect.center.dy, 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('product hero keeps a short tier beside the score', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 200,
+            child: PGScoreLine(score: 30, qualityTier: 'Poor', prominent: true),
+          ),
+        ),
+      ),
+    );
+
+    final scoreRect = tester.getRect(find.text('30/100'));
+    final tierRect = tester.getRect(find.text('Poor'));
+    expect(tierRect.center.dy, closeTo(scoreRect.center.dy, 1));
     expect(tester.takeException(), isNull);
   });
 
@@ -80,8 +100,8 @@ void main() {
           ),
         ),
       );
-      final label = tester.widget<Text>(find.text('Needs improvement'));
-      expect(label.maxLines, isNull);
+      final label = tester.widget<Text>(find.text('Fair'));
+      expect(label.maxLines, 1);
       expect(label.overflow, isNot(TextOverflow.ellipsis));
       expect(tester.takeException(), isNull);
     },
