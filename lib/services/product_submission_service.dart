@@ -1768,6 +1768,7 @@ class ProductSubmissionSummary {
   /// A reviewer is waiting on new photos of this submission's current label.
   bool get needsNewPhotos =>
       hasKnownState &&
+      (upc != null || identifier != null) &&
       kind == ProductSubmissionKind.missingProduct &&
       uploadReady &&
       (reviewStatus == ProductSubmissionReviewStatus.submitted ||
@@ -1778,6 +1779,7 @@ class ProductSubmissionSummary {
   /// New photos were started for a later revision but not finished sending.
   bool get retakeUnfinished =>
       hasKnownState &&
+      (upc != null || identifier != null) &&
       uploadState == ProductSubmissionUploadState.pending &&
       evidenceRevision > 1 &&
       evidenceRequestedRevision != null &&
@@ -1789,6 +1791,18 @@ class ProductSubmissionSummary {
     ProductSubmissionKind.labelMismatch => mismatchProduct != null,
     null => false,
   };
+
+  static ProductSubmissionIdentifier? _readIdentifier(Object? value) {
+    try {
+      return value is Map
+          ? ProductSubmissionIdentifier.fromJson(
+              Map<String, dynamic>.from(value),
+            )
+          : null;
+    } on Object {
+      return null;
+    }
+  }
 
   factory ProductSubmissionSummary.fromRow(Map<String, Object?> row) {
     final kind = switch (row['kind']) {
@@ -1828,11 +1842,7 @@ class ProductSubmissionSummary {
       submissionId: row['id'] is String ? row['id']! as String : '',
       kind: kind,
       upc: row['normalized_upc'] as String?,
-      identifier: row['identifier'] is Map
-          ? ProductSubmissionIdentifier.fromJson(
-              Map<String, dynamic>.from(row['identifier'] as Map),
-            )
-          : null,
+      identifier: _readIdentifier(row['identifier']),
       uploadState: ProductSubmissionUploadState.fromWire(row['upload_state']),
       reviewStatus: ProductSubmissionReviewStatus.fromWire(
         row['review_status'],

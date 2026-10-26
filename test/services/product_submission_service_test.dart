@@ -10,6 +10,58 @@ const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
   test(
+    'malformed identifier is confined to its history row and cannot authorize retakes',
+    () {
+      for (final identifier in [
+        null,
+        {},
+        {'observed_code': 'X002FLZ3X7'},
+        {'observed_code': 42},
+        'wrong type',
+      ]) {
+        final row = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'identifier': identifier,
+          'normalized_upc': null,
+          'upload_state': 'ready',
+          'review_status': 'under_review',
+          'evidence_revision': 1,
+          'evidence_requested_revision': 1,
+          'evidence_request_panels': ['supplement_facts'],
+        });
+        expect(row.identifier, isNull);
+        expect(row.needsNewPhotos, isFalse);
+        expect(row.hasResubmissionTarget, isFalse);
+      }
+      final legacy = ProductSubmissionSummary.fromRow({
+        'id': _submissionId,
+        'kind': 'missing_product',
+        'normalized_upc': '050428381397',
+        'upload_state': 'ready',
+        'review_status': 'under_review',
+        'evidence_revision': 1,
+        'evidence_requested_revision': 1,
+        'evidence_request_panels': ['supplement_facts'],
+      });
+      expect(legacy.needsNewPhotos, isTrue);
+      final valid = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      expect(
+        ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'identifier': valid.toJson(),
+        }).identifier!.observedCode,
+        'X002FLZ3X7',
+      );
+    },
+  );
+
+  test(
     'identifier rejects every C0 and C1 control without rewriting printed code',
     () {
       for (final control in [
@@ -734,6 +786,7 @@ void main() {
         });
         expect(reviewerUpload.retakeUnfinished, isFalse);
         final submitterUpload = ProductSubmissionSummary.fromRow({
+          'normalized_upc': '050428381397',
           'id': _submissionId,
           'kind': 'missing_product',
           'upload_state': 'pending',
