@@ -17,6 +17,31 @@ AS $$ SELECT (string_to_array($1, '/'))[1:array_length(string_to_array($1, '/'),
 CREATE FUNCTION storage.filename(text) RETURNS text LANGUAGE sql IMMUTABLE
 AS $$ SELECT (string_to_array($1, '/'))[array_length(string_to_array($1, '/'), 1)] $$;
 
+-- Pipeline-owned distribution seam referenced by the approval-revision
+-- migration. This harness supplies only the external table/function shape;
+-- pipeline tests own catalog rotation behavior.
+CREATE TABLE public.export_manifest (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  db_version text NOT NULL,
+  pipeline_version text NOT NULL,
+  scoring_version text NOT NULL,
+  schema_version text NOT NULL,
+  product_count integer NOT NULL,
+  checksum text NOT NULL,
+  min_app_version text NOT NULL DEFAULT '1.0.0',
+  generated_at timestamptz NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  is_current boolean NOT NULL DEFAULT true
+);
+ALTER TABLE public.export_manifest ENABLE ROW LEVEL SECURITY;
+CREATE UNIQUE INDEX export_manifest_one_current_fixture
+  ON public.export_manifest((true)) WHERE is_current;
+CREATE FUNCTION public.rotate_manifest(
+  text,text,text,text,integer,text,timestamptz,text
+) RETURNS uuid LANGUAGE sql AS $$ SELECT gen_random_uuid() $$;
+GRANT EXECUTE ON FUNCTION public.rotate_manifest(
+  text,text,text,text,integer,text,timestamptz,text) TO service_role;
+
 -- The Postgres image ships auth.uid() but not auth.jwt(), which Supabase Auth
 -- installs. This is Auth's definition: the request claims PostgREST sets.
 CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
