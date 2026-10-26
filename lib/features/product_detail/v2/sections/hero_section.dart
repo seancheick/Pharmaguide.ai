@@ -201,7 +201,7 @@ Widget buildHeroSection({
       brandName: brandName,
       formFactor: formFactor,
       score: score100,
-      size: 84,
+      size: 112,
       compact: true,
       // Tap the hero image → open fullscreen viewer with pinch-zoom.
       // The Hero tag matches the carousel→detail flight convention so

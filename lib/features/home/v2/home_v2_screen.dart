@@ -1034,9 +1034,9 @@ class _RecentScanCard extends StatelessWidget {
   }
 
   static const double width = 156;
-  static const double height = 248;
-  static const double _imageFrameSize = V2Spacing.space64 + V2Spacing.space8;
-  static const double _imageSize = V2Spacing.space64 - V2Spacing.space8;
+  static const double height = 308;
+  static const double _imageFrameSize = width - 2 * V2Spacing.space12;
+  static const double _imageSize = _imageFrameSize - 2 * V2Spacing.space4;
 
   @override
   Widget build(BuildContext context) {
@@ -1067,7 +1067,7 @@ class _RecentScanCard extends StatelessWidget {
                     key: const ValueKey('home-recent-scan-image-frame'),
                     width: _imageFrameSize,
                     height: _imageFrameSize,
-                    padding: const EdgeInsets.all(V2Spacing.space8),
+                    padding: const EdgeInsets.all(V2Spacing.space4),
                     decoration: BoxDecoration(
                       color: context.v2.bg,
                       borderRadius: BorderRadius.circular(V2Spacing.radiusCard),

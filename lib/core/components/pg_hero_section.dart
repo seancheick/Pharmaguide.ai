@@ -224,7 +224,6 @@ class PGHeroSection extends StatelessWidget {
     // Reduce vertical real estate so verdict/fit/warning surface
     // faster. Changes:
     //   - Card padding 16 → 12 (saves ~8px top + bottom)
-    //   - Image 96 → 80 (saves 16px row height)
     //   - Identity-row → score gap 16 → 12
     //   - PGScoreLine prominent=true (concise, decision-level score treatment)
     //   - bottomBanner gap 16 → 12
@@ -240,12 +239,10 @@ class PGHeroSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Identity row: image + (name + subtitle + chips column).
-          // Image dropped 96 → 80; saves a row of vertical space without
-          // hurting product recognizability.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(width: 80, height: 80, child: imageWidget),
+              SizedBox(width: 112, height: 112, child: imageWidget),
               const SizedBox(width: V2Spacing.space12),
               Expanded(
                 child: Column(

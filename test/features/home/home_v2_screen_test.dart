@@ -56,7 +56,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
   }
 
-  testWidgets('recent scan image has an inset frame', (tester) async {
+  testWidgets('recent scan image uses the card width with a small inset', (
+    tester,
+  ) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
     addTearDown(() async {
@@ -76,9 +78,10 @@ void main() {
     expect(frameFinder, findsWidgets);
 
     final frame = tester.widget<Container>(frameFinder.first);
-    expect(frame.constraints?.maxWidth, V2Spacing.space64 + V2Spacing.space8);
-    expect(frame.constraints?.maxHeight, V2Spacing.space64 + V2Spacing.space8);
-    expect(frame.padding, const EdgeInsets.all(V2Spacing.space8));
+    expect(frame.constraints?.maxWidth, 132);
+    expect(frame.constraints?.maxHeight, 132);
+    expect(frame.padding, const EdgeInsets.all(V2Spacing.space4));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('recent scans never fall back to fixture cards', (tester) async {
