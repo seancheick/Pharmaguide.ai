@@ -3,6 +3,73 @@ import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
 
 void main() {
   group('markerCanonicalIdsFromDetailBlob', () {
+    for (final surface in ['ingredients', 'display_ingredients', 'quality']) {
+      test(
+        'held marker stays factual but cannot qualify research on $surface',
+        () {
+          final marker = <String, dynamic>{
+            'marker_canonical_id': 'resveratrol',
+            'scoring_eligible': false,
+            'declared_standardization_pct': 50,
+            'estimated_dose_mg': 100,
+          };
+          final row = <String, dynamic>{
+            'canonical_id': 'japanese_knotweed',
+            'source_section': 'activeIngredients',
+            'display_disposition': 'scored',
+            'delivers_markers': [marker],
+          };
+          final blob = <String, dynamic>{
+            if (surface == 'quality')
+              'ingredient_quality_data': {
+                'ingredients': [row],
+              }
+            else
+              surface: [row],
+          };
+          expect(markerCanonicalIdsFromDetailBlob(blob), isEmpty);
+          expect(
+            canonicalIdsFromDetailBlob(blob),
+            contains('japanese_knotweed'),
+          );
+          expect(marker['estimated_dose_mg'], 100);
+          expect(marker['declared_standardization_pct'], 50);
+        },
+      );
+    }
+
+    test(
+      'held relationship preserves independent resveratrol and other markers',
+      () {
+        final blob = <String, dynamic>{
+          'ingredients': [
+            {'canonical_id': 'resveratrol'},
+            {
+              'canonical_id': 'japanese_knotweed',
+              'delivers_markers': [
+                {
+                  'marker_canonical_id': 'resveratrol',
+                  'scoring_eligible': false,
+                },
+              ],
+            },
+            {
+              'canonical_id': 'turmeric',
+              'delivers_markers': [
+                {'marker_canonical_id': 'curcumin', 'scoring_eligible': true},
+                {'marker_canonical_id': 'vitamin_c'},
+              ],
+            },
+          ],
+        };
+        expect(markerCanonicalIdsFromDetailBlob(blob), [
+          'curcumin',
+          'vitamin_c',
+        ]);
+        expect(canonicalIdsFromDetailBlob(blob), contains('resveratrol'));
+      },
+    );
+
     // delivers_markers is the pipeline's "marker-via-ingredient" evidence
     // routing payload: a source botanical (turmeric) declares the bioactive
     // marker it delivers (curcumin) so evidence routing reaches marker-keyed
@@ -140,23 +207,26 @@ void main() {
       expect(markerCanonicalIdsFromDetailBlob(blob), ['curcumin']);
     });
 
-    test('canonical source IDs include active label-ledger identities only', () {
-      final blob = <String, dynamic>{
-        'display_ingredients': [
-          {
-            'source_section': 'activeIngredients',
-            'display_disposition': 'scored',
-            'canonical_id': 'camu_camu',
-          },
-          {
-            'source_section': 'inactiveIngredients',
-            'display_disposition': 'other_ingredient',
-            'canonical_id': 'magnesium_stearate',
-          },
-        ],
-      };
+    test(
+      'canonical source IDs include active label-ledger identities only',
+      () {
+        final blob = <String, dynamic>{
+          'display_ingredients': [
+            {
+              'source_section': 'activeIngredients',
+              'display_disposition': 'scored',
+              'canonical_id': 'camu_camu',
+            },
+            {
+              'source_section': 'inactiveIngredients',
+              'display_disposition': 'other_ingredient',
+              'canonical_id': 'magnesium_stearate',
+            },
+          ],
+        };
 
-      expect(canonicalIdsFromDetailBlob(blob), ['camu_camu']);
-    });
+        expect(canonicalIdsFromDetailBlob(blob), ['camu_camu']);
+      },
+    );
   });
 }
