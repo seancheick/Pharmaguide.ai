@@ -403,16 +403,17 @@ class ProductSubmissionIdentifier {
   ProductSubmissionIdentifier({
     required this.observedCode,
     this.codeType = 'other',
-    this.issuer,
+    String? issuer,
     required this.brandName,
     required this.fullName,
-    this.listingUrl,
+    String? listingUrl,
     this.noCode = false,
-  }) {
+  }) : issuer = issuer?.trim().isEmpty == true ? null : issuer,
+       listingUrl = listingUrl?.trim().isEmpty == true ? null : listingUrl {
     bool valid(String value, int max) =>
         value.trim().isNotEmpty &&
         value.length <= max &&
-        !RegExp(r'[\x00-\x1f\x7f]').hasMatch(value);
+        !RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(value);
     if (!valid(brandName, 300) ||
         !valid(fullName, 300) ||
         !{
@@ -429,14 +430,14 @@ class ProductSubmissionIdentifier {
             : observedCode == null ||
                   !valid(observedCode!, 128) ||
                   codeType == 'none') ||
-        (issuer != null && !valid(issuer!, 200)) ||
-        (listingUrl != null &&
-            (!valid(listingUrl!, 2048) ||
+        (this.issuer != null && !valid(this.issuer!, 200)) ||
+        (this.listingUrl != null &&
+            (!valid(this.listingUrl!, 2048) ||
                 !{
                   'http',
                   'https',
-                }.contains(Uri.tryParse(listingUrl!)?.scheme) ||
-                Uri.tryParse(listingUrl!)?.host.isEmpty != false))) {
+                }.contains(Uri.tryParse(this.listingUrl!)?.scheme) ||
+                Uri.tryParse(this.listingUrl!)?.host.isEmpty != false))) {
       throw const FormatException(
         'Enter a brand, full product name and valid printed code or no-code declaration.',
       );

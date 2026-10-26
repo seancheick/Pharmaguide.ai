@@ -9,6 +9,77 @@ const _rejectedSubmissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a10';
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
+  test(
+    'identifier rejects every C0 and C1 control without rewriting printed code',
+    () {
+      for (final control in [
+        ...List.generate(32, (i) => i),
+        ...List.generate(33, (i) => 0x7f + i),
+      ]) {
+        expect(
+          () => ProductSubmissionIdentifier(
+            observedCode: 'X${String.fromCharCode(control)}Y',
+            brandName: 'Natgrown',
+            fullName: 'Fixture',
+          ),
+          throwsFormatException,
+          reason: 'control U+${control.toRadixString(16)}',
+        );
+      }
+      expect(
+        ProductSubmissionIdentifier(
+          observedCode: ' X002FLZ3X7 ',
+          brandName: 'Natgrown',
+          fullName: 'Fixture',
+        ).observedCode,
+        ' X002FLZ3X7 ',
+      );
+    },
+  );
+
+  test(
+    'empty optional identifier metadata becomes null without rewriting observed code',
+    () {
+      for (final empty in ['', '   ', '\t\n']) {
+        final identifier = ProductSubmissionIdentifier(
+          observedCode: ' X002FLZ3X7 ',
+          brandName: 'Natgrown',
+          fullName: 'Fixture',
+          issuer: empty,
+          listingUrl: empty,
+        );
+        expect(identifier.observedCode, ' X002FLZ3X7 ');
+        expect(identifier.issuer, isNull);
+        expect(identifier.listingUrl, isNull);
+        final restored = ProductSubmissionIdentifier.fromJson({
+          ...identifier.toJson(),
+          'issuer': empty,
+          'listing_url': empty,
+        });
+        expect(restored.observedCode, ' X002FLZ3X7 ');
+        expect(restored.issuer, isNull);
+        expect(restored.listingUrl, isNull);
+      }
+      final nonempty = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+        issuer: ' Store ',
+        listingUrl: 'https://example.test/Label?code=X002FLZ3X7',
+      );
+      expect(nonempty.issuer, ' Store ');
+      expect(nonempty.listingUrl, 'https://example.test/Label?code=X002FLZ3X7');
+      expect(
+        () => ProductSubmissionIdentifier(
+          observedCode: '   ',
+          brandName: 'B',
+          fullName: 'N',
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
   test('catalog correction target accepts established PG_SUB grammar only', () {
     const id = 'PG_SUB_11111111111141118111111111111111';
     expect(LabelMismatchProductMetadata(dsldId: id).dsldId, id);
