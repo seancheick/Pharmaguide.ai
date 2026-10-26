@@ -222,3 +222,12 @@ array by default). `MedicationClassBridge` consults this field before adding a
 curated class from RxClass fallback; absence or unknown identity preserves
 fallback. This is classification only. Aspirin dose, route and confirmed-use
 exceptions are evaluated by the authored medication profile rules.
+
+
+The optional Boolean `delivers_markers[].scoring_eligible=false` excludes a
+source-to-marker relationship from affirmative evidence or benefit routing.
+`markerCanonicalIdsFromDetailBlob` honors this producer decision. The record's
+declared standardization and calculated exposure remain factual; source identities,
+independently declared marker ingredients and safety evaluation remain separate.
+Missing flags preserve legacy routing. This does not approve the relationship or
+change any score in Flutter. D146 restoration requires a qualifying scoped decision.

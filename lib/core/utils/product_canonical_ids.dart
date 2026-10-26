@@ -117,14 +117,17 @@ List<String> canonicalIdsFromDetailBlob(Map<String, dynamic>? detailBlob) {
   final displayIngredients = detailBlob['display_ingredients'];
   if (displayIngredients is List) {
     scanIngredients(
-      displayIngredients.where((item) {
-        if (item is! Map) return false;
-        final section = item['source_section']?.toString().toLowerCase() ?? '';
-        final disposition =
-            item['display_disposition']?.toString().toLowerCase() ?? '';
-        return (section == 'active' || section == 'activeingredients') &&
-            disposition != 'other_ingredient';
-      }).toList(growable: false),
+      displayIngredients
+          .where((item) {
+            if (item is! Map) return false;
+            final section =
+                item['source_section']?.toString().toLowerCase() ?? '';
+            final disposition =
+                item['display_disposition']?.toString().toLowerCase() ?? '';
+            return (section == 'active' || section == 'activeingredients') &&
+                disposition != 'other_ingredient';
+          })
+          .toList(growable: false),
     );
   }
 
@@ -157,7 +160,9 @@ List<String> markerCanonicalIdsFromDetailBlob(
       final markers = item['delivers_markers'];
       if (markers is! List) continue;
       for (final marker in markers) {
-        if (marker is Map) _addCanonicalId(ids, marker['marker_canonical_id']);
+        if (marker is Map && marker['scoring_eligible'] != false) {
+          _addCanonicalId(ids, marker['marker_canonical_id']);
+        }
       }
     }
   }
@@ -167,14 +172,17 @@ List<String> markerCanonicalIdsFromDetailBlob(
   final displayIngredients = detailBlob['display_ingredients'];
   if (displayIngredients is List) {
     scanIngredients(
-      displayIngredients.where((item) {
-        if (item is! Map) return false;
-        final section = item['source_section']?.toString().toLowerCase() ?? '';
-        final disposition =
-            item['display_disposition']?.toString().toLowerCase() ?? '';
-        return (section == 'active' || section == 'activeingredients') &&
-            disposition != 'other_ingredient';
-      }).toList(growable: false),
+      displayIngredients
+          .where((item) {
+            if (item is! Map) return false;
+            final section =
+                item['source_section']?.toString().toLowerCase() ?? '';
+            final disposition =
+                item['display_disposition']?.toString().toLowerCase() ?? '';
+            return (section == 'active' || section == 'activeingredients') &&
+                disposition != 'other_ingredient';
+          })
+          .toList(growable: false),
     );
   }
 
