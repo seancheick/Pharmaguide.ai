@@ -20,6 +20,11 @@ AS $$ SELECT (string_to_array($1, '/'))[array_length(string_to_array($1, '/'), 1
 -- Pipeline-owned distribution seam referenced by the approval-revision
 -- migration. This harness supplies only the external table/function shape;
 -- pipeline tests own catalog rotation behavior.
+\if :{?pipeline_fixture}
+\else
+\set pipeline_fixture true
+\endif
+\if :pipeline_fixture
 CREATE TABLE public.export_manifest (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   db_version text NOT NULL,
@@ -41,6 +46,7 @@ CREATE FUNCTION public.rotate_manifest(
 ) RETURNS uuid LANGUAGE sql AS $$ SELECT gen_random_uuid() $$;
 GRANT EXECUTE ON FUNCTION public.rotate_manifest(
   text,text,text,text,integer,text,timestamptz,text) TO service_role;
+\endif
 
 -- The Postgres image ships auth.uid() but not auth.jwt(), which Supabase Auth
 -- installs. This is Auth's definition: the request claims PostgREST sets.

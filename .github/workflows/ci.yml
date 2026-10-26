@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     # Main already runs near 15 minutes; allow setup + the complete coverage suite.
     # Individual test timeouts, assertions and coverage remain unchanged.
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       # Only pharmaguide_core.db still ships via Git LFS. interaction_db.sqlite
@@ -40,8 +40,18 @@ jobs:
       - name: Edge Function tests
         run: deno test --allow-read --allow-env supabase/functions
 
-      - name: AI connector database isolation and phone approval
-        run: bash scripts/test_ai_connector_rls.sh
+      - uses: actions/checkout@v7
+        with:
+          repository: seancheick/PharmaGuide_Pipeline
+          ref: c8e3ced2ad49b65592c53179adad63128266d052
+          path: pipeline-schema
+
+      - name: Assemble and replay shared migration deployment stream
+        run: |
+          python3 scripts/test_assemble_supabase_migrations.py
+          python3 scripts/assemble_supabase_migrations.py --app-ref HEAD --pipeline-repo pipeline-schema --pipeline-ref c8e3ced2ad49b65592c53179adad63128266d052 --output "$RUNNER_TEMP/shared-supabase-deployment"
+          PG_MIGRATION_DEPLOYMENT_DIR="$RUNNER_TEMP/shared-supabase-deployment" bash scripts/test_ai_connector_rls.sh
+          bash scripts/test_submission_identity.sh
 
       # interaction_db.sqlite is distributed as a versioned GitHub Release asset
       # (not Git LFS). Hydrate + verify it BEFORE analyze/test/package.

@@ -1,5 +1,69 @@
 # Migration history
 
+## Canonical shared deployment stream (October 26, 2026)
+
+The app and pipeline contribute to one Supabase database. Deploy migrations
+through `scripts/assemble_supabase_migrations.py` using explicit commit IDs for
+both repositories. It reads committed bytes, writes an ordered CLI deployment
+directory, and records source paths, commit IDs, SHA-256 hashes and aliases in
+`migration_sources.json`. The source migrations remain in their owning repos.
+
+Production timestamps are canonical in this assembled stream:
+
+| Source repo | Source version | Deployment version |
+|---|---|---|
+| App | 20261023193612 | 20261023223116 |
+| App | 20261023210000 | 20261023223135 |
+| App | 20261023232641 | 20261023233300 |
+| Pipeline | 20261013213803 | 20261014151044 |
+| Pipeline | 20261023190000 | 20261023191950 |
+
+These aliases preserve the exact original SQL. Do not replay the alternate
+timestamps or mark pipeline-owned production records reverted. The assembly
+also retains the pipeline schema and its two reconciled July migrations as
+**replay prerequisites** outside `supabase/migrations`. They reconstruct the
+initial distribution and catalog-search schema in a fresh database and are
+never pushed again to an existing project.
+
+```bash
+python3 scripts/assemble_supabase_migrations.py \
+  --app-ref <app-commit> --pipeline-repo <pipeline-checkout> \
+  --pipeline-ref <pipeline-commit> --output <new-deployment-directory>
+python3 scripts/assemble_supabase_migrations.py --verify <deployment-directory>
+supabase migration list --workdir <deployment-directory> --project-ref omayamxacvacrnvdvzhr
+supabase db push --workdir <deployment-directory> --project-ref omayamxacvacrnvdvzhr --dry-run --skip-vault
+```
+
+Only after reviewing that dry run, use the same command without `--dry-run`.
+Do not push from the app-only migration directory. `--through <version>` can
+assemble a historical checkpoint to prove a history-only reconciliation
+schedules no SQL. No production ledger changes were needed for these aliases.
+
+Disposable replay and structural parity are separate checks:
+
+```bash
+PG_MIGRATION_DEPLOYMENT_DIR=<deployment-directory> \
+  PG_SCHEMA_RECEIPT=<replayed-schema.json> bash scripts/test_ai_connector_rls.sh
+```
+
+The replay uses real pipeline prerequisites and every app migration, with
+production's `postgres` object owner. Its external Auth/Storage surfaces come
+from the disposable provider fixture; it does not prove external provider
+service behavior. `scripts/supabase_schema_receipt.sql` captures public
+functions, constraints, policies, grants, triggers, named column attributes and
+index definitions. Physical column order is excluded because historical ALTERs
+added equivalent named columns in a different order. Compare live and replay
+receipts with `assemble_supabase_migrations.py --compare-schema <live.json>
+<replayed.json>`. Provider-managed event triggers are excluded; SQL source
+comments/formatting and duplicate equivalent constraints do not change parity.
+
+The history-only checkpoint through `20261026132208` matched all 65 production
+versions, scheduled no SQL in the CLI dry run, and rebuilt a public schema
+matching 503 distinct production object definitions and access records.
+
+The historical notes below record earlier reconciliation decisions; the
+assembled stream above supersedes their app-only deployment commands.
+
 ## Remote-only stamps recorded before this repo tracked them
 
 These eight versions exist in `supabase_migrations.schema_migrations` on the
@@ -91,3 +155,8 @@ Applied with Sean's approval, in this order, to `omayamxacvacrnvdvzhr`:
 Personal reads and snapshot POST return503; authenticated deletion stays available. Production
 DCR=false was applied through the Management API and read back. These are containment receipts,
 not personal-connector activation. No WorkOS migration or self-hosted issuer prototype was applied.
+
+The expanded pre-repair comparison found one historical live drift: the existing
+`idx_user_stacks_user_active` index from `20260411000000` was absent. The forward
+repair restores that same partial index without replaying the old migration.
+Deployment config bytes are included in bundle hash verification.

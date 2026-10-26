@@ -43,16 +43,26 @@ DO $$ DECLARE sid uuid; h text; BEGIN
 END $$ $case$);
 
 SELECT fixture.test('correction evidence is protected from historical retention cleanup', $case$
-DO $$ DECLARE sid uuid; h text; BEGIN
+DO $$ DECLARE sid uuid; ordinary uuid; h text; BEGIN
  sid:=fixture.seed(1,'012345678905','under_review',NULL);
  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
  PERFORM fixture.approve(sid);
  SELECT payload_sha256 INTO h FROM public.product_submission_approved_labels
   WHERE submission_id=sid AND approval_revision=1;
- PERFORM public.mark_product_submission_promoted(
-  sid,1,h,'catalog-1','PG_SUB_33333333333333333333333333333333');
- UPDATE public.product_submissions SET promoted_at=now()-interval '91 days' WHERE id=sid;
+ -- Stamp old publication at its first assignment; the preservation trigger
+ -- correctly rejects a subsequent attempt to backdate an existing promotion.
+ UPDATE public.product_submissions SET promoted_at=now()-interval '91 days',
+  promoted_catalog_version='catalog-1', promoted_approval_revision=1,
+  resolved_dsld_id='PG_SUB_33333333333333333333333333333333' WHERE id=sid;
+ PERFORM fixture.assert((SELECT promoted_at < now()-interval '90 days' FROM public.product_submissions WHERE id=sid),'stored correction fixture is genuinely old');
+ ordinary:=fixture.seed(2,'4006381333931','under_review',NULL);
+ PERFORM fixture.approve(ordinary);
+ UPDATE public.product_submissions SET promoted_at=now()-interval '91 days',
+  promoted_catalog_version='catalog-1', promoted_approval_revision=1,
+  resolved_dsld_id='PG_SUB_44444444444444444444444444444444' WHERE id=ordinary;
+ PERFORM fixture.assert((SELECT promoted_at < now()-interval '90 days' FROM public.product_submissions WHERE id=ordinary),'stored ordinary fixture is genuinely old');
  PERFORM public.reopen_product_submission_approval(sid,1,h,'Correct old transcription');
+ PERFORM fixture.assert(EXISTS(SELECT 1 FROM public.claim_product_submission_cleanup(100) WHERE submission_id=ordinary),'ordinary old publication is selected for cleanup');
  PERFORM fixture.assert(NOT EXISTS(
   SELECT 1 FROM public.claim_product_submission_cleanup(100) WHERE submission_id=sid),
   'open correction evidence must not be purged');
@@ -222,4 +232,89 @@ DO $$ BEGIN
   '55000','already used');
  PERFORM fixture.assert((SELECT count(*)=1 FROM public.export_manifest
   WHERE db_version='historical-version'),'historical version remains singular');
+END $$ $case$);
+
+
+SELECT fixture.test('approved account cascade succeeds but direct history and parent deletes fail', $case$
+DO $$ DECLARE sid uuid; BEGIN
+ sid:=fixture.seed(1,'012345678905','under_review',NULL);
+ PERFORM fixture.approve(sid);
+ PERFORM fixture.throws(format('DELETE FROM public.product_submission_approved_labels WHERE submission_id=%L',sid),'55000','immutable');
+ PERFORM fixture.throws(format('DELETE FROM public.product_submissions WHERE id=%L',sid),'55000','account deletion');
+ DELETE FROM auth.users WHERE id=fixture.user_id(1);
+ PERFORM fixture.assert(NOT EXISTS(SELECT 1 FROM public.product_submissions WHERE id=sid),'account cascade removed submission');
+ PERFORM fixture.assert(NOT EXISTS(SELECT 1 FROM public.product_submission_approved_labels WHERE submission_id=sid),'account cascade removed private approval');
+END $$ $case$);
+
+SELECT fixture.test('published correction supports requested submitter retakes', $case$
+DO $$ DECLARE sid uuid; h text; rev integer; BEGIN
+ sid:=fixture.seed(1,'012345678905','under_review',NULL);
+ PERFORM fixture.approve(sid);
+ SELECT payload_sha256 INTO h FROM public.product_submission_approved_labels WHERE submission_id=sid AND approval_revision=1;
+ PERFORM public.mark_product_submission_promoted(sid,1,h,'catalog-1','PG_SUB_11111111111111111111111111111111');
+ PERFORM public.reopen_product_submission_approval(sid,1,h,'Need clearer source photo');
+ PERFORM public.request_product_submission_evidence(sid,'photo_quality',ARRAY['supplement_facts'],1,fixture.manifest_hash(sid));
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(1)::text,false);
+ rev:=public.open_product_submission_evidence_revision(sid,1,gen_random_uuid(),ARRAY['10000000-0000-0000-0000-000000000001'::uuid],'fixture.consent.v1');
+ PERFORM fixture.assert(rev=2,'submitter retake opened');
+ PERFORM fixture.assert((SELECT promoted_approval_revision=1 AND promoted_catalog_version='catalog-1' FROM public.product_submissions WHERE id=sid),'prior publication retained during retake');
+ PERFORM public.add_product_submission_evidence(sid,2,fixture.new_photo(2));
+ PERFORM fixture.upload_revision(sid,2);
+ PERFORM fixture.assert(public.finalize_product_submission(sid,2),'submitter retake finalizes');
+ PERFORM fixture.approve(sid);
+ SELECT payload_sha256 INTO h FROM public.product_submission_approved_labels WHERE submission_id=sid AND approval_revision=2;
+ PERFORM public.mark_product_submission_promoted(sid,2,h,'catalog-2','PG_SUB_11111111111111111111111111111111');
+ PERFORM fixture.assert((SELECT count(*)=1 AND sum(points)=10 FROM public.product_contribution_ledger WHERE submission_id=sid),'correction awards no duplicate points');
+ PERFORM fixture.assert((SELECT promoted_approval_revision=2 AND promoted_catalog_version='catalog-2' FROM public.product_submissions WHERE id=sid),'prior publication retained');
+END $$ $case$);
+
+SELECT fixture.test('published correction awaiting release blocks competing approval', $case$
+DO $$ DECLARE sid uuid; other uuid; h text; BEGIN
+ sid:=fixture.seed(1,'012345678905','under_review',NULL);
+ PERFORM fixture.approve(sid);
+ SELECT payload_sha256 INTO h FROM public.product_submission_approved_labels WHERE submission_id=sid AND approval_revision=1;
+ PERFORM public.mark_product_submission_promoted(sid,1,h,'catalog-1','PG_SUB_11111111111111111111111111111111');
+ PERFORM public.reopen_product_submission_approval(sid,1,h,'Fix original label');
+ PERFORM fixture.approve(sid);
+ other:=fixture.seed(2,'0012345678905','under_review',NULL);
+ PERFORM fixture.throws(format('SELECT fixture.approve(%L)',other),'23505','awaits promotion');
+END $$ $case$);
+
+SELECT fixture.test('expired reviewer upload restarts beyond abandoned history', $case$
+DO $$ DECLARE sid uuid; h text; result jsonb; claim jsonb; rev integer; BEGIN
+ sid:=fixture.seed(1,'012345678905','under_review',NULL);
+ PERFORM fixture.approve(sid);
+ SELECT payload_sha256 INTO h FROM public.product_submission_approved_labels WHERE submission_id=sid AND approval_revision=1;
+ PERFORM public.reopen_product_submission_approval(sid,1,h,'New evidence required');
+ -- A previous submitter request must not mislabel reviewer-owned uploads.
+ UPDATE public.product_submissions SET evidence_requested_at=now(), evidence_requested_revision=1,
+  evidence_requested_by=fixture.user_id(3), evidence_request_reason='photo_quality',
+  evidence_request_panels=ARRAY['supplement_facts']::public.product_submission_evidence_category[] WHERE id=sid;
+ result:=public.create_product_submission_reviewer_evidence_revision(sid,1,h,
+  '20000000-0000-4000-8000-000000000001',fixture.new_photo(9));
+ PERFORM fixture.assert((SELECT evidence_requested_at IS NULL AND evidence_requested_revision IS NULL
+   AND evidence_request_panels IS NULL AND evidence_requested_by IS NULL FROM public.product_submissions WHERE id=sid),'reviewer upload clears stale retake request');
+ UPDATE public.product_submissions SET evidence_revision_opened_at=now()-interval '25 hours' WHERE id=sid;
+ SELECT jsonb_build_object(sid::text,jsonb_build_object('claim_token',claim_token,'evidence_revision',evidence_revision)) INTO claim
+ FROM public.claim_product_submission_cleanup(100) WHERE submission_id=sid;
+ PERFORM fixture.throws(format('SELECT public.finalize_product_submission_reviewer_evidence_revision(%L,2,%L)',sid,repeat('a',64)),'55000','current correction evidence');
+ PERFORM public.complete_product_submission_cleanup(ARRAY[sid],claim);
+ PERFORM fixture.assert((SELECT abandoned_at IS NOT NULL FROM public.product_submission_evidence_revisions WHERE submission_id=sid AND revision=2),'expired revision abandoned');
+ PERFORM fixture.throws(format('SELECT public.create_product_submission_reviewer_evidence_revision(%L,1,%L,%L,fixture.new_photo(9))',sid,h,'20000000-0000-4000-8000-000000000001'),'55000','abandoned');
+ result:=public.create_product_submission_reviewer_evidence_revision(sid,1,h,
+  '20000000-0000-4000-8000-000000000002',fixture.new_photo(10));
+ rev:=(result->>'evidence_revision')::integer;
+ PERFORM fixture.assert(rev=3,'restart allocates past abandoned revision');
+END $$ $case$);
+
+SELECT fixture.test('correction retake entry points reject OAuth clients', $case$
+DO $$ DECLARE sid uuid; h text; BEGIN
+ sid:=fixture.seed(1,'012345678905','under_review',NULL);
+ PERFORM fixture.approve(sid);
+ SELECT payload_sha256 INTO h FROM public.product_submission_approved_labels WHERE submission_id=sid AND approval_revision=1;
+ PERFORM public.reopen_product_submission_approval(sid,1,h,'Need source correction');
+ PERFORM set_config('request.jwt.claims','{"client_id":"untrusted-client"}',true);
+ PERFORM fixture.throws(format('SELECT public.request_product_submission_evidence(%L,''photo_quality'',ARRAY[''supplement_facts''],1,%L)',sid,fixture.manifest_hash(sid)),'42501','AI assistant');
+ PERFORM fixture.throws(format('SELECT public.open_product_submission_evidence_revision(%L,1,gen_random_uuid(),''{}''::uuid[],''fixture.consent.v1'')',sid),'42501','AI assistant');
+ PERFORM fixture.throws(format('SELECT public.create_product_submission_reviewer_evidence_revision(%L,1,%L,gen_random_uuid(),fixture.new_photo(9))',sid,h),'42501','AI assistant');
 END $$ $case$);

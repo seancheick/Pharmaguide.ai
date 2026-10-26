@@ -1638,6 +1638,7 @@ class ProductSubmissionSummary {
 
   bool get isCorrectionAwaitingRelease =>
       reviewStatus == ProductSubmissionReviewStatus.approved &&
+      approvalRevision > 1 &&
       approvalRevision > promotedApprovalRevision;
 
   bool get isComplete =>
@@ -1661,7 +1662,10 @@ class ProductSubmissionSummary {
   bool get retakeUnfinished =>
       hasKnownState &&
       uploadState == ProductSubmissionUploadState.pending &&
-      evidenceRevision > 1;
+      evidenceRevision > 1 &&
+      evidenceRequestedRevision != null &&
+      evidenceRequestedRevision! < evidenceRevision &&
+      evidenceRequestPanels.isNotEmpty;
 
   bool get hasResubmissionTarget => switch (kind) {
     ProductSubmissionKind.missingProduct => upc != null,

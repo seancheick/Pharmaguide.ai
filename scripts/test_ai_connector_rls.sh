@@ -34,16 +34,40 @@ if [[ "$ready" != true ]]; then
   echo 'Disposable Postgres did not become ready.' >&2
   exit 1
 fi
-psql_test() { "$docker_bin" exec -i "$test_container" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 "$@"; }
+test_db_role=supabase_admin
+if [[ -n "${PG_MIGRATION_DEPLOYMENT_DIR:-}" ]]; then
+  # Match production object ownership and postgres default privileges.
+  test_db_role=postgres
+fi
+psql_test() { "$docker_bin" exec -i "$test_container" psql -X -U "$test_db_role" -d postgres -v ON_ERROR_STOP=1 "$@"; }
 # The image finishes its init scripts after first accepting connections.
 for attempt in {1..40}; do
   if psql_test -q -c 'SELECT 1' >/dev/null 2>&1; then break; fi
   sleep 0.25
 done
-psql_test -q < "$repo_dir/supabase/tests/ai_connector/bootstrap.sql"
-for migration in "$repo_dir"/supabase/migrations/*.sql; do
+if [[ -n "${PG_MIGRATION_DEPLOYMENT_DIR:-}" ]]; then
+  # Complete shared-project replay: verify every pinned byte before applying
+  # the real pipeline prerequisites and canonical application migrations.
+  python3 "$repo_dir/scripts/assemble_supabase_migrations.py" --verify "$PG_MIGRATION_DEPLOYMENT_DIR"
+  "$docker_bin" exec -i "$test_container" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q -v pipeline_fixture=false < "$repo_dir/supabase/tests/ai_connector/bootstrap.sql"
+  "$docker_bin" exec -i "$test_container" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q -c 'GRANT USAGE, CREATE ON SCHEMA storage TO postgres; ALTER TABLE storage.objects OWNER TO postgres; ALTER TABLE storage.buckets OWNER TO postgres; GRANT SELECT, UPDATE ON auth.sessions TO postgres;'
+  for prerequisite in "$PG_MIGRATION_DEPLOYMENT_DIR"/replay_prerequisites/*.sql; do
+    psql_test -q < "$prerequisite" >/dev/null
+  done
+  migration_dir="$PG_MIGRATION_DEPLOYMENT_DIR/supabase/migrations"
+else
+  psql_test -q < "$repo_dir/supabase/tests/ai_connector/bootstrap.sql"
+  migration_dir="$repo_dir/supabase/migrations"
+fi
+for migration in "$migration_dir"/*.sql; do
   psql_test -q < "$migration" >/dev/null
 done
+if [[ -n "${PG_SCHEMA_RECEIPT:-}" ]]; then
+  psql_test -Atq < "$repo_dir/scripts/supabase_schema_receipt.sql" > "$PG_SCHEMA_RECEIPT"
+fi
+# Behavioral fixtures impersonate Auth's administrative roles. Object DDL
+# above used postgres; the fixture controller needs the image's admin role.
+test_db_role=supabase_admin
 psql_test -q < "$repo_dir/supabase/tests/ai_connector/restrictive_rls.sql"
 psql_test -q < "$repo_dir/supabase/tests/ai_connector/snapshots_pre_request.sql"
 psql_test -q < "$repo_dir/supabase/tests/ai_connector/phone_pairing.sql"

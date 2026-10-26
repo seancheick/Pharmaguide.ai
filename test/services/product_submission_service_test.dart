@@ -532,6 +532,37 @@ void main() {
         expect(awaiting.isCorrectionAwaitingRelease, isTrue);
         expect(awaiting.isComplete, isFalse);
 
+        final firstApproval = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'upload_state': 'ready',
+          'review_status': 'approved',
+          'approval_revision': 1,
+          'promoted_approval_revision': 0,
+        });
+        expect(firstApproval.isCorrectionAwaitingRelease, isFalse);
+
+        final reviewerUpload = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'upload_state': 'pending',
+          'review_status': 'under_review',
+          'approval_revision': 1,
+          'evidence_revision': 2,
+        });
+        expect(reviewerUpload.retakeUnfinished, isFalse);
+        final submitterUpload = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'upload_state': 'pending',
+          'review_status': 'under_review',
+          'approval_revision': 1,
+          'evidence_revision': 2,
+          'evidence_requested_revision': 1,
+          'evidence_request_panels': ['barcode'],
+        });
+        expect(submitterUpload.retakeUnfinished, isTrue);
+
         final duplicateWithCascadedCatalogLink =
             ProductSubmissionSummary.fromRow({
               'id': _submissionId,

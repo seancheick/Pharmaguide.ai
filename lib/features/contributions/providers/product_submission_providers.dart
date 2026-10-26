@@ -43,6 +43,7 @@ final productSubmissionsProvider =
         for (final submission in all)
           if (submission.dismissedAt == null &&
               (submission.uploadReady ||
+                  submission.isCorrectionUnderReview ||
                   // A retake in progress is the open submission itself.
                   submission.retakeUnfinished ||
                   submission.kind == null ||
