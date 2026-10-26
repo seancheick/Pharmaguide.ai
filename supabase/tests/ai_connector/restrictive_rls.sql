@@ -149,7 +149,8 @@ BEGIN
     WHERE n.nspname = 'public' AND p.proname IN (
       'create_product_submission', 'finalize_product_submission', 'hide_product_submission',
       'get_product_submission_intake', 'add_product_submission_evidence',
-      'set_product_submission_display_name', 'open_product_submission_evidence_revision')
+      'set_product_submission_display_name', 'open_product_submission_evidence_revision',
+      'request_product_submission_evidence', 'create_product_submission_reviewer_evidence_revision')
   LOOP
     PERFORM aic.assert(fn.prosrc LIKE '%PERFORM public.reject_oauth_client_request();%',
       fn.proname || ' keeps the S1 guard');
@@ -176,8 +177,8 @@ BEGIN
   PERFORM aic.assert((SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.prosrc LIKE '%PERFORM public.reject_oauth_client_request();%'
       -- The project-wide PostgREST pre-request guard reuses the same check.
-      AND p.proname <> 'pgrst_reject_ai_assistant_tokens') = 7,
-    'seven guarded RPCs');
+      AND p.proname <> 'pgrst_reject_ai_assistant_tokens') = 9,
+    'nine guarded RPCs');
 END $$;
 RESET role;
 
