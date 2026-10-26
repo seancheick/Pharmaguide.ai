@@ -179,20 +179,26 @@ class _AddMissingProductIdentitySheetState
           ),
           const SizedBox(height: V2Spacing.space8),
           Text(
-            'Enter the UPC/GTIN from the package or store listing. We’ll '
-            'check your installed catalog first. For a missing product, '
-            'include clear photos showing the brand and full product name, '
-            'complete Supplement Facts, directions and warnings, and the '
-            'barcode or printed UPC.',
+            _alternative
+                ? 'You can continue without a UPC. Enter the brand, full '
+                      'product name, and any code exactly as printed. A reviewer '
+                      'will check the label photos.'
+                : 'Enter the UPC/GTIN from the package or store listing. We’ll '
+                      'check your installed catalog first. For a missing product, '
+                      'include clear photos showing the brand and full product name, '
+                      'complete Supplement Facts, directions and warnings, and the '
+                      'barcode or printed UPC.',
             style: V2Typography.bodySm(color: context.v2.fgMuted),
           ),
-          const SizedBox(height: V2Spacing.space12),
-          Text(
-            'TCIN and DPCI can help you find the listing, but they are not '
-            'product identity keys and are not used to match or publish a '
-            'product.',
-            style: V2Typography.caption(color: context.v2.fgSubtle),
-          ),
+          if (!_alternative) ...[
+            const SizedBox(height: V2Spacing.space12),
+            Text(
+              'TCIN and DPCI can help you find the listing, but they are not '
+              'product identity keys and are not used to match or publish a '
+              'product.',
+              style: V2Typography.caption(color: context.v2.fgSubtle),
+            ),
+          ],
           const SizedBox(height: V2Spacing.space16),
           TextButton(
             key: const Key('add-product-alternate-code'),
@@ -222,7 +228,7 @@ class _AddMissingProductIdentitySheetState
               controller: _url,
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
-                labelText: 'Listing URL (optional)',
+                labelText: 'Product link (optional)',
               ),
             ),
             CheckboxListTile(
@@ -233,7 +239,7 @@ class _AddMissingProductIdentitySheetState
               onChanged: (v) => setState(() => _noCode = v!),
             ),
             const Text(
-              'Other / not sure is okay. A reviewer checks the label and product identity; this code does not confirm catalog absence.',
+              'You don’t need to know the code type. A reviewer will check it against your photos.',
             ),
           ],
           if (!_alternative || !_noCode)

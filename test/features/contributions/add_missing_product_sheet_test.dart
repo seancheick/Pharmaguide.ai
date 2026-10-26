@@ -11,6 +11,35 @@ import '../../support/app_fonts.dart';
 
 void main() {
   testWidgets(
+    'alternate entry explains review instead of promising numeric lookup',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showAddMissingProductIdentitySheet(context),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Enter the UPC/GTIN'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('add-product-alternate-code')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Enter the UPC/GTIN'), findsNothing);
+      expect(find.textContaining('TCIN and DPCI'), findsNothing);
+      expect(find.textContaining('continue without a UPC'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('add-product-alternate-code')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Enter the UPC/GTIN'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'whitespace optional listing URL continues without rewriting printed code',
     (tester) async {
       Object? result;

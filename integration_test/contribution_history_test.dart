@@ -6,6 +6,7 @@ import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/scanner/product_version_label_sheet.dart';
+import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 
 import '../test/features/contributions/product_submissions_screen_test.dart'
     show submissionHistoryHarness;
@@ -40,7 +41,12 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('add-product-continue')));
       await tester.tap(find.byKey(const Key('add-product-continue')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('X002FLZ3X7'), findsOneWidget);
+      final capture = tester.widget<MissingProductSubmissionSheet>(
+        find.byType(MissingProductSubmissionSheet),
+      );
+      expect(capture.identifier?.observedCode, 'X002FLZ3X7');
+      expect(capture.upc, isEmpty);
+      expect(find.text('X002FLZ3X7'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await binding.takeScreenshot('alternate-identifier-capture');
     },
