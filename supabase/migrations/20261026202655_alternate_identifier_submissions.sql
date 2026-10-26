@@ -621,7 +621,7 @@ ALTER TABLE public.product_submission_match_checks DROP CONSTRAINT product_submi
 ALTER TABLE public.product_submission_match_checks ADD CONSTRAINT product_submission_match_check_shape CHECK (
  CASE outcome::text WHEN 'catalog_match' THEN matched_dsld_id IS NOT NULL AND (identity_method='label_review' OR cardinality(candidate_dsld_ids)=0) AND reason IS NULL
  WHEN 'dsld_match' THEN matched_dsld_id IS NOT NULL AND (identity_method='label_review' OR cardinality(candidate_dsld_ids)=0) AND reason IS NULL
- WHEN 'identity_ambiguous' THEN matched_dsld_id IS NULL AND cardinality(candidate_dsld_ids)>=2 AND reason IS NULL
+ WHEN 'identity_ambiguous' THEN matched_dsld_id IS NULL AND cardinality(candidate_dsld_ids)>=CASE WHEN identity_method='label_review' THEN 1 ELSE 2 END AND reason IS NULL
  WHEN 'no_match_verified' THEN matched_dsld_id IS NULL AND cardinality(candidate_dsld_ids)=0 AND reason IS NULL AND identity_method='gtin'
  WHEN 'new_product_verified' THEN matched_dsld_id IS NULL AND identity_method='label_review' AND identifier_decision IS NOT NULL
  WHEN 'not_this_product' THEN matched_dsld_id IS NOT NULL AND cardinality(candidate_dsld_ids)=0 AND reason IS NOT NULL ELSE false END);
@@ -724,6 +724,9 @@ BEGIN
  SELECT d.payload_sha256 INTO label_digest FROM public.product_submission_reviewer_drafts d WHERE d.submission_id=p_submission_id AND d.reviewer_id=auth.uid();
  IF label_digest IS NULL THEN RAISE EXCEPTION 'reviewed label draft required for identity decision' USING ERRCODE='55000'; END IF;
  conflicts:=public.product_submission_identity_conflicts(p_submission_id);
+ IF p_identity_method='label_review' AND p_outcome::text='identity_ambiguous' AND cardinality(p_candidate_dsld_ids)=1
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(conflicts) c WHERE c->>'source'='pending' AND c->>'id'=p_candidate_dsld_ids[1]) THEN
+  RAISE EXCEPTION 'single-candidate ambiguity requires an actual pending intake' USING ERRCODE='22023'; END IF;
  IF EXISTS(SELECT 1 FROM jsonb_array_elements(conflicts) c WHERE c->>'id' IS DISTINCT FROM p_matched_dsld_id AND NOT (c->>'id'=ANY(p_candidate_dsld_ids))) THEN
   RAISE EXCEPTION 'complete current conflict candidates required' USING ERRCODE='55000'; END IF;
  INSERT INTO public.product_submission_match_checks(submission_id,reviewer_id,outcome,canonical_gtin14,index_built_at,matched_dsld_id,candidate_dsld_ids,reason,identity_method,identifier_decision,candidate_review_complete,index_revision,conflict_snapshot,label_payload_sha256)
@@ -853,6 +856,7 @@ BEGIN
  OR char_length(btrim(coalesce(p_reason,''))) NOT BETWEEN 5 AND 2000
  OR m.identity_method IS DISTINCT FROM 'label_review' OR m.identifier_decision IS NULL OR NOT m.candidate_review_complete
  OR m.evidence_revision IS DISTINCT FROM sid.evidence_revision OR m.label_payload_sha256 IS DISTINCT FROM d.payload_sha256
+ OR m.conflict_snapshot IS DISTINCT FROM public.product_submission_identity_conflicts(p_submission_id)
  OR m.index_built_at<now()-interval '60 days' OR m.index_built_at>now()+interval '5 minutes'
  OR m.identifier_decision->>'verified_gtin' IS NOT NULL
  OR nullif(btrim(m.identifier_decision->>'package'),'') IS NULL
@@ -1229,6 +1233,7 @@ DECLARE
     coalesce(p_reason, ''), '[\x00-\x1F\x7F]', '', 'g')), '');
   latest_event public.product_submission_review_events%ROWTYPE;
 BEGIN
+  PERFORM public.assert_product_submission_reviewer();
   PERFORM public.lock_product_submission_identity();
   IF v_reviewer_id IS NULL OR NOT EXISTS (
     SELECT 1 FROM public.product_submission_reviewers AS reviewer
@@ -1497,6 +1502,7 @@ DECLARE
   reason_value text := btrim(coalesce(p_reason, ''));
   new_target_key text;
 BEGIN
+  PERFORM public.assert_product_submission_reviewer();
   PERFORM public.lock_product_submission_identity();
   IF reviewer_id IS NULL OR NOT EXISTS (
     SELECT 1
@@ -1975,11 +1981,11 @@ DECLARE result jsonb;
 BEGIN
  PERFORM public.assert_product_submission_reviewer();
  SELECT jsonb_build_object('complete',true,'conflicts',public.product_submission_identity_conflicts(p_submission_id),
- 'pending',coalesce((SELECT jsonb_agg(jsonb_build_object('dsld_id',c->>'id','brandName',CASE WHEN a.schema_version='manual_label_v2' THEN a.approved_payload#>>'{label,brandName}' ELSE a.approved_payload->>'brandName' END,'fullName',CASE WHEN a.schema_version='manual_label_v2' THEN a.approved_payload#>>'{label,fullName}' ELSE a.approved_payload->>'fullName' END,'approval_revision',a.approval_revision))
+ 'pending',coalesce((SELECT jsonb_agg(jsonb_build_object('submission_id',s.id,'dsld_id',c->>'id','package',a.approved_payload#>>'{identity,decision,package}','issuer',a.approved_payload#>>'{identity,decision,issuer}','brandName',CASE WHEN a.schema_version='manual_label_v2' THEN a.approved_payload#>>'{label,brandName}' ELSE a.approved_payload->>'brandName' END,'fullName',CASE WHEN a.schema_version='manual_label_v2' THEN a.approved_payload#>>'{label,fullName}' ELSE a.approved_payload->>'fullName' END,'approval_revision',a.approval_revision))
  FROM jsonb_array_elements(public.product_submission_identity_conflicts(p_submission_id)) c
- JOIN public.product_submissions s ON coalesce(s.correction_target_dsld_id,'PG_SUB_'||upper(replace(s.id::text,'-','')))=c->>'id'
- JOIN public.product_submission_approved_labels a ON a.submission_id=s.id AND a.approval_revision=s.approval_revision
- WHERE c->>'source'='pending'),'[]'::jsonb)) INTO result;
+ JOIN public.product_submission_approved_labels a ON a.approval_revision::text=c->>'revision'
+ JOIN public.product_submissions s ON s.id=a.submission_id AND s.approval_revision=a.approval_revision AND s.review_status='approved' AND s.approval_revision>s.promoted_approval_revision
+ WHERE c->>'source'='pending' AND coalesce(a.correction_target_dsld_id,a.target_dsld_id,'PG_SUB_'||upper(replace(s.id::text,'-','')))=c->>'id'),'[]'::jsonb)) INTO result;
  RETURN result;
 END $$;
 REVOKE ALL ON FUNCTION public.get_product_submission_identity_candidates(uuid) FROM PUBLIC,anon,service_role;

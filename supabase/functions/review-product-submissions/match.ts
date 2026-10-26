@@ -217,7 +217,9 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
     }
   } else if (outcome === "identity_ambiguous") {
     if (
-      matchedDsldId !== null || candidateDsldIds.length < 2 || reason !== null
+      matchedDsldId !== null ||
+      candidateDsldIds.length < (identityMethod === "label_review" ? 1 : 2) ||
+      reason !== null
     ) {
       throw new Error("invalid ambiguous-match evidence");
     }

@@ -233,3 +233,42 @@ Deno.test("v2 GTIN review keeps substantive reason and permits null package", ()
     "Compared exact GTIN candidates against full label",
   );
 });
+
+Deno.test("single pending label-review candidate can remain ambiguous while numeric ambiguity still requires two", () => {
+  const request = {
+    action: "record_match",
+    submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
+    outcome: "identity_ambiguous",
+    canonical_gtin14: null,
+    index_built_at: indexBuiltAt,
+    identity_method: "label_review",
+    candidate_review_complete: true,
+    index_revision: "pending-index",
+    candidate_dsld_ids: ["PG_SUB_" + "A".repeat(32)],
+    identifier_decision: {
+      code_type: "other",
+      issuer: null,
+      verified_gtin: null,
+      package: "60 capsules",
+      reason: "Compared fresh label against the one pending intake",
+    },
+  };
+  assertEquals(parseRecordMatchRequest(request).outcome, "identity_ambiguous");
+  assertThrows(() =>
+    parseRecordMatchRequest({ ...request, candidate_dsld_ids: [] })
+  );
+  assertThrows(() =>
+    parseRecordMatchRequest({
+      action: "record_match",
+      submission_id: submissionId,
+      expected_evidence_revision: 1,
+      evidence_manifest_sha256: "a".repeat(64),
+      outcome: "identity_ambiguous",
+      canonical_gtin14: "00036000291452",
+      index_built_at: indexBuiltAt,
+      candidate_dsld_ids: ["123"],
+    })
+  );
+});

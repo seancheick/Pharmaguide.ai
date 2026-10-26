@@ -244,11 +244,19 @@ DECLARE envelope jsonb; wire text; BEGIN
  wire:=envelope::text;
  RETURN public.review_product_submission(p_id,'approved',p_approved_schema_version=>'manual_label_v2',p_approved_payload=>envelope,p_approved_payload_canonical=>wire,p_payload_sha256=>encode(extensions.digest(wire,'sha256'),'hex'),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(p_id),p_product_image_photo_id=>'10000000-0000-0000-0000-000000000001',p_correction_target_dsld_id=>p_target);
 END $$;
+CREATE FUNCTION fixture.refresh_pending_duplicate_identity(p_id uuid) RETURNS bigint LANGUAGE plpgsql AS $$
+DECLARE decision jsonb; candidates text[];
+BEGIN
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
+ SELECT identifier_decision INTO decision FROM public.product_submission_match_checks WHERE submission_id=p_id ORDER BY created_at DESC,id DESC LIMIT 1;
+ SELECT array_agg(DISTINCT c->>'id' ORDER BY c->>'id') INTO candidates FROM jsonb_array_elements(public.product_submission_identity_conflicts(p_id)) c;
+ RETURN public.record_product_submission_match_check(p_id,'identity_ambiguous',NULL,now(),NULL,candidates,NULL,1,fixture.manifest_hash(p_id),'label_review',decision,true,'fresh-pending-index');
+END $$;
 SELECT fixture.test('explicit no-GTIN duplicate uses reviewed label package and issuer, not observed code', $case$
 DO $$ DECLARE a uuid; b uuid; bad uuid; BEGIN
  a:=fixture.seed_alternate(1,'Duplicate Brand','Duplicate Label');
  b:=fixture.seed_alternate(2,'Duplicate Brand','Duplicate Label');
- PERFORM fixture.approve_alternate(a);
+ PERFORM fixture.approve_alternate(a); PERFORM fixture.refresh_pending_duplicate_identity(b);
  PERFORM fixture.assert(public.review_product_submission(b,'duplicate',p_duplicate_of=>a,p_resolution_code=>'duplicate_submission',p_review_notes=>'Compared complete labels, package and issuer: same product',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(b)),'reviewed no-GTIN duplicate linked');
  PERFORM fixture.assert((SELECT review_status='duplicate' AND duplicate_of=a FROM public.product_submissions WHERE id=b),'existing duplicate owner used');
 END $$ $case$);
@@ -273,7 +281,7 @@ DO $$ DECLARE a uuid; b uuid; c uuid; d uuid; e uuid; BEGIN
  e:=fixture.seed_alternate(5,'Duplicate Scope','Other product');
  PERFORM public.record_product_submission_match_check(b,'new_product_verified',NULL,now(),NULL,'{}',NULL,1,fixture.manifest_hash(b),'label_review','{"code_type":"other","issuer":null,"verified_gtin":null,"package":"120 capsules","reason":"Verified a different package"}',true,'package-index');
  PERFORM public.record_product_submission_match_check(c,'new_product_verified',NULL,now(),NULL,'{}',NULL,1,fixture.manifest_hash(c),'label_review','{"code_type":"other","issuer":"Other issuer","verified_gtin":null,"package":"60 capsules","reason":"Verified a different issuer"}',true,'issuer-index');
- PERFORM fixture.approve_alternate(a);
+ PERFORM fixture.approve_alternate(a); PERFORM fixture.refresh_pending_duplicate_identity(b); PERFORM fixture.refresh_pending_duplicate_identity(c);
  FOREACH b IN ARRAY ARRAY[b,c,d,e] LOOP
  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''duplicate'',p_duplicate_of=>%L,p_resolution_code=>''duplicate_submission'',p_review_notes=>''Compared complete label package issuer'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',b,a,fixture.manifest_hash(b)),'22023','approved matching submission');
  END LOOP;
@@ -281,7 +289,7 @@ END $$ $case$);
 SELECT fixture.test('no-GTIN duplicate requires substantive human reason and current field verification', $case$
 DO $$ DECLARE a uuid; b uuid; BEGIN
  a:=fixture.seed_alternate(1,'Duplicate Verified','Same label'); b:=fixture.seed_alternate(2,'Duplicate Verified','Same label');
- PERFORM fixture.approve_alternate(a);
+ PERFORM fixture.approve_alternate(a); PERFORM fixture.refresh_pending_duplicate_identity(b);
  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''duplicate'',p_duplicate_of=>%L,p_resolution_code=>''duplicate_submission'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',b,a,fixture.manifest_hash(b)),'22023','approved matching submission');
  DELETE FROM public.product_submission_field_verifications WHERE submission_id=b;
  PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''duplicate'',p_duplicate_of=>%L,p_resolution_code=>''duplicate_submission'',p_review_notes=>''Compared complete label package issuer'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',b,a,fixture.manifest_hash(b)),'55000','fields not read');
@@ -293,4 +301,43 @@ DO $$ BEGIN
  PERFORM fixture.throws('SELECT public.prepare_product_submission_approval_payload(NULL,NULL)','42501','AI assistant connections cannot call this function');
  PERFORM fixture.throws('SELECT public.save_product_submission_reviewer_draft(NULL,NULL,NULL,NULL,NULL,NULL)','42501','AI assistant connections cannot call this function');
  PERFORM fixture.throws('SELECT public.get_product_submission_identity_candidates(NULL)','42501','AI assistant connections cannot call this function');
+END $$ $case$);
+SELECT fixture.test('ordinary B after approved A records truthful pending ambiguity then explicit duplicate', $case$
+DO $$ DECLARE a uuid; b uuid:=gen_random_uuid(); target text; mid bigint; BEGIN
+ a:=fixture.seed_alternate(1,'Sequential Duplicate','Same label'); PERFORM fixture.approve_alternate(a); target:='PG_SUB_'||upper(replace(a::text,'-',''));
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(2)::text,false);
+ PERFORM public.create_product_submission(b,'missing_product',p_photos=>fixture.photos(),p_consent_version=>'pharmaguide.submission_consent.2026-10-26.v2',p_identifier=>fixture.alternate_identifier('Another printed code','Sequential Duplicate','Same label'));
+ INSERT INTO storage.objects(bucket_id,name,owner_id,metadata,user_metadata)
+ SELECT 'product-submission-photos',object_path,user_id::text,jsonb_build_object('size',byte_size,'mimetype',content_type),jsonb_build_object('content_sha256',content_sha256) FROM public.product_submission_photos WHERE submission_id=b;
+ PERFORM fixture.assert(public.finalize_product_submission(b,1),'B captured after A approved');
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
+ PERFORM public.review_product_submission(b,'under_review',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(b));
+ PERFORM fixture.prepare_review(b,'{"brandName":"Sequential Duplicate","fullName":"Same label"}');
+ PERFORM fixture.assert(public.get_product_submission_identity_candidates(b)#>>'{pending,0,submission_id}'=a::text,'pending candidate exposes actual intake UUID');
+ PERFORM fixture.assert(public.get_product_submission_identity_candidates(b)#>>'{pending,0,package}'='60 capsules','reviewed package is visible for explicit comparison');
+ mid:=public.record_product_submission_match_check(b,'identity_ambiguous',NULL,now(),NULL,ARRAY[target],NULL,1,fixture.manifest_hash(b),'label_review','{"code_type":"other","issuer":null,"verified_gtin":null,"package":"60 capsules","reason":"Compared the pending intake and fresh label"}',true,'pending-candidate-index');
+ PERFORM fixture.assert((SELECT outcome='identity_ambiguous' FROM public.product_submission_match_checks WHERE id=mid),'no false new-product or released catalog claim');
+ PERFORM fixture.assert(NOT (public.product_submission_identity_check(b)->>'satisfies_approval')::boolean,'uncertainty never permits approval');
+ PERFORM fixture.assert(public.review_product_submission(b,'duplicate',p_duplicate_of=>a,p_resolution_code=>'duplicate_submission',p_review_notes=>'Compared complete label, reviewed package and issuer: same product',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(b)),'ordinary later intake resolves via explicit duplicate owner');
+END $$ $case$);
+SELECT fixture.test('single-candidate ambiguity cannot invent a pending intake', $case$
+DO $$ DECLARE sid uuid; BEGIN
+ sid:=fixture.seed_alternate(1,'Single invented','Label');
+ PERFORM fixture.throws(format('SELECT public.record_product_submission_match_check(%L,''identity_ambiguous'',NULL,now(),NULL,ARRAY[''PG_SUB_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA''],NULL,1,%L,''label_review'',''{"code_type":"other","issuer":null,"verified_gtin":null,"package":"60 capsules","reason":"Reviewed candidate"}'',true,''index'')',sid,fixture.manifest_hash(sid)),'22023','actual pending');
+END $$ $case$);
+SELECT fixture.test('reopen and barcode correction reject an OAuth reviewer before touching state', $case$
+DO $$ BEGIN
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false); PERFORM set_config('request.jwt.claims','{"client_id":"reviewer-oauth-client"}',false);
+ PERFORM fixture.throws('SELECT public.reopen_product_submission_approval(NULL,NULL,NULL,NULL)','42501','AI assistant connections cannot call this function');
+ PERFORM fixture.throws('SELECT public.correct_product_submission_barcode(NULL,NULL,NULL,NULL,NULL)','42501','AI assistant connections cannot call this function');
+END $$ $case$);
+SELECT fixture.test('duplicate receipt refuses a changed target approval revision until fresh candidate review', $case$
+DO $$ DECLARE a uuid; b uuid; target text; h text; BEGIN
+ a:=fixture.seed_alternate(1,'Revision Duplicate','Same label'); b:=fixture.seed_alternate(2,'Revision Duplicate','Same label'); PERFORM fixture.approve_alternate(a); target:='PG_SUB_'||upper(replace(a::text,'-',''));
+ PERFORM public.record_product_submission_match_check(b,'identity_ambiguous',NULL,now(),NULL,ARRAY[target],NULL,1,fixture.manifest_hash(b),'label_review','{"code_type":"other","issuer":null,"verified_gtin":null,"package":"60 capsules","reason":"Reviewed target approval revision one"}',true,'revision-one-index');
+ SELECT payload_sha256 INTO h FROM public.product_submission_approved_labels WHERE submission_id=a AND approval_revision=1;
+ PERFORM public.reopen_product_submission_approval(a,1,h,'Review target label again'); PERFORM fixture.prepare_review(a,'{"brandName":"Revision Duplicate","fullName":"Same label"}'); PERFORM fixture.approve_alternate(a);
+ PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''duplicate'',p_duplicate_of=>%L,p_resolution_code=>''duplicate_submission'',p_review_notes=>''Compared complete label package issuer'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',b,a,fixture.manifest_hash(b)),'22023','approved matching submission');
+ PERFORM fixture.refresh_pending_duplicate_identity(b);
+ PERFORM fixture.assert(public.review_product_submission(b,'duplicate',p_duplicate_of=>a,p_resolution_code=>'duplicate_submission',p_review_notes=>'Fresh complete label package issuer comparison',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(b)),'fresh current revision receipt resolves duplicate');
 END $$ $case$);
