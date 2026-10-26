@@ -1,3 +1,4 @@
+import { canonicalJson } from "./schema.ts";
 import {
   createClient,
   type SupabaseClient,
@@ -171,30 +172,6 @@ function requiredUuid(value: unknown, name: string): string {
 
 function validateApprovedPayload(value: unknown): JsonObject {
   return validateManualLabelV1(value);
-}
-
-function canonicalJson(value: unknown): string {
-  if (
-    value === null || typeof value === "boolean" ||
-    typeof value === "string"
-  ) {
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error("non-finite number");
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
-  }
-  if (isObject(value)) {
-    return `{${
-      Object.keys(value).sort().map((key) =>
-        `${JSON.stringify(key)}:${canonicalJson(value[key])}`
-      ).join(",")
-    }}`;
-  }
-  throw new Error("unsupported JSON value");
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -673,11 +650,29 @@ async function applyTransition(
       "approved schema version",
       80,
     );
-    if (schemaVersion !== APPROVED_SCHEMA_VERSION) {
+    if (
+      schemaVersion !== APPROVED_SCHEMA_VERSION &&
+      schemaVersion !== "manual_label_v2"
+    ) {
       throw new Error("unsupported approved schema version");
     }
     approvedPayload = validateApprovedPayload(body.approved_payload);
     await verifyDisclosurePhotoSupport(evidence, approvedPayload);
+    if (schemaVersion === "manual_label_v2") {
+      const { data: envelope, error: envelopeError } = await userClient.rpc(
+        "prepare_product_submission_approval_payload",
+        {
+          p_submission_id: submissionId,
+          p_label: approvedPayload,
+          p_correction_target_dsld_id: catalogRelation.correctionTargetDsldId,
+          p_edition_of_dsld_id: catalogRelation.editionOfDsldId,
+        },
+      );
+      if (envelopeError || !isObject(envelope)) {
+        throw envelopeError ?? new Error("reviewed identity envelope required");
+      }
+      approvedPayload = envelope;
+    }
     approvedPayloadCanonical = canonicalJson(approvedPayload);
     if (
       new TextEncoder().encode(approvedPayloadCanonical).byteLength >
@@ -839,7 +834,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
       let query = admin
         .from("product_submissions")
         .select(
-          "id,kind,normalized_upc,upload_state,review_status,created_at,submitted_at," +
+          "id,kind,normalized_upc,identifier,upload_state,review_status,created_at,submitted_at," +
             "reviewed_at,promoted_catalog_version,promoted_at," +
             "approval_revision,promoted_approval_revision,evidence_revision," +
             "declared_no_separate_ingredient_panel," +
@@ -1204,6 +1199,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
           p_submission_id: match.submissionId,
           p_outcome: match.outcome,
           p_canonical_gtin14: match.canonicalGtin14,
+          p_identity_method: match.identityMethod ?? "gtin",
+          p_identifier_decision: match.identifierDecision ?? null,
+          p_candidate_review_complete: match.candidateReviewComplete ?? false,
+          p_index_revision: match.indexRevision ?? null,
           p_index_built_at: match.indexBuiltAt,
           p_matched_dsld_id: match.matchedDsldId,
           p_candidate_dsld_ids: match.candidateDsldIds,
@@ -1269,6 +1268,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
       if (error) throw error;
       audit(reviewerId, action, "success", 1);
       const review = data as JsonObject;
+      const { data: identityCandidates, error: candidatesError } =
+        await userClient.rpc("get_product_submission_identity_candidates", {
+          p_submission_id: submissionId,
+        });
+      if (candidatesError) throw candidatesError;
+      review.identity_candidates = identityCandidates;
       const images = (review.reviewer_images ?? []) as JsonObject[];
       review.reviewer_images = await Promise.all(images.map(async (image) => {
         const { data: signed, error: signingError } = await admin.storage

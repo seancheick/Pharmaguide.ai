@@ -104,6 +104,43 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'alternate-code real entry opens capture without inventing a catalog miss',
+    (tester) async {
+      final db = CoreDatabase.memory();
+      addTearDown(db.close);
+      await tester.pumpWidget(_harness(const [], db: db));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('contributions-add-product')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('add-product-alternate-code')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('add-product-brand')),
+        'Natgrown',
+      );
+      await tester.enterText(
+        find.byKey(const Key('add-product-name')),
+        'Label fixture',
+      );
+      await tester.enterText(
+        find.byKey(const Key('add-product-gtin-field')),
+        'X002FLZ3X7',
+      );
+      await tester.ensureVisible(find.byKey(const Key('add-product-continue')));
+      await tester.tap(find.byKey(const Key('add-product-continue')));
+      await tester.pumpAndSettle();
+      final capture = tester.widget<MissingProductSubmissionSheet>(
+        find.byType(MissingProductSubmissionSheet),
+      );
+      expect(capture.upc, '');
+      expect(capture.identifier!.observedCode, 'X002FLZ3X7');
+      expect(find.textContaining('Natgrown · Label fixture'), findsOneWidget);
+      expect(find.text('View product'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('known UPC offers the catalog product before photos', (
     tester,
   ) async {

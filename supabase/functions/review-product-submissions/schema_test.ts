@@ -173,3 +173,14 @@ Deno.test("label_draft_v1 accepts and rejects the shared contract cases", () => 
     }
   }
 });
+
+Deno.test("canonical approval envelope uses the same writer as label attestations", async () => {
+  const { canonicalJson } = await import("./schema.ts");
+  assertEquals(
+    canonicalJson({
+      label: { fullName: "D3", brandName: "Éxample" },
+      identity: { observed: null, match_check_id: 12 },
+    }),
+    '{"identity":{"match_check_id":12,"observed":null},"label":{"brandName":"Éxample","fullName":"D3"}}',
+  );
+});

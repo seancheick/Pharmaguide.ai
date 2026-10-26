@@ -12,6 +12,37 @@ const _barcode = '10000000-0000-4000-8000-000000000003';
 const _newFacts = '10000000-0000-4000-8000-000000000004';
 
 void main() {
+  test(
+    'requested and interrupted alternate-code retakes keep the submission UUID',
+    () async {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      for (final interrupted in [false, true]) {
+        final backend = _RetakeBackend();
+        final plan = await ProductSubmissionService(backend: backend)
+            .prepareRetake(
+              ProductSubmissionSummary.fromRow({
+                'id': _submissionId,
+                'kind': 'missing_product',
+                'normalized_upc': null,
+                'identifier': identifier.toJson(),
+                'upload_state': interrupted ? 'pending' : 'ready',
+                'review_status': 'under_review',
+                'evidence_revision': interrupted ? 2 : 1,
+                'evidence_requested_revision': 1,
+                'evidence_request_panels': ['supplement_facts'],
+              }),
+            );
+        expect(plan.submissionId, _submissionId);
+        expect(plan.fromRevision, 1);
+        expect(plan.identifier!.observedCode, 'X002FLZ3X7');
+        expect(plan.coversRequired([_newFactsPhoto()]), isTrue);
+      }
+    },
+  );
   group('summary', () {
     Map<String, Object?> row({
       String status = 'under_review',

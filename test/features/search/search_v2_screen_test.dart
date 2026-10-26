@@ -40,6 +40,32 @@ class _FakeRecentSearchesService extends RecentSearchesService {
 }
 
 void main() {
+  test(
+    'reviewed submission-origin product with no UPC hydrates by name and brand',
+    () async {
+      final db = CoreDatabase.memory();
+      addTearDown(db.close);
+      const id = 'PG_SUB_11111111111141118111111111111111';
+      await db
+          .into(db.productsCore)
+          .insert(
+            ProductsCoreCompanion.insert(
+              dsldId: id,
+              productName: 'Unnumbered label fixture',
+              brandName: const drift.Value('Natgrown'),
+              exportVersion: 'isolated-fixture',
+              exportedAt: '2026-10-26T00:00:00Z',
+            ),
+          );
+      for (final query in ['Natgrown', 'Unnumbered label']) {
+        final results = await db.searchProducts(query);
+        expect(results.map((p) => p.dsldId), contains(id));
+        expect(results.single.upcSku, isNull);
+      }
+      expect((await db.findById(id))!.productName, 'Unnumbered label fixture');
+    },
+  );
+
   Future<void> seedSearchProduct(
     CoreDatabase coreDb, {
     String dsldId = 'search-v2-1',

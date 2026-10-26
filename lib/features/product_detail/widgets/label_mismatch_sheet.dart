@@ -26,6 +26,7 @@ typedef PickProductSubmissionPhoto =
 Future<void> showLabelMismatchSheet(
   BuildContext context, {
   required LabelMismatchProductMetadata product,
+  VoidCallback? onPresented,
   bool? isAuthenticated,
   ProductSubmissionService? reportService,
   PickProductSubmissionPhoto? pickPhoto,
@@ -39,7 +40,7 @@ Future<void> showLabelMismatchSheet(
       reportService ??
       (signedIn ? ProductSubmissionService.production() : null);
 
-  await PGModal.bottomSheet<void>(
+  final presentation = PGModal.bottomSheet<void>(
     context: context,
     builder: (sheetContext) => LabelMismatchSheet(
       product: product,
@@ -64,6 +65,8 @@ Future<void> showLabelMismatchSheet(
           },
     ),
   );
+  onPresented?.call();
+  await presentation;
 }
 
 class LabelMismatchSheet extends StatefulWidget {

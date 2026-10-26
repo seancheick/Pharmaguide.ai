@@ -50,3 +50,20 @@ Deno.test("only a catalog id, never a submission id or free text", () => {
     );
   }
 });
+
+Deno.test("submission-origin correction and edition targets retain established product ids", () => {
+  const id = "PG_SUB_" + "A".repeat(32);
+  assertEquals(
+    parseCatalogRelation({ correction_target_dsld_id: id }, "approved")
+      .correctionTargetDsldId,
+    id,
+  );
+  assertEquals(
+    parseCatalogRelation({ edition_of_dsld_id: id }, "approved")
+      .editionOfDsldId,
+    id,
+  );
+  assertThrows(() =>
+    parseCatalogRelation({ edition_of_dsld_id: id + "A" }, "approved")
+  );
+});

@@ -1068,7 +1068,12 @@ void main() {
         labelMismatchConsentCopy,
       ]) {
         expect(
-          foundations,
+          Directory('supabase/migrations')
+              .listSync()
+              .whereType<File>()
+              .where((file) => file.path.endsWith('.sql'))
+              .map((file) => file.readAsStringSync())
+              .join('\n'),
           contains(sha256.convert(utf8.encode(copy)).toString()),
         );
       }

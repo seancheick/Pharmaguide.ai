@@ -1157,3 +1157,27 @@ export function collectManualLabelDiagnostics(
   // approval gate still rejects it.
   return [{ path: "$", message: summary }, ...diagnostics];
 }
+
+export function canonicalJson(value: unknown): string {
+  if (
+    value === null || typeof value === "boolean" ||
+    typeof value === "string"
+  ) {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("non-finite number");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  if (isObject(value)) {
+    return `{${
+      Object.keys(value).sort().map((key) =>
+        `${JSON.stringify(key)}:${canonicalJson(value[key])}`
+      ).join(",")
+    }}`;
+  }
+  throw new Error("unsupported JSON value");
+}

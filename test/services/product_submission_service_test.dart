@@ -9,6 +9,276 @@ const _rejectedSubmissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a10';
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
+  test(
+    'owner history loads valid rows alongside malformed identifier rows',
+    () async {
+      final valid = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      final backend = _FakeBackend(
+        authenticatedUserId: _userId,
+        statusRows: [
+          for (final identifier in [
+            null,
+            <String, Object?>{},
+            {'observed_code': 42},
+            'wrong type',
+            valid.toJson(),
+          ])
+            {
+              'id': newProductSubmissionId(),
+              'kind': 'missing_product',
+              'upload_state': 'ready',
+              'review_status': 'under_review',
+              'identifier': identifier,
+            },
+        ],
+      );
+      final rows = await ProductSubmissionService(
+        backend: backend,
+      ).listOwnSubmissions();
+      expect(rows, hasLength(5));
+      expect(rows.take(4).every((row) => row.identifier == null), isTrue);
+      expect(rows.last.identifier!.observedCode, 'X002FLZ3X7');
+    },
+  );
+
+  test(
+    'malformed identifier is confined to its history row and cannot authorize retakes',
+    () {
+      for (final identifier in [
+        null,
+        <String, Object?>{},
+        {'observed_code': 'X002FLZ3X7'},
+        {'observed_code': 42},
+        'wrong type',
+      ]) {
+        final row = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'identifier': identifier,
+          'normalized_upc': null,
+          'upload_state': 'ready',
+          'review_status': 'under_review',
+          'evidence_revision': 1,
+          'evidence_requested_revision': 1,
+          'evidence_request_panels': ['supplement_facts'],
+        });
+        expect(row.identifier, isNull);
+        expect(row.needsNewPhotos, isFalse);
+        expect(row.hasResubmissionTarget, isFalse);
+      }
+      final legacy = ProductSubmissionSummary.fromRow({
+        'id': _submissionId,
+        'kind': 'missing_product',
+        'normalized_upc': '050428381397',
+        'upload_state': 'ready',
+        'review_status': 'under_review',
+        'evidence_revision': 1,
+        'evidence_requested_revision': 1,
+        'evidence_request_panels': ['supplement_facts'],
+      });
+      expect(legacy.needsNewPhotos, isTrue);
+      final valid = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      expect(
+        ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'identifier': valid.toJson(),
+        }).identifier!.observedCode,
+        'X002FLZ3X7',
+      );
+    },
+  );
+
+  test(
+    'identifier rejects every C0 and C1 control without rewriting printed code',
+    () {
+      for (final control in [
+        ...List.generate(32, (i) => i),
+        ...List.generate(33, (i) => 0x7f + i),
+      ]) {
+        expect(
+          () => ProductSubmissionIdentifier(
+            observedCode: 'X${String.fromCharCode(control)}Y',
+            brandName: 'Natgrown',
+            fullName: 'Fixture',
+          ),
+          throwsFormatException,
+          reason: 'control U+${control.toRadixString(16)}',
+        );
+      }
+      expect(
+        ProductSubmissionIdentifier(
+          observedCode: ' X002FLZ3X7 ',
+          brandName: 'Natgrown',
+          fullName: 'Fixture',
+        ).observedCode,
+        ' X002FLZ3X7 ',
+      );
+    },
+  );
+
+  test(
+    'empty optional identifier metadata becomes null without rewriting observed code',
+    () {
+      for (final empty in ['', '   ', '\t\n']) {
+        final identifier = ProductSubmissionIdentifier(
+          observedCode: ' X002FLZ3X7 ',
+          brandName: 'Natgrown',
+          fullName: 'Fixture',
+          issuer: empty,
+          listingUrl: empty,
+        );
+        expect(identifier.observedCode, ' X002FLZ3X7 ');
+        expect(identifier.issuer, isNull);
+        expect(identifier.listingUrl, isNull);
+        final restored = ProductSubmissionIdentifier.fromJson({
+          ...identifier.toJson(),
+          'issuer': empty,
+          'listing_url': empty,
+        });
+        expect(restored.observedCode, ' X002FLZ3X7 ');
+        expect(restored.issuer, isNull);
+        expect(restored.listingUrl, isNull);
+      }
+      final nonempty = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+        issuer: ' Store ',
+        listingUrl: 'https://example.test/Label?code=X002FLZ3X7',
+      );
+      expect(nonempty.issuer, ' Store ');
+      expect(nonempty.listingUrl, 'https://example.test/Label?code=X002FLZ3X7');
+      expect(
+        () => ProductSubmissionIdentifier(
+          observedCode: '   ',
+          brandName: 'B',
+          fullName: 'N',
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test('catalog correction target accepts established PG_SUB grammar only', () {
+    const id = 'PG_SUB_11111111111141118111111111111111';
+    expect(LabelMismatchProductMetadata(dsldId: id).dsldId, id);
+    for (final bad in [
+      '$id'
+          '0',
+      'PG_SUB_'
+              'a' *
+          32,
+      'arbitrary',
+    ]) {
+      expect(
+        () => LabelMismatchProductMetadata(dsldId: bad),
+        throwsA(isA<ProductSubmissionValidationException>()),
+      );
+    }
+  });
+
+  test(
+    'alternate identity preserves exact code through retry and null GTIN',
+    () async {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Label evidence fixture',
+      );
+      final backend = _FakeBackend(authenticatedUserId: _userId);
+      final draft = MissingProductSubmissionDraft(
+        submissionId: _submissionId,
+        upc: null,
+        identifier: identifier,
+        photos: [
+          for (final c in MissingProductSubmissionDraft.requiredCategories)
+            _photo(c),
+        ],
+      );
+      final service = ProductSubmissionService(backend: backend);
+      await service.submit(draft);
+      await service.submit(draft);
+      expect(backend.persistedPayload!['p_upc'], isNull);
+      expect(backend.persistedPayload!['p_identifier'], identifier.toJson());
+      expect(backend.persistedPayload!['p_submission_id'], _submissionId);
+    },
+  );
+  test(
+    'no-code declaration waives only code photo and rejected retry is linked',
+    () {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: null,
+        codeType: 'none',
+        noCode: true,
+        brandName: 'Fixture',
+        fullName: 'Unnumbered label',
+      );
+      final categories = MissingProductSubmissionDraft.requiredCategories.where(
+        (c) => c != ProductSubmissionEvidenceCategory.barcode,
+      );
+      final draft = MissingProductSubmissionDraft(
+        submissionId: _submissionId,
+        resubmissionOf: _rejectedSubmissionId,
+        upc: null,
+        identifier: identifier,
+        photos: [for (final c in categories) _photo(c)],
+      );
+      expect(draft.resubmissionOf, _rejectedSubmissionId);
+      expect(
+        () => MissingProductSubmissionDraft(
+          submissionId: _submissionId,
+          upc: null,
+          identifier: identifier,
+          photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
+        ),
+        throwsA(isA<ProductSubmissionValidationException>()),
+      );
+      final row = ProductSubmissionSummary.fromRow({
+        'id': _submissionId,
+        'kind': 'missing_product',
+        'normalized_upc': null,
+        'identifier': identifier.toJson(),
+        'review_status': 'rejected',
+        'upload_state': 'ready',
+      });
+      expect(row.hasResubmissionTarget, isTrue);
+    },
+  );
+  test(
+    'alternate identifier rejects contradictions without rewriting code',
+    () {
+      for (final code in ['', 'X\n036000291452', 'x' * 129]) {
+        expect(
+          () => ProductSubmissionIdentifier(
+            observedCode: code,
+            brandName: 'B',
+            fullName: 'N',
+          ),
+          throwsFormatException,
+        );
+      }
+      expect(
+        () => ProductSubmissionIdentifier(
+          observedCode: 'X002FLZ3X7',
+          codeType: 'none',
+          noCode: true,
+          brandName: 'B',
+          fullName: 'N',
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
   test('display name is trimmed and never changes identity fields', () async {
     final backend = _FakeBackend(authenticatedUserId: _userId);
     await ProductSubmissionService(
@@ -552,6 +822,7 @@ void main() {
         });
         expect(reviewerUpload.retakeUnfinished, isFalse);
         final submitterUpload = ProductSubmissionSummary.fromRow({
+          'normalized_upc': '050428381397',
           'id': _submissionId,
           'kind': 'missing_product',
           'upload_state': 'pending',

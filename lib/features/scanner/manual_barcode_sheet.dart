@@ -7,7 +7,6 @@
 // [onProductNotFound] callbacks.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -89,10 +88,8 @@ class _ManualBarcodeSheetState extends State<_ManualBarcodeSheet> {
             controller: _controller,
             autofocus: true,
             keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(14),
-            ],
+            // Validate the observed input unchanged. Filtering letters or
+            // truncating a paste can manufacture a valid-looking GTIN.
             decoration: InputDecoration(
               hintText: 'e.g., 123456789012',
               hintStyle: V2Typography.body(

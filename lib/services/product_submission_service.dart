@@ -147,9 +147,12 @@ class LabelMismatchProductMetadata {
     };
   }
 
+  static bool isValidCatalogId(String value) =>
+      RegExp(r'^(?:[0-9]{1,30}|PG_SUB_[0-9A-F]{32})$').hasMatch(value);
+
   static String _requiredDsldId(String value) {
     final normalized = value.trim();
-    if (!RegExp(r'^[0-9]{1,30}$').hasMatch(normalized)) {
+    if (!isValidCatalogId(normalized)) {
       throw const ProductSubmissionValidationException(
         ProductSubmissionValidationFailure.missingDsldId,
       );
@@ -387,11 +390,96 @@ class LabelMismatchReportDraft implements ProductSubmissionDraft {
   }
 }
 
-/// New product evidence created from a barcode miss.
-///
-/// Coverage is category-typed: the photo set must include front_identity,
-/// supplement_facts, ingredient_disclosure, and barcode (one photo may carry
-/// several). Product/brand names are intentionally not collected as text.
+/// Private contributor evidence; classification is an unverified hint.
+class ProductSubmissionIdentifier {
+  final String? observedCode;
+  final String codeType;
+  final String? issuer;
+  final String brandName;
+  final String fullName;
+  final String? listingUrl;
+  final bool noCode;
+
+  ProductSubmissionIdentifier({
+    required this.observedCode,
+    this.codeType = 'other',
+    String? issuer,
+    required this.brandName,
+    required this.fullName,
+    String? listingUrl,
+    this.noCode = false,
+  }) : issuer = issuer?.trim().isEmpty == true ? null : issuer,
+       listingUrl = listingUrl?.trim().isEmpty == true ? null : listingUrl {
+    bool valid(String value, int max) =>
+        value.trim().isNotEmpty &&
+        value.length <= max &&
+        !RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(value);
+    if (!valid(brandName, 300) ||
+        !valid(fullName, 300) ||
+        !{
+          'other',
+          'amazon_fnsku',
+          'amazon_asin',
+          'manufacturer_sku',
+          'retailer_sku',
+          'lot',
+          'none',
+        }.contains(codeType) ||
+        (noCode
+            ? observedCode != null || codeType != 'none'
+            : observedCode == null ||
+                  !valid(observedCode!, 128) ||
+                  codeType == 'none') ||
+        (this.issuer != null && !valid(this.issuer!, 200)) ||
+        (this.listingUrl != null &&
+            (!valid(this.listingUrl!, 2048) ||
+                !{
+                  'http',
+                  'https',
+                }.contains(Uri.tryParse(this.listingUrl!)?.scheme) ||
+                Uri.tryParse(this.listingUrl!)?.host.isEmpty != false))) {
+      throw const FormatException(
+        'Enter a brand, full product name and valid printed code or no-code declaration.',
+      );
+    }
+  }
+
+  Map<String, Object?> toJson() => {
+    'observed_code': observedCode,
+    'code_type': codeType,
+    'issuer': issuer,
+    'brandName': brandName,
+    'fullName': fullName,
+    'listing_url': listingUrl,
+    'no_code': noCode,
+  };
+  factory ProductSubmissionIdentifier.fromJson(Map<String, dynamic> json) {
+    const keys = {
+      'observed_code',
+      'code_type',
+      'issuer',
+      'brandName',
+      'fullName',
+      'listing_url',
+      'no_code',
+    };
+    if (json.length != keys.length || !json.keys.every(keys.contains)) {
+      throw const FormatException('Invalid identifier fields');
+    }
+    return ProductSubmissionIdentifier(
+      observedCode: json['observed_code'] as String?,
+      codeType: json['code_type'] as String,
+      issuer: json['issuer'] as String?,
+      brandName: json['brandName'] as String,
+      fullName: json['fullName'] as String,
+      listingUrl: json['listing_url'] as String?,
+      noCode: json['no_code'] as bool,
+    );
+  }
+}
+
+/// Complete label evidence. An explicit no-code declaration waives only
+/// the barcode photo; every other existing required category remains.
 class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   static const requiredCategories = <ProductSubmissionEvidenceCategory>{
     ProductSubmissionEvidenceCategory.frontIdentity,
@@ -405,7 +493,8 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   @override
   final String? resubmissionOf;
   @override
-  final String upc;
+  final String? upc;
+  final ProductSubmissionIdentifier? identifier;
   @override
   final List<ProductSubmissionPhoto> photos;
   @override
@@ -414,14 +503,18 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   MissingProductSubmissionDraft({
     required String submissionId,
     String? resubmissionOf,
-    required String upc,
+    required String? upc,
+    this.identifier,
     required List<ProductSubmissionPhoto> photos,
     this.noSeparateIngredientPanel = false,
   }) : submissionId = _validateSubmissionId(submissionId),
        resubmissionOf = _optionalSubmissionId(resubmissionOf),
-       upc = _normalizeUpc(upc),
+       upc = upc == null ? null : _normalizeUpc(upc),
        photos = List.unmodifiable(photos) {
     _validatePhotoSet(photos);
+    if (this.upc == null && identifier == null) {
+      throw const FormatException("Missing identity");
+    }
     if (this.resubmissionOf == this.submissionId) {
       throw const ProductSubmissionValidationException(
         ProductSubmissionValidationFailure.invalidReportId,
@@ -430,7 +523,13 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
     final covered = <ProductSubmissionEvidenceCategory>{
       for (final photo in photos) ...photo.categories,
     };
-    if (!covered.containsAll(requiredCategories)) {
+    if (!covered.containsAll(
+      requiredCategories.where(
+        (c) =>
+            !(identifier?.noCode == true &&
+                c == ProductSubmissionEvidenceCategory.barcode),
+      ),
+    )) {
       throw const ProductSubmissionValidationException(
         ProductSubmissionValidationFailure.missingRequiredPhoto,
       );
@@ -438,7 +537,8 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
   }
 
   factory MissingProductSubmissionDraft.create({
-    required String upc,
+    required String? upc,
+    ProductSubmissionIdentifier? identifier,
     required List<ProductSubmissionPhoto> photos,
     bool noSeparateIngredientPanel = false,
     String? resubmissionOf,
@@ -447,6 +547,7 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
     return MissingProductSubmissionDraft(
       submissionId: (submissionIdFactory ?? _newUuidV4)(),
       upc: upc,
+      identifier: identifier,
       photos: photos,
       noSeparateIngredientPanel: noSeparateIngredientPanel,
       resubmissionOf: resubmissionOf,
@@ -465,6 +566,7 @@ class MissingProductSubmissionDraft implements ProductSubmissionDraft {
 class ProductSubmissionRetake {
   final String submissionId;
   final String upc;
+  final ProductSubmissionIdentifier? identifier;
 
   /// The ready revision the new photos replace.
   final int fromRevision;
@@ -477,6 +579,7 @@ class ProductSubmissionRetake {
   const ProductSubmissionRetake._({
     required this.submissionId,
     required this.upc,
+    this.identifier,
     required this.fromRevision,
     required this.keptPhotoIds,
     required this.keptCategories,
@@ -488,6 +591,7 @@ class ProductSubmissionRetake {
   factory ProductSubmissionRetake.plan({
     required String submissionId,
     required String upc,
+    ProductSubmissionIdentifier? identifier,
     required int fromRevision,
     required List<
       ({String photoId, Set<ProductSubmissionEvidenceCategory> categories})
@@ -509,7 +613,8 @@ class ProductSubmissionRetake {
         .toList(growable: false);
     return ProductSubmissionRetake._(
       submissionId: _validateSubmissionId(submissionId),
-      upc: _normalizeUpc(upc),
+      upc: identifier == null ? _normalizeUpc(upc) : upc,
+      identifier: identifier,
       fromRevision: fromRevision,
       keptPhotoIds: List.unmodifiable(kept.map((photo) => photo.photoId)),
       keptCategories: Set.unmodifiable({
@@ -526,10 +631,17 @@ class ProductSubmissionRetake {
 
   /// The same completeness rule the server applies at finalize: kept and new
   /// photos together cover every required panel.
-  bool coversRequired(Iterable<ProductSubmissionPhoto> newPhotos) => {
-    ...keptCategories,
-    for (final photo in newPhotos) ...photo.categories,
-  }.containsAll(MissingProductSubmissionDraft.requiredCategories);
+  bool coversRequired(Iterable<ProductSubmissionPhoto> newPhotos) =>
+      {
+        ...keptCategories,
+        for (final photo in newPhotos) ...photo.categories,
+      }.containsAll(
+        MissingProductSubmissionDraft.requiredCategories.where(
+          (c) =>
+              !(identifier?.noCode == true &&
+                  c == ProductSubmissionEvidenceCategory.barcode),
+        ),
+      );
 
   void validateNewPhotos(List<ProductSubmissionPhoto> photos) {
     _validatePhotoSet(photos);
@@ -896,6 +1008,8 @@ class ProductSubmissionService {
       'p_kind': draft.kind.wireValue,
       'p_upc': draft.upc,
       'p_mismatch_detail': draft.mismatchDetail,
+      if (draft is MissingProductSubmissionDraft && draft.identifier != null)
+        'p_identifier': draft.identifier!.toJson(),
       'p_no_separate_ingredient_panel': draft.noSeparateIngredientPanel,
       'p_photos': _photoManifest(orderedPhotos),
       if (draft.resubmissionOf != null)
@@ -1010,7 +1124,7 @@ class ProductSubmissionService {
         ? status.evidenceRequestedRevision
         : null;
     if (fromRevision == null ||
-        upc == null ||
+        (upc == null && status.identifier == null) ||
         status.evidenceRequestPanels.isEmpty) {
       throw StateError('No new photos were requested.');
     }
@@ -1030,7 +1144,8 @@ class ProductSubmissionService {
     final byId = {for (final row in photos) row['photo_id'] as String: row};
     return ProductSubmissionRetake.plan(
       submissionId: status.submissionId,
-      upc: upc,
+      upc: upc ?? '',
+      identifier: status.identifier,
       fromRevision: fromRevision,
       reason: status.evidenceRequestReason,
       requestedPanels: status.evidenceRequestPanels,
@@ -1314,7 +1429,7 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
     final rows = await _client
         .from(table)
         .select(
-          'id,kind,normalized_upc,upload_state,review_status,created_at,display_name,'
+          'id,kind,normalized_upc,identifier,upload_state,review_status,created_at,display_name,'
           'approval_revision,promoted_approval_revision,'
           'promoted_catalog_version,promoted_at,dismissed_at,'
           'resolution_code,resolution_detail,resolved_dsld_id,'
@@ -1564,6 +1679,7 @@ class ProductSubmissionSummary {
     this.resolvedDsldId,
     this.mismatchProduct,
     this.displayName,
+    this.identifier,
     this.photoUrls = const [],
     this.evidenceRevision = 1,
     this.evidenceRequestedRevision,
@@ -1575,6 +1691,7 @@ class ProductSubmissionSummary {
 
   /// Recognition label projected from review, not a matching/scoring input.
   final String? displayName;
+  final ProductSubmissionIdentifier? identifier;
 
   /// Short-lived owner-authorized evidence URLs; never persisted.
   final List<String> photoUrls;
@@ -1651,6 +1768,7 @@ class ProductSubmissionSummary {
   /// A reviewer is waiting on new photos of this submission's current label.
   bool get needsNewPhotos =>
       hasKnownState &&
+      (upc != null || identifier != null) &&
       kind == ProductSubmissionKind.missingProduct &&
       uploadReady &&
       (reviewStatus == ProductSubmissionReviewStatus.submitted ||
@@ -1661,6 +1779,7 @@ class ProductSubmissionSummary {
   /// New photos were started for a later revision but not finished sending.
   bool get retakeUnfinished =>
       hasKnownState &&
+      (upc != null || identifier != null) &&
       uploadState == ProductSubmissionUploadState.pending &&
       evidenceRevision > 1 &&
       evidenceRequestedRevision != null &&
@@ -1668,10 +1787,22 @@ class ProductSubmissionSummary {
       evidenceRequestPanels.isNotEmpty;
 
   bool get hasResubmissionTarget => switch (kind) {
-    ProductSubmissionKind.missingProduct => upc != null,
+    ProductSubmissionKind.missingProduct => upc != null || identifier != null,
     ProductSubmissionKind.labelMismatch => mismatchProduct != null,
     null => false,
   };
+
+  static ProductSubmissionIdentifier? _readIdentifier(Object? value) {
+    try {
+      return value is Map
+          ? ProductSubmissionIdentifier.fromJson(
+              Map<String, dynamic>.from(value),
+            )
+          : null;
+    } on Object {
+      return null;
+    }
+  }
 
   factory ProductSubmissionSummary.fromRow(Map<String, Object?> row) {
     final kind = switch (row['kind']) {
@@ -1711,6 +1842,7 @@ class ProductSubmissionSummary {
       submissionId: row['id'] is String ? row['id']! as String : '',
       kind: kind,
       upc: row['normalized_upc'] as String?,
+      identifier: _readIdentifier(row['identifier']),
       uploadState: ProductSubmissionUploadState.fromWire(row['upload_state']),
       reviewStatus: ProductSubmissionReviewStatus.fromWire(
         row['review_status'],
