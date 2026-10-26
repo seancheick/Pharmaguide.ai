@@ -10,11 +10,47 @@ const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
   test(
+    'owner history loads valid rows alongside malformed identifier rows',
+    () async {
+      final valid = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      final backend = _FakeBackend(
+        authenticatedUserId: _userId,
+        statusRows: [
+          for (final identifier in [
+            null,
+            <String, Object?>{},
+            {'observed_code': 42},
+            'wrong type',
+            valid.toJson(),
+          ])
+            {
+              'id': newProductSubmissionId(),
+              'kind': 'missing_product',
+              'upload_state': 'ready',
+              'review_status': 'under_review',
+              'identifier': identifier,
+            },
+        ],
+      );
+      final rows = await ProductSubmissionService(
+        backend: backend,
+      ).listOwnSubmissions();
+      expect(rows, hasLength(5));
+      expect(rows.take(4).every((row) => row.identifier == null), isTrue);
+      expect(rows.last.identifier!.observedCode, 'X002FLZ3X7');
+    },
+  );
+
+  test(
     'malformed identifier is confined to its history row and cannot authorize retakes',
     () {
       for (final identifier in [
         null,
-        {},
+        <String, Object?>{},
         {'observed_code': 'X002FLZ3X7'},
         {'observed_code': 42},
         'wrong type',
