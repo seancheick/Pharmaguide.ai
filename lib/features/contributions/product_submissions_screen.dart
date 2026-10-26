@@ -506,7 +506,7 @@ class _ImpactGrid extends StatelessWidget {
                   s.reviewStatus == ProductSubmissionReviewStatus.underReview),
         )
         .length;
-    final approved = statuses.where((s) => s.isComplete).length;
+    final approved = statuses.where((s) => s.hasCatalogContribution).length;
     final submitted = statuses.where((s) => s.uploadReady).length;
     final notAdded = statuses
         .where(
@@ -1232,6 +1232,20 @@ _StatusDisplay _statusDisplay(V2Palette p, ProductSubmissionSummary status) {
       'Status unavailable',
       Icons.help_outline_rounded,
       p.fgMuted,
+    );
+  }
+  if (status.isCorrectionUnderReview) {
+    return _StatusDisplay(
+      'Correction under review',
+      Icons.fact_check_outlined,
+      p.accent,
+    );
+  }
+  if (status.isCorrectionAwaitingRelease) {
+    return _StatusDisplay(
+      'Correction approved — awaiting release',
+      Icons.verified_outlined,
+      p.safe,
     );
   }
   if (status.isComplete) {

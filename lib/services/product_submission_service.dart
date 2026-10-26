@@ -1315,6 +1315,7 @@ class _SupabaseProductSubmissionBackend implements ProductSubmissionBackend {
         .from(table)
         .select(
           'id,kind,normalized_upc,upload_state,review_status,created_at,display_name,'
+          'approval_revision,promoted_approval_revision,'
           'promoted_catalog_version,promoted_at,dismissed_at,'
           'resolution_code,resolution_detail,resolved_dsld_id,'
           'evidence_revision,evidence_requested_revision,'
@@ -1554,6 +1555,8 @@ class ProductSubmissionSummary {
     required this.reviewStatus,
     required this.createdAt,
     required this.promotedCatalogVersion,
+    this.approvalRevision = 0,
+    this.promotedApprovalRevision = 0,
     this.promotedAt,
     this.dismissedAt,
     this.resolutionCode,
@@ -1590,6 +1593,8 @@ class ProductSubmissionSummary {
   final ProductSubmissionReviewStatus reviewStatus;
   final DateTime? createdAt;
   final String? promotedCatalogVersion;
+  final int approvalRevision;
+  final int promotedApprovalRevision;
   final DateTime? promotedAt;
   final DateTime? dismissedAt;
   final ProductSubmissionResolutionCode? resolutionCode;
@@ -1623,11 +1628,24 @@ class ProductSubmissionSummary {
       uploadState != ProductSubmissionUploadState.unknown &&
       reviewStatus != ProductSubmissionReviewStatus.unknown;
 
+  bool get hasCatalogContribution =>
+      approvalRevision > 0 &&
+      (promotedApprovalRevision > 0 || promotedCatalogVersion != null);
+
+  bool get isCorrectionUnderReview =>
+      reviewStatus == ProductSubmissionReviewStatus.underReview &&
+      approvalRevision > 0;
+
+  bool get isCorrectionAwaitingRelease =>
+      reviewStatus == ProductSubmissionReviewStatus.approved &&
+      approvalRevision > promotedApprovalRevision;
+
   bool get isComplete =>
       hasKnownState &&
       uploadReady &&
       reviewStatus == ProductSubmissionReviewStatus.approved &&
-      promotedCatalogVersion != null;
+      hasCatalogContribution &&
+      approvalRevision == promotedApprovalRevision;
 
   /// A reviewer is waiting on new photos of this submission's current label.
   bool get needsNewPhotos =>
@@ -1660,6 +1678,13 @@ class ProductSubmissionSummary {
     final createdAtRaw = row['created_at'];
     final promotedAtRaw = row['promoted_at'];
     final dismissedAtRaw = row['dismissed_at'];
+    final hasLegacyPromotion = row['promoted_catalog_version'] is String;
+    final approvalRevision = row['approval_revision'] is int
+        ? row['approval_revision']! as int
+        : (row['review_status'] == 'approved' ? 1 : 0);
+    final promotedApprovalRevision = row['promoted_approval_revision'] is int
+        ? row['promoted_approval_revision']! as int
+        : (hasLegacyPromotion ? 1 : 0);
     final mismatchRow = _nestedMismatchRow(
       row['product_submission_mismatch_details'],
     );
@@ -1690,6 +1715,8 @@ class ProductSubmissionSummary {
           ? DateTime.tryParse(createdAtRaw)?.toUtc()
           : null,
       promotedCatalogVersion: row['promoted_catalog_version'] as String?,
+      approvalRevision: approvalRevision,
+      promotedApprovalRevision: promotedApprovalRevision,
       promotedAt: promotedAtRaw is String
           ? DateTime.tryParse(promotedAtRaw)?.toUtc()
           : null,

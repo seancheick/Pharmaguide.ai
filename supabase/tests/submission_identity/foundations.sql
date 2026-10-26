@@ -172,10 +172,9 @@ DO $$ DECLARE sid uuid; BEGIN
  PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
  PERFORM fixture.approve(sid);
  PERFORM fixture.assert(EXISTS(SELECT 1 FROM public.export_approved_product_submissions() WHERE submission_id=sid),'current approval exports');
- UPDATE public.product_submission_approved_labels SET evidence_revision=999 WHERE submission_id=sid;
- PERFORM fixture.throws('SELECT * FROM public.export_approved_product_submissions()','55000','approval evidence changed');
- PERFORM fixture.throws(format('SELECT * FROM public.get_approved_product_submission_image(%L)',sid),'55000','approval evidence changed');
- PERFORM fixture.throws(format('SELECT public.mark_product_submission_promoted(%L,''2026.09.09'',''12345'')',sid),'55000','approval evidence changed');
+ PERFORM fixture.throws(format('UPDATE public.product_submission_approved_labels SET evidence_revision=999 WHERE submission_id=%L',sid),'55000','immutable');
+ PERFORM fixture.throws(format('SELECT * FROM public.get_approved_product_submission_image(%L,1,%L)',sid,repeat('0',64)),'55000','approval changed');
+ PERFORM fixture.throws(format('SELECT public.mark_product_submission_promoted(%L,1,%L,''2026.09.09'',''12345'')',sid,repeat('0',64)),'55000','approval changed');
 END $$ $case$);
 
 SELECT fixture.test('reviewer image finalization is immutable and revision bound', $case$

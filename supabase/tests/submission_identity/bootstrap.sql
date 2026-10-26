@@ -15,3 +15,28 @@ AS $$ SELECT (string_to_array($1, '/'))[1:array_length(string_to_array($1, '/'),
 CREATE FUNCTION storage.filename(text) RETURNS text LANGUAGE sql IMMUTABLE
 AS $$ SELECT (string_to_array($1, '/'))[array_length(string_to_array($1, '/'), 1)] $$;
 CREATE TABLE public.pending_products (id uuid);
+
+-- Pipeline-owned distribution seam required by the correction activation
+-- migration. The app suite models only the table/function shape; pipeline
+-- tests own the full distribution behavior.
+CREATE TABLE public.export_manifest (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  db_version text NOT NULL,
+  pipeline_version text NOT NULL,
+  scoring_version text NOT NULL,
+  schema_version text NOT NULL,
+  product_count integer NOT NULL,
+  checksum text NOT NULL,
+  min_app_version text NOT NULL DEFAULT '1.0.0',
+  generated_at timestamptz NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  is_current boolean NOT NULL DEFAULT true
+);
+ALTER TABLE public.export_manifest ENABLE ROW LEVEL SECURITY;
+CREATE UNIQUE INDEX export_manifest_one_current_fixture
+  ON public.export_manifest((true)) WHERE is_current;
+CREATE FUNCTION public.rotate_manifest(
+  text,text,text,text,integer,text,timestamptz,text
+) RETURNS uuid LANGUAGE sql AS $$ SELECT gen_random_uuid() $$;
+GRANT EXECUTE ON FUNCTION public.rotate_manifest(
+  text,text,text,text,integer,text,timestamptz,text) TO service_role;

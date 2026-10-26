@@ -496,6 +496,76 @@ void main() {
     expect(find.textContaining('050428381397'), findsNWidgets(2));
   });
 
+  testWidgets('shows correction states while retaining the catalog addition', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(
+            id: 'correction-open',
+            reviewStatus: 'under_review',
+            catalogVersion: 'release-1',
+          ),
+          'approval_revision': 1,
+          'promoted_approval_revision': 1,
+        },
+        {
+          ..._row(
+            id: 'correction-approved',
+            reviewStatus: 'approved',
+            catalogVersion: 'release-1',
+          ),
+          'approval_revision': 2,
+          'promoted_approval_revision': 1,
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Correction under review'), findsOneWidget);
+    expect(find.text('Correction approved — awaiting release'), findsOneWidget);
+    final approvedCard = find.byKey(const Key('contributions-stat-approved'));
+    expect(
+      find.descendant(of: approvedCard, matching: find.text('2')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('does not count a duplicate that only inherited a catalog link', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(
+            id: 'promoted-primary',
+            reviewStatus: 'approved',
+            catalogVersion: 'release-1',
+          ),
+          'approval_revision': 1,
+          'promoted_approval_revision': 1,
+        },
+        {
+          ..._row(
+            id: 'duplicate-link',
+            reviewStatus: 'duplicate',
+            catalogVersion: 'release-1',
+          ),
+          'approval_revision': 0,
+          'promoted_approval_revision': 0,
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    final approvedCard = find.byKey(const Key('contributions-stat-approved'));
+    expect(
+      find.descendant(of: approvedCard, matching: find.text('1')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('unknown status is unavailable, never a false completion', (
     tester,
   ) async {

@@ -19,8 +19,8 @@ SELECT fixture.test('a refused promotion awards nothing', $case$
 DO $$ DECLARE sid uuid; BEGIN
  sid:=fixture.seed(1,'012345678905','under_review',NULL);
  PERFORM fixture.approve(sid);
- UPDATE public.product_submission_approved_labels SET evidence_revision=999 WHERE submission_id=sid;
- PERFORM fixture.throws(format('SELECT public.mark_product_submission_promoted(%L,''2026.09.11'',''12345'')',sid),'55000','approval evidence changed');
+ PERFORM fixture.throws(format('UPDATE public.product_submission_approved_labels SET evidence_revision=999 WHERE submission_id=%L',sid),'55000','immutable');
+ PERFORM fixture.throws(format('SELECT public.mark_product_submission_promoted(%L,1,%L,''2026.09.11'',''12345'')',sid,repeat('0',64)),'55000','approval changed');
  PERFORM fixture.assert(NOT EXISTS(SELECT 1 FROM public.product_contribution_ledger
    WHERE submission_id=sid),'no points without a promotion');
 END $$ $case$);

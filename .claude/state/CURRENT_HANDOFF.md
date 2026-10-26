@@ -1,15 +1,19 @@
-# Current handoff — image sizing integrated
+# Current handoff — submission approval corrections
 
-2026-10-26. Image sizing fix merged through PR147 as0840c843d2c92b5b40bccc9f5ba6e16d1a75715e. Qualified runtime/test candidate65cbd023f88827fa92d30fd48631c120312e764b passed Analyze & Test CI40274630752. Own temporary branch deleted; app primary aligned to main. This final handoff update is documentation-only.
+Goal: implement immutable approval revisions, audited reopen/reapprove, reviewer and submitter replacement evidence, conservative correction-state UI, and exact-revision release fences without changing scoring, clinical, product-identity, or contribution-point policy.
 
-Owner: lib/features/home/v2/home_v2_screen.dart::_RecentScanCard; lib/core/components/pg_hero_section.dart::PGHeroSection; lib/features/product_detail/v2/sections/hero_section.dart::buildHeroSection. Evidence: owner/caller trace, fail-first actual rendered-size regressions and iOS26.5 QA simulator captures. Will NOT create: another image widget, score, clinical policy, data field or verification state.
+Lane: `codex/submission-approval-revisions`, based on freshly fetched `origin/main` at `f1e12a77`. The primary checkout remains untouched.
 
-Implemented: home frame130/photo120, square after accounting for both1px borders and4px inner padding. Card width156 retained; height308 preserves score/name/brand/time space. Detail child and parent agree at112 rather than84 constrained to80. Existing resolver, image fallback/zoom, data selection, score, safety text and clinical holds untouched.
+Owner: Supabase review transition RPCs and `product_submission_approved_labels`; console `setApprovedReadOnly`, `setDecisionAvailability`, and existing evidence workflow; Flutter `ProductSubmissionSummary`; evidence owner `product_submission_photos`/reviewer evidence RPCs. Evidence: `rg -n "product_submission_approved_labels|review_product_submission|setApprovedReadOnly|setDecisionAvailability|ProductSubmissionSummary|product_submission_photos" supabase scripts lib test`. Will NOT create: another review engine, identity owner, photo store, points rule, status enum, or scoring path.
 
-Verification: initial regression observed home72 vs requested132 and detail80 vs112. Intermediate card288 overflowed by6px; fixed308. Review then exposed a130x132 rendered frame under declared132 constraints; final regression asserts actual130x130 frame and120x120 ProductImage.67final owner/consumer tests passed, including narrow320px hero, scored/blocked/unknown states and inspected updated incomplete-evidence golden. Full4015non-golden local suite passed before final border-only refinement; exact final CI is green, including analysis/tests/changed formatting. Initial make check also exposed6tiny golden-renderer differences on unchanged nutrient/probiotic/med-nutrient screens; those baselines were not rewritten or treated as passed. No full release/bundle qualification claimed.
+Implemented: immutable numbered approval snapshots and backfill; fenced/idempotent reopen; seeded draft and fresh attestation requirement; reviewer replacement photos in the existing evidence revision/store; pending-upload recovery; purged-evidence block; correction-state Flutter copy; exact atomic publication RPC; one-time points preservation; explicit function revokes/grants.
 
-Simulator: exact candidate built via configured Make command on iOS26.5 QA device DB137D33-E2D6-4D15-92E4-F65E2A737A9B. Actual Maximum CLA detail and enlarged home photo inspected. Private screenshots/logs in .claude/state/image-sizing. One temporary QA scan row was backed up and removed after capture; original empty history restored. No personal profile/stack changes.
+Verification on candidate:
+- Submission SQL harness with advisors: 131 tests pass, concurrency checks pass, no security/performance advisor findings.
+- Reviewer Edge Function: 74 Deno tests pass.
+- Affected Flutter suites: 87 tests pass; `make analyze` has no issues.
+- Full `make check` reached six unrelated tiny golden-image diffs; all six reproduce on clean `main` at `f1e12a77`, and this branch changes none of those widgets or goldens. Exact-candidate CI remains the environment gate.
+- Deno/Dart formatting, shell syntax, and `git diff --check`: pass.
+- Independent adversarial review completed; accepted findings fixed for audit immutability, evidence retention/recovery/provenance, competing upload keys, global catalog-version uniqueness, release races, stale fences, and duplicate points.
 
-Pipeline handoff: primary preserved/aligned and pushed main68dd886119bab48d9e4ddfd4aacc1d2da9b0a591.14local files backed up/checksummed, older source copies stashed, private submissions retained unchanged.125integrated source/consumer checks passed. Final consumer verification sentence is Independent testing or certification: unconfirmed.105copy/consumer tests and12raw-label replay show only3verification.reason changes, all score/amount/identity/Evidence/safety/hold fields identical. Current main already omits unpenalized neutral verification from Tradeoffs. Automatic pipeline CI40275089499 pending at handoff; display-only validation does not depend on it.
-
-Remaining: all114stage manifests were stale against main. User has the pipeline-only rebuild command from primary main; no corpus/import/release started by this work. After rebuild, verify full corpus/export/app-data parity and existing release gates. Required clinical holds remain intact. No release authorization.
+Next: fetch/rebase if main moved, commit, push, exact-candidate CI, merge, verify containment, then deploy this migration before `review-product-submissions` and run post-deploy probes. No app release or catalog publication.

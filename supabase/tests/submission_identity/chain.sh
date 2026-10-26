@@ -45,4 +45,5 @@ submission_migration_chain() {
   printf '%s\n' "$repo_dir/supabase/migrations/20260912194118_revoke_legacy_unchecked_review_access.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20260913010000_submission_row_grounding.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20261009120000_reviewer_barcode_correction.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20261026132208_submission_approval_revisions.sql"
 }
