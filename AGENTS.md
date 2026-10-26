@@ -1,8 +1,16 @@
 # PharmaGuide Flutter app — agent constitution
 
-Shared by Claude, Codex and every other agent (OpenCode, Continue, Cline, Aider, Gemini CLI). Claude
-loads it through `@AGENTS.md` in CLAUDE.md. **This is the one canonical rule file**; CLAUDE.md holds
-only Claude-specific extras. Deeper context lives in `knowledge/` — read it on demand.
+This is the canonical shared instruction file. Claude imports it through `@AGENTS.md` in
+CLAUDE.md; Codex receives AGENTS.md for this workspace. For other hosts, verify their configured
+entry point actually loads this file before claiming support. CLAUDE.md holds only Claude-specific
+extras. Deeper context lives in `knowledge/` — read it on demand.
+
+## First decisions
+
+Identify the exact app build, installed catalog and affected label before editing. Trace the
+reported behavior through the existing producer and consumer owners. Use the pipeline's risk-based
+validation policy and the native verification skill below; report source qualification, integration,
+publication and observed app behavior separately. Preserve valid evidence and actual user data.
 
 ## Project
 

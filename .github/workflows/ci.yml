@@ -11,7 +11,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    name: Validation scope
+    runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.scope.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+      - uses: actions/checkout@v7
+        with:
+          repository: seancheick/PharmaGuide_Pipeline
+          ref: df8a8654e80dc18f7129bfff33a1484bf553a9f7
+          path: pipeline-policy
+      - name: Classify committed change
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && ! "$BASE_SHA" =~ ^0+$ ]]; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          fi
+          kind=$(python3 pipeline-policy/scripts/ci_change_scope.py --repo . --base "$BASE_SHA" --head "$HEAD_SHA")
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          echo "Validation scope: $kind" >> "$GITHUB_STEP_SUMMARY"
+
   analyze-and-test:
+    needs: scope
+    if: needs.scope.outputs.kind == 'full'
+
     name: Analyze & Test
     runs-on: ubuntu-latest
     # Main already runs near 15 minutes; allow setup + the complete coverage suite.
@@ -71,6 +101,7 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/tests -p test_import_catalog_artifact.py
           python3 -m unittest discover -s scripts/tests -p test_verify_native_app.py
+          python3 -m unittest discover -s scripts/tests -p test_ci_merge_readiness.py
 
       - name: Validate engine spike build harness
         run: python3 tool/engine_spike/test/build_harness_test.py
@@ -194,3 +225,22 @@ jobs:
             exit 0
           fi
           dart format --output=none --set-exit-if-changed "${dart_files[@]}"
+
+  merge-ready:
+    name: Merge readiness
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [scope, analyze-and-test]
+    steps:
+      - name: Require the selected checks
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          KIND: ${{ needs.scope.outputs.kind }}
+          TEST_RESULT: ${{ needs.analyze-and-test.result }}
+        run: |
+          test "$SCOPE_RESULT" = success
+          case "$KIND" in
+            docs) test "$TEST_RESULT" = skipped ;;
+            full) test "$TEST_RESULT" = success ;;
+            *) exit 1 ;;
+          esac

@@ -98,3 +98,11 @@ existing devices or reset user storage. Re-run this skill when its launch/contro
 instructions change. A failed control must be repaired or reported, never hidden by
 loosening a clinical expectation. Use existing owner tests for negative cases and
 retain the original reproduction for every claimed fix.
+
+## Evaluate changes to this procedure
+
+Use [the bounded historical evaluation rubric](references/evaluations.md) before changing this
+procedure. Freeze expected outcomes first, use an independent fresh context for the changed
+workflow, and retain actual commands/artifacts and decisive failures. Existing owner tests prove
+their boundary; they do not substitute for native delivery or scientific review. Reuse unchanged
+valid receipts rather than relaunching the app solely because this document changed.
