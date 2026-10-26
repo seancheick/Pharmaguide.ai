@@ -24,6 +24,8 @@ only Claude-specific extras. Deeper context lives in `knowledge/` — read it on
   github.com/seancheick/PharmaGuideWebsite (`/Users/seancheick/PharmaGuide Website`). A cloud session
   sees only attached repos: attach the pipeline when a task touches the contract.
 
+For source-to-installed-app diagnosis, follow [verify-pharmaguide](.claude/skills/verify-pharmaguide/SKILL.md). Its identity check and native feature map distinguish source qualification, installed-data parity and delivered fixes.
+
 ## Commands — `make`, never a raw `flutter run` or `flutter build`
 
 ```bash

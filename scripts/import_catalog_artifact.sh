@@ -14,14 +14,16 @@
 #     scripts/import_catalog_artifact.sh ../dsld_clean/scripts/dist
 #
 # The script performs every validation gate locally before it writes
-# anything to assets/db/. If any check fails, assets/db/ is left untouched
+# new artifacts to assets/db/. An interrupted earlier import is recovered first.
+# If any source check fails, the recovered bundle is left untouched
 # and the script exits non-zero with a clear error. A broken pipeline build
 # can never replace a good bundled DB.
 #
 # **Catalog DB is required.** **Interaction DB is optional but validated
 # when present** — if interaction_db.sqlite + interaction_db_manifest.json
 # are in the same dist dir, they go through their own gate chain and are
-# staged atomically alongside the catalog. If any interaction gate fails,
+# staged and promoted in one recoverable transaction alongside the catalog.
+# If any interaction gate fails,
 # nothing ships, including the catalog. Both bundles fail or both ship.
 #
 # ## Catalog DB validation gates (all must pass)
@@ -69,7 +71,7 @@
 #
 # Only after every required gate passes does the script copy files into
 # assets/db/ via a staged rename. The previous bundled files (if any) are
-# moved aside to *.previous so you can diff or roll back.
+# preserved as *.previous so you can diff or roll back.
 #
 # ## Flags
 #
@@ -246,6 +248,134 @@ TARGET_INTERACTION_DB="$ASSETS_DB_DIR/interaction_db.sqlite"
 TARGET_INTERACTION_MANIFEST="$ASSETS_DB_DIR/interaction_db_manifest.json"
 CORE_PROJECTION_DART="$REPO_ROOT/lib/data/database/products_core_projection.dart"
 
+# The lock serializes promotion/recovery; the journal survives SIGKILL. The
+# four fixed target paths cannot be renamed as one unit, so an interrupted set
+# is explicitly refused by dry-run and restored before the next real import.
+bundle_transaction() {
+  python3 - "$1" "$ASSETS_DB_DIR" "${DIST_DIR:-}" "${HAS_INTERACTION:-0}" \
+    "${MANIFEST_CHECKSUM:-}" "${SOURCE_MANIFEST_CHECKSUM:-}" \
+    "${INTERACTION_MANIFEST_CHECKSUM:-}" "${SOURCE_INTERACTION_MANIFEST_CHECKSUM:-}" <<'PYTHON'
+import fcntl, hashlib, json, os, pathlib, shutil, signal, sys
+
+mode, destination, source, has_interaction, *checksums = sys.argv[1:]
+root = pathlib.Path(destination)
+transaction = root / '.catalog-import-transaction'
+names = ['pharmaguide_core.db', 'export_manifest.json',
+         'interaction_db.sqlite', 'interaction_db_manifest.json']
+
+def digest(path):
+    checksum = hashlib.sha256()
+    with path.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            checksum.update(chunk)
+    return checksum.hexdigest()
+
+def copy_synced(src, dst):
+    shutil.copy2(src, dst)
+    with dst.open('rb') as stream:
+        os.fsync(stream.fileno())
+
+def write_journal(record):
+    pending = transaction / 'journal.tmp'
+    with pending.open('w') as stream:
+        json.dump(record, stream)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(pending, transaction / 'journal.json')
+
+def recover():
+    if not transaction.exists():
+        return
+    journal = transaction / 'journal.json'
+    if not journal.exists():
+        # Staging/backup preparation never changes targets before this receipt.
+        shutil.rmtree(transaction)
+        return
+    record = json.loads(journal.read_text())
+    rows = record['files']
+    if ([row['name'] for row in rows] not in (names[:2], names)
+            or record['state'] not in ('prepared', 'committed', 'restored')):
+        raise ValueError('invalid bundle recovery journal; retain it for inspection')
+    if record['state'] != 'restored':
+        for row in rows:
+            backup = transaction / (row['name'] + '.original')
+            if row['existed'] and digest(backup) != row['sha256']:
+                raise ValueError('bundle recovery backup checksum mismatch; originals retained')
+        committed = record['state'] == 'committed'
+        for row in rows:
+            target = root / (row['name'] + ('.previous' if committed else ''))
+            if row['existed']:
+                pending = transaction / (row['name'] + '.restore')
+                copy_synced(transaction / (row['name'] + '.original'), pending)
+                os.replace(pending, target)
+            elif not committed:
+                target.unlink(missing_ok=True)
+        record['state'] = 'restored'
+        write_journal(record)
+        print('[import] ' + ('Committed bundle backups finalized' if committed else 'Interrupted bundle restored'))
+    shutil.rmtree(transaction)
+
+def interrupted(signum, _frame):
+    raise InterruptedError(f'bundle import interrupted by signal {signum}')
+
+# Every importer of these target files must lock the same inode, regardless
+# of TMPDIR or process environment. Never unlink this advisory lock file.
+if mode == 'inspect' and not root.exists():
+    sys.exit(0)
+root.mkdir(parents=True, exist_ok=True)
+lock_path = root / '.catalog-import.lock'
+with lock_path.open('a') as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    if mode == 'inspect':
+        if transaction.exists():
+            sys.exit('[import] ERROR: interrupted bundle import requires recovery; rerun without --dry-run')
+        sys.exit(0)
+    recover()
+    if mode == 'recover':
+        sys.exit(0)
+    if mode != 'promote':
+        raise ValueError('unknown bundle transaction operation')
+    root.mkdir(parents=True, exist_ok=True)
+    transaction.mkdir()
+    selected = names if has_interaction == '1' else names[:2]
+    record = {'state': 'prepared', 'files': []}
+    for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(signum, interrupted)
+    try:
+        for name, expected in zip(selected, checksums):
+            staged = transaction / (name + '.new')
+            copy_synced(pathlib.Path(source) / name, staged)
+            if digest(staged) != expected:
+                raise ValueError(f'{name} changed after validation or staging copy was corrupted')
+            target = root / name
+            row = {'name': name, 'existed': target.exists()}
+            if row['existed']:
+                backup = transaction / (name + '.original')
+                copy_synced(target, backup)
+                row['sha256'] = digest(backup)
+            record['files'].append(row)
+        write_journal(record)
+        for name in selected:
+            os.replace(transaction / (name + '.new'), root / name)
+        record['state'] = 'committed'
+        write_journal(record)
+        recover()
+    except BaseException:
+        # If rollback itself cannot finish, leave the journal and original
+        # snapshots intact. A subsequent import resumes the same recovery.
+        for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+            signal.signal(signum, signal.SIG_IGN)
+        recover()
+        raise
+PYTHON
+}
+
+if (( DRY_RUN == 1 )); then
+  bundle_transaction inspect
+else
+  bundle_transaction recover
+fi
+
 DIST_DIR="$(cd "$DIST_DIR" && pwd)"
 SRC_DB="$DIST_DIR/pharmaguide_core.db"
 SRC_MANIFEST="$DIST_DIR/export_manifest.json"
@@ -321,6 +451,8 @@ for key in sys.argv[2].split('.'):
 print(value)
 PY
 }
+
+SOURCE_MANIFEST_CHECKSUM="$(shasum -a 256 "$SRC_MANIFEST" | awk '{print $1}')"
 
 # Validate JSON is parseable and required keys are present.
 REQUIRED_KEYS=(
@@ -526,6 +658,8 @@ PY
   # Build counters like override_count + resolved_conflict_count live in the
   # embedded interaction_db_metadata kv table inside the SQLite — not the
   # sidecar JSON — and are validated separately at gate I7 via SQL query.
+  SOURCE_INTERACTION_MANIFEST_CHECKSUM="$(shasum -a 256 "$SRC_INTERACTION_MANIFEST" | awk '{print $1}')"
+
   REQUIRED_INTERACTION_KEYS=(
     built_at
     checksum_sha256
@@ -835,89 +969,9 @@ if (( DRY_RUN == 1 )); then
   exit 0
 fi
 
-# ---------------------------------------------------------------------------
-# Staged copy with rollback backup
-#
-# Catalog and (optional) interaction artifacts are staged together. If any
-# stage step fails, all .new files are removed before exit so the live
-# bundle stays untouched. Promotion to .previous + atomic rename happens
-# only after every staged file passes a re-verification checksum.
-# ---------------------------------------------------------------------------
-
-mkdir -p "$ASSETS_DB_DIR"
-
-STAGING_DB="$TARGET_DB.new"
-STAGING_MANIFEST="$TARGET_MANIFEST.new"
-STAGING_INTERACTION_DB="$TARGET_INTERACTION_DB.new"
-STAGING_INTERACTION_MANIFEST="$TARGET_INTERACTION_MANIFEST.new"
-
-cleanup_staging() {
-  rm -f "$STAGING_DB" "$STAGING_MANIFEST" \
-        "$STAGING_INTERACTION_DB" "$STAGING_INTERACTION_MANIFEST"
-}
-trap cleanup_staging ERR
-
-cleanup_staging
-
-cp "$SRC_DB" "$STAGING_DB"
-cp "$SRC_MANIFEST" "$STAGING_MANIFEST"
-
-# Re-verify the staged catalog copy matches the source checksum. Guards
-# against filesystem corruption during copy (rare but possible).
-STAGED_CHECKSUM="$(shasum -a 256 "$STAGING_DB" | awk '{print $1}')"
-if [[ "$STAGED_CHECKSUM" != "$MANIFEST_CHECKSUM" ]]; then
-  err "staged catalog copy checksum mismatch — copy corrupted"
-  err "  expected: $MANIFEST_CHECKSUM"
-  err "  got:      $STAGED_CHECKSUM"
-  cleanup_staging
-  exit 2
-fi
-ok "staged catalog copy checksum re-verified"
-
-if (( HAS_INTERACTION == 1 )); then
-  cp "$SRC_INTERACTION_DB" "$STAGING_INTERACTION_DB"
-  cp "$SRC_INTERACTION_MANIFEST" "$STAGING_INTERACTION_MANIFEST"
-
-  STAGED_INTERACTION_CHECKSUM="$(shasum -a 256 "$STAGING_INTERACTION_DB" | awk '{print $1}')"
-  if [[ "$STAGED_INTERACTION_CHECKSUM" != "$INTERACTION_MANIFEST_CHECKSUM" ]]; then
-    err "staged interaction copy checksum mismatch — copy corrupted"
-    err "  expected: $INTERACTION_MANIFEST_CHECKSUM"
-    err "  got:      $STAGED_INTERACTION_CHECKSUM"
-    cleanup_staging
-    exit 2
-  fi
-  ok "staged interaction copy checksum re-verified"
-fi
-
-trap - ERR
-
-# Back up the previous bundled artifacts so a botched release can be rolled
-# back with a single `mv *.previous *`. Catalog and interaction backups are
-# independent — the catalog .previous is touched whether or not we're also
-# replacing the interaction bundle.
-if [[ -f "$TARGET_DB" ]]; then
-  mv "$TARGET_DB" "$TARGET_DB.previous"
-  info "previous bundled catalog DB moved to pharmaguide_core.db.previous"
-fi
-if [[ -f "$TARGET_MANIFEST" ]]; then
-  mv "$TARGET_MANIFEST" "$TARGET_MANIFEST.previous"
-fi
-
-mv "$STAGING_DB" "$TARGET_DB"
-mv "$STAGING_MANIFEST" "$TARGET_MANIFEST"
-
-if (( HAS_INTERACTION == 1 )); then
-  if [[ -f "$TARGET_INTERACTION_DB" ]]; then
-    mv "$TARGET_INTERACTION_DB" "$TARGET_INTERACTION_DB.previous"
-    info "previous bundled interaction DB moved to interaction_db.sqlite.previous"
-  fi
-  if [[ -f "$TARGET_INTERACTION_MANIFEST" ]]; then
-    mv "$TARGET_INTERACTION_MANIFEST" "$TARGET_INTERACTION_MANIFEST.previous"
-  fi
-
-  mv "$STAGING_INTERACTION_DB" "$TARGET_INTERACTION_DB"
-  mv "$STAGING_INTERACTION_MANIFEST" "$TARGET_INTERACTION_MANIFEST"
-fi
+# All validation gates above apply to the exact staged bytes. Promotion and
+# rollback are serialized and recoverable even after an uncatchable process kill.
+bundle_transaction promote
 
 ok "bundled artifacts updated:"
 info "  $TARGET_DB"

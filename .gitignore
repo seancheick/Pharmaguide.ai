@@ -91,3 +91,6 @@ assets/db/interaction_db.sqlite
 .agents/skills/impeccable/scripts/bin/
 # Impeccable critique run archives (per-run working state that /impeccable polish reads).
 .impeccable/critique/
+
+# Stable local importer advisory lock; never remove it while imports may run.
+/assets/db/.catalog-import.lock

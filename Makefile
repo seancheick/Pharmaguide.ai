@@ -147,3 +147,11 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 .DEFAULT_GOAL := help
+
+# Normal native journey; use an explicitly owned simulator, never screenshot mode.
+.PHONY: verify-native
+verify-native: hydrate-interaction-db ## Exercise normal startup/search/detail and retain host evidence
+	@test "$(VERIFY_OWNED_DEVICE)" = "1" -a -n "$(VERIFY_DEVICE)" || (echo "Set VERIFY_DEVICE and VERIFY_OWNED_DEVICE=1 for your isolated simulator"; exit 1)
+	@test ! -d assets/db/.catalog-import-transaction || (echo "Recover interrupted catalog import before verification"; exit 1)
+	@test -n "$(VERIFY_EVIDENCE_DIR)" || (echo "Set VERIFY_EVIDENCE_DIR to a new durable evidence directory"; exit 1)
+	@VERIFY_EVIDENCE_DIR="$(VERIFY_EVIDENCE_DIR)" $(FLUTTER) drive --keep-app-running --driver test_driver/native_catalog_driver.dart --target integration_test/native_catalog_journey_test.dart $(DART_DEFINES) -d "$(VERIFY_DEVICE)" --dart-define=VERIFY_SOURCE_REVISION=$$(git rev-parse HEAD) --dart-define=VERIFY_SOURCE_DIRTY=$$(test -z "$$(git status --porcelain)" && echo false || echo true) --dart-define=VERIFY_PRODUCT_ID=$(or $(VERIFY_PRODUCT_ID),295048) --dart-define=VERIFY_CATALOG_VERSION="$(VERIFY_CATALOG_VERSION)" --dart-define=VERIFY_EXPLANATION="$(VERIFY_EXPLANATION)"

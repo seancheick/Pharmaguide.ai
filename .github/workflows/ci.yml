@@ -68,7 +68,9 @@ jobs:
         run: bash test/tool/ios_release_preflight_test.sh
 
       - name: Validate catalog importer interaction contracts
-        run: python3 -m unittest discover -s scripts/tests -p test_import_catalog_artifact.py
+        run: |
+          python3 -m unittest discover -s scripts/tests -p test_import_catalog_artifact.py
+          python3 -m unittest discover -s scripts/tests -p test_verify_native_app.py
 
       - name: Validate engine spike build harness
         run: python3 tool/engine_spike/test/build_harness_test.py

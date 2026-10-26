@@ -1,3 +1,17 @@
+# Current handoff — release verification closeout
+
+Branch codex/release-verification-closeout from e7255417. Pipeline peer branch codex/collagen-review-attribution, candidate746cfa78 on CI. Preserve all actual assets and user DB; no import/publication performed.
+
+Owner: scripts/import_catalog_artifact.sh — journal recovery, checksum-backed rollback, permanent target-local concurrency lock;18tests pass/1existing opt-in skip. Owner: scripts/verify_native_app.py — read-only installed binary/catalog/product identity;8tests pass. Owner: native_catalog_journey_test.dart + driver + existing search tiles — normal navigation, exact ID keys, retained host screenshots/metadata, unexpected post-startup error capture and fatal missed taps. Will NOT create a scorer, clinical registry or replacement release path.
+
+Native normal app launch on owned iOS26.5 simulator7CDB670B-94FE-4B4A-A810-EAE42F50E832 reproduced original caffeine295048 old wording, visible source ID, score78 and dose limitation. Doctor captured app1.0.0+23 and catalog2026.10.22.012241. Wording fix89a35e8d is already on pipeline main; rebuilt caffeine output corrected but blocked before publication. No new scorer edit warranted.
+
+Integration native-host-06 passed normal Home→search→exactlabel→Testing&Brand, including screenshots and equality with installed detail blob; does NOT establish delivery of new wording. Earlier runs failed harness navigation/visibility and are retained as failures. iOS26 UIKit tab control is not reliable under integration binding: complete onboarding through normal app/CUA first; normal tab interaction was verified separately. Host capture survives test cleanup; --keep-app-running preserves owned state.
+
+Cold fresh-agent expected-new-wording check finished: ordinary navigation and installed-data parity pass, expected corrected sentence fails as intended against old catalog. Evidence fresh-eval-01/RESULT.md. Full analyze has no issues;61search/pillar/offline owner-consumer tests pass. Import recovery18pass/1opt-in skip;doctor8pass. Integrated origin/main 38529c20 submission correction repair into the candidate; combined CI and merge remain. Source to build receipt was dirty and source snapshot retained; no delivered-fix claim. Evidence .claude/state/release_verification_20261026; bundle importer receipts .claude/state/bundle_recovery_20261026. No corpus or publication authorized in this batch.
+
+## Integrated peer lane (preserved qualification)
+
 # Current handoff — submission correction repair
 
 Goal completed: repair independently reported sync/import, approved-submitter deletion, evidence, queue, client, and shared migration-history defects. Behavioral batch; no corpus generation, catalog publication or App Store release.
