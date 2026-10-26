@@ -1,22 +1,17 @@
-# Current handoff — submission approval corrections
+# Current handoff — submission correction repair
 
-Goal: implement immutable approval revisions, audited reopen/reapprove, reviewer and submitter replacement evidence, conservative correction-state UI, and exact-revision release fences without changing scoring, clinical, product-identity, or contribution-point policy.
+Goal completed: repair independently reported sync/import, approved-submitter deletion, evidence, queue, client, and shared migration-history defects. Behavioral batch; no corpus generation, catalog publication or App Store release.
 
-Lane: integrated by PR 148; feature commits `85e35c92` and `1c1ae32d` are contained in `main` merge `8fb31692`.
+Owner: existing Supabase review transitions, approval history/evidence revisions; console uploadReviewerEvidence; ProductSubmissionSummary; pipeline materialize_approved_submissions and Storage upload/sync. Migration assembler extends the shared deployment stream. Evidence: report reproductions, matrix/glossary and named caller searches. Will NOT create another scoring, product identity, review engine, evidence store or points owner.
 
-Owner: Supabase review transition RPCs and `product_submission_approved_labels`; console `setApprovedReadOnly`, `setDecisionAvailability`, and existing evidence workflow; Flutter `ProductSubmissionSummary`; evidence owner `product_submission_photos`/reviewer evidence RPCs. Evidence: `rg -n "product_submission_approved_labels|review_product_submission|setApprovedReadOnly|setDecisionAvailability|ProductSubmissionSummary|product_submission_photos" supabase scripts lib test`. Will NOT create: another review engine, identity owner, photo store, points rule, status enum, or scoring path.
+Integrated: app PR149 merge11b53739 (tested source4c477302); pipeline PR252 merge44f252ac (tested source738b1d2a). Exact source CI passed: app40362086808; pipeline40361539272 all four shards. Independent spec/adversarial review completed; accepted PR findings fixed. Suspected retake revision race ruled out by the existing helper's retained FOR UPDATE lock and a two-connection proof.
 
-Implemented: immutable numbered approval snapshots and backfill; fenced/idempotent reopen; seeded draft and fresh attestation requirement; reviewer replacement photos in the existing evidence revision/store; pending-upload recovery; purged-evidence block; correction-state Flutter copy; exact atomic publication RPC; one-time points preservation; explicit function revokes/grants.
+Verification: SQL137 including concurrency, Edge76, affected Flutter72 plus reviewer source17, clean analysis. Final importer/sync192 plus privacy-recovery3; adversarial12 and tamper probes. Final pipeline local546 passed24 declared opt-in skips. Full local Flutter check's six golden differences reproduce unchanged on e7255417; no affected widget/golden sources changed. CI's existing platform-sensitive golden exclusion remains. No bug-free claim.
 
-Verification and deployment:
-- Submission SQL harness with advisors: 131 tests pass, concurrency checks pass, no security/performance advisor findings.
-- Reviewer Edge Function: 74 Deno tests pass.
-- Affected Flutter suites: 87 tests pass; `make analyze` has no issues.
-- Full `make check` reached six unrelated tiny golden-image diffs; all six reproduce on clean `main` at `f1e12a77`, and this branch changes none of those widgets or goldens. Exact-candidate CI remains the environment gate.
-- Deno/Dart formatting, shell syntax, and `git diff --check`: pass.
-- Independent adversarial review completed; accepted findings fixed for audit immutability, evidence retention/recovery/provenance, competing upload keys, global catalog-version uniqueness, release races, stale fences, and duplicate points.
-- Exact-candidate app CI passed before merge. Pipeline PR 251 passed its final four-shard CI after the cross-repository contract was integrated.
-- Migration `20261026132208_submission_approval_revisions.sql` is deployed and recorded under the repository version; `review-product-submissions` version 36 is ACTIVE with JWT verification enabled.
-- Post-deploy backfill, grants, immutable triggers, contribution totals, unauthenticated 401, and stale-revision refusal checks passed. Production advisors report existing warning/info classes; the new authenticated reviewer entry points keep explicit reviewer checks, while release fences remain service-role only.
+Deployment: forward20261026160229 and separate historical stack-index restoration20261026164414 applied from the canonical pinned stream. All65 prior production ledger records and SQL remain byte-for-byte unchanged;67 canonical versions now match, empty dry run. Full disposable replay passes; live schema matches1017 distinct public definitions/access records, named column attributes and indexes. Historical physical column order is excluded. Deployment config and SQL hashes are verified.
 
-Next: Sean may run the updated product pipeline when ready. Until then, newer corrected approvals remain awaiting release. No app release or catalog publication was performed in this batch.
+Reviewer Edge version37 ACTIVE with JWT verification; all14 deployed source files exactly match merged files. Unauthenticated POST401; stale synthetic UUID rejected55000. No unrelated approval reopened. No missing current snapshots or invalid revision ordering.25 approvals,15 contribution entries150points and149 private submission/reviewer objects unchanged; approval/promotion, ledger, current catalog manifest and private Storage metadata hashes unchanged.
+
+Advisors: existing security warnings/info unchanged. Performance adds one unused-index info for the restored existing active-stack index; other classes/counts unchanged. Existing reviewer-account provenance RESTRICT foreign keys remain; the approved-submitter deletion regression is fixed without weakening ordinary history immutability.
+
+Recovery evidence: /Users/seancheick/.codex/submission-repair-* receipts/logs, including before/after migration history, business hashes, full replay, deployed function source and baseline golden evidence. Original dirty pipeline lane/private submissions preserved. Sean may run the updated pipeline later; corrected approvals wait for release until then.
