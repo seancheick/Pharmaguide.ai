@@ -138,5 +138,43 @@ class NativeDoctorTests(unittest.TestCase):
         self.assertEqual(report['result'], 'unverified')
 
 
+
+
+class FreshPodfileTests(unittest.TestCase):
+    def test_plugin_helper_is_loaded_after_flutter_creates_plugin_links(self):
+        # Execute the actual Podfile with only the CocoaPods/Flutter boundary
+        # simulated. A fresh checkout has no plugin links until installation.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ios = root / 'ios'
+            (ios / 'Flutter').mkdir(parents=True)
+            flutter = root / 'flutter'
+            helper = flutter / 'packages/flutter_tools/bin/podhelper.rb'
+            helper.parent.mkdir(parents=True)
+            helper.write_text("""
+require 'fileutils'
+def flutter_ios_podfile_setup; end
+def flutter_install_all_ios_pods(path)
+  helper = File.join(path, '.symlinks/plugins/google_mlkit_commons/ios/scripts/apple_silicon_simulator.rb')
+  FileUtils.mkdir_p(File.dirname(helper))
+  File.write(helper, 'def mlkit_apple_silicon_simulator_patch(installer); end')
+end
+""")
+            (ios / 'Flutter/Generated.xcconfig').write_text(f'FLUTTER_ROOT={flutter}\n')
+            source = Path(__file__).resolve().parents[2] / 'ios/Podfile'
+            (ios / 'Podfile').write_bytes(source.read_bytes())
+            ruby = """
+def platform(*args); end
+def project(*args); end
+def target(*args); yield; end
+def use_frameworks!; end
+def inherit!(*args); end
+def post_install; end
+load ARGV.fetch(0)
+raise 'plugin helper was not loaded' unless defined?(mlkit_apple_silicon_simulator_patch)
+"""
+            result = subprocess.run(['ruby', '-e', ruby, str(ios / 'Podfile')], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
 if __name__ == '__main__':
     unittest.main()
