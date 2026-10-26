@@ -22,9 +22,10 @@ typedef GtinTextReader = Future<String> Function(XFile file);
 List<GtinIdentity> extractGtinCandidatesFromText(String text) {
   final labeled = <String, GtinIdentity>{};
   final labeledPattern = RegExp(
-    r'(?:(?:u\.?p\.?c\.?|gtin|ean(?:-?8|-?13|-?14)?|barcode))\s*[:#-]?\s*'
-    r'((?:\d[ \t -]{0,3}){8,14})(?!\d)',
+    r'(?<![\p{L}\p{N}_-])(?:(?:u\.?p\.?c\.?|gtin|ean(?:-?8|-?13|-?14)?|barcode))\s*[:#-]?\s*'
+    r'(?<![\p{L}\p{N}_-])((?:\d[ \t -]{0,3}){8,14})(?![\p{L}\p{N}_-])',
     caseSensitive: false,
+    unicode: true,
   );
   for (final match in labeledPattern.allMatches(text)) {
     _addCandidate(labeled, match.group(1));
@@ -33,8 +34,10 @@ List<GtinIdentity> extractGtinCandidatesFromText(String text) {
   if (labeled.isNotEmpty) return List.unmodifiable(labeled.values);
 
   final candidates = <String, GtinIdentity>{};
-  final matches =
-      RegExp(r'(?<!\d)(?:\d[ \t -]{0,3}){8,14}(?!\d)').allMatches(text);
+  final matches = RegExp(
+    r'(?<![\p{L}\p{N}_-])(?:\d[ \t -]{0,3}){8,14}(?![\p{L}\p{N}_-])',
+    unicode: true,
+  ).allMatches(text);
   for (final match in matches) {
     final before = text.substring(0, match.start);
     if (RegExp(
@@ -50,9 +53,8 @@ List<GtinIdentity> extractGtinCandidatesFromText(String text) {
 
 void _addCandidate(Map<String, GtinIdentity> candidates, String? raw) {
   if (raw == null) return;
-  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
   try {
-    final identity = GtinIdentity.parse(digits);
+    final identity = GtinIdentity.parse(raw);
     candidates[identity.canonicalGtin14] = identity;
   } on FormatException {
     // OCR frequently drops or adds a digit. Never repair it heuristically.

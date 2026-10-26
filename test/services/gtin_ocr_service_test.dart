@@ -2,6 +2,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/gtin_ocr_service.dart';
 
 void main() {
+  for (final token in [
+    'X036000291452',
+    '036000291452X',
+    'X-036000291452',
+    '036000291452-X',
+    'é036000291452',
+    '036000291452é',
+    'sku_036000291452',
+    '036000291452_sku',
+    'X002FLZ3X7',
+  ]) {
+    test('never extracts a numeric identity from $token', () {
+      expect(extractGtinCandidatesFromText(token), isEmpty);
+      expect(extractGtinCandidatesFromText('UPC: $token'), isEmpty);
+    });
+  }
+
   test('extracts the valid UPC from a Target-style listing', () {
     final candidates = extractGtinCandidatesFromText('''
       Additional information
@@ -45,8 +62,9 @@ void main() {
 
     expect(wide.map((g) => g.canonicalGtin14), ['00037000123453']);
     expect(
-      extractGtinCandidatesFromText('UPC 0  37000  12345  3')
-          .map((g) => g.canonicalGtin14),
+      extractGtinCandidatesFromText(
+        'UPC 0  37000  12345  3',
+      ).map((g) => g.canonicalGtin14),
       ['00037000123453'],
     );
   });
@@ -62,8 +80,9 @@ void main() {
     // The gap between the label and the number may cross lines; only the gap
     // between digits may not.
     expect(
-      extractGtinCandidatesFromText('UPC\n762111000217')
-          .map((g) => g.canonicalGtin14),
+      extractGtinCandidatesFromText(
+        'UPC\n762111000217',
+      ).map((g) => g.canonicalGtin14),
       ['00762111000217'],
     );
   });
