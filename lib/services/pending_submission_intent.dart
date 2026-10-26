@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:pharmaguide/services/gtin.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum PendingSubmissionIntentKind {
@@ -24,12 +25,27 @@ enum PendingSubmissionIntentKind {
 class PendingSubmissionIntentValue {
   const PendingSubmissionIntentValue.missingProduct(String upc)
     : kind = PendingSubmissionIntentKind.missingProduct,
-      identifier = upc;
+      identifier = upc,
+      submissionIdentifier = null,
+      submissionId = null,
+      resubmissionOf = null;
 
   const PendingSubmissionIntentValue.labelMismatch(String dsldId)
     : kind = PendingSubmissionIntentKind.labelMismatch,
-      identifier = dsldId;
+      identifier = dsldId,
+      submissionIdentifier = null,
+      submissionId = null,
+      resubmissionOf = null;
 
+  const PendingSubmissionIntentValue.alternateProduct(
+    this.submissionIdentifier,
+    this.submissionId, {
+    this.resubmissionOf,
+  }) : kind = PendingSubmissionIntentKind.missingProduct,
+       identifier = '';
+  final ProductSubmissionIdentifier? submissionIdentifier;
+  final String? submissionId;
+  final String? resubmissionOf;
   final PendingSubmissionIntentKind kind;
   final String identifier;
 }
@@ -41,12 +57,24 @@ class PendingSubmissionIntentValue {
 Future<void> routePendingSubmissionIntent<T>(
   PendingSubmissionIntentValue intent, {
   required FutureOr<void> Function(String upc) openMissingProduct,
+  FutureOr<void> Function(
+    ProductSubmissionIdentifier identifier,
+    String submissionId,
+  )?
+  openAlternateProduct,
   required Future<T?> Function(String dsldId) resolveLabelMismatch,
   required FutureOr<void> Function(T product) openLabelMismatch,
 }) async {
   switch (intent.kind) {
     case PendingSubmissionIntentKind.missingProduct:
-      await openMissingProduct(intent.identifier);
+      if (intent.submissionIdentifier != null) {
+        await openAlternateProduct?.call(
+          intent.submissionIdentifier!,
+          intent.submissionId!,
+        );
+      } else {
+        await openMissingProduct(intent.identifier);
+      }
     case PendingSubmissionIntentKind.labelMismatch:
       final product = await resolveLabelMismatch(intent.identifier);
       if (product != null) await openLabelMismatch(product);
@@ -61,6 +89,27 @@ Future<void> routePendingSubmissionIntent<T>(
 class PendingSubmissionIntent {
   static const storageKey = 'pg_pending_submission_intent';
   static const ttl = Duration(minutes: 60);
+
+  static Future<void> saveAlternateProduct(
+    ProductSubmissionIdentifier identifier,
+    String submissionId, {
+    String? resubmissionOf,
+    DateTime Function()? now,
+  }) async {
+    final id = normalizeProductSubmissionId(submissionId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      storageKey,
+      jsonEncode({
+        'kind': 'missing_product',
+        'identifier': identifier.toJson(),
+        'submission_id': id,
+        if (resubmissionOf != null)
+          'resubmission_of': normalizeProductSubmissionId(resubmissionOf),
+        'created_at': (now ?? DateTime.now)().toUtc().toIso8601String(),
+      }),
+    );
+  }
 
   static Future<void> saveMissingProduct(
     String upc, {
@@ -84,7 +133,7 @@ class PendingSubmissionIntent {
     DateTime Function()? now,
   }) async {
     final normalized = dsldId.trim();
-    if (!RegExp(r'^[0-9]{1,30}$').hasMatch(normalized)) return;
+    if (!LabelMismatchProductMetadata.isValidCatalogId(normalized)) return;
     await _save(
       PendingSubmissionIntentKind.labelMismatch,
       field: 'dsld_id',
@@ -140,6 +189,19 @@ class PendingSubmissionIntent {
 
       switch (kind) {
         case PendingSubmissionIntentKind.missingProduct:
+          if (decoded['identifier'] is Map) {
+            return PendingSubmissionIntentValue.alternateProduct(
+              ProductSubmissionIdentifier.fromJson(
+                Map<String, dynamic>.from(decoded['identifier'] as Map),
+              ),
+              normalizeProductSubmissionId(decoded['submission_id'] as String),
+              resubmissionOf: decoded['resubmission_of'] == null
+                  ? null
+                  : normalizeProductSubmissionId(
+                      decoded['resubmission_of'] as String,
+                    ),
+            );
+          }
           final upc = decoded['upc'];
           if (upc is! String) return null;
           try {
@@ -151,12 +213,13 @@ class PendingSubmissionIntent {
           }
         case PendingSubmissionIntentKind.labelMismatch:
           final dsldId = decoded['dsld_id'];
-          if (dsldId is! String || !RegExp(r'^[0-9]{1,30}$').hasMatch(dsldId)) {
+          if (dsldId is! String ||
+              !LabelMismatchProductMetadata.isValidCatalogId(dsldId)) {
             return null;
           }
           return PendingSubmissionIntentValue.labelMismatch(dsldId);
       }
-    } on FormatException {
+    } on Object {
       return null;
     }
   }

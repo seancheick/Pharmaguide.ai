@@ -9,6 +9,117 @@ const _rejectedSubmissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a10';
 const _userId = '3f276b64-0836-4bea-9453-1c8db4d1f8dd';
 
 void main() {
+  test('catalog correction target accepts established PG_SUB grammar only', () {
+    const id = 'PG_SUB_11111111111141118111111111111111';
+    expect(LabelMismatchProductMetadata(dsldId: id).dsldId, id);
+    for (final bad in [
+      '$id'
+          '0',
+      'PG_SUB_'
+              'a' *
+          32,
+      'arbitrary',
+    ]) {
+      expect(
+        () => LabelMismatchProductMetadata(dsldId: bad),
+        throwsA(isA<ProductSubmissionValidationException>()),
+      );
+    }
+  });
+
+  test(
+    'alternate identity preserves exact code through retry and null GTIN',
+    () async {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Label evidence fixture',
+      );
+      final backend = _FakeBackend(authenticatedUserId: _userId);
+      final draft = MissingProductSubmissionDraft(
+        submissionId: _submissionId,
+        upc: null,
+        identifier: identifier,
+        photos: [
+          for (final c in MissingProductSubmissionDraft.requiredCategories)
+            _photo(c),
+        ],
+      );
+      final service = ProductSubmissionService(backend: backend);
+      await service.submit(draft);
+      await service.submit(draft);
+      expect(backend.persistedPayload!['p_upc'], isNull);
+      expect(backend.persistedPayload!['p_identifier'], identifier.toJson());
+      expect(backend.persistedPayload!['p_submission_id'], _submissionId);
+    },
+  );
+  test(
+    'no-code declaration waives only code photo and rejected retry is linked',
+    () {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: null,
+        codeType: 'none',
+        noCode: true,
+        brandName: 'Fixture',
+        fullName: 'Unnumbered label',
+      );
+      final categories = MissingProductSubmissionDraft.requiredCategories.where(
+        (c) => c != ProductSubmissionEvidenceCategory.barcode,
+      );
+      final draft = MissingProductSubmissionDraft(
+        submissionId: _submissionId,
+        resubmissionOf: _rejectedSubmissionId,
+        upc: null,
+        identifier: identifier,
+        photos: [for (final c in categories) _photo(c)],
+      );
+      expect(draft.resubmissionOf, _rejectedSubmissionId);
+      expect(
+        () => MissingProductSubmissionDraft(
+          submissionId: _submissionId,
+          upc: null,
+          identifier: identifier,
+          photos: [_photo(ProductSubmissionEvidenceCategory.frontIdentity)],
+        ),
+        throwsA(isA<ProductSubmissionValidationException>()),
+      );
+      final row = ProductSubmissionSummary.fromRow({
+        'id': _submissionId,
+        'kind': 'missing_product',
+        'normalized_upc': null,
+        'identifier': identifier.toJson(),
+        'review_status': 'rejected',
+        'upload_state': 'ready',
+      });
+      expect(row.hasResubmissionTarget, isTrue);
+    },
+  );
+  test(
+    'alternate identifier rejects contradictions without rewriting code',
+    () {
+      for (final code in ['', 'X\n036000291452', 'x' * 129]) {
+        expect(
+          () => ProductSubmissionIdentifier(
+            observedCode: code,
+            brandName: 'B',
+            fullName: 'N',
+          ),
+          throwsFormatException,
+        );
+      }
+      expect(
+        () => ProductSubmissionIdentifier(
+          observedCode: 'X002FLZ3X7',
+          codeType: 'none',
+          noCode: true,
+          brandName: 'B',
+          fullName: 'N',
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
   test('display name is trimmed and never changes identity fields', () async {
     final backend = _FakeBackend(authenticatedUserId: _userId);
     await ProductSubmissionService(

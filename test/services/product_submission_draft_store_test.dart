@@ -59,6 +59,35 @@ void main() {
   });
 
   test(
+    'alternate captures retain exact identity and stay separate by UUID',
+    () async {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      for (final id in [_submissionId, _photoIdB]) {
+        await store.save(
+          userId: _userA,
+          submissionId: id,
+          upc: '',
+          identifier: identifier,
+          photos: [_photo()],
+          consentVersion: productSubmissionConsentVersion,
+        );
+      }
+      expect(await store.list(_userA), hasLength(2));
+      expect(await store.findByUpc(_userA, ''), isNull);
+      final restored = await ProductSubmissionDraftStore(
+        root: root,
+      ).restore(_userA, _submissionId);
+      expect(restored!.identifier!.toJson(), identifier.toJson());
+      expect(restored.submissionId, _submissionId);
+      expect(restored.photos.single.contentSha256, _photo().contentSha256);
+    },
+  );
+
+  test(
     'a saved capture survives a restart with identical bytes and ids',
     () async {
       await _save(store);

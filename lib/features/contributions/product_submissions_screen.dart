@@ -19,6 +19,7 @@ import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.da
 import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/features/scanner/product_version_label_sheet.dart';
 import 'package:pharmaguide/services/gtin.dart';
+import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
@@ -89,6 +90,8 @@ class _ProductSubmissionsScreenState
   Future<void> _finishPending(PendingProductSubmission pending) =>
       _openMissingProduct(
         upc: pending.upc,
+        identifier: pending.identifier,
+        resumeSubmissionId: pending.submissionId,
         resubmissionOf: pending.resubmissionOf,
       );
 
@@ -96,15 +99,50 @@ class _ProductSubmissionsScreenState
   /// Keep saved draft identity and photos intact even if the catalog changed.
   Future<void> _openMissingProduct({
     String? upc,
+    ProductSubmissionIdentifier? identifier,
+    String? resumeSubmissionId,
     bool preferLibrary = false,
     String? resubmissionOf,
   }) async {
     if (!mounted || _intakeOpen) return;
     setState(() => _intakeOpen = true);
     try {
-      upc ??= await showAddMissingProductIdentitySheet(context);
-      if (!mounted || upc == null) return;
-      final barcode = upc;
+      if (upc == null && identifier == null) {
+        final entry = await showAddMissingProductIdentitySheet(context);
+        if (entry is String) upc = entry;
+        if (entry is ProductSubmissionIdentifier) identifier = entry;
+      }
+      if (!mounted || (upc == null && identifier == null)) return;
+      if (identifier != null) {
+        if (ref
+                .read(productSubmissionServiceProvider)
+                .backend
+                .authenticatedUserId ==
+            null) {
+          await PendingSubmissionIntent.saveAlternateProduct(
+            identifier,
+            resumeSubmissionId ?? newProductSubmissionId(),
+            resubmissionOf: resubmissionOf,
+          );
+          if (mounted) await context.push(Routes.authInvitation);
+          return;
+        }
+        await showMissingProductSubmissionSheet(
+          context,
+          upc: '',
+          identifier: identifier,
+          resumeSubmissionId: resumeSubmissionId,
+          preferLibrary: preferLibrary,
+          service: ref.read(productSubmissionServiceProvider),
+          resubmissionOf: resubmissionOf,
+        );
+        if (mounted) {
+          ref.invalidate(productSubmissionsProvider);
+          ref.invalidate(pendingProductSubmissionDraftsProvider);
+        }
+        return;
+      }
+      final barcode = upc!;
       final GtinIdentity identity;
       try {
         identity = GtinIdentity.parse(barcode);
@@ -223,9 +261,10 @@ class _ProductSubmissionsScreenState
     switch (status.kind) {
       case ProductSubmissionKind.missingProduct:
         final upc = status.upc;
-        if (upc == null) return;
+        if (upc == null && status.identifier == null) return;
         await _openMissingProduct(
           upc: upc,
+          identifier: status.identifier,
           resubmissionOf: status.submissionId,
         );
       case ProductSubmissionKind.labelMismatch:
@@ -273,6 +312,7 @@ class _ProductSubmissionsScreenState
       await showMissingProductSubmissionSheet(
         context,
         upc: retake.upc,
+        identifier: retake.identifier,
         service: service,
         retake: retake,
       );
@@ -484,7 +524,9 @@ class _UnfinishedCaptures extends ConsumerWidget {
                 style: V2Typography.bodySm(color: context.v2.fg),
               ),
               subtitle: Text(
-                'Barcode ${draft.upc}',
+                draft.identifier == null
+                    ? 'Barcode ${draft.upc}'
+                    : '${draft.identifier!.brandName} · ${draft.identifier!.fullName}\n${draft.identifier!.observedCode ?? 'No printed code declared'}',
                 style: V2Typography.monoData(color: context.v2.fgMuted),
               ),
               trailing: FilledButton(
@@ -1054,6 +1096,7 @@ class _SubmissionIdentity extends ConsumerWidget {
         name: _fallbackSubmissionName(status),
         upc: status.upc,
         photoUrls: status.photoUrls,
+        observedCode: status.identifier?.observedCode,
       );
     }
     return FutureBuilder(
@@ -1074,6 +1117,7 @@ class _SubmissionIdentity extends ConsumerWidget {
                   : '$brand · $name'),
           upc: status.upc,
           photoUrls: status.photoUrls,
+          observedCode: status.identifier?.observedCode,
         );
       },
     );
@@ -1085,8 +1129,10 @@ class _SubmissionIdentityText extends StatelessWidget {
     required this.name,
     required this.upc,
     this.photoUrls = const [],
+    this.observedCode,
   });
 
+  final String? observedCode;
   final String name;
   final String? upc;
   final List<String> photoUrls;
@@ -1102,6 +1148,11 @@ class _SubmissionIdentityText extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: V2Typography.bodyMedium(color: context.v2.fg),
         ),
+        if (observedCode != null)
+          Text(
+            'Printed code $observedCode',
+            style: V2Typography.caption(color: context.v2.fgMuted),
+          ),
         if (upc != null) ...[
           const SizedBox(height: V2Spacing.space4),
           Text(
@@ -1167,6 +1218,9 @@ class _SubmissionIdentityText extends StatelessWidget {
 String _fallbackSubmissionName(ProductSubmissionSummary status) {
   if (status.kind == null) return 'Submission details unavailable';
   if (status.displayName != null) return status.displayName!;
+  if (status.identifier != null) {
+    return '${status.identifier!.brandName} · ${status.identifier!.fullName}';
+  }
   if (status.kind == ProductSubmissionKind.labelMismatch) {
     return 'Catalog correction';
   }

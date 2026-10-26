@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,6 +8,39 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test(
+    'alternate sign-in intent preserves exact code and attempt UUID',
+    () async {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      const id = '11111111-1111-4111-8111-111111111111';
+      await PendingSubmissionIntent.saveAlternateProduct(
+        identifier,
+        id,
+        resubmissionOf: '11111111-1111-4111-8111-111111111110',
+      );
+      final intent = (await PendingSubmissionIntent.consume())!;
+      expect(intent.submissionIdentifier!.toJson(), identifier.toJson());
+      expect(intent.resubmissionOf, '11111111-1111-4111-8111-111111111110');
+      var opened = false;
+      await routePendingSubmissionIntent<Object>(
+        intent,
+        openMissingProduct: (_) => fail('not a GTIN'),
+        openAlternateProduct: (value, submissionId) {
+          expect(value.observedCode, 'X002FLZ3X7');
+          expect(submissionId, id);
+          opened = true;
+        },
+        resolveLabelMismatch: (_) async => null,
+        openLabelMismatch: (_) {},
+      );
+      expect(opened, isTrue);
+      expect(await PendingSubmissionIntent.consume(), isNull);
+    },
+  );
   test('consume returns a typed missing-product intent exactly once', () async {
     await PendingSubmissionIntent.saveMissingProduct('0 50428 38139 7');
 

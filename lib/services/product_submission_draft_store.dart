@@ -20,6 +20,7 @@ import 'package:pharmaguide/services/product_submission_service.dart';
 class PendingProductSubmission {
   final String submissionId;
   final String upc;
+  final ProductSubmissionIdentifier? identifier;
   final String? resubmissionOf;
   final bool noSeparateIngredientPanel;
   final String consentVersion;
@@ -30,6 +31,7 @@ class PendingProductSubmission {
   const PendingProductSubmission({
     required this.submissionId,
     required this.upc,
+    this.identifier,
     required this.resubmissionOf,
     required this.noSeparateIngredientPanel,
     required this.consentVersion,
@@ -76,6 +78,7 @@ abstract class ProductSubmissionDraftStorage {
     required String userId,
     required String submissionId,
     required String upc,
+    ProductSubmissionIdentifier? identifier,
     required List<ProductSubmissionPhoto> photos,
     required String consentVersion,
     String? resubmissionOf,
@@ -97,6 +100,7 @@ abstract class ProductSubmissionDraftStorage {
 class RestoredCapture {
   final String submissionId;
   final String upc;
+  final ProductSubmissionIdentifier? identifier;
   final String? resubmissionOf;
   final bool noSeparateIngredientPanel;
   final List<ProductSubmissionPhoto> photos;
@@ -105,6 +109,7 @@ class RestoredCapture {
   const RestoredCapture({
     required this.submissionId,
     required this.upc,
+    this.identifier,
     required this.resubmissionOf,
     required this.noSeparateIngredientPanel,
     required this.photos,
@@ -170,13 +175,14 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     required String userId,
     required String submissionId,
     required String upc,
+    ProductSubmissionIdentifier? identifier,
     required List<ProductSubmissionPhoto> photos,
     required String consentVersion,
     String? resubmissionOf,
     bool noSeparateIngredientPanel = false,
     int evidenceRevision = 1,
   }) async {
-    if (upc.isEmpty) {
+    if (upc.isEmpty && identifier == null) {
       throw ArgumentError('a durable capture needs the barcode it belongs to');
     }
     final directory = _directoryFor(userId, submissionId);
@@ -208,6 +214,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
       'owner_scope': _scope(userId),
       'kind': ProductSubmissionKind.missingProduct.wireValue,
       'upc': upc,
+      if (identifier != null) 'identifier': identifier.toJson(),
       'resubmission_of': resubmissionOf,
       'no_separate_ingredient_panel': noSeparateIngredientPanel,
       'consent_version': consentVersion,
@@ -235,6 +242,11 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
         PendingProductSubmission(
           submissionId: manifest['submission_id'] as String,
           upc: manifest['upc'] as String,
+          identifier: manifest['identifier'] is Map
+              ? ProductSubmissionIdentifier.fromJson(
+                  Map<String, dynamic>.from(manifest['identifier'] as Map),
+                )
+              : null,
           resubmissionOf: manifest['resubmission_of'] as String?,
           noSeparateIngredientPanel:
               manifest['no_separate_ingredient_panel'] == true,
@@ -321,6 +333,11 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     return RestoredCapture(
       submissionId: manifest['submission_id'] as String,
       upc: manifest['upc'] as String,
+      identifier: manifest['identifier'] is Map
+          ? ProductSubmissionIdentifier.fromJson(
+              Map<String, dynamic>.from(manifest['identifier'] as Map),
+            )
+          : null,
       resubmissionOf: manifest['resubmission_of'] as String?,
       noSeparateIngredientPanel:
           manifest['no_separate_ingredient_panel'] == true,
@@ -367,6 +384,13 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
           .lastOrNull;
       if (directoryName != normalizedSubmissionId) return null;
       DateTime.parse(decoded['captured_at'] as String);
+      if (decoded['identifier'] != null) {
+        ProductSubmissionIdentifier.fromJson(
+          Map<String, dynamic>.from(decoded['identifier'] as Map),
+        );
+      } else if ((decoded['upc'] as String).isEmpty) {
+        return null;
+      }
       for (final photo in decoded['photos'] as List) {
         if (photo is! Map<String, Object?> ||
             photo['photo_id'] is! String ||

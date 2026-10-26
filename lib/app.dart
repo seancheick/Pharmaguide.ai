@@ -980,6 +980,16 @@ Future<void> _resumePendingSubmission() async {
       if (!context.mounted) return;
       await showMissingProductSubmissionSheet(context, upc: upc);
     },
+    openAlternateProduct: (identifier, submissionId) async {
+      if (!context.mounted) return;
+      await showMissingProductSubmissionSheet(
+        context,
+        upc: '',
+        identifier: identifier,
+        submissionIdFactory: () => submissionId,
+        resubmissionOf: intent.resubmissionOf,
+      );
+    },
     resolveLabelMismatch: (dsldId) => ProviderScope.containerOf(
       context,
       listen: false,

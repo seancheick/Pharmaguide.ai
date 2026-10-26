@@ -5,6 +5,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/services/gtin.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:pharmaguide/services/gtin_ocr_service.dart';
 
 typedef PickIdentityReference = Future<XFile?> Function();
@@ -12,16 +13,16 @@ typedef ReadIdentityReference = Future<List<GtinIdentity>> Function(XFile file);
 
 /// Starts the same missing-product capture flow without requiring a live
 /// barcode scan. The user may enter a UPC from a store listing or let local
-/// OCR suggest numbers from a photo; only a check-digit-valid GTIN can leave
-/// this sheet.
-Future<String?> showAddMissingProductIdentitySheet(
+/// OCR suggest numbers from a photo. The explicit alternative retains private
+/// printed-code evidence without asserting a numeric GTIN or catalog absence.
+Future<Object?> showAddMissingProductIdentitySheet(
   BuildContext context, {
   PickIdentityReference? pickReference,
   PickIdentityReference? takeReference,
   ReadIdentityReference? readReference,
 }) {
   final picker = ImagePicker();
-  return PGModal.bottomSheet<String>(
+  return PGModal.bottomSheet<Object>(
     context: context,
     builder: (_) => _AddMissingProductIdentitySheet(
       pickReference:
@@ -60,6 +61,11 @@ class _AddMissingProductIdentitySheet extends StatefulWidget {
 class _AddMissingProductIdentitySheetState
     extends State<_AddMissingProductIdentitySheet> {
   final _controller = TextEditingController();
+  bool _alternative = false;
+  bool _noCode = false;
+  final _brand = TextEditingController();
+  final _name = TextEditingController();
+  final _url = TextEditingController();
   bool _reading = false;
   bool _takingPhoto = false;
   String? _error;
@@ -68,6 +74,9 @@ class _AddMissingProductIdentitySheetState
   @override
   void dispose() {
     _controller.dispose();
+    _brand.dispose();
+    _name.dispose();
+    _url.dispose();
     super.dispose();
   }
 
@@ -126,10 +135,26 @@ class _AddMissingProductIdentitySheetState
 
   void _continue() {
     try {
+      if (_alternative) {
+        final identifier = ProductSubmissionIdentifier(
+          observedCode: _noCode ? null : _controller.text,
+          codeType: _noCode ? 'none' : 'other',
+          noCode: _noCode,
+          brandName: _brand.text,
+          fullName: _name.text,
+          listingUrl: _url.text.isEmpty ? null : _url.text,
+        );
+        Navigator.of(context).pop(identifier);
+        return;
+      }
       final identity = GtinIdentity.parse(_controller.text);
       Navigator.of(context).pop(identity.submissionIdentity);
     } on FormatException {
-      setState(() => _error = invalidGtinMessage);
+      setState(
+        () => _error = _alternative
+            ? 'Enter the brand, full product name and printed code, or select no printed code. Listing links must use https:// or http://.'
+            : invalidGtinMessage,
+      );
     }
   }
 
@@ -169,86 +194,135 @@ class _AddMissingProductIdentitySheetState
             style: V2Typography.caption(color: context.v2.fgSubtle),
           ),
           const SizedBox(height: V2Spacing.space16),
-          TextField(
-            key: const Key('add-product-gtin-field'),
-            controller: _controller,
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.done,
-            scrollPadding: EdgeInsets.only(bottom: bottomInset + 24),
-            decoration: InputDecoration(
-              labelText: 'UPC or GTIN',
-              hintText: 'e.g. 030772032565',
-              helperText: 'We verify the check digit before continuing.',
-              prefixIcon: const Icon(Icons.numbers_rounded),
-              // Filled with a real border: the default underline reads as
-              // blank space, and a contributor cannot tell it is a field.
-              filled: true,
-              fillColor: context.v2.surfaceLow,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                borderSide: BorderSide(color: context.v2.outline),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
-                borderSide: BorderSide(color: context.v2.accent, width: 2),
+          TextButton(
+            key: const Key('add-product-alternate-code'),
+            onPressed: () => setState(() {
+              _alternative = !_alternative;
+              _error = null;
+            }),
+            child: Text(
+              _alternative
+                  ? 'Use a UPC / GTIN instead'
+                  : 'My code contains letters / I can’t find a UPC',
+            ),
+          ),
+          if (_alternative) ...[
+            TextField(
+              key: const Key('add-product-brand'),
+              controller: _brand,
+              decoration: const InputDecoration(labelText: 'Brand'),
+            ),
+            TextField(
+              key: const Key('add-product-name'),
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'Full product name'),
+            ),
+            TextField(
+              key: const Key('add-product-listing'),
+              controller: _url,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'Listing URL (optional)',
               ),
             ),
-            onChanged: (_) {
-              if (_error != null) setState(() => _error = null);
-            },
-            onSubmitted: (_) => _continue(),
-          ),
-          const SizedBox(height: V2Spacing.space12),
-          // Says what the two buttons do, so "Photo library" is not mistaken
-          // for choosing the label photos, which comes after Continue.
-          Text(
-            'Or read the number from a photo',
-            style: V2Typography.caption(color: context.v2.fgMuted),
-          ),
-          const SizedBox(height: V2Spacing.space8),
-          // Two equal halves spanning exactly the Continue button's width,
-          // at its height; stacked when large text would squeeze the labels.
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final library = _readButton(
-                key: const Key('add-product-read-upc'),
-                busy: _reading,
-                icon: Icons.photo_library_outlined,
-                label: 'Photo library',
-                fromCamera: false,
-              );
-              final camera = _readButton(
-                key: const Key('add-product-take-upc'),
-                busy: _takingPhoto,
-                icon: Icons.photo_camera_outlined,
-                label: 'Take photo',
-                fromCamera: true,
-              );
-              final stacked =
-                  constraints.maxWidth < 300 ||
-                  MediaQuery.textScalerOf(context).scale(1) > 1.3;
-              if (stacked) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+            CheckboxListTile(
+              key: const Key('add-product-no-code'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('There is no printed code on this package'),
+              value: _noCode,
+              onChanged: (v) => setState(() => _noCode = v!),
+            ),
+            const Text(
+              'Other / not sure is okay. A reviewer checks the label and product identity; this code does not confirm catalog absence.',
+            ),
+          ],
+          if (!_alternative || !_noCode)
+            TextField(
+              key: const Key('add-product-gtin-field'),
+              controller: _controller,
+              keyboardType: _alternative
+                  ? TextInputType.text
+                  : TextInputType.number,
+              textInputAction: TextInputAction.done,
+              scrollPadding: EdgeInsets.only(bottom: bottomInset + 24),
+              decoration: InputDecoration(
+                labelText: _alternative ? 'Exact printed code' : 'UPC or GTIN',
+                hintText: 'e.g. 030772032565',
+                helperText: _alternative
+                    ? 'Preserve letters, case and punctuation exactly.'
+                    : 'We verify the check digit before continuing.',
+                prefixIcon: const Icon(Icons.numbers_rounded),
+                // Filled with a real border: the default underline reads as
+                // blank space, and a contributor cannot tell it is a field.
+                filled: true,
+                fillColor: context.v2.surfaceLow,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                  borderSide: BorderSide(color: context.v2.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
+                  borderSide: BorderSide(color: context.v2.accent, width: 2),
+                ),
+              ),
+              onChanged: (_) {
+                if (_error != null) setState(() => _error = null);
+              },
+              onSubmitted: (_) => _continue(),
+            ),
+          if (!_alternative) ...[
+            const SizedBox(height: V2Spacing.space12),
+            // Says what the two buttons do, so "Photo library" is not mistaken
+            // for choosing the label photos, which comes after Continue.
+            Text(
+              'Or read the number from a photo',
+              style: V2Typography.caption(color: context.v2.fgMuted),
+            ),
+            const SizedBox(height: V2Spacing.space8),
+            // Two equal halves spanning exactly the Continue button's width,
+            // at its height; stacked when large text would squeeze the labels.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final library = _readButton(
+                  key: const Key('add-product-read-upc'),
+                  busy: _reading,
+                  icon: Icons.photo_library_outlined,
+                  label: 'Photo library',
+                  fromCamera: false,
+                );
+                final camera = _readButton(
+                  key: const Key('add-product-take-upc'),
+                  busy: _takingPhoto,
+                  icon: Icons.photo_camera_outlined,
+                  label: 'Take photo',
+                  fromCamera: true,
+                );
+                final stacked =
+                    constraints.maxWidth < 300 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.3;
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      library,
+                      const SizedBox(height: V2Spacing.space8),
+                      camera,
+                    ],
+                  );
+                }
+                return Row(
                   children: [
-                    library,
-                    const SizedBox(height: V2Spacing.space8),
-                    camera,
+                    Expanded(child: library),
+                    const SizedBox(width: V2Spacing.space8),
+                    Expanded(child: camera),
                   ],
                 );
-              }
-              return Row(
-                children: [
-                  Expanded(child: library),
-                  const SizedBox(width: V2Spacing.space8),
-                  Expanded(child: camera),
-                ],
-              );
-            },
-          ),
+              },
+            ),
+          ],
           if (_candidates.length > 1) ...[
             const SizedBox(height: V2Spacing.space12),
             Text(
@@ -286,7 +360,11 @@ class _AddMissingProductIdentitySheetState
             child: FilledButton(
               key: const Key('add-product-continue'),
               onPressed: (_reading || _takingPhoto) ? null : _continue,
-              child: const Text('Continue with this UPC'),
+              child: Text(
+                _alternative
+                    ? 'Continue with label photos'
+                    : 'Continue with this UPC',
+              ),
             ),
           ),
         ],

@@ -49,6 +49,8 @@ typedef PickMissingProductPhotos =
 Future<bool> showMissingProductSubmissionSheet(
   BuildContext context, {
   required String upc,
+  ProductSubmissionIdentifier? identifier,
+  String? resumeSubmissionId,
   bool preferLibrary = false,
   ProductSubmissionService? service,
   PickMissingProductPhoto? pickPhoto,
@@ -60,9 +62,9 @@ Future<bool> showMissingProductSubmissionSheet(
   ReadSubmissionPhotoText? readPhotoText,
   PickMissingProductPhotos? pickPhotosFromLibrary,
 }) async {
-  late final GtinIdentity identity;
+  GtinIdentity? identity;
   try {
-    identity = GtinIdentity.parse(upc);
+    if (identifier == null) identity = GtinIdentity.parse(upc);
   } on FormatException {
     ScaffoldMessenger.of(
       context,
@@ -73,7 +75,9 @@ Future<bool> showMissingProductSubmissionSheet(
   final submitted = await PGModal.bottomSheet<bool>(
     context: context,
     builder: (sheetContext) => MissingProductSubmissionSheet(
-      upc: identity.submissionIdentity,
+      upc: identity?.submissionIdentity ?? upc,
+      identifier: identifier,
+      resumeSubmissionId: resumeSubmissionId,
       preferLibrary: preferLibrary,
       service: service ?? ProductSubmissionService.production(),
       submissionIdFactory: submissionIdFactory,
@@ -131,14 +135,14 @@ _BlockedSource? _blockedSourceFor(String code) => switch (code) {
   _ => null,
 };
 
-/// Private, structured evidence intake for a barcode the catalog cannot
-/// match. There is deliberately no narrative field: the photos, barcode, and
-/// one closed "no separate ingredient panel" assertion are the entire user
-/// payload.
+/// Shared private label capture for numeric catalog misses and explicitly
+/// declared alternative identifiers. Neither path verifies product identity.
 class MissingProductSubmissionSheet extends StatefulWidget {
   const MissingProductSubmissionSheet({
     super.key,
     required this.upc,
+    this.identifier,
+    this.resumeSubmissionId,
     required this.service,
     required this.pickPhoto,
     required this.qualityGate,
@@ -154,6 +158,8 @@ class MissingProductSubmissionSheet extends StatefulWidget {
   });
 
   final String upc;
+  final ProductSubmissionIdentifier? identifier;
+  final String? resumeSubmissionId;
   final ProductSubmissionService service;
   final bool preferLibrary;
   final PickMissingProductPhoto pickPhoto;
@@ -281,6 +287,7 @@ class _MissingProductSubmissionSheetState
   /// second contribution for photos the server may already have seen.
   late String _draftSubmissionId =
       widget.retake?.submissionId ??
+      widget.resumeSubmissionId ??
       widget.submissionIdFactory?.call() ??
       newProductSubmissionId();
 
@@ -297,6 +304,8 @@ class _MissingProductSubmissionSheetState
 
   /// Taken now, or kept from the photos a reviewer already has.
   bool _covered(ProductSubmissionEvidenceCategory category) =>
+      (widget.identifier?.noCode == true &&
+          category == ProductSubmissionEvidenceCategory.barcode) ||
       _photosTagged(category).isNotEmpty ||
       (widget.retake?.keptCategories.contains(category) ?? false);
 
@@ -317,7 +326,7 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.front,
     _CaptureStep.facts,
     if (!_factsCarriesIngredients) _CaptureStep.ingredients,
-    _CaptureStep.barcode,
+    if (widget.identifier?.noCode != true) _CaptureStep.barcode,
     _CaptureStep.review,
   ];
 
@@ -1013,7 +1022,12 @@ class _MissingProductSubmissionSheetState
     if (read == null) return PanelHints.none;
     try {
       final text = await read(photo).timeout(const Duration(seconds: 5));
-      return readPanelHints(text, submission: GtinIdentity.parse(widget.upc));
+      return readPanelHints(
+        text,
+        submission: widget.identifier == null
+            ? GtinIdentity.parse(widget.upc)
+            : null,
+      );
     } on Object {
       // Text that cannot be read gives no hint. The person and the reviewer
       // judge the photo, as they always did.
@@ -1331,6 +1345,7 @@ class _MissingProductSubmissionSheetState
   }
 
   Future<bool> _checkPreviousSubmission() async {
+    if (widget.identifier != null) return true;
     setState(() {
       _checkingIntake = true;
       _stepError = null;
@@ -1485,7 +1500,8 @@ class _MissingProductSubmissionSheetState
             // The id the saved capture already carries, so a recovered
             // submission replays instead of opening a second contribution.
             submissionId: _draftSubmissionId,
-            upc: widget.upc,
+            upc: widget.identifier == null ? widget.upc : null,
+            identifier: widget.identifier,
             photos: List.unmodifiable(_photos),
             noSeparateIngredientPanel: _factsCarriesIngredients,
             resubmissionOf: _chosenResubmissionOf,
@@ -1562,6 +1578,7 @@ class _MissingProductSubmissionSheetState
         userId: userId,
         submissionId: _draftSubmissionId,
         upc: widget.upc,
+        identifier: widget.identifier,
         photos: List.unmodifiable(_photos),
         consentVersion: productSubmissionConsentVersion,
         resubmissionOf: _chosenResubmissionOf,
@@ -1614,7 +1631,16 @@ class _MissingProductSubmissionSheetState
     } else {
       final PendingProductSubmission? pending;
       try {
-        pending = await store.findByUpc(userId, widget.upc);
+        if (widget.resumeSubmissionId != null) {
+          final records = await store.list(userId);
+          pending = records
+              .where((p) => p.submissionId == widget.resumeSubmissionId)
+              .firstOrNull;
+        } else if (widget.identifier != null) {
+          pending = null;
+        } else {
+          pending = await store.findByUpc(userId, widget.upc);
+        }
       } on Object {
         return;
       }
@@ -1886,12 +1912,13 @@ class _MissingProductSubmissionSheetState
               : _CaptureStep.ingredients,
           current: _step == _CaptureStep.ingredients,
         ),
-        item(
-          'Barcode',
-          ProductSubmissionEvidenceCategory.barcode,
-          _CaptureStep.barcode,
-          current: _step == _CaptureStep.barcode,
-        ),
+        if (widget.identifier?.noCode != true)
+          item(
+            widget.identifier == null ? 'Barcode' : 'Code',
+            ProductSubmissionEvidenceCategory.barcode,
+            _CaptureStep.barcode,
+            current: _step == _CaptureStep.barcode,
+          ),
       ],
     );
   }
@@ -1940,7 +1967,9 @@ class _MissingProductSubmissionSheetState
       // Which barcode this is for, before anything else: the identity
       // anchor for "is this the product I scanned?".
       Text(
-        'For barcode ${widget.upc.replaceAll(RegExp(r'[^0-9]'), '')}',
+        widget.identifier == null
+            ? 'For barcode ${widget.upc}'
+            : '${widget.identifier!.brandName} · ${widget.identifier!.fullName}\n${widget.identifier!.observedCode ?? 'No printed code declared'}',
         style: V2Typography.monoData(color: context.v2.fgMuted),
       ),
       const SizedBox(height: V2Spacing.space12),
@@ -1985,8 +2014,12 @@ class _MissingProductSubmissionSheetState
             ),
           ),
           (
-            label: 'Barcode',
-            hint: null,
+            label: widget.identifier == null
+                ? 'Barcode'
+                : widget.identifier!.noCode
+                ? 'No printed code declared'
+                : 'Printed code',
+            hint: widget.identifier?.observedCode,
             kept: _covered(ProductSubmissionEvidenceCategory.barcode),
           ),
         ],
@@ -2048,7 +2081,13 @@ class _MissingProductSubmissionSheetState
         const SizedBox(height: V2Spacing.space16),
       ],
       if (photos.isEmpty) ...[
-        SubmissionPanelExample(category: category, barcodeDigits: widget.upc),
+        if (widget.identifier != null && _step == _CaptureStep.barcode)
+          Text(
+            widget.identifier!.observedCode!,
+            style: V2Typography.monoData(color: context.v2.fg),
+          )
+        else
+          SubmissionPanelExample(category: category, barcodeDigits: widget.upc),
         if (_step == _CaptureStep.barcode) ...[
           const SizedBox(height: V2Spacing.space8),
           Text(
@@ -2654,7 +2693,8 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.front => 'Front of the package',
     _CaptureStep.facts => 'Supplement Facts',
     _CaptureStep.ingredients => 'Other Ingredients',
-    _CaptureStep.barcode => 'Barcode',
+    _CaptureStep.barcode =>
+      widget.identifier == null ? 'Barcode' : 'Printed code',
     _CaptureStep.review => 'Review & submit',
   };
 
@@ -2669,8 +2709,9 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.ingredients =>
       'Photograph the full list. Every ingredient matters for safety checks.',
     _CaptureStep.barcode =>
-      'Photograph the barcode so a reviewer can match it to the one you '
-          'scanned.',
+      widget.identifier == null
+          ? 'Photograph the barcode so a reviewer can match it to the one you scanned.'
+          : 'Photograph the exact printed code ${widget.identifier!.observedCode}. A reviewer checks what it identifies.',
     _CaptureStep.intro || _CaptureStep.review => '',
   };
 
@@ -2679,7 +2720,8 @@ class _MissingProductSubmissionSheetState
     _CaptureStep.front => 'Front',
     _CaptureStep.facts => 'Supplement Facts',
     _CaptureStep.ingredients => 'Other Ingredients',
-    _CaptureStep.barcode => 'Barcode',
+    _CaptureStep.barcode =>
+      widget.identifier == null ? 'Barcode' : 'Printed code',
     _CaptureStep.intro || _CaptureStep.review => 'Label',
   };
 
@@ -2692,7 +2734,9 @@ class _MissingProductSubmissionSheetState
       'Add at least one photo of the Other '
           'Ingredients list.',
     _CaptureStep.barcode =>
-      'Add a clear photo or screenshot showing this package’s UPC digits.',
+      widget.identifier == null
+          ? 'Add a clear photo or screenshot showing this package’s UPC digits.'
+          : 'Add a clear photo showing this package’s printed code.',
     _CaptureStep.intro || _CaptureStep.review => '',
   };
 }
