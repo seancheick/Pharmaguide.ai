@@ -17,6 +17,35 @@ import 'package:pharmaguide/core/components/pg_hero_section.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 
 void main() {
+  testWidgets('hero image remains recognizable on narrow screens', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: PGHeroSection(
+            imageWidget: ColoredBox(
+              key: ValueKey('sized-product-image'),
+              color: Colors.blue,
+            ),
+            productName:
+                'Super Ubiquinol CoQ10 with Enhanced Mitochondrial Support 200 mg',
+            brandName: 'Life Extension',
+            score: 79,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(const ValueKey('sized-product-image'))),
+      const Size(112, 112),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   group('heroScoreDisplayFor — pure render decision', () {
     test('scored + trusted coverage renders the tier score line', () {
       expect(

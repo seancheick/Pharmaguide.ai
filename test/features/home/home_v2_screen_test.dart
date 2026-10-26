@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -56,7 +57,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
   }
 
-  testWidgets('recent scan image has an inset frame', (tester) async {
+  testWidgets('recent scan image uses the card width with a small inset', (
+    tester,
+  ) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
     addTearDown(() async {
@@ -76,9 +79,16 @@ void main() {
     expect(frameFinder, findsWidgets);
 
     final frame = tester.widget<Container>(frameFinder.first);
-    expect(frame.constraints?.maxWidth, V2Spacing.space64 + V2Spacing.space8);
-    expect(frame.constraints?.maxHeight, V2Spacing.space64 + V2Spacing.space8);
-    expect(frame.padding, const EdgeInsets.all(V2Spacing.space8));
+    expect(tester.getSize(frameFinder.first), const Size(130, 130));
+    final imageFinder = find.descendant(
+      of: frameFinder.first,
+      matching: find.byType(ProductImage),
+    );
+    expect(tester.getSize(imageFinder), const Size(120, 120));
+    expect(frame.constraints?.maxWidth, 130);
+    expect(frame.constraints?.maxHeight, 130);
+    expect(frame.padding, const EdgeInsets.all(V2Spacing.space4));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('recent scans never fall back to fixture cards', (tester) async {
