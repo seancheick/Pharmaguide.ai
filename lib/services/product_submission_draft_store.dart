@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:crypto/crypto.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
@@ -226,8 +225,13 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
         final fileName = '${photo.photoId}.${photo.contentSha256}';
         final destination = File('${directory.path}/$fileName');
         if (await destination.exists()) {
-          if (sha256.convert(await destination.readAsBytes()).toString() !=
-              photo.contentSha256) {
+          final storedPhoto = ProductSubmissionPhoto(
+            photoId: photo.photoId,
+            categories: photo.categories,
+            bytes: Uint8List.fromList(await destination.readAsBytes()),
+            contentType: photo.contentType,
+          );
+          if (storedPhoto.contentSha256 != photo.contentSha256) {
             throw const FormatException(
               'Saved photo identity has different bytes',
             );
