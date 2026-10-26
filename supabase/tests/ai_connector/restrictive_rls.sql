@@ -174,11 +174,16 @@ BEGIN
         fn.proname || ' still serves app sessions');
     END;
   END LOOP;
+  -- Internal guarded helpers may be added without becoming new API endpoints.
+  -- Pin the public mobile signatures actually exercised above, not a global
+  -- count of function bodies containing the guard text.
   PERFORM aic.assert((SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.prosrc LIKE '%PERFORM public.reject_oauth_client_request();%'
-      -- The project-wide PostgREST pre-request guard reuses the same check.
-      AND p.proname <> 'pgrst_reject_ai_assistant_tokens') = 9,
-    'nine guarded RPCs');
+    WHERE n.nspname = 'public' AND p.proname IN (
+      'create_product_submission', 'finalize_product_submission', 'hide_product_submission',
+      'get_product_submission_intake', 'add_product_submission_evidence',
+      'set_product_submission_display_name', 'open_product_submission_evidence_revision',
+      'request_product_submission_evidence', 'create_product_submission_reviewer_evidence_revision')) = 9,
+    'all nine guarded mobile signatures remain present without ambiguous overloads');
 END $$;
 RESET role;
 
@@ -269,5 +274,36 @@ DO $$ BEGIN
   RAISE EXCEPTION 'aic rollback' USING ERRCODE = 'Z0001';
 EXCEPTION WHEN SQLSTATE 'Z0001' THEN NULL;
 END $$;
+
+
+
+-- New reviewer RPCs delegate authorization through the existing reviewer owner.
+-- An OAuth token belonging to an actual reviewer must still fail at the OAuth
+-- fence, not merely because an unrelated test user lacks reviewer membership.
+BEGIN;
+INSERT INTO public.product_submission_reviewers(user_id) VALUES(aic.user_id(1)) ON CONFLICT DO NOTHING;
+DO $$
+DECLARE fn record; caught boolean; call text; seen integer := 0;
+BEGIN
+  FOR fn IN SELECT p.proname,p.pronargs FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public' AND p.proname IN ('prepare_product_submission_approval_payload','save_product_submission_reviewer_draft','reopen_product_submission_approval','correct_product_submission_barcode')
+  LOOP
+    seen := seen + 1;
+    call := format('SELECT public.%I(%s)',fn.proname,(SELECT string_agg('NULL',',') FROM generate_series(1,fn.pronargs)));
+    caught := false;
+    BEGIN
+      PERFORM aic.act_as(aic.user_id(1),'client-claude');
+      EXECUTE call;
+    EXCEPTION WHEN insufficient_privilege THEN
+      caught := SQLERRM='AI assistant connections cannot call this function';
+    WHEN others THEN
+      caught := false;
+    END;
+    PERFORM aic.assert(caught,fn.proname || ' refuses an OAuth reviewer before touching private review state');
+  END LOOP;
+  PERFORM aic.assert(seen=4,'new and corrected reviewer signatures are all covered');
+END $$;
+ROLLBACK;
+RESET role;
 
 SELECT 'AI connector SQL tests passed.' AS result;
