@@ -123,7 +123,9 @@ BEGIN
     AND (p.roles && ARRAY['authenticated', 'public']::name[])
     AND p.tablename NOT IN (
       'safety_alert_releases',   -- public alert-release metadata, readable by anon
-      'public_share_snapshots'   -- public product-share snapshots, keyed by code
+      'public_share_snapshots',  -- public product-share snapshots, keyed by code
+      'export_manifest',        -- public catalog distribution metadata
+      'catalog_releases'        -- public catalog distribution metadata
     )
     AND NOT EXISTS (
       SELECT 1 FROM pg_policies r
