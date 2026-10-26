@@ -1035,8 +1035,8 @@ class _RecentScanCard extends StatelessWidget {
 
   static const double width = 156;
   static const double height = 308;
-  static const double _imageFrameSize = width - 2 * V2Spacing.space12;
-  static const double _imageSize = _imageFrameSize - 2 * V2Spacing.space4;
+  static const double _imageFrameSize = width - 2 * (V2Spacing.space12 + 1);
+  static const double _imageSize = _imageFrameSize - 2 * (V2Spacing.space4 + 1);
 
   @override
   Widget build(BuildContext context) {

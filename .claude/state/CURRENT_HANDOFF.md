@@ -1,34 +1,15 @@
-# Current handoff — iOS 26 simulator and score-label correction
+# Current handoff — product image sizes
 
-Date: 2026-10-25
-Branch: `codex/ios26-simulator-tier-labels`
-Baseline: `1e85f885`
+2026-10-26. Goal: resolve Sean's screenshots showing small product images. Branch codex/product-image-sizing, baseline94d77bda, candidate5c0e852b818c84e2575908a7d192251341181cb8, PR147.
 
-Goal: restore the supported Apple-silicon iOS 26+ simulator path, verify the signed-out authentication entry point, and correct product-detail score labels/layout observed during the live run. No pipeline, catalog, clinical, release, or publication work belongs to this lane.
+Owner: lib/features/home/v2/home_v2_screen.dart::_RecentScanCard; lib/core/components/pg_hero_section.dart::PGHeroSection and lib/features/product_detail/v2/sections/hero_section.dart::buildHeroSection. Evidence: existing caller trace and constraints (home photo56/frame72/card156; detail child84 forced by parent80). Will NOT create: another image widget, score, clinical rule, public field or data correction.
 
-Owner Check:
-- Simulator compatibility: `ios/Podfile` using the ML Kit plugin's shipped `apple_silicon_simulator.rb` helper.
-- Development launch contract: `Makefile::run-ios` and `run-v2-ios`; all runtime configuration still comes from the existing `DART_DEFINES` owner.
-- Score layout: `lib/core/components/pg_score_line.dart::PGScoreLine`.
-- Tier display vocabulary: `lib/core/scoring/score_tier.dart::ScoreTierMeta.label`; catalog aliases continue to parse through `_catalogTierFromLabel`.
-- Will NOT create: a second auth configuration path, score, tier calculation, safety verdict, or pipeline field.
+Fix: home photo120/frame130 with4px inset and1px borders accounted for; height308 preserves previous text space. Detail image112 at both parent and child. Existing image resolver, fallback, tap/zoom, safety/score and data selection untouched. Fail-first tests observed actual72 vs expected132 and actual80 vs expected112. A combined check reproduced a6px overflow with intermediate card288; corrected308 and affected scored/unknown/blocked consumers pass. Golden hero baseline visually inspected and updated solely for intentional image area.
 
-Implemented:
-- Opted the Podfile into the ML Kit package's Apple-silicon simulator patch so arm64 iOS 26 simulators build.
-- Upgraded the local Flutter stable toolchain from 3.44.6 to 3.47.8 for Xcode 27 compatibility; accepted Flutter's lock/analyzer migrations.
-- Made simulator device selection explicit with `make run-ios IOS_DEVICE=<name-or-UDID>` and stopped Make from echoing injected configuration values.
-- Kept prominent product-detail score and tier on one line; compact recent-scan cards retain their deliberate stacked treatment.
-- Applied Sean's display ladder: Elite / Excellent / Very good / Good / Fair / Poor, while retaining legacy catalog aliases such as Exceptional, Needs improvement, and Weak.
+Validation: analysis clean.67 focused home/detail/decision cases pass, including updated hero golden and320px narrow-screen regression. Final non-golden entire app suite4015 passed. Initial make check (before last card-height fix) had2 reproduced overflow cases and6 unrelated tiny renderer golden differences in nutrient/probiotic/med-nutrient screens after toolchain upgrade; no unrelated goldens rewritten. Final CI Analyze & Test40273880078 is pending; not yet merge-qualified.
 
-Verification:
-- `make verify-supabase`: HTTP 200.
-- `pod install`: 25 dependencies / 53 pods; ML Kit reports Apple-silicon simulator support enabled for five frameworks.
-- Live `make run-ios IOS_DEVICE=DB137D33-E2D6-4D15-92E4-F65E2A737A9B`: Xcode build succeeded on iOS 26.5; Supabase initialized; clean signed-out onboarding rendered.
-- Live auth probe through the real `/dev/v2/auth` route: Google authorization reached the genuine `accounts.google.com` credential form. No credentials were entered.
-- Focused score, product-detail, simulator-contract, and auth suite: 108 tests passed with golden tests excluded. The golden-only run showed a 0.03% pixel drift after the Flutter 3.47 toolchain update; no golden was rewritten.
-- `make analyze`: no issues.
-- `git diff --check`: clean.
-- Adversarial PR review found prominent-score scaling could defeat larger accessibility text; replaced it with a full-size responsive wrap and added a constrained 2x-text regression test.
+Simulator: QA device DB137D33-E2D6-4D15-92E4-F65E2A737A9B, iOS26.5, configured Make launch. Actual Maximum CLA detail inspected (image larger,49/Poor/dose/safety unchanged); home photo inspected through Device Hub. Private screenshots/logs .claude/state/image-sizing. Home QA empty scan table received one temporary1059 row for visual verification, exact row ID in qa_test_row.txt and whole DB backup qa_before.db. Temporary QA row removed after capture; original empty scan history restored; no profile/stack changes. Final exact-candidate simulator rebuild in progress.
 
-Open validation:
-- Exact-head CI after push. The user must enter their own Google/Apple/email credentials to verify account-specific completion; credential entry was intentionally not automated.
+Pipeline primary is now preserved and aligned main (receipt5a2ff81e), old Batch11 source copies retained in backup and stash, private submissions untouched.125 named pipeline source/consumer tests pass. All114 Clean/Enrich/Score manifests stale; no new corpus/import/release started. Full rebuilt corpus/app-data validation and clinical holds remain open.
+
+Review follow-up: actual rendered-size regression reproduced a130x132 frame despite declared132x132 constraints. Border insets are now included at both card/frame levels, preserving card width156 and producing square130 frame/120 photo. The regression asserts actual frame and ProductImage sizes.

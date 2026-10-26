@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
+import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -78,8 +79,14 @@ void main() {
     expect(frameFinder, findsWidgets);
 
     final frame = tester.widget<Container>(frameFinder.first);
-    expect(frame.constraints?.maxWidth, 132);
-    expect(frame.constraints?.maxHeight, 132);
+    expect(tester.getSize(frameFinder.first), const Size(130, 130));
+    final imageFinder = find.descendant(
+      of: frameFinder.first,
+      matching: find.byType(ProductImage),
+    );
+    expect(tester.getSize(imageFinder), const Size(120, 120));
+    expect(frame.constraints?.maxWidth, 130);
+    expect(frame.constraints?.maxHeight, 130);
     expect(frame.padding, const EdgeInsets.all(V2Spacing.space4));
     expect(tester.takeException(), isNull);
   });
