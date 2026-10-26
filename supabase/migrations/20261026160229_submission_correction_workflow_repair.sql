@@ -809,7 +809,3 @@ GRANT EXECUTE ON FUNCTION public.request_product_submission_evidence(uuid,text,t
 REVOKE ALL ON FUNCTION public.open_product_submission_evidence_revision(uuid,integer,uuid,uuid[],text) FROM PUBLIC,anon,service_role;
 GRANT EXECUTE ON FUNCTION public.open_product_submission_evidence_revision(uuid,integer,uuid,uuid[],text) TO authenticated;
 REVOKE ALL ON FUNCTION public.review_product_submission_human_internal(uuid,uuid,public.product_submission_review_status,text,text,jsonb,text,text,uuid,text,text,text) FROM PUBLIC,anon,authenticated,service_role;
-
--- Restore the existing active-stack index omitted from the historical live schema.
-CREATE INDEX IF NOT EXISTS idx_user_stacks_user_active
-  ON public.user_stacks(user_id) WHERE deleted_at IS NULL;
