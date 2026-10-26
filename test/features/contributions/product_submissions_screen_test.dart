@@ -475,11 +475,12 @@ void main() {
           ProductSubmissionEvidenceCategory.barcode,
         });
         expect(backend.evidenceRequests, [submissionId]);
-        if (interrupted)
+        if (interrupted) {
           expect(
             sheet.retake?.earlierPhotoDigests,
             isNot(contains('new-hash')),
           );
+        }
         expect(tester.takeException(), isNull);
       },
     );
