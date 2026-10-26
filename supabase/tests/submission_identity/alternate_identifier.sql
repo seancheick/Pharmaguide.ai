@@ -189,6 +189,7 @@ DO $$ DECLARE sid uuid; envelope jsonb; wire text; BEGIN
  INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES('retained-target-catalog','900','Label','Example');
  PERFORM public.rotate_manifest_with_submission_approvals('retained-target-catalog','p','s','1',1,'hash',now());
  PERFORM fixture.assert((SELECT is_current FROM public.export_manifest WHERE db_version='retained-target-catalog'),'valid rotation retains reviewed target');
+ PERFORM fixture.throws(format('INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES(''retained-target-catalog'',%L,''Label'',''Example'')','PG_SUB_'||upper(replace(sid::text,'-',''))),'23505','activation conflicts');
  PERFORM fixture.throws('UPDATE public.export_manifest SET is_current=false WHERE is_current; SET CONSTRAINTS public.export_manifest_submission_identity_revalidate IMMEDIATE','23505','reviewed catalog target');
  PERFORM fixture.throws('DELETE FROM public.catalog_search WHERE catalog_version=''retained-target-catalog'' AND dsld_id=''900''','23505','reviewed catalog target');
  PERFORM fixture.throws('SELECT public.rotate_manifest_with_submission_approvals(''removed-target-catalog'',''p'',''s'',''1'',0,''hash'',now())','23505','reviewed catalog target');
@@ -243,3 +244,53 @@ DECLARE envelope jsonb; wire text; BEGIN
  wire:=envelope::text;
  RETURN public.review_product_submission(p_id,'approved',p_approved_schema_version=>'manual_label_v2',p_approved_payload=>envelope,p_approved_payload_canonical=>wire,p_payload_sha256=>encode(extensions.digest(wire,'sha256'),'hex'),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(p_id),p_product_image_photo_id=>'10000000-0000-0000-0000-000000000001',p_correction_target_dsld_id=>p_target);
 END $$;
+SELECT fixture.test('explicit no-GTIN duplicate uses reviewed label package and issuer, not observed code', $case$
+DO $$ DECLARE a uuid; b uuid; bad uuid; BEGIN
+ a:=fixture.seed_alternate(1,'Duplicate Brand','Duplicate Label');
+ b:=fixture.seed_alternate(2,'Duplicate Brand','Duplicate Label');
+ PERFORM fixture.approve_alternate(a);
+ PERFORM fixture.assert(public.review_product_submission(b,'duplicate',p_duplicate_of=>a,p_resolution_code=>'duplicate_submission',p_review_notes=>'Compared complete labels, package and issuer: same product',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(b)),'reviewed no-GTIN duplicate linked');
+ PERFORM fixture.assert((SELECT review_status='duplicate' AND duplicate_of=a FROM public.product_submissions WHERE id=b),'existing duplicate owner used');
+END $$ $case$);
+SELECT fixture.test('edition activation accepts reviewed base plus its own stable PG_SUB product', $case$
+DO $$ DECLARE sid uuid; envelope jsonb; wire text; stable text; BEGIN
+ INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES('edition-base-catalog','960','Edition Label','Edition Brand');
+ PERFORM public.rotate_manifest_with_submission_approvals('edition-base-catalog','p','s','1',1,'hash',now());
+ sid:=fixture.seed_catalog_alternate(1,'960','Edition Brand','Edition Label'); stable:='PG_SUB_'||upper(replace(sid::text,'-',''));
+ envelope:=public.prepare_product_submission_approval_payload(sid,'{"brandName":"Edition Brand","fullName":"Edition Label"}',NULL,'960'); wire:=envelope::text;
+ PERFORM public.review_product_submission(sid,'approved',p_approved_schema_version=>'manual_label_v2',p_approved_payload=>envelope,p_approved_payload_canonical=>wire,p_payload_sha256=>encode(extensions.digest(wire,'sha256'),'hex'),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(sid),p_product_image_photo_id=>'10000000-0000-0000-0000-000000000001',p_edition_of_dsld_id=>'960');
+ INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES('edition-next-catalog','960','Edition Label','Edition Brand'),('edition-next-catalog',stable,'Edition Label','Edition Brand');
+ PERFORM public.rotate_manifest_with_submission_approvals('edition-next-catalog','p','s','1',2,'hash',now());
+ PERFORM fixture.assert((SELECT is_current FROM public.export_manifest WHERE db_version='edition-next-catalog'),'base and own edition can activate');
+ PERFORM fixture.throws('INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES(''edition-next-catalog'',''961'',''Edition Label'',''Edition Brand'')','23505','activation conflicts');
+END $$ $case$);
+SELECT fixture.test('no-GTIN duplicate rejects different reviewed package issuer brand or product', $case$
+DO $$ DECLARE a uuid; b uuid; c uuid; d uuid; e uuid; BEGIN
+ a:=fixture.seed_alternate(1,'Duplicate Scope','Same label');
+ b:=fixture.seed_alternate(2,'Duplicate Scope','Same label');
+ c:=fixture.seed_alternate(3,'Duplicate Scope','Same label');
+ d:=fixture.seed_alternate(4,'Other Brand','Same label');
+ e:=fixture.seed_alternate(5,'Duplicate Scope','Other product');
+ PERFORM public.record_product_submission_match_check(b,'new_product_verified',NULL,now(),NULL,'{}',NULL,1,fixture.manifest_hash(b),'label_review','{"code_type":"other","issuer":null,"verified_gtin":null,"package":"120 capsules","reason":"Verified a different package"}',true,'package-index');
+ PERFORM public.record_product_submission_match_check(c,'new_product_verified',NULL,now(),NULL,'{}',NULL,1,fixture.manifest_hash(c),'label_review','{"code_type":"other","issuer":"Other issuer","verified_gtin":null,"package":"60 capsules","reason":"Verified a different issuer"}',true,'issuer-index');
+ PERFORM fixture.approve_alternate(a);
+ FOREACH b IN ARRAY ARRAY[b,c,d,e] LOOP
+ PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''duplicate'',p_duplicate_of=>%L,p_resolution_code=>''duplicate_submission'',p_review_notes=>''Compared complete label package issuer'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',b,a,fixture.manifest_hash(b)),'22023','approved matching submission');
+ END LOOP;
+END $$ $case$);
+SELECT fixture.test('no-GTIN duplicate requires substantive human reason and current field verification', $case$
+DO $$ DECLARE a uuid; b uuid; BEGIN
+ a:=fixture.seed_alternate(1,'Duplicate Verified','Same label'); b:=fixture.seed_alternate(2,'Duplicate Verified','Same label');
+ PERFORM fixture.approve_alternate(a);
+ PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''duplicate'',p_duplicate_of=>%L,p_resolution_code=>''duplicate_submission'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',b,a,fixture.manifest_hash(b)),'22023','approved matching submission');
+ DELETE FROM public.product_submission_field_verifications WHERE submission_id=b;
+ PERFORM fixture.throws(format('SELECT public.review_product_submission(%L,''duplicate'',p_duplicate_of=>%L,p_resolution_code=>''duplicate_submission'',p_review_notes=>''Compared complete label package issuer'',p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>%L)',b,a,fixture.manifest_hash(b)),'55000','fields not read');
+END $$ $case$);
+SELECT fixture.test('reviewer OAuth clients fail through central reviewer owner before argument validation', $case$
+DO $$ BEGIN
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
+ PERFORM set_config('request.jwt.claims','{"client_id":"reviewer-oauth-client"}',false);
+ PERFORM fixture.throws('SELECT public.prepare_product_submission_approval_payload(NULL,NULL)','42501','AI assistant connections cannot call this function');
+ PERFORM fixture.throws('SELECT public.save_product_submission_reviewer_draft(NULL,NULL,NULL,NULL,NULL,NULL)','42501','AI assistant connections cannot call this function');
+ PERFORM fixture.throws('SELECT public.get_product_submission_identity_candidates(NULL)','42501','AI assistant connections cannot call this function');
+END $$ $case$);

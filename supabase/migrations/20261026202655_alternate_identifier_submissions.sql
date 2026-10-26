@@ -824,6 +824,44 @@ AS $$
   WHERE submission.id = p_submission_id;
 $$;
 
+
+CREATE FUNCTION public.product_submission_approval_catalog_ids(p_submission_id uuid,p_payload jsonb)
+RETURNS text[] LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
+ SELECT CASE
+ WHEN p_payload#>>'{identity,correction_target_dsld_id}' IS NOT NULL THEN ARRAY[p_payload#>>'{identity,correction_target_dsld_id}']
+ WHEN p_payload#>>'{identity,edition_of_dsld_id}' IS NOT NULL THEN ARRAY[p_payload#>>'{identity,edition_of_dsld_id}',coalesce(s.resolved_dsld_id,'PG_SUB_'||upper(replace(s.id::text,'-','')))]
+ ELSE ARRAY[coalesce(s.resolved_dsld_id,'PG_SUB_'||upper(replace(s.id::text,'-','')))] END
+ FROM public.product_submissions s WHERE s.id=p_submission_id;
+$$;
+REVOKE ALL ON FUNCTION public.product_submission_approval_catalog_ids(uuid,jsonb) FROM PUBLIC,anon,authenticated,service_role;
+
+-- A private duplicate is a human decision about two fully reviewed labels.
+-- Raw code equality and a blank GTIN never establish product equivalence.
+CREATE FUNCTION public.product_submission_label_duplicate_is_verified(p_submission_id uuid,p_target_id uuid,p_reason text)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE d public.product_submission_reviewer_drafts%ROWTYPE; m public.product_submission_match_checks%ROWTYPE; a public.product_submission_approved_labels%ROWTYPE; sid public.product_submissions%ROWTYPE;
+BEGIN
+ SELECT * INTO sid FROM public.product_submissions WHERE id=p_submission_id;
+ SELECT * INTO d FROM public.product_submission_reviewer_drafts WHERE submission_id=p_submission_id AND reviewer_id=auth.uid();
+ SELECT * INTO m FROM public.product_submission_match_checks WHERE submission_id=p_submission_id ORDER BY created_at DESC,id DESC LIMIT 1;
+ SELECT approval.* INTO a FROM public.product_submission_approved_labels approval JOIN public.product_submissions t ON t.id=approval.submission_id AND t.approval_revision=approval.approval_revision
+ WHERE t.id=p_target_id AND t.kind='missing_product' AND t.review_status='approved' AND t.upload_state='ready';
+ IF sid.kind<>'missing_product' OR sid.normalized_upc IS NOT NULL OR sid.identifier IS NULL
+ OR a.schema_version IS DISTINCT FROM 'manual_label_v2' OR a.approved_payload#>>'{identity,decision,verified_gtin}' IS NOT NULL
+ OR d.payload IS DISTINCT FROM a.approved_payload->'label'
+ OR nullif(btrim(d.payload->>'brandName'),'') IS NULL OR nullif(btrim(d.payload->>'fullName'),'') IS NULL
+ OR char_length(btrim(coalesce(p_reason,''))) NOT BETWEEN 5 AND 2000
+ OR m.identity_method IS DISTINCT FROM 'label_review' OR m.identifier_decision IS NULL OR NOT m.candidate_review_complete
+ OR m.evidence_revision IS DISTINCT FROM sid.evidence_revision OR m.label_payload_sha256 IS DISTINCT FROM d.payload_sha256
+ OR m.index_built_at<now()-interval '60 days' OR m.index_built_at>now()+interval '5 minutes'
+ OR m.identifier_decision->>'verified_gtin' IS NOT NULL
+ OR nullif(btrim(m.identifier_decision->>'package'),'') IS NULL
+ OR m.identifier_decision->>'package' IS DISTINCT FROM a.approved_payload#>>'{identity,decision,package}'
+ OR m.identifier_decision->>'issuer' IS DISTINCT FROM a.approved_payload#>>'{identity,decision,issuer}' THEN RETURN false; END IF;
+ PERFORM public.assert_product_submission_fully_verified(p_submission_id,d.payload_sha256);
+ RETURN true;
+END $$;
+REVOKE ALL ON FUNCTION public.product_submission_label_duplicate_is_verified(uuid,uuid,text) FROM PUBLIC,anon,authenticated,service_role;
 CREATE OR REPLACE FUNCTION "public"."review_product_submission_human_internal"("p_submission_id" "uuid", "p_reviewer_id" "uuid", "p_to_status" "public"."product_submission_review_status", "p_review_notes" "text" DEFAULT NULL::"text", "p_approved_schema_version" "text" DEFAULT NULL::"text", "p_approved_payload" "jsonb" DEFAULT NULL::"jsonb", "p_approved_payload_canonical" "text" DEFAULT NULL::"text", "p_payload_sha256" "text" DEFAULT NULL::"text", "p_duplicate_of" "uuid" DEFAULT NULL::"uuid", "p_resolution_code" "text" DEFAULT NULL::"text", "p_resolution_detail" "text" DEFAULT NULL::"text", "p_resolved_dsld_id" "text" DEFAULT NULL::"text") RETURNS boolean
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO ''
@@ -957,7 +995,7 @@ BEGIN
        OR matched.conflict_snapshot IS DISTINCT FROM public.product_submission_identity_conflicts(p_submission_id) THEN
       RAISE EXCEPTION 'current complete reviewed identifier decision required' USING ERRCODE='55000'; END IF;
     IF EXISTS(SELECT 1 FROM jsonb_array_elements(matched.conflict_snapshot) c WHERE c->>'source'='pending')
-       OR EXISTS(SELECT 1 FROM jsonb_array_elements(matched.conflict_snapshot) c WHERE c->>'source'='catalog' AND c->>'id' IS DISTINCT FROM coalesce(submission.correction_target_dsld_id,submission.edition_of_dsld_id,submission.resolved_dsld_id)) THEN
+       OR EXISTS(SELECT 1 FROM jsonb_array_elements(matched.conflict_snapshot) c WHERE c->>'source'='catalog' AND NOT (c->>'id'=ANY(public.product_submission_approval_catalog_ids(p_submission_id,p_approved_payload)))) THEN
       RAISE EXCEPTION 'catalog identity conflict requires explicit resolution' USING ERRCODE='23505'; END IF;
     IF submission.promoted_at IS NOT NULL AND submission.correction_target_dsld_id IS NOT NULL AND submission.correction_target_dsld_id IS DISTINCT FROM submission.resolved_dsld_id THEN
       RAISE EXCEPTION 'published submission identity cannot be reassigned' USING ERRCODE='55000'; END IF;
@@ -1011,8 +1049,9 @@ BEGIN
       AND (
         (
           submission.kind = 'missing_product'
-          AND public.product_submission_canonical_gtin(target.normalized_upc)
+          AND (public.product_submission_canonical_gtin(target.normalized_upc)
             = public.product_submission_canonical_gtin(submission.normalized_upc)
+            OR public.product_submission_label_duplicate_is_verified(p_submission_id,p_duplicate_of,p_review_notes))
         )
         OR (
           submission.kind = 'label_mismatch'
@@ -1132,6 +1171,7 @@ SECURITY DEFINER
 SET search_path TO ''
 AS $$
 BEGIN
+  PERFORM public.assert_product_submission_reviewer();
   PERFORM public.lock_product_submission_identity();
   IF p_to_status = 'approved' THEN
     -- The same required-path rule used by single and batch actions, inside the
@@ -1796,7 +1836,7 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'reviewed catalog target disappeared during activation' USING ERRCODE='23505';
   END IF;
-  IF EXISTS(SELECT 1 FROM jsonb_array_elements(conflicts) c WHERE c->>'source'='catalog' AND c->>'id' IS DISTINCT FROM coalesce(pending.approved_payload#>>'{identity,correction_target_dsld_id}',pending.approved_payload#>>'{identity,edition_of_dsld_id}',(SELECT resolved_dsld_id FROM public.product_submissions WHERE id=pending.id),'PG_SUB_'||upper(replace(pending.id::text,'-','')))) THEN
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(conflicts) c WHERE c->>'source'='catalog' AND NOT (c->>'id'=ANY(public.product_submission_approval_catalog_ids(pending.id,pending.approved_payload)))) THEN
     RAISE EXCEPTION 'catalog activation conflicts with pending submission approval' USING ERRCODE='23505';
   END IF;
  END LOOP;
@@ -2218,3 +2258,14 @@ BEGIN
   RETURN public.product_submission_reviewer_state_internal(
     p_submission_id, v_reviewer_id);
 END $$;
+
+CREATE OR REPLACE FUNCTION public.assert_product_submission_reviewer() RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE reviewer uuid:=auth.uid();
+BEGIN
+ PERFORM public.reject_oauth_client_request();
+ IF reviewer IS NULL OR NOT EXISTS(SELECT 1 FROM public.product_submission_reviewers r WHERE r.user_id=reviewer) THEN
+  RAISE EXCEPTION 'reviewer access required' USING ERRCODE='42501'; END IF;
+ RETURN reviewer;
+END $$;
+REVOKE ALL ON FUNCTION public.assert_product_submission_reviewer() FROM PUBLIC,anon,authenticated,service_role;
