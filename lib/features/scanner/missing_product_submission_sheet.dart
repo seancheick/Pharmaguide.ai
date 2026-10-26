@@ -49,6 +49,7 @@ typedef PickMissingProductPhotos =
 Future<bool> showMissingProductSubmissionSheet(
   BuildContext context, {
   required String upc,
+  VoidCallback? onPresented,
   ProductSubmissionIdentifier? identifier,
   String? resumeSubmissionId,
   bool preferLibrary = false,
@@ -72,7 +73,7 @@ Future<bool> showMissingProductSubmissionSheet(
     return false;
   }
   final picker = ImagePicker();
-  final submitted = await PGModal.bottomSheet<bool>(
+  final presentation = PGModal.bottomSheet<bool>(
     context: context,
     builder: (sheetContext) => MissingProductSubmissionSheet(
       upc: identity?.submissionIdentity ?? upc,
@@ -109,6 +110,8 @@ Future<bool> showMissingProductSubmissionSheet(
           ),
     ),
   );
+  onPresented?.call();
+  final submitted = await presentation;
   return submitted == true;
 }
 

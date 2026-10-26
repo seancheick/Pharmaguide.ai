@@ -101,6 +101,7 @@ class PendingSubmissionIntent {
     await prefs.setString(
       storageKey,
       jsonEncode({
+        'intent_key': newProductSubmissionId(),
         'kind': 'missing_product',
         'identifier': identifier.toJson(),
         'submission_id': id,
@@ -152,6 +153,7 @@ class PendingSubmissionIntent {
     await prefs.setString(
       storageKey,
       jsonEncode({
+        'intent_key': newProductSubmissionId(),
         'kind': kind.wireValue,
         field: identifier,
         'created_at': (now ?? DateTime.now)().toUtc().toIso8601String(),
@@ -162,14 +164,53 @@ class PendingSubmissionIntent {
   /// Returns the pending action exactly once, or null when absent, expired,
   /// or malformed. Payloads written before `kind` existed remain compatible
   /// and are interpreted as missing-product intents.
-  static Future<PendingSubmissionIntentValue?> consume({
+  static final _snapshots = Expando<String>();
+
+  /// Read without consuming: presentation may still be interrupted.
+  static Future<PendingSubmissionIntentValue?> peek({
     DateTime Function()? now,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(storageKey);
     if (raw == null) return null;
-    await prefs.remove(storageKey);
+    final value = _decode(raw, now: now);
+    if (value == null) {
+      await _removeSnapshot(raw);
+    } else {
+      _snapshots[value] = raw;
+    }
+    return value;
+  }
 
+  static Future<void> _removeSnapshot(String raw) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(storageKey) == raw) await prefs.remove(storageKey);
+  }
+
+  static Future<bool> isCurrent(PendingSubmissionIntentValue value) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = _snapshots[value];
+    return raw != null && prefs.getString(storageKey) == raw;
+  }
+
+  /// Acknowledge this exact receipt, never an intent saved while it was opening.
+  static Future<void> acknowledge(PendingSubmissionIntentValue value) async {
+    final raw = _snapshots[value];
+    if (raw != null) await _removeSnapshot(raw);
+  }
+
+  static Future<PendingSubmissionIntentValue?> consume({
+    DateTime Function()? now,
+  }) async {
+    final value = await peek(now: now);
+    if (value != null) await acknowledge(value);
+    return value;
+  }
+
+  static PendingSubmissionIntentValue? _decode(
+    String raw, {
+    DateTime Function()? now,
+  }) {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) return null;
