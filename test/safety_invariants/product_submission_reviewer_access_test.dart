@@ -145,7 +145,7 @@ void main() {
     );
     expect(
       source,
-      contains('id,kind,normalized_upc,upload_state,review_status'),
+      contains('id,kind,normalized_upc,identifier,upload_state,review_status'),
     );
     expect(
       source,
