@@ -91,10 +91,10 @@ def assemble(app: Path, pipeline: Path, app_ref: str, pipeline_ref: str,
     prerequisites = [source("pipeline", path,
         f"replay_prerequisites/{index:02d}_{Path(path).name}")
         for index, path in enumerate(REPLAY_PREREQUISITES)]
-    source("app", "supabase/config.toml", "supabase/config.toml")
+    config = source("app", "supabase/config.toml", "supabase/config.toml")
     receipt = {"commits": commits,
                "migrations": sorted(entries, key=lambda item: item["version"]),
-               "replay_prerequisites": prerequisites}
+               "replay_prerequisites": prerequisites, "config": config}
     # Never overwrite a deployment directory or any operator-owned files.
     output.mkdir(parents=True, exist_ok=False)
     for destination, raw in objects.items():
@@ -135,8 +135,9 @@ def main() -> None:
     if len(sys.argv) == 3 and sys.argv[1] == "--verify":
         root = Path(sys.argv[2])
         receipt = json.loads((root / "migration_sources.json").read_text())
-        entries = receipt["migrations"] + receipt["replay_prerequisites"]
-        expected = {entry["destination"] for entry in entries}
+        sql_entries = receipt["migrations"] + receipt["replay_prerequisites"]
+        entries = sql_entries + [receipt["config"]]
+        expected = {entry["destination"] for entry in sql_entries}
         actual = {str(path.relative_to(root)) for folder in ("supabase/migrations", "replay_prerequisites")
                   for path in (root / folder).glob("*.sql")}
         if actual != expected:
@@ -147,7 +148,7 @@ def main() -> None:
                 raise ValueError("invalid receipt path")
             if hashlib.sha256((root / path).read_bytes()).hexdigest() != entry["sha256"]:
                 raise ValueError(f"deployment source hash changed: {path}")
-        print(f"Verified {len(entries)} pinned SQL sources")
+        print(f"Verified {len(sql_entries)} pinned SQL sources and deployment config")
         return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app-repo", type=Path, default=Path(__file__).resolve().parents[1])

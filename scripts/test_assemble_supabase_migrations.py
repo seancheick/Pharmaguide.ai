@@ -49,6 +49,14 @@ class MigrationAssemblyTest(unittest.TestCase):
                 self.assertNotEqual(entry["version"], entry["source_version"])
             script = Path(assembly.__file__)
             subprocess.run(["python3", str(script), "--verify", str(output)], check=True)
+            config = output / "supabase/config.toml"
+            original_config = config.read_bytes()
+            config.write_text('project_id = "tampered"\n')
+            refused_config = subprocess.run(
+                ["python3", str(script), "--verify", str(output)], capture_output=True)
+            self.assertNotEqual(refused_config.returncode, 0)
+            self.assertIn(b"source hash changed", refused_config.stderr)
+            config.write_bytes(original_config)
             target = output / receipt["migrations"][0]["destination"]
             target.write_text("SELECT 'tampered';")
             refused = subprocess.run(["python3", str(script), "--verify", str(output)], capture_output=True)
