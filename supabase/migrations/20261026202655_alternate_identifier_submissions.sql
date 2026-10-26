@@ -636,7 +636,8 @@ RETURNS text LANGUAGE sql IMMUTABLE SET search_path='' AS $$
 $$;
 REVOKE ALL ON FUNCTION public.product_submission_label_bucket(text,text) FROM PUBLIC,anon,authenticated,service_role;
 ALTER TABLE public.product_submission_match_checks ADD COLUMN candidate_review_complete boolean NOT NULL DEFAULT false,
- ADD COLUMN index_revision text, ADD COLUMN conflict_snapshot jsonb;
+ ADD COLUMN index_revision text, ADD COLUMN conflict_snapshot jsonb,
+ ADD COLUMN label_payload_sha256 text CHECK(label_payload_sha256 IS NULL OR label_payload_sha256 ~ '^[0-9a-f]{64}$');
 
 -- All active catalog and pending-approved conflicts are enumerated here;
 -- a bounded suggestion page is never substituted for this set.
@@ -664,6 +665,17 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
 $$;
 REVOKE ALL ON FUNCTION public.product_submission_identity_conflicts(uuid,text) FROM PUBLIC,anon,authenticated,service_role;
 
+
+-- The active catalog, not a reviewer flag or private account row, owns
+-- whether an existing target is released. PG_SUB's UUID survives deletion of
+-- the original contributor account; importer derives its public lineage.
+CREATE FUNCTION public.product_submission_catalog_target_is_live(p_target text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
+ SELECT p_target IS NOT NULL AND p_target ~ '^([0-9]{1,30}|PG_SUB_[0-9A-F]{32})$' AND EXISTS(
+ SELECT 1 FROM public.catalog_search c JOIN public.export_manifest m ON m.db_version=c.catalog_version AND m.is_current
+ WHERE c.dsld_id=p_target);
+$$;
+REVOKE ALL ON FUNCTION public.product_submission_catalog_target_is_live(text) FROM PUBLIC,anon,authenticated,service_role;
 DROP FUNCTION public.record_product_submission_match_check(uuid,public.product_submission_match_outcome,text,timestamptz,text,text[],text,integer,text);
 CREATE FUNCTION public.record_product_submission_match_check(
  p_submission_id uuid,p_outcome public.product_submission_match_outcome,p_canonical_gtin14 text,p_index_built_at timestamptz,
@@ -672,7 +684,7 @@ CREATE FUNCTION public.record_product_submission_match_check(
  p_identity_method text DEFAULT 'gtin',p_identifier_decision jsonb DEFAULT NULL,
  p_candidate_review_complete boolean DEFAULT false,p_index_revision text DEFAULT NULL)
 RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
-DECLARE s public.product_submissions%ROWTYPE; mid bigint; conflicts jsonb; k text; v text;
+DECLARE s public.product_submissions%ROWTYPE; mid bigint; conflicts jsonb; k text; v text; label_digest text;
 BEGIN
  PERFORM public.reject_oauth_client_request();
  PERFORM public.assert_product_submission_reviewer();
@@ -684,6 +696,8 @@ BEGIN
  END IF;
  IF s.kind<>'missing_product' OR s.upload_state<>'ready' OR s.review_status NOT IN ('submitted','under_review') THEN
   RAISE EXCEPTION 'open missing-product submission required' USING ERRCODE='55000'; END IF;
+ IF p_outcome::text='catalog_match' AND NOT public.product_submission_catalog_target_is_live(p_matched_dsld_id) THEN
+  RAISE EXCEPTION 'matched catalog target is not active' USING ERRCODE='55000'; END IF;
  IF p_identity_method NOT IN ('gtin','label_review') OR p_identity_method IS NULL
  OR NOT coalesce(p_candidate_review_complete,false) OR nullif(btrim(p_index_revision),'') IS NULL OR char_length(p_index_revision)>200
  OR p_index_built_at IS NULL OR p_index_built_at<now()-interval '60 days' OR p_index_built_at>now()+interval '5 minutes'
@@ -707,11 +721,13 @@ BEGIN
  OR (p_matched_dsld_id IS NOT NULL AND p_matched_dsld_id !~ '^([0-9]{1,30}|PG_SUB_[0-9A-F]{32})$') THEN
   RAISE EXCEPTION 'invalid reviewed identifier or candidates' USING ERRCODE='22023'; END IF;
  IF p_identifier_decision->>'issuer' ~ U&'^[\0020\00A0\1680\2000-\200A\2028\2029\202F\205F\3000\FEFF]*$' THEN p_identifier_decision:=jsonb_set(p_identifier_decision,'{issuer}','null'::jsonb); END IF;
+ SELECT d.payload_sha256 INTO label_digest FROM public.product_submission_reviewer_drafts d WHERE d.submission_id=p_submission_id AND d.reviewer_id=auth.uid();
+ IF label_digest IS NULL THEN RAISE EXCEPTION 'reviewed label draft required for identity decision' USING ERRCODE='55000'; END IF;
  conflicts:=public.product_submission_identity_conflicts(p_submission_id);
  IF EXISTS(SELECT 1 FROM jsonb_array_elements(conflicts) c WHERE c->>'id' IS DISTINCT FROM p_matched_dsld_id AND NOT (c->>'id'=ANY(p_candidate_dsld_ids))) THEN
   RAISE EXCEPTION 'complete current conflict candidates required' USING ERRCODE='55000'; END IF;
- INSERT INTO public.product_submission_match_checks(submission_id,reviewer_id,outcome,canonical_gtin14,index_built_at,matched_dsld_id,candidate_dsld_ids,reason,identity_method,identifier_decision,candidate_review_complete,index_revision,conflict_snapshot)
- VALUES(p_submission_id,auth.uid(),p_outcome,p_canonical_gtin14,p_index_built_at,p_matched_dsld_id,p_candidate_dsld_ids,p_reason,p_identity_method,p_identifier_decision,true,p_index_revision,conflicts) RETURNING id INTO mid;
+ INSERT INTO public.product_submission_match_checks(submission_id,reviewer_id,outcome,canonical_gtin14,index_built_at,matched_dsld_id,candidate_dsld_ids,reason,identity_method,identifier_decision,candidate_review_complete,index_revision,conflict_snapshot,label_payload_sha256)
+ VALUES(p_submission_id,auth.uid(),p_outcome,p_canonical_gtin14,p_index_built_at,p_matched_dsld_id,p_candidate_dsld_ids,p_reason,p_identity_method,p_identifier_decision,true,p_index_revision,conflicts,label_digest) RETURNING id INTO mid;
  RETURN mid;
 END $$;
 REVOKE ALL ON FUNCTION public.record_product_submission_match_check(uuid,public.product_submission_match_outcome,text,timestamptz,text,text[],text,integer,text,text,jsonb,boolean,text) FROM PUBLIC,anon,service_role;
@@ -760,6 +776,7 @@ BEGIN
       submission.evidence_revision
     AND latest_match.index_built_at >= now() - interval '60 days'
     AND latest_match.index_built_at <= now() + interval '5 minutes'
+    AND (latest_match.identifier_decision IS NULL OR latest_match.label_payload_sha256=(SELECT d.payload_sha256 FROM public.product_submission_reviewer_drafts d WHERE d.submission_id=p_submission_id AND d.reviewer_id=auth.uid()))
     AND ((latest_match.identity_method='gtin' AND latest_match.canonical_gtin14=public.product_submission_canonical_gtin(submission.normalized_upc)) OR (latest_match.identity_method='label_review' AND latest_match.candidate_review_complete AND latest_match.conflict_snapshot IS NOT DISTINCT FROM public.product_submission_identity_conflicts(p_submission_id)));
 
   RETURN jsonb_build_object(
@@ -777,6 +794,7 @@ BEGIN
     'catalog_match_live',
       binds_to_this_evidence AND latest_match.outcome = 'catalog_match'
       AND latest_match.matched_dsld_id IS NOT NULL
+      AND (latest_match.identifier_decision IS NULL OR public.product_submission_catalog_target_is_live(latest_match.matched_dsld_id))
   );
 END $$;
 
@@ -932,7 +950,10 @@ BEGIN
       RAISE EXCEPTION 'approved canonical label payload required' USING ERRCODE='22023'; END IF;
     SELECT * INTO matched FROM public.product_submission_match_checks WHERE submission_id=p_submission_id ORDER BY created_at DESC,id DESC LIMIT 1;
     SELECT * INTO identity_revision FROM public.product_submission_evidence_revisions r WHERE r.submission_id=p_submission_id AND r.revision=submission.evidence_revision;
+    IF matched.outcome::text='catalog_match' AND NOT public.product_submission_catalog_target_is_live(matched.matched_dsld_id) THEN
+      RAISE EXCEPTION 'matched catalog target is not active' USING ERRCODE='55000'; END IF;
     IF matched.identifier_decision IS NULL OR NOT matched.candidate_review_complete
+       OR matched.label_payload_sha256 IS DISTINCT FROM (SELECT d.payload_sha256 FROM public.product_submission_reviewer_drafts d WHERE d.submission_id=p_submission_id AND d.reviewer_id=auth.uid())
        OR matched.conflict_snapshot IS DISTINCT FROM public.product_submission_identity_conflicts(p_submission_id) THEN
       RAISE EXCEPTION 'current complete reviewed identifier decision required' USING ERRCODE='55000'; END IF;
     IF EXISTS(SELECT 1 FROM jsonb_array_elements(matched.conflict_snapshot) c WHERE c->>'source'='pending')
@@ -1697,6 +1718,7 @@ SET search_path = ''
 AS $$
 DECLARE candidate record;
 BEGIN
+  PERFORM public.assert_product_submission_catalog_identity();
   FOR candidate IN
     SELECT submission.id AS submission_id,
       approved.approval_revision,
@@ -1754,7 +1776,7 @@ BEGIN PERFORM public.lock_product_submission_identity(); RETURN NULL; END $$;
 REVOKE ALL ON FUNCTION public.fence_product_submission_catalog_identity() FROM PUBLIC,anon,authenticated,service_role;
 CREATE TRIGGER catalog_search_submission_identity_fence BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.catalog_search FOR EACH STATEMENT EXECUTE FUNCTION public.fence_product_submission_catalog_identity();
 CREATE TRIGGER export_manifest_submission_identity_fence BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.export_manifest FOR EACH STATEMENT EXECUTE FUNCTION public.fence_product_submission_catalog_identity();
-CREATE FUNCTION public.revalidate_product_submission_catalog_identity() RETURNS trigger
+CREATE FUNCTION public.assert_product_submission_catalog_identity() RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE pending record; conflicts jsonb;
 BEGIN
@@ -1762,6 +1784,8 @@ BEGIN
  WHERE s.review_status='approved' AND s.approval_revision>s.promoted_approval_revision AND a.schema_version='manual_label_v2'
  LOOP
   conflicts:=public.product_submission_identity_conflicts(pending.id);
+  IF pending.approved_payload#>>'{identity,outcome}'='catalog_match' AND NOT public.product_submission_catalog_target_is_live(coalesce(pending.approved_payload#>>'{identity,correction_target_dsld_id}',pending.approved_payload#>>'{identity,edition_of_dsld_id}')) THEN
+    RAISE EXCEPTION 'reviewed catalog target is not active during activation' USING ERRCODE='23505'; END IF;
   IF EXISTS(
     SELECT 1 FROM public.product_submission_match_checks m,
       jsonb_array_elements(m.conflict_snapshot) reviewed
@@ -1776,11 +1800,24 @@ BEGIN
     RAISE EXCEPTION 'catalog activation conflicts with pending submission approval' USING ERRCODE='23505';
   END IF;
  END LOOP;
- RETURN NULL;
+ RETURN;
 END $$;
+REVOKE ALL ON FUNCTION public.assert_product_submission_catalog_identity() FROM PUBLIC,anon,authenticated,service_role;
+CREATE FUNCTION public.revalidate_product_submission_catalog_identity() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN PERFORM public.assert_product_submission_catalog_identity(); RETURN NULL; END $$;
 REVOKE ALL ON FUNCTION public.revalidate_product_submission_catalog_identity() FROM PUBLIC,anon,authenticated,service_role;
 CREATE TRIGGER catalog_search_submission_identity_revalidate AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.catalog_search FOR EACH STATEMENT EXECUTE FUNCTION public.revalidate_product_submission_catalog_identity();
-CREATE TRIGGER export_manifest_submission_identity_revalidate AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON public.export_manifest FOR EACH STATEMENT EXECUTE FUNCTION public.revalidate_product_submission_catalog_identity();
+-- A manifest rotation temporarily has no current row. Revalidate its final
+-- state at transaction end; rotate/export/promotion also assert explicitly
+-- before consuming approvals, so deferral never authorizes stale promotion.
+CREATE CONSTRAINT TRIGGER export_manifest_submission_identity_revalidate
+AFTER INSERT OR UPDATE OR DELETE ON public.export_manifest
+DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+EXECUTE FUNCTION public.revalidate_product_submission_catalog_identity();
+CREATE TRIGGER export_manifest_submission_identity_truncate_revalidate
+AFTER TRUNCATE ON public.export_manifest FOR EACH STATEMENT
+EXECUTE FUNCTION public.revalidate_product_submission_catalog_identity();
 CREATE OR REPLACE FUNCTION public.rotate_manifest_with_submission_approvals(
   p_db_version text,
   p_pipeline_version text,
@@ -1872,6 +1909,8 @@ BEGIN
     p_product_count,p_checksum,p_min_app_version,p_generated_at,true
   ) RETURNING id INTO new_id;
 
+  PERFORM public.assert_product_submission_catalog_identity();
+
   FOR item IN SELECT value FROM jsonb_array_elements(p_submission_approvals)
   LOOP
     resolved_id := nullif(item->>'resolved_dsld_id','');
@@ -1929,6 +1968,7 @@ DECLARE
   resolved_dsld_value text := btrim(coalesce(p_resolved_dsld_id,''));
 BEGIN
   PERFORM public.lock_product_submission_identity();
+  PERFORM public.assert_product_submission_catalog_identity();
   IF catalog_version_value = '' THEN
     RAISE EXCEPTION 'catalog version required' USING ERRCODE='22023';
   END IF;
@@ -2106,12 +2146,15 @@ $$;
 
 
 CREATE FUNCTION public.prepare_product_submission_approval_payload(p_submission_id uuid,p_label jsonb,p_correction_target_dsld_id text DEFAULT NULL,p_edition_of_dsld_id text DEFAULT NULL)
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path='' AS $$
+RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path='' AS $$
 DECLARE matched public.product_submission_match_checks%ROWTYPE; revision public.product_submission_evidence_revisions%ROWTYPE;
 BEGIN
  PERFORM public.assert_product_submission_reviewer();
+ PERFORM public.lock_product_submission_identity();
  SELECT m.* INTO matched FROM public.product_submission_match_checks m WHERE m.submission_id=p_submission_id ORDER BY m.created_at DESC,m.id DESC LIMIT 1;
  SELECT r.* INTO revision FROM public.product_submission_evidence_revisions r JOIN public.product_submissions s ON s.id=r.submission_id AND s.evidence_revision=r.revision WHERE s.id=p_submission_id;
+ IF matched.outcome::text='catalog_match' AND NOT public.product_submission_catalog_target_is_live(matched.matched_dsld_id) THEN RAISE EXCEPTION 'matched catalog target is not active' USING ERRCODE='55000'; END IF;
+ IF matched.identifier_decision IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.product_submission_reviewer_drafts d WHERE d.submission_id=p_submission_id AND d.reviewer_id=auth.uid() AND d.payload_sha256=matched.label_payload_sha256 AND d.payload IS NOT DISTINCT FROM p_label) THEN RAISE EXCEPTION 'reviewed identity label changed' USING ERRCODE='55000'; END IF;
  IF matched.id IS NULL OR revision.ready_at IS NULL THEN RAISE EXCEPTION 'reviewed identity and ready evidence required' USING ERRCODE='55000'; END IF;
  RETURN jsonb_build_object('label',p_label,'identity',jsonb_build_object(
  'observed',revision.identifier,'decision',matched.identifier_decision,'identity_method',matched.identity_method,
@@ -2120,3 +2163,58 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.prepare_product_submission_approval_payload(uuid,jsonb,text,text) FROM PUBLIC,anon,service_role;
 GRANT EXECUTE ON FUNCTION public.prepare_product_submission_approval_payload(uuid,jsonb,text,text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.save_product_submission_reviewer_draft(
+  p_submission_id uuid,
+  p_expected_evidence_revision integer,
+  p_evidence_manifest_sha256 text,
+  p_payload jsonb,
+  p_payload_canonical text,
+  p_payload_sha256 text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_reviewer_id uuid := public.assert_product_submission_reviewer();
+  submission public.product_submissions%ROWTYPE;
+BEGIN
+  PERFORM public.lock_product_submission_identity();
+  IF p_payload IS NULL OR jsonb_typeof(p_payload) <> 'object' THEN
+    RAISE EXCEPTION 'label payload object required' USING ERRCODE = '22023';
+  END IF;
+  IF p_payload_sha256 IS NULL OR p_payload_sha256 !~ '^[0-9a-f]{64}$'
+     OR p_payload_canonical IS NULL OR btrim(p_payload_canonical) = '' THEN
+    RAISE EXCEPTION 'canonical payload digest required' USING ERRCODE = '22023';
+  END IF;
+  -- The same fence approval uses. A draft may only be written against
+  -- evidence that is still current, so a retake can never be edited blind.
+  PERFORM public.assert_product_submission_evidence(
+    p_submission_id, p_expected_evidence_revision, p_evidence_manifest_sha256);
+  SELECT * INTO submission FROM public.product_submissions
+  WHERE id = p_submission_id;
+  IF submission.review_status NOT IN ('submitted', 'under_review') THEN
+    RAISE EXCEPTION 'submission is already resolved' USING ERRCODE = '55000';
+  END IF;
+
+  INSERT INTO public.product_submission_reviewer_drafts AS existing (
+    submission_id, reviewer_id, evidence_revision, evidence_manifest_sha256,
+    payload, payload_canonical, payload_sha256
+  ) VALUES (
+    p_submission_id, v_reviewer_id, p_expected_evidence_revision,
+    p_evidence_manifest_sha256, p_payload, p_payload_canonical, p_payload_sha256
+  )
+  ON CONFLICT (submission_id, reviewer_id) DO UPDATE SET
+    evidence_revision = EXCLUDED.evidence_revision,
+    evidence_manifest_sha256 = EXCLUDED.evidence_manifest_sha256,
+    payload = EXCLUDED.payload,
+    payload_canonical = EXCLUDED.payload_canonical,
+    payload_sha256 = EXCLUDED.payload_sha256,
+    updated_at = now()
+  -- An unchanged save is not an edit. Leaving the row untouched keeps
+  -- updated_at meaningful and avoids waking concurrent readers for nothing.
+  WHERE existing.payload_sha256 IS DISTINCT FROM EXCLUDED.payload_sha256
+     OR existing.evidence_revision IS DISTINCT FROM EXCLUDED.evidence_revision
+     OR existing.evidence_manifest_sha256
+        IS DISTINCT FROM EXCLUDED.evidence_manifest_sha256;
+
+  RETURN public.product_submission_reviewer_state_internal(
+    p_submission_id, v_reviewer_id);
+END $$;

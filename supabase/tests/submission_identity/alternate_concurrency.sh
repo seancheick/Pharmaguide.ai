@@ -41,3 +41,36 @@ else
 fi
 
 done
+
+# Label identity edits use the same global-before-row lock order as approval.
+alt_draft_logs="$(mktemp -d)"
+alt_draft_id="$(psql_test -Atqc "SELECT fixture.seed_alternate(2,'Draft Fence','Draft Label')")"
+psql_test -q -c "SET application_name='fixture_alt_draft_approval'; BEGIN; SELECT set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false); SELECT fixture.approve_alternate('$alt_draft_id'); SELECT pg_sleep(2); COMMIT;" > "$alt_draft_logs/approval.log" 2>&1 &
+alt_draft_approval_pid=$!
+wait_for_event fixture_alt_draft_approval PgSleep
+psql_test -q -c "SET application_name='fixture_alt_draft_edit'; SELECT set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false); SELECT public.save_product_submission_reviewer_draft('$alt_draft_id',1,fixture.manifest_hash('$alt_draft_id'),jsonb_build_object('brandName','Changed','fullName','Changed'),'{\"brandName\":\"Changed\",\"fullName\":\"Changed\"}',repeat('e',64));" > "$alt_draft_logs/edit.log" 2>&1 &
+alt_draft_edit_pid=$!
+alt_draft_waited=false
+if wait_for_event fixture_alt_draft_edit advisory; then alt_draft_waited=true; fi
+wait "$alt_draft_approval_pid"
+alt_draft_status=0
+wait "$alt_draft_edit_pid" || alt_draft_status=$?
+psql_test -q -c "SELECT fixture.test('reviewed label edits acquire identity fence before row locks', 'SELECT fixture.assert($alt_draft_waited AND $alt_draft_status <> 0 AND (SELECT approved_payload#>>''{label,brandName}''=''Draft Fence'' FROM public.product_submission_approved_labels WHERE submission_id=''$alt_draft_id''), ''late draft edit waits on global identity fence and cannot change approved identity'')')" >/dev/null
+if [[ "$alt_draft_waited" == true ]]; then rm "$alt_draft_logs/approval.log" "$alt_draft_logs/edit.log"; rmdir "$alt_draft_logs"; else echo "Draft fence diagnostics: $alt_draft_logs"; fi
+
+# A selected target cannot be deleted while its approval commits.
+alt_delete_logs="$(mktemp -d)"
+psql_test -q -c "INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES('delete-race-catalog','901','Deletion Label','Deletion Fence'); SELECT public.rotate_manifest_with_submission_approvals('delete-race-catalog','p','s','1',1,'hash',now());" >/dev/null
+alt_delete_id="$(psql_test -Atqc "SELECT fixture.seed_catalog_alternate(1,'901','Deletion Fence','Deletion Label')")"
+psql_test -q -c "SET application_name='fixture_alt_target_approval'; BEGIN; SELECT fixture.approve_catalog_alternate('$alt_delete_id','901'); SELECT pg_sleep(2); COMMIT;" > "$alt_delete_logs/approval.log" 2>&1 &
+alt_target_approval_pid=$!
+wait_for_event fixture_alt_target_approval PgSleep
+psql_test -q -c "SET application_name='fixture_alt_target_delete'; DELETE FROM public.catalog_search WHERE catalog_version='delete-race-catalog' AND dsld_id='901';" > "$alt_delete_logs/delete.log" 2>&1 &
+alt_target_delete_pid=$!
+alt_delete_waited=false
+if wait_for_event fixture_alt_target_delete advisory; then alt_delete_waited=true; fi
+wait "$alt_target_approval_pid"
+alt_delete_status=0
+wait "$alt_target_delete_pid" || alt_delete_status=$?
+psql_test -q -c "SELECT fixture.test('selected catalog deletion waits and refuses after concurrent approval', 'SELECT fixture.assert($alt_delete_waited AND $alt_delete_status <> 0 AND EXISTS(SELECT 1 FROM public.catalog_search WHERE catalog_version=''delete-race-catalog'' AND dsld_id=''901'') AND EXISTS(SELECT 1 FROM public.product_submission_approved_labels WHERE submission_id=''$alt_delete_id''), ''deletion shares global fence and cannot remove a selected approved target'')')" >/dev/null
+if [[ "$alt_delete_waited" == true ]]; then rm "$alt_delete_logs/approval.log" "$alt_delete_logs/delete.log"; rmdir "$alt_delete_logs"; else echo "Target deletion diagnostics: $alt_delete_logs"; fi

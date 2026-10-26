@@ -717,19 +717,6 @@ async function applyTransition(
   if (error || data !== true) throw error;
 
   await scheduleSubmissionPushDrain(admin, submissionId);
-  if (schemaVersion === "manual_label_v2") {
-    const { data: approval, error: approvalError } = await admin.from(
-      "product_submission_approved_labels",
-    )
-      .select("payload_sha256").eq("submission_id", submissionId).order(
-        "approval_revision",
-        { ascending: false },
-      ).limit(1).single();
-    if (approvalError || !approval) {
-      throw approvalError ?? new Error("approval receipt missing");
-    }
-    return approval.payload_sha256;
-  }
   return payloadHash;
 }
 

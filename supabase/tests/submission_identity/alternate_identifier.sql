@@ -186,6 +186,60 @@ DO $$ DECLARE sid uuid; envelope jsonb; wire text; BEGIN
  PERFORM public.record_product_submission_match_check(sid,'catalog_match',NULL,now(),'900','{}',NULL,1,fixture.manifest_hash(sid),'label_review','{"code_type":"other","issuer":null,"verified_gtin":null,"package":"60 capsules","reason":"Reviewed matching catalog label"}',true,'selected-target-index');
  envelope:=public.prepare_product_submission_approval_payload(sid,'{"brandName":"Example","fullName":"Label"}','900'); wire:=envelope::text;
  PERFORM public.review_product_submission(sid,'approved',p_approved_schema_version=>'manual_label_v2',p_approved_payload=>envelope,p_approved_payload_canonical=>wire,p_payload_sha256=>encode(extensions.digest(wire,'sha256'),'hex'),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(sid),p_product_image_photo_id=>'10000000-0000-0000-0000-000000000001',p_correction_target_dsld_id=>'900');
- PERFORM fixture.throws('DELETE FROM public.catalog_search WHERE catalog_version=''selected-target-catalog'' AND dsld_id=''900''','23505','reviewed catalog target');
+ INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES('retained-target-catalog','900','Label','Example');
+ PERFORM public.rotate_manifest_with_submission_approvals('retained-target-catalog','p','s','1',1,'hash',now());
+ PERFORM fixture.assert((SELECT is_current FROM public.export_manifest WHERE db_version='retained-target-catalog'),'valid rotation retains reviewed target');
+ PERFORM fixture.throws('UPDATE public.export_manifest SET is_current=false WHERE is_current; SET CONSTRAINTS public.export_manifest_submission_identity_revalidate IMMEDIATE','23505','reviewed catalog target');
+ PERFORM fixture.throws('DELETE FROM public.catalog_search WHERE catalog_version=''retained-target-catalog'' AND dsld_id=''900''','23505','reviewed catalog target');
  PERFORM fixture.throws('SELECT public.rotate_manifest_with_submission_approvals(''removed-target-catalog'',''p'',''s'',''1'',0,''hash'',now())','23505','reviewed catalog target');
 END $$ $case$);
+SELECT fixture.test('reviewed catalog associations require a live target rather than an invented id', $case$
+DO $$ DECLARE sid uuid; target text; BEGIN
+ sid:=fixture.seed_alternate(1,'Missing target brand','Missing target label');
+ FOREACH target IN ARRAY ARRAY['987654321','PG_SUB_98765432109876543210987654321098'] LOOP
+ PERFORM fixture.throws(format('SELECT public.record_product_submission_match_check(%L,''catalog_match'',NULL,now(),%L,''{}'',NULL,1,%L,''label_review'',''{"code_type":"other","issuer":null,"verified_gtin":null,"package":"60 capsules","reason":"Compared all candidates"}'',true,''complete-index'')',sid,target,fixture.manifest_hash(sid)),'55000','catalog target is not active');
+ END LOOP;
+END $$ $case$);
+SELECT fixture.test('live PG_SUB correction survives deletion of original private contributor account', $case$
+DO $$ DECLARE origin uuid; sid uuid; target text; envelope jsonb; wire text; BEGIN
+ INSERT INTO auth.users(id) VALUES(fixture.user_id(6));
+ origin:=fixture.seed(6,'036000291452','under_review',NULL);
+ target:='PG_SUB_'||upper(replace(origin::text,'-',''));
+ INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES('deleted-origin-catalog',target,'Label','Example');
+ PERFORM public.rotate_manifest_with_submission_approvals('deleted-origin-catalog','p','s','1',1,'hash',now());
+ DELETE FROM auth.users WHERE id=fixture.user_id(6);
+ PERFORM fixture.assert(NOT EXISTS(SELECT 1 FROM public.product_submissions WHERE id=origin),'private origin removed');
+ PERFORM fixture.assert(public.product_submission_catalog_target_is_live(target),'public exact target remains live');
+ sid:=fixture.seed(1,'012345678905','under_review',NULL);
+ UPDATE public.product_submissions SET identifier=fixture.alternate_identifier(),normalized_upc=NULL WHERE id=sid;
+ UPDATE public.product_submission_evidence_revisions SET identifier=fixture.alternate_identifier() WHERE submission_id=sid;
+ PERFORM fixture.prepare_review(sid,'{"brandName":"Example","fullName":"Label"}');
+ PERFORM public.record_product_submission_match_check(sid,'catalog_match',NULL,now(),target,'{}',NULL,1,fixture.manifest_hash(sid),'label_review','{"code_type":"other","issuer":null,"verified_gtin":null,"package":"60 capsules","reason":"Reviewed existing PG_SUB label"}',true,'deleted-origin-index');
+ envelope:=public.prepare_product_submission_approval_payload(sid,'{"brandName":"Example","fullName":"Label"}',target); wire:=envelope::text;
+ PERFORM public.review_product_submission(sid,'approved',p_approved_schema_version=>'manual_label_v2',p_approved_payload=>envelope,p_approved_payload_canonical=>wire,p_payload_sha256=>encode(extensions.digest(wire,'sha256'),'hex'),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(sid),p_product_image_photo_id=>'10000000-0000-0000-0000-000000000001',p_correction_target_dsld_id=>target);
+ PERFORM fixture.assert((SELECT correction_target_dsld_id=target AND approved_payload#>>'{identity,matched_dsld_id}'=target FROM public.product_submission_approved_labels WHERE submission_id=sid),'B approval retains A catalog identity');
+END $$ $case$);
+SELECT fixture.test('reviewed identity receipt cannot survive a changed label under an empty conflict set', $case$
+DO $$ DECLARE sid uuid; payload jsonb:='{"brandName":"Changed Brand","fullName":"Changed Label"}'; wire text; BEGIN
+ sid:=fixture.seed_alternate(1,'Original Brand','Original Label');
+ wire:=payload::text;
+ PERFORM public.save_product_submission_reviewer_draft(sid,1,fixture.manifest_hash(sid),payload,wire,encode(extensions.digest(wire,'sha256'),'hex'));
+ PERFORM fixture.prepare_review(sid,payload);
+ PERFORM fixture.assert(NOT (public.product_submission_identity_check(sid)->>'satisfies_approval')::boolean,'label edit invalidates prior identity receipt even without any conflict');
+END $$ $case$);
+CREATE FUNCTION fixture.seed_catalog_alternate(p_user integer,p_target text,p_brand text,p_name text) RETURNS uuid LANGUAGE plpgsql AS $$
+DECLARE sid uuid; BEGIN
+ sid:=fixture.seed(p_user,'012345678905','under_review',NULL);
+ UPDATE public.product_submissions SET identifier=fixture.alternate_identifier('X002FLZ3X7',p_brand,p_name),normalized_upc=NULL WHERE id=sid;
+ UPDATE public.product_submission_evidence_revisions SET identifier=fixture.alternate_identifier('X002FLZ3X7',p_brand,p_name) WHERE submission_id=sid;
+ PERFORM fixture.prepare_review(sid,jsonb_build_object('brandName',p_brand,'fullName',p_name));
+ PERFORM public.record_product_submission_match_check(sid,'catalog_match',NULL,now(),p_target,'{}',NULL,1,fixture.manifest_hash(sid),'label_review','{"code_type":"other","issuer":null,"verified_gtin":null,"package":"60 capsules","reason":"Reviewed existing active catalog label"}',true,'existing-target-index');
+ RETURN sid;
+END $$;
+CREATE FUNCTION fixture.approve_catalog_alternate(p_id uuid,p_target text) RETURNS boolean LANGUAGE plpgsql AS $$
+DECLARE envelope jsonb; wire text; BEGIN
+ PERFORM set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false);
+ envelope:=public.prepare_product_submission_approval_payload(p_id,(SELECT payload FROM public.product_submission_reviewer_drafts WHERE submission_id=p_id AND reviewer_id=fixture.user_id(3)),p_target);
+ wire:=envelope::text;
+ RETURN public.review_product_submission(p_id,'approved',p_approved_schema_version=>'manual_label_v2',p_approved_payload=>envelope,p_approved_payload_canonical=>wire,p_payload_sha256=>encode(extensions.digest(wire,'sha256'),'hex'),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(p_id),p_product_image_photo_id=>'10000000-0000-0000-0000-000000000001',p_correction_target_dsld_id=>p_target);
+END $$;
