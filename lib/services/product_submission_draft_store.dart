@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:crypto/crypto.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 
@@ -122,8 +124,8 @@ class RestoredCapture {
 /// Durable storage for captures that have not completed the submit sequence.
 ///
 /// Layout is one account directory per user, then one directory per submission:
-/// `<root>/<account id>/<submission id>/manifest.json` plus one file per photo
-/// named by its photo id. Files rather than the app database because these are
+/// `<root>/<account id>/<submission id>/manifest.json` plus immutable photo
+/// objects named by photo id and content hash (legacy photo-id files still read). Files rather than the app database because these are
 /// private label images, not queryable rows, and because a blob column would
 /// put multi-megabyte photos into a schema that ships with the catalog.
 class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
@@ -132,7 +134,33 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
 
   final Directory root;
 
-  ProductSubmissionDraftStore({required this.root});
+  /// Storage-failure injection at the publication boundary; production omits it.
+  final Future<void> Function()? beforeManifestPublish;
+
+  ProductSubmissionDraftStore({required this.root, this.beforeManifestPublish});
+
+  // One ordered operation stream per account/submission, shared by reopened
+  // store instances. A read or discard cannot observe an unfinished save.
+  static final _operations = <String, Future<void>>{};
+
+  static Future<T> _exclusive<T>(
+    Directory directory,
+    Future<T> Function() action,
+  ) async {
+    final key = directory.absolute.path;
+    final previous = _operations[key] ?? Future<void>.value();
+    final completed = Completer<void>();
+    _operations[key] = completed.future;
+    await previous;
+    try {
+      return await action();
+    } finally {
+      completed.complete();
+      if (identical(_operations[key], completed.future)) {
+        unawaited(_operations.remove(key));
+      }
+    }
+  }
 
   /// App-private support storage, never the system temporary directory: the OS
   /// reclaims temp between launches, which is exactly the case this exists for.
@@ -181,50 +209,83 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     String? resubmissionOf,
     bool noSeparateIngredientPanel = false,
     int evidenceRevision = 1,
-  }) async {
-    if (upc.isEmpty && identifier == null) {
-      throw ArgumentError('a durable capture needs the barcode it belongs to');
-    }
+  }) {
+    final capturedPhotos = List<ProductSubmissionPhoto>.unmodifiable(photos);
     final directory = _directoryFor(userId, submissionId);
-    // Replace rather than merge: the capture in hand is the whole truth, and a
-    // leftover image from a superseded attempt is private data with no owner.
-    if (directory.existsSync()) {
-      await directory.delete(recursive: true);
-    }
-    await directory.create(recursive: true);
+    return _exclusive(directory, () async {
+      if (upc.isEmpty && identifier == null) {
+        throw ArgumentError(
+          'a durable capture needs the barcode it belongs to',
+        );
+      }
+      await directory.create(recursive: true);
 
-    final entries = <Map<String, Object?>>[];
-    for (final photo in photos) {
-      final bytes = photo.bytes;
-      await File(
-        '${directory.path}/${photo.photoId}',
-      ).writeAsBytes(bytes, flush: true);
-      entries.add({
-        'photo_id': photo.photoId,
-        'categories': photo.categoryWireValues,
-        'content_type': photo.contentType,
-        'byte_size': bytes.length,
-        'content_sha256': photo.contentSha256,
-      });
-    }
+      final entries = <Map<String, Object?>>[];
+      for (final photo in capturedPhotos) {
+        final bytes = photo.bytes;
+        final fileName = '${photo.photoId}.${photo.contentSha256}';
+        final destination = File('${directory.path}/$fileName');
+        if (await destination.exists()) {
+          if (sha256.convert(await destination.readAsBytes()).toString() !=
+              photo.contentSha256) {
+            throw const FormatException(
+              'Saved photo identity has different bytes',
+            );
+          }
+        } else {
+          final pending = File(
+            '${destination.path}.${newProductSubmissionId()}.pending',
+          );
+          await pending.writeAsBytes(bytes, flush: true);
+          await pending.rename(destination.path);
+        }
+        entries.add({
+          'photo_id': photo.photoId,
+          'file_name': fileName,
+          'categories': photo.categoryWireValues,
+          'content_type': photo.contentType,
+          'byte_size': bytes.length,
+          'content_sha256': photo.contentSha256,
+        });
+      }
 
-    final manifest = <String, Object?>{
-      'schema_version': _schemaVersion,
-      'submission_id': submissionId,
-      'owner_scope': _scope(userId),
-      'kind': ProductSubmissionKind.missingProduct.wireValue,
-      'upc': upc,
-      if (identifier != null) 'identifier': identifier.toJson(),
-      'resubmission_of': resubmissionOf,
-      'no_separate_ingredient_panel': noSeparateIngredientPanel,
-      'consent_version': consentVersion,
-      'evidence_revision': evidenceRevision,
-      'captured_at': DateTime.now().toUtc().toIso8601String(),
-      'photos': entries,
-    };
-    await File(
-      '${directory.path}/$_manifestName',
-    ).writeAsString(jsonEncode(manifest), flush: true);
+      final manifest = <String, Object?>{
+        'schema_version': _schemaVersion,
+        'submission_id': submissionId,
+        'owner_scope': _scope(userId),
+        'kind': ProductSubmissionKind.missingProduct.wireValue,
+        'upc': upc,
+        if (identifier != null) 'identifier': identifier.toJson(),
+        'resubmission_of': resubmissionOf,
+        'no_separate_ingredient_panel': noSeparateIngredientPanel,
+        'consent_version': consentVersion,
+        'evidence_revision': evidenceRevision,
+        'captured_at': DateTime.now().toUtc().toIso8601String(),
+        'photos': entries,
+      };
+      await beforeManifestPublish?.call();
+      final pendingManifest = File(
+        '${directory.path}/.$_manifestName.${newProductSubmissionId()}.pending',
+      );
+      await pendingManifest.writeAsString(jsonEncode(manifest), flush: true);
+      // The previous manifest and its immutable photo bytes stay valid until
+      // this same-filesystem rename publishes the entire replacement at once.
+      await pendingManifest.rename('${directory.path}/$_manifestName');
+      final retained = {
+        _manifestName,
+        for (final photo in capturedPhotos)
+          '${photo.photoId}.${photo.contentSha256}',
+      };
+      for (final file in directory.listSync().whereType<File>()) {
+        if (!retained.contains(file.uri.pathSegments.last)) {
+          try {
+            await file.delete();
+          } on FileSystemException {
+            /* retry on the next save */
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -233,7 +294,7 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
     if (!accountRoot.existsSync()) return const [];
     final pending = <PendingProductSubmission>[];
     for (final entry in accountRoot.listSync().whereType<Directory>()) {
-      final manifest = await _readManifest(entry);
+      final manifest = await _exclusive(entry, () => _readManifest(entry));
       // Belt and braces: the directory says whose it is, and so does the
       // manifest. A mismatch is not this account's capture.
       if (manifest?['owner_scope'] != _scope(userId)) continue;
@@ -292,71 +353,75 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
   /// second contribution. Completeness is not checked here: a half-finished
   /// capture is still the user's work.
   @override
-  Future<RestoredCapture?> restore(String userId, String submissionId) async {
+  Future<RestoredCapture?> restore(String userId, String submissionId) {
     final directory = _directoryFor(userId, submissionId);
-    final manifest = await _readManifest(directory);
-    if (manifest == null) return null;
-    if (manifest['owner_scope'] != _scope(userId)) return null;
-    if (manifest['kind'] != ProductSubmissionKind.missingProduct.wireValue) {
-      return null;
-    }
-    final photos = <ProductSubmissionPhoto>[];
-    for (final entry
-        in (manifest['photos'] as List).cast<Map<String, Object?>>()) {
-      final photoId = entry['photo_id'] as String;
-      final file = File('${directory.path}/$photoId');
-      if (!file.existsSync()) return null;
-      final bytes = Uint8List.fromList(await file.readAsBytes());
-      final categories = <ProductSubmissionEvidenceCategory>{};
-      for (final wire in (entry['categories'] as List).cast<String>()) {
-        final category = ProductSubmissionEvidenceCategory.fromWire(wire);
-        if (category == null) return null;
-        categories.add(category);
-      }
-      final ProductSubmissionPhoto photo;
-      try {
-        photo = ProductSubmissionPhoto(
-          photoId: photoId,
-          categories: categories,
-          bytes: bytes,
-          contentType: entry['content_type'] as String,
-        );
-      } on ProductSubmissionValidationException {
+    return _exclusive(directory, () async {
+      final manifest = await _readManifest(directory);
+      if (manifest == null) return null;
+      if (manifest['owner_scope'] != _scope(userId)) return null;
+      if (manifest['kind'] != ProductSubmissionKind.missingProduct.wireValue) {
         return null;
       }
-      // The manifest hash is the evidence contract, and the photo itself owns
-      // how content is hashed. Bytes that no longer agree are not this user's
-      // evidence any more, whatever the reason.
-      if (photo.contentSha256 != entry['content_sha256']) return null;
-      photos.add(photo);
-    }
-    return RestoredCapture(
-      submissionId: manifest['submission_id'] as String,
-      upc: manifest['upc'] as String,
-      identifier: manifest['identifier'] is Map
-          ? ProductSubmissionIdentifier.fromJson(
-              Map<String, dynamic>.from(manifest['identifier'] as Map),
-            )
-          : null,
-      resubmissionOf: manifest['resubmission_of'] as String?,
-      noSeparateIngredientPanel:
-          manifest['no_separate_ingredient_panel'] == true,
-      photos: photos,
-      evidenceRevision: manifest['evidence_revision'] as int,
-    );
+      final photos = <ProductSubmissionPhoto>[];
+      for (final entry
+          in (manifest['photos'] as List).cast<Map<String, Object?>>()) {
+        final photoId = entry['photo_id'] as String;
+        final file = File('${directory.path}/${entry['file_name'] ?? photoId}');
+        if (!file.existsSync()) return null;
+        final bytes = Uint8List.fromList(await file.readAsBytes());
+        final categories = <ProductSubmissionEvidenceCategory>{};
+        for (final wire in (entry['categories'] as List).cast<String>()) {
+          final category = ProductSubmissionEvidenceCategory.fromWire(wire);
+          if (category == null) return null;
+          categories.add(category);
+        }
+        final ProductSubmissionPhoto photo;
+        try {
+          photo = ProductSubmissionPhoto(
+            photoId: photoId,
+            categories: categories,
+            bytes: bytes,
+            contentType: entry['content_type'] as String,
+          );
+        } on ProductSubmissionValidationException {
+          return null;
+        }
+        // The manifest hash is the evidence contract, and the photo itself owns
+        // how content is hashed. Bytes that no longer agree are not this user's
+        // evidence any more, whatever the reason.
+        if (photo.contentSha256 != entry['content_sha256']) return null;
+        photos.add(photo);
+      }
+      return RestoredCapture(
+        submissionId: manifest['submission_id'] as String,
+        upc: manifest['upc'] as String,
+        identifier: manifest['identifier'] is Map
+            ? ProductSubmissionIdentifier.fromJson(
+                Map<String, dynamic>.from(manifest['identifier'] as Map),
+              )
+            : null,
+        resubmissionOf: manifest['resubmission_of'] as String?,
+        noSeparateIngredientPanel:
+            manifest['no_separate_ingredient_panel'] == true,
+        photos: photos,
+        evidenceRevision: manifest['evidence_revision'] as int,
+      );
+    });
   }
 
   /// Remove the record and every private image it owns.
   @override
-  Future<void> discard(String userId, String submissionId) async {
+  Future<void> discard(String userId, String submissionId) {
     final directory = _directoryFor(userId, submissionId);
-    if (!directory.existsSync()) return;
-    try {
-      await directory.delete(recursive: true);
-    } on FileSystemException {
-      // Storage that refuses deletion is not a reason to fail a submission the
-      // server already accepted; the next launch tries again.
-    }
+    return _exclusive(directory, () async {
+      if (!directory.existsSync()) return;
+      try {
+        await directory.delete(recursive: true);
+      } on FileSystemException {
+        // Storage that refuses deletion is not a reason to fail a submission the
+        // server already accepted; the next launch tries again.
+      }
+    });
   }
 
   Future<Map<String, Object?>?> _readManifest(Directory directory) async {
@@ -397,6 +462,11 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
             photo['categories'] is! List ||
             photo['content_type'] is! String ||
             photo['content_sha256'] is! String) {
+          return null;
+        }
+        final fileName = photo['file_name'];
+        if (fileName != null &&
+            fileName != "${photo['photo_id']}.${photo['content_sha256']}") {
           return null;
         }
         final categories = photo['categories'] as List;
