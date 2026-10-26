@@ -123,7 +123,9 @@ BEGIN
     AND (p.roles && ARRAY['authenticated', 'public']::name[])
     AND p.tablename NOT IN (
       'safety_alert_releases',   -- public alert-release metadata, readable by anon
-      'public_share_snapshots'   -- public product-share snapshots, keyed by code
+      'public_share_snapshots',  -- public product-share snapshots, keyed by code
+      'export_manifest',        -- public catalog distribution metadata
+      'catalog_releases'        -- public catalog distribution metadata
     )
     AND NOT EXISTS (
       SELECT 1 FROM pg_policies r
@@ -147,7 +149,8 @@ BEGIN
     WHERE n.nspname = 'public' AND p.proname IN (
       'create_product_submission', 'finalize_product_submission', 'hide_product_submission',
       'get_product_submission_intake', 'add_product_submission_evidence',
-      'set_product_submission_display_name', 'open_product_submission_evidence_revision')
+      'set_product_submission_display_name', 'open_product_submission_evidence_revision',
+      'request_product_submission_evidence', 'create_product_submission_reviewer_evidence_revision')
   LOOP
     PERFORM aic.assert(fn.prosrc LIKE '%PERFORM public.reject_oauth_client_request();%',
       fn.proname || ' keeps the S1 guard');
@@ -174,8 +177,8 @@ BEGIN
   PERFORM aic.assert((SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.prosrc LIKE '%PERFORM public.reject_oauth_client_request();%'
       -- The project-wide PostgREST pre-request guard reuses the same check.
-      AND p.proname <> 'pgrst_reject_ai_assistant_tokens') = 7,
-    'seven guarded RPCs');
+      AND p.proname <> 'pgrst_reject_ai_assistant_tokens') = 9,
+    'nine guarded RPCs');
 END $$;
 RESET role;
 

@@ -532,6 +532,78 @@ void main() {
     );
   });
 
+  testWidgets('first approval is awaiting release without correction copy', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(id: 'first-approval', reviewStatus: 'approved'),
+          'approval_revision': 1,
+          'promoted_approval_revision': 0,
+        },
+      ]),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Approved — waiting for a catalog release'),
+      findsOneWidget,
+    );
+    expect(find.text('Correction approved — awaiting release'), findsNothing);
+  });
+
+  testWidgets(
+    'published corrections count once and prioritize requested photos',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness([
+          {
+            ..._row(
+              id: 'correction-request',
+              reviewStatus: 'under_review',
+              catalogVersion: 'release-1',
+            ),
+            'approval_revision': 1,
+            'promoted_approval_revision': 1,
+            'evidence_revision': 1,
+            'evidence_requested_revision': 1,
+            'evidence_request_panels': ['barcode'],
+          },
+          {
+            ..._row(
+              id: 'reviewer-upload',
+              reviewStatus: 'under_review',
+              catalogVersion: 'release-1',
+            ),
+            'upload_state': 'pending',
+            'approval_revision': 1,
+            'promoted_approval_revision': 1,
+            'evidence_revision': 2,
+          },
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('New photos needed'), findsOneWidget);
+      expect(find.text('Finish sending new photos'), findsNothing);
+      expect(find.text('Correction under review'), findsOneWidget);
+      final pending = find.byKey(const Key('contributions-stat-pending'));
+      expect(
+        find.descendant(of: pending, matching: find.text('0')),
+        findsOneWidget,
+      );
+      final total = find.byKey(const Key('contributions-stat-total'));
+      expect(
+        find.descendant(of: total, matching: find.text('2')),
+        findsOneWidget,
+      );
+      await tester.tap(total);
+      await tester.pumpAndSettle();
+      final sheet = find.text('Submission breakdown');
+      expect(sheet, findsOneWidget);
+      expect(find.text('Approved, awaiting release'), findsNothing);
+    },
+  );
+
   testWidgets('does not count a duplicate that only inherited a catalog link', (
     tester,
   ) async {

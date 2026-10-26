@@ -502,16 +502,20 @@ class _ImpactGrid extends StatelessWidget {
         .where(
           (s) =>
               s.uploadReady &&
+              !s.hasCatalogContribution &&
               (s.reviewStatus == ProductSubmissionReviewStatus.submitted ||
                   s.reviewStatus == ProductSubmissionReviewStatus.underReview),
         )
         .length;
     final approved = statuses.where((s) => s.hasCatalogContribution).length;
-    final submitted = statuses.where((s) => s.uploadReady).length;
+    final submitted = statuses
+        .where((s) => s.uploadReady || s.hasCatalogContribution)
+        .length;
     final notAdded = statuses
         .where(
           (s) =>
               s.uploadReady &&
+              !s.hasCatalogContribution &&
               (s.reviewStatus == ProductSubmissionReviewStatus.rejected ||
                   s.reviewStatus == ProductSubmissionReviewStatus.duplicate),
         )
@@ -520,6 +524,7 @@ class _ImpactGrid extends StatelessWidget {
         .where(
           (s) =>
               s.uploadReady &&
+              !s.hasCatalogContribution &&
               s.reviewStatus == ProductSubmissionReviewStatus.approved &&
               !s.isComplete,
         )
@@ -1234,6 +1239,20 @@ _StatusDisplay _statusDisplay(V2Palette p, ProductSubmissionSummary status) {
       p.fgMuted,
     );
   }
+  if (status.retakeUnfinished) {
+    return _StatusDisplay(
+      'New photos not sent yet',
+      Icons.cloud_upload_outlined,
+      p.caution,
+    );
+  }
+  if (status.needsNewPhotos) {
+    return _StatusDisplay(
+      'New photos needed',
+      Icons.add_a_photo_outlined,
+      p.caution,
+    );
+  }
   if (status.isCorrectionUnderReview) {
     return _StatusDisplay(
       'Correction under review',
@@ -1250,20 +1269,6 @@ _StatusDisplay _statusDisplay(V2Palette p, ProductSubmissionSummary status) {
   }
   if (status.isComplete) {
     return _StatusDisplay('Added to catalog', Icons.task_alt_rounded, p.safe);
-  }
-  if (status.retakeUnfinished) {
-    return _StatusDisplay(
-      'New photos not sent yet',
-      Icons.cloud_upload_outlined,
-      p.caution,
-    );
-  }
-  if (status.needsNewPhotos) {
-    return _StatusDisplay(
-      'New photos needed',
-      Icons.add_a_photo_outlined,
-      p.caution,
-    );
   }
   if (status.uploadState != ProductSubmissionUploadState.ready) {
     return _StatusDisplay(

@@ -322,7 +322,7 @@ void main() {
       source,
       allOf(
         contains('loadSubmissionEvidence(userClient,'),
-        contains('evidence.photos.map('),
+        contains('photosToSign.map('),
         contains('SIGNED_URL_TTL_SECONDS'),
       ),
     );
