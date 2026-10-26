@@ -487,6 +487,83 @@ void main() {
       },
     );
 
+    test(
+      'parses correction revisions conservatively including legacy rows',
+      () {
+        final open = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'normalized_upc': '050428381397',
+          'upload_state': 'ready',
+          'review_status': 'under_review',
+          'created_at': '2026-07-30T12:00:00Z',
+          'promoted_catalog_version': 'release-1',
+          'approval_revision': 1,
+          'promoted_approval_revision': 1,
+        });
+        expect(open.isCorrectionUnderReview, isTrue);
+        expect(open.isComplete, isFalse);
+        expect(open.hasCatalogContribution, isTrue);
+
+        final firstApprovalReopened = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'normalized_upc': '050428381397',
+          'upload_state': 'ready',
+          'review_status': 'under_review',
+          'created_at': '2026-07-30T12:00:00Z',
+          'approval_revision': 1,
+          'promoted_approval_revision': 0,
+        });
+        expect(firstApprovalReopened.isCorrectionUnderReview, isTrue);
+        expect(firstApprovalReopened.hasCatalogContribution, isFalse);
+
+        final awaiting = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'normalized_upc': '050428381397',
+          'upload_state': 'ready',
+          'review_status': 'approved',
+          'created_at': '2026-07-30T12:00:00Z',
+          'promoted_catalog_version': 'release-1',
+          'approval_revision': 2,
+          'promoted_approval_revision': 1,
+        });
+        expect(awaiting.isCorrectionAwaitingRelease, isTrue);
+        expect(awaiting.isComplete, isFalse);
+
+        final duplicateWithCascadedCatalogLink =
+            ProductSubmissionSummary.fromRow({
+              'id': _submissionId,
+              'kind': 'missing_product',
+              'normalized_upc': '050428381397',
+              'upload_state': 'ready',
+              'review_status': 'duplicate',
+              'created_at': '2026-07-30T12:00:00Z',
+              'promoted_catalog_version': 'release-1',
+              'approval_revision': 0,
+              'promoted_approval_revision': 0,
+            });
+        expect(
+          duplicateWithCascadedCatalogLink.hasCatalogContribution,
+          isFalse,
+        );
+
+        final legacy = ProductSubmissionSummary.fromRow({
+          'id': _submissionId,
+          'kind': 'missing_product',
+          'normalized_upc': '050428381397',
+          'upload_state': 'ready',
+          'review_status': 'approved',
+          'created_at': '2026-07-30T12:00:00Z',
+          'promoted_catalog_version': 'legacy-release',
+        });
+        expect(legacy.approvalRevision, 1);
+        expect(legacy.promotedApprovalRevision, 1);
+        expect(legacy.isComplete, isTrue);
+      },
+    );
+
     test('loads every submission instead of stopping at one page', () async {
       final backend = _FakeBackend(
         authenticatedUserId: _userId,

@@ -81,6 +81,24 @@ storage_finalize_status=0
 wait "$storage_finalize_pid" || storage_finalize_status=$?
 psql_test -q -c "SELECT fixture.test('in-flight Storage mutation serializes with manifest finalization', 'SELECT fixture.assert($storage_waited AND $storage_finalize_status=0 AND (SELECT upload_state=''pending'' FROM public.product_submissions WHERE id=''$storage_pending''), ''no mutable upload may commit after a ready manifest freeze'')')"
 
+# Reopening and release promotion both lock the submission row. If a correction
+# wins the race, a stale release must wait and then fail its exact-revision
+# assertion without awarding points or advancing promotion state.
+correction_race="$(psql_test -Atqc "SELECT fixture.seed(1, '729456104008', 'under_review', NULL)")"
+psql_test -Atqc "SELECT fixture.approve('$correction_race')" >/dev/null
+correction_hash="$(psql_test -Atqc "SELECT payload_sha256 FROM public.product_submission_approved_labels WHERE submission_id='$correction_race' AND approval_revision=1")"
+psql_test -q -c "SET application_name='fixture_correction_reopen'; SET ROLE authenticated; SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000003'; BEGIN; SELECT public.reopen_product_submission_approval('$correction_race',1,'$correction_hash','Correct the transcription'); SELECT pg_sleep(3); COMMIT;" > "$test_logs/correction-reopen.log" 2>&1 &
+correction_reopen_pid=$!
+wait_for_event fixture_correction_reopen PgSleep
+psql_test -q -c "SET application_name='fixture_stale_promotion'; SET ROLE service_role; SELECT public.mark_product_submission_promoted('$correction_race',1,'$correction_hash','catalog-race','PG_SUB_22222222222222222222222222222222');" > "$test_logs/stale-promotion.log" 2>&1 &
+stale_promotion_pid=$!
+correction_waited=false
+if wait_for_event fixture_stale_promotion transactionid; then correction_waited=true; fi
+wait "$correction_reopen_pid"
+stale_promotion_status=0
+wait "$stale_promotion_pid" || stale_promotion_status=$?
+psql_test -q -c "SELECT fixture.test('reopen wins concurrent stale promotion race', 'SELECT fixture.assert($correction_waited AND $stale_promotion_status <> 0 AND (SELECT review_status=''under_review'' AND promoted_approval_revision=0 FROM public.product_submissions WHERE id=''$correction_race'') AND NOT EXISTS (SELECT 1 FROM public.product_contribution_ledger WHERE submission_id=''$correction_race''), ''stale release must wait then fail closed after correction reopen'')')"
+
 # Reserve against the actual shared budget from two concurrent transactions.
 # The second must wait for the settings lock and observe the first reservation.
 psql_test -q -c "SELECT fixture.enable_extraction(); SELECT fixture.add_worker(); UPDATE public.product_submission_extraction_settings SET monthly_cap_microcents=10,pilot_cap_microcents=10,max_cost_microcents=10 WHERE id; SELECT fixture.seed(5,'4006381333931','submitted',NULL); SELECT fixture.seed(5,'036000291452','submitted',NULL);"
@@ -99,11 +117,12 @@ budget_second_status=0
 wait "$budget_second_pid" || budget_second_status=$?
 psql_test -q -c "SELECT fixture.test('concurrent reservations cannot overspend the pilot', 'SELECT fixture.assert($budget_waited AND $budget_second_status=0 AND (SELECT count(*)=1 AND sum(reserved_microcents)=10 FROM public.product_submission_extraction_budget), ''budget admission must serialize before provider calls'')')"
 
-if [[ "$approval_waited" != true || "$finalize_waited" != true || "$create_waited" != true || "$identical_waited" != true || "$storage_waited" != true || "$budget_waited" != true ]]; then
+if [[ "$approval_waited" != true || "$finalize_waited" != true || "$create_waited" != true || "$identical_waited" != true || "$storage_waited" != true || "$correction_waited" != true || "$budget_waited" != true ]]; then
   echo "Concurrency diagnostics: $test_logs"
 else
   rm "$test_logs/approval-first.log" "$test_logs/approval-second.log" "$test_logs/finalize-first.log" "$test_logs/finalize-second.log" "$test_logs/create-first.log" "$test_logs/create-second.log" "$test_logs/identical-first.log" "$test_logs/identical-second.log"
   rm "$test_logs/storage-writer.log" "$test_logs/storage-finalize.log"
+  rm "$test_logs/correction-reopen.log" "$test_logs/stale-promotion.log"
   rm "$test_logs/budget-first.log" "$test_logs/budget-second.log"
   rmdir "$test_logs"
 fi

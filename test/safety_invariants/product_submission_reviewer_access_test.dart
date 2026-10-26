@@ -12,6 +12,8 @@ const _reviewV2IndexesMigrationPath =
 const _reviewerIdAmbiguityFixMigrationPath =
     'supabase/migrations/'
     '20260826100000_fix_review_submission_reviewer_id_ambiguity.sql';
+const _approvalCorrectionsMigrationPath =
+    'supabase/migrations/20261026132208_submission_approval_revisions.sql';
 
 void main() {
   late String source;
@@ -20,6 +22,7 @@ void main() {
   late String reviewV2Sql;
   late String reviewV2IndexesSql;
   late String reviewerIdAmbiguityFixSql;
+  late String approvalCorrectionsSql;
 
   setUpAll(() {
     final function = File(_functionPath);
@@ -65,6 +68,9 @@ void main() {
     reviewerIdAmbiguityFixSql = reviewerIdFixMigration
         .readAsStringSync()
         .replaceAll('"', "'");
+    approvalCorrectionsSql = File(
+      _approvalCorrectionsMigrationPath,
+    ).readAsStringSync().replaceAll('"', "'");
   });
 
   test('authenticates an allowlisted reviewer before service-role access', () {
@@ -114,6 +120,88 @@ void main() {
       source,
       isNot(
         contains("admin.rpc(\n        'request_product_submission_evidence'"),
+      ),
+    );
+  });
+
+  test('correction actions preserve reviewer and service-role boundaries', () {
+    expect(source, contains("'reopen_approval'"));
+    expect(source, contains("'create_reviewer_evidence_uploads'"));
+    expect(source, contains("'finalize_reviewer_evidence_uploads'"));
+    expect(
+      source,
+      contains("userClient.rpc(\n        'reopen_product_submission_approval'"),
+    );
+    expect(
+      source,
+      contains(
+        "admin.rpc(\n        'finalize_product_submission_reviewer_evidence_revision'",
+      ),
+    );
+    expect(
+      source,
+      contains("'get_product_submission_reviewer_evidence_revision'"),
+      reason: 'Pending reviewer uploads must survive a console reload.',
+    );
+    expect(
+      source,
+      contains('id,kind,normalized_upc,upload_state,review_status'),
+    );
+    expect(
+      source,
+      contains(
+        'approval_revision,promoted_approval_revision,evidence_revision',
+      ),
+    );
+    final normalized = approvalCorrectionsSql
+        .replaceAll(RegExp(r'--[^\n]*'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+    expect(
+      normalized,
+      contains(
+        'revoke all on function public.reopen_product_submission_approval( uuid, integer, text, text) from public, anon, service_role',
+      ),
+    );
+    expect(
+      normalized,
+      contains(
+        'grant execute on function public.reopen_product_submission_approval( uuid, integer, text, text) to authenticated',
+      ),
+    );
+    expect(
+      normalized,
+      contains(
+        'revoke all on function public.finalize_product_submission_reviewer_evidence_revision( uuid, integer, text) from public, anon, authenticated',
+      ),
+    );
+    expect(
+      normalized,
+      contains(
+        'grant execute on function public.finalize_product_submission_reviewer_evidence_revision( uuid, integer, text) to service_role',
+      ),
+    );
+    expect(normalized, contains('evidence_manifest_v1'));
+    expect(normalized, contains('evidence_manifest_v2'));
+    expect(
+      normalized,
+      isNot(
+        contains(
+          'update public.product_submission_evidence_revisions as revision set manifest =',
+        ),
+      ),
+      reason: 'A migration may not rewrite already-frozen audit digests.',
+    );
+    expect(
+      normalized,
+      contains(
+        'grant execute on function public.rotate_manifest_with_submission_approvals( text,text,text,text,integer,text,timestamptz,text,jsonb) to service_role',
+      ),
+    );
+    expect(
+      normalized,
+      contains(
+        'revoke all on function public.rotate_manifest( text,text,text,text,integer,text,timestamptz,text) from public, anon, authenticated, service_role',
       ),
     );
   });
@@ -197,10 +285,13 @@ void main() {
   });
 
   test('lists ready evidence with short-lived private URLs', () {
-    final readyFilter = source.indexOf(".eq('upload_state', 'ready')");
+    final evidenceEligibilityFilter = source.indexOf(
+      'upload_state.eq.ready,and(upload_state.eq.pending,'
+      'review_status.eq.under_review,approval_revision.gt.0)',
+    );
     final photoSigning = source.indexOf('createSignedUrls(');
 
-    expect(readyFilter, greaterThanOrEqualTo(0));
+    expect(evidenceEligibilityFilter, greaterThanOrEqualTo(0));
     expect(
       source,
       allOf(
@@ -226,7 +317,7 @@ void main() {
       isNot(contains('product_submission_missing_details!')),
       reason: 'The dropped other_ingredients_not_present embed would 500.',
     );
-    expect(photoSigning, greaterThan(readyFilter));
+    expect(photoSigning, greaterThan(evidenceEligibilityFilter));
     expect(
       source,
       allOf(

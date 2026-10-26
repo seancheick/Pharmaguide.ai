@@ -27,8 +27,17 @@ import {
   assertDraftEvidenceBinding,
   parseEvidenceBinding,
 } from "./evidence.ts";
-import { barcodeCorrectionRefusal, parseBarcodeCorrection } from "./barcode_correction.ts";
+import {
+  barcodeCorrectionRefusal,
+  parseBarcodeCorrection,
+} from "./barcode_correction.ts";
 import { parseEvidenceRequest } from "./retake.ts";
+import {
+  correctionRecoveryMessage,
+  parseFinalizeReviewerEvidenceRequest,
+  parseReopenApprovalRequest,
+  parseReviewerEvidenceRequest,
+} from "./correction.ts";
 import { loadSubmissionDrafts } from "./drafts.ts";
 import { parseCatalogRelation } from "./catalog_relation.ts";
 import {
@@ -72,6 +81,9 @@ const ACTIONS = new Set([
   "validate_label",
   "request_evidence",
   "correct_barcode",
+  "reopen_approval",
+  "create_reviewer_evidence_uploads",
+  "finalize_reviewer_evidence_uploads",
 ]);
 // A batch is a convenience for one person at one screen, not a bulk pipe.
 const BATCH_MAX_ITEMS = 25;
@@ -234,6 +246,30 @@ async function loadSubmissionEvidence(
     !isObject(data) || !Array.isArray(data.photos) ||
     !data.photos.every(isObject) || !isObject(data.evidence_snapshot)
   ) throw new Error("evidence unavailable");
+  parseEvidenceBinding({
+    expected_evidence_revision: data.evidence_revision,
+    evidence_manifest_sha256: data.manifest_sha256,
+  });
+  return data as Evidence;
+}
+
+async function loadPendingReviewerEvidence(
+  admin: SupabaseClient,
+  submissionId: string,
+  evidenceRevision: number,
+): Promise<Evidence> {
+  const { data, error } = await admin.rpc(
+    "get_product_submission_reviewer_evidence_revision",
+    {
+      p_submission_id: submissionId,
+      p_evidence_revision: evidenceRevision,
+    },
+  );
+  if (error) throw error;
+  if (
+    !isObject(data) || !Array.isArray(data.photos) ||
+    !data.photos.every(isObject) || !isObject(data.evidence_snapshot)
+  ) throw new Error("pending reviewer evidence unavailable");
   parseEvidenceBinding({
     expected_evidence_revision: data.evidence_revision,
     evidence_manifest_sha256: data.manifest_sha256,
@@ -801,8 +837,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
       let query = admin
         .from("product_submissions")
         .select(
-          "id,kind,normalized_upc,review_status,created_at,submitted_at," +
+          "id,kind,normalized_upc,upload_state,review_status,created_at,submitted_at," +
             "reviewed_at,promoted_catalog_version,promoted_at," +
+            "approval_revision,promoted_approval_revision,evidence_revision," +
             "declared_no_separate_ingredient_panel," +
             "resolution_code,resolution_detail,resolved_dsld_id," +
             "duplicate_of,evidence_requested_at,evidence_requested_revision," +
@@ -812,7 +849,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
             "dsld_id,source_record_id," +
             "catalog_source_version,formula_fingerprint,mismatch_categories)",
         )
-        .eq("upload_state", "ready")
+        .or(
+          "upload_state.eq.ready,and(upload_state.eq.pending,review_status.eq.under_review,approval_revision.gt.0)",
+        )
         .not("submitted_at", "is", null)
         .order("submitted_at", { ascending: true })
         .order("id", { ascending: true })
@@ -829,7 +868,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
       let openCountQuery = admin
         .from("product_submissions")
         .select("id", { count: "exact", head: true })
-        .eq("upload_state", "ready")
+        .or(
+          "upload_state.eq.ready,and(upload_state.eq.pending,review_status.eq.under_review,approval_revision.gt.0)",
+        )
         .in("review_status", ["submitted", "under_review"]);
       if (listRequest.kind) {
         openCountQuery = openCountQuery.eq("kind", listRequest.kind);
@@ -845,10 +886,27 @@ Deno.serve(async (request: Request): Promise<Response> => {
       const submissionRows = (submissions ?? []) as unknown as JsonObject[];
       const responseSubmissions = await Promise.all(
         submissionRows.map(async (submission) => {
-          const evidence = await loadSubmissionEvidence(
-            userClient,
-            submission.id as string,
-          );
+          let approvalPayloadSha256: string | null = null;
+          if (Number(submission.approval_revision) > 0) {
+            const { data: approval, error: approvalError } = await admin
+              .from("product_submission_approved_labels")
+              .select("payload_sha256")
+              .eq("submission_id", submission.id)
+              .eq("approval_revision", submission.approval_revision)
+              .maybeSingle();
+            if (approvalError) throw approvalError;
+            approvalPayloadSha256 = approval?.payload_sha256 ?? null;
+          }
+          const evidence = submission.upload_state === "pending"
+            ? await loadPendingReviewerEvidence(
+              admin,
+              submission.id as string,
+              Number(submission.evidence_revision),
+            )
+            : await loadSubmissionEvidence(
+              userClient,
+              submission.id as string,
+            );
           const { data: signed, error: signedError } =
             evidence.photos.length === 0
               ? { data: [], error: null }
@@ -865,7 +923,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
           );
           // Drafts only when one submission was asked for. A queue page does
           // not need them, and a reviewer reads them one product at a time.
-          const drafts = listRequest.submissionId
+          const drafts = listRequest.submissionId &&
+              submission.upload_state !== "pending"
             ? await loadSubmissionDrafts(
               userClient,
               submission.id as string,
@@ -874,6 +933,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
             : [];
           return {
             ...submission,
+            approval_payload_sha256: approvalPayloadSha256,
             evidence_revision: evidence.evidence_revision,
             evidence_manifest_sha256: evidence.manifest_sha256,
             extractions: drafts,
@@ -925,6 +985,93 @@ Deno.serve(async (request: Request): Promise<Response> => {
         object_id: imageRequest.objectId,
         object_path: objectPath,
         token: signed.token,
+      });
+    }
+
+    if (action === "reopen_approval") {
+      const reopen = parseReopenApprovalRequest(body);
+      const { data, error } = await userClient.rpc(
+        "reopen_product_submission_approval",
+        {
+          p_submission_id: reopen.submissionId,
+          p_expected_approval_revision: reopen.expectedApprovalRevision,
+          p_expected_payload_sha256: reopen.expectedPayloadSha256,
+          p_reason: reopen.reason,
+        },
+      );
+      if (error || data !== true) throw error ?? new Error("reopen failed");
+      await scheduleSubmissionPushDrain(admin, reopen.submissionId);
+      audit(reviewerId, action, "success", 1);
+      return json({ reopened: true });
+    }
+
+    if (action === "create_reviewer_evidence_uploads") {
+      const replacement = parseReviewerEvidenceRequest(body);
+      const { data, error } = await userClient.rpc(
+        "create_product_submission_reviewer_evidence_revision",
+        {
+          p_submission_id: replacement.submissionId,
+          p_expected_approval_revision: replacement.expectedApprovalRevision,
+          p_expected_payload_sha256: replacement.expectedPayloadSha256,
+          p_request_key: replacement.requestKey,
+          p_photos: replacement.photos,
+        },
+      );
+      if (error || !isObject(data) || !Array.isArray(data.uploads)) {
+        throw error ?? new Error("replacement evidence failed");
+      }
+      const uploads = await Promise.all(data.uploads.map(async (raw) => {
+        if (!isObject(raw)) throw new Error("invalid upload manifest");
+        const objectPath = requiredString(raw.object_path, "object path", 300);
+        const photoId = requiredUuid(raw.photo_id, "photo id");
+        const { data: signed, error: signedError } = await admin.storage
+          .from(PHOTO_BUCKET).createSignedUploadUrl(objectPath);
+        if (signedError || !signed) {
+          throw signedError ?? new Error("upload signing failed");
+        }
+        return {
+          photo_id: photoId,
+          object_path: objectPath,
+          token: signed.token,
+        };
+      }));
+      audit(reviewerId, action, "success", uploads.length);
+      return json({ evidence_revision: data.evidence_revision, uploads });
+    }
+
+    if (action === "finalize_reviewer_evidence_uploads") {
+      const finalize = parseFinalizeReviewerEvidenceRequest(body);
+      const { data: evidence, error: evidenceError } = await admin.rpc(
+        "get_product_submission_reviewer_evidence_revision",
+        {
+          p_submission_id: finalize.submissionId,
+          p_evidence_revision: finalize.evidenceRevision,
+        },
+      );
+      if (
+        evidenceError || !isObject(evidence) || !Array.isArray(evidence.photos)
+      ) throw evidenceError ?? new Error("replacement evidence unavailable");
+      await verifySubmissionPhotoIntegrity(admin, evidence as Evidence);
+      const manifestHash = requiredString(
+        evidence.manifest_sha256,
+        "manifest hash",
+        64,
+      );
+      const { data, error } = await admin.rpc(
+        "finalize_product_submission_reviewer_evidence_revision",
+        {
+          p_submission_id: finalize.submissionId,
+          p_evidence_revision: finalize.evidenceRevision,
+          p_manifest_sha256: manifestHash,
+        },
+      );
+      if (error || data !== true) {
+        throw error ?? new Error("replacement evidence finalization failed");
+      }
+      audit(reviewerId, action, "success", 1);
+      return json({
+        finalized: true,
+        evidence_revision: finalize.evidenceRevision,
       });
     }
 
@@ -1112,35 +1259,63 @@ Deno.serve(async (request: Request): Promise<Response> => {
       const images = (review.reviewer_images ?? []) as JsonObject[];
       review.reviewer_images = await Promise.all(images.map(async (image) => {
         const { data: signed, error: signingError } = await admin.storage
-          .from(REVIEWER_IMAGE_BUCKET).createSignedUrl(String(image.object_path), SIGNED_URL_TTL_SECONDS);
+          .from(REVIEWER_IMAGE_BUCKET).createSignedUrl(
+            String(image.object_path),
+            SIGNED_URL_TTL_SECONDS,
+          );
         if (signingError) throw signingError;
-        return { object_id: image.object_id, signed_url: signed?.signedUrl ?? null };
+        return {
+          object_id: image.object_id,
+          signed_url: signed?.signedUrl ?? null,
+        };
       }));
       return json({ review });
     }
 
     if (action === "set_review_image") {
-      rejectUnknownKeys(body, new Set(["action","submission_id","expected_evidence_revision",
-        "evidence_manifest_sha256","kind","image_id"]));
-      const submissionId = requiredUuid(body.submission_id,"submission id");
-      const imageId = requiredUuid(body.image_id,"image id");
+      rejectUnknownKeys(
+        body,
+        new Set([
+          "action",
+          "submission_id",
+          "expected_evidence_revision",
+          "evidence_manifest_sha256",
+          "kind",
+          "image_id",
+        ]),
+      );
+      const submissionId = requiredUuid(body.submission_id, "submission id");
+      const imageId = requiredUuid(body.image_id, "image id");
       const binding = parseEvidenceBinding(body);
-      if (body.kind !== "photo" && body.kind !== "reviewer") throw new Error("picture kind required");
+      if (body.kind !== "photo" && body.kind !== "reviewer") {
+        throw new Error("picture kind required");
+      }
       if (body.kind === "reviewer") {
-        const {data: owned, error: ownershipError} = await admin
+        const { data: owned, error: ownershipError } = await admin
           .from("product_submission_reviewer_images").select("object_id")
           .eq("submission_id", submissionId).eq("object_id", imageId)
           .eq("reviewer_id", reviewerId)
-          .eq("evidence_revision", binding.expectedEvidenceRevision).maybeSingle();
-        if (ownershipError || !owned) throw new Error("current reviewer image required");
+          .eq("evidence_revision", binding.expectedEvidenceRevision)
+          .maybeSingle();
+        if (ownershipError || !owned) {
+          throw new Error("current reviewer image required");
+        }
         await verifyReviewerImageIntegrity(admin, submissionId, imageId);
       }
-      const {data, error} = await userClient.rpc("set_product_submission_review_image", {
-        p_submission_id:submissionId,p_expected_evidence_revision:binding.expectedEvidenceRevision,
-        p_evidence_manifest_sha256:binding.evidenceManifestSha256,p_kind:body.kind,p_image_id:imageId,
-      });
-      if (error || data !== true) throw error ?? new Error("picture was not saved");
-      return json({saved:true});
+      const { data, error } = await userClient.rpc(
+        "set_product_submission_review_image",
+        {
+          p_submission_id: submissionId,
+          p_expected_evidence_revision: binding.expectedEvidenceRevision,
+          p_evidence_manifest_sha256: binding.evidenceManifestSha256,
+          p_kind: body.kind,
+          p_image_id: imageId,
+        },
+      );
+      if (error || data !== true) {
+        throw error ?? new Error("picture was not saved");
+      }
+      return json({ saved: true });
     }
 
     if (action === "save_review") {
@@ -1324,8 +1499,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
     const payloadHash = await applyTransition(body, userClient, admin);
     audit(reviewerId, action, "success", 1);
     return json({ updated: true, payload_sha256: payloadHash });
-  } catch {
+  } catch (error) {
     audit(reviewerId, action, "backend_or_validation_error");
-    return json({ error: "Review action could not be completed" }, 400);
+    return json({ error: correctionRecoveryMessage(action, error) }, 400);
   }
 });
