@@ -58,3 +58,39 @@ BEGIN
   END IF;
 END $$;
 REVOKE ALL ON FUNCTION public.reject_oauth_client_request() FROM PUBLIC,anon,authenticated;
+
+-- Canonical pipeline catalog_search DDL (scripts/sql/supabase_schema.sql).
+CREATE TABLE IF NOT EXISTS public.catalog_search (
+  catalog_version          text NOT NULL,
+  dsld_id                  text NOT NULL,
+  product_name             text NOT NULL,
+  brand_name               text,
+  brand_family             text,
+  product_line             text,
+  upc_sku                  text,
+  form_factor              text,
+  supplement_type          text,
+  product_status           text,
+  quality_tier             text,
+  quality_score_status     text,
+  quality_score_v4_100     double precision CHECK (quality_score_v4_100 BETWEEN 0 AND 100),
+  product_safety_status    text,
+  -- The detail blob carries neither mapped_coverage nor quality_score_confidence;
+  -- quality_assessment_status lets search results apply the completion rule.
+  mapped_coverage          double precision
+    CHECK (mapped_coverage IS NULL OR (mapped_coverage >= 0 AND mapped_coverage <= 1)),
+  quality_score_confidence text,
+  quality_assessment_status text,
+  search_tsv               tsvector GENERATED ALWAYS AS (
+    to_tsvector(
+      'simple'::regconfig,
+      coalesce(product_name, '') || ' ' || coalesce(brand_name, '') || ' ' ||
+      coalesce(product_line, '')
+    )
+  ) STORED,
+  published_at             timestamptz DEFAULT now(),
+  PRIMARY KEY (catalog_version, dsld_id)
+);
+ALTER TABLE public.catalog_search ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.catalog_search FROM PUBLIC,anon,authenticated;
+GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.catalog_search TO service_role;

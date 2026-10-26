@@ -6,12 +6,17 @@ export type MatchOutcome =
   | "dsld_match"
   | "identity_ambiguous"
   | "no_match_verified"
-  | "not_this_product";
+  | "not_this_product"
+  | "new_product_verified";
 
 export type RecordMatchRequest = {
   submissionId: string;
   outcome: MatchOutcome;
-  canonicalGtin14: string;
+  canonicalGtin14: string | null;
+  identityMethod?: "gtin" | "label_review";
+  identifierDecision?: JsonObject;
+  candidateReviewComplete?: boolean;
+  indexRevision?: string;
   indexBuiltAt: string;
   matchedDsldId: string | null;
   candidateDsldIds: string[];
@@ -32,8 +37,13 @@ const OUTCOMES = new Set<MatchOutcome>([
   "identity_ambiguous",
   "no_match_verified",
   "not_this_product",
+  "new_product_verified",
 ]);
 const ALLOWED_FIELDS = new Set([
+  "identity_method",
+  "identifier_decision",
+  "candidate_review_complete",
+  "index_revision",
   "action",
   "submission_id",
   "outcome",
@@ -61,7 +71,7 @@ function requiredString(value: unknown, name: string, max: number): string {
 }
 
 function productId(value: unknown, name: string): string {
-  const parsed = requiredString(value, name, 40);
+  const parsed = requiredString(value, name, 39);
   if (!PRODUCT_ID_PATTERN.test(parsed)) throw new Error(`invalid ${name}`);
   return parsed;
 }
@@ -96,16 +106,72 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
   ) as MatchOutcome;
   if (!OUTCOMES.has(outcome)) throw new Error("invalid match outcome");
 
-  const canonicalGtin14 = requiredString(
-    value.canonical_gtin14,
-    "canonical GTIN-14",
-    14,
-  );
+  const identityMethod = value.identity_method ?? "gtin";
+  if (identityMethod !== "gtin" && identityMethod !== "label_review") {
+    throw new Error("invalid identity method");
+  }
+  const canonicalGtin14 =
+    identityMethod === "label_review" && value.canonical_gtin14 === null
+      ? null
+      : requiredString(value.canonical_gtin14, "canonical GTIN-14", 14);
   if (
-    !GTIN14_PATTERN.test(canonicalGtin14) ||
-    !hasValidGtinCheckDigit(canonicalGtin14)
+    canonicalGtin14 !== null &&
+    (!GTIN14_PATTERN.test(canonicalGtin14) ||
+      !hasValidGtinCheckDigit(canonicalGtin14))
+  ) throw new Error("invalid canonical GTIN-14");
+  let decision: JsonObject | undefined;
+  if (
+    identityMethod === "label_review" || value.identifier_decision !== undefined
   ) {
-    throw new Error("invalid canonical GTIN-14");
+    if (!isObject(value.identifier_decision)) {
+      throw new Error("reviewed identifier decision required");
+    }
+    decision = value.identifier_decision;
+    if (
+      Object.keys(decision).sort().join(",") !==
+        ["code_type", "issuer", "package", "reason", "verified_gtin"].sort()
+          .join(",") ||
+      ![
+        "other",
+        "amazon_fnsku",
+        "amazon_asin",
+        "manufacturer_sku",
+        "retailer_sku",
+        "lot",
+        "none",
+      ].includes(String(decision.code_type))
+    ) throw new Error("invalid identifier decision");
+    for (
+      const [key, max] of [["issuer", 200], ["package", 300], [
+        "reason",
+        2000,
+      ]] as const
+    ) {
+      if (decision[key] === null && key === "issuer") continue;
+      if (
+        typeof decision[key] !== "string" ||
+        (decision[key] as string).length > max ||
+        /[\x00-\x1f\x7f-\x9f]/.test(decision[key] as string)
+      ) throw new Error("invalid identifier decision");
+    }
+    if (
+      (decision.reason as string).trim().length < 5 ||
+      (identityMethod === "label_review" &&
+        (decision.package as string).trim().length === 0)
+    ) throw new Error("substantive identity rationale and package required");
+    if (
+      decision.verified_gtin !== null &&
+      (typeof decision.verified_gtin !== "string" ||
+        !/^(?:[0-9]{8}|[0-9]{12,14})$/.test(decision.verified_gtin) ||
+        !hasValidGtinCheckDigit(decision.verified_gtin))
+    ) throw new Error("invalid verified GTIN");
+    if (typeof decision.issuer === "string" && decision.issuer.trim() === "") {
+      decision = { ...decision, issuer: null };
+    }
+    if (value.candidate_review_complete !== true) {
+      throw new Error("complete candidate review required");
+    }
+    requiredString(value.index_revision, "index revision", 200);
   }
 
   const indexBuiltAt = requiredString(
@@ -140,7 +206,9 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
 
   if (outcome === "catalog_match" || outcome === "dsld_match") {
     if (
-      matchedDsldId === null || candidateDsldIds.length !== 0 || reason !== null
+      matchedDsldId === null ||
+      (identityMethod !== "label_review" && candidateDsldIds.length !== 0) ||
+      reason !== null
     ) {
       throw new Error("invalid exact-match evidence");
     }
@@ -156,6 +224,12 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
     ) {
       throw new Error("invalid no-match evidence");
     }
+  } else if (outcome === "new_product_verified") {
+    if (
+      identityMethod !== "label_review" || decision === undefined ||
+      decision.verified_gtin !== null ||
+      matchedDsldId !== null || reason !== null
+    ) throw new Error("explicit reviewed new-product decision required");
   } else if (
     matchedDsldId === null || candidateDsldIds.length !== 0 || reason === null
   ) {
@@ -171,5 +245,11 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
     matchedDsldId,
     candidateDsldIds,
     reason,
+    ...(decision === undefined ? {} : {
+      identityMethod,
+      identifierDecision: decision,
+      candidateReviewComplete: true,
+      indexRevision: value.index_revision as string,
+    }),
   };
 }

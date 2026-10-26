@@ -93,7 +93,7 @@ wait_for_event fixture_correction_reopen PgSleep
 psql_test -q -c "SET application_name='fixture_stale_promotion'; SET ROLE service_role; SELECT public.mark_product_submission_promoted('$correction_race',1,'$correction_hash','catalog-race','PG_SUB_22222222222222222222222222222222');" > "$test_logs/stale-promotion.log" 2>&1 &
 stale_promotion_pid=$!
 correction_waited=false
-if wait_for_event fixture_stale_promotion transactionid; then correction_waited=true; fi
+if wait_for_event fixture_stale_promotion advisory; then correction_waited=true; fi
 wait "$correction_reopen_pid"
 stale_promotion_status=0
 wait "$stale_promotion_pid" || stale_promotion_status=$?
