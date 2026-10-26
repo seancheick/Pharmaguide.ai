@@ -1,5 +1,6 @@
 -- Read-only structural receipt for the shared public schema. Excludes provider
 -- internals, fixture schemas, object OIDs and owner-specific ACL grantors.
+-- Columns are compared by name; historical physical column order is excluded.
 SET search_path = public, pg_catalog;
 WITH objects AS (
   SELECT 'function' AS kind,
@@ -20,8 +21,7 @@ WITH objects AS (
   JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public'
   UNION ALL
   SELECT 'column',c.relname || ':' || a.attname,
-    jsonb_build_object('ordinal',a.attnum,
-      'type',format_type(a.atttypid,a.atttypmod),
+    jsonb_build_object('type',format_type(a.atttypid,a.atttypmod),
       'dimensions',a.attndims,'nullable',NOT a.attnotnull,
       'default',pg_get_expr(d.adbin,d.adrelid),
       'identity',a.attidentity,'generated',a.attgenerated,

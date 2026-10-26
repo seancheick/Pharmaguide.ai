@@ -50,7 +50,9 @@ The replay uses real pipeline prerequisites and every app migration, with
 production's `postgres` object owner. Its external Auth/Storage surfaces come
 from the disposable provider fixture; it does not prove external provider
 service behavior. `scripts/supabase_schema_receipt.sql` captures public
-functions, constraints, policies, grants and triggers. Compare live and replay
+functions, constraints, policies, grants, triggers, named column attributes and
+index definitions. Physical column order is excluded because historical ALTERs
+added equivalent named columns in a different order. Compare live and replay
 receipts with `assemble_supabase_migrations.py --compare-schema <live.json>
 <replayed.json>`. Provider-managed event triggers are excluded; SQL source
 comments/formatting and duplicate equivalent constraints do not change parity.
@@ -153,3 +155,8 @@ Applied with Sean's approval, in this order, to `omayamxacvacrnvdvzhr`:
 Personal reads and snapshot POST return503; authenticated deletion stays available. Production
 DCR=false was applied through the Management API and read back. These are containment receipts,
 not personal-connector activation. No WorkOS migration or self-hosted issuer prototype was applied.
+
+The expanded pre-repair comparison found one historical live drift: the existing
+`idx_user_stacks_user_active` index from `20260411000000` was absent. The forward
+repair restores that same partial index without replaying the old migration.
+Deployment config bytes are included in bundle hash verification.
