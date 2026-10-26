@@ -18,8 +18,10 @@ import {
 } from "../_shared/push_queue.ts";
 import {
   cursorFilter,
+  loadQueueEvidence,
   nextListCursor,
   parseListRequest,
+  queuePhotosToSign,
   reviewStatusesForList,
 } from "./queue.ts";
 import { parseRecordMatchRequest } from "./match.ts";
@@ -897,24 +899,35 @@ Deno.serve(async (request: Request): Promise<Response> => {
             if (approvalError) throw approvalError;
             approvalPayloadSha256 = approval?.payload_sha256 ?? null;
           }
-          const evidence = submission.upload_state === "pending"
-            ? await loadPendingReviewerEvidence(
-              admin,
-              submission.id as string,
-              Number(submission.evidence_revision),
-            )
-            : await loadSubmissionEvidence(
-              userClient,
-              submission.id as string,
-            );
-          const { data: signed, error: signedError } =
-            evidence.photos.length === 0
-              ? { data: [], error: null }
-              : await admin.storage.from(PHOTO_BUCKET)
-                .createSignedUrls(
-                  evidence.photos.map((photo) => photo.object_path as string),
-                  SIGNED_URL_TTL_SECONDS,
-                );
+          const evidence = await loadQueueEvidence(submission, {
+            hasReviewerPhotos: async () => {
+              const { data: photos, error } = await admin
+                .from("product_submission_photos")
+                .select("uploader_role")
+                .eq("submission_id", submission.id)
+                .eq("revision", submission.evidence_revision)
+                .eq("uploader_role", "reviewer")
+                .limit(1);
+              if (error) throw error;
+              return (photos?.length ?? 0) > 0;
+            },
+            pendingReviewer: () =>
+              loadPendingReviewerEvidence(
+                admin,
+                submission.id as string,
+                Number(submission.evidence_revision),
+              ),
+            ready: () =>
+              loadSubmissionEvidence(userClient, submission.id as string),
+          });
+          const photosToSign = queuePhotosToSign(submission, evidence);
+          const { data: signed, error: signedError } = photosToSign.length === 0
+            ? { data: [], error: null }
+            : await admin.storage.from(PHOTO_BUCKET)
+              .createSignedUrls(
+                photosToSign.map((photo) => photo.object_path as string),
+                SIGNED_URL_TTL_SECONDS,
+              );
           if (signedError || !signed) {
             throw signedError ?? new Error("photo signing failed");
           }
@@ -937,7 +950,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
             evidence_revision: evidence.evidence_revision,
             evidence_manifest_sha256: evidence.manifest_sha256,
             extractions: drafts,
-            photos: evidence.photos.map((photo) => {
+            photos: photosToSign.map((photo) => {
               const signedUrl = signedByPath.get(photo.object_path as string);
               if (!signedUrl) throw new Error("missing signed URL");
               const { object_path: _privatePath, ...publicPhoto } = photo;

@@ -158,3 +158,39 @@ export function nextListCursor(
     id: uuid(last.id, "cursor id"),
   };
 }
+
+// Pending uploads are staging manifests, not ready evidence. Ownership comes
+// from the existing photo provenance, never from a client supplied flag.
+export type QueueEvidence = {
+  evidence_revision: number;
+  manifest_sha256: string | null;
+  evidence_snapshot: JsonObject;
+  photos: JsonObject[];
+};
+
+export async function loadQueueEvidence(
+  submission: JsonObject,
+  sources: {
+    hasReviewerPhotos: () => Promise<boolean>;
+    ready: () => Promise<QueueEvidence>;
+    pendingReviewer: () => Promise<QueueEvidence>;
+  },
+): Promise<QueueEvidence> {
+  if (submission.upload_state !== "pending") return await sources.ready();
+  if (await sources.hasReviewerPhotos()) return await sources.pendingReviewer();
+  // A submitter retake may not have uploaded any bytes yet. Keep it in the
+  // queue without calling the reviewer-only RPC or requesting signed URLs.
+  return {
+    evidence_revision: Number(submission.evidence_revision),
+    manifest_sha256: null,
+    evidence_snapshot: {},
+    photos: [],
+  };
+}
+
+export function queuePhotosToSign(
+  submission: JsonObject,
+  evidence: QueueEvidence,
+): JsonObject[] {
+  return submission.upload_state === "pending" ? [] : evidence.photos;
+}

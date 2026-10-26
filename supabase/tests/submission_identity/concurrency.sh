@@ -117,12 +117,30 @@ budget_second_status=0
 wait "$budget_second_pid" || budget_second_status=$?
 psql_test -q -c "SELECT fixture.test('concurrent reservations cannot overspend the pilot', 'SELECT fixture.assert($budget_waited AND $budget_second_status=0 AND (SELECT count(*)=1 AND sum(reserved_microcents)=10 FROM public.product_submission_extraction_budget), ''budget admission must serialize before provider calls'')')"
 
-if [[ "$approval_waited" != true || "$finalize_waited" != true || "$create_waited" != true || "$identical_waited" != true || "$storage_waited" != true || "$correction_waited" != true || "$budget_waited" != true ]]; then
+# A real cleanup transaction wins the same row lock as reviewer finalization.
+# The finalizer must wait, re-read cleaning/claim state, and refuse to revive it.
+correction_race_id="$(psql_test -Atqc "SELECT fixture.seed(1,'5012345678900','under_review',NULL)")"
+psql_test -q -c "SELECT fixture.approve('$correction_race_id'); SELECT set_config('request.jwt.claim.sub',fixture.user_id(3)::text,false); SELECT public.reopen_product_submission_approval('$correction_race_id',1,(SELECT payload_sha256 FROM public.product_submission_approved_labels WHERE submission_id='$correction_race_id'),'Race correction photos'); SELECT public.create_product_submission_reviewer_evidence_revision('$correction_race_id',1,(SELECT payload_sha256 FROM public.product_submission_approved_labels WHERE submission_id='$correction_race_id'),gen_random_uuid(),fixture.new_photo(15)); SELECT fixture.upload_revision('$correction_race_id',2); UPDATE public.product_submissions SET evidence_revision_opened_at=now()-interval '25 hours' WHERE id='$correction_race_id';" > "$test_logs/correction-race-setup.log" 2>&1
+correction_manifest="$(psql_test -Atqc "SELECT public.product_submission_manifest_sha256(public.product_submission_evidence_records('$correction_race_id',2))")"
+psql_test -q -c "SET application_name='fixture_correction_cleanup'; BEGIN; SELECT * FROM public.claim_product_submission_cleanup(100); SELECT pg_sleep(3); COMMIT;" > "$test_logs/correction-cleanup.log" 2>&1 &
+correction_cleanup_pid=$!
+wait_for_event fixture_correction_cleanup PgSleep
+psql_test -q -c "SET application_name='fixture_correction_finalize'; SELECT public.finalize_product_submission_reviewer_evidence_revision('$correction_race_id',2,'$correction_manifest');" > "$test_logs/correction-finalize.log" 2>&1 &
+correction_finalize_pid=$!
+correction_finalize_waited=false
+if wait_for_event fixture_correction_finalize transactionid; then correction_finalize_waited=true; fi
+wait "$correction_cleanup_pid"
+correction_finalize_status=0
+wait "$correction_finalize_pid" || correction_finalize_status=$?
+psql_test -q -c "SELECT fixture.test('cleanup claim serializes with reviewer finalization', 'SELECT fixture.assert($correction_finalize_waited AND $correction_finalize_status <> 0 AND (SELECT upload_state=''cleaning'' AND cleanup_claim_token IS NOT NULL FROM public.product_submissions WHERE id=''$correction_race_id''), ''finalizer must not revive a cleanup-owned revision'')')"
+
+if [[ "$approval_waited" != true || "$finalize_waited" != true || "$create_waited" != true || "$identical_waited" != true || "$storage_waited" != true || "$correction_waited" != true || "$budget_waited" != true || "$correction_finalize_waited" != true ]]; then
   echo "Concurrency diagnostics: $test_logs"
 else
   rm "$test_logs/approval-first.log" "$test_logs/approval-second.log" "$test_logs/finalize-first.log" "$test_logs/finalize-second.log" "$test_logs/create-first.log" "$test_logs/create-second.log" "$test_logs/identical-first.log" "$test_logs/identical-second.log"
   rm "$test_logs/storage-writer.log" "$test_logs/storage-finalize.log"
   rm "$test_logs/correction-reopen.log" "$test_logs/stale-promotion.log"
   rm "$test_logs/budget-first.log" "$test_logs/budget-second.log"
+  rm "$test_logs/correction-race-setup.log" "$test_logs/correction-cleanup.log" "$test_logs/correction-finalize.log"
   rmdir "$test_logs"
 fi

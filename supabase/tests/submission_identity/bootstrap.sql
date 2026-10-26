@@ -40,3 +40,21 @@ CREATE FUNCTION public.rotate_manifest(
 ) RETURNS uuid LANGUAGE sql AS $$ SELECT gen_random_uuid() $$;
 GRANT EXECUTE ON FUNCTION public.rotate_manifest(
   text,text,text,text,integer,text,timestamptz,text) TO service_role;
+
+-- Minimal Auth JWT surface, shared with the AI connector fixture.
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
+ SELECT coalesce(nullif(current_setting('request.jwt.claim',true),''),
+                 nullif(current_setting('request.jwt.claims',true),''))::jsonb
+$$;
+GRANT EXECUTE ON FUNCTION auth.jwt() TO PUBLIC;
+
+-- Latest submitter RPCs retain the production OAuth-client guard. auth.jwt()
+-- is the minimal Auth shape above; the guard body is the production definition.
+CREATE OR REPLACE FUNCTION public.reject_oauth_client_request()
+RETURNS void LANGUAGE plpgsql STABLE SET search_path = '' AS $$
+BEGIN
+  IF (auth.jwt() ->> 'client_id') IS NOT NULL THEN
+    RAISE EXCEPTION 'AI assistant connections cannot call this function' USING ERRCODE='42501';
+  END IF;
+END $$;
+REVOKE ALL ON FUNCTION public.reject_oauth_client_request() FROM PUBLIC,anon,authenticated;

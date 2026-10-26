@@ -46,4 +46,5 @@ submission_migration_chain() {
   printf '%s\n' "$repo_dir/supabase/migrations/20260913010000_submission_row_grounding.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20261009120000_reviewer_barcode_correction.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20261026132208_submission_approval_revisions.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20261026160229_submission_correction_workflow_repair.sql"
 }
