@@ -75,6 +75,27 @@ Widget _section(Map<String, dynamic> pillars) => MaterialApp(
 );
 
 void main() {
+  for (final reason in [
+    'No third-party product certification found in the reviewed registries.',
+    'Verification assessment is incomplete.',
+    'Independent testing or certification: unconfirmed.',
+  ]) {
+    testWidgets('verification renders the pipeline finding verbatim: $reason', (
+      tester,
+    ) async {
+      final pillars = _pillars();
+      pillars['verification'] = {'score': 6.0, 'max': 15, 'reason': reason};
+      await tester.pumpWidget(_section(pillars));
+      await tester.ensureVisible(find.text('Testing & Brand'));
+      await tester.tap(find.text('Testing & Brand'));
+      await tester.pumpAndSettle();
+      expect(find.text(reason), findsOneWidget);
+      expect(find.text('6/15'), findsOneWidget);
+      expect(find.textContaining('gets neutral credit'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   group('receipt parsing', () {
     test('sums entries by kind and keeps unawarded apart', () {
       final pillars = parseV4Pillars(
