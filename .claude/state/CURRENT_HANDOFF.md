@@ -1,22 +1,11 @@
-# Current handoff — submission approval corrections
+# Current handoff — release verification closeout
 
-Goal: implement immutable approval revisions, audited reopen/reapprove, reviewer and submitter replacement evidence, conservative correction-state UI, and exact-revision release fences without changing scoring, clinical, product-identity, or contribution-point policy.
+Branch codex/release-verification-closeout from e7255417. Pipeline peer branch codex/collagen-review-attribution, candidate746cfa78 on CI. Preserve all actual assets and user DB; no import/publication performed.
 
-Lane: integrated by PR 148; feature commits `85e35c92` and `1c1ae32d` are contained in `main` merge `8fb31692`.
+Owner: scripts/import_catalog_artifact.sh — journal recovery, checksum-backed rollback, permanent target-local concurrency lock;18tests pass/1existing opt-in skip. Owner: scripts/verify_native_app.py — read-only installed binary/catalog/product identity;8tests pass. Owner: native_catalog_journey_test.dart + driver + existing search tiles — normal navigation, exact ID keys, retained host screenshots/metadata, unexpected post-startup error capture and fatal missed taps. Will NOT create a scorer, clinical registry or replacement release path.
 
-Owner: Supabase review transition RPCs and `product_submission_approved_labels`; console `setApprovedReadOnly`, `setDecisionAvailability`, and existing evidence workflow; Flutter `ProductSubmissionSummary`; evidence owner `product_submission_photos`/reviewer evidence RPCs. Evidence: `rg -n "product_submission_approved_labels|review_product_submission|setApprovedReadOnly|setDecisionAvailability|ProductSubmissionSummary|product_submission_photos" supabase scripts lib test`. Will NOT create: another review engine, identity owner, photo store, points rule, status enum, or scoring path.
+Native normal app launch on owned iOS26.5 simulator7CDB670B-94FE-4B4A-A810-EAE42F50E832 reproduced original caffeine295048 old wording, visible source ID, score78 and dose limitation. Doctor captured app1.0.0+23 and catalog2026.10.22.012241. Wording fix89a35e8d is already on pipeline main; rebuilt caffeine output corrected but blocked before publication. No new scorer edit warranted.
 
-Implemented: immutable numbered approval snapshots and backfill; fenced/idempotent reopen; seeded draft and fresh attestation requirement; reviewer replacement photos in the existing evidence revision/store; pending-upload recovery; purged-evidence block; correction-state Flutter copy; exact atomic publication RPC; one-time points preservation; explicit function revokes/grants.
+Integration native-host-06 passed normal Home→search→exactlabel→Testing&Brand, including screenshots and equality with installed detail blob; does NOT establish delivery of new wording. Earlier runs failed harness navigation/visibility and are retained as failures. iOS26 UIKit tab control is not reliable under integration binding: complete onboarding through normal app/CUA first; normal tab interaction was verified separately. Host capture survives test cleanup; --keep-app-running preserves owned state.
 
-Verification and deployment:
-- Submission SQL harness with advisors: 131 tests pass, concurrency checks pass, no security/performance advisor findings.
-- Reviewer Edge Function: 74 Deno tests pass.
-- Affected Flutter suites: 87 tests pass; `make analyze` has no issues.
-- Full `make check` reached six unrelated tiny golden-image diffs; all six reproduce on clean `main` at `f1e12a77`, and this branch changes none of those widgets or goldens. Exact-candidate CI remains the environment gate.
-- Deno/Dart formatting, shell syntax, and `git diff --check`: pass.
-- Independent adversarial review completed; accepted findings fixed for audit immutability, evidence retention/recovery/provenance, competing upload keys, global catalog-version uniqueness, release races, stale fences, and duplicate points.
-- Exact-candidate app CI passed before merge. Pipeline PR 251 passed its final four-shard CI after the cross-repository contract was integrated.
-- Migration `20261026132208_submission_approval_revisions.sql` is deployed and recorded under the repository version; `review-product-submissions` version 36 is ACTIVE with JWT verification enabled.
-- Post-deploy backfill, grants, immutable triggers, contribution totals, unauthenticated 401, and stale-revision refusal checks passed. Production advisors report existing warning/info classes; the new authenticated reviewer entry points keep explicit reviewer checks, while release fences remain service-role only.
-
-Next: Sean may run the updated product pipeline when ready. Until then, newer corrected approvals remain awaiting release. No app release or catalog publication was performed in this batch.
+Cold fresh-agent expected-new-wording check finished: ordinary navigation and installed-data parity pass, expected corrected sentence fails as intended against old catalog. Evidence fresh-eval-01/RESULT.md. Full analyze has no issues;61search/pillar/offline owner-consumer tests pass. Import recovery18pass/1opt-in skip;doctor8pass. Exact CI and merge remain. Source to build receipt was dirty and source snapshot retained; no delivered-fix claim. Evidence .claude/state/release_verification_20261026; bundle importer receipts .claude/state/bundle_recovery_20261026. No corpus or publication authorized in this batch.

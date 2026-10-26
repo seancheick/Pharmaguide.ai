@@ -1636,6 +1636,7 @@ class _SearchProductListTile extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          key: ValueKey('search-product-${product.dsldId}'),
           onTap: () => context.push('${Routes.product}/${product.dsldId}'),
           splashColor: context.v2.accent.withValues(alpha: 0.08),
           highlightColor: context.v2.accent.withValues(alpha: 0.04),
@@ -1772,6 +1773,7 @@ class _SearchProductGridTile extends StatelessWidget {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(V2Spacing.radiusCard),
           child: InkWell(
+            key: ValueKey('search-product-${product.dsldId}'),
             onTap: () {
               onOpen?.call();
               context.push('${Routes.product}/${product.dsldId}');
