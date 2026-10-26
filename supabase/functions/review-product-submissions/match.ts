@@ -147,7 +147,10 @@ export function parseRecordMatchRequest(value: unknown): RecordMatchRequest {
         2000,
       ]] as const
     ) {
-      if (decision[key] === null && key === "issuer") continue;
+      if (
+        decision[key] === null &&
+        (key === "issuer" || (key === "package" && identityMethod === "gtin"))
+      ) continue;
       if (
         typeof decision[key] !== "string" ||
         (decision[key] as string).length > max ||

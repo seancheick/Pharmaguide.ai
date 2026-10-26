@@ -175,3 +175,17 @@ DO $$ DECLARE sid uuid; BEGIN
  PERFORM public.correct_product_submission_barcode(sid,'012345678905','Read manufacturer barcode',1,fixture.manifest_hash(sid));
  PERFORM fixture.assert(NOT EXISTS(SELECT 1 FROM public.product_submission_field_verifications WHERE submission_id=sid),'identity edit clears checklist');
 END $$ $case$);
+SELECT fixture.test('pending selected target cannot disappear through activation or active generation deletion', $case$
+DO $$ DECLARE sid uuid; envelope jsonb; wire text; BEGIN
+ INSERT INTO public.catalog_search(catalog_version,dsld_id,product_name,brand_name) VALUES('selected-target-catalog','900','Label','Example');
+ PERFORM public.rotate_manifest_with_submission_approvals('selected-target-catalog','p','s','1',1,'hash',now());
+ sid:=fixture.seed(1,'012345678905','under_review',NULL);
+ UPDATE public.product_submissions SET identifier=fixture.alternate_identifier(),normalized_upc=NULL WHERE id=sid;
+ UPDATE public.product_submission_evidence_revisions SET identifier=fixture.alternate_identifier() WHERE submission_id=sid;
+ PERFORM fixture.prepare_review(sid,'{"brandName":"Example","fullName":"Label"}');
+ PERFORM public.record_product_submission_match_check(sid,'catalog_match',NULL,now(),'900','{}',NULL,1,fixture.manifest_hash(sid),'label_review','{"code_type":"other","issuer":null,"verified_gtin":null,"package":"60 capsules","reason":"Reviewed matching catalog label"}',true,'selected-target-index');
+ envelope:=public.prepare_product_submission_approval_payload(sid,'{"brandName":"Example","fullName":"Label"}','900'); wire:=envelope::text;
+ PERFORM public.review_product_submission(sid,'approved',p_approved_schema_version=>'manual_label_v2',p_approved_payload=>envelope,p_approved_payload_canonical=>wire,p_payload_sha256=>encode(extensions.digest(wire,'sha256'),'hex'),p_expected_evidence_revision=>1,p_evidence_manifest_sha256=>fixture.manifest_hash(sid),p_product_image_photo_id=>'10000000-0000-0000-0000-000000000001',p_correction_target_dsld_id=>'900');
+ PERFORM fixture.throws('DELETE FROM public.catalog_search WHERE catalog_version=''selected-target-catalog'' AND dsld_id=''900''','23505','reviewed catalog target');
+ PERFORM fixture.throws('SELECT public.rotate_manifest_with_submission_approvals(''removed-target-catalog'',''p'',''s'',''1'',0,''hash'',now())','23505','reviewed catalog target');
+END $$ $case$);

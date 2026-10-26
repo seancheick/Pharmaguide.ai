@@ -206,3 +206,30 @@ Deno.test("reviewed identifier metadata rejects C1 and canonicalizes blank issue
     })
   );
 });
+
+Deno.test("v2 GTIN review keeps substantive reason and permits null package", () => {
+  const result = parseRecordMatchRequest({
+    action: "record_match",
+    submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
+    outcome: "no_match_verified",
+    canonical_gtin14: "00036000291452",
+    index_built_at: indexBuiltAt,
+    identity_method: "gtin",
+    candidate_review_complete: true,
+    index_revision: "complete-index",
+    identifier_decision: {
+      code_type: "other",
+      issuer: null,
+      verified_gtin: "036000291452",
+      package: null,
+      reason: "Compared exact GTIN candidates against full label",
+    },
+  });
+  assertEquals(result.identifierDecision?.package, null);
+  assertEquals(
+    result.identifierDecision?.reason,
+    "Compared exact GTIN candidates against full label",
+  );
+});

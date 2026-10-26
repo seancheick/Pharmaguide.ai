@@ -1762,6 +1762,16 @@ BEGIN
  WHERE s.review_status='approved' AND s.approval_revision>s.promoted_approval_revision AND a.schema_version='manual_label_v2'
  LOOP
   conflicts:=public.product_submission_identity_conflicts(pending.id);
+  IF EXISTS(
+    SELECT 1 FROM public.product_submission_match_checks m,
+      jsonb_array_elements(m.conflict_snapshot) reviewed
+    WHERE m.id=(pending.approved_payload#>>'{identity,match_check_id}')::bigint
+      AND reviewed->>'source'='catalog'
+      AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(conflicts) current_candidate
+        WHERE current_candidate->>'source'='catalog' AND current_candidate->>'id'=reviewed->>'id')
+  ) THEN
+    RAISE EXCEPTION 'reviewed catalog target disappeared during activation' USING ERRCODE='23505';
+  END IF;
   IF EXISTS(SELECT 1 FROM jsonb_array_elements(conflicts) c WHERE c->>'source'='catalog' AND c->>'id' IS DISTINCT FROM coalesce(pending.approved_payload#>>'{identity,correction_target_dsld_id}',pending.approved_payload#>>'{identity,edition_of_dsld_id}',(SELECT resolved_dsld_id FROM public.product_submissions WHERE id=pending.id),'PG_SUB_'||upper(replace(pending.id::text,'-','')))) THEN
     RAISE EXCEPTION 'catalog activation conflicts with pending submission approval' USING ERRCODE='23505';
   END IF;
