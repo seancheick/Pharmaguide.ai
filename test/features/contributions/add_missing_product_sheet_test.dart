@@ -5,10 +5,91 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:pharmaguide/features/contributions/add_missing_product_sheet.dart';
 import 'package:pharmaguide/services/gtin.dart';
+import 'package:pharmaguide/services/product_submission_service.dart';
 
 import '../../support/app_fonts.dart';
 
 void main() {
+  testWidgets(
+    'alternate entry explains review instead of promising numeric lookup',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showAddMissingProductIdentitySheet(context),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Enter the UPC/GTIN'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('add-product-alternate-code')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Enter the UPC/GTIN'), findsNothing);
+      expect(find.textContaining('TCIN and DPCI'), findsNothing);
+      expect(find.textContaining('continue without a UPC'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('add-product-alternate-code')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Enter the UPC/GTIN'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'whitespace optional listing URL continues without rewriting printed code',
+    (tester) async {
+      Object? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  result = await showAddMissingProductIdentitySheet(context);
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('add-product-alternate-code')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('add-product-brand')),
+        'Natgrown',
+      );
+      await tester.enterText(
+        find.byKey(const Key('add-product-name')),
+        'Fixture',
+      );
+      await tester.enterText(
+        find.byKey(const Key('add-product-listing')),
+        '   ',
+      );
+      await tester.enterText(
+        find.byKey(const Key('add-product-gtin-field')),
+        ' X002FLZ3X7 ',
+      );
+      await tester.ensureVisible(find.byKey(const Key('add-product-continue')));
+      await tester.tap(find.byKey(const Key('add-product-continue')));
+      await tester.pumpAndSettle();
+      expect(result, isA<ProductSubmissionIdentifier>());
+      expect((result as ProductSubmissionIdentifier).listingUrl, isNull);
+      expect(
+        (result as ProductSubmissionIdentifier).observedCode,
+        ' X002FLZ3X7 ',
+      );
+      expect(find.text('Add a product from photos'), findsNothing);
+    },
+  );
+
   testWidgets('OCR suggestion fills a validated UPC and can be confirmed', (
     tester,
   ) async {

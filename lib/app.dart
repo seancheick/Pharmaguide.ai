@@ -961,37 +961,86 @@ void navigatePostAuthIfOnAuthPath(GoRouter router) {
         // A SharedPreferences hiccup shouldn't strand the user on the
         // sign-in screen after a successful sign-in — fall back home.
         .catchError((_) => router.go(Routes.home))
-        .then((_) => _resumePendingSubmission()),
+        .then((_) => resumePendingSubmission()),
   );
 }
 
-/// If a signed-out user tried to submit product evidence, sign-in consumes
-/// the typed intent and reopens the correct sheet on the landing screen.
-Future<void> _resumePendingSubmission() async {
-  final intent = await PendingSubmissionIntent.consume();
-  if (intent == null) return;
-  // Let the landing route finish its first frame before presenting a sheet.
-  await Future<void>.delayed(const Duration(milliseconds: 300));
-  final context = rootNavigatorKey.currentContext;
-  if (context == null || !context.mounted) return;
-  await routePendingSubmissionIntent<ProductsCoreData>(
-    intent,
-    openMissingProduct: (upc) async {
-      if (!context.mounted) return;
-      await showMissingProductSubmissionSheet(context, upc: upc);
-    },
-    resolveLabelMismatch: (dsldId) => ProviderScope.containerOf(
-      context,
-      listen: false,
-    ).read(coreDatabaseProvider).findById(dsldId),
-    openLabelMismatch: (product) async {
-      if (!context.mounted) return;
-      await showLabelMismatchSheet(
+/// Reopen product evidence after sign-in; acknowledge only when a sheet opens.
+bool _submissionResumeInFlight = false;
+Future<void> resumePendingSubmission({
+  BuildContext? Function()? contextProvider,
+  Duration landingDelay = const Duration(milliseconds: 300),
+  bool retryOnNextFrame = true,
+  ProductSubmissionService? submissionService,
+}) async {
+  if (_submissionResumeInFlight) return;
+  _submissionResumeInFlight = true;
+  try {
+    final intent = await PendingSubmissionIntent.peek();
+    if (intent == null) return;
+    // Let the landing route finish its first frame before presenting a sheet.
+    if (landingDelay != Duration.zero) await Future<void>.delayed(landingDelay);
+    final context =
+        (contextProvider ?? () => rootNavigatorKey.currentContext)();
+    if (context == null || !context.mounted) {
+      if (retryOnNextFrame) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (await PendingSubmissionIntent.isCurrent(intent)) {
+            unawaited(
+              resumePendingSubmission(
+                contextProvider: contextProvider,
+                landingDelay: Duration.zero,
+                retryOnNextFrame: false,
+                submissionService: submissionService,
+              ),
+            );
+          }
+        });
+      }
+      return;
+    }
+    await routePendingSubmissionIntent<ProductsCoreData>(
+      intent,
+      openMissingProduct: (upc) async {
+        if (!context.mounted) return;
+        await showMissingProductSubmissionSheet(
+          context,
+          upc: upc,
+          service: submissionService,
+          onPresented: () =>
+              unawaited(PendingSubmissionIntent.acknowledge(intent)),
+        );
+      },
+      openAlternateProduct: (identifier, submissionId) async {
+        if (!context.mounted) return;
+        await showMissingProductSubmissionSheet(
+          context,
+          upc: '',
+          service: submissionService,
+          identifier: identifier,
+          submissionIdFactory: () => submissionId,
+          resubmissionOf: intent.resubmissionOf,
+          onPresented: () =>
+              unawaited(PendingSubmissionIntent.acknowledge(intent)),
+        );
+      },
+      resolveLabelMismatch: (dsldId) => ProviderScope.containerOf(
         context,
-        product: _resumeLabelMismatchMetadata(product),
-      );
-    },
-  );
+        listen: false,
+      ).read(coreDatabaseProvider).findById(dsldId),
+      openLabelMismatch: (product) async {
+        if (!context.mounted) return;
+        await showLabelMismatchSheet(
+          context,
+          product: _resumeLabelMismatchMetadata(product),
+          onPresented: () =>
+              unawaited(PendingSubmissionIntent.acknowledge(intent)),
+        );
+      },
+    );
+  } finally {
+    _submissionResumeInFlight = false;
+  }
 }
 
 LabelMismatchProductMetadata _resumeLabelMismatchMetadata(

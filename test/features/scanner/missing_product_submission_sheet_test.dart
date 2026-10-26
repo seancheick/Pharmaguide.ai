@@ -47,11 +47,15 @@ Widget _harness({
   ReadSubmissionPhotoText? readPhotoText,
   PickMissingProductPhotos? pickPhotosFromLibrary,
   ProductSubmissionRetake? retake,
+  ProductSubmissionIdentifier? identifier,
+  String? resumeSubmissionId,
 }) {
   return MaterialApp(
     home: Scaffold(
       body: MissingProductSubmissionSheet(
-        upc: _upc,
+        upc: identifier == null ? _upc : '',
+        identifier: identifier,
+        resumeSubmissionId: resumeSubmissionId,
         service: ProductSubmissionService(backend: backend),
         submissionIdFactory: submissionIdFactory ?? () => _submissionId,
         qualityGate: qualityGate ?? (_) async => _okQuality,
@@ -115,7 +119,11 @@ Future<void> _tapInSheet(WidgetTester tester, Finder target) async {
 /// the facts photo), landing on the review step with the consent in view.
 /// Start opens the camera for the front, which advances by itself; Facts
 /// stays open so a wrapped panel can receive another angle.
-Future<void> _captureRequiredEvidence(WidgetTester tester) async {
+Future<void> _captureRequiredEvidence(
+  WidgetTester tester, {
+  bool noCode = false,
+  String codeTitle = 'Barcode',
+}) async {
   // Start is the front shot: no second "open camera" tap.
   await tester.tap(find.byKey(const Key('missing-product-start')));
   await tester.pumpAndSettle();
@@ -146,18 +154,124 @@ Future<void> _captureRequiredEvidence(WidgetTester tester) async {
   // The answer is the continue.
   await tester.tap(find.byKey(const Key('missing-product-facts-combined')));
   await tester.pumpAndSettle();
-  expect(_stepTitle(tester), 'Barcode');
+  if (!noCode) {
+    expect(_stepTitle(tester), codeTitle);
 
-  // The barcode is required identity evidence and advances automatically —
-  // straight to review; optional panels are offered there.
-  await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
-  await tester.pumpAndSettle();
+    // The barcode is required identity evidence and advances automatically —
+    // straight to review; optional panels are offered there.
+    await tester.tap(find.byKey(const Key('missing-product-add-barcode')));
+    await tester.pumpAndSettle();
+  }
   expect(_stepTitle(tester), 'Review & submit');
   await _scrollToConsent(tester);
 }
 
 void main() {
   setUp(() => _photoCounter = 0);
+  testWidgets(
+    'no-code rejected resubmission keeps new UUID and linked lineage through real capture',
+    (tester) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      final store = _MemoryDraftStorage();
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: null,
+        codeType: 'none',
+        noCode: true,
+        brandName: 'Natgrown',
+        fullName: 'Unnumbered fixture',
+      );
+      const rejected = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a10';
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          identifier: identifier,
+          draftStore: store,
+          resubmissionOf: rejected,
+        ),
+      );
+      await _captureRequiredEvidence(tester, noCode: true);
+      expect(
+        find.byKey(const Key('missing-product-add-barcode')),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+      expect(backend.persistedIdentifier, identifier.toJson());
+      expect(backend.persistedLineage, rejected);
+      expect(backend.persistedSubmissionIds, [_submissionId]);
+      expect(find.text('Thanks — it’s in review'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'alternate capture transport retry retains exact code photos and UUID',
+    (tester) async {
+      final backend = _Backend(
+        authenticatedUserId: _userId,
+        persistFailuresRemaining: 1,
+      );
+      final store = _MemoryDraftStorage();
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      await tester.pumpWidget(
+        _harness(backend: backend, identifier: identifier, draftStore: store),
+      );
+      await _captureRequiredEvidence(tester, codeTitle: 'Printed code');
+      await tester.tap(find.byKey(const Key('missing-product-consent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+      final saved = (await store.list(_userId)).single;
+      expect(saved.submissionId, _submissionId);
+      expect(saved.identifier!.observedCode, 'X002FLZ3X7');
+      await tester.tap(find.byKey(const Key('missing-product-submit')));
+      await tester.pumpAndSettle();
+      expect(backend.persistedSubmissionIds, [_submissionId, _submissionId]);
+      expect(backend.persistedIdentifier, identifier.toJson());
+      expect(find.text('Thanks — it’s in review'), findsOneWidget);
+    },
+  );
+  testWidgets(
+    'interrupted alternate capture restores only its UUID and exact evidence',
+    (tester) async {
+      final backend = _Backend(authenticatedUserId: _userId);
+      final store = _MemoryDraftStorage();
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      await tester.pumpWidget(
+        _harness(backend: backend, identifier: identifier, draftStore: store),
+      );
+      await tester.tap(find.byKey(const Key('missing-product-start')));
+      await tester.pumpAndSettle();
+      final saved = (await store.list(_userId)).single;
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        _harness(
+          backend: backend,
+          identifier: identifier,
+          draftStore: store,
+          resumeSubmissionId: saved.submissionId,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Finish sending'));
+      await tester.pumpAndSettle();
+      expect(_stepTitle(tester), 'Supplement Facts');
+      final restored = await store.restore(_userId, saved.submissionId);
+      expect(restored!.identifier!.toJson(), identifier.toJson());
+      expect(restored.photos, hasLength(1));
+      expect(backend.persistedSubmissionIds, isEmpty);
+    },
+  );
 
   testWidgets(
     'denied camera access says how to fix it, and the library works',
@@ -783,8 +897,9 @@ void main() {
     expect(find.byKey(const Key('missing-product-consent')), findsOneWidget);
     expect(
       find.text(
-        'I consent to send this account-linked product submission, barcode, '
-        'and selected label photos privately to PharmaGuide for review. A '
+        'I consent to send this account-linked product submission, brand and name, '
+        'provided code or no-code declaration, optional listing URL, and '
+        'selected label photos privately to PharmaGuide for review. A '
         'third-party AI service may read the label, but a human reviewer '
         'approves every entry. If approved, the front-label photo—including '
         'a crop—may be published as the product image. I confirm the photos '
@@ -796,7 +911,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text(
-        'Your account identifier, this barcode, and selected product-label '
+        'Your account identifier, product brand and name, provided code or no-code '
+        'declaration, optional listing URL, and selected product-label '
         'photos go privately to PharmaGuide for review. We strip embedded '
         'photo metadata (EXIF) before upload, but anything visible in the '
         'pixels remains. Do not include pharmacy stickers, names, '
@@ -2298,6 +2414,7 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
     required String userId,
     required String submissionId,
     required String upc,
+    ProductSubmissionIdentifier? identifier,
     required List<ProductSubmissionPhoto> photos,
     required String consentVersion,
     String? resubmissionOf,
@@ -2309,6 +2426,7 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
     captures[submissionId] = RestoredCapture(
       submissionId: submissionId,
       upc: upc,
+      identifier: identifier,
       resubmissionOf: resubmissionOf,
       noSeparateIngredientPanel: noSeparateIngredientPanel,
       photos: List.unmodifiable(photos),
@@ -2317,6 +2435,7 @@ class _MemoryDraftStorage implements ProductSubmissionDraftStorage {
     records[submissionId] = PendingProductSubmission(
       submissionId: submissionId,
       upc: upc,
+      identifier: identifier,
       resubmissionOf: resubmissionOf,
       noSeparateIngredientPanel: noSeparateIngredientPanel,
       consentVersion: consentVersion,
@@ -2370,6 +2489,7 @@ class _Backend implements ProductSubmissionBackend {
 
   @override
   final String? authenticatedUserId;
+  Map<String, Object?>? persistedIdentifier;
   String? persistedKind;
   bool? persistedCueFlag;
   int persistFailuresRemaining;
@@ -2404,6 +2524,7 @@ class _Backend implements ProductSubmissionBackend {
       persistFailuresRemaining -= 1;
       throw StateError('ambiguous persist failure');
     }
+    persistedIdentifier = payload['p_identifier'] as Map<String, Object?>?;
     persistedKind = payload['p_kind'] as String?;
     persistedLineage = payload['p_resubmission_of'] as String?;
     persistedCueFlag = payload['p_no_separate_ingredient_panel'] as bool?;

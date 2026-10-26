@@ -6,12 +6,51 @@ import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/scanner/product_version_label_sheet.dart';
+import 'package:pharmaguide/features/scanner/missing_product_submission_sheet.dart';
 
 import '../test/features/contributions/product_submissions_screen_test.dart'
     show submissionHistoryHarness;
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets(
+    'alternate printed-code entry and capture keep the observed code',
+    (tester) async {
+      await tester.pumpWidget(submissionHistoryHarness(const []));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('contributions-add-product')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('add-product-alternate-code')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('add-product-brand')),
+        'Natgrown',
+      );
+      await tester.enterText(
+        find.byKey(const Key('add-product-name')),
+        'Label evidence fixture',
+      );
+      await tester.enterText(
+        find.byKey(const Key('add-product-gtin-field')),
+        'X002FLZ3X7',
+      );
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      await binding.takeScreenshot('alternate-identifier-entry');
+      await tester.ensureVisible(find.byKey(const Key('add-product-continue')));
+      await tester.tap(find.byKey(const Key('add-product-continue')));
+      await tester.pumpAndSettle();
+      final capture = tester.widget<MissingProductSubmissionSheet>(
+        find.byType(MissingProductSubmissionSheet),
+      );
+      expect(capture.identifier?.observedCode, 'X002FLZ3X7');
+      expect(capture.upc, isEmpty);
+      expect(find.text('X002FLZ3X7'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await binding.takeScreenshot('alternate-identifier-capture');
+    },
+  );
 
   testWidgets('version confirmation shows source label amounts', (
     tester,

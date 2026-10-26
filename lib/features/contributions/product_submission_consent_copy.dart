@@ -2,7 +2,8 @@
 /// Keep these strings vendor-neutral: the extraction provider may change,
 /// while the disclosure and human-approval guarantees must not.
 const missingProductPrivacyCopy =
-    'Your account identifier, this barcode, and selected product-label '
+    'Your account identifier, product brand and name, provided code or no-code '
+    'declaration, optional listing URL, and selected product-label '
     'photos go privately to PharmaGuide for review. We strip embedded photo '
     'metadata (EXIF) before upload, but anything visible in the pixels '
     'remains. Do not include pharmacy stickers, names, prescription numbers, '
@@ -14,7 +15,8 @@ const missingProductPrivacyCopy =
     'this device.';
 
 const missingProductConsentCopy =
-    'I consent to send this account-linked product submission, barcode, and '
+    'I consent to send this account-linked product submission, brand and name, '
+    'provided code or no-code declaration, optional listing URL, and '
     'selected label photos privately to PharmaGuide for review. A '
     'third-party AI service may read the label, but a human reviewer approves '
     'every entry. If approved, the front-label photo—including a crop—may be '
@@ -47,4 +49,4 @@ const labelMismatchConsentCopy =
 /// Bump it whenever the consent copy above changes meaning; the database
 /// keeps the version each contribution was made under.
 const productSubmissionConsentVersion =
-    'pharmaguide.submission_consent.2026-08-25.v1';
+    'pharmaguide.submission_consent.2026-10-26.v2';

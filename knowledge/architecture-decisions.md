@@ -252,3 +252,20 @@ personal production access or change clinical decisions.
 - Fallback: if the Supabase Edge Runtime cannot run the JS within limits, the same API is built with `dart compile exe` as a container service called by the MCP function. Decision rules are identical.
 
 **Consequences:** a one-time refactor that also simplifies testing the app; rule and reference updates ship with the catalog version, not with function deploys; completeness flags (`checks_incomplete`, unresolved identity, missing blobs) cross the API unchanged, so "no known concerns" is only emitted under the ADR-009 completeness rule. Open: the Supabase Edge Runtime itself was not exercised (only the Deno CLI and Node); dose, UL, FitScore, profile-gate and timing paths compiled but were not golden-checked for lack of blobs; whether research-pair evidence belongs in assistant answers at all.
+
+---
+
+## ADR-011: Private observed identifiers and complete no-GTIN submissions
+
+**Date:**2026-10-26  
+**Status:** ACCEPTED by Sean, including activation concurrency, PG_SUB lineage, frozen-null GTIN and rejection-resubmission amendments.
+
+The existing submission/draft/intent/evidence/review owners support an optional validated GTIN plus private `identifier` evidence (exact observed_code, contributor code_type/issuer, brandName/fullName, optional listing_url, explicit no_code). Contributor classification never attests reviewer verification. Revision-bound no-code waives only barcode-photo completeness; core label evidence remains required. No alternate-code scanning or public identifier mapping is introduced.
+
+Existing reviewer match checks support explicit label_review/new_product_verified against complete current released and pending candidates; unknown/empty search does not prove absence. Approval, reopening, identifier changes, catalog activation and active search-generation writes share one transaction identity lock before row/manifest locks. Stale/conflicting candidates block approval or publication, including empty/unrelated release approval lists. Approval snapshots stay immutable.
+
+New manual_label_v2 is the existing canonical approval payload/hash over `{label,identity}`. Identity freezes observed evidence, reviewed decision/GTIN/association, evidence binding and existing bigint match_check_id. The importer validates the whole private envelope, then projects label only. Raw code/URL/rationale remain private; the existing public approval digest remains a hash-only audit commitment, not a lookup key or anonymity claim. Full normative contract/ownership: paired pipeline docs/adr/0006-submission-identifier-contract.md and source_of_truth_matrix.json.
+
+Transport retry, interrupted capture, sign-in continuation and requested retakes retain the submission UUID. Explicit rejection resubmission keeps a new UUID plus resubmissionOf. Numeric clients/drafts/v1 approvals remain compatible. A verified GTIN added later never replaces a stable product ID; a conflicting published identity blocks pending separate resolution. Correction B to A's PG_SUB product preserves A's lineage and saved references, while B supplies new approval evidence. Frozen reviewed GTIN controls export even when null; mutable candidate UPC never fills it.
+
+No personal profile/medication/goal data is added to Supabase. Publication and installed-app delivery remain separately verified release activities.

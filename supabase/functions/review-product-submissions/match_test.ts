@@ -125,3 +125,150 @@ Deno.test("record_match fails closed on malformed identity evidence", () => {
     })
   );
 });
+
+Deno.test("label review requires explicit complete candidate decision and retains null GTIN", () => {
+  const request = {
+    action: "record_match",
+    submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
+    outcome: "new_product_verified",
+    canonical_gtin14: null,
+    index_built_at: indexBuiltAt,
+    identity_method: "label_review",
+    candidate_review_complete: true,
+    index_revision: "catalog:fixture",
+    identifier_decision: {
+      code_type: "amazon_fnsku",
+      issuer: "Amazon",
+      verified_gtin: null,
+      package: "60 capsules",
+      reason: "Compared complete label and candidate formulations",
+    },
+  };
+  assertEquals(parseRecordMatchRequest(request).canonicalGtin14, null);
+  assertThrows(() =>
+    parseRecordMatchRequest({ ...request, candidate_review_complete: false })
+  );
+  assertThrows(() =>
+    parseRecordMatchRequest({
+      ...request,
+      identifier_decision: {
+        ...request.identifier_decision,
+        verified_gtin: "X036000291452",
+      },
+    })
+  );
+});
+
+Deno.test("reviewed identifier metadata rejects C1 and canonicalizes blank issuer", () => {
+  const request = {
+    action: "record_match",
+    submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
+    outcome: "new_product_verified",
+    canonical_gtin14: null,
+    index_built_at: indexBuiltAt,
+    identity_method: "label_review",
+    candidate_review_complete: true,
+    index_revision: "complete-index",
+    identifier_decision: {
+      code_type: "other",
+      issuer: " \u00a0 ",
+      verified_gtin: null,
+      package: "60 capsules",
+      reason: "Read all candidate labels",
+    },
+  };
+  assertEquals(
+    parseRecordMatchRequest(request).identifierDecision?.issuer,
+    null,
+  );
+  for (const key of ["issuer", "package", "reason"]) {
+    assertThrows(() =>
+      parseRecordMatchRequest({
+        ...request,
+        identifier_decision: {
+          ...request.identifier_decision,
+          [key]: "X\u0085Y",
+        },
+      })
+    );
+  }
+  assertThrows(() =>
+    parseRecordMatchRequest({
+      ...request,
+      identifier_decision: {
+        ...request.identifier_decision,
+        verified_gtin: "036000291452",
+      },
+    })
+  );
+});
+
+Deno.test("v2 GTIN review keeps substantive reason and permits null package", () => {
+  const result = parseRecordMatchRequest({
+    action: "record_match",
+    submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
+    outcome: "no_match_verified",
+    canonical_gtin14: "00036000291452",
+    index_built_at: indexBuiltAt,
+    identity_method: "gtin",
+    candidate_review_complete: true,
+    index_revision: "complete-index",
+    identifier_decision: {
+      code_type: "other",
+      issuer: null,
+      verified_gtin: "036000291452",
+      package: null,
+      reason: "Compared exact GTIN candidates against full label",
+    },
+  });
+  assertEquals(result.identifierDecision?.package, null);
+  assertEquals(
+    result.identifierDecision?.reason,
+    "Compared exact GTIN candidates against full label",
+  );
+});
+
+Deno.test("single pending label-review candidate can remain ambiguous while numeric ambiguity still requires two", () => {
+  const request = {
+    action: "record_match",
+    submission_id: submissionId,
+    expected_evidence_revision: 1,
+    evidence_manifest_sha256: "a".repeat(64),
+    outcome: "identity_ambiguous",
+    canonical_gtin14: null,
+    index_built_at: indexBuiltAt,
+    identity_method: "label_review",
+    candidate_review_complete: true,
+    index_revision: "pending-index",
+    candidate_dsld_ids: ["PG_SUB_" + "A".repeat(32)],
+    identifier_decision: {
+      code_type: "other",
+      issuer: null,
+      verified_gtin: null,
+      package: "60 capsules",
+      reason: "Compared fresh label against the one pending intake",
+    },
+  };
+  assertEquals(parseRecordMatchRequest(request).outcome, "identity_ambiguous");
+  assertThrows(() =>
+    parseRecordMatchRequest({ ...request, candidate_dsld_ids: [] })
+  );
+  assertThrows(() =>
+    parseRecordMatchRequest({
+      action: "record_match",
+      submission_id: submissionId,
+      expected_evidence_revision: 1,
+      evidence_manifest_sha256: "a".repeat(64),
+      outcome: "identity_ambiguous",
+      canonical_gtin14: "00036000291452",
+      index_built_at: indexBuiltAt,
+      candidate_dsld_ids: ["123"],
+    })
+  );
+});

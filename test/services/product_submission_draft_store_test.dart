@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -57,6 +58,130 @@ void main() {
   tearDown(() async {
     if (root.existsSync()) await root.delete(recursive: true);
   });
+
+  test(
+    'legacy photo filenames remain readable after atomic storage upgrade',
+    () async {
+      await _save(store);
+      final manifestFile = root
+          .listSync(recursive: true)
+          .whereType<File>()
+          .singleWhere((f) => f.path.endsWith('manifest.json'));
+      final manifest =
+          jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
+      final entry = (manifest['photos'] as List).single as Map<String, dynamic>;
+      await File(
+        '${manifestFile.parent.path}/${entry['file_name']}',
+      ).rename('${manifestFile.parent.path}/${entry['photo_id']}');
+      entry.remove('file_name');
+      await manifestFile.writeAsString(jsonEncode(manifest));
+      final restored = await ProductSubmissionDraftStore(
+        root: root,
+      ).restore(_userA, _submissionId);
+      expect(restored!.photos.single.photoId, _photoId);
+      expect(restored.photos.single.bytes, _bytes(1));
+    },
+  );
+
+  test('failed replacement retains previously committed evidence', () async {
+    await _save(store);
+    final failing = ProductSubmissionDraftStore(
+      root: root,
+      beforeManifestPublish: () async {
+        throw const FileSystemException('disk full');
+      },
+    );
+    await expectLater(
+      _save(
+        failing,
+        photos: [_photo(id: _photoIdB, seed: 2)],
+        resubmissionOf: _photoIdB,
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    final prior = await ProductSubmissionDraftStore(
+      root: root,
+    ).restore(_userA, _submissionId);
+    expect(prior, isNotNull);
+    expect(prior!.photos.single.photoId, _photoId);
+    expect(prior.photos.single.bytes, _bytes(1));
+    expect(prior.resubmissionOf, isNull);
+  });
+  test(
+    'different concurrent states publish the latest complete capture',
+    () async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final delayed = ProductSubmissionDraftStore(
+        root: root,
+        beforeManifestPublish: () async {
+          entered.complete();
+          await release.future;
+        },
+      );
+      final first = _save(delayed);
+      await entered.future;
+      final second = _save(
+        ProductSubmissionDraftStore(root: root),
+        photos: [_photo(id: _photoIdB, seed: 2)],
+        resubmissionOf: _photoIdB,
+      );
+      final reading = store.restore(_userA, _submissionId);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      release.complete();
+      await Future.wait([first, second]);
+      final latest = await reading;
+      expect(latest!.photos.map((p) => p.photoId), [_photoIdB]);
+      expect(latest.photos.single.bytes, _bytes(2));
+      expect(latest.resubmissionOf, _photoIdB);
+    },
+  );
+  test('discard waits for in-flight capture publication', () async {
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    final delayed = ProductSubmissionDraftStore(
+      root: root,
+      beforeManifestPublish: () async {
+        entered.complete();
+        await release.future;
+      },
+    );
+    final saving = _save(delayed);
+    await entered.future;
+    final discarding = store.discard(_userA, _submissionId);
+    release.complete();
+    await Future.wait([saving, discarding]);
+    expect(await store.restore(_userA, _submissionId), isNull);
+  });
+
+  test(
+    'alternate captures retain exact identity and stay separate by UUID',
+    () async {
+      final identifier = ProductSubmissionIdentifier(
+        observedCode: 'X002FLZ3X7',
+        brandName: 'Natgrown',
+        fullName: 'Fixture',
+      );
+      for (final id in [_submissionId, _photoIdB]) {
+        await store.save(
+          userId: _userA,
+          submissionId: id,
+          upc: '',
+          identifier: identifier,
+          photos: [_photo()],
+          consentVersion: productSubmissionConsentVersion,
+        );
+      }
+      expect(await store.list(_userA), hasLength(2));
+      expect(await store.findByUpc(_userA, ''), isNull);
+      final restored = await ProductSubmissionDraftStore(
+        root: root,
+      ).restore(_userA, _submissionId);
+      expect(restored!.identifier!.toJson(), identifier.toJson());
+      expect(restored.submissionId, _submissionId);
+      expect(restored.photos.single.contentSha256, _photo().contentSha256);
+    },
+  );
 
   test(
     'a saved capture survives a restart with identical bytes and ids',
@@ -399,7 +524,9 @@ void main() {
         final image = root
             .listSync(recursive: true)
             .whereType<File>()
-            .firstWhere((file) => file.path.endsWith(_photoIdB));
+            .firstWhere(
+              (file) => file.uri.pathSegments.last.startsWith('$_photoIdB.'),
+            );
         await image.delete();
 
         expect(

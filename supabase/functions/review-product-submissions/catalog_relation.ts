@@ -12,7 +12,7 @@ export type CatalogRelation = {
   editionOfDsldId: string | null;
 };
 
-const CATALOG_ID = /^[0-9]{1,30}$/;
+const CATALOG_ID = /^(?:[0-9]{1,30}|PG_SUB_[0-9A-F]{32})$/;
 
 function catalogId(value: unknown, name: string): string | null {
   if (value === undefined || value === null) return null;
@@ -32,7 +32,9 @@ export function parseCatalogRelation(
   );
   const editionOfDsldId = catalogId(body.edition_of_dsld_id, "edition of");
   if (correctionTargetDsldId !== null && editionOfDsldId !== null) {
-    throw new Error("a submission is either a correction or a separate edition");
+    throw new Error(
+      "a submission is either a correction or a separate edition",
+    );
   }
   if (
     toStatus !== "approved" &&

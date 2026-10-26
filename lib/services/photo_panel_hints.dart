@@ -58,7 +58,7 @@ final _directionsOrWarnings = RegExp(
 );
 final _otherIngredients = RegExp(r'\b(?:other|inactive)\s*ingredients?\b');
 
-PanelHints readPanelHints(String text, {required GtinIdentity submission}) {
+PanelHints readPanelHints(String text, {required GtinIdentity? submission}) {
   if (text.trim().isEmpty) return PanelHints.none;
   final lower = text.toLowerCase();
   final heading = _factsHeading.hasMatch(lower);
@@ -67,6 +67,7 @@ PanelHints readPanelHints(String text, {required GtinIdentity submission}) {
   GtinIdentity? conflict;
   // Barcode reading has one owner; this only compares what it found.
   for (final candidate in extractGtinCandidatesFromText(text)) {
+    if (submission == null) continue;
     if (candidate.canonicalGtin14 == submission.canonicalGtin14 ||
         candidate.lookupCandidates.any(submission.lookupCandidates.contains)) {
       showsSubmission = true;
