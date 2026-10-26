@@ -12,4 +12,6 @@ Prior importer18pass/1existing opt-in skip;doctor8pass;Flutter61owner tests and 
 
 Incoming submission correction repair was qualified independently (app40362086808/pipeline40361539272), deployed with67 canonical migration versions and reviewerEdge37 exact-source proof; its record lives in the merged pipeline submission-correction plan and prior Git handoff. No new cloud mutation by this batch.
 
-Next: exact new CI, configure/read back required main checks, merge and demonstrate docs-only scope. Final scientific review, necessary fingerprint-selected rebuild and new-catalog app delivery remain open; no corpus/import/publication in this task.
+GitHub required Merge readiness now configured with admin enforcement, strict up-to-date checks, no force pushes/deletions. Next: exact new CI, read back settings, merge and demonstrate docs-only scope. Final scientific review, necessary fingerprint-selected rebuild and new-catalog app delivery remain open; no corpus/import/publication in this task.
+
+Integrated peer retake follow-up: app PR151 e335c7c9/sourceca92b380 CI40368060930 passed; pipeline PR254/sourcead8bfb4e CI40367957824 passed. Requested retakes preserve ID/evidence revision and bypass only the new-submission catalog guard; new submissions/rejected retries retain that guard.135 Flutter cases/48 console cases and prior local546 passed per peer receipt; main d6fdf431 records its completed handoff. No backend/catalog publication or installed-device delivery claimed.

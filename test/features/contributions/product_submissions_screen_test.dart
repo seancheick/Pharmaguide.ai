@@ -375,35 +375,113 @@ void main() {
     expect(sheet.resubmissionOf, pending.resubmissionOf);
   });
 
-  for (final retake in [false, true]) {
+  testWidgets('known product still guards a rejected retry before new intake', (
+    tester,
+  ) async {
+    final db = await _catalog(upc: '050428381397');
+    await tester.pumpWidget(
+      _harness([
+        {
+          ..._row(
+            id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
+            reviewStatus: 'rejected',
+          ),
+          'resolution_code': 'photo_quality',
+        },
+      ], db: db),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Try again with new photos'));
+    await tester.pumpAndSettle();
+    expect(find.text('This barcode is in your catalog'), findsOneWidget);
+    expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+  });
+
+  for (final interrupted in [false, true]) {
     testWidgets(
-      'known product guards ${retake ? 'retake' : 'rejected retry'} before evidence preparation',
+      'published correction ${interrupted ? 'resumes' : 'opens'} requested retake with catalog barcode',
       (tester) async {
         final db = await _catalog(upc: '050428381397');
-        await tester.pumpWidget(
-          _harness([
+        const submissionId = '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11';
+        final backend = _Backend(
+          [
             {
               ..._row(
-                id: '018f4c79-7c7e-4c70-9d62-7fc3b9ce6a11',
-                reviewStatus: retake ? 'under_review' : 'rejected',
+                id: submissionId,
+                reviewStatus: 'under_review',
+                catalogVersion: 'released',
               ),
-              if (retake) ...{
-                'evidence_revision': 1,
-                'evidence_requested_revision': 1,
-                'evidence_request_reason': 'label_unreadable',
-                'evidence_request_panels': ['barcode'],
-              } else
-                'resolution_code': 'photo_quality',
+              'approval_revision': 1,
+              'promoted_approval_revision': 1,
+              'upload_state': interrupted ? 'pending' : 'ready',
+              'evidence_revision': interrupted ? 2 : 1,
+              'evidence_requested_revision': 1,
+              'evidence_request_reason': 'label_unreadable',
+              'evidence_request_panels': ['barcode'],
             },
-          ], db: db),
+          ],
+          evidence: {
+            'revisions': [
+              {
+                'revision': 1,
+                'photo_ids': ['kept-front', 'old-barcode'],
+              },
+              if (interrupted)
+                {
+                  'revision': 2,
+                  'photo_ids': ['kept-front', 'new-barcode'],
+                },
+            ],
+            'photos': [
+              {
+                'photo_id': 'kept-front',
+                'revision': 1,
+                'categories': ['front'],
+                'content_sha256': 'front-hash',
+              },
+              {
+                'photo_id': 'old-barcode',
+                'revision': 1,
+                'categories': ['barcode'],
+                'content_sha256': 'old-hash',
+              },
+              if (interrupted)
+                {
+                  'photo_id': 'new-barcode',
+                  'revision': 2,
+                  'categories': ['barcode'],
+                  'content_sha256': 'new-hash',
+                },
+            ],
+          },
+        );
+        await tester.pumpWidget(
+          _harness(backend.rows, db: db, backend: backend),
         );
         await tester.pumpAndSettle();
-        await tester.tap(
-          find.text(retake ? 'Retake photos' : 'Try again with new photos'),
-        );
+        final action = find.byKey(const Key('submission-retake-$submissionId'));
+        await tester.ensureVisible(action);
+        await tester.tap(action);
         await tester.pumpAndSettle();
-        expect(find.text('This barcode is in your catalog'), findsOneWidget);
-        expect(find.byType(MissingProductSubmissionSheet), findsNothing);
+        expect(find.text('This barcode is in your catalog'), findsNothing);
+        final sheet = tester.widget<MissingProductSubmissionSheet>(
+          find.byType(MissingProductSubmissionSheet),
+        );
+        expect(sheet.retake?.submissionId, submissionId);
+        expect(sheet.retake?.fromRevision, 1);
+        expect(sheet.retake?.upc, '050428381397');
+        expect(sheet.retake?.keptPhotoIds, ['kept-front']);
+        expect(sheet.retake?.requestedPanels, {
+          ProductSubmissionEvidenceCategory.barcode,
+        });
+        expect(backend.evidenceRequests, [submissionId]);
+        if (interrupted) {
+          expect(
+            sheet.retake?.earlierPhotoDigests,
+            isNot(contains('new-hash')),
+          );
+        }
+        expect(tester.takeException(), isNull);
       },
     );
   }
@@ -1401,7 +1479,10 @@ class _Backend implements ProductSubmissionBackend {
     required Map<String, Object?> payload,
   }) async => {'action': 'start_new'};
 
-  _Backend(this.rows);
+  _Backend(this.rows, {this.evidence});
+
+  final Map<String, Object?>? evidence;
+  final evidenceRequests = <String>[];
 
   final List<Map<String, Object?>> rows;
   @override
@@ -1420,7 +1501,10 @@ class _Backend implements ProductSubmissionBackend {
   @override
   Future<Map<String, Object?>> fetchOwnEvidence({
     required String submissionId,
-  }) => throw UnimplementedError();
+  }) async {
+    evidenceRequests.add(submissionId);
+    return evidence ?? (throw UnimplementedError());
+  }
 
   @override
   Future<int> openEvidenceRevision({required Map<String, Object?> payload}) =>

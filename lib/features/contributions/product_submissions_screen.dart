@@ -98,7 +98,6 @@ class _ProductSubmissionsScreenState
     String? upc,
     bool preferLibrary = false,
     String? resubmissionOf,
-    ProductSubmissionSummary? retakeStatus,
   }) async {
     if (!mounted || _intakeOpen) return;
     setState(() => _intakeOpen = true);
@@ -135,7 +134,6 @@ class _ProductSubmissionsScreenState
                   upc: barcode,
                   preferLibrary: preferLibrary,
                   resubmissionOf: resubmissionOf,
-                  retakeStatus: retakeStatus,
                 ),
               ),
             ),
@@ -146,31 +144,12 @@ class _ProductSubmissionsScreenState
       if (!mounted) return;
       final service = ref.read(productSubmissionServiceProvider);
       if (resolution is UpcNotFound) {
-        ProductSubmissionRetake? retake;
-        if (retakeStatus != null) {
-          try {
-            retake = await service.prepareRetake(retakeStatus);
-          } on Object {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Couldn’t open this request. Try again in a moment.',
-                  ),
-                ),
-              );
-            }
-            return;
-          }
-          if (!mounted) return;
-        }
         await showMissingProductSubmissionSheet(
           context,
           upc: barcode,
           preferLibrary: preferLibrary,
           service: service,
           resubmissionOf: resubmissionOf,
-          retake: retake,
         );
       } else {
         var comparingLabels = false;
@@ -269,9 +248,40 @@ class _ProductSubmissionsScreenState
   /// are retaken. An unfinished retake resumes with the photos saved on this
   /// phone.
   Future<void> _retake(ProductSubmissionSummary status) async {
-    final upc = status.upc;
-    if (upc == null) return;
-    await _openMissingProduct(upc: upc, retakeStatus: status);
+    if (!mounted || _intakeOpen) return;
+    setState(() => _intakeOpen = true);
+    try {
+      final service = ref.read(productSubmissionServiceProvider);
+      final ProductSubmissionRetake retake;
+      try {
+        retake = await service.prepareRetake(status);
+      } on Object {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Couldn’t open this request. Try again in a moment.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      // The reviewer requested evidence on this existing submission. Its
+      // published barcode must not send the contributor into new intake.
+      await showMissingProductSubmissionSheet(
+        context,
+        upc: retake.upc,
+        service: service,
+        retake: retake,
+      );
+      if (!mounted) return;
+      ref.invalidate(productSubmissionsProvider);
+      ref.invalidate(pendingProductSubmissionDraftsProvider);
+    } finally {
+      if (mounted) setState(() => _intakeOpen = false);
+    }
   }
 
   Future<void> _hide(ProductSubmissionSummary status) async {
