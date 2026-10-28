@@ -3,10 +3,10 @@
     "description": "Shared evaluator fixture for v6.0 profile_gate. Python (scripts/profile_gate_evaluator.py) and Dart (Flutter alert-rendering layer) MUST both produce the same fires/severity output for every case below. Drift between the two implementations is the failure this fixture catches.",
     "purpose": "profile_gate_evaluator_cross_runtime_fixture",
     "schema_version": "1.1.0",
-    "total_entries": 72,
+    "total_entries": 75,
     "evaluator_contract_version": "6.0",
     "last_updated": "2026-10-11",
-    "case_count": 72,
+    "case_count": 75,
     "see_also": [
       "scripts/INTERACTION_RULE_SCHEMA_V6_ADR.md",
       "scripts/profile_gate_evaluator.py"
@@ -2723,10 +2723,10 @@
       }
     },
     {
-      "name": "gold_bitter_orange_pregnant_at_threshold_inclusive",
-      "description": "Bitter orange 3 mg synephrine/day while pregnant meets the inclusive >= 3 threshold: contraindicated",
+      "name": "gold_bitter_orange_pregnant_disclosed_3mg",
+      "description": "Pregnancy bitter-orange precaution remains avoid at 3 mg synephrine/day; no numeric severity cutoff.",
       "gate": {
-        "gate_type": "combination",
+        "gate_type": "profile_flag",
         "requires": {
           "conditions_any": [],
           "drug_classes_any": [],
@@ -2741,14 +2741,7 @@
           "product_forms_any": [],
           "nutrient_forms_any": []
         },
-        "dose": {
-          "basis": "per_day",
-          "comparator": ">=",
-          "value": 3,
-          "unit": "mg synephrine",
-          "severity_if_met": "contraindicated",
-          "severity_if_not_met": "avoid"
-        }
+        "dose": null
       },
       "user_profile": {
         "conditions": [],
@@ -2763,10 +2756,55 @@
         "dose_per_day": 3,
         "dose_unit": "mg synephrine"
       },
-      "base_severity": null,
+      "base_severity": "avoid",
       "expected": {
         "fires": true,
-        "severity": "contraindicated"
+        "severity": "avoid"
+      },
+      "warning": {
+        "severity": "avoid",
+        "condition_id": "pregnancy",
+        "profile_gate": {
+          "gate_type": "profile_flag",
+          "requires": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [
+              "pregnant"
+            ]
+          },
+          "excludes": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [],
+            "product_forms_any": [],
+            "nutrient_forms_any": []
+          },
+          "dose": null
+        },
+        "materiality": "presence",
+        "dose_decision": {
+          "clinical_severity": "avoid",
+          "evaluation_status": null,
+          "consumer_disposition": "block",
+          "release_blocking": false,
+          "evaluated_daily_amount": null,
+          "evaluated_unit": null,
+          "normalized_per_serving_amount": null,
+          "normalized_per_serving_unit": null,
+          "evaluated_serving_multiplier": null,
+          "threshold": null,
+          "threshold_unit": null,
+          "comparator": null,
+          "conversion_method": null,
+          "dose_source": null,
+          "form_context": null,
+          "decision_rule": null
+        },
+        "sources": [
+          "https://www.nccih.nih.gov/health/bitter-orange",
+          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/regulation/about-products/synephrine.html"
+        ]
       }
     },
     {
@@ -3126,6 +3164,261 @@
       "expected": {
         "fires": true,
         "severity": "caution"
+      }
+    },
+    {
+      "name": "gold_bitter_orange_pregnant_below_3mg",
+      "description": "Pregnancy precaution remains avoid regardless of known or unknown synephrine exposure.",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [
+            "pregnant"
+          ]
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [],
+        "profile_flags": [
+          "pregnant"
+        ]
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": 2,
+        "dose_unit": "mg synephrine"
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": true,
+        "severity": "avoid"
+      },
+      "warning": {
+        "severity": "avoid",
+        "condition_id": "pregnancy",
+        "profile_gate": {
+          "gate_type": "profile_flag",
+          "requires": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [
+              "pregnant"
+            ]
+          },
+          "excludes": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [],
+            "product_forms_any": [],
+            "nutrient_forms_any": []
+          },
+          "dose": null
+        },
+        "materiality": "presence",
+        "dose_decision": {
+          "clinical_severity": "avoid",
+          "evaluation_status": null,
+          "consumer_disposition": "block",
+          "release_blocking": false,
+          "evaluated_daily_amount": null,
+          "evaluated_unit": null,
+          "normalized_per_serving_amount": null,
+          "normalized_per_serving_unit": null,
+          "evaluated_serving_multiplier": null,
+          "threshold": null,
+          "threshold_unit": null,
+          "comparator": null,
+          "conversion_method": null,
+          "dose_source": null,
+          "form_context": null,
+          "decision_rule": null
+        },
+        "sources": [
+          "https://www.nccih.nih.gov/health/bitter-orange",
+          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/regulation/about-products/synephrine.html"
+        ]
+      }
+    },
+    {
+      "name": "gold_bitter_orange_pregnant_above_3mg",
+      "description": "Pregnancy precaution remains avoid regardless of known or unknown synephrine exposure.",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [
+            "pregnant"
+          ]
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [],
+        "profile_flags": [
+          "pregnant"
+        ]
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": 4,
+        "dose_unit": "mg synephrine"
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": true,
+        "severity": "avoid"
+      },
+      "warning": {
+        "severity": "avoid",
+        "condition_id": "pregnancy",
+        "profile_gate": {
+          "gate_type": "profile_flag",
+          "requires": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [
+              "pregnant"
+            ]
+          },
+          "excludes": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [],
+            "product_forms_any": [],
+            "nutrient_forms_any": []
+          },
+          "dose": null
+        },
+        "materiality": "presence",
+        "dose_decision": {
+          "clinical_severity": "avoid",
+          "evaluation_status": null,
+          "consumer_disposition": "block",
+          "release_blocking": false,
+          "evaluated_daily_amount": null,
+          "evaluated_unit": null,
+          "normalized_per_serving_amount": null,
+          "normalized_per_serving_unit": null,
+          "evaluated_serving_multiplier": null,
+          "threshold": null,
+          "threshold_unit": null,
+          "comparator": null,
+          "conversion_method": null,
+          "dose_source": null,
+          "form_context": null,
+          "decision_rule": null
+        },
+        "sources": [
+          "https://www.nccih.nih.gov/health/bitter-orange",
+          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/regulation/about-products/synephrine.html"
+        ]
+      }
+    },
+    {
+      "name": "gold_bitter_orange_pregnant_unknown",
+      "description": "Pregnancy precaution remains avoid regardless of known or unknown synephrine exposure.",
+      "gate": {
+        "gate_type": "profile_flag",
+        "requires": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [
+            "pregnant"
+          ]
+        },
+        "excludes": {
+          "conditions_any": [],
+          "drug_classes_any": [],
+          "profile_flags_any": [],
+          "product_forms_any": [],
+          "nutrient_forms_any": []
+        },
+        "dose": null
+      },
+      "user_profile": {
+        "conditions": [],
+        "drug_classes": [],
+        "profile_flags": [
+          "pregnant"
+        ]
+      },
+      "product_context": {
+        "product_form": null,
+        "nutrient_form": null,
+        "dose_per_day": null,
+        "dose_unit": "mg synephrine"
+      },
+      "base_severity": "avoid",
+      "expected": {
+        "fires": true,
+        "severity": "avoid"
+      },
+      "warning": {
+        "severity": "avoid",
+        "condition_id": "pregnancy",
+        "profile_gate": {
+          "gate_type": "profile_flag",
+          "requires": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [
+              "pregnant"
+            ]
+          },
+          "excludes": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [],
+            "product_forms_any": [],
+            "nutrient_forms_any": []
+          },
+          "dose": null
+        },
+        "materiality": "presence",
+        "dose_decision": {
+          "clinical_severity": "avoid",
+          "evaluation_status": null,
+          "consumer_disposition": "block",
+          "release_blocking": false,
+          "evaluated_daily_amount": null,
+          "evaluated_unit": null,
+          "normalized_per_serving_amount": null,
+          "normalized_per_serving_unit": null,
+          "evaluated_serving_multiplier": null,
+          "threshold": null,
+          "threshold_unit": null,
+          "comparator": null,
+          "conversion_method": null,
+          "dose_source": null,
+          "form_context": null,
+          "decision_rule": null
+        },
+        "sources": [
+          "https://www.nccih.nih.gov/health/bitter-orange",
+          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/regulation/about-products/synephrine.html"
+        ]
       }
     }
   ]
