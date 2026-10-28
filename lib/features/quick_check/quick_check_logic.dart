@@ -1,3 +1,4 @@
+import 'dart:convert';
 // Pure helpers for the "Safe to Take Together?" quick-check feature.
 //
 // These live outside the widget so they can be unit-tested without a
@@ -17,6 +18,7 @@ import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart'
     show canonicalIdsForProduct;
 
@@ -399,118 +401,26 @@ Future<List<InteractionResult>> _runMedicationMedicationCheck(
   QuickCheckItem b,
   InteractionDatabase db,
 ) async {
-  final aRxcuis = a.rxcuis.toSet();
-  final aClasses = a.normalizedDrugClasses.toSet();
-  final bRxcuis = b.rxcuis.toSet();
-  final bClasses = b.normalizedDrugClasses.toSet();
-  if (aRxcuis.isEmpty && aClasses.isEmpty) {
-    return const <InteractionResult>[];
-  }
-  if (bRxcuis.isEmpty && bClasses.isEmpty) {
-    return const <InteractionResult>[];
-  }
-
-  // Walk a's side: collect every curated row that mentions a anywhere.
-  // Mirror `StackInteractionChecker.checkMedicationPairInteractions`
-  // (`lib/services/stack/stack_interaction_checker.dart:412-433`) so
-  // the two checks see the same row set. The previous lookupPair-loop
-  // was strict on (agent_id, agent_type) and silently dropped rows
-  // where a class lived in the `agent_drug_class` cross-ref column —
-  // exactly the curated shape that powers Methotrexate+Trimethoprim,
-  // Clopidogrel+Omeprazole, ACE inhibitors+Potassium.
-  final aRows = <InteractionRow>[];
-  final seenLookupRows = <String>{};
-
-  Future<void> collectByRxcui(String rxcui) async {
-    if (rxcui.isEmpty) return;
-    final rows = await db.lookupByRxcui(rxcui);
-    for (final row in rows) {
-      if (seenLookupRows.add(row.id)) aRows.add(row);
-    }
-  }
-
-  for (final rx in aRxcuis) {
-    await collectByRxcui(rx);
-  }
-  // Class fallback always runs (not only when aRows is empty): a
-  // user's specific brand RXCUI may have an exact drug-drug row AND a
-  // sibling class row, and we want both surfaced. `lookupByDrugClass`
-  // returns rows whether the class lives in `agent_id` (type=drug_class)
-  // or the `agent_drug_class` cross-ref column.
-  for (final cls in aClasses) {
-    final rows = await db.lookupByDrugClass(cls);
-    for (final row in rows) {
-      if (seenLookupRows.add(row.id)) aRows.add(row);
-    }
-  }
-
-  // Filter: keep rows where the OTHER side matches b's rxcuis (as a
-  // drug agent) or b's classes (as a drug_class agent).
-  final results = <InteractionResult>[];
-  final seenRowIds = <String>{};
-
-  for (final row in aRows) {
-    if (!seenRowIds.add(row.id)) continue;
-
-    // Identify which side is "a" and which is "other" relative to a.
-    // Order matters: check explicit agent_id+type first (most
-    // specific), fall through to the `agent_drug_class` cross-ref
-    // column (class-tag-on-a-drug). Capture the other side's
-    // cross-ref class too so the match step can also consider it.
-    String? otherType;
-    String? otherId;
-    String? otherDrugClass;
-    if (row.agent1Type == 'drug' && aRxcuis.contains(row.agent1Id)) {
-      otherType = row.agent2Type;
-      otherId = row.agent2Id;
-      otherDrugClass = row.agent2DrugClass;
-    } else if (row.agent2Type == 'drug' && aRxcuis.contains(row.agent2Id)) {
-      otherType = row.agent1Type;
-      otherId = row.agent1Id;
-      otherDrugClass = row.agent1DrugClass;
-    } else if (row.agent1Type == 'drug_class' &&
-        aClasses.contains(row.agent1Id)) {
-      otherType = row.agent2Type;
-      otherId = row.agent2Id;
-      otherDrugClass = row.agent2DrugClass;
-    } else if (row.agent2Type == 'drug_class' &&
-        aClasses.contains(row.agent2Id)) {
-      otherType = row.agent1Type;
-      otherId = row.agent1Id;
-      otherDrugClass = row.agent1DrugClass;
-    } else if (aClasses.contains(row.agent1DrugClass)) {
-      otherType = row.agent2Type;
-      otherId = row.agent2Id;
-      otherDrugClass = row.agent2DrugClass;
-    } else if (aClasses.contains(row.agent2DrugClass)) {
-      otherType = row.agent1Type;
-      otherId = row.agent1Id;
-      otherDrugClass = row.agent1DrugClass;
-    } else {
-      continue;
-    }
-
-    // b matches when: (1) the other side's agent_id is one of b's
-    // rxcuis (as a drug agent), OR (2) the other side's agent_id is
-    // one of b's classes (as a drug_class agent), OR (3) the other
-    // side carries a cross-ref class tag matching one of b's
-    // classes — this last branch is the one the previous lookupPair
-    // loop missed.
-    final matchesB =
-        (otherType == 'drug' && bRxcuis.contains(otherId)) ||
-        (otherType == 'drug_class' && bClasses.contains(otherId)) ||
-        (otherDrugClass != null && bClasses.contains(otherDrugClass));
-    if (!matchesB) continue;
-
-    results.add(
-      InteractionResult.fromRow(
-        row,
-        source: InteractionSource.pipeline,
-        agent1NameOverride: a.name,
-        agent2NameOverride: b.name,
-      ),
+  // Adapt selection data only. Stack owns authored medication-pair scope,
+  // including exact component identities, explicit class agents and deduping.
+  UserStacksLocalData medication(QuickCheckItem item, String id) {
+    final timestamp = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    return UserStacksLocalData(
+      id: id,
+      type: 'medication',
+      name: item.name,
+      rxcui: item.rxcui,
+      genericRxcui: item.genericRxcui,
+      ingredientRxcuisCol: jsonEncode(item.ingredientRxcuis),
+      drugClassesCol: jsonEncode(item.normalizedDrugClasses),
+      addedAt: timestamp,
+      clientUpdatedAt: timestamp,
     );
   }
 
-  return results;
+  return StackInteractionChecker().checkMedicationPairInteractions(
+    newMedications: [medication(a, 'quick-check-a')],
+    existingMedications: [medication(b, 'quick-check-b')],
+    db: db,
+  );
 }

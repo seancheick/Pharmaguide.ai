@@ -39,7 +39,7 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Result of the pre-add safety check ([safetyCheckForAddProvider]).
 ///
-/// Carries the combined interaction/heuristic [results] AND a
+/// Carries the combined curated interaction [results] AND a
 /// [checksIncomplete] flag so the "Add to stack" sheet can distinguish
 /// "every check ran and found nothing" from "one or more checks could not
 /// run" (must hedge — an empty list is NOT a clean bill of health), plus
@@ -67,9 +67,7 @@ class PreAddSafetyResult {
     checksIncomplete: true,
   );
 
-  /// Combined curated (supplement×supplement, medication×supplement) and
-  /// heuristic (stim/sed, blood-thinner, duplicate-active) hits, deduped by
-  /// result id.
+  /// Curated supplement and medication interaction hits, deduped by rule ID.
   final List<InteractionResult> results;
 
   /// True when at least one check could not run to completion — interaction
@@ -99,9 +97,6 @@ class PreAddSafetyResult {
 ///      was missing before — medications were dropped entirely (null
 ///      dsldId), so a warfarin × ginkgo bleeding-risk pair read as "Safe to
 ///      add".
-///   3. The legacy fingerprint heuristic
-///      ([StackInteractionChecker.checkSafety]) for stim/sed, blood-thinner,
-///      and duplicate-active category warnings.
 ///
 /// Results are combined and deduped by result id. If any check could not run
 /// (DB unavailable, med normalization threw, a stack product failed to
@@ -139,20 +134,14 @@ final safetyCheckForAddProvider = FutureProvider.family
 
       var checksIncomplete = false;
 
-      // Hydrate supplement stack rows to core products for the fingerprint
-      // heuristic. A row that cannot hydrate is excluded from the heuristic,
-      // so flag the result incomplete rather than silently under-checking.
-      final stackProducts = <ProductsCoreData>[];
+      // Missing catalog identities still make a check incomplete, even though
+      // clinical findings come only from authored interaction rows.
       for (final entry in supplementRows) {
         final id = entry.dsldId;
         if (id == null || id.isEmpty) continue;
         try {
           final product = await coreDb.findById(id);
-          if (product != null) {
-            stackProducts.add(product);
-          } else {
-            checksIncomplete = true;
-          }
+          if (product == null) checksIncomplete = true;
         } on Object {
           checksIncomplete = true;
         }
@@ -241,47 +230,6 @@ final safetyCheckForAddProvider = FutureProvider.family
         }
       }
 
-      // 3. Legacy fingerprint heuristic (stim/sed, blood thinner, dup actives)
-      //    for the candidate against every hydrated supplement in the stack.
-      if (stackProducts.isNotEmpty) {
-        bool flag(int? v) => v == 1;
-        try {
-          addAll(
-            checker.checkSafety(
-              newProductFingerprint: parseFingerprint(
-                candidate.ingredientFingerprint,
-              ),
-              stackFingerprints: stackProducts
-                  .map((p) => parseFingerprint(p.ingredientFingerprint))
-                  .toList(growable: false),
-              newContainsStimulants: flag(candidate.containsStimulants),
-              newContainsSedatives: flag(candidate.containsSedatives),
-              newContainsBloodThinners: flag(candidate.containsBloodThinners),
-              stackContainsStimulants: stackProducts
-                  .map((p) => flag(p.containsStimulants))
-                  .toList(growable: false),
-              stackContainsSedatives: stackProducts
-                  .map((p) => flag(p.containsSedatives))
-                  .toList(growable: false),
-              stackContainsBloodThinners: stackProducts
-                  .map((p) => flag(p.containsBloodThinners))
-                  .toList(growable: false),
-              stackProductNames: stackProducts
-                  .map((p) => p.productName)
-                  .toList(growable: false),
-              newProductName: candidate.productName,
-            ),
-          );
-        } on Object catch (e, st) {
-          checksIncomplete = true;
-          CrashReportingService().recordError(
-            e,
-            st,
-            hint: 'safety_check_add:heuristic_failed',
-          );
-        }
-      }
-
       return PreAddSafetyResult(
         results: combined,
         checksIncomplete: checksIncomplete,
@@ -303,8 +251,6 @@ final safetyCheckForAddProvider = FutureProvider.family
 ///     `medicationInteractions`. Medications never pair-check against
 ///     each other here — drug×drug lookups are a follow-up when the
 ///     M2 bundle starts shipping curated drug×drug rows.
-///   - The legacy heuristic `checkSafety` runs for every supplement
-///     against the rest of the stack and populates `categoryWarnings`.
 ///   - [stackNutrientStatusesProvider] is awaited once and copied in
 ///     whole; [StackSafetyReport] already filters sub-warn tiers.
 ///
@@ -377,8 +323,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
 
   final profile = await ref.watch(loadedProfileProvider.future);
 
-  // Hydrate each supplement once — we need the core row for fingerprints
-  // (category heuristics) and the ingredient_keys JSON for canonical ids.
+  // Hydrate each supplement once for canonical interaction identities.
   // Track low label-mapping coverage: below the 0.3 trust floor a
   // product's ingredients may never fire the interaction checks, so the
   // report must hedge rather than claim a clean result.
@@ -517,69 +462,6 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       );
       // Food advisories are additive context; never let them block the
       // rest of the stack safety report.
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // 3. Heuristic category checks (stim/sed, blood thinners). For the
-  //    banner we run each supplement against the rest so the worst
-  //    antagonism across the stack still surfaces; dedupe by the
-  //    synthetic id the heuristic uses.
-  // ---------------------------------------------------------------------------
-  final categoryWarnings = <InteractionResult>[];
-  final seenCatIds = <String>{};
-  if (hydrated.length >= 2) {
-    for (var i = 0; i < hydrated.length; i++) {
-      final self = hydrated[i];
-      final others = [
-        for (var j = 0; j < hydrated.length; j++)
-          if (j != i) hydrated[j],
-      ];
-      final newFp = parseFingerprint(self.product.ingredientFingerprint);
-      final stackFps = others
-          .map((o) => parseFingerprint(o.product.ingredientFingerprint))
-          .toList(growable: false);
-
-      bool flag(int? v) => v == 1;
-      List<InteractionResult> hits;
-      try {
-        hits = checker.checkSafety(
-          newProductFingerprint: newFp,
-          stackFingerprints: stackFps,
-          newContainsStimulants: flag(self.product.containsStimulants),
-          newContainsSedatives: flag(self.product.containsSedatives),
-          newContainsBloodThinners: flag(self.product.containsBloodThinners),
-          stackContainsStimulants: others
-              .map((o) => flag(o.product.containsStimulants))
-              .toList(growable: false),
-          stackContainsSedatives: others
-              .map((o) => flag(o.product.containsSedatives))
-              .toList(growable: false),
-          stackContainsBloodThinners: others
-              .map((o) => flag(o.product.containsBloodThinners))
-              .toList(growable: false),
-          stackProductNames: others
-              .map((o) => o.entry.name)
-              .toList(growable: false),
-          newProductName: self.entry.name,
-        );
-      } on Object catch (e, st) {
-        checksIncomplete = true;
-        CrashReportingService().recordError(
-          e,
-          st,
-          hint: 'stack_safety:heuristic_checks_failed',
-        );
-        continue;
-      }
-      for (final r in hits) {
-        // Heuristic ids encode the partner index (`STACK_STIM_SED_$i`).
-        // That's fine — we still want to dedupe the symmetric pair
-        // (A→B and B→A would otherwise both fire), so we key on the
-        // sorted name pair as a stable identity.
-        final key = symmetricKey(r.agent1Name, r.agent2Name, r.id);
-        if (seenCatIds.add(key)) categoryWarnings.add(r);
-      }
     }
   }
 
@@ -761,7 +643,6 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     medicationInteractions: medicationInteractions,
     medicationPairInteractions: medicationPairInteractions,
     medicationProfileWarnings: medicationProfileWarnings,
-    categoryWarnings: categoryWarnings,
     timingOptimizations: timingOptimizations,
     coverageIncomplete: coverageIncomplete,
     checksIncomplete: checksIncomplete,

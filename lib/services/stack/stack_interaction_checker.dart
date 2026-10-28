@@ -4,7 +4,6 @@ import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart'
     as gate;
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 
-import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
@@ -13,146 +12,10 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 
-/// Checks safety when adding a new product to the supplement stack.
-///
-/// Two layers of checks live here:
-///
-///   1. **Heuristic category checks** ([checkSafety]) — operate on
-///      product fingerprints from `products_core` (stim/sed antagonism,
-///      blood-thinner stacking, duplicate active ingredients). No DB
-///      lookup; offline by construction.
-///   2. **Curated DB lookups** ([checkSupplementPairInteractions],
-///      [checkMedicationInteractions]) — query the bundled M2 interaction
-///      DB for pre-verified rows pairing a new product's canonical
-///      ingredient ids against the existing stack. Each hit is mapped to
-///      [InteractionResult.fromRow] with `InteractionSource.pipeline`.
-///
-/// All curated lookups dedupe by row id so a product whose ingredients
-/// all collide with the same curated row only surfaces once. The
-/// retired-row filter is enforced at the DB layer (spec §7.3) so callers
-/// here never need to re-apply it.
+/// Consumes authored interaction rows for supplement and medication pairs.
+/// Severity, evidence, sources and applicability stay with those rows.
+/// Lookups deduplicate by rule ID; retired rows are filtered by the database.
 class StackInteractionChecker {
-  /// Run all safety checks for adding newProduct to existing stack.
-  List<InteractionResult> checkSafety({
-    required Map<String, dynamic> newProductFingerprint,
-    required List<Map<String, dynamic>> stackFingerprints,
-    required bool newContainsStimulants,
-    required bool newContainsSedatives,
-    required bool newContainsBloodThinners,
-    required List<bool> stackContainsStimulants,
-    required List<bool> stackContainsSedatives,
-    required List<bool> stackContainsBloodThinners,
-    required List<String> stackProductNames,
-    required String newProductName,
-  }) {
-    final results = <InteractionResult>[];
-
-    // Check 1: Stimulant/sedative antagonism
-    if (newContainsStimulants) {
-      for (int i = 0; i < stackContainsSedatives.length; i++) {
-        if (stackContainsSedatives[i]) {
-          results.add(
-            InteractionResult(
-              id: 'STACK_STIM_SED_$i',
-              type: InteractionType.supplementSupplement,
-              severity: Severity.caution,
-              evidenceLevel: EvidenceLevel.established,
-              agent1Name: newProductName,
-              agent2Name: stackProductNames[i],
-              mechanism:
-                  'Stack contains both stimulants and sedatives — opposing effects may reduce effectiveness of both',
-              management:
-                  'Consider taking at different times or choosing one over the other',
-              doseDependant: false,
-              doseThreshold: null,
-              sourceUrls: [],
-              source: InteractionSource.stackEngine,
-            ),
-          );
-        }
-      }
-    }
-    if (newContainsSedatives) {
-      for (int i = 0; i < stackContainsStimulants.length; i++) {
-        if (stackContainsStimulants[i]) {
-          results.add(
-            InteractionResult(
-              id: 'STACK_SED_STIM_$i',
-              type: InteractionType.supplementSupplement,
-              severity: Severity.caution,
-              evidenceLevel: EvidenceLevel.established,
-              agent1Name: newProductName,
-              agent2Name: stackProductNames[i],
-              mechanism:
-                  'Stack contains both sedatives and stimulants — opposing effects',
-              management: 'Consider separating by time of day',
-              doseDependant: false,
-              doseThreshold: null,
-              sourceUrls: [],
-              source: InteractionSource.stackEngine,
-            ),
-          );
-        }
-      }
-    }
-
-    // Check 2: Blood thinner stacking
-    if (newContainsBloodThinners) {
-      for (int i = 0; i < stackContainsBloodThinners.length; i++) {
-        if (stackContainsBloodThinners[i]) {
-          results.add(
-            InteractionResult(
-              id: 'STACK_BT_$i',
-              type: InteractionType.supplementSupplement,
-              severity: Severity.avoid,
-              evidenceLevel: EvidenceLevel.established,
-              agent1Name: newProductName,
-              agent2Name: stackProductNames[i],
-              mechanism:
-                  'Multiple blood-thinning supplements increase bleeding risk',
-              management:
-                  'Consult healthcare provider before combining blood-thinning supplements',
-              doseDependant: true,
-              doseThreshold: null,
-              sourceUrls: [],
-              source: InteractionSource.stackEngine,
-            ),
-          );
-        }
-      }
-    }
-
-    // Check 3: Duplicate active ingredients
-    final newNutrients =
-        (newProductFingerprint['nutrients'] as Map?)?.keys.toSet() ?? {};
-    for (int i = 0; i < stackFingerprints.length; i++) {
-      final stackNutrients =
-          (stackFingerprints[i]['nutrients'] as Map?)?.keys.toSet() ?? {};
-      final overlap = newNutrients.intersection(stackNutrients);
-      if (overlap.length >= 3) {
-        results.add(
-          InteractionResult(
-            id: 'STACK_DUP_$i',
-            type: InteractionType.supplementSupplement,
-            severity: Severity.monitor,
-            evidenceLevel: EvidenceLevel.probable,
-            agent1Name: newProductName,
-            agent2Name: stackProductNames[i],
-            mechanism:
-                '${overlap.length} overlapping nutrients: ${overlap.take(3).join(", ")}${overlap.length > 3 ? "..." : ""}',
-            management: 'Check cumulative doses against daily upper limits',
-            doseDependant: true,
-            doseThreshold: null,
-            sourceUrls: [],
-            source: InteractionSource.stackEngine,
-          ),
-        );
-      }
-    }
-
-    return results;
-  }
-
   /// Check a new product's canonical ingredient ids against every OTHER
   /// supplement already in the user's stack via the curated interaction
   /// DB (spec §8.2).

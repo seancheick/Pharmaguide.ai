@@ -106,7 +106,7 @@ void main() {
     testWidgets('safe-only signals + coverageIncomplete downgrade the '
         'success tone to the caution hedge', (tester) async {
       final report = StackSafetyReport(
-        categoryWarnings: [_interaction(severity: Severity.safe)],
+        stackInteractions: [_interaction(severity: Severity.safe)],
         coverageIncomplete: true,
       );
       await pump(tester, report);
@@ -122,7 +122,7 @@ void main() {
       tester,
     ) async {
       final report = StackSafetyReport(
-        categoryWarnings: [_interaction(severity: Severity.safe)],
+        stackInteractions: [_interaction(severity: Severity.safe)],
         checksIncomplete: true,
       );
       await pump(tester, report);

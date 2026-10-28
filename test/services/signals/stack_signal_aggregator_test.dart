@@ -267,12 +267,12 @@ void main() {
         _mpw(id: 'med_profile', severity: Severity.caution),
       ],
       medicationInteractions: [_ix(id: 'med', severity: Severity.caution)],
-      stackInteractions: [_ix(id: 'stack', severity: Severity.caution)],
-      categoryWarnings: [
+      stackInteractions: [
+        _ix(id: 'stack', severity: Severity.caution),
         _ix(
           id: 'cat',
           severity: Severity.caution,
-          source: InteractionSource.stackEngine,
+          source: InteractionSource.pipeline,
         ),
       ],
       nutrientStatuses: [_nut(id: 'b6', tier: NutrientTier.approachingUl)],
@@ -292,17 +292,17 @@ void main() {
 
   test('GOLDEN: mixed-severity report locks the ordering contract', () {
     final report = StackSafetyReport(
-      stackInteractions: [_ix(id: 'IRON_CALCIUM', severity: Severity.caution)],
+      stackInteractions: [
+        _ix(id: 'IRON_CALCIUM', severity: Severity.caution),
+        _ix(
+          id: 'CURATED_MONITOR',
+          severity: Severity.monitor,
+          source: InteractionSource.pipeline,
+        ),
+      ],
       medicationInteractions: [
         _ix(id: 'WARFARIN_VITK', severity: Severity.avoid),
         _ix(id: 'SSRI_SJW', severity: Severity.contraindicated),
-      ],
-      categoryWarnings: [
-        _ix(
-          id: 'STACK_DUP_0',
-          severity: Severity.monitor,
-          source: InteractionSource.stackEngine,
-        ),
       ],
       nutrientStatuses: [
         _nut(id: 'iron', tier: NutrientTier.exceedsUl, pctOfUl: 250),
@@ -318,12 +318,15 @@ void main() {
       'WARFARIN_VITK',
     );
     expect(signals[2].family, SignalFamily.cumulativeExposure);
-    // caution → stack pair, then monitor → category.
+    // Caution → stack pair, then the curated monitor interaction.
     expect(
       (signals[3].payload as InteractionPayload).result.id,
       'IRON_CALCIUM',
     );
-    expect((signals[4].payload as InteractionPayload).result.id, 'STACK_DUP_0');
+    expect(
+      (signals[4].payload as InteractionPayload).result.id,
+      'CURATED_MONITOR',
+    );
   });
 
   test('empty report yields no signals', () {

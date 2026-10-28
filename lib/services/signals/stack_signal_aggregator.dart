@@ -1,7 +1,7 @@
 // Typed aggregation of a StackSafetyReport into ClinicalSignals (Workstream A,
 // increment 3). This is the typed replacement for
-// StackSafetyReport.orderedWarnings (List<Object>): the SAME six buckets, in the
-// same bucket priority, adapted into ClinicalSignal.
+// StackSafetyReport.orderedWarnings (List<Object>): the source buckets retain
+// their relative priority and are adapted into ClinicalSignal.
 //
 // Deliberate differences from orderedWarnings (both intentional behavior
 // changes, separately tested): (1) ranking is by consumer_disposition FIRST,
@@ -121,7 +121,6 @@ List<ClinicalSignal> allClinicalSignalsFrom({
   }
   addInteractions(report.medicationInteractions, 2);
   addInteractions(report.stackInteractions, 3);
-  addInteractions(report.categoryWarnings, 4);
 
   // Only warn-worthy nutrients surface (matches orderedWarnings' _flaggedNutrients).
   final flagged = report.nutrientStatuses.where((n) => n.shouldWarn).toList();
@@ -152,7 +151,10 @@ List<ClinicalSignal> allClinicalSignalsFrom({
   for (var i = 0; i < regulatorySafetyAlerts.length; i++) {
     final match = regulatorySafetyAlerts[i];
     entries.add((
-      signal: ClinicalSignal.fromRegulatorySafety(match.alert, dsldId: match.dsldId),
+      signal: ClinicalSignal.fromRegulatorySafety(
+        match.alert,
+        dsldId: match.dsldId,
+      ),
       bucket: -1,
       ordinal: i,
     ));

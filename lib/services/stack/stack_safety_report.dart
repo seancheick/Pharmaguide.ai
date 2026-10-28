@@ -1,9 +1,8 @@
 // Stack Safety Report — the single object the safety UI renders from.
 //
 // Aggregates every safety signal the stack engine produces (M1 nutrient
-// totals + M4 curated interaction lookups + the legacy heuristic
-// category checks) into one immutable struct with the computed views
-// the banners and detail screens need:
+// totals + M4 curated interaction lookups) into one immutable struct with the
+// computed views the banners and detail screens need:
 //
 //   - overallSeverity: the worst severity any single signal reports.
 //                       Drives the top-level banner color.
@@ -34,7 +33,6 @@ class StackSafetyReport {
     this.medicationInteractions = const <InteractionResult>[],
     this.medicationPairInteractions = const <InteractionResult>[],
     this.medicationProfileWarnings = const <MedicationProfileWarning>[],
-    this.categoryWarnings = const <InteractionResult>[],
     this.timingOptimizations = const <TimingOptimization>[],
     this.coverageIncomplete = false,
     this.checksIncomplete = false,
@@ -76,11 +74,6 @@ class StackSafetyReport {
   /// These are PHI-bound and local-only.
   final List<MedicationProfileWarning> medicationProfileWarnings;
 
-  /// Heuristic category warnings from the legacy
-  /// `StackInteractionChecker.checkSafety` path (stim/sed antagonism,
-  /// blood-thinner stacking, duplicate active ingredients).
-  final List<InteractionResult> categoryWarnings;
-
   /// Timing optimization advice for the user's stack. Produced by
   /// [TimingEvaluationService] when two items match a timing rule.
   /// These are positive guidance ("take iron and calcium 2h apart"),
@@ -94,8 +87,7 @@ class StackSafetyReport {
       stackInteractions.isEmpty &&
       medicationInteractions.isEmpty &&
       medicationPairInteractions.isEmpty &&
-      medicationProfileWarnings.isEmpty &&
-      categoryWarnings.isEmpty;
+      medicationProfileWarnings.isEmpty;
 
   // NOTE: the old `hasNothingToReport` render guard was removed with the
   // StackHealthSnapshot migration (ADR-006). Surfaces must hedge on the
@@ -161,7 +153,6 @@ class StackSafetyReport {
     yield* medicationPairInteractions;
     yield* medicationInteractions;
     yield* stackInteractions;
-    yield* categoryWarnings;
   }
 
   List<NutrientStatus> get _flaggedNutrients =>

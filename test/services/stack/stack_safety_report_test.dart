@@ -157,8 +157,10 @@ void main() {
 
     test('overall severity tracks the worst across all sources', () {
       final report = StackSafetyReport(
-        stackInteractions: [_interaction(id: 'S1', severity: Severity.caution)],
-        categoryWarnings: [_interaction(id: 'C1', severity: Severity.monitor)],
+        stackInteractions: [
+          _interaction(id: 'S1', severity: Severity.caution),
+          _interaction(id: 'C1', severity: Severity.monitor),
+        ],
         medicationInteractions: [
           _interaction(id: 'M1', severity: Severity.contraindicated),
         ],
@@ -171,11 +173,11 @@ void main() {
         stackInteractions: [
           _interaction(id: 'S1', severity: Severity.caution),
           _interaction(id: 'S2', severity: Severity.caution),
+          _interaction(id: 'C1', severity: Severity.monitor),
         ],
         medicationInteractions: [
           _interaction(id: 'M1', severity: Severity.avoid),
         ],
-        categoryWarnings: [_interaction(id: 'C1', severity: Severity.monitor)],
         nutrientStatuses: [
           _nutrient(canonicalId: 'iron', tier: NutrientTier.exceedsUl),
         ],
@@ -210,7 +212,7 @@ void main() {
 
     test('isEmpty becomes false when any flagged signal exists', () {
       final report = StackSafetyReport(
-        categoryWarnings: [_interaction(id: 'C', severity: Severity.monitor)],
+        stackInteractions: [_interaction(id: 'C', severity: Severity.monitor)],
       );
       expect(report.isEmpty, isFalse);
     });

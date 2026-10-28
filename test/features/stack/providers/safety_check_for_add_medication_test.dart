@@ -17,12 +17,18 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
 Future<void> _seedSupplement(
   CoreDatabase coreDb, {
   required String dsldId,
   required String name,
   required List<String> canonicalTags,
+  bool legacyBloodThinner = false,
+  bool legacyStimulant = false,
+  bool legacySedative = false,
 }) async {
   final tagsJson = '[${canonicalTags.map((t) => '"$t"').join(',')}]';
   await coreDb
@@ -32,6 +38,9 @@ Future<void> _seedSupplement(
           dsldId: dsldId,
           productName: name,
           productStatus: const Value('active'),
+          containsBloodThinners: Value(legacyBloodThinner ? 1 : 0),
+          containsStimulants: Value(legacyStimulant ? 1 : 0),
+          containsSedatives: Value(legacySedative ? 1 : 0),
           keyIngredientTags: Value(tagsJson),
           exportVersion: 'test',
           exportedAt: '2026-07-05T00:00:00Z',
@@ -141,6 +150,104 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('safetyCheckForAddProvider — medication interactions', () {
+    test('legacy category flags cannot author a clinical interaction', () async {
+      final coreDb = CoreDatabase.memory();
+      final interactionDb = InteractionDatabase.memory();
+      final userDb = UserDatabase.memory();
+      addTearDown(coreDb.close);
+      addTearDown(interactionDb.close);
+      addTearDown(userDb.close);
+      await _seedSupplement(
+        coreDb,
+        dsldId: 'A',
+        name: 'Garlic',
+        canonicalTags: ['garlic'],
+        legacyBloodThinner: true,
+        legacyStimulant: true,
+      );
+      await _seedSupplement(
+        coreDb,
+        dsldId: 'B',
+        name: 'Ginkgo',
+        canonicalTags: ['ginkgo'],
+        legacyBloodThinner: true,
+        legacySedative: true,
+      );
+      await userDb.addToStack(
+        UserStacksLocalCompanion.insert(
+          id: 'existing',
+          name: 'Ginkgo',
+          dsldId: const Value('B'),
+        ),
+      );
+      final container = _container(
+        coreDb: coreDb,
+        interactionDb: interactionDb,
+        userDb: userDb,
+      );
+      addTearDown(container.dispose);
+      final result = await container.read(
+        safetyCheckForAddProvider('A').future,
+      );
+      expect(
+        result.results,
+        isEmpty,
+        reason:
+            'No authored relationship exists in this DB. Broad flags cannot supply clinical severity or evidence.',
+      );
+    });
+
+    test(
+      'stack report cannot author a clinical alert from legacy flags',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(coreDb.close);
+        addTearDown(interactionDb.close);
+        addTearDown(userDb.close);
+        for (final id in ['A', 'B']) {
+          await _seedSupplement(
+            coreDb,
+            dsldId: id,
+            name: 'Product $id',
+            canonicalTags: [id == 'A' ? 'garlic' : 'ginkgo'],
+            legacyBloodThinner: true,
+            legacyStimulant: true,
+            legacySedative: true,
+          );
+          await userDb.addToStack(
+            UserStacksLocalCompanion.insert(
+              id: 'stack$id',
+              name: 'Product $id',
+              dsldId: Value(id),
+            ),
+          );
+        }
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            loadedProfileProvider.overrideWith(
+              (ref) async => const ProfileState(),
+            ),
+            stackNutrientStatusesProvider.overrideWith(
+              (ref) async => const StackNutrientStatuses.empty(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final report = await container.read(stackSafetyReportProvider.future);
+        expect(
+          report.overallSeverity,
+          Severity.safe,
+          reason: 'No authored clinical relationship or threshold is present.',
+        );
+        expect(report.stackInteractions, isEmpty);
+      },
+    );
+
     test('warfarin med + ginkgo candidate surfaces the curated DDI', () async {
       final coreDb = CoreDatabase.memory();
       final interactionDb = InteractionDatabase.memory();

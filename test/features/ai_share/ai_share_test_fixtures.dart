@@ -106,9 +106,8 @@ ClinicianReportData aiShareFixture({List<UserStacksLocalData>? stack}) {
       hasBannedIngredient: false,
     ),
     safetyReport: const StackSafetyReport(
-      stackInteractions: [_supplementSupplement],
+      stackInteractions: [_supplementSupplement, _condition],
       medicationInteractions: [_drugSupplement],
-      categoryWarnings: [_condition],
     ),
     depletions: const [
       DepletionMatch(

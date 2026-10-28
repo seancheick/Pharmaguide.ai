@@ -208,9 +208,11 @@ ClinicianReportData _data({
         safetyReport ??
         const StackSafetyReport(
           nutrientStatuses: [_vitaminDStatus],
-          stackInteractions: [_supplementSupplementInteraction],
+          stackInteractions: [
+            _supplementSupplementInteraction,
+            _conditionInteraction,
+          ],
           medicationInteractions: [_drugSupplementInteraction],
-          categoryWarnings: [_conditionInteraction],
           timingOptimizations: [_medicationTiming],
         ),
     depletions: depletions,
