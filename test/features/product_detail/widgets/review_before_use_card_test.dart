@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
@@ -12,6 +15,10 @@ import 'package:pharmaguide/features/product_detail/v2/sections/review_before_us
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 import 'package:pharmaguide/features/product_detail/widgets/interaction_warnings.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
+import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
+import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
+import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
 
 FitScoreResult _fit({
   FitAssessmentState state = FitAssessmentState.limitedFit,
@@ -83,9 +90,11 @@ ProfileRelevanceSummary _summary({
   bool hasProfileInformation = true,
   List<String> selectedGoalLabels = const [],
   bool hasPregnancyOrBreastfeeding = false,
+  void Function(List<String>)? onTapCitations,
 }) {
   return buildProfileRelevanceSummary(
     fitResult: fitResult ?? _fit(),
+    onTapCitations: onTapCitations,
     topGoalLabel: null,
     warnings: warnings,
     interactionHint: interactionHint,
@@ -112,7 +121,147 @@ Future<void> _pump(WidgetTester tester, ProfileRelevanceSummary summary) {
   );
 }
 
+FitScoreResult _personalDoseFit({
+  String nutrient = 'vitamin_e',
+  double? amount = 900,
+  String age = '14-18',
+  bool unknownForm = false,
+}) {
+  final rda =
+      jsonDecode(
+            File(
+              'assets/reference_data/rda_optimal_uls.json',
+            ).readAsStringSync(),
+          )
+          as Map<String, dynamic>;
+  final vitaminA = nutrient == 'vitamin_a';
+  final unit = vitaminA ? 'mcg RAE' : 'mg alpha-tocopherol';
+  final rows = <Map<String, dynamic>>[
+    {
+      'canonical_id': nutrient,
+      'name': vitaminA ? 'Vitamin A' : 'Vitamin E',
+      if (amount != null) ...{
+        'quantity': amount,
+        'per_day_min': amount,
+        'per_day_max': amount,
+        'safety_exposure': {'per_day': amount, 'unit': unit},
+        'over_ul': false,
+        'pct_ul': amount / (vitaminA ? 3000 : 1000) * 100,
+        'ul': vitaminA ? 3000 : 1000,
+      },
+      'unit': unit,
+      'converted_unit': unit,
+      'ul_gate_eligible': true,
+      'skip_ul_check': unknownForm,
+      if (unknownForm) 'skip_ul_reason': 'unknown_vitamin_form',
+    },
+  ];
+  return FitScoreService(
+    e1: E1DosageCalculator(rda),
+    e2a: E2aGoalCalculator(const {'user_goal_mappings': <Object>[]}),
+    e2b: E2bAgeCalculator(rda),
+  ).calculate(
+    nutrients: rows,
+    productClusters: const [],
+    interactionSummary: const {},
+    ageBracket: age,
+    sex: 'Pregnancy',
+    userConditions: const ['pregnancy'],
+    userGoals: const ['GOAL_PRENATAL_PREGNANCY'],
+    productGoalMatches: const ['GOAL_PRENATAL_PREGNANCY'],
+    productGoalMatchConfidence: 1,
+    mappedCoverage: 1,
+  );
+}
+
 void main() {
+  group('confirmed personal upper limit', () {
+    for (final (nutrient, amount, name, limit) in [
+      ('vitamin_e', 900.0, 'Vitamin E', '800'),
+      ('vitamin_a', 2900.0, 'Vitamin A', '2800'),
+    ]) {
+      testWidgets('$nutrient adolescent pregnancy concern reaches public card', (
+        tester,
+      ) async {
+        final fit = _personalDoseFit(nutrient: nutrient, amount: amount);
+        expect(fit.state, isNot(FitAssessmentState.strongMatch));
+        List<String>? openedSources;
+        final summary = _summary(
+          fitResult: fit,
+          onTapCitations: (sources) => openedSources = sources,
+          hasPregnancyOrBreastfeeding: true,
+        );
+        expect(summary.status, ProfileRelevanceStatus.review);
+        expect(summary.headline, 'Review before use');
+        expect(summary.rows, hasLength(1));
+        expect(summary.rows.single.caption, contains(limit));
+        expect(summary.rows.single.caption, contains('supporting evidence'));
+        expect(summary.rows.single.caption, contains('citation'));
+        summary.rows.single.onTap!();
+        expect(openedSources, [
+          'https://ods.od.nih.gov/factsheets/${nutrient == 'vitamin_a' ? 'VitaminA' : 'VitaminE'}-HealthProfessional/',
+        ]);
+        await _pump(tester, summary);
+        expect(find.text('No known concerns'), findsNothing);
+        expect(find.text('$name above the upper limit'), findsNWidgets(2));
+      });
+    }
+    for (final (nutrient, amount, age) in [
+      ('vitamin_e', 799.0, '14-18'),
+      ('vitamin_e', 800.0, '14-18'),
+      ('vitamin_a', 2800.0, '14-18'),
+      ('vitamin_e', 900.0, '19-30'),
+    ]) {
+      test('$nutrient $amount at $age does not invent a confirmed excess', () {
+        final fit = _personalDoseFit(
+          nutrient: nutrient,
+          amount: amount,
+          age: age,
+        );
+        expect(_summary(fitResult: fit).headline, 'No known concerns');
+        expect(_summary(fitResult: fit).rows, isEmpty);
+      });
+    }
+    test(
+      'unknown form and missing amount preserve an existing source review',
+      () {
+        for (final fit in [
+          _personalDoseFit(unknownForm: true),
+          _personalDoseFit(amount: null),
+        ]) {
+          final summary = _summary(
+            fitResult: fit,
+            warnings: [_warning(title: 'Source review needed')],
+          );
+          expect(summary.headline, 'Review before use');
+          expect(summary.rows, hasLength(1));
+          expect(summary.rows.single.headline, 'Source review needed');
+        }
+      },
+    );
+    test(
+      'hard authored warning retains precedence over a personal dose caution',
+      () {
+        final summary = _summary(
+          fitResult: _personalDoseFit(),
+          warnings: [
+            _warning(
+              severity: Severity.avoid,
+              title: 'Authored hard concern',
+              conditionIds: ['pregnancy'],
+            ),
+          ],
+        );
+        expect(summary.status, ProfileRelevanceStatus.notRecommended);
+        expect(summary.headline, 'Not recommended for your profile');
+        expect(
+          summary.rows.any((row) => row.headline == 'Authored hard concern'),
+          isTrue,
+        );
+      },
+    );
+  });
+
   // Sean, 2026-10-11: an all-clear says what we know ("No known concerns"),
   // never "No concerns found"; missing pregnancy/breastfeeding data is not a
   // warning, but those profiles get one small obstetrician line under it.

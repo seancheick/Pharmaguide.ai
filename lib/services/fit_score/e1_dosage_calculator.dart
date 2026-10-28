@@ -17,12 +17,12 @@ class E1DosageCalculator {
 
   E1DosageCalculator(this.rdaData);
 
-  double calculate({
+  List<NutrientStatus> assess({
     required List<Map<String, dynamic>> nutrients,
     String? ageBracket,
     String? sex,
   }) {
-    if (nutrients.isEmpty) return 0.0;
+    if (nutrients.isEmpty) return const [];
 
     final items = [
       StackItemNutrients(
@@ -38,12 +38,24 @@ class E1DosageCalculator {
     // form-aware verdicts remain authoritative; negative verdicts are not
     // proof that another stack source cannot push the total over the UL.
     final verdicts = aggregator.extractPipelineUlVerdicts(items);
-    final statuses = StackUlChecker(rdaData: rdaData).check(
+    return StackUlChecker(rdaData: rdaData).check(
       aggregated,
       ageBracket: ageBracket,
       sex: sex,
       pipelineVerdicts: verdicts,
     );
+  }
+
+  double calculate({
+    required List<Map<String, dynamic>> nutrients,
+    String? ageBracket,
+    String? sex,
+    List<NutrientStatus>? assessment,
+  }) {
+    if (nutrients.isEmpty) return 0.0;
+    final statuses =
+        assessment ??
+        assess(nutrients: nutrients, ageBracket: ageBracket, sex: sex);
 
     double totalScore = 0.0;
     var scoredCount = 0;

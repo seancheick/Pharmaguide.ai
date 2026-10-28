@@ -1,3 +1,5 @@
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+
 enum FitAssessmentState {
   notRecommended,
   limitedFit,
@@ -13,11 +15,16 @@ class FitScoreResult {
   final String? maxRelevantSeverity;
   final double mappedCoverage;
 
+  /// The same transient, exposure-qualified assessment used by E1/E2b.
+  /// Never persisted; personal review rows render these findings directly.
+  final List<NutrientStatus> nutrientStatuses;
+
   const FitScoreResult({
     required this.missingFields,
     this.state = FitAssessmentState.limitedFit,
     this.reasons = const [],
     this.maxRelevantSeverity,
+    this.nutrientStatuses = const [],
     // Required on purpose: coverage is a separate, visible assessment input.
     required this.mappedCoverage,
   });

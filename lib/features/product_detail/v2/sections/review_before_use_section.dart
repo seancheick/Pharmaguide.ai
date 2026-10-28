@@ -17,6 +17,8 @@ import 'package:pharmaguide/core/components/pg_for_you_extras.dart';
 import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
@@ -146,12 +148,28 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
   required void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final allergenRows = rowsForAllergens(matchedAllergens);
+  final nutrientConcerns =
+      fitResult?.nutrientStatuses
+          .where((status) => status.tier == NutrientTier.exceedsUl)
+          .toList(growable: false) ??
+      const <NutrientStatus>[];
+  final nutrientRows = nutrientConcerns
+      .map(
+        (status) =>
+            rowForNutrientStatus(status, onTapCitations: onTapCitations),
+      )
+      .toList(growable: false);
+  final hasHardNutrientConcern = nutrientConcerns.any(
+    (status) => StackSafetyReport.severityForNutrient(status).isHard,
+  );
 
   final rows = <PGReviewRow>[];
   rows.addAll(allergenRows);
   for (final warning in sortWarningsBySeverity(warnings)) {
     rows.add(rowForWarning(warning, onTapCitations: onTapCitations));
   }
+
+  rows.addAll(nutrientRows);
 
   final conflictBody = buildConflictFooterBody(freeFromConflicts);
   if (conflictBody != null) {
@@ -170,11 +188,15 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
   final hasMayContainAllergen = matchedAllergens.any(
     (m) => m.presenceType == 'may_contain',
   );
-  final hasHardWarning = warnings.any(_isHardWarning);
-  final hasReviewWarning = warnings.any(_isReviewWarning);
+  final hasHardWarning = warnings.any(_isHardWarning) || hasHardNutrientConcern;
+  final hasReviewWarning =
+      warnings.any(_isReviewWarning) || nutrientConcerns.isNotEmpty;
   final hasFreeFromConflict = freeFromConflicts.isNotEmpty;
   final reviewItemCount =
-      allergenRows.length + warnings.length + (hasFreeFromConflict ? 1 : 0);
+      allergenRows.length +
+      warnings.length +
+      nutrientRows.length +
+      (hasFreeFromConflict ? 1 : 0);
   final fitDisplay = fitResult == null
       ? const FitIncomplete()
       : computeFitDisplay(
@@ -189,7 +211,9 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
     // (partitionProfileWarnings). When none of them came from the profile,
     // saying "for your profile" claims a personal check that never ran.
     final profileMatched =
-        hasContainsAllergen || hardWarnings.any(_isProfileMatched);
+        hasContainsAllergen ||
+        hardWarnings.any(_isProfileMatched) ||
+        nutrientConcerns.any((status) => !status.ulIsFallback);
     return ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.notRecommended,
       tone: PGReviewTone.danger,
@@ -220,7 +244,12 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
       tone: PGReviewTone.caution,
       headline: 'Review before use',
       body: [
-        concern ?? (reviewItemCount > 0 ? countCopy(reviewItemCount) : null),
+        concern ??
+            (nutrientRows.isNotEmpty
+                ? nutrientRows.first.headline
+                : reviewItemCount > 0
+                ? countCopy(reviewItemCount)
+                : null),
         goalContext,
       ].whereType<String>().join(' '),
       rows: rows,

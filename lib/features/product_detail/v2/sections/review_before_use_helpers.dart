@@ -21,6 +21,8 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/free_from_match.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 
 // =========================================================================
 // Hint parsing.
@@ -312,6 +314,39 @@ PGReviewRow rowForWarning(
     rowTone: toneForWarning(warning.severity),
     onTap: citationCount > 0 && onTapCitations != null
         ? () => onTapCitations(warning.sourceUrls)
+        : null,
+  );
+}
+
+/// Render the already-qualified personal UL finding; no exposure, limit,
+/// form or severity is recomputed at the display boundary.
+PGReviewRow rowForNutrientStatus(
+  NutrientStatus status, {
+  void Function(List<String> sourceUrls)? onTapCitations,
+}) {
+  final severity = StackSafetyReport.severityForNutrient(status);
+  final limit = status.ul;
+  final reference = status.ulIsFallback
+      ? 'Reference upper limit'
+      : 'Profile upper limit';
+  final caption = <String>[
+    severity.label,
+    'At the labeled daily amount.',
+    if (limit != null)
+      '$reference: ${limit == limit.roundToDouble() ? limit.toStringAsFixed(0) : limit.toString()} ${status.ulUnit ?? ''}.',
+    if (status.warning?.isNotEmpty == true) status.warning!,
+    EvidenceLevel
+        .established
+        .label, // Same authored UL-reference presentation as blob UL warnings.
+    if (status.sourceUrls.isNotEmpty)
+      '${status.sourceUrls.length} citation${status.sourceUrls.length == 1 ? '' : 's'}',
+  ];
+  return PGReviewRow(
+    headline: '${status.total.displayName} above the upper limit',
+    caption: caption.join(' · '),
+    rowTone: toneForWarning(severity),
+    onTap: status.sourceUrls.isNotEmpty && onTapCitations != null
+        ? () => onTapCitations(status.sourceUrls)
         : null,
   );
 }
