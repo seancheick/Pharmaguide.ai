@@ -509,15 +509,11 @@ void main() {
       expect(results.first.agent2Name, 'Ibuprofen');
     });
 
-    // Phase 11.7L safety fix (Sean 2026-05-17): the previous
-    // lookupPair-only loop missed "class-tag-on-a-drug" rows where a
-    // curated row stores its class via the `agent_drug_class`
-    // cross-ref column rather than as an explicit `agent_type =
-    // drug_class` agent. lookupByDrugClass picks both shapes up; the
-    // new class-fallback walks through it for every medication class
-    // on either side.
+    // Drug-class tags can retrieve rows, but only authored agent identity
+    // makes an exact medication rule applicable. Combination products must
+    // supply the actual ingredient RXCUI; class membership alone is insufficient.
     test(
-      'finds med-med interaction via class-tag-on-a-drug cross-ref column',
+      'exact medication scope requires ingredient identity rather than class tag',
       () async {
         await db.batch((batch) {
           batch.insert(
@@ -540,8 +536,7 @@ void main() {
           );
         });
 
-        // User's drug doesn't match either explicit RXCUI but is in
-        // the antifolate class — must still surface the row.
+        // An unmatched identity cannot borrow the rule through its class.
         final a = QuickCheckItem.medication(
           name: 'Methotrexate',
           rxcui: '6851',
@@ -553,8 +548,17 @@ void main() {
         );
 
         final results = await runQuickCheckPair(a, b, db);
-        expect(results, hasLength(1));
-        expect(results.first.severity, Severity.contraindicated);
+        expect(results, isEmpty);
+        final withIngredientIdentity = QuickCheckItem.medication(
+          name: 'Sulfamethoxazole-Trimethoprim',
+          rxcui: '99999',
+          ingredientRxcuis: const ['10829'],
+          drugClasses: const ['class:antifolates'],
+        );
+        final exact = await runQuickCheckPair(a, withIngredientIdentity, db);
+        expect(exact, hasLength(1));
+        expect(exact.single.id, 'METH_TRIMETHOPRIM');
+        expect(exact.single.severity, Severity.contraindicated);
       },
     );
 

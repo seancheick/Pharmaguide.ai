@@ -222,7 +222,7 @@ void main() {
 
   testWidgets('monitor-only report → caution tone', (tester) async {
     final report = StackSafetyReport(
-      categoryWarnings: [
+      stackInteractions: [
         makeInteraction(
           severity: Severity.monitor,
           management: 'Watch for mild side effects.',

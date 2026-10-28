@@ -6,8 +6,6 @@
 // The names are intentionally prefixed with `stackInternal*` so a
 // grep-for-usage across the codebase makes the internal surface obvious.
 
-import 'dart:convert';
-
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
     as canonical_ids;
 import 'package:pharmaguide/data/database/core_database.dart';
@@ -38,28 +36,4 @@ List<String> canonicalIdsForProduct(ProductsCoreData product) {
 /// older product rows still get timing advice without a local parser fork.
 Set<String> ingredientTagsForProduct(ProductsCoreData product) {
   return canonical_ids.canonicalIdsForProduct(product).toSet();
-}
-
-/// Decode a JSON fingerprint column to a map. Returns an empty map on
-/// null, empty, malformed, or non-map inputs.
-Map<String, dynamic> parseFingerprint(String? raw) {
-  if (raw == null || raw.isEmpty) return const <String, dynamic>{};
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is Map) return Map<String, dynamic>.from(decoded);
-  } on FormatException {
-    return const <String, dynamic>{};
-  }
-  return const <String, dynamic>{};
-}
-
-/// Stable key for a heuristic interaction between two agents — ignores
-/// ordering so we dedupe A×B and B×A to one warning per category.
-String symmetricKey(String a, String b, String ruleId) {
-  // Keep the rule prefix (`STACK_STIM_SED`, `STACK_SED_STIM`,
-  // `STACK_BLOOD_THINNER_*`, ...) but strip the trailing numeric index
-  // so A→B and B→A collapse to the same bucket.
-  final prefix = ruleId.replaceAll(RegExp(r'_\d+$'), '');
-  final pair = (a.compareTo(b) <= 0) ? '$a|$b' : '$b|$a';
-  return '$prefix#$pair';
 }

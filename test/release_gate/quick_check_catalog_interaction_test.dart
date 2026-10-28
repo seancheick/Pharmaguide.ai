@@ -4,15 +4,19 @@
 library;
 
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_logic.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 
 Future<File> _materializeAsset(String assetPath, Directory dir) async {
   final data = await rootBundle.load(assetPath);
@@ -49,6 +53,183 @@ Future<ProductsCoreData> _productForCanonicalId(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'all authored bundled supplement pairs retain source severity and deduplication',
+    () async {
+      final dir = await Directory.systemTemp.createTemp(
+        'curated-supplement-pairs',
+      );
+      addTearDown(() => dir.delete(recursive: true));
+      final file = await _materializeAsset(
+        'assets/db/interaction_db.sqlite',
+        dir,
+      );
+      final db = InteractionDatabase.open(file.path);
+      addTearDown(db.close);
+      final rows =
+          await (db.select(db.interactions)..where(
+                (row) =>
+                    row.retiredAt.isNull() &
+                    row.agent1Type.equals('supplement') &
+                    row.agent2Type.equals('supplement'),
+              ))
+              .get();
+      expect(
+        rows.map((row) => row.id),
+        containsAll([
+          'DSI_FISHOIL_GINKGO',
+          'DSI_FISHOIL_VITE',
+          'DSI_MELATONIN_VALERIAN',
+        ]),
+      );
+      for (final row in rows) {
+        expect(row.agent1CanonicalId, isNotEmpty);
+        expect(row.agent2CanonicalId, isNotEmpty);
+        for (final pair in [
+          (row.agent1CanonicalId!, row.agent2CanonicalId!),
+          (row.agent2CanonicalId!, row.agent1CanonicalId!),
+        ]) {
+          final now = DateTime.utc(2026, 10, 28);
+          final hits = await StackInteractionChecker()
+              .checkSupplementPairInteractions(
+                newProductCanonicalIds: [pair.$1, pair.$1],
+                stackSupplements: [
+                  for (final id in ['first', 'second'])
+                    UserStacksLocalData(
+                      id: id,
+                      type: 'supplement',
+                      name: pair.$2,
+                      ingredientKeys: jsonEncode([pair.$2]),
+                      addedAt: now,
+                      clientUpdatedAt: now,
+                    ),
+                ],
+                db: db,
+              );
+          final matched = hits.where((hit) => hit.id == row.id).toList();
+          expect(matched, hasLength(1), reason: row.id);
+          expect(matched.single.severity, Severity.values.byName(row.severity));
+          expect(
+            matched.single.evidenceLevel,
+            EvidenceLevel.fromString(row.evidenceLevel!),
+          );
+          expect(matched.single.mechanism, row.mechanism);
+          expect(matched.single.management, row.management);
+          expect(matched.single.sourceUrls, jsonDecode(row.sourceUrlsJson));
+          expect(matched.single.sourceUrls, isNotEmpty);
+          expect(matched.single.source, InteractionSource.pipeline);
+          expect(hits.map((hit) => hit.id).toSet().length, hits.length);
+        }
+      }
+    },
+  );
+
+  test(
+    'authored medication scope agrees between Quick Check and Stack',
+    () async {
+      final tmpDir = await Directory.systemTemp.createTemp('medication-scope');
+      addTearDown(() => tmpDir.delete(recursive: true));
+      final interactionFile = await _materializeAsset(
+        'assets/db/interaction_db.sqlite',
+        tmpDir,
+      );
+      final db = InteractionDatabase.open(interactionFile.path);
+      addTearDown(db.close);
+      final clopidogrel = QuickCheckItem.medication(
+        name: 'Clopidogrel',
+        rxcui: '32968',
+        genericRxcui: '32968',
+        ingredientRxcuis: ['32968'],
+        drugClasses: ['class:antiplatelet_agents'],
+      );
+      final omeprazole = QuickCheckItem.medication(
+        name: 'Omeprazole',
+        rxcui: '7646',
+        drugClasses: ['class:proton_pump_inhibitors'],
+      );
+      final pantoprazole = QuickCheckItem.medication(
+        name: 'Pantoprazole',
+        rxcui: '40790',
+        drugClasses: ['class:proton_pump_inhibitors'],
+      );
+      final lithium = QuickCheckItem.medication(name: 'Lithium', rxcui: '6448');
+      final lisinopril = QuickCheckItem.medication(
+        name: 'Lisinopril',
+        rxcui: '29046',
+        drugClasses: ['class:ace_inhibitors'],
+      );
+      UserStacksLocalData stackMedication(QuickCheckItem item, String id) {
+        return UserStacksLocalData(
+          id: id,
+          type: 'medication',
+          name: item.name,
+          rxcui: item.rxcui,
+          genericRxcui: item.genericRxcui,
+          ingredientRxcuisCol: jsonEncode(item.ingredientRxcuis),
+          drugClassesCol: jsonEncode(item.drugClasses),
+          addedAt: DateTime.utc(2026, 10, 28),
+          clientUpdatedAt: DateTime.utc(2026, 10, 28),
+        );
+      }
+
+      for (final fixture in [
+        (
+          a: clopidogrel,
+          b: omeprazole,
+          rule: 'DDI_CLOPIDOGREL_OMEPRAZOLE',
+          applies: true,
+        ),
+        (
+          a: clopidogrel,
+          b: pantoprazole,
+          rule: 'DDI_CLOPIDOGREL_OMEPRAZOLE',
+          applies: false,
+        ),
+        (a: lithium, b: lisinopril, rule: 'DDI_LITHIUM_ACE', applies: true),
+      ]) {
+        final authored = await (db.select(
+          db.interactions,
+        )..where((row) => row.id.equals(fixture.rule))).getSingle();
+        for (final pair in [(fixture.a, fixture.b), (fixture.b, fixture.a)]) {
+          final quick = await runQuickCheckPair(pair.$1, pair.$2, db);
+          final stack = await StackInteractionChecker()
+              .checkMedicationPairInteractions(
+                newMedications: [stackMedication(pair.$1, 'a')],
+                existingMedications: [stackMedication(pair.$2, 'b')],
+                db: db,
+              );
+          final quickHits = quick
+              .where((hit) => hit.id == fixture.rule)
+              .toList();
+          final stackHits = stack
+              .where((hit) => hit.id == fixture.rule)
+              .toList();
+          expect(
+            quickHits.length,
+            fixture.applies ? 1 : 0,
+            reason:
+                '${pair.$1.name}/${pair.$2.name}: ${fixture.rule} exact authored scope',
+          );
+          expect(
+            quickHits.map((hit) => hit.id),
+            stackHits.map((hit) => hit.id),
+          );
+          if (fixture.applies) {
+            expect(
+              quickHits.single.severity,
+              Severity.values.byName(authored.severity),
+            );
+            expect(
+              quickHits.single.sourceUrls,
+              jsonDecode(authored.sourceUrlsJson),
+            );
+            expect(quickHits.single.sourceUrls, isNotEmpty);
+          }
+        }
+      }
+    },
+  );
 
   test(
     'bundled catalog exposes canonical IDs that fire curated Quick Check',

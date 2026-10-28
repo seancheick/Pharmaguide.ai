@@ -137,7 +137,6 @@ class StackIntelligenceEngine {
       ...safetyReport.medicationPairInteractions,
       ...safetyReport.medicationInteractions,
       ...safetyReport.stackInteractions,
-      ...safetyReport.categoryWarnings,
     ];
 
     int countBy(Severity s) =>
@@ -284,7 +283,6 @@ class StackIntelligenceEngine {
       ...safetyReport.medicationPairInteractions,
       ...safetyReport.medicationInteractions,
       ...safetyReport.stackInteractions,
-      ...safetyReport.categoryWarnings,
     ];
   }
 
