@@ -2724,7 +2724,7 @@
     },
     {
       "name": "gold_bitter_orange_pregnant_at_threshold_inclusive",
-      "description": "Bitter orange 3 mg/day while pregnant meets the inclusive >= 3 threshold: contraindicated",
+      "description": "Bitter orange 3 mg synephrine/day while pregnant meets the inclusive >= 3 threshold: contraindicated",
       "gate": {
         "gate_type": "combination",
         "requires": {
@@ -2745,7 +2745,7 @@
           "basis": "per_day",
           "comparator": ">=",
           "value": 3,
-          "unit": "mg",
+          "unit": "mg synephrine",
           "severity_if_met": "contraindicated",
           "severity_if_not_met": "avoid"
         }
@@ -2761,7 +2761,7 @@
         "product_form": null,
         "nutrient_form": null,
         "dose_per_day": 3,
-        "dose_unit": "mg"
+        "dose_unit": "mg synephrine"
       },
       "base_severity": null,
       "expected": {
