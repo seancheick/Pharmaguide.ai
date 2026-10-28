@@ -4,7 +4,6 @@ import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart'
     as gate;
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 
-import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
