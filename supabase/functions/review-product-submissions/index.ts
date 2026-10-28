@@ -1519,6 +1519,17 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return json({ updated: true, payload_sha256: payloadHash });
   } catch (error) {
     audit(reviewerId, action, "backend_or_validation_error");
+    // The reviewer sees a generic message; keep the cause in the function
+    // log, or a refused grant reads as nothing more than "could not complete".
+    const cause = error as { code?: unknown; message?: unknown } | null;
+    console.error(JSON.stringify({
+      event: "product_submission_review_action_failed",
+      action,
+      code: typeof cause?.code === "string" ? cause.code : null,
+      message: typeof cause?.message === "string"
+        ? cause.message.slice(0, 300)
+        : String(error).slice(0, 300),
+    }));
     return json({ error: correctionRecoveryMessage(action, error) }, 400);
   }
 });

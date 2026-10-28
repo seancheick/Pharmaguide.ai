@@ -284,6 +284,41 @@ void main() {
     }
   });
 
+  test('the service role may read the approval hash the queue lists', () {
+    // The list reads payload_sha256 with the admin client. A missing grant
+    // fails every approved row and with it the whole past-review list.
+    expect(
+      source,
+      contains(
+        ".from('product_submission_approved_labels')\n"
+        "              .select('payload_sha256')",
+      ),
+    );
+    final migrations = Directory('supabase/migrations')
+        .listSync()
+        .whereType<File>()
+        .map((file) => file.readAsStringSync().toLowerCase())
+        .join('\n')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    expect(
+      migrations,
+      contains(
+        'grant select (submission_id, approval_revision, payload_sha256) '
+        'on table public.product_submission_approved_labels to service_role',
+      ),
+    );
+    expect(
+      migrations,
+      isNot(
+        contains(
+          'grant select on table public.product_submission_approved_labels '
+          'to service_role',
+        ),
+      ),
+      reason: 'Approved payloads stay behind the reviewer RPCs.',
+    );
+  });
+
   test('lists ready evidence with short-lived private URLs', () {
     final evidenceEligibilityFilter = source.indexOf(
       'upload_state.eq.ready,and(upload_state.eq.pending,'
