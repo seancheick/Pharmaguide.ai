@@ -159,9 +159,10 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
             rowForNutrientStatus(status, onTapCitations: onTapCitations),
       )
       .toList(growable: false);
-  final hasHardNutrientConcern = nutrientConcerns.any(
+  final hardNutrientIndex = nutrientConcerns.indexWhere(
     (status) => StackSafetyReport.severityForNutrient(status).isHard,
   );
+  final hasHardNutrientConcern = hardNutrientIndex >= 0;
 
   final rows = <PGReviewRow>[];
   rows.addAll(allergenRows);
@@ -220,7 +221,10 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
       headline: profileMatched
           ? 'Not recommended for your profile'
           : 'PharmaGuide does not recommend this product',
-      body: profileMatched
+      body:
+          !hasContainsAllergen && hardWarnings.isEmpty && hasHardNutrientConcern
+          ? nutrientRows[hardNutrientIndex].headline
+          : profileMatched
           ? _notRecommendedBody(
               warnings: hardWarnings,
               hasContainsAllergen: hasContainsAllergen,

@@ -176,6 +176,44 @@ FitScoreResult _personalDoseFit({
 
 void main() {
   group('confirmed personal upper limit', () {
+    test('hard nutrient-only body names the already assessed nutrient', () {
+      final fit = _personalDoseFit(amount: 1800);
+      final summary = _summary(fitResult: fit);
+      expect(summary.status, ProfileRelevanceStatus.notRecommended);
+      expect(summary.body, 'Vitamin E above the upper limit');
+      expect(summary.rows.single.headline, summary.body);
+      expect(fit.nutrientStatuses.single.pctOfUl, 225);
+      expect(fit.nutrientStatuses.single.ul, 800);
+    });
+    test('hard interaction body retains precedence over a hard nutrient', () {
+      final summary = _summary(
+        fitResult: _personalDoseFit(amount: 1800),
+        warnings: [
+          _warning(severity: Severity.avoid, conditionIds: const ['pregnancy']),
+        ],
+      );
+      expect(summary.body, 'Conflicts with your health profile.');
+      expect(
+        summary.rows.any(
+          (row) => row.headline == 'Vitamin E above the upper limit',
+        ),
+        isTrue,
+      );
+    });
+    test('contains allergen body retains precedence over a hard nutrient', () {
+      final summary = _summary(
+        fitResult: _personalDoseFit(amount: 1800),
+        matchedAllergens: [_allergen()],
+      );
+      expect(summary.body, 'Contains an allergen in your profile.');
+      expect(
+        summary.rows.any(
+          (row) => row.headline == 'Vitamin E above the upper limit',
+        ),
+        isTrue,
+      );
+    });
+
     for (final (nutrient, amount, name, limit) in [
       ('vitamin_e', 900.0, 'Vitamin E', '800'),
       ('vitamin_a', 2900.0, 'Vitamin A', '2800'),
