@@ -318,3 +318,15 @@ DO $$ DECLARE sid uuid; h text; BEGIN
  PERFORM fixture.throws(format('SELECT public.open_product_submission_evidence_revision(%L,1,gen_random_uuid(),''{}''::uuid[],''fixture.consent.v1'')',sid),'42501','AI assistant');
  PERFORM fixture.throws(format('SELECT public.create_product_submission_reviewer_evidence_revision(%L,1,%L,gen_random_uuid(),fixture.new_photo(9))',sid,h),'42501','AI assistant');
 END $$ $case$);
+
+-- The review function's queue list reads the current approval hash with the
+-- service role, so reopen and reviewer evidence can echo what was approved.
+-- Without this grant every approved submission broke the whole list.
+SELECT fixture.test('service role reads approval identity but not approved payloads', $case$
+DO $$ BEGIN
+ PERFORM fixture.assert(has_column_privilege('service_role','public.product_submission_approved_labels','payload_sha256','SELECT'),'service role reads approval hash');
+ PERFORM fixture.assert(has_column_privilege('service_role','public.product_submission_approved_labels','submission_id','SELECT'),'service role filters by submission');
+ PERFORM fixture.assert(has_column_privilege('service_role','public.product_submission_approved_labels','approval_revision','SELECT'),'service role filters by revision');
+ PERFORM fixture.assert(NOT has_column_privilege('service_role','public.product_submission_approved_labels','approved_payload','SELECT'),'service role cannot read approved payloads');
+ PERFORM fixture.assert(NOT has_table_privilege('service_role','public.product_submission_approved_labels','INSERT,UPDATE,DELETE'),'service role cannot write approvals');
+END $$ $case$);
