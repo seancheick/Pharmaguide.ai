@@ -1,4 +1,6 @@
 import 'package:pharmaguide/core/models/fit_score_result.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
@@ -72,10 +74,23 @@ class FitScoreService {
             productContextForWarning: productContextForWarning,
           );
 
+    final nutrientStatuses = e1.assess(
+      nutrients: nutrients,
+      ageBracket: ageBracket,
+      sex: sex,
+    );
+    final nutrientSeverity = nutrientStatuses
+        .where((status) => status.tier == NutrientTier.exceedsUl)
+        .map(StackSafetyReport.severityForNutrient)
+        .fold(
+          Severity.safe,
+          (worst, next) => next.weight > worst.weight ? next : worst,
+        );
     final e1Score = e1.calculate(
       nutrients: nutrients,
       ageBracket: ageBracket,
       sex: sex,
+      assessment: nutrientStatuses,
     );
     final selectedGoalMatches = _selectedGoalMatches(
       userGoals: evaluatorGoals,
@@ -91,6 +106,7 @@ class FitScoreService {
       nutrients: nutrients,
       ageBracket: ageBracket,
       sex: sex,
+      assessment: nutrientStatuses,
     );
     final missingFields = <String>[];
     if (ageBracket == null) missingFields.add('age');
@@ -101,6 +117,7 @@ class FitScoreService {
 
     final assessment = _buildAssessment(
       e1Score: e1Score,
+      nutrientSeverity: nutrientSeverity,
       e2aScore: e2aScore,
       e2bScore: e2bScore,
       interactionSummary: gatedSummary,
@@ -118,6 +135,7 @@ class FitScoreService {
       reasons: assessment.reasons,
       maxRelevantSeverity: assessment.maxRelevantSeverity,
       mappedCoverage: mappedCoverage,
+      nutrientStatuses: List.unmodifiable(nutrientStatuses),
     );
   }
 
@@ -210,6 +228,7 @@ class FitScoreService {
 
   _Assessment _buildAssessment({
     required double e1Score,
+    required Severity nutrientSeverity,
     required double e2aScore,
     required double e2bScore,
     required Map<String, dynamic> interactionSummary,
@@ -225,7 +244,10 @@ class FitScoreService {
       userConditions: userConditions,
       userDrugClasses: userDrugClasses,
     );
-    final maxSeverity = _maxSeverity(matches);
+    final interactionSeverity = _maxSeverity(matches);
+    final maxSeverity = nutrientSeverity.weight > interactionSeverity.weight
+        ? nutrientSeverity
+        : interactionSeverity;
     final reasons = <String>[];
 
     if (maxSeverity.isHard) {

@@ -1,8 +1,7 @@
 // E2b Age Appropriateness Calculator.
 // Penalizes nutrients that are way outside age-appropriate range.
-import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
-import 'package:pharmaguide/services/stack/stack_ul_checker.dart';
+import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 
 class E2bAgeCalculator {
   final Map<String, dynamic> rdaData;
@@ -13,19 +12,15 @@ class E2bAgeCalculator {
     required List<Map<String, dynamic>> nutrients,
     String? ageBracket,
     String? sex,
+    List<NutrientStatus>? assessment,
   }) {
     if (ageBracket == null || nutrients.isEmpty) return 0.0;
 
-    final aggregated = const StackNutrientAggregator().aggregate([
-      StackItemNutrients(
-        stackEntryId: 'fit_score_product',
-        productName: 'Product',
-        ingredients: nutrients,
-      ),
-    ]);
-    final statuses = StackUlChecker(
-      rdaData: rdaData,
-    ).check(aggregated, ageBracket: ageBracket, sex: sex);
+    final statuses =
+        assessment ??
+        E1DosageCalculator(
+          rdaData,
+        ).assess(nutrients: nutrients, ageBracket: ageBracket, sex: sex);
 
     var checked = 0;
     var appropriate = 0;

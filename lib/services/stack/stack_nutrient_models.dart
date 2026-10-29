@@ -237,6 +237,8 @@ class NutrientStatus {
     this.rdaIsBaseline = false,
     this.ulIsFallback = false,
     this.ulAssessmentIndeterminate = false,
+    this.ulUnit,
+    this.sourceUrls = const [],
   });
 
   final NutrientTotal total;
@@ -250,6 +252,11 @@ class NutrientStatus {
   final double? maximumPctOfRda;
   final double? pctOfUl;
   final String? warning;
+
+  /// Unit and authored reference provenance of the resolved UL, not the
+  /// label's potentially different intake unit.
+  final String? ulUnit;
+  final List<String> sourceUrls;
 
   /// True when [rda] came from the anonymous adult fallback (Female
   /// 19-30) instead of a profile match. UI should indicate the value

@@ -19,8 +19,63 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
+import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
 
 void main() {
+  test(
+    'serialized bitter-orange presence warnings retain explicit block without a dose comparison',
+    () {
+      final data =
+          jsonDecode(
+                File(
+                  'test/fixtures/profile_gate/profile_gate_test_cases.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      final cases = (data['test_cases'] as List)
+          .cast<Map<String, dynamic>>()
+          .where((c) => (c['name'] as String).startsWith('gold_bitter_orange'))
+          .toList();
+      expect(cases, hasLength(4));
+      for (final c in cases) {
+        final warning = InteractionWarning.fromJson(
+          c['warning'] as Map<String, dynamic>,
+        );
+        expect(warning.severity, Severity.avoid, reason: c['name'] as String);
+        expect(warning.doseDecision?.consumerDisposition, 'block');
+        expect(warning.severity.isHard, isTrue);
+        expect(isCalmProfileNote(warning), isFalse);
+        expect(warning.doseDecision?.evaluationStatus, isNull);
+        expect(warning.doseDecision?.threshold, isNull);
+        expect(warning.doseDecision?.evaluatedDailyAmount, isNull);
+        expect(warning.doseDecision?.decisionRule, isNull);
+        final partition = partitionProfileWarnings(
+          warnings: [warning],
+          userConditions: const {},
+          userDrugClasses: const {},
+          userProfileFlags: const {'pregnant'},
+        );
+        expect(partition.profile, hasLength(1));
+        expect(partition.general, isEmpty);
+        // Equivalent existing hard presence warnings retain their placement.
+        final legacyPayload = Map<String, dynamic>.from(
+          c['warning'] as Map<String, dynamic>,
+        )..remove('dose_decision');
+        final legacy = InteractionWarning.fromJson(legacyPayload);
+        final previous = partitionProfileWarnings(
+          warnings: [legacy],
+          userConditions: const {},
+          userDrugClasses: const {},
+          userProfileFlags: const {'pregnant'},
+        );
+        expect(previous.profile.length, partition.profile.length);
+        expect(previous.general.length, partition.general.length);
+      }
+    },
+  );
+
   group('profile_gate evaluator — shared fixture (drift contract)', () {
     final fixtureFile = File(
       'test/fixtures/profile_gate/profile_gate_test_cases.json',

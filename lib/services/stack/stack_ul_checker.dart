@@ -320,6 +320,11 @@ class StackUlChecker {
       // warning. It cannot describe the full stack when exposure is unknown.
       pctOfUl: ulAssessmentIndeterminate ? null : pctOfUl,
       warning: warning,
+      ulUnit: expectedUnit,
+      sourceUrls: [
+        if (_warningRecordFor(resolved.id)?['source_url'] case final String url)
+          if (url.trim().isNotEmpty) url.trim(),
+      ],
       rdaIsBaseline: rdaLookup.isBaseline,
       ulIsFallback:
           ulLookup.isFallback ||
@@ -564,12 +569,17 @@ class StackUlChecker {
   /// Nutrient-specific warning strings. These map to known toxicity
   /// pathways and are shown verbatim in the UI. Extend carefully —
   /// each message here has medical implications.
-  String? _warningFor(String canonicalId, NutrientTier tier) {
+  Map<Object?, Object?>? _warningRecordFor(String canonicalId) {
     final key = canonicalId.toLowerCase();
     final warnings = rdaData['consumer_ul_warnings'];
     if (warnings is! Map) return null;
     final record = warnings[key] ?? warnings[_rdaAliases[key]];
-    if (record is! Map) return null;
+    return record is Map ? record : null;
+  }
+
+  String? _warningFor(String canonicalId, NutrientTier tier) {
+    final record = _warningRecordFor(canonicalId);
+    if (record == null) return null;
     final specific = record['message']?.toString().trim();
     if (specific == null || specific.isEmpty) return null;
     return tier == NutrientTier.exceedsUl
