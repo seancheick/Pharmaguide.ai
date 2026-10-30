@@ -381,5 +381,28 @@ void main() {
       expect(find.text('3.2 g'), findsOneWidget);
       expect(find.text('4 g'), findsOneWidget);
     });
+
+    testWidgets('a printed bound keeps its pipeline qualifier', (tester) async {
+      // GNC 304446 prints "Protein <1 g"; showing "1 g" would be false.
+      await _pump(
+        tester,
+        buildNutritionSection(
+          caloriesPerServing: null,
+          nutritionDetail: const <String, dynamic>{
+            'total_fat_g': 1.5,
+            'polyunsaturated_fat_g': 0.5,
+            'protein_g': 1,
+            'quantity_operators': {'protein_g': '<', 'total_fat_g': '='},
+          },
+        ),
+      );
+
+      await _expandNutrition(tester);
+      expect(find.text('<1 g'), findsOneWidget);
+      expect(find.text('1 g'), findsNothing);
+      expect(find.text('1.5 g'), findsOneWidget);
+      expect(find.text('Polyunsaturated Fat'), findsOneWidget);
+      expect(find.text('0.5 g'), findsOneWidget);
+    });
   });
 }

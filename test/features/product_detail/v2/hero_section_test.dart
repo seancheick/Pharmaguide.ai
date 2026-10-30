@@ -42,6 +42,12 @@ void main() {
         '90 softgels',
       );
       expect(packageServingCountLabel(45), '45 servings');
+      // A printed approximation is never shown as an exact count.
+      expect(
+        packageServingCountLabel(17, printedText: 'about 17'),
+        'about 17 servings',
+      );
+      expect(packageServingCountLabel(60, printedText: ''), '60 servings');
     });
 
     test('keeps powder net weight truthful', () {

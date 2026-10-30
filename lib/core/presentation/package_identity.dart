@@ -29,10 +29,19 @@ String? packageSizeLabel({
       : '$quantityLabel $normalizedUnit';
 }
 
-String? packageServingCountLabel(int? servingsPerContainer) {
+/// [printedText] is the label's own approximation ("about 17", from
+/// `detail_blob.serving_info.servings_per_container_text`); when present it
+/// replaces the bare count so an approximate count never reads as exact.
+String? packageServingCountLabel(
+  int? servingsPerContainer, {
+  String? printedText,
+}) {
   if (servingsPerContainer == null || servingsPerContainer <= 0) return null;
-  return '$servingsPerContainer '
-      '${servingsPerContainer == 1 ? 'serving' : 'servings'}';
+  final printed = printedText?.trim();
+  final count = printed == null || printed.isEmpty
+      ? '$servingsPerContainer'
+      : printed;
+  return '$count ${servingsPerContainer == 1 ? 'serving' : 'servings'}';
 }
 
 String _pluralizedFormFactor(String value, double quantity) {

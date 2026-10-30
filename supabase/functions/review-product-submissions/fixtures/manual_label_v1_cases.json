@@ -507,6 +507,310 @@
       "python_message": "approved payload contains forbidden field(s): userNotes",
       "typescript_message": "approved payload contains unknown field userNotes",
       "valid": false
+    },
+    {
+      "name": "valid_approximate_servings_per_container",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)"
+          }
+        ],
+        "servingsPerContainer": "about 17"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_printed_quantity_bounds",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "operator": "<",
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "nutritionalInfo": {
+          "polyunsaturatedFat": {
+            "amount": 0.5,
+            "unit": "g"
+          },
+          "totalCarbohydrates": {
+            "amount": 1,
+            "operator": "<",
+            "unit": "g"
+          }
+        },
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "reject_unreadable_servings_per_container",
+      "path": "$",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)"
+          }
+        ],
+        "servingsPerContainer": "17ish"
+      },
+      "python_message": "servingsPerContainer must be positive",
+      "typescript_message": "servingsPerContainer must be positive",
+      "valid": false
+    },
+    {
+      "name": "reject_unknown_quantity_operator",
+      "path": "ingredientRows[0].quantity[0].operator",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "operator": "about",
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)"
+          }
+        ]
+      },
+      "python_message": "ingredientRows[0].quantity[0].operator is not a printed qualifier",
+      "typescript_message": "ingredientRows[0].quantity[0].operator is not a printed qualifier",
+      "valid": false
+    },
+    {
+      "name": "reject_unknown_nutrition_operator",
+      "path": "nutritionalInfo.protein.operator",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "nutritionalInfo": {
+          "protein": {
+            "amount": 1,
+            "operator": "roughly",
+            "unit": "g"
+          }
+        },
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)"
+          }
+        ]
+      },
+      "python_message": "nutritionalInfo.protein.operator is not a printed qualifier",
+      "typescript_message": "nutritionalInfo.protein.operator is not a printed qualifier",
+      "valid": false
+    },
+    {
+      "name": "reject_decimal_comma_servings_per_container",
+      "path": "$",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)"
+          }
+        ],
+        "servingsPerContainer": "1,5"
+      },
+      "python_message": "servingsPerContainer must be positive",
+      "typescript_message": "servingsPerContainer must be positive",
+      "valid": false
+    },
+    {
+      "name": "reject_approximate_decimal_comma_servings_per_container",
+      "path": "$",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)"
+          }
+        ],
+        "servingsPerContainer": "about 1,5"
+      },
+      "python_message": "servingsPerContainer must be positive",
+      "typescript_message": "servingsPerContainer must be positive",
+      "valid": false
+    },
+    {
+      "name": "valid_grouped_servings_per_container",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 1,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)"
+          }
+        ],
+        "servingsPerContainer": "1,000"
+      },
+      "valid": true
     }
   ],
   "fixture_version": "manual_label_v1_cases_v1"

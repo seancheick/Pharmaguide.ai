@@ -58,6 +58,14 @@ const SERVING_FIELDS = new Set([
   "unit",
 ]);
 const STATEMENT_FIELDS = new Set(["notes", "type"]);
+// Printed quantity qualifiers ("<1 g"); mirrors the pipeline's
+// normalization.QUANTITY_OPERATORS. "=" is an exact amount.
+const QUANTITY_OPERATORS = new Set(["<", "<=", ">", ">=", "~", "="]);
+const APPROXIMATE_COUNT =
+  /^(?:about|approximately|approx\.?|~)\s*(\d[\d,]*(?:\.\d+)?)$/i;
+// A comma is US thousands grouping only: "1,5" may be a decimal comma (1.5)
+// and is never read as 15 (pipeline normalization.parse_servings_per_container).
+const GROUPED_COUNT = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/;
 const CLASSIFICATION_FIELDS = new Set([
   "langualCode",
   "langualCodeDescription",
@@ -153,7 +161,7 @@ function validateQuantity(value: unknown, path: string): void {
       0,
     );
   }
-  optionalString(quantity.operator, `${path}.operator`, 20);
+  validateOperator(quantity.operator, `${path}.operator`);
   optionalString(quantity.servingSizeUnit, `${path}.servingSizeUnit`, 80);
   if (quantity.dailyValueTargetGroup !== undefined) {
     if (
@@ -293,14 +301,28 @@ function validateClassification(value: unknown, name: string): void {
   stringValue(display, `${name} display name`, 300);
 }
 
+function validateOperator(value: unknown, path: string): void {
+  if (
+    value !== undefined && value !== null &&
+    !QUANTITY_OPERATORS.has(value as string)
+  ) {
+    throw new Error(`${path} is not a printed qualifier`);
+  }
+}
+
+/** A positive count, as a number or the printed text ("60", "about 17"). */
 function validateServingsPerContainer(value: unknown): void {
   if (typeof value === "number") {
     finiteNumber(value, "servingsPerContainer", Number.EPSILON);
     return;
   }
-  const text = stringValue(value, "servingsPerContainer", 40);
-  const parsed = Number(text);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  const text = stringValue(value, "servingsPerContainer", 40).trim();
+  const count = (APPROXIMATE_COUNT.exec(text)?.[1] ?? text).trim();
+  if (count.includes(",") && !GROUPED_COUNT.test(count)) {
+    throw new Error("servingsPerContainer must be positive");
+  }
+  const parsed = Number(count.replaceAll(",", ""));
+  if (count === "" || !Number.isFinite(parsed) || parsed <= 0) {
     throw new Error("servingsPerContainer must be positive");
   }
 }
@@ -350,11 +372,15 @@ export function validateManualLabelV1(value: unknown): JsonObject {
     validateClassification(payload.productType, "productType");
   }
   if (payload.statements !== undefined) validateStatements(payload.statements);
-  if (
-    payload.nutritionalInfo !== undefined &&
-    !isObject(payload.nutritionalInfo)
-  ) {
-    throw new Error("nutritionalInfo must be an object");
+  if (payload.nutritionalInfo !== undefined) {
+    if (!isObject(payload.nutritionalInfo)) {
+      throw new Error("nutritionalInfo must be an object");
+    }
+    for (const [key, entry] of Object.entries(payload.nutritionalInfo)) {
+      if (isObject(entry)) {
+        validateOperator(entry.operator, `nutritionalInfo.${key}.operator`);
+      }
+    }
   }
 
   const disclosure = stringValue(
