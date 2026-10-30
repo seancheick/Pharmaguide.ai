@@ -184,3 +184,20 @@ Deno.test("canonical approval envelope uses the same writer as label attestation
     '{"identity":{"match_check_id":12,"observed":null},"label":{"brandName":"Éxample","fullName":"D3"}}',
   );
 });
+
+Deno.test("an approximate servings count must be a whole number", () => {
+  const base = fixture.cases.find((c) => c.name === "valid_declared_none")!
+    .payload as Record<string, unknown>;
+  for (const printed of ["about 17", "About 50", "about 1,000"]) {
+    validateManualLabelV1({ ...base, servingsPerContainer: printed });
+  }
+  for (const printed of ["about 1.5", "about 0.5"]) {
+    let message = "";
+    try {
+      validateManualLabelV1({ ...base, servingsPerContainer: printed });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    assertEquals(message, "servingsPerContainer must be positive", printed);
+  }
+});

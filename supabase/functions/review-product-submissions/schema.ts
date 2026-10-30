@@ -317,12 +317,18 @@ function validateServingsPerContainer(value: unknown): void {
     return;
   }
   const text = stringValue(value, "servingsPerContainer", 40).trim();
-  const count = (APPROXIMATE_COUNT.exec(text)?.[1] ?? text).trim();
+  const approximate = APPROXIMATE_COUNT.exec(text)?.[1];
+  const count = (approximate ?? text).trim();
   if (count.includes(",") && !GROUPED_COUNT.test(count)) {
     throw new Error("servingsPerContainer must be positive");
   }
   const parsed = Number(count.replaceAll(",", ""));
-  if (count === "" || !Number.isFinite(parsed) || parsed <= 0) {
+  // An approximation is a whole count ("about 17"); "about 1.5" is never
+  // truncated into the integer export column.
+  if (
+    count === "" || !Number.isFinite(parsed) || parsed <= 0 ||
+    (approximate !== undefined && !Number.isInteger(parsed))
+  ) {
     throw new Error("servingsPerContainer must be positive");
   }
 }
