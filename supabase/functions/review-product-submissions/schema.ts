@@ -48,6 +48,7 @@ const FORM_FIELDS = new Set([
   "uniiCode",
 ]);
 const SERVING_FIELDS = new Set([
+  "ceilingDailyServings",
   "inSFB",
   "maxDailyServings",
   "maxQuantity",
@@ -261,10 +262,30 @@ function validateServingSize(value: unknown, path: string): void {
   stringValue(serving.unit, `${path}.unit`, 80);
   optionalPositiveInteger(serving.order, `${path}.order`);
   optionalString(serving.notes, `${path}.notes`, 1000);
-  for (const field of ["minDailyServings", "maxDailyServings"] as const) {
+  for (
+    const field of [
+      "minDailyServings",
+      "maxDailyServings",
+      "ceilingDailyServings",
+    ] as const
+  ) {
     if (serving[field] !== undefined && serving[field] !== null) {
       finiteNumber(serving[field], `${path}.${field}`, Number.EPSILON);
     }
+  }
+  // A printed "not to exceed" limit below the directions is a misreading;
+  // mirrors the pipeline's product_submission_import serving check.
+  const directed = (["minDailyServings", "maxDailyServings"] as const)
+    .map((field) => serving[field])
+    .filter((value) => value !== undefined && value !== null) as number[];
+  const ceiling = serving.ceilingDailyServings;
+  if (
+    ceiling !== undefined && ceiling !== null && directed.length > 0 &&
+    (ceiling as number) < Math.max(...directed)
+  ) {
+    throw new Error(
+      `${path}.ceilingDailyServings must be >= the directed daily servings`,
+    );
   }
   if (serving.inSFB !== undefined && typeof serving.inSFB !== "boolean") {
     throw new Error(`${path}.inSFB must be a boolean`);

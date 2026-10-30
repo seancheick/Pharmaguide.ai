@@ -811,6 +811,79 @@
         "servingsPerContainer": "1,000"
       },
       "valid": true
+    },
+    {
+      "name": "valid_printed_daily_ceiling",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 2,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)",
+            "ceilingDailyServings": 5
+          }
+        ],
+        "servingsPerContainer": "60"
+      },
+      "valid": true
+    },
+    {
+      "name": "reject_daily_ceiling_below_directions",
+      "path": "servingSizes[0].ceilingDailyServings",
+      "python_message": "servingSizes[0].ceilingDailyServings must be >= the directed daily servings",
+      "typescript_message": "servingSizes[0].ceilingDailyServings must be >= the directed daily servings",
+      "payload": {
+        "brandName": "Example Labs",
+        "fullName": "Pure Creatine",
+        "ingredientRows": [
+          {
+            "forms": [],
+            "ingredientGroup": "Creatine",
+            "name": "Creatine Monohydrate",
+            "nestedRows": [],
+            "quantity": [
+              {
+                "quantity": 5,
+                "unit": "g"
+              }
+            ]
+          }
+        ],
+        "otherIngredients": "",
+        "otherIngredientsDisclosure": "declared_none",
+        "servingSizes": [
+          {
+            "maxDailyServings": 3,
+            "maxQuantity": 1,
+            "minDailyServings": 1,
+            "minQuantity": 1,
+            "unit": "Scoop(s)",
+            "ceilingDailyServings": 2
+          }
+        ],
+        "servingsPerContainer": "60"
+      },
+      "valid": false
     }
   ],
   "fixture_version": "manual_label_v1_cases_v1"
