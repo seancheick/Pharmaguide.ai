@@ -531,6 +531,44 @@
           ]
         }
       ]
+    },
+    {
+      "name": "printed bound amount carries its operator",
+      "valid": true,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "value"
+          ],
+          "value": {
+            "value": 200,
+            "unit_text": "mg",
+            "operator": "<"
+          }
+        }
+      ]
+    },
+    {
+      "name": "unknown amount operator",
+      "valid": false,
+      "changes": [
+        {
+          "path": [
+            "ingredient_rows",
+            0,
+            "amount",
+            "value"
+          ],
+          "value": {
+            "value": 200,
+            "unit_text": "mg",
+            "operator": "about"
+          }
+        }
+      ]
     }
   ]
 }

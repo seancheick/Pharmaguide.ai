@@ -764,9 +764,18 @@ function draftAmount(value: unknown, path: string, snapshot: Snapshot): void {
     const amount = draftObject(raw, `${path}.value`);
     draftRejectUnknown(
       amount,
-      new Set(["value", "unit_text"]),
+      new Set(["value", "unit_text", "operator"]),
       `${path}.value`,
     );
+    // A printed qualifier ("<1 g"); mirrors the pipeline envelope, which
+    // has no "=" (an exact amount carries no operator).
+    if (
+      amount.operator != null &&
+      (amount.operator === "=" ||
+        !QUANTITY_OPERATORS.has(amount.operator as string))
+    ) {
+      draftFail(`${path}.value.operator`, "unknown quantity operator");
+    }
     if (amount.value != null || status === "read") {
       draftFiniteNumber(amount.value, `${path}.value.value`, 0);
     }
