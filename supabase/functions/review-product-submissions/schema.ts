@@ -63,6 +63,9 @@ const STATEMENT_FIELDS = new Set(["notes", "type"]);
 const QUANTITY_OPERATORS = new Set(["<", "<=", ">", ">=", "~", "="]);
 const APPROXIMATE_COUNT =
   /^(?:about|approximately|approx\.?|~)\s*(\d[\d,]*(?:\.\d+)?)$/i;
+// A comma is US thousands grouping only: "1,5" may be a decimal comma (1.5)
+// and is never read as 15 (pipeline normalization.parse_servings_per_container).
+const GROUPED_COUNT = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/;
 const CLASSIFICATION_FIELDS = new Set([
   "langualCode",
   "langualCodeDescription",
@@ -314,7 +317,10 @@ function validateServingsPerContainer(value: unknown): void {
     return;
   }
   const text = stringValue(value, "servingsPerContainer", 40).trim();
-  const count = APPROXIMATE_COUNT.exec(text)?.[1] ?? text;
+  const count = (APPROXIMATE_COUNT.exec(text)?.[1] ?? text).trim();
+  if (count.includes(",") && !GROUPED_COUNT.test(count)) {
+    throw new Error("servingsPerContainer must be positive");
+  }
   const parsed = Number(count.replaceAll(",", ""));
   if (count === "" || !Number.isFinite(parsed) || parsed <= 0) {
     throw new Error("servingsPerContainer must be positive");

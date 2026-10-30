@@ -231,7 +231,9 @@ double? _readNumber(Map<String, dynamic>? blob, String key) {
 String _gramsText(Map<String, dynamic> detail, String key, double value) {
   final operators = detail['quantity_operators'];
   final operator = operators is Map ? operators[key]?.toString() ?? '' : '';
-  return '$operator${_formatGrams(value)} g';
+  // "=" means exact; only a bound carries a visible qualifier.
+  final prefix = operator == '=' ? '' : operator;
+  return '$prefix${_formatGrams(value)} g';
 }
 
 /// Format a macro value: whole-number when integer, one decimal otherwise.

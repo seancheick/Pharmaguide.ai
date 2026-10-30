@@ -392,7 +392,7 @@ void main() {
             'total_fat_g': 1.5,
             'polyunsaturated_fat_g': 0.5,
             'protein_g': 1,
-            'quantity_operators': {'protein_g': '<'},
+            'quantity_operators': {'protein_g': '<', 'total_fat_g': '='},
           },
         ),
       );
