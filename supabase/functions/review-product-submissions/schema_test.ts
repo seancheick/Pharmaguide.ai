@@ -9,7 +9,7 @@ import fixtureJson from "./fixtures/manual_label_v1_cases.json" with {
 };
 
 const FIXTURE_SHA256 =
-  "3498b58d19399f187aa6d71d78f5bf1aa6583f21ff2479190956cf07fa7bd0de";
+  "b1acddd2ae965c54081260776b958735e1c642e13911c931be6195f0e4df931c";
 const fixture = fixtureJson as {
   cases: Array<
     {
