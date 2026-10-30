@@ -7,11 +7,13 @@
 //   caloriesPerServing column OR blob['nutrition_detail']['calories_per_serving']
 //   Macros in FDA nutrition-label order:
 //     1. total_fat_g           → "Total Fat"
+//        polyunsaturated_fat_g → "Polyunsaturated Fat" (indented)
 //     2. total_carbohydrates_g → "Total Carbs"
 //     3. dietary_fiber_g       → "Dietary Fiber"
 //     4. protein_g             → "Protein"
 //   Each row only renders when its blob value is non-null (a missing
-//   macro doesn't pretend to be 0g).
+//   macro doesn't pretend to be 0g). A printed bound keeps its qualifier
+//   from `nutrition_detail.quantity_operators` ("<1 g", never "1 g").
 //
 // Sean's rules (2026-05-15):
 //   • Preserve production gates: section hides when no rows have data.
@@ -54,7 +56,21 @@ Widget buildNutritionSection({
     final fat = _readNumber(nutritionDetail, 'total_fat_g');
     if (fat != null) {
       facts.add(
-        PGNutritionFact(label: 'Total Fat', value: '${_formatGrams(fat)} g'),
+        PGNutritionFact(
+          label: 'Total Fat',
+          value: _gramsText(nutritionDetail, 'total_fat_g', fat),
+        ),
+      );
+    }
+
+    final polyFat = _readNumber(nutritionDetail, 'polyunsaturated_fat_g');
+    if (polyFat != null) {
+      facts.add(
+        PGNutritionFact(
+          label: 'Polyunsaturated Fat',
+          value: _gramsText(nutritionDetail, 'polyunsaturated_fat_g', polyFat),
+          indentLevel: 1,
+        ),
       );
     }
 
@@ -63,7 +79,7 @@ Widget buildNutritionSection({
       facts.add(
         PGNutritionFact(
           label: 'Total Carbs',
-          value: '${_formatGrams(carbs)} g',
+          value: _gramsText(nutritionDetail, 'total_carbohydrates_g', carbs),
         ),
       );
     }
@@ -73,7 +89,7 @@ Widget buildNutritionSection({
       facts.add(
         PGNutritionFact(
           label: 'Dietary Fiber',
-          value: '${_formatGrams(fiber)} g',
+          value: _gramsText(nutritionDetail, 'dietary_fiber_g', fiber),
         ),
       );
     }
@@ -83,7 +99,7 @@ Widget buildNutritionSection({
       facts.add(
         PGNutritionFact(
           label: 'Total Sugars',
-          value: '${_formatGrams(sugars)} g',
+          value: _gramsText(nutritionDetail, 'total_sugars_g', sugars),
         ),
       );
     }
@@ -91,7 +107,10 @@ Widget buildNutritionSection({
     final protein = _readNumber(nutritionDetail, 'protein_g');
     if (protein != null) {
       facts.add(
-        PGNutritionFact(label: 'Protein', value: '${_formatGrams(protein)} g'),
+        PGNutritionFact(
+          label: 'Protein',
+          value: _gramsText(nutritionDetail, 'protein_g', protein),
+        ),
       );
     }
   }
@@ -205,6 +224,14 @@ double? _readNumber(Map<String, dynamic>? blob, String key) {
   final raw = blob[key];
   if (raw is num) return raw.toDouble();
   return null;
+}
+
+/// The pipeline's printed qualifier for [key] ("<" for "less than 1 g"), so a
+/// bound is never shown as an exact amount. Flutter does not derive it.
+String _gramsText(Map<String, dynamic> detail, String key, double value) {
+  final operators = detail['quantity_operators'];
+  final operator = operators is Map ? operators[key]?.toString() ?? '' : '';
+  return '$operator${_formatGrams(value)} g';
 }
 
 /// Format a macro value: whole-number when integer, one decimal otherwise.

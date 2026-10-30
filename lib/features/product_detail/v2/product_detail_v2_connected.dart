@@ -753,6 +753,10 @@ class _ProductDetailV2ConnectedState
                           detailBlob,
                           'v4_confidence_detail',
                         ),
+                        servingsPerContainerText: _blobMap(
+                          detailBlob,
+                          'serving_info',
+                        )?['servings_per_container_text']?.toString(),
                         bottomBanner: heroBottomBanner,
                       ),
                       const SizedBox(height: V2Spacing.space12),

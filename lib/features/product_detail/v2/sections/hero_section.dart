@@ -190,6 +190,7 @@ Widget buildHeroSection({
   required bool assessmentIncomplete,
   required List<HeroTrustTag> trustTags,
   Map<String, dynamic>? scoreConfidenceDetail,
+  String? servingsPerContainerText,
   Widget? bottomBanner,
 }) {
   return PGHeroSection(
@@ -220,7 +221,10 @@ Widget buildHeroSection({
       unit: product?.netContentsUnit,
       fallbackFormFactor: formFactor,
     ),
-    servingCountLabel: packageServingCountLabel(product?.servingsPerContainer),
+    servingCountLabel: packageServingCountLabel(
+      product?.servingsPerContainer,
+      printedText: servingsPerContainerText,
+    ),
     dosingSummary: product?.dosingSummary,
     trustTags: trustTags
         .map(
