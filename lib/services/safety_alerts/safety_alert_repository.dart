@@ -257,6 +257,14 @@ final class _DecodedRelease {
   ];
 
   _DecodedRelease keeping(List<Map<String, Object?>> kept) {
+    // Re-evaluate carried rows with this reader: an app upgrade may now read
+    // the current revision. Withdrawn or readable alerts must not be revived.
+    kept = [
+      for (final row in kept)
+        if (row['alert_id'] case final String id)
+          if (unreadableIds.contains(id.trim()) && !rows.containsKey(id.trim()))
+            row,
+    ];
     if (kept.isEmpty) return this;
     final keptAlerts = kept.map(SafetyAlert.fromJson).toList();
     return _DecodedRelease(

@@ -206,6 +206,54 @@ void main() {
     },
   );
 
+  for (final includeUnreadableBlob in [false, true]) {
+    test(
+      'missing catalog item with separate nutrient gap: $includeUnreadableBlob',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await interactionDb.close();
+          await userDb.close();
+        });
+        if (includeUnreadableBlob) {
+          await _seedSupplement(
+            coreDb,
+            dsldId: 'PRESENT',
+            name: 'Present',
+            canonicalTags: [],
+          );
+        }
+        for (final id in ['MISSING', if (includeUnreadableBlob) 'PRESENT']) {
+          await userDb.addToStack(
+            UserStacksLocalCompanion.insert(
+              id: 'stack-$id',
+              name: id,
+              dsldId: Value(id),
+            ),
+          );
+        }
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            loadedProfileProvider.overrideWith(
+              (ref) async => const ProfileState(),
+            ),
+            detailBlobProvider.overrideWith((ref, id) async => null),
+          ],
+        );
+        addTearDown(container.dispose);
+        final report = await container.read(stackSafetyReportProvider.future);
+        expect(report.coverageIncomplete, isTrue);
+        expect(report.checksIncomplete, includeUnreadableBlob);
+      },
+    );
+  }
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('safetyCheckForAddProvider — medication interactions', () {

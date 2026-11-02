@@ -115,6 +115,35 @@ void main() {
       'event_type': 'future_kind',
     };
 
+    for (final currentRows in [
+      [
+        {...record, 'revision': known + 1},
+      ],
+      <Map<String, Object?>>[],
+    ]) {
+      test(
+        'cached carry respects current feed with ${currentRows.length} alerts',
+        () async {
+          final bytes = utf8.encode(jsonEncode({'alerts': currentRows}));
+          final kept = jsonEncode([record]);
+          preferences.values['safety_alert_release_v1'] = jsonEncode({
+            'feed': base64Encode(bytes),
+            'checksum': 'sha256:${sha256.convert(bytes)}',
+            'kept': kept,
+            'kept_checksum': 'sha256:${sha256.convert(utf8.encode(kept))}',
+          });
+          expect(
+            (await repository.loadCachedAlerts()).map((a) => a.revision),
+            currentRows.map((row) => row['revision']),
+          );
+          expect(
+            (await repository.loadCurrent()).alerts.map((a) => a.revision),
+            currentRows.map((row) => row['revision']),
+          );
+        },
+      );
+    }
+
     test('keeps the warning the device already had', () async {
       publish([record]);
       await repository.loadCurrent();
