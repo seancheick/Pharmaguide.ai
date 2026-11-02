@@ -269,3 +269,77 @@ New manual_label_v2 is the existing canonical approval payload/hash over `{label
 Transport retry, interrupted capture, sign-in continuation and requested retakes retain the submission UUID. Explicit rejection resubmission keeps a new UUID plus resubmissionOf. Numeric clients/drafts/v1 approvals remain compatible. A verified GTIN added later never replaces a stable product ID; a conflicting published identity blocks pending separate resolution. Correction B to A's PG_SUB product preserves A's lineage and saved references, while B supplies new approval evidence. Frozen reviewed GTIN controls export even when null; mutable candidate UPC never fills it.
 
 No personal profile/medication/goal data is added to Supabase. Publication and installed-app delivery remain separately verified release activities.
+
+---
+
+## ADR-012: One immutable release folder per catalog and rules update
+
+**Date:** 2026-11-02
+**Status:** PROPOSED (hardening plan A2 and A3; implementation follows)
+**Context:**
+- The catalog (`pharmaguide_core.db`) updates over the air. The interaction rules (`interaction_db.sqlite`) ship only with the app, so a clinical correction waits for App Store review, and nothing checks that the installed rules are the pair the catalog was built against, although the catalog's manifest already names them (`interaction_db_version`, `interaction_db_checksum`).
+- Updates rename files in place. SQLite fails reads on an open handle with a disk I/O error (6922) once its file has moved, even after it moves back (reproduced 2026-11-02 on macOS with the bundled SQLite 3.54.0; iOS not yet run). In-flight checks can therefore fail during every update.
+- The updater ignores any version that isn't newer, so an older release can't simply be re-pointed at.
+
+**Decision:**
+- **Release folders.** `Documents/releases/<sequence>/` holds the catalog, the rules and `release.json`. A folder never changes after it is complete.
+- **One pointer.** `Documents/releases/active.json` names the active sequence, the previous one, and whether the active one has been confirmed. It is replaced by atomic rename, the only step that changes what is active. A crash leaves the old pointer or the new one, and each names a complete folder.
+- **Activation order.** Download to `staging/<sequence>`, verify hashes and manifest, run integrity and version gates on both files, check the pair, rename the folder into `releases/`, then swap the pointer.
+- **Confirmation.** Opening both files and validating them confirms the release. An unconfirmed release that fails goes back to `previous`, then to the bundled pair. This replaces the `.backup` handling added for A3.
+- **In-session switch.** Nothing open is ever moved, so running checks finish on the old release. New handles open from the new folder and `_scopeVersion` rebuilds the provider tree, which picks up both databases once `interactionDb` moves from a `widget` field to bootstrap state. Old handles close after the rebuild. No app restart is needed.
+- **Retention.** Keep the active release and the previous one, and delete the rest at launch. Peak disk is about two releases plus staging, so the disk-space check (B1) covers all of it.
+- **Bundled pair.** The app's assets are release 0 and the last resort. Existing installs migrate on first launch by moving today's root files into a folder.
+- **Manifest.** Extend `export_manifest` rather than adding a table: `release_sequence` (monotonic, separate from content versions), `rules_version`, `rules_path`, `rules_checksum`, `rules_schema`, `signature`. The app compares sequence numbers. Builds without this code keep comparing `db_version`, so a rollback must also carry a newer `db_version` until they age out. `min_app_version` and the existing schema-major gates apply to each file.
+- **Authenticity.** The pipeline signs the manifest with Ed25519, and the app bundles two public keys so one can be rotated. Hashes alone don't help if the storage credential leaks, because an attacker can rewrite the hash too, and these files change clinical behaviour on every phone. The private key stays off Supabase.
+- **Data versus logic.** Remote rules are data read by the bundled Dart engine. A rule needing new evaluation logic raises `rules_schema` and goes through an app release; older builds refuse that file and keep their pair.
+- **Rollout.** A catalog with no `rules_path` keeps the phone's current rules if they satisfy the pair check. The pipeline doesn't publish `rules_path` to production until the A9 review is complete.
+- **Withholding an assessment.** Plan A3 proposed a `blocked_versions` manifest field. Use the safety alert feed instead: a new alert type carrying the affected catalog versions and the existing product and ingredient scope. It is already versioned, checksummed and matched on the device, older builds now skip unknown types, and it can only touch what it names, so it can't disable valid products. A whole-release problem is answered by publishing a replacement.
+
+**Alternatives rejected:**
+- Swapping the two files in place with a backup: not atomic across two files, and it moves open files.
+- Storing results with a dependency fingerprint: results aren't stored, and storing them would add the staleness this avoids.
+
+**Known limit:** nothing reaches a phone that stays offline. It keeps its last complete release.
+
+**Tests required:** a crash at each activation step leaves one complete release; an incompatible pair never activates; a bad signature or hash never activates; a device that skipped several releases updates; rollback survives a real restart; a running check finishes during a switch; rules change with no app update on a test build; current and older supported builds read every new format.
+
+---
+
+## ADR-013: Each account's health data lives in its own storage
+
+**Date:** 2026-11-02
+**Status:** PROPOSED (hardening plan A5; sign-out copy needs Sean's approval)
+**Supersedes:** ADR-007's "A different account signing in clears them".
+**Context:**
+- `user_data.db` has no owner column. `getProfile` and `getActiveStack` read whatever is there, and sign-out deliberately keeps everything (`pg_auth_service.dart`), so a guest using the phone after sign-out sees the previous person's medications. From reading the code; the first test below proves it.
+- A different account signing in destroys the previous person's local data, which has no cloud copy.
+- Sean decided during the hardening plan that sign-out offers keep or remove, with keep as the default, and that kept data stays locked to the account.
+
+**Threat model:**
+
+| Threat | Answer |
+|---|---|
+| Someone else uses the same unlocked phone, as a guest or their own account | The main threat. Separate storage; the other person's handle is closed |
+| Screens, searches or background jobs surviving an account change | Rebuild the provider tree and reset navigation on every change; test each store |
+| Files copied off the device | Already out of backups (iOS exclusion, Android `allowBackup="false"`). Per-account encryption, with keys in Keychain or Android Keystore, covers the rest |
+| Lost or stolen locked phone | OS data protection. Keys use after-first-unlock, this-device-only, so background reminders still run |
+| Malware or a jailbroken phone while unlocked | Out of scope; no app-level measure holds up here |
+
+OS encryption protects a locked phone. It does nothing about two people using the same app, so both layers are needed.
+
+**Decision:**
+- **Layout.** `users/<sha256(uid)>/` and `users/guest/` under Application Support, each holding `user_data.db`, attachments and submission drafts. The hash keeps the uid out of the path. Rejected: a `user_id` column on every table, because one missed filter is a leak, whereas a closed file fails safe.
+- **Encryption.** SQLCipher on `user_data.db` with a random per-owner key in secure storage (`flutter_secure_storage`, already a dependency). "Remove" deletes the key and the folder, so the data can't be recovered even from a leftover file. Attachments are files, so they rely on the folder separation and OS protection; encrypting them is a later decision if photos warrant it.
+- **Preferences.** Recent searches, AI-share prefs and other per-user keys get an owner prefix, using `clearPerUserPrefs` as the list of what counts.
+- **Single owner of switching.** Extend `AccountSwitchGuard` rather than add a second one. On any auth change, in order: stop reminders and the sync, AI-share and push listeners; close the database; open the new owner's; rebuild the provider tree and return to home; reschedule reminders from the new owner's data. In-flight results die with the old tree.
+- **Reopening needs the account.** Kept data opens only for a live session of that uid. A signed-out app can only reach the guest folder.
+- **Sign-out.** A choice with keep as the default, and "remove" using the existing clear. Draft copy for approval: "Keep your health data on this phone? It stays locked to your account, and only you can open it by signing in again." Buttons: "Keep on this phone" and "Remove from this phone".
+- **Different account signs in.** `clearAndAdopt` is retired, because separate storage means nothing has to be destroyed.
+- **First sign-in.** The guest folder becomes the account's folder when the account has none on this phone, matching today's adoption. If the account already has one, the two stay separate, with no silent merge of health data.
+- **Migration.** One-way at first launch: the file goes to the recorded owner's folder, or to guest if there is no owner, by `sqlcipher_export` to a new file, verify, rename, delete the old one. A failure leaves the original untouched and retries next launch.
+- **Unchanged.** Stack sync, and the rule that medication rows never sync. The catalog and rules open unencrypted under SQLCipher's library.
+- **Image cache.** Shared. It holds public product photos with no link to an owner and nothing in the app lists it. Noted rather than changed.
+
+**Known limits:** kept data has no recovery if the phone is lost or the app is deleted, because medications may not sync; any fix needs its own decision. Reminder text on the lock screen is outside this ADR. The app-switcher snapshot is replaced because the tree rebuilds before sign-out returns; that needs checking on a device.
+
+**Tests required, before implementation is called done:** Person B or a guest can't reach Person A's data through screens, cached views, background jobs, searches or retained files, across sign-out, guest, account switch and restart; an account switch mid-request drops the old result; migration killed at each step loses nothing; "remove" leaves no file or key; SQLCipher works on real iOS and Android devices, with the app-size change measured.
