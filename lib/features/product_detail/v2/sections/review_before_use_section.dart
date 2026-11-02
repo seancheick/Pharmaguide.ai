@@ -109,6 +109,8 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
   // sucralose, Red 40, polysorbate 80 — this way), but the verdict headline
   // must NOT render a green "safe" all-clear over a flagged substance hazard.
   bool hasCriticalGlobalNote = false,
+  // A personal check failed, so an empty result means "not checked".
+  bool checksFailed = false,
   void Function(List<String> sourceUrls)? onTapCitations,
   // Pregnancy or breastfeeding is in the profile. Missing life-stage data is
   // not a warning (no_data stays suppressed), so the all-clear carries one
@@ -126,6 +128,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
     hasProfileInformation: hasProfileInformation,
     selectedGoalLabels: selectedGoalLabels,
     hasCriticalGlobalNote: hasCriticalGlobalNote,
+    checksFailed: checksFailed,
     onTapCitations: onTapCitations,
   );
   return hasPregnancyOrBreastfeeding &&
@@ -145,6 +148,7 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
   required bool hasProfileInformation,
   required List<String> selectedGoalLabels,
   required bool hasCriticalGlobalNote,
+  required bool checksFailed,
   required void Function(List<String> sourceUrls)? onTapCitations,
 }) {
   final allergenRows = rowsForAllergens(matchedAllergens);
@@ -279,8 +283,10 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
 
   // Consumer catalog rows must pass the release completeness gate. Keep this
   // defensive branch silent rather than exposing backend coverage language or
-  // claiming a profile all-clear from an invalid record.
-  if (isLowCoverage(fitResult?.mappedCoverage)) {
+  // claiming a profile all-clear from an invalid record. A check that failed
+  // earns no all-clear either: finding nothing is not the same as checking.
+  // Concerns the other checks did find have already returned above.
+  if (checksFailed || isLowCoverage(fitResult?.mappedCoverage)) {
     return const ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.coverageLimited,
       tone: PGReviewTone.info,

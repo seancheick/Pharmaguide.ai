@@ -647,6 +647,7 @@ class _ProductDetailV2ConnectedState
     final profileRelevanceSummary = buildProfileRelevanceSummary(
       fitResult: fitResult,
       topGoalLabel: topGoalLabelFromFit(fitResult),
+      checksFailed: personalizedChecksFailed,
       warnings: partitionedWarnings.profile,
       interactionHint: interactionHint,
       matchedAllergens: matchedAllergens,
