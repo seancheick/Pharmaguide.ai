@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math' show Random;
@@ -161,6 +162,7 @@ class AccountSwitchGuard {
   /// An OS scheduling call cannot be cancelled by disposing its provider.
   /// Keep its lifetime here so sign-out drains it before cancelling the old
   /// schedule and before a new account can publish its own notifications.
+  /// Register only the OS call: a read of a disposed provider may never finish.
   Future<T> runNotificationWork<T>(
     Future<T> Function() work, {
     required ActiveAccount account,
@@ -282,18 +284,57 @@ class AccountSwitchGuard {
 
   Future<void> close() => _enqueue(() async {
     _acceptingNotificationWork = false;
-    await Future.wait(_notificationWork.toList());
+    await _drainNotificationWork(_notificationWork.toList());
     await _closeDatabase();
   });
 
   Future<void> _switch(String? uid, {bool adoptGuest = false}) async {
     _acceptingNotificationWork = false;
     await releaseConsumers?.call();
-    await Future.wait(_notificationWork.toList());
+    final pending = _notificationWork.toList();
+    final drained = await _drainNotificationWork(pending);
     await _endOwnerWork(previousOwner: _ownerUid, incomingUid: uid);
     await _closeDatabase();
     await _open(uid, adoptGuest: adoptGuest);
     onChanged?.call();
+    if (!drained) _cleanUpAfterLateWork(pending);
+  }
+
+  /// False when a call outlasted the limit. A hung OS call must not hold the
+  /// outgoing person's data open or block every later auth event.
+  Future<bool> _drainNotificationWork(List<Future<void>> pending) async {
+    try {
+      await Future.wait(pending).timeout(const Duration(seconds: 5));
+      return true;
+    } on TimeoutException catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:notification_drain',
+      );
+      return false;
+    }
+  }
+
+  /// A call that outlasted the drain can still write after the cancel. When it
+  /// ends, cancel again and let the current owner's tree schedule its own.
+  void _cleanUpAfterLateWork(List<Future<void>> late) {
+    unawaited(
+      Future.wait(late).then(
+        (_) => _enqueue(() async {
+          try {
+            await _onOwnerChange?.call();
+          } on Object catch (error, stackTrace) {
+            CrashReportingService().recordError(
+              error,
+              stackTrace,
+              hint: 'account_switch:late_notification_cleanup',
+            );
+          }
+          onChanged?.call();
+        }),
+      ),
+    );
   }
 
   Future<void> _endOwnerWork({

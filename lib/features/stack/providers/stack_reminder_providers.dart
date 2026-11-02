@@ -25,51 +25,49 @@ final stackReminderSyncProvider =
       final guard = ref.watch(accountSwitchGuardProvider);
       final policy = ref.watch(notificationDeliveryPolicyProvider);
       final scheduler = ref.watch(stackReminderSchedulerProvider);
-      Future<StackReminderSyncResult> run() async {
-        switch (policy.actionFor(NotificationCategory.stackReminders)) {
-          case NotificationDeliveryAction.cancel:
-            final cancelled = await scheduler.cancelOwned();
-            return StackReminderSyncResult(
-              scheduled: 0,
-              cancelled: cancelled,
-              permissionGranted:
-                  policy.authorizationStatus ==
-                  NotificationAuthorizationStatus.allowed,
-              omittedDueToLimit: 0,
-              deliveryEnabled: false,
-            );
-          case NotificationDeliveryAction.preserve:
-            return StackReminderSyncResult(
-              scheduled: 0,
-              cancelled: 0,
-              permissionGranted:
-                  policy.authorizationStatus ==
-                  NotificationAuthorizationStatus.allowed,
-              omittedDueToLimit: 0,
-              deliveryEnabled: false,
-            );
-          case NotificationDeliveryAction.schedule:
-            break;
-        }
+      final account = guard == null ? null : ref.watch(activeAccountProvider);
+      Future<T> osCall<T>(Future<T> Function() call) => guard == null
+          ? call()
+          : guard.runNotificationWork(call, account: account!);
 
-        final stack = await ref.watch(activeStackProvider.future);
-        final reminders = <StackReminder>[
-          for (final entry in stack)
-            if (entry.reminderMinutes != null)
-              (
-                stackEntryId: entry.id,
-                minutesAfterMidnight: entry.reminderMinutes!,
-              ),
-        ];
-        return scheduler.sync(reminders, permissionAlreadyGranted: true);
+      switch (policy.actionFor(NotificationCategory.stackReminders)) {
+        case NotificationDeliveryAction.cancel:
+          final cancelled = await osCall(scheduler.cancelOwned);
+          return StackReminderSyncResult(
+            scheduled: 0,
+            cancelled: cancelled,
+            permissionGranted:
+                policy.authorizationStatus ==
+                NotificationAuthorizationStatus.allowed,
+            omittedDueToLimit: 0,
+            deliveryEnabled: false,
+          );
+        case NotificationDeliveryAction.preserve:
+          return StackReminderSyncResult(
+            scheduled: 0,
+            cancelled: 0,
+            permissionGranted:
+                policy.authorizationStatus ==
+                NotificationAuthorizationStatus.allowed,
+            omittedDueToLimit: 0,
+            deliveryEnabled: false,
+          );
+        case NotificationDeliveryAction.schedule:
+          break;
       }
 
-      return guard == null
-          ? run()
-          : guard.runNotificationWork(
-              run,
-              account: ref.watch(activeAccountProvider),
-            );
+      final stack = await ref.watch(activeStackProvider.future);
+      final reminders = <StackReminder>[
+        for (final entry in stack)
+          if (entry.reminderMinutes != null)
+            (
+              stackEntryId: entry.id,
+              minutesAfterMidnight: entry.reminderMinutes!,
+            ),
+      ];
+      return osCall(
+        () => scheduler.sync(reminders, permissionAlreadyGranted: true),
+      );
     });
 
 /// Whether the OS will actually deliver the reminders the user saved.
