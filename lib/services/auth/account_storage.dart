@@ -5,7 +5,6 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:pharmaguide/services/crash_reporting_service.dart';
 
 /// Whose health data this provider tree is showing, and where it lives.
 class ActiveAccount {
@@ -103,7 +102,8 @@ class AccountStorage {
   /// Every step is safe to repeat, so a crash finishes on the next launch, and
   /// nothing opens the database until this returns. The main file moves last.
   /// An existing target is never overwritten, so a person's data can't be
-  /// replaced by another's; the old file stays where nothing reads it.
+  /// replaced by another's. Colliding files are retained inside that owner's
+  /// folder, so a later launch cannot assign them to the next account.
   Future<void> migrateLegacyStore({required String? owner}) async {
     final documents = await _documentsDirectory();
     final support = await _supportDirectory();
@@ -119,16 +119,28 @@ class AccountStorage {
 
     if (await legacyAttachments.exists()) {
       final target = Directory(p.join(folder.path, attachmentsName));
-      if (!await target.exists()) await legacyAttachments.rename(target.path);
+      if (!await target.exists()) {
+        await legacyAttachments.rename(target.path);
+      } else {
+        final archive = Directory(
+          p.join(folder.path, 'legacy', attachmentsName),
+        );
+        await archive.parent.create(recursive: true);
+        if (await archive.exists()) {
+          throw const FileSystemException('Legacy attachment archive exists');
+        }
+        await legacyAttachments.rename(archive.path);
+      }
     }
     if (!hasDb) return;
 
-    final target = File(p.join(folder.path, databaseName));
+    var target = File(p.join(folder.path, databaseName));
     if (await target.exists()) {
-      CrashReportingService().log(
-        'account_storage: account database exists, legacy store left in place',
-      );
-      return;
+      target = File(p.join(folder.path, 'legacy', databaseName));
+      await target.parent.create(recursive: true);
+      if (await target.exists()) {
+        throw const FileSystemException('Legacy database archive exists');
+      }
     }
     for (final suffix in const ['-wal', '-shm', '-journal']) {
       final sidecar = File('${legacyDb.path}$suffix');

@@ -42,7 +42,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:pharmaguide/core/components/pg_empty_state.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
-import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
 
@@ -147,6 +146,7 @@ Future<void> _runApp() async {
 
   final accountGuard = AccountSwitchGuard.production(
     openDatabase: openUserDatabase,
+    readSessionUid: _launchSessionUid,
     onOwnerChange: _endOutgoingOwnerWork,
     onAccountRemoved: (uid) async =>
         (await ProductSubmissionDraftStore.open()).deleteAccount(uid),
@@ -215,9 +215,14 @@ String? _launchSessionUid() {
 /// Everything of the outgoing person's that lives outside their folder. Each
 /// tree's reminder providers schedule again from the new owner's database.
 Future<void> _endOutgoingOwnerWork() async {
-  await FlutterLocalNotificationsPlugin().cancelAll();
-  await AiSharePrefsStore(SharedPreferencesAsyncAppPreferencesStore()).clear();
-  await PendingSubmissionIntent.clear();
+  await Future.wait([
+    Future.sync(() => FlutterLocalNotificationsPlugin().cancelAll()),
+    Future.sync(
+      () => AiSharePrefsStore(
+        SharedPreferencesAsyncAppPreferencesStore(),
+      ).clear(),
+    ),
+  ]);
 }
 
 class PharmaGuideBootstrap extends StatefulWidget {

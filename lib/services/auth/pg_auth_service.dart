@@ -12,6 +12,7 @@ import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/notifications/safety_push_service.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
+import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:pharmaguide/services/settings/app_preferences.dart';
 import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
 import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
@@ -117,19 +118,24 @@ class AccountSwitchGuard {
     required this._openDatabase,
     this._onOwnerChange,
     this._onAccountRemoved,
+    this._readSessionUid,
   });
 
   factory AccountSwitchGuard.production({
     required Future<UserDatabase> Function(String path) openDatabase,
     Future<void> Function()? onOwnerChange,
     Future<void> Function(String uid)? onAccountRemoved,
+    String? Function()? readSessionUid,
   }) => AccountSwitchGuard(
     ownerStore: AccountOwnerStore(),
     storage: AccountStorage.production(),
     openDatabase: openDatabase,
     onOwnerChange: onOwnerChange,
     onAccountRemoved: onAccountRemoved,
+    readSessionUid: readSessionUid,
   );
+
+  final String? Function()? _readSessionUid;
 
   final AccountOwnerStore _ownerStore;
   final AccountStorage _storage;
@@ -149,6 +155,31 @@ class AccountSwitchGuard {
   /// Called after each switch, whether or not a database opened.
   void Function()? onChanged;
 
+  bool _acceptingNotificationWork = false;
+  final Set<Future<void>> _notificationWork = {};
+
+  /// An OS scheduling call cannot be cancelled by disposing its provider.
+  /// Keep its lifetime here so sign-out drains it before cancelling the old
+  /// schedule and before a new account can publish its own notifications.
+  Future<T> runNotificationWork<T>(
+    Future<T> Function() work, {
+    required ActiveAccount account,
+  }) {
+    if (!_acceptingNotificationWork || !identical(account, _account)) {
+      return Future.error(StateError('Account is changing'));
+    }
+    final result = Future.sync(work);
+    late final Future<void> pending;
+    pending = result
+        .then<void>((_) {}, onError: (Object _, StackTrace _) {})
+        .whenComplete(() {
+          _notificationWork.remove(pending);
+        });
+    _notificationWork.add(pending);
+    return result;
+  }
+
+  bool _legacyMigrated = false;
   UserDatabase? _database;
   ActiveAccount _account = ActiveAccount.guest;
   String? _ownerUid;
@@ -171,12 +202,26 @@ class AccountSwitchGuard {
   Future<void> boot({required String? sessionUid}) => _enqueue(() async {
     // No owner on record means the guest was open when the app last ran, so a
     // session found now is the sign-in whose event never got handled.
-    final adoptGuest = sessionUid != null && await _ownerStore.read() == null;
-    await _open(sessionUid, adoptGuest: adoptGuest, migrate: true);
+    final previousOwner = await _ownerStore.read();
+    final adoptGuest = sessionUid != null && previousOwner == null;
+    if (previousOwner != sessionUid) {
+      await _endOwnerWork(
+        previousOwner: previousOwner,
+        incomingUid: sessionUid,
+      );
+    }
+    await _open(sessionUid, adoptGuest: adoptGuest);
   });
 
   /// Tries again after [database] came back null.
   Future<void> retry() => _enqueue(() async {
+    if (_readSessionUid != null && _readSessionUid() != _ownerUid) {
+      // The error screen has no provider/auth-listener tree. A session can
+      // expire while it is shown; never reopen the uid captured by the failure.
+      final uid = _readSessionUid();
+      await _switch(uid, adoptGuest: _ownerUid == null && uid != null);
+      return;
+    }
     await _retry?.call();
     onChanged?.call();
   });
@@ -188,11 +233,30 @@ class AccountSwitchGuard {
     required AuthChangeEvent event,
     required String? uid,
   }) => _enqueue(() async {
+    // Only guest adoption needs a presence probe. A lookup failure must not
+    // abort sign-out before the old account's consumers and handle are closed.
+    var incomingHasData = false;
+    if (_ownerUid == null &&
+        uid != null &&
+        uid.isNotEmpty &&
+        event != AuthChangeEvent.signedOut) {
+      try {
+        incomingHasData = await _storage.hasData(uid);
+      } on Object catch (error, stackTrace) {
+        CrashReportingService().recordError(
+          error,
+          stackTrace,
+          hint: 'account_switch:presence',
+        );
+        // _open checks presence again inside its fail-closed boundary before
+        // adopting anything; an unreadable folder never means an empty account.
+      }
+    }
     final action = decideAccountAction(
       activeOwner: _ownerUid,
       incomingUid: uid,
       event: event,
-      incomingHasData: await _storage.hasData(uid),
+      incomingHasData: incomingHasData,
     );
     switch (action) {
       case AccountSwitchAction.keep:
@@ -217,13 +281,33 @@ class AccountSwitchGuard {
   });
 
   Future<void> close() => _enqueue(() async {
+    _acceptingNotificationWork = false;
+    await Future.wait(_notificationWork.toList());
     await _closeDatabase();
   });
 
   Future<void> _switch(String? uid, {bool adoptGuest = false}) async {
+    _acceptingNotificationWork = false;
     await releaseConsumers?.call();
+    await Future.wait(_notificationWork.toList());
+    await _endOwnerWork(previousOwner: _ownerUid, incomingUid: uid);
+    await _closeDatabase();
+    await _open(uid, adoptGuest: adoptGuest);
+    onChanged?.call();
+  }
+
+  Future<void> _endOwnerWork({
+    required String? previousOwner,
+    required String? incomingUid,
+  }) async {
     try {
-      await _onOwnerChange?.call();
+      await Future.wait([
+        // A guest's pending action is the reason for signing in. Preserve it
+        // for post-auth navigation; discard it when leaving a signed-in owner.
+        if (previousOwner != null || incomingUid == null)
+          Future.sync(PendingSubmissionIntent.clear),
+        if (_onOwnerChange != null) Future.sync(_onOwnerChange),
+      ]);
     } on Object catch (error, stackTrace) {
       CrashReportingService().recordError(
         error,
@@ -231,9 +315,6 @@ class AccountSwitchGuard {
         hint: 'account_switch:owner_change',
       );
     }
-    await _closeDatabase();
-    await _open(uid, adoptGuest: adoptGuest);
-    onChanged?.call();
   }
 
   Future<void> _closeDatabase() async {
@@ -250,17 +331,16 @@ class AccountSwitchGuard {
     }
   }
 
-  Future<void> _open(
-    String? uid, {
-    bool adoptGuest = false,
-    bool migrate = false,
-  }) async {
+  Future<void> _open(String? uid, {bool adoptGuest = false}) async {
     _ownerUid = uid;
     _account = ActiveAccount(scope: AccountStorage.scopeFor(uid));
-    _retry = () => _open(uid, adoptGuest: adoptGuest, migrate: migrate);
+    _retry = () => _open(uid, adoptGuest: adoptGuest);
     UserDatabase? opened;
     try {
-      if (migrate) await _migrateLegacyStore();
+      if (!_legacyMigrated) {
+        await _migrateLegacyStore();
+        _legacyMigrated = true;
+      }
       if (adoptGuest && !await _storage.hasData(uid)) {
         await _storage.adoptGuestFolder(uid!);
         await RecentSearchesService.moveScope(
@@ -277,7 +357,11 @@ class AccountSwitchGuard {
         await _ownerStore.write(uid);
       }
       _account = await _storage.accountFor(uid);
+      if (_readSessionUid != null && _readSessionUid() != uid) {
+        throw StateError('Session changed while opening account data');
+      }
       _database = opened;
+      _acceptingNotificationWork = true;
       _retry = null;
     } on Object catch (error, stackTrace) {
       CrashReportingService().recordError(
@@ -533,10 +617,9 @@ class PGAuthService {
   /// Sign out — wipes the local Supabase session; the auth listener
   /// fires `signedOut` and the UI reacts.
   ///
-  /// Intentionally does NOT touch local user data or the
-  /// [AccountOwnerStore] record: the owner stays the last signed-in uid,
-  /// so the SAME user returning keeps their data and a DIFFERENT next
-  /// sign-in triggers the account-switch clear. Do not add a wipe here.
+  /// The auth listener delegates local ownership to [AccountSwitchGuard].
+  /// Kept data remains in its account folder; sign-out opens the guest folder.
+  /// Explicit removal is handled separately after the session ends.
   ///
   /// Push teardown is transport cleanup, not user data: the device token must
   /// be unregistered while the session JWT can still authorize it, or the
