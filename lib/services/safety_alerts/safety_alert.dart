@@ -75,8 +75,9 @@ final class SafetyAlert {
     }
     final resolved = _stringSet(json['resolved_dsld_ids'], 'resolved_dsld_ids');
     final scope = json['scope'];
-    if (scope is! Map)
+    if (scope is! Map) {
       throw const FormatException('Safety alert scope is malformed.');
+    }
     final ingredients = _stringSet(
       scope['ingredient_canonical_ids'],
       'scope.ingredient_canonical_ids',
@@ -104,8 +105,9 @@ final class SafetyAlert {
   }
 
   static Set<String> _stringSet(Object? value, String field) {
-    if (value is! List)
+    if (value is! List) {
       throw FormatException('Safety alert $field is malformed.');
+    }
     final result = <String>{};
     for (final item in value) {
       if (item is! String || item.trim().isEmpty) {
