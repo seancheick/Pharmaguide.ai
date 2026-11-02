@@ -1,6 +1,7 @@
 // The account gate (ADR-013): every branch of the pure decision, then the real
 // guard against real folders on disk.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -28,6 +29,19 @@ Future<void> _addMedication(UserDatabase db, String name) => db.addToStack(
     type: const Value('medication'),
   ),
 );
+
+Future<void> _addHistoryEvent(UserDatabase db, String subjectType) => db
+    .into(db.healthHistoryEvents)
+    .insert(
+      HealthHistoryEventsCompanion.insert(
+        id: 'event-$subjectType',
+        eventType: 'test',
+        source: 'test',
+        subjectType: subjectType,
+        title: 'Test',
+        effectiveAt: DateTime(2026),
+      ),
+    );
 
 Future<List<String>> _names(UserDatabase db) async =>
     (await db.select(db.userStacksLocal).get()).map((r) => r.name).toList();
@@ -113,6 +127,7 @@ void main() {
       Future<UserDatabase> Function(String path)? open,
       Future<void> Function()? onOwnerChange,
       String? Function()? readSessionUid,
+      bool askBeforeAdoptingGuest = false,
     }) {
       final guard = AccountSwitchGuard(
         ownerStore: AccountOwnerStore(),
@@ -120,6 +135,7 @@ void main() {
         openDatabase: open ?? (path) async => UserDatabase.open(path),
         onOwnerChange: onOwnerChange,
         readSessionUid: readSessionUid,
+        askBeforeAdoptingGuest: askBeforeAdoptingGuest,
       );
       addTearDown(guard.close);
       return guard;
@@ -738,6 +754,337 @@ void main() {
         expect(archive.existsSync(), isTrue);
         await next.removeAccountData(_a);
         expect(archive.existsSync(), isFalse);
+      });
+    });
+
+    group('guest data at sign-in', () {
+      AccountSwitchGuard asking({String? Function()? readSessionUid}) =>
+          guardWith(
+            askBeforeAdoptingGuest: true,
+            readSessionUid: readSessionUid,
+          );
+
+      /// Resolves when the guard asks, so a test can never pass by not asking.
+      Future<void> asked(AccountSwitchGuard guard) {
+        final question = Completer<void>();
+        guard.onGuestDataQuestion = question.complete;
+        return question.future.timeout(const Duration(seconds: 5));
+      }
+
+      Future<AccountSwitchGuard> guestWithMedication() async {
+        final guard = asking();
+        await guard.boot(sessionUid: null);
+        await _addMedication(guard.database!, 'Friend med');
+        return guard;
+      }
+
+      test('nothing moves until the person answers', () async {
+        final guard = await guestWithMedication();
+        final question = asked(guard);
+
+        final signingIn = signIn(guard, _a);
+        await question;
+
+        expect(guard.awaitingGuestDataAnswer, isTrue);
+        expect(guard.ownerUid, isNull);
+        expect(await storage.hasData(_a), isFalse);
+
+        guard.answerGuestDataQuestion(true);
+        await signingIn;
+      });
+
+      test('yes moves the data into the account', () async {
+        final guard = await guestWithMedication();
+        final question = asked(guard);
+        final signingIn = signIn(guard, _a);
+        await question;
+
+        guard.answerGuestDataQuestion(true);
+        await signingIn;
+
+        expect(guard.awaitingGuestDataAnswer, isFalse);
+        expect(guard.ownerUid, _a);
+        expect(await _names(guard.database!), ['Friend med']);
+      });
+
+      test(
+        'no leaves the account empty and the guest data where it was',
+        () async {
+          final guard = await guestWithMedication();
+          await RecentSearchesService().addSearch('friend search');
+          final question = asked(guard);
+          final signingIn = signIn(guard, _a);
+          await question;
+
+          guard.answerGuestDataQuestion(false);
+          await signingIn;
+
+          expect(guard.ownerUid, _a);
+          expect(await _names(guard.database!), isEmpty);
+          final accountSearches = RecentSearchesService(
+            scope: guard.account.scope,
+          );
+          expect(await accountSearches.getRecent(), isEmpty);
+
+          await signOut(guard);
+          expect(await _names(guard.database!), ['Friend med']);
+          expect(await RecentSearchesService().getRecent(), ['friend search']);
+        },
+      );
+
+      test('the same account is only asked once', () async {
+        final guard = await guestWithMedication();
+        final question = asked(guard);
+        final signingIn = signIn(guard, _a);
+        await question;
+        guard.answerGuestDataQuestion(false);
+        await signingIn;
+        await signOut(guard);
+
+        await signIn(guard, _a);
+
+        expect(guard.awaitingGuestDataAnswer, isFalse);
+        expect(await _names(guard.database!), isEmpty);
+      });
+
+      test('a different account is asked for itself', () async {
+        final guard = await guestWithMedication();
+        final first = asked(guard);
+        final signingInA = signIn(guard, _a);
+        await first;
+        guard.answerGuestDataQuestion(false);
+        await signingInA;
+        await signOut(guard);
+
+        final second = asked(guard);
+        final signingInB = signIn(guard, _b);
+        await second;
+        guard.answerGuestDataQuestion(true);
+        await signingInB;
+
+        expect(guard.ownerUid, _b);
+        expect(await _names(guard.database!), ['Friend med']);
+      });
+
+      test('a second answer changes nothing', () async {
+        final guard = await guestWithMedication();
+        final question = asked(guard);
+        final signingIn = signIn(guard, _a);
+        await question;
+
+        guard.answerGuestDataQuestion(false);
+        guard.answerGuestDataQuestion(true);
+        await signingIn;
+
+        expect(await _names(guard.database!), isEmpty);
+      });
+
+      test('an empty guest adopts without asking', () async {
+        final guard = asking();
+        await guard.boot(sessionUid: null);
+        var questions = 0;
+        guard.onGuestDataQuestion = () => questions++;
+
+        await signIn(guard, _a);
+
+        expect(questions, 0);
+        expect(guard.ownerUid, _a);
+      });
+
+      test('an account with data here never asks', () async {
+        final first = guardWith();
+        await first.boot(sessionUid: _a);
+        await _addMedication(first.database!, 'Mine');
+        await first.close();
+        final guard = await guestWithMedication();
+        var questions = 0;
+        guard.onGuestDataQuestion = () => questions++;
+
+        await signIn(guard, _a);
+
+        expect(questions, 0);
+        expect(await _names(guard.database!), ['Mine']);
+      });
+
+      final personal = <String, Future<void> Function(UserDatabase)>{
+        'a profile': (db) => db.saveProfile(
+          const UserProfilesCompanion(id: Value(1), sex: Value('female')),
+        ),
+        'a stack item': (db) => _addMedication(db, 'Item'),
+        'a favorite': (db) => db.addFavorite('123'),
+        'a scan': (db) => db.recordScanEvent(dsldId: '123', upcSku: '456'),
+        'a history entry': (db) => _addHistoryEvent(db, 'medication'),
+      };
+      personal.forEach((name, add) {
+        test('$name is something to ask about', () async {
+          final guard = asking();
+          await guard.boot(sessionUid: null);
+          await add(guard.database!);
+          final question = asked(guard);
+
+          final signingIn = signIn(guard, _a);
+          await question;
+          guard.answerGuestDataQuestion(false);
+          await signingIn;
+        });
+      });
+
+      test('a recent search is something to ask about', () async {
+        final guard = asking();
+        await guard.boot(sessionUid: null);
+        await RecentSearchesService().addSearch('private search');
+        final question = asked(guard);
+
+        final signingIn = signIn(guard, _a);
+        await question;
+        guard.answerGuestDataQuestion(false);
+        await signingIn;
+      });
+
+      test('a blank profile, a removed item and caches are not', () async {
+        final guard = asking();
+        await guard.boot(sessionUid: null);
+        await guard.database!.saveProfile(
+          const UserProfilesCompanion(id: Value(1)),
+        );
+        await _addHistoryEvent(guard.database!, 'profile');
+        await _addMedication(guard.database!, 'Removed');
+        await guard.database!.customStatement(
+          'UPDATE user_stacks_local SET deleted_at = 1',
+        );
+        await guard.database!.recordFailedScan('000');
+        var questions = 0;
+        guard.onGuestDataQuestion = () => questions++;
+
+        await signIn(guard, _a);
+
+        expect(questions, 0);
+      });
+
+      test('a guest database that cannot be read still asks', () async {
+        final failing = asking();
+        await failing.boot(sessionUid: null);
+        await failing.database!.customStatement('DROP TABLE user_favorites');
+        final question = asked(failing);
+
+        final signingIn = signIn(failing, _a);
+        await question;
+        failing.answerGuestDataQuestion(false);
+        await signingIn;
+
+        expect(failing.ownerUid, _a);
+      });
+
+      test('a restart during the question asks again', () async {
+        final guard = await guestWithMedication();
+        final question = asked(guard);
+        unawaited(signIn(guard, _a));
+        await question;
+        // The app dies here: the session exists and nothing else changed.
+
+        final relaunch = asking(readSessionUid: () => _a);
+        await relaunch.boot(sessionUid: _a);
+
+        // Asked from the first frame, with nothing open for a tree to read.
+        expect(relaunch.awaitingGuestDataAnswer, isTrue);
+        expect(relaunch.database, isNull);
+        expect(relaunch.ownerUid, isNull);
+        expect(await AccountOwnerStore().read(), isNull);
+        expect(await storage.hasData(_a), isFalse);
+
+        relaunch.answerGuestDataQuestion(true);
+        await relaunch.onAuthEvent(
+          event: AuthChangeEvent.initialSession,
+          uid: _a,
+        );
+
+        expect(relaunch.ownerUid, _a);
+        expect(await _names(relaunch.database!), ['Friend med']);
+      });
+
+      test('a restart with an empty guest adopts without asking', () async {
+        final seed = asking();
+        await seed.boot(sessionUid: null);
+        await seed.close();
+
+        final relaunch = asking(readSessionUid: () => _a);
+        await relaunch.boot(sessionUid: _a);
+
+        expect(relaunch.awaitingGuestDataAnswer, isFalse);
+        expect(relaunch.ownerUid, _a);
+      });
+
+      test('a session that ends during the question moves nothing', () async {
+        var session = _a as String?;
+        final seed = asking();
+        await seed.boot(sessionUid: null);
+        await _addMedication(seed.database!, 'Friend med');
+        await seed.close();
+        final guard = asking(readSessionUid: () => session);
+        await guard.boot(sessionUid: _a);
+        expect(guard.awaitingGuestDataAnswer, isTrue);
+
+        session = null;
+        guard.answerGuestDataQuestion(true);
+        await guard.onAuthEvent(event: AuthChangeEvent.signedOut, uid: null);
+
+        expect(guard.ownerUid, isNull);
+        expect(await _names(guard.database!), ['Friend med']);
+        expect(await storage.hasData(_a), isFalse);
+      });
+
+      test('closing during the question finishes', () async {
+        final guard = await guestWithMedication();
+        final question = asked(guard);
+        unawaited(signIn(guard, _a));
+        await question;
+
+        await guard.close().timeout(const Duration(seconds: 5));
+
+        expect(await storage.hasData(_a), isFalse);
+      });
+
+      test('an upgrade with a session and no owner stays silent', () async {
+        await writeLegacyDatabase('My old data');
+
+        final guard = asking(readSessionUid: () => _a);
+        await guard.boot(sessionUid: _a);
+
+        expect(guard.awaitingGuestDataAnswer, isFalse);
+        expect(guard.ownerUid, _a);
+        expect(await _names(guard.database!), ['My old data']);
+      });
+
+      test('retry from the error screen cannot skip the question', () async {
+        final seed = asking();
+        await seed.boot(sessionUid: null);
+        await _addMedication(seed.database!, 'Friend med');
+        await seed.close();
+        var session = 'none';
+        var failNextOpen = true;
+        final guard = guardWith(
+          askBeforeAdoptingGuest: true,
+          readSessionUid: () => session == 'none' ? null : session,
+          open: (path) async {
+            if (failNextOpen) {
+              failNextOpen = false;
+              throw const FileSystemException('unavailable');
+            }
+            return UserDatabase.open(path);
+          },
+        );
+        await guard.boot(sessionUid: null);
+        expect(guard.database, isNull);
+
+        session = _a;
+        final question = asked(guard);
+        final retrying = guard.retry();
+        await question;
+        guard.answerGuestDataQuestion(false);
+        await retrying;
+
+        expect(guard.ownerUid, _a);
+        expect(await _names(guard.database!), isEmpty);
       });
     });
 

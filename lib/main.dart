@@ -27,6 +27,7 @@ import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_snapshot_pusher.dart';
+import 'package:pharmaguide/features/settings/v2/guest_data_question_screen.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
@@ -294,6 +295,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     super.initState();
     widget.accountGuard.releaseConsumers = _releaseAccountConsumers;
     widget.accountGuard.onChanged = _onAccountChanged;
+    widget.accountGuard.onGuestDataQuestion = _onGuestDataQuestion;
     unawaited(_bootstrapCatalog());
   }
 
@@ -326,6 +328,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       _scopeVersion++;
     });
     returnHomeAfterAccountChange();
+  }
+
+  void _onGuestDataQuestion() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _bootstrapCatalog() async {
@@ -671,6 +677,17 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   @override
   Widget build(BuildContext context) {
     final userDb = widget.accountGuard.database;
+    if (widget.accountGuard.awaitingGuestDataAnswer) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: V2Theme.light,
+        darkTheme: V2Theme.dark,
+        themeMode: widget.appPreferencesController.preferences.theme.themeMode,
+        home: GuestDataQuestionScreen(
+          onAnswer: widget.accountGuard.answerGuestDataQuestion,
+        ),
+      );
+    }
     if (_bootstrapped && !_accountSwitching && userDb == null) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,

@@ -176,6 +176,31 @@ class UserDatabase extends _$UserDatabase {
     return (select(userProfiles)..limit(1)).getSingleOrNull();
   }
 
+  /// Whether a person has put anything here themselves. A blank profile row, and
+  /// the history entry saving one writes, say nothing about anyone. Neither do
+  /// the catalog caches or the failed-scan list, which holds only barcodes.
+  Future<bool> hasPersonalData() async {
+    final row = await customSelect('''
+      SELECT EXISTS(
+               SELECT 1 FROM user_profile
+               WHERE COALESCE(nickname, '') != ''
+                  OR COALESCE(age_bracket, '') != ''
+                  OR COALESCE(sex, '') != ''
+                  OR goals != '[]'
+                  OR conditions != '[]'
+                  OR drug_classes != '[]'
+                  OR allergens != '[]'
+                  OR profile_flags != '[]')
+          OR EXISTS(SELECT 1 FROM user_stacks_local WHERE deleted_at IS NULL)
+          OR EXISTS(SELECT 1 FROM user_favorites)
+          OR EXISTS(SELECT 1 FROM user_scan_history)
+          OR EXISTS(
+               SELECT 1 FROM health_history_events
+               WHERE subject_type != 'profile') AS found
+    ''').getSingle();
+    return row.read<bool>('found');
+  }
+
   /// Insert or update the user profile (upsert on id conflict).
   Future<int> saveProfile(UserProfilesCompanion profile) {
     return into(userProfiles).insertOnConflictUpdate(profile);

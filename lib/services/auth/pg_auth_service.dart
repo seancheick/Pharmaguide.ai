@@ -121,6 +121,7 @@ class AccountSwitchGuard {
     this._onNotificationCleanup,
     this._onAccountRemoved,
     this._readSessionUid,
+    this._askBeforeAdoptingGuest = false,
   });
 
   factory AccountSwitchGuard.production({
@@ -137,9 +138,14 @@ class AccountSwitchGuard {
     onNotificationCleanup: onNotificationCleanup,
     onAccountRemoved: onAccountRemoved,
     readSessionUid: readSessionUid,
+    askBeforeAdoptingGuest: true,
   );
 
   final String? Function()? _readSessionUid;
+
+  /// Whoever used this phone without signing in may not be the person signing
+  /// in now, so their items don't join the account until that person says so.
+  final bool _askBeforeAdoptingGuest;
 
   final AccountOwnerStore _ownerStore;
   final AccountStorage _storage;
@@ -161,6 +167,23 @@ class AccountSwitchGuard {
 
   /// Called after each switch, whether or not a database opened.
   void Function()? onChanged;
+
+  /// Called when [awaitingGuestDataAnswer] turns true. The switch that follows
+  /// the answer reports through [releaseConsumers] and [onChanged].
+  void Function()? onGuestDataQuestion;
+
+  /// Null completes it without an answer, when the guard is closing.
+  Completer<bool?>? _guestDataAnswer;
+
+  /// True while the sign-in waits on [answerGuestDataQuestion]. Nothing may use
+  /// [database] meanwhile: it is the guest's, or null, under a live session.
+  bool get awaitingGuestDataAnswer => _guestDataAnswer != null;
+
+  /// Only the first answer counts.
+  void answerGuestDataQuestion(bool add) {
+    final answer = _guestDataAnswer;
+    if (answer != null && !answer.isCompleted) answer.complete(add);
+  }
 
   bool _acceptingNotificationWork = false;
   final Set<Future<void>> _notificationWork = {};
@@ -218,6 +241,13 @@ class AccountSwitchGuard {
         incomingUid: sessionUid,
       );
     }
+    if (adoptGuest && await _mustAskAboutGuestData(sessionUid)) {
+      // Set before boot returns, so the first frame shows the question and no
+      // tree ever mounts with the guest's data under this session.
+      _guestDataAnswer = Completer<bool?>();
+      unawaited(_enqueue(() => _switchAfterGuestDataAnswer(sessionUid)));
+      return;
+    }
     await _open(sessionUid, adoptGuest: adoptGuest);
   });
 
@@ -227,7 +257,11 @@ class AccountSwitchGuard {
       // The error screen has no provider/auth-listener tree. A session can
       // expire while it is shown; never reopen the uid captured by the failure.
       final uid = _readSessionUid();
-      await _switch(uid, adoptGuest: _ownerUid == null && uid != null);
+      if (_ownerUid == null && uid != null) {
+        await _signInFromGuest(uid);
+      } else {
+        await _switch(uid);
+      }
       return;
     }
     await _retry?.call();
@@ -270,7 +304,7 @@ class AccountSwitchGuard {
       case AccountSwitchAction.keep:
         break;
       case AccountSwitchAction.adoptGuestData:
-        await _switch(uid, adoptGuest: true);
+        await _signInFromGuest(uid!);
       case AccountSwitchAction.switchAccount:
         await _switch(uid);
       case AccountSwitchAction.switchToGuest:
@@ -288,11 +322,84 @@ class AccountSwitchGuard {
     await _onAccountRemoved?.call(uid);
   });
 
-  Future<void> close() => _enqueue(() async {
+  Future<void> close() {
+    // An unanswered question holds the queue, and nobody is left to answer it.
+    final answer = _guestDataAnswer;
+    if (answer != null && !answer.isCompleted) answer.complete(null);
+    return _enqueue(() async {
+      _acceptingNotificationWork = false;
+      await _drainNotificationWork(_notificationWork.toList());
+      await _closeDatabase();
+    });
+  }
+
+  Future<void> _signInFromGuest(String uid) async {
+    if (!await _mustAskAboutGuestData(uid)) {
+      await _switch(uid, adoptGuest: true);
+      return;
+    }
+    _guestDataAnswer = Completer<bool?>();
+    await _switchAfterGuestDataAnswer(uid);
+  }
+
+  /// A store from before ADR-013 is the person's own. An account already here
+  /// never takes on guest data. Anything unreadable counts as something to ask
+  /// about, because adoption can't be undone and asking costs one tap.
+  Future<bool> _mustAskAboutGuestData(String uid) async {
+    if (!_askBeforeAdoptingGuest) return false;
+    try {
+      if (await _storage.hasLegacyStore() || await _storage.hasData(uid)) {
+        return false;
+      }
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:presence',
+      );
+    }
+    return _guestHasPersonalData();
+  }
+
+  Future<bool> _guestHasPersonalData() async {
+    UserDatabase? opened;
+    try {
+      if ((await RecentSearchesService().getRecent()).isNotEmpty) return true;
+      final database =
+          _database ??
+          (opened = await _openDatabase(await _storage.databasePathFor(null)));
+      return await database.hasPersonalData();
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:guest_data_probe',
+      );
+      return true;
+    } finally {
+      try {
+        await opened?.close();
+      } on Object {
+        // Best-effort cleanup; the answer above is what matters.
+      }
+    }
+  }
+
+  Future<void> _switchAfterGuestDataAnswer(String uid) async {
     _acceptingNotificationWork = false;
-    await _drainNotificationWork(_notificationWork.toList());
-    await _closeDatabase();
-  });
+    await releaseConsumers?.call();
+    onGuestDataQuestion?.call();
+    final add = await _guestDataAnswer!.future;
+    _guestDataAnswer = null;
+    if (add == null) return;
+    // The session can end while the question waits, and no listener is mounted
+    // to say so. Data must never move into an account that has already left.
+    if (_readSessionUid != null && _readSessionUid() != uid) {
+      await _switch(_readSessionUid());
+      return;
+    }
+    await _switch(uid, adoptGuest: add);
+  }
 
   Future<void> _switch(String? uid, {bool adoptGuest = false}) async {
     _acceptingNotificationWork = false;

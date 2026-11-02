@@ -81,6 +81,14 @@ class AccountStorage {
     return File(p.join(folder.path, databaseName)).exists();
   }
 
+  /// Whether a store from before ADR-013 is still waiting to move.
+  Future<bool> hasLegacyStore() async {
+    final documents = await _documentsDirectory();
+    final support = await _supportDirectory();
+    return await File(p.join(documents.path, databaseName)).exists() ||
+        await Directory(p.join(support.path, _legacyAttachmentsName)).exists();
+  }
+
   /// First sign-in: the guest's folder becomes the account's. Only called when
   /// the account has none on this device, so health data is never merged.
   Future<void> adoptGuestFolder(String uid) async {
