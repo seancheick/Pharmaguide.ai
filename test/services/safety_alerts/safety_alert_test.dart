@@ -69,6 +69,122 @@ void main() {
     },
   );
 
+  group('a revision this build cannot read', () {
+    late String? feed;
+    late _MemoryPreferences preferences;
+    late SafetyAlertRepository repository;
+
+    void publish(List<Map<String, Object?>> alerts) {
+      feed = jsonEncode({'alerts': alerts});
+    }
+
+    setUp(() {
+      feed = null;
+      preferences = _MemoryPreferences();
+      final client = SupabaseClient(
+        'https://example.test',
+        'test-key',
+        httpClient: MockClient((request) async {
+          final body = feed;
+          if (body == null) throw http.ClientException('offline');
+          if (request.url.path.contains('/storage/')) {
+            return http.Response(body, 200, request: request);
+          }
+          return http.Response(
+            jsonEncode({
+              'feed_path': 'safety/feed.json',
+              'checksum': 'sha256:${sha256.convert(utf8.encode(body))}',
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        }),
+      );
+      addTearDown(client.dispose);
+      repository = SafetyAlertRepository(
+        client: client,
+        preferences: preferences,
+      );
+    });
+
+    final known = record['revision'] as int;
+    final unreadable = {
+      ...record,
+      'revision': known + 1,
+      'event_type': 'future_kind',
+    };
+
+    test('keeps the warning the device already had', () async {
+      publish([record]);
+      await repository.loadCurrent();
+
+      publish([unreadable]);
+      final release = await repository.loadCurrent();
+
+      expect(release.alerts.map((a) => (a.alertId, a.revision)), [
+        ('SA_2026_0001', known),
+      ]);
+      expect(release.isComplete, isFalse);
+      expect((await repository.loadCachedAlerts()).single.revision, known);
+    });
+
+    test(
+      'still keeps it offline, and across another unreadable feed',
+      () async {
+        publish([record]);
+        await repository.loadCurrent();
+        publish([unreadable]);
+        await repository.loadCurrent();
+        publish([unreadable]);
+        await repository.loadCurrent();
+
+        feed = null;
+        final offline = await repository.loadCurrent();
+
+        expect(offline.alerts.single.revision, known);
+        expect(offline.isComplete, isFalse);
+      },
+    );
+
+    test('is replaced once a readable revision arrives', () async {
+      publish([record]);
+      await repository.loadCurrent();
+      publish([unreadable]);
+      await repository.loadCurrent();
+
+      publish([
+        {...record, 'revision': known + 2},
+      ]);
+      final release = await repository.loadCurrent();
+
+      expect(release.alerts.single.revision, known + 2);
+      expect(release.isComplete, isTrue);
+    });
+
+    test('a withdrawn alert still goes away', () async {
+      publish([record]);
+      await repository.loadCurrent();
+      publish([unreadable]);
+      await repository.loadCurrent();
+
+      publish([]);
+      final release = await repository.loadCurrent();
+
+      expect(release.alerts, isEmpty);
+      expect(await repository.loadCachedAlerts(), isEmpty);
+    });
+
+    test('never invents a warning the device did not have', () async {
+      publish([unreadable]);
+
+      final release = await repository.loadCurrent();
+
+      expect(release.alerts, isEmpty);
+      expect(release.isComplete, isFalse);
+    });
+  });
+
   group('a feed written for a newer app', () {
     Future<SafetyAlertRelease> load(Map<String, Object?> extra) async {
       final feed = jsonEncode({
