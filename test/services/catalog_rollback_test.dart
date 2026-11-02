@@ -241,7 +241,13 @@ void main() {
         final rolledBack = result as SwapRolledBack;
         expect(rolledBack.restoredDb, isNull);
         expect(rolledBack.previousHandleInvalid, isTrue);
-        await expectLater(old.validateCatalogSnapshot(), throwsA(anything));
+        // macOS fails this read, and Linux still reads the moved file.
+        // Neither may return the update, so the app stops using the handle.
+        final read = await old.validateCatalogSnapshot().then<String?>(
+          (version) => version,
+          onError: (Object _) => null,
+        );
+        expect(read, anyOf(isNull, _lastGood));
         await old.close();
       },
     );
