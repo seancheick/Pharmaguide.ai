@@ -40,7 +40,7 @@ void _buildValidCatalog(String path, {String dbVersion = _dbVersion}) {
     );
     db.execute('PRAGMA user_version = 3');
   } finally {
-    db.dispose();
+    db.close();
   }
 }
 
@@ -52,7 +52,7 @@ String _readDbVersion(String path) {
     );
     return rows.first['value'] as String;
   } finally {
-    db.dispose();
+    db.close();
   }
 }
 

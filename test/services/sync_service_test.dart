@@ -50,7 +50,7 @@ void _buildStagedCatalog(
     }
     db.execute('PRAGMA user_version = 3');
   } finally {
-    db.dispose();
+    db.close();
   }
 }
 

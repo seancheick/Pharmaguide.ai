@@ -84,7 +84,7 @@ void main() {
       );
       legacy.execute('PRAGMA user_version = 10;');
     } finally {
-      legacy.dispose();
+      legacy.close();
     }
   }
 

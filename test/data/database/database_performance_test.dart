@@ -117,7 +117,7 @@ void main() {
         try {
           legacy.execute('PRAGMA user_version = 2;');
         } finally {
-          legacy.dispose();
+          legacy.close();
         }
 
         final mismatched = CoreDatabase.open(dbPath);
@@ -205,7 +205,7 @@ void main() {
           );
           legacy.execute('PRAGMA user_version = 8;');
         } finally {
-          legacy.dispose();
+          legacy.close();
         }
 
         final db = UserDatabase.open(dbPath);
@@ -261,7 +261,7 @@ void main() {
           PRAGMA user_version = 8;
         ''');
       } finally {
-        legacy.dispose();
+        legacy.close();
       }
 
       final db = UserDatabase.open(dbPath);

@@ -257,7 +257,7 @@ Future<VerifyBundleResult> verifyBundle({
     final n = sampleSize > products.length ? products.length : sampleSize;
     sampled = [for (final i in indices.take(n)) products[i]];
   } finally {
-    db.dispose();
+    db.close();
   }
 
   // Step 4–5: fetch + validate each sampled blob ----------------------------

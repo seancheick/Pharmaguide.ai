@@ -354,6 +354,8 @@ OS encryption protects a locked phone. It does nothing about two people using th
 - **Unchanged.** Stack sync, and the rule that medication rows never sync. The catalog and rules open unencrypted under SQLCipher's library.
 - **Image cache.** Shared. It holds public product photos with no link to an owner and nothing in the app lists it. Noted rather than changed.
 
+**Dependency integration (2026-11-02):** the combined candidate upgrades to sqlite3 3.8.0 and drift 2.34.4 and removes sqlite3_flutter_libs, using sqlite3 build hooks for the native library. This remains plaintext storage. The SQLCipher spike above used the older dependencies and does not qualify encryption on this candidate; its adoption and device checks remain open.
+
 **Known limits:** kept data has no recovery if the phone is lost or the app is deleted, because medications may not sync; any fix needs its own decision. Reminder text on the lock screen is outside this ADR. A provider rebuild doesn't prove that the app-switcher snapshot is replaced, so this is unverified until it is checked on physical devices.
 
 **Checked on the iOS 26.5 simulator with a real account (2026-11-02):** sign-in adopted the guest folder, sign-out with keep left the account's data in its folder and opened an empty guest, and signing back in reopened the account's data without merging the guest's. **Still open:** sign-out with remove, a switch between two real accounts, the app-switcher snapshot; reminders rescheduling end to end; SQLCipher. Sean approved the sign-out wording in `sign_out_choice_sheet.dart` on 2026-11-02. An upgrade from build 23 was checked on the iOS 26.5 simulator: the old store moved into `users/guest/` with its WAL and SHM files, and the Stack screen read from there.

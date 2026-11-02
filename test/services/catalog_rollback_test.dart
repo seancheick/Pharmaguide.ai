@@ -49,7 +49,7 @@ void _buildCatalog(String path, String dbVersion, {bool empty = false}) {
     );
     db.execute('PRAGMA user_version = 3');
   } finally {
-    db.dispose();
+    db.close();
   }
 }
 
@@ -63,7 +63,7 @@ String _versionOf(String path) {
             .first['value']
         as String;
   } finally {
-    db.dispose();
+    db.close();
   }
 }
 
