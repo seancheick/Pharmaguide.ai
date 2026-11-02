@@ -189,6 +189,31 @@ dart run build_runner build --delete-conflicting-outputs
 
 ---
 
+## Test Gate
+
+### Symptom: `make check` fails on six golden tests that nothing touched
+
+**Cause:** Small anti-aliasing drift against baselines captured on 2026-09-30 (`d5de1023`), not a change in content. CI excludes the `golden` tag (`.github/workflows/ci.yml`) because font rendering differs between machines, so CI stays green while a local `make check` goes red.
+
+**Evidence (2026-11-02, Flutter 3.47.8):** the same six fail on untouched `main` at `3e7a7979`. Per-channel difference between master and test image, out of 255, with no pixel differing by more than 40:
+
+| Golden | Differing pixels | Largest | Mean |
+|---|---|---|---|
+| `nutrient_progress_bar_approachingUl` | 148 | 19 | 6.8 |
+| `nutrient_progress_bar_exceedsUl` | 148 | 18 | 6.6 |
+| `probiotic_section_dark` | 123 | 7 | 1.5 |
+| `probiotic_section_light` | 100 | 6 | 1.4 |
+| `med_nutrient_unavailable` | 213 | 6 | 1.5 |
+| `med_nutrient_verified` | 695 | 6 | 1.4 |
+
+Viewed for `nutrient_progress_bar_exceedsUl` and `med_nutrient_unavailable`: the differing pixels sit on rounded corners, and the text and layout match. The other four were measured, not viewed. Which toolchain change caused it isn't established; `pubspec.lock` last changed in `d1dbdb12` (2026-10-25).
+
+**Fix:** Don't regenerate as part of other work. The `med_nutrient` images are reviewer screenshots, so refreshing them needs its own commit and a look at each image, as `d5de1023` did. Until then a local red on exactly these six is expected, and any other golden failing is real.
+
+**Check:** failure images land in ignored `test/**/failures/`; compare `_masterImage.png` with `_testImage.png`.
+
+---
+
 ## Template for New Entries
 
 ```
