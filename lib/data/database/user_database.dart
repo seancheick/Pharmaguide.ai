@@ -435,28 +435,30 @@ class UserDatabase extends _$UserDatabase {
   /// Evicts expired cache rows. Fire-and-forget after DB open — best-effort
   /// housekeeping, never user-facing.
   ///
-  /// TTLs mirror the read-side conventions (the readers already treat
-  /// expired rows as misses; this just reclaims the storage):
-  ///   - product_detail_cache: 24h ([kDetailBlobCacheTtl] in
-  ///     detail_blob_provider.dart), plus a ~5000-row LRU cap.
+  /// Retention per table:
+  ///   - product_detail_cache: no age limit, because offline verdicts depend
+  ///     on it and age says nothing about a content-addressed blob. Rows with
+  ///     no hash are dropped because they can never be verified. Over the
+  ///     ~5000-row cap the oldest go first, except products in the active
+  ///     stack, which are never evicted.
   ///   - product_image_cache: 30d positive / 7d negative ("no_image"),
   ///     matching ProductImageResolver.
   ///   - user_failed_scans: 90 days since last_seen.
   Future<void> purgeExpiredCaches() async {
     final now = DateTime.now();
 
-    // Detail cache: TTL expiry, then LRU cap on whatever survives.
-    await (delete(detailCache)..where(
-          (t) => t.cachedAt.isSmallerThanValue(
-            now.subtract(const Duration(hours: 24)),
-          ),
-        ))
-        .go();
+    await (delete(detailCache)..where((t) => t.sha256.isNull())).go();
+    // Medication rows have a NULL dsld_id. The IS NOT NULL filter matters:
+    // `x NOT IN (…NULL…)` is never true, so one medication would otherwise
+    // stop every eviction.
     await customStatement(
       'DELETE FROM product_detail_cache '
       'WHERE dsld_id NOT IN ('
       '  SELECT dsld_id FROM product_detail_cache '
       '  ORDER BY cached_at DESC LIMIT $detailCacheMaxRows'
+      ') AND dsld_id NOT IN ('
+      '  SELECT dsld_id FROM user_stacks_local '
+      '  WHERE deleted_at IS NULL AND dsld_id IS NOT NULL'
       ')',
     );
 
@@ -481,13 +483,6 @@ class UserDatabase extends _$UserDatabase {
           ),
         ))
         .go();
-  }
-
-  /// Deletes ALL detail-cache rows. Called on OTA catalog activation —
-  /// cached blobs were fetched against the previous catalog snapshot and
-  /// may not match the new rows' detail_blob_sha256.
-  Future<void> clearDetailCache() {
-    return delete(detailCache).go();
   }
 
   // ---------------------------------------------------------------------------

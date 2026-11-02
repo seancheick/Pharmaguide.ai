@@ -4,7 +4,7 @@
 // This file is the async glue that:
 //
 //   1. Reads the user profile (ageBracket/sex/goals/conditions/drugClasses)
-//   2. Loads a product's detail blob (with 24h cache via _detailBlobByDsldId)
+//   2. Loads a product's detail blob (cached via _detailBlobByDsldId)
 //   3. Extracts nutrients + clusters + interaction_summary from the blob
 //   4. Runs FitScoreService.calculate() with both sides
 //   5. Surfaces the `FitScoreResult` as an `AsyncValue` for widgets

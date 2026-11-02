@@ -4,7 +4,9 @@
 //   1. Look up the product in CoreDatabase to obtain its CURRENT
 //      SHA-256 hash (`detail_blob_sha256`).
 //   2. Consult the UserDatabase cache for the dsldId — served only when
-//      fresh (24h TTL) AND its recorded sha matches the product's hash.
+//      its recorded sha matches the product's hash. Age never makes a row a
+//      miss: a verdict must not change because time passed or the phone was
+//      offline.
 //   3. On cache miss/stale/sha-mismatch, fetch the blob from Supabase
 //      Storage via [DetailBlobService] (which checksum-verifies the
 //      bytes against the hash before parsing).
@@ -19,28 +21,22 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
 
-/// 24-hour cache TTL for detail blobs.
-const Duration kDetailBlobCacheTtl = Duration(hours: 24);
-
 /// PURE serve decision for a cached detail-blob row.
 ///
-/// A cached row is served only when BOTH hold:
-///  1. it is younger than [kDetailBlobCacheTtl], and
-///  2. its recorded [cachedSha256] equals the product row's CURRENT
-///     [productSha256] (null-safe equality).
+/// A cached row is served only when its recorded [cachedSha256] equals the
+/// product row's CURRENT [productSha256] (null-safe equality). Blobs are
+/// content-addressed, so a matching hash means the bytes are exactly the ones
+/// the installed catalog declares, however long ago they were fetched.
 ///
 /// A catalog update that re-points the product at a new blob therefore
-/// reads as a MISS instead of serving the previous snapshot's JSON for up
-/// to 24h; so does a legacy cache row (sha persisted as null before this
-/// fix) for a product that declares a blob hash.
+/// reads as a MISS instead of serving the previous snapshot's JSON; so does
+/// a legacy cache row (sha persisted as null) for a product that declares a
+/// blob hash.
 @visibleForTesting
 bool cachedDetailIsServable({
-  required DateTime cachedAt,
   required String? cachedSha256,
   required String? productSha256,
-  required DateTime now,
 }) {
-  if (now.difference(cachedAt) >= kDetailBlobCacheTtl) return false;
   return cachedSha256 == productSha256;
 }
 
@@ -72,17 +68,15 @@ final detailBlobProvider = FutureProvider.family
         // The product row is read FIRST so the cache check can compare the
         // cached sha against the product's CURRENT detail_blob_sha256 — a
         // cached blob from a previous catalog snapshot must be a miss, not
-        // a stale 24h hit feeding outdated ingredient/warning JSON.
+        // a stale hit feeding outdated ingredient/warning JSON.
         final product = await coreDb.findById(dsldId);
         final expectedSha = product?.detailBlobSha256;
 
         final cached = await userDb.getCachedDetail(dsldId);
         if (cached != null &&
             cachedDetailIsServable(
-              cachedAt: cached.cachedAt,
               cachedSha256: cached.sha256,
               productSha256: expectedSha,
-              now: DateTime.now(),
             )) {
           try {
             final decoded = jsonDecode(cached.blobJson);

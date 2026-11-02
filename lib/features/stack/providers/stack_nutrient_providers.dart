@@ -7,11 +7,11 @@
 // checker with the user's profile, and surfaces the result as an
 // [AsyncValue] for the widget layer.
 //
-// Caching strategy: detail blobs are stored in `user_data.db` with a
-// 24-hour TTL, matching the product detail screen's behavior. If the
-// user is offline with a warm cache, this provider works entirely
-// offline. If the cache is stale or empty, it falls back to Supabase
-// Storage. Errors are surfaced as [AsyncError] so the widget can show
+// Caching strategy: detail blobs are stored in `user_data.db` and checked
+// against the catalog's hash, matching the product detail screen's behavior.
+// If the user is offline with a warm cache, this provider works entirely
+// offline. If the hash differs or the cache is empty, it falls back to
+// Supabase Storage. Errors are surfaced as [AsyncError] so the widget can show
 // a retry affordance.
 
 import 'dart:convert';

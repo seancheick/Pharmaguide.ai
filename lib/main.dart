@@ -215,12 +215,7 @@ class PharmaGuideBootstrap extends StatefulWidget {
 }
 
 class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
-  // Cache invalidation: cached detail blobs were fetched against the
-  // previous catalog snapshot and may not match the new rows'
-  // detail_blob_sha256 — clear them whenever a new catalog activates.
-  late final SyncService _syncService = SyncService(
-    onCatalogActivated: () => widget.userDb.clearDetailCache(),
-  );
+  late final SyncService _syncService = SyncService();
   late final CatalogSwapper _swapper = CatalogSwapper.production(
     syncService: _syncService,
   );

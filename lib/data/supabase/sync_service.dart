@@ -33,19 +33,11 @@ class SyncService {
     this._currentDbVersionFetcher,
     this._appVersion = kAppVersion,
     http.Client Function()? httpClientFactory,
-    this._onCatalogActivated,
   }) : _httpClientFactory = httpClientFactory ?? http.Client.new;
 
   final Future<String?> Function()? _currentDbVersionFetcher;
   final String _appVersion;
   final http.Client Function() _httpClientFactory;
-
-  /// Invoked after a staged catalog is successfully promoted to the live
-  /// path. Used to invalidate caches keyed against the previous snapshot
-  /// (e.g. `UserDatabase.clearDetailCache()` — cached detail blobs may not
-  /// match the new rows' `detail_blob_sha256`). Failures are logged
-  /// non-fatally; they never roll back an otherwise-successful activation.
-  final Future<void> Function()? _onCatalogActivated;
 
   static const _manifestTimeout = Duration(seconds: 8);
   static const _downloadConnectTimeout = Duration(seconds: 10);
@@ -504,7 +496,6 @@ class SyncService {
     final currentFile = File(dbPath);
     final backupFile = File(backupPath);
     var backedUpCurrent = false;
-    var activated = false;
 
     try {
       if (await backupFile.exists()) {
@@ -517,7 +508,6 @@ class SyncService {
       }
 
       await stagingFile.rename(dbPath);
-      activated = true;
 
       if (await backupFile.exists()) {
         await backupFile.delete();
@@ -545,24 +535,6 @@ class SyncService {
         );
       }
       await _deleteStagingVersionMarker(stagingFile);
-    }
-
-    if (activated) {
-      // Cache invalidation: cached detail blobs were fetched against the
-      // previous catalog snapshot. Never let a cache-clear failure undo a
-      // successful activation — log and continue.
-      final callback = _onCatalogActivated;
-      if (callback != null) {
-        try {
-          await callback();
-        } on Object catch (e, st) {
-          CrashReportingService().recordError(
-            e,
-            st,
-            hint: 'catalog_sync:detail_cache_clear_failed',
-          );
-        }
-      }
     }
   }
 

@@ -63,7 +63,6 @@ void main() {
     late String stagingPath;
     late String markerPath;
     late String backupPath;
-    late bool activatedCallbackRan;
     late SyncService svc;
 
     setUp(() {
@@ -72,11 +71,7 @@ void main() {
       stagingPath = '$dbPath.staging';
       markerPath = '$dbPath.staging.version';
       backupPath = '$dbPath.backup';
-      activatedCallbackRan = false;
-      svc = SyncService(
-        appVersion: '1.0.0',
-        onCatalogActivated: () async => activatedCallbackRan = true,
-      );
+      svc = SyncService(appVersion: '1.0.0');
     });
 
     tearDown(() {
@@ -114,7 +109,6 @@ void main() {
           reason: 'the resume bookkeeping marker must be kept alongside it',
         );
         expect(File(backupPath).existsSync(), isFalse);
-        expect(activatedCallbackRan, isFalse);
       },
     );
 
@@ -129,7 +123,6 @@ void main() {
       expect(File(dbPath).readAsStringSync(), _liveSentinel);
       expect(File(stagingPath).existsSync(), isTrue);
       expect(File(markerPath).existsSync(), isTrue);
-      expect(activatedCallbackRan, isFalse);
     });
 
     test('validated staging (marker cleared) IS activated at boot '
@@ -148,7 +141,6 @@ void main() {
       expect(File(stagingPath).existsSync(), isFalse);
       expect(File(markerPath).existsSync(), isFalse);
       expect(File(backupPath).existsSync(), isFalse);
-      expect(activatedCallbackRan, isTrue);
     });
 
     test(
@@ -162,7 +154,6 @@ void main() {
 
         expect(_readDbVersion(dbPath), _dbVersion);
         expect(File(stagingPath).existsSync(), isFalse);
-        expect(activatedCallbackRan, isTrue);
       },
     );
 
@@ -192,7 +183,6 @@ void main() {
       );
       expect(File(markerPath).existsSync(), isFalse);
       expect(File(backupPath).existsSync(), isFalse);
-      expect(activatedCallbackRan, isFalse);
     });
 
     test('no staging file present is a quiet no-op', () async {
@@ -202,7 +192,6 @@ void main() {
 
       expect(File(dbPath).readAsStringSync(), _liveSentinel);
       expect(File(stagingPath).existsSync(), isFalse);
-      expect(activatedCallbackRan, isFalse);
     });
   });
 }
