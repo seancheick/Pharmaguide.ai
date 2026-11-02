@@ -193,6 +193,7 @@ class _ProductDetailV2ConnectedState
   /// Product from CoreDatabase (instant local lookup, no network).
   ProductsCoreData? _product;
   bool _productLoading = true;
+  bool _productReadFailed = false;
 
   /// Scroll anchor bookkeeping — owns the 3 GlobalKeys + the
   /// `?section=` retry loop + the unsafe-CTA jump. See
@@ -301,6 +302,7 @@ class _ProductDetailV2ConnectedState
       setState(() {
         _product = null;
         _productLoading = true;
+        _productReadFailed = false;
       });
       _loadProduct();
     }
@@ -311,10 +313,12 @@ class _ProductDetailV2ConnectedState
     final requestedDsldId = widget.dsldId;
     final coreDb = ref.read(coreDatabaseProvider);
     ProductsCoreData? product;
+    var readFailed = false;
     try {
       product = await coreDb.findById(requestedDsldId);
     } on Object catch (error, stackTrace) {
-      // Shown as unavailable, with no verdict, rather than loading forever.
+      // Offers a retry, with no verdict, rather than loading forever.
+      readFailed = true;
       CrashReportingService().recordError(
         error,
         stackTrace,
@@ -325,6 +329,7 @@ class _ProductDetailV2ConnectedState
       setState(() {
         _product = product;
         _productLoading = false;
+        _productReadFailed = readFailed;
       });
     }
   }
@@ -401,13 +406,27 @@ class _ProductDetailV2ConnectedState
             child: PGEmptyState(
               icon: Icons.inventory_2_outlined,
               eyebrow: 'Catalog',
-              headline: 'Product unavailable',
-              body:
-                  'This shared or scanned product is not in the verified '
-                  'catalog on this device.',
-              primaryLabel: 'Search catalog',
-              primaryIcon: Icons.search_rounded,
-              onPrimaryTap: () => context.go(Routes.search),
+              headline: _productReadFailed
+                  ? 'Product didn\'t load'
+                  : 'Product unavailable',
+              body: _productReadFailed
+                  ? 'We couldn\'t read this product from the catalog on this '
+                        'device. This is not an all-clear — please try again.'
+                  : 'This shared or scanned product is not in the verified '
+                        'catalog on this device.',
+              primaryLabel: _productReadFailed ? 'Try again' : 'Search catalog',
+              primaryIcon: _productReadFailed
+                  ? Icons.refresh_rounded
+                  : Icons.search_rounded,
+              onPrimaryTap: _productReadFailed
+                  ? () {
+                      setState(() {
+                        _productLoading = true;
+                        _productReadFailed = false;
+                      });
+                      _loadProduct();
+                    }
+                  : () => context.go(Routes.search),
               secondaryLabel: 'Go home',
               onSecondaryTap: () => context.go(Routes.home),
             ),

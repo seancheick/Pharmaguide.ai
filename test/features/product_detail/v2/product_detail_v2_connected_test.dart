@@ -248,9 +248,12 @@ Future<void> _pumpConnectedScreen(
 class _FailingCoreDatabase extends CoreDatabase {
   _FailingCoreDatabase() : super.memory();
 
+  var failing = true;
+
   @override
-  Future<ProductsCoreData?> findById(String dsldId) =>
-      Future.error(StateError('disk I/O error'));
+  Future<ProductsCoreData?> findById(String dsldId) => failing
+      ? Future.error(StateError('disk I/O error'))
+      : super.findById(dsldId);
 }
 
 Future<void> _scrollConnectedTowardTop(WidgetTester tester) async {
@@ -419,6 +422,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.text('Product unavailable'), findsNothing);
+      expect(find.textContaining('not an all-clear'), findsOneWidget);
+
+      coreDb.failing = false;
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+
+      // The read works now, and this id genuinely isn't in the catalog.
       expect(find.text('Product unavailable'), findsOneWidget);
     });
 
