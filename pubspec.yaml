@@ -62,7 +62,7 @@ dependencies:
   # URL launching (clinical citations, FDA links)
   url_launcher: ^6.2.0
   google_fonts: ^8.1.0
-  pdf: ^3.12.0
+  pdf: ^3.13.1
   printing: ^5.15.1
   # Device-local Health History reminders. Notification copy is deliberately
   # generic so medication/condition details never appear on a lock screen.
