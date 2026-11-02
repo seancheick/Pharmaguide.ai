@@ -92,6 +92,7 @@ void main() {
               exportedAt: '2026-06-08T00:00:00Z',
               productStatus: const Value('active'),
               keyIngredientTags: const Value('[]'),
+              detailBlobSha256: const Value('b12-blob-sha'),
             ),
           );
 
@@ -134,7 +135,7 @@ void main() {
             },
           ],
         }),
-        null,
+        'b12-blob-sha',
       );
 
       final container = ProviderContainer(

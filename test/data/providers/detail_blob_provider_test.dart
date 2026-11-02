@@ -65,13 +65,14 @@ void main() {
       },
     );
 
-    test('product without a blob hash still serves a legacy cache row', () {
-      // Both null → nothing to verify against and nothing to re-fetch;
-      // preserving the pre-fix behavior for this corner keeps products
-      // that never had a blob from churning.
+    test('a product without a blob hash has nothing to verify against', () {
       expect(
         cachedDetailIsServable(cachedSha256: null, productSha256: null),
-        isTrue,
+        isFalse,
+      );
+      expect(
+        cachedDetailIsServable(cachedSha256: '', productSha256: ''),
+        isFalse,
       );
     });
   });
@@ -199,6 +200,22 @@ void main() {
         expect(await container.read(detailBlobProvider('gone').future), isNull);
       },
     );
+
+    for (final (name, sha) in [('null', null), ('empty', '')]) {
+      test('a product with a $name hash serves no cached row', () async {
+        await seedProduct('hashless', blobSha: sha);
+        await userDb.cacheDetail('hashless', jsonEncode({'v': 'legacy'}), sha);
+
+        final service = _FakeBlobService(null);
+        final container = buildContainer(service);
+
+        expect(
+          await container.read(detailBlobProvider('hashless').future),
+          isNull,
+        );
+        expect(service.requestedHashes, isEmpty);
+      });
+    }
 
     test('matching cache row is served without any network fetch', () async {
       await seedProduct('p3', blobSha: 'same-sha');

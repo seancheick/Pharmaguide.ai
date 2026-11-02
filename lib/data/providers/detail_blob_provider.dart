@@ -24,19 +24,20 @@ import 'package:pharmaguide/services/connectivity_service.dart';
 /// PURE serve decision for a cached detail-blob row.
 ///
 /// A cached row is served only when its recorded [cachedSha256] equals the
-/// product row's CURRENT [productSha256] (null-safe equality). Blobs are
+/// product row's CURRENT, non-empty [productSha256]. Blobs are
 /// content-addressed, so a matching hash means the bytes are exactly the ones
 /// the installed catalog declares, however long ago they were fetched.
 ///
 /// A catalog update that re-points the product at a new blob therefore
-/// reads as a MISS instead of serving the previous snapshot's JSON; so does
-/// a legacy cache row (sha persisted as null) for a product that declares a
-/// blob hash.
+/// reads as a MISS instead of serving the previous snapshot's JSON. A legacy
+/// row with no hash, or a product that declares none, has nothing to verify
+/// against and is never served.
 @visibleForTesting
 bool cachedDetailIsServable({
   required String? cachedSha256,
   required String? productSha256,
 }) {
+  if (productSha256 == null || productSha256.isEmpty) return false;
   return cachedSha256 == productSha256;
 }
 
@@ -72,6 +73,7 @@ final detailBlobProvider = FutureProvider.family
         final product = await coreDb.findById(dsldId);
         if (product == null) return null;
         final expectedSha = product.detailBlobSha256;
+        if (expectedSha == null || expectedSha.isEmpty) return null;
 
         final cached = await userDb.getCachedDetail(dsldId);
         if (cached != null &&
@@ -87,8 +89,6 @@ final detailBlobProvider = FutureProvider.family
             // Fall through to network fetch below.
           }
         }
-
-        if (expectedSha == null || expectedSha.isEmpty) return null;
 
         final blob = await service.fetchDetailBlobByHash(expectedSha);
         if (blob == null) {

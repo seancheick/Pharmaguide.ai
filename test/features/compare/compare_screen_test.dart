@@ -117,10 +117,15 @@ void main() {
     required ProductsCoreCompanion product,
     Map<String, dynamic>? blob,
   }) async {
-    await coreDb.into(coreDb.productsCore).insert(product);
-    if (blob != null) {
-      await userDb.cacheDetail(product.dsldId.value, jsonEncode(blob), null);
+    if (blob == null) {
+      await coreDb.into(coreDb.productsCore).insert(product);
+      return;
     }
+    const blobSha = 'cached-blob-sha';
+    await coreDb
+        .into(coreDb.productsCore)
+        .insert(product.copyWith(detailBlobSha256: const drift.Value(blobSha)));
+    await userDb.cacheDetail(product.dsldId.value, jsonEncode(blob), blobSha);
   }
 
   testWidgets('renders both products with paired pillar rows', (tester) async {
