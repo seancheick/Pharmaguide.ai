@@ -5,6 +5,7 @@
 // matter here: the backup being deleted before validation, and a bad update
 // silently falling back to the much older bundled catalog.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -253,6 +254,163 @@ void main() {
       addTearDown(db.close);
 
       expect(await db.validateCatalogSnapshot(), _bundled);
+    });
+  });
+
+  group('relaunch runs the real boot sequence at each activation step', () {
+    Future<CoreDatabase> boot() async {
+      await SyncService(
+        appVersion: '1.0.0',
+      ).activateStagedCoreDbAtPathForTest(dbPath, revalidate: true);
+      return open();
+    }
+
+    Future<String> bootedVersion() async {
+      final db = await boot();
+      addTearDown(db.close);
+      return db.validateCatalogSnapshot();
+    }
+
+    test('died before the first rename: the update installs', () async {
+      _buildCatalog(dbPath, _lastGood);
+      _buildCatalog(stagingPath, _update);
+
+      expect(await bootedVersion(), _update);
+      expect(File(stagingPath).existsSync(), isFalse);
+      expect(File(backupPath).existsSync(), isFalse);
+    });
+
+    test('died before the first rename with a bad update: keep the '
+        'current catalog', () async {
+      _buildCatalog(dbPath, _lastGood);
+      _buildCatalog(stagingPath, _update, empty: true);
+
+      expect(await bootedVersion(), _lastGood);
+      expect(File(stagingPath).existsSync(), isFalse);
+    });
+
+    test('died mid-download: keep the current catalog and the partial '
+        'file for resume', () async {
+      _buildCatalog(dbPath, _lastGood);
+      File(stagingPath).writeAsStringSync('partial');
+      File('$stagingPath.version').writeAsStringSync(_update);
+
+      expect(await bootedVersion(), _lastGood);
+      expect(File(stagingPath).existsSync(), isTrue);
+    });
+
+    test('died between the renames: the update installs', () async {
+      _buildCatalog(backupPath, _lastGood);
+      _buildCatalog(stagingPath, _update);
+
+      expect(await bootedVersion(), _update);
+      expect(File(backupPath).existsSync(), isFalse);
+    });
+
+    test('died between the renames with a bad update: restore the backup, '
+        'not the bundle', () async {
+      _buildCatalog(backupPath, _lastGood);
+      _buildCatalog(stagingPath, _update, empty: true);
+
+      expect(await bootedVersion(), _lastGood);
+      expect(File(backupPath).existsSync(), isFalse);
+    });
+
+    test(
+      'died after the renames, before confirming: keep the update',
+      () async {
+        _buildCatalog(dbPath, _update);
+        _buildCatalog(backupPath, _lastGood);
+
+        expect(await bootedVersion(), _update);
+        expect(File(backupPath).existsSync(), isFalse);
+      },
+    );
+  });
+
+  group('readers holding the old handle during a swap', () {
+    test('never see the new catalog, and the new handle does', () async {
+      _buildCatalog(dbPath, _lastGood);
+      _buildCatalog(stagingPath, _update);
+      final old = await open();
+
+      final seen = <String>{};
+      var stop = false;
+      Future<void> read() async {
+        while (!stop) {
+          try {
+            seen.add(await old.validateCatalogSnapshot());
+          } on Object {
+            // A failed read is what the screens' error states are for.
+          }
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+
+      final readers = [read(), read(), read()];
+      final result = await swapper().swap(expectedVersion: _update);
+      stop = true;
+      await Future.wait(readers);
+
+      expect(result, isA<SwapSuccess>());
+      final success = result as SwapSuccess;
+      addTearDown(success.newDb.close);
+      expect(seen, contains(_lastGood), reason: 'the readers must have run');
+      expect(seen, isNot(contains(_update)));
+      expect(await success.newDb.validateCatalogSnapshot(), _update);
+      await old.close();
+    });
+
+    test('a transaction open across the swap ends without the new catalog, '
+        'and closing it is safe', () async {
+      _buildCatalog(dbPath, _lastGood);
+      _buildCatalog(stagingPath, _update);
+      final old = await open();
+
+      final inTransaction = Completer<void>();
+      final finish = Completer<void>();
+      final transaction = old.transaction(() async {
+        final first = await old.validateCatalogSnapshot();
+        inTransaction.complete();
+        await finish.future;
+        return (first, await old.validateCatalogSnapshot());
+      });
+      await inTransaction.future;
+
+      final result = await swapper().swap(expectedVersion: _update);
+      finish.complete();
+
+      expect(result, isA<SwapSuccess>());
+      addTearDown((result as SwapSuccess).newDb.close);
+      try {
+        final (first, second) = await transaction;
+        expect(first, _lastGood);
+        expect(second, _lastGood);
+      } on Object catch (e) {
+        expect(e, isNot(isA<TestFailure>()));
+      }
+      await old.close();
+      expect(_versionOf(dbPath), _update);
+    });
+
+    test('a rollback leaves the new handle working while old readers fail '
+        'or see the old catalog', () async {
+      _buildCatalog(dbPath, _lastGood);
+      _buildCatalog(stagingPath, _update, empty: true);
+      final old = await open();
+
+      final result = await swapper().swap(expectedVersion: _update);
+
+      expect(result, isA<SwapRolledBack>());
+      final rolledBack = result as SwapRolledBack;
+      addTearDown(() async => rolledBack.restoredDb?.close());
+      expect(await rolledBack.restoredDb!.validateCatalogSnapshot(), _lastGood);
+      try {
+        expect(await old.validateCatalogSnapshot(), _lastGood);
+      } on Object catch (e) {
+        expect(e, isNot(isA<TestFailure>()));
+      }
+      await old.close();
     });
   });
 

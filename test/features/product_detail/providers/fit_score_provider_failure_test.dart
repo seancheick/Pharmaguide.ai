@@ -201,6 +201,44 @@ void main() {
       conditions: ['pregnancy'],
     );
 
+    test('a new catalog hash offline keeps the old blob on disk but never '
+        'scores with it', () async {
+      final coreDb = await seededCore(sha: 'new-sha');
+      final userDb = UserDatabase.memory();
+      addTearDown(userDb.close);
+      await userDb.cacheDetail(_dsldId, jsonEncode(vitaminEBlob()), 'old-sha');
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+          detailBlobServiceProvider.overrideWithValue(_OfflineBlobService()),
+          fitScoreServiceProvider.overrideWith((ref) async => realService()),
+          loadedProfileProvider.overrideWith(
+            (ref) async => adolescentPregnancy,
+          ),
+          evaluatorProfileFlagsProvider.overrideWith(
+            (ref) async => const <String>{},
+          ),
+          currentStackMedicationClassIdsProvider.overrideWith(
+            (ref) async => const <String>{},
+          ),
+          profileWarningRuleWarningsProvider.overrideWith(
+            (ref, id) async => const [],
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(fitScoreForProductProvider(_dsldId).future),
+        throwsA(anything),
+        reason:
+            'the product page reads this as "checks failed", never as no '
+            'known concerns',
+      );
+      expect((await userDb.getCachedDetail(_dsldId))?.sha256, 'old-sha');
+    });
+
     test('30 days offline gives the same result as today', () async {
       final coreDb = await seededCore(sha: 'same-sha');
       final userDb = UserDatabase.memory();
