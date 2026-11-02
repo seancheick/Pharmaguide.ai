@@ -32,6 +32,7 @@ import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_push_provider.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
 import 'package:pharmaguide/services/catalog_swap.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
@@ -634,6 +635,8 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       child: Consumer(
         builder: (context, ref, child) {
           ref.watch(stackSyncListenerProvider);
+          // Keeps the stack's product detail ready for offline checks.
+          ref.watch(stackDetailReadyProvider);
           // Opt-in AI-share refresh (ADR-009). Off for every connection until
           // the user switches it on; never runs for guests.
           ref.watch(aiShareSnapshotListenerProvider);

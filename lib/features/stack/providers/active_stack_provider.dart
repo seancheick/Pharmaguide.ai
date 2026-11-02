@@ -10,12 +10,14 @@ import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/features/stack/providers/synergy_report_provider.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/services/connectivity_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/stack/stack_reminder_scheduler.dart';
@@ -50,6 +52,40 @@ class StackReminderLimitException implements Exception {
 final activeStackProvider = FutureProvider<List<UserStacksLocalData>>((ref) {
   final userDb = ref.watch(userDatabaseProvider);
   return userDb.getActiveStack();
+});
+
+/// Keeps the active stack's detail blobs on the phone, so its checks work offline
+/// without the user first opening each product. A catalog release re-points
+/// nearly every product at a new blob, and adopting a catalog rebuilds the
+/// ProviderScope, so this runs again after every update as well as when the
+/// stack or the connection changes. A blob that can't be fetched leaves that
+/// product's checks in their incomplete state until the next run.
+final stackDetailReadyProvider = Provider<void>((ref) {
+  final stack = ref.watch(activeStackProvider).value;
+  ref.watch(connectionStatusProvider);
+  if (stack == null) return;
+
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
+  unawaited(() async {
+    final ids = {
+      for (final item in stack)
+        if (item.dsldId case final id? when id.isNotEmpty) id,
+    };
+    for (final id in ids) {
+      if (disposed) return;
+      final blob = detailBlobProvider(id);
+      if (ref.read(blob).hasError) ref.invalidate(blob);
+      final subscription = ref.listen(blob.future, (_, _) {});
+      try {
+        await subscription.read();
+      } on Object {
+        // The product's checks show as incomplete; see above.
+      } finally {
+        subscription.close();
+      }
+    }
+  }());
 });
 
 /// Returns the active (non-deleted) stack entry for a given product, or
