@@ -368,8 +368,10 @@ void main() {
           expectedVersion: _update,
           previousVersion: _lastGood,
         );
-        await expectLater(open(), throwsStateError);
-        expect(File('$dbPath.activation.json').existsSync(), isTrue);
+        final db = await open();
+        addTearDown(db.close);
+        expect(await db.validateCatalogSnapshot(), _bundled);
+        expect(File('$dbPath.activation.json').existsSync(), isFalse);
       },
     );
 
@@ -396,6 +398,94 @@ void main() {
         expect(recorded['expected'], _update);
       },
     );
+  });
+
+  group('activation intent that can never settle', () {
+    final unreadable = <String, void Function(File)>{
+      'not json': (marker) => marker.writeAsStringSync('{"expected":'),
+      'the wrong shape': (marker) => marker.writeAsStringSync('{"expected":1}'),
+      'not text': (marker) => marker.writeAsBytesSync([0xC3, 0x28, 0xFF, 0xFE]),
+      'empty': (marker) => marker.writeAsStringSync(''),
+    };
+
+    unreadable.forEach((name, write) {
+      test('intent that is $name restores the backup', () async {
+        _buildCatalog(backupPath, _lastGood);
+        _buildCatalog(dbPath, '2026.03.15.000000');
+        write(File('$dbPath.activation.json'));
+
+        final db = await open();
+        addTearDown(db.close);
+
+        expect(await db.validateCatalogSnapshot(), _lastGood);
+        expect(File(backupPath).existsSync(), isFalse);
+        expect(File('$dbPath.activation.json').existsSync(), isFalse);
+      });
+
+      test(
+        'intent that is $name with no backup opens the shipped catalog',
+        () async {
+          _buildCatalog(dbPath, '2026.03.15.000000');
+          write(File('$dbPath.activation.json'));
+
+          final db = await open();
+          addTearDown(db.close);
+
+          expect(await db.validateCatalogSnapshot(), _bundled);
+          expect(File('$dbPath.activation.json').existsSync(), isFalse);
+        },
+      );
+    });
+
+    test(
+      'a corrupt live catalog with no backup opens the shipped catalog',
+      () async {
+        File(dbPath).writeAsBytesSync([1, 2, 3, 4]);
+        await recordCatalogActivation(
+          dbPath: dbPath,
+          expectedVersion: _update,
+          previousVersion: _lastGood,
+        );
+
+        final db = await open();
+        addTearDown(db.close);
+
+        expect(await db.validateCatalogSnapshot(), _bundled);
+        expect(File('$dbPath.activation.json').existsSync(), isFalse);
+      },
+    );
+
+    test(
+      'a missing live catalog with no backup opens the shipped catalog',
+      () async {
+        await recordCatalogActivation(
+          dbPath: dbPath,
+          expectedVersion: _update,
+          previousVersion: _lastGood,
+        );
+
+        final db = await open();
+        addTearDown(db.close);
+
+        expect(await db.validateCatalogSnapshot(), _bundled);
+        expect(File('$dbPath.activation.json').existsSync(), isFalse);
+      },
+    );
+
+    test('recovery leaves the phone able to take the next update', () async {
+      File('$dbPath.activation.json').writeAsStringSync('{"expected":');
+      _buildCatalog(dbPath, '2026.03.15.000000');
+      final recovered = await open();
+      await recovered.close();
+
+      _buildCatalog(stagingPath, _update);
+      final result = await swapper().swap(expectedVersion: _update);
+
+      expect(result, isA<SwapSuccess>());
+      final db = (result as SwapSuccess).newDb;
+      addTearDown(db.close);
+      expect(await db.validateCatalogSnapshot(), _update);
+    });
   });
 
   group('relaunch after the app died during activation', () {

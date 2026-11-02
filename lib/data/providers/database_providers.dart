@@ -214,41 +214,55 @@ Future<void> recordCatalogActivation({
 
 /// Settle the interrupted activation before the bundle check can touch it.
 /// A structurally valid file is insufficient when a swap recorded a different
-/// version. Restoration failures propagate: never reopen a refused catalog.
-Future<void> _settleCatalogActivation(String dbPath) async {
+/// version. Without a backup to return to, or without readable intent to judge
+/// the live file by, the shipped catalog takes over: a refused file is never
+/// reopened, and the phone is never left with no catalog. Restoration failures
+/// propagate and the intent stays, so the next launch tries again.
+Future<void> _settleCatalogActivation(String dbPath, AssetBundle bundle) async {
   final backup = File('$dbPath.backup');
   final marker = File('$dbPath.activation.json');
   final hasMarker = await marker.exists();
   final hasBackup = await backup.exists();
   if (!hasMarker && !hasBackup) return;
 
-  String? expected;
-  String? previous;
-  if (hasMarker) {
-    final intent = jsonDecode(await marker.readAsString());
-    if (intent is! Map ||
-        intent['expected'] is! String ||
-        (intent['expected'] as String).isEmpty ||
-        (intent['previous'] != null && intent['previous'] is! String)) {
-      throw StateError('Invalid catalog activation intent');
-    }
-    expected = intent['expected'] as String;
-    previous = intent['previous'] as String?;
-  }
-  final version = await _catalogVersion(dbPath);
+  final intent = hasMarker ? await _readCatalogActivation(marker) : null;
+  final version = hasMarker && intent == null
+      ? null
+      : await _catalogVersion(dbPath);
   final accepted =
       version != null &&
-      (!hasMarker || version == expected || version == previous);
-  if (!accepted) {
-    if (!hasBackup) {
-      throw StateError('Catalog activation has no verified recovery file');
-    }
+      (intent == null ||
+          version == intent.expected ||
+          version == intent.previous);
+  if (accepted) {
+    if (hasBackup) await backup.delete();
+  } else if (hasBackup) {
     debugPrint('[catalog-rollback] restoring the last good catalog');
     await backup.rename(dbPath);
-  } else if (hasBackup) {
-    await backup.delete();
+  } else {
+    debugPrint(
+      '[catalog-rollback] no recovery file, using the shipped catalog',
+    );
+    await _restoreBundledCoreDatabase(dbPath: dbPath, bundle: bundle);
   }
   if (hasMarker) await marker.delete();
+}
+
+/// Null when [marker] can't be read as intent.
+Future<({String expected, String? previous})?> _readCatalogActivation(
+  File marker,
+) async {
+  try {
+    final intent = jsonDecode(await marker.readAsString());
+    if (intent is! Map) return null;
+    final expected = intent['expected'];
+    final previous = intent['previous'];
+    if (expected is! String || expected.isEmpty) return null;
+    if (previous != null && previous is! String) return null;
+    return (expected: expected, previous: previous as String?);
+  } on Object {
+    return null;
+  }
 }
 
 Future<String?> _catalogVersion(String path) async {
@@ -291,7 +305,7 @@ Future<CoreDatabase> openCoreDatabase({
   final dbPath = p.join(dir.path, 'pharmaguide_core.db');
   final assetBundle = bundle ?? rootBundle;
   // Before the bundle check, which would overwrite a live file it can't read.
-  await _settleCatalogActivation(dbPath);
+  await _settleCatalogActivation(dbPath, assetBundle);
   await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: assetBundle);
 
   CoreDatabase? db;
