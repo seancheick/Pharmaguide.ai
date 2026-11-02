@@ -206,7 +206,6 @@ Future<void> _settleCatalogActivation(String dbPath) async {
         await backup.delete();
         return;
       }
-      await live.delete();
     }
     debugPrint('[catalog-rollback] restoring the last good catalog');
     await backup.rename(dbPath);

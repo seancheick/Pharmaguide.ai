@@ -513,9 +513,6 @@ class SyncService {
       await stagingFile.rename(dbPath);
     } catch (_) {
       if (await backupFile.exists()) {
-        if (await currentFile.exists()) {
-          await currentFile.delete();
-        }
         await backupFile.rename(dbPath);
       }
       rethrow;

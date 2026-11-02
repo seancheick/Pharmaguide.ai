@@ -193,6 +193,98 @@ void main() {
     },
   );
 
+  group('a failure after the file moved', () {
+    test(
+      'a failed open that succeeds on retry hands back a working catalog',
+      () async {
+        _buildCatalog(dbPath, _lastGood);
+        _buildCatalog(stagingPath, _update);
+        final old = await open();
+        var opens = 0;
+
+        final result = await CatalogSwapper(
+          corePathProvider: () async => dbPath,
+          activator: () => SyncService(
+            appVersion: '1.0.0',
+          ).activateStagedCoreDbAtPathForTest(dbPath),
+          opener: () {
+            if (opens++ == 0) throw const FileSystemException('disk full');
+            return open();
+          },
+        ).swap(expectedVersion: _update);
+
+        expect(result, isA<SwapRolledBack>());
+        final rolledBack = result as SwapRolledBack;
+        addTearDown(() async => rolledBack.restoredDb?.close());
+        expect(rolledBack.restoredDb, isNotNull);
+        expect(
+          await rolledBack.restoredDb!.validateCatalogSnapshot(),
+          isNotEmpty,
+        );
+        await old.close();
+      },
+    );
+
+    test(
+      'a catalog that cannot reopen tells the app its handle is dead',
+      () async {
+        _buildCatalog(dbPath, _lastGood);
+        _buildCatalog(stagingPath, _update);
+        final old = await open();
+
+        final result = await CatalogSwapper(
+          corePathProvider: () async => dbPath,
+          activator: () => SyncService(
+            appVersion: '1.0.0',
+          ).activateStagedCoreDbAtPathForTest(dbPath),
+          opener: () async => throw const FileSystemException('disk full'),
+        ).swap(expectedVersion: _update);
+
+        expect(result, isA<SwapRolledBack>());
+        final rolledBack = result as SwapRolledBack;
+        expect(rolledBack.restoredDb, isNull);
+        expect(rolledBack.previousHandleInvalid, isTrue);
+        await expectLater(old.validateCatalogSnapshot(), throwsA(anything));
+        await old.close();
+      },
+    );
+
+    test('a failure before anything moved leaves the handle trusted', () async {
+      _buildCatalog(dbPath, _lastGood);
+      _buildCatalog(stagingPath, _update);
+
+      final result = await CatalogSwapper(
+        corePathProvider: () async =>
+            throw const FileSystemException('no path'),
+        activator: () async => fail('nothing should activate'),
+        opener: () async => fail('nothing should open'),
+      ).swap(expectedVersion: _update);
+
+      expect((result as SwapRolledBack).previousHandleInvalid, isFalse);
+    });
+
+    test(
+      'a staged file of the wrong version never replaces the live one',
+      () async {
+        const unexpected = '2026.03.15.000000';
+        _buildCatalog(dbPath, _lastGood);
+        _buildCatalog(stagingPath, unexpected);
+        final old = await open();
+        addTearDown(old.close);
+
+        final result = await swapper().swap(expectedVersion: _update);
+
+        expect(result, isA<SwapRolledBack>());
+        final rolledBack = result as SwapRolledBack;
+        expect(rolledBack.restoredDb, isNull);
+        expect(rolledBack.previousHandleInvalid, isFalse);
+        expect(_versionOf(dbPath), _lastGood);
+        expect(File(stagingPath).existsSync(), isFalse);
+        expect(await old.validateCatalogSnapshot(), _lastGood);
+      },
+    );
+  });
+
   group('relaunch after the app died during activation', () {
     test('new catalog is good: keep it and retire the backup', () async {
       _buildCatalog(dbPath, _update);
@@ -255,6 +347,19 @@ void main() {
 
       expect(await db.validateCatalogSnapshot(), _bundled);
     });
+  });
+
+  test('the app acts on every rollback that ends its handle', () {
+    // main.dart's bootstrap needs Supabase, so this pins the source. Without
+    // these two branches the app keeps a handle whose every read fails.
+    final main = File('lib/main.dart').readAsStringSync();
+    expect(main, contains('await _adoptCatalog(restoredDb, restoredVersion)'));
+    expect(
+      main,
+      contains(
+        'else if (previousHandleInvalid) {\n          _dropDeadCatalog()',
+      ),
+    );
   });
 
   group('relaunch runs the real boot sequence at each activation step', () {

@@ -512,10 +512,13 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         :final reason,
         :final restoredDb,
         :final restoredVersion,
+        :final previousHandleInvalid,
       ):
         debugPrint('Catalog swap rolled back: $reason');
         if (restoredDb != null && restoredVersion != null) {
           await _adoptCatalog(restoredDb, restoredVersion);
+        } else if (previousHandleInvalid) {
+          _dropDeadCatalog();
         }
       case SwapNoStaging():
         debugPrint(
@@ -543,6 +546,20 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     unawaited(_persistActiveCatalogVersion(version));
     unawaited(oldDb?.close());
     return true;
+  }
+
+  /// The open handle stopped working and no replacement could be opened. The
+  /// unavailable state and its retry take over, as when boot finds no catalog.
+  void _dropDeadCatalog() {
+    if (!mounted) return;
+    final oldDb = _coreDb;
+    setState(() {
+      _coreDb = null;
+      _catalogAvailable = false;
+      _catalogUnavailableReason = _unavailableReason(includeRetryHint: true);
+      _scopeVersion++;
+    });
+    unawaited(oldDb?.close());
   }
 
   /// Persist the activated catalog version so the next launch's
