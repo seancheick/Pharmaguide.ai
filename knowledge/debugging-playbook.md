@@ -183,9 +183,9 @@ dart run build_runner build --delete-conflicting-outputs
 
 **Root Cause:** The Google ML Kit pods (label-text hints for submissions) ship no arm64-simulator slice and set `EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64`, so simulator builds are x86_64 only. Xcode 27 no longer offers the Intel (Rosetta) simulators those builds used to run on. Separately, a universal `flutter build ios --simulator` (Flutter 3.44.6) fails at `lipo -verify_arch` under Xcode 27.
 
-**Fix:** Test on a physical iPhone. For a simulator walk-through only, use a throwaway worktree with `google_mlkit_text_recognition` removed from `pubspec.yaml` and `readLatinTextFromFile` stubbed to return no text; the capture sheet treats a missing reader as "no hints". Never commit that copy.
+**Fix:** `ios/Podfile` now handles this: it requires the `apple_silicon_simulator` helper from `google_mlkit_commons` and calls `mlkit_apple_silicon_simulator_patch`. An unstubbed simulator build ran on iOS 26.5 on 2026-11-02, so no stub is needed. Don't remove `google_mlkit_text_recognition` from `pubspec.yaml` to work around a build: the Podfile needs the helper, so `pod install` fails without it.
 
-**Prevention:** Recheck when ML Kit ships an arm64-simulator slice, or gate ML Kit out of simulator builds.
+**Prevention:** If this symptom comes back, check that the Podfile lines above survived a plugin upgrade before changing anything else.
 
 ---
 
