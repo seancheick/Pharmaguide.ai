@@ -169,12 +169,16 @@ class StackSafetyBanner extends StatelessWidget {
       title: names.length == 1
           ? "We can't fully check ${names.single}"
           : "We can't fully check ${names.length} products",
-      body: names.length == 1
-          ? "We can't match enough of its label to our safety data, so your "
-                'stack results may not include it.'
-          : "We can't match enough of their labels to our safety data, so "
-                'your stack results may not include them: '
-                '${names.join(', ')}.',
+      body:
+          (names.length == 1
+              ? "We can't match enough of its label to our safety data, so your "
+                    'stack results may not include it.'
+              : "We can't match enough of their labels to our safety data, so "
+                    'your stack results may not include them: '
+                    '${names.join(', ')}.') +
+          (snapshot.checksIncomplete
+              ? ' Some stack safety checks could not finish, so results may be incomplete.'
+              : ''),
       margin: margin,
     );
   }

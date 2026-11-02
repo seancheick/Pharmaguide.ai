@@ -163,12 +163,16 @@ class RecalledIngredientsReport {
   /// Stack products the catalog doesn't have, so no flag could be read for them.
   final List<String> notInCatalog;
 
+  /// Products whose catalog lookup failed, distinct from absent catalog rows.
+  final List<String> unreadableProducts;
+
   bool get isEmpty => violations.isEmpty;
 
   const RecalledIngredientsReport({
     required this.violations,
     this.incomplete = false,
     this.notInCatalog = const [],
+    this.unreadableProducts = const [],
   });
 
   factory RecalledIngredientsReport.empty({bool incomplete = false}) {
@@ -181,12 +185,15 @@ class RecalledIngredientsReport {
   /// Says which products went unchecked. Empty when the catalog had them all.
   String get notInCatalogMessage {
     if (notInCatalog.isEmpty) return '';
-    if (notInCatalog.length == 1) {
-      return "${notInCatalog.single} isn't in our current catalog, so we can't "
-          'check it for recalls or interactions.';
-    }
-    return "${notInCatalog.length} products in your stack aren't in our "
-        "current catalog, so we can't check them for recalls or interactions.";
+    final missing = notInCatalog.length == 1
+        ? "${notInCatalog.single} isn't in our current catalog, so we can't "
+              'check it for recalls or interactions.'
+        : "${notInCatalog.length} products in your stack aren't in our "
+              "current catalog, so we can't check them for recalls or interactions.";
+    if (unreadableProducts.isEmpty) return missing;
+    return '$missing We also could not read product data for '
+        '${unreadableProducts.join(', ')}, so their recall check did not finish. '
+        'Please reopen PharmaGuide to try again.';
   }
 
   /// Consumer summary for the stack-level product-safety banner.

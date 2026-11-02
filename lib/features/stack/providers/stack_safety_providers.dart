@@ -340,6 +340,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       // Couldn't hydrate this product — it is excluded from every check
       // below, so the report must hedge rather than claim a clean result.
       coverageIncomplete = true;
+      checksIncomplete = true;
       continue;
     }
     if (product == null) {
@@ -887,6 +888,7 @@ final recalledIngredientsReportProvider =
       // Check each supplement for recalled ingredients.
       final violations = <RecalledIngredientViolation>[];
       final notInCatalog = <String>[];
+      final unreadableProducts = <String>[];
       var incomplete = false;
       for (final entry in supplements) {
         final productId = entry.dsldId;
@@ -901,6 +903,7 @@ final recalledIngredientsReportProvider =
           product = await coreDb.findById(productId);
         } on Object catch (e, st) {
           incomplete = true;
+          unreadableProducts.add(entry.name);
           CrashReportingService().recordError(
             e,
             st,
@@ -974,6 +977,7 @@ final recalledIngredientsReportProvider =
         violations: violations,
         incomplete: incomplete,
         notInCatalog: notInCatalog,
+        unreadableProducts: unreadableProducts,
       );
     });
 

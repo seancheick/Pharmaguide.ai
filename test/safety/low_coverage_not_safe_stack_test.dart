@@ -103,6 +103,24 @@ void main() {
       expect(find.textContaining('Safe'), findsNothing);
     });
 
+    testWidgets('low coverage preserves an independent failed check', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const StackSafetyReport(
+          coverageIncomplete: true,
+          limitedDataProducts: ['Fructose'],
+          checksIncomplete: true,
+        ),
+      );
+      expect(find.text("We can't fully check Fructose"), findsOneWidget);
+      expect(
+        find.textContaining('Some stack safety checks could not finish'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('several low-coverage products are all named', (tester) async {
       await pump(
         tester,

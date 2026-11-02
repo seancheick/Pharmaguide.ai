@@ -735,6 +735,48 @@ void main() {
         ),
       ];
 
+      testWidgets(
+        'missing-product card preserves a separate unreadable product',
+        (tester) async {
+          await pumpWithStack(
+            tester,
+            const StackV2Screen(showNavBar: false),
+            stack: stack,
+            safetyReport: const StackSafetyReport(
+              coverageIncomplete: true,
+              checksIncomplete: true,
+            ),
+            recallReport: const RecalledIngredientsReport(
+              violations: [],
+              incomplete: true,
+              notInCatalog: ['Old Brand Magnesium'],
+              unreadableProducts: ['Vitamin D'],
+            ),
+          );
+          expect(
+            find.textContaining(
+              "Old Brand Magnesium isn't in our current catalog",
+              skipOffstage: false,
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.textContaining(
+              'could not read product data for Vitamin D',
+              skipOffstage: false,
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.textContaining(
+              'recall check did not finish',
+              skipOffstage: false,
+            ),
+            findsOneWidget,
+          );
+        },
+      );
+
       testWidgets('names a product the catalog does not have', (tester) async {
         await pumpWithStack(
           tester,
