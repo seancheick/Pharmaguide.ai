@@ -2248,19 +2248,15 @@ class _RecallAlertSlot extends ConsumerWidget {
     return reportAsync.when(
       data: (report) {
         if (report.isEmpty) {
-          // Empty report + incomplete check means the recall data could not
-          // be loaded — hedge rather than imply the stack is recall-free, or
-          // an FDA-recalled product goes silently un-flagged. A genuinely
-          // clean stack (loaded, no hits) still shows nothing.
-          if (report.incomplete) {
-            return const _SafetyUnavailableBanner(
-              title: "Couldn't check for recalls",
-              body:
-                  'Recall data is unavailable right now, so we could not '
-                  'check your stack against FDA recalls. Check back in a '
-                  'moment.',
+          // Name the real gap rather than imply the stack is recall-free. A
+          // genuinely clean stack (every product read, no hits) shows nothing.
+          if (report.notInCatalog.isNotEmpty) {
+            return _SafetyUnavailableBanner(
+              title: 'Not in our catalog',
+              body: report.notInCatalogMessage,
             );
           }
+          if (report.incomplete) return const _RecallCheckUnfinishedBanner();
           return const SizedBox.shrink();
         }
         final ordered = report.orderedViolations;
@@ -2286,12 +2282,22 @@ class _RecallAlertSlot extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       // Never vanish silently on error — hedge so a failed recall check does
       // not read as "no recalls".
-      error: (_, __) => const _SafetyUnavailableBanner(
-        title: "Couldn't check for recalls",
-        body:
-            'Recall data is unavailable right now, so we could not check '
-            'your stack against FDA recalls. Check back in a moment.',
-      ),
+      error: (_, __) => const _RecallCheckUnfinishedBanner(),
+    );
+  }
+}
+
+class _RecallCheckUnfinishedBanner extends StatelessWidget {
+  const _RecallCheckUnfinishedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _SafetyUnavailableBanner(
+      title: "Recall check didn't finish",
+      body:
+          "We couldn't read the product data on this phone, so your stack "
+          "hasn't been checked for recalls. Please reopen PharmaGuide to try "
+          'again.',
     );
   }
 }
@@ -2327,9 +2333,8 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
       error: (_, __) => const _SafetyUnavailableBanner(
         title: "Couldn't check your stack",
         body:
-            'Safety data is unavailable right now, so we could not check '
-            'your stack for interactions or timing guidance. Check back '
-            'in a moment.',
+            "We couldn't finish checking your stack for interactions or "
+            'timing guidance. Please reopen PharmaGuide to try again.',
       ),
     );
   }
@@ -2429,7 +2434,9 @@ class _GoalSupportSlot extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const _SafetyUnavailableBanner(
         title: "Couldn't check goal support",
-        body: 'Goal-support data is unavailable right now. Try again shortly.',
+        body:
+            "We couldn't finish checking goal support. Please reopen "
+            'PharmaGuide to try again.',
       ),
     );
   }
