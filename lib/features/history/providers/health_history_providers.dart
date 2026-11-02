@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -206,35 +207,45 @@ final healthReminderSchedulerProvider = Provider<HealthReminderScheduler>((
 /// log. No notification-specific health database exists.
 final healthReminderSyncProvider =
     FutureProvider.autoDispose<HealthReminderSyncResult>((ref) async {
+      final guard = ref.watch(accountSwitchGuardProvider);
       final policy = ref.watch(notificationDeliveryPolicyProvider);
       final scheduler = ref.watch(healthReminderSchedulerProvider);
-      switch (policy.actionFor(NotificationCategory.healthHistoryReminders)) {
-        case NotificationDeliveryAction.cancel:
-          final cancelled = await scheduler.cancelOwned();
-          return HealthReminderSyncResult(
-            scheduled: 0,
-            cancelled: cancelled,
-            permissionGranted:
-                policy.authorizationStatus ==
-                NotificationAuthorizationStatus.allowed,
-            deliveryEnabled: false,
-          );
-        case NotificationDeliveryAction.preserve:
-          return HealthReminderSyncResult(
-            scheduled: 0,
-            cancelled: 0,
-            permissionGranted:
-                policy.authorizationStatus ==
-                NotificationAuthorizationStatus.allowed,
-            deliveryEnabled: false,
-          );
-        case NotificationDeliveryAction.schedule:
-          break;
+      Future<HealthReminderSyncResult> run() async {
+        switch (policy.actionFor(NotificationCategory.healthHistoryReminders)) {
+          case NotificationDeliveryAction.cancel:
+            final cancelled = await scheduler.cancelOwned();
+            return HealthReminderSyncResult(
+              scheduled: 0,
+              cancelled: cancelled,
+              permissionGranted:
+                  policy.authorizationStatus ==
+                  NotificationAuthorizationStatus.allowed,
+              deliveryEnabled: false,
+            );
+          case NotificationDeliveryAction.preserve:
+            return HealthReminderSyncResult(
+              scheduled: 0,
+              cancelled: 0,
+              permissionGranted:
+                  policy.authorizationStatus ==
+                  NotificationAuthorizationStatus.allowed,
+              deliveryEnabled: false,
+            );
+          case NotificationDeliveryAction.schedule:
+            break;
+        }
+
+        final items = await ref.watch(healthHistoryUpcomingProvider.future);
+        return scheduler.sync(
+          items.map((item) => item.event).toList(growable: false),
+          permissionAlreadyGranted: true,
+        );
       }
 
-      final items = await ref.watch(healthHistoryUpcomingProvider.future);
-      return scheduler.sync(
-        items.map((item) => item.event).toList(growable: false),
-        permissionAlreadyGranted: true,
-      );
+      return guard == null
+          ? run()
+          : guard.runNotificationWork(
+              run,
+              account: ref.watch(activeAccountProvider),
+            );
     });

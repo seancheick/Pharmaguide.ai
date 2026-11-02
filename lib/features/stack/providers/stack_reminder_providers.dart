@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/services/notifications/local_notification_timezone.dart';
 import 'package:pharmaguide/services/notifications/notification_authorization_service.dart';
@@ -20,44 +22,54 @@ final stackReminderSchedulerProvider = Provider<StackReminderScheduler>((ref) {
 
 final stackReminderSyncProvider =
     FutureProvider.autoDispose<StackReminderSyncResult>((ref) async {
+      final guard = ref.watch(accountSwitchGuardProvider);
       final policy = ref.watch(notificationDeliveryPolicyProvider);
       final scheduler = ref.watch(stackReminderSchedulerProvider);
-      switch (policy.actionFor(NotificationCategory.stackReminders)) {
-        case NotificationDeliveryAction.cancel:
-          final cancelled = await scheduler.cancelOwned();
-          return StackReminderSyncResult(
-            scheduled: 0,
-            cancelled: cancelled,
-            permissionGranted:
-                policy.authorizationStatus ==
-                NotificationAuthorizationStatus.allowed,
-            omittedDueToLimit: 0,
-            deliveryEnabled: false,
-          );
-        case NotificationDeliveryAction.preserve:
-          return StackReminderSyncResult(
-            scheduled: 0,
-            cancelled: 0,
-            permissionGranted:
-                policy.authorizationStatus ==
-                NotificationAuthorizationStatus.allowed,
-            omittedDueToLimit: 0,
-            deliveryEnabled: false,
-          );
-        case NotificationDeliveryAction.schedule:
-          break;
+      Future<StackReminderSyncResult> run() async {
+        switch (policy.actionFor(NotificationCategory.stackReminders)) {
+          case NotificationDeliveryAction.cancel:
+            final cancelled = await scheduler.cancelOwned();
+            return StackReminderSyncResult(
+              scheduled: 0,
+              cancelled: cancelled,
+              permissionGranted:
+                  policy.authorizationStatus ==
+                  NotificationAuthorizationStatus.allowed,
+              omittedDueToLimit: 0,
+              deliveryEnabled: false,
+            );
+          case NotificationDeliveryAction.preserve:
+            return StackReminderSyncResult(
+              scheduled: 0,
+              cancelled: 0,
+              permissionGranted:
+                  policy.authorizationStatus ==
+                  NotificationAuthorizationStatus.allowed,
+              omittedDueToLimit: 0,
+              deliveryEnabled: false,
+            );
+          case NotificationDeliveryAction.schedule:
+            break;
+        }
+
+        final stack = await ref.watch(activeStackProvider.future);
+        final reminders = <StackReminder>[
+          for (final entry in stack)
+            if (entry.reminderMinutes != null)
+              (
+                stackEntryId: entry.id,
+                minutesAfterMidnight: entry.reminderMinutes!,
+              ),
+        ];
+        return scheduler.sync(reminders, permissionAlreadyGranted: true);
       }
 
-      final stack = await ref.watch(activeStackProvider.future);
-      final reminders = <StackReminder>[
-        for (final entry in stack)
-          if (entry.reminderMinutes != null)
-            (
-              stackEntryId: entry.id,
-              minutesAfterMidnight: entry.reminderMinutes!,
-            ),
-      ];
-      return scheduler.sync(reminders, permissionAlreadyGranted: true);
+      return guard == null
+          ? run()
+          : guard.runNotificationWork(
+              run,
+              account: ref.watch(activeAccountProvider),
+            );
     });
 
 /// Whether the OS will actually deliver the reminders the user saved.

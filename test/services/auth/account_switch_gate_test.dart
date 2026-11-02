@@ -14,6 +14,7 @@ import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
+import 'package:pharmaguide/services/pending_submission_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 
@@ -111,12 +112,14 @@ void main() {
     AccountSwitchGuard guardWith({
       Future<UserDatabase> Function(String path)? open,
       Future<void> Function()? onOwnerChange,
+      String? Function()? readSessionUid,
     }) {
       final guard = AccountSwitchGuard(
         ownerStore: AccountOwnerStore(),
         storage: storage,
         openDatabase: open ?? (path) async => UserDatabase.open(path),
         onOwnerChange: onOwnerChange,
+        readSessionUid: readSessionUid,
       );
       addTearDown(guard.close);
       return guard;
@@ -287,6 +290,138 @@ void main() {
 
         expect(guard.ownerUid, isNull);
         expect(await _names(guard.database!), isEmpty);
+      },
+    );
+
+    test(
+      'sign-out clears a pending submission even when reminder cleanup fails',
+      () async {
+        final guard = guardWith(
+          onOwnerChange: () async => throw StateError('notifications'),
+        );
+        await guard.boot(sessionUid: _a);
+        await PendingSubmissionIntent.saveLabelMismatch('12345');
+        expect(await PendingSubmissionIntent.peek(), isNotNull);
+        await signOut(guard);
+        expect(await PendingSubmissionIntent.peek(), isNull);
+      },
+    );
+
+    test(
+      'guest sign-in preserves the submission that requested authentication',
+      () async {
+        final guard = guardWith();
+        await guard.boot(sessionUid: null);
+        await PendingSubmissionIntent.saveLabelMismatch('12345');
+        await signIn(guard, _a);
+        expect(await PendingSubmissionIntent.peek(), isNotNull);
+      },
+    );
+
+    test(
+      'retry after a failed open uses the current session, never the expired owner',
+      () async {
+        String? session = _a;
+        var failing = true;
+        final guard = guardWith(
+          readSessionUid: () => session,
+          open: (path) async {
+            if (failing) throw const FileSystemException('unavailable');
+            return UserDatabase.open(path);
+          },
+        );
+        await guard.boot(sessionUid: session);
+        expect(guard.database, isNull);
+        // The unavailable screen has no auth listener. Expiration can happen
+        // here, before the user retries the failed database open.
+        session = null;
+        failing = false;
+        await guard.retry();
+        expect(guard.ownerUid, isNull);
+        expect(guard.account.scope, AccountStorage.guestScope);
+        expect(await AccountOwnerStore().read(), isNull);
+      },
+    );
+
+    test(
+      'a session lost while a database opens never publishes that owner',
+      () async {
+        String? session = _a;
+        final guard = guardWith(
+          readSessionUid: () => session,
+          open: (path) async {
+            session = null;
+            return UserDatabase.open(path);
+          },
+        );
+        await guard.boot(sessionUid: _a);
+        expect(guard.database, isNull);
+        await guard.retry();
+        expect(guard.database, isNotNull);
+        expect(guard.ownerUid, isNull);
+      },
+    );
+
+    test(
+      'boot cleans up the previous owner before opening the current session',
+      () async {
+        await AccountOwnerStore().write(_a);
+        var cleaned = false;
+        final guard = guardWith(
+          onOwnerChange: () async => cleaned = true,
+          open: (path) async {
+            expect(
+              cleaned,
+              isTrue,
+              reason: 'old reminders and sharing must end first',
+            );
+            return UserDatabase.open(path);
+          },
+        );
+        await guard.boot(sessionUid: null);
+        expect(cleaned, isTrue);
+        expect(guard.database, isNotNull);
+      },
+    );
+
+    test(
+      'a storage lookup failure during sign-out cannot leave account data open',
+      () async {
+        var failPaths = false;
+        storage = AccountStorage(
+          supportDirectory: () async {
+            if (failPaths) {
+              throw const FileSystemException('unavailable directory');
+            }
+            return support;
+          },
+          documentsDirectory: () async => documents,
+        );
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+        await _addMedication(guard.database!, 'Warfarin');
+        failPaths = true;
+        await expectLater(signOut(guard), completes);
+        expect(guard.database, isNull);
+        expect(guard.ownerUid, isNull);
+      },
+    );
+
+    test(
+      'a retained old provider tree cannot schedule after switching owners',
+      () async {
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+        final oldAccount = guard.account;
+        await signOut(guard);
+        var wrote = false;
+        await expectLater(
+          guard.runNotificationWork(() async {
+            wrote = true;
+          }, account: oldAccount),
+          throwsStateError,
+        );
+        expect(wrote, isFalse);
       },
     );
 
@@ -471,6 +606,56 @@ void main() {
         );
       });
 
+      test(
+        'a leftover legacy store never changes owners on a later launch',
+        () async {
+          final existing = UserDatabase.open(await storage.databasePathFor(_a));
+          await _addMedication(existing, 'Current A');
+          await existing.close();
+          await writeLegacyDatabase('Legacy A');
+          await AccountOwnerStore().write(_a);
+
+          final first = guardWith();
+          await first.boot(sessionUid: _b);
+          expect(await _names(first.database!), isEmpty);
+          await first.close();
+
+          // The active owner is now B. A retained shared store must not be
+          // migrated as B's data when B's current folder is removed.
+          await storage.delete(_b);
+          final next = guardWith();
+          await next.boot(sessionUid: _b);
+          expect(await _names(next.database!), isEmpty);
+        },
+      );
+
+      test(
+        'colliding legacy attachments never become guest attachments',
+        () async {
+          final existing = UserDatabase.open(await storage.databasePathFor(_a));
+          await existing.close();
+          final account = await storage.accountFor(_a);
+          await Directory(account.attachmentsPath!).create();
+          final legacy = await Directory(
+            p.join(support.path, 'health_history_attachments'),
+          ).create();
+          await File(
+            p.join(legacy.path, 'private.jpg'),
+          ).writeAsString('private');
+          await AccountOwnerStore().write(_a);
+
+          final first = guardWith();
+          await first.boot(sessionUid: null);
+          await first.close();
+          final next = guardWith();
+          await next.boot(sessionUid: null);
+          expect(
+            next.account.attachmentFile('private.jpg').existsSync(),
+            isFalse,
+          );
+        },
+      );
+
       test('never overwrites an account that already has a database', () async {
         final guard = guardWith();
         await guard.boot(sessionUid: _a);
@@ -484,8 +669,14 @@ void main() {
         expect(await _names(next.database!), ['Warfarin']);
         expect(
           File(p.join(documents.path, 'user_data.db')).existsSync(),
-          isTrue,
+          isFalse,
         );
+        final archive = File(
+          p.join(next.account.folder!, 'legacy', 'user_data.db'),
+        );
+        expect(archive.existsSync(), isTrue);
+        await next.removeAccountData(_a);
+        expect(archive.existsSync(), isFalse);
       });
     });
 
