@@ -19,6 +19,7 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/app_switcher_cover.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
@@ -1316,7 +1317,7 @@ class PharmaGuideApp extends ConsumerWidget {
         );
         return ReduceTransparencyScope(
           notifier: ReduceTransparency.enabled,
-          child: scaled,
+          child: AppSwitcherCover(child: scaled),
         );
       },
     );
