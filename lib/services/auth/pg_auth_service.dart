@@ -118,6 +118,7 @@ class AccountSwitchGuard {
     required this._storage,
     required this._openDatabase,
     this._onOwnerChange,
+    this._onNotificationCleanup,
     this._onAccountRemoved,
     this._readSessionUid,
   });
@@ -125,6 +126,7 @@ class AccountSwitchGuard {
   factory AccountSwitchGuard.production({
     required Future<UserDatabase> Function(String path) openDatabase,
     Future<void> Function()? onOwnerChange,
+    Future<void> Function()? onNotificationCleanup,
     Future<void> Function(String uid)? onAccountRemoved,
     String? Function()? readSessionUid,
   }) => AccountSwitchGuard(
@@ -132,6 +134,7 @@ class AccountSwitchGuard {
     storage: AccountStorage.production(),
     openDatabase: openDatabase,
     onOwnerChange: onOwnerChange,
+    onNotificationCleanup: onNotificationCleanup,
     onAccountRemoved: onAccountRemoved,
     readSessionUid: readSessionUid,
   );
@@ -146,6 +149,9 @@ class AccountSwitchGuard {
   /// such as scheduled notifications. A failure is reported and never stops the
   /// switch.
   final Future<void> Function()? _onOwnerChange;
+
+  /// Cancels late OS writes without clearing the incoming owner's preferences.
+  final Future<void> Function()? _onNotificationCleanup;
 
   /// Deletes what is keyed to the account but lives outside its folder.
   final Future<void> Function(String uid)? _onAccountRemoved;
@@ -319,22 +325,25 @@ class AccountSwitchGuard {
   /// A call that outlasted the drain can still write after the cancel. When it
   /// ends, cancel again and let the current owner's tree schedule its own.
   void _cleanUpAfterLateWork(List<Future<void>> late) {
-    unawaited(
-      Future.wait(late).then(
-        (_) => _enqueue(() async {
-          try {
-            await _onOwnerChange?.call();
-          } on Object catch (error, stackTrace) {
-            CrashReportingService().recordError(
-              error,
-              stackTrace,
-              hint: 'account_switch:late_notification_cleanup',
-            );
-          }
-          onChanged?.call();
-        }),
-      ),
-    );
+    // Each completed write needs cleanup even if another call never returns.
+    for (final pending in late) {
+      unawaited(
+        pending.then(
+          (_) => _enqueue(() async {
+            try {
+              await _onNotificationCleanup?.call();
+            } on Object catch (error, stackTrace) {
+              CrashReportingService().recordError(
+                error,
+                stackTrace,
+                hint: 'account_switch:late_notification_cleanup',
+              );
+            }
+            onChanged?.call();
+          }),
+        ),
+      );
+    }
   }
 
   Future<void> _endOwnerWork({

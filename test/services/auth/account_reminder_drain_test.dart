@@ -79,6 +79,7 @@ void main() {
     late Directory root;
     late int cancels;
     late int changes;
+    late int ownerCleanups;
     late AccountSwitchGuard guard;
 
     setUp(() async {
@@ -87,6 +88,7 @@ void main() {
       addTearDown(() => root.delete(recursive: true));
       cancels = 0;
       changes = 0;
+      ownerCleanups = 0;
       guard = AccountSwitchGuard(
         ownerStore: AccountOwnerStore(),
         storage: AccountStorage(
@@ -94,12 +96,17 @@ void main() {
           documentsDirectory: () async => root,
         ),
         openDatabase: (path) async => UserDatabase.open(path),
-        onOwnerChange: () async => cancels++,
+        onOwnerChange: () async {
+          ownerCleanups++;
+          cancels++;
+        },
+        onNotificationCleanup: () async => cancels++,
       )..onChanged = () => changes++;
       addTearDown(guard.close);
       await guard.boot(sessionUid: 'account-a');
       // The first sign-in on record runs the same cleanup.
       cancels = 0;
+      ownerCleanups = 0;
     });
 
     test('never blocks the sign-out', () async {
@@ -119,6 +126,32 @@ void main() {
       expect(guard.database, isNotNull);
       stuck.complete();
     }, timeout: const Timeout(Duration(seconds: 30)));
+
+    test(
+      'a completed late job is cleaned up even while a sibling stays stuck',
+      () async {
+        final stuck = Completer<void>();
+        final late = Completer<void>();
+        unawaited(
+          guard.runNotificationWork(() => stuck.future, account: guard.account),
+        );
+        unawaited(
+          guard.runNotificationWork(() => late.future, account: guard.account),
+        );
+        await guard.onAuthEvent(event: AuthChangeEvent.signedOut, uid: null);
+        late.complete();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        final cancelsAfterLateJob = cancels;
+        stuck.complete();
+        expect(cancelsAfterLateJob, 2);
+        expect(
+          ownerCleanups,
+          1,
+          reason: "Late cleanup must not clear the new owner's preferences",
+        );
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
 
     test('is cleaned up again when it finally finishes', () async {
       final late = Completer<void>();

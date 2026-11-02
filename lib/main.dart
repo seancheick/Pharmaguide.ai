@@ -148,6 +148,7 @@ Future<void> _runApp() async {
     openDatabase: openUserDatabase,
     readSessionUid: _launchSessionUid,
     onOwnerChange: _endOutgoingOwnerWork,
+    onNotificationCleanup: _cancelAccountNotifications,
     onAccountRemoved: (uid) async =>
         (await ProductSubmissionDraftStore.open()).deleteAccount(uid),
   );
@@ -212,11 +213,15 @@ String? _launchSessionUid() {
   }
 }
 
-/// Everything of the outgoing person's that lives outside their folder. Each
-/// tree's reminder providers schedule again from the new owner's database.
+/// Cancel OS writes without changing the active owner's account preferences.
+Future<void> _cancelAccountNotifications() async {
+  await FlutterLocalNotificationsPlugin().cancelAll();
+}
+
+/// Clear outgoing-owner state; the new tree schedules its own reminders.
 Future<void> _endOutgoingOwnerWork() async {
   await Future.wait([
-    Future.sync(() => FlutterLocalNotificationsPlugin().cancelAll()),
+    Future.sync(_cancelAccountNotifications),
     Future.sync(
       () => AiSharePrefsStore(
         SharedPreferencesAsyncAppPreferencesStore(),
