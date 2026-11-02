@@ -193,15 +193,55 @@ Future<void> _writeBytesChunked(File file, Uint8List bytes) async {
   }
 }
 
-/// Opens the core catalog DB and probes it. If open or the structural
-/// snapshot probe ([CoreDatabase.validateCatalogSnapshot]) throws, the
-/// on-disk file is force-restored from the bundled asset and the open
-/// is retried once.
+/// Decides what happens to a `.backup` left by catalog activation, before
+/// anything else touches the live file: a live catalog that validates retires
+/// the backup, and one that does not (or is missing) is replaced by it.
+Future<void> _settleCatalogActivation(String dbPath) async {
+  final backup = File('$dbPath.backup');
+  try {
+    if (!await backup.exists()) return;
+    final live = File(dbPath);
+    if (await live.exists()) {
+      if (await _catalogValidates(dbPath)) {
+        await backup.delete();
+        return;
+      }
+      await live.delete();
+    }
+    debugPrint('[catalog-rollback] restoring the last good catalog');
+    await backup.rename(dbPath);
+  } on Object catch (e) {
+    debugPrint('[catalog-rollback] settling failed: ${e.runtimeType}');
+  }
+}
+
+Future<bool> _catalogValidates(String path) async {
+  CoreDatabase? db;
+  try {
+    db = CoreDatabase.open(path);
+    await db.validateCatalogSnapshot();
+    return true;
+  } on Object {
+    return false;
+  } finally {
+    try {
+      await db?.close();
+    } on Object {
+      // Best-effort; the answer above is what matters.
+    }
+  }
+}
+
+/// Opens the core catalog DB and probes it. A backup left by catalog
+/// activation is settled first, so a bad update returns the phone to the last
+/// catalog that worked. If open or the structural snapshot probe
+/// ([CoreDatabase.validateCatalogSnapshot]) still throws, the on-disk file is
+/// force-restored from the bundled asset and the open is retried once.
 ///
 /// **D4 rollback safety.** Bundle corruption (truncated OTA file,
 /// schema drift, partial swap) must never brick the app. The bundled
 /// asset is always available — it ships with the binary — and serves
-/// as the always-good fallback. The retry runs against a known-good
+/// as the last-resort fallback. The retry runs against a known-good
 /// file shape, so a second failure indicates the bundled asset itself
 /// is broken (a build-gate problem, not a runtime one) and we let it
 /// surface to the caller.
@@ -214,6 +254,8 @@ Future<CoreDatabase> openCoreDatabase({
   final dir = documentsDirectory ?? await getApplicationDocumentsDirectory();
   final dbPath = p.join(dir.path, 'pharmaguide_core.db');
   final assetBundle = bundle ?? rootBundle;
+  // Before the bundle check, which would overwrite a live file it can't read.
+  await _settleCatalogActivation(dbPath);
   await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: assetBundle);
 
   CoreDatabase? db;

@@ -41,14 +41,26 @@ class SwapNoStaging extends SwapResult {
   const SwapNoStaging();
 }
 
-/// Swap failed at activation, open, or validation. The caller's
-/// current DB is unaffected — `SyncService.activateStagedCoreDbIfPresent`
-/// restores the backup internally on rename failure, and we close the
-/// new DB ourselves before returning when validation fails.
+/// Swap failed at activation, open, or validation. The previous catalog is
+/// back at the live path — `SyncService.activateStagedCoreDbIfPresent` restores
+/// the backup on rename failure, `openCoreDatabase` restores it when the new
+/// file doesn't validate.
+///
+/// The caller's open handle can't be trusted any more: SQLite fails reads with
+/// a disk I/O error once a handle's file has been moved, even after it is moved
+/// back. When [restoredDb] is set the caller must adopt it (and owns closing
+/// it) in place of its current handle.
 class SwapRolledBack extends SwapResult {
   final Object error;
   final String reason;
-  const SwapRolledBack({required this.error, required this.reason});
+  final CoreDatabase? restoredDb;
+  final String? restoredVersion;
+  const SwapRolledBack({
+    required this.error,
+    required this.reason,
+    this.restoredDb,
+    this.restoredVersion,
+  });
 }
 
 /// Atomically swap a staged catalog file into the live path and open a
@@ -80,13 +92,15 @@ class CatalogSwapper {
   /// Sequence (each step is fail-soft — any error → [SwapRolledBack]):
   ///   1. Look up the live DB path.
   ///   2. Bail with [SwapNoStaging] if no staging file exists.
-  ///   3. Run the activator (atomic rename, with backup/restore inside
-  ///      [SyncService]).
-  ///   4. Open the new DB via [opener].
-  ///   5. Validate via `db.validateCatalogSnapshot()`. On failure, close
-  ///      the new DB before returning so we don't leak a connection.
+  ///   3. Run the activator (atomic rename, keeping a backup).
+  ///   4. Open the new DB via [opener], which restores the backup if the new
+  ///      file doesn't validate.
+  ///   5. Validate via `db.validateCatalogSnapshot()`, and require
+  ///      [expectedVersion]: any other version means the update was rolled
+  ///      back, and the caller must not treat it as an update. On failure,
+  ///      close the opened DB before returning so we don't leak a connection.
   ///   6. Return [SwapSuccess] — caller closes the old DB.
-  Future<SwapResult> swap() async {
+  Future<SwapResult> swap({required String expectedVersion}) async {
     final String dbPath;
     try {
       dbPath = await corePathProvider();
@@ -123,7 +137,23 @@ class CatalogSwapper {
         fatal: true,
         hint: 'catalog_swap:activation',
       );
-      return SwapRolledBack(error: e, reason: 'Activation failed: $e');
+      CoreDatabase? reopened;
+      try {
+        reopened = await opener();
+        return SwapRolledBack(
+          error: e,
+          reason: 'Activation failed: $e',
+          restoredDb: reopened,
+          restoredVersion: await reopened.validateCatalogSnapshot(),
+        );
+      } on Object {
+        try {
+          await reopened?.close();
+        } on Object {
+          // Best-effort cleanup; nothing actionable for the caller.
+        }
+        return SwapRolledBack(error: e, reason: 'Activation failed: $e');
+      }
     }
 
     final CoreDatabase newDb;
@@ -141,6 +171,23 @@ class CatalogSwapper {
 
     try {
       final version = await newDb.validateCatalogSnapshot();
+      if (version != expectedVersion) {
+        final error = StateError(
+          'Opened catalog $version instead of $expectedVersion',
+        );
+        CrashReportingService().recordError(
+          error,
+          StackTrace.current,
+          fatal: true,
+          hint: 'catalog_swap:version_mismatch',
+        );
+        return SwapRolledBack(
+          error: error,
+          reason: error.message,
+          restoredDb: newDb,
+          restoredVersion: version,
+        );
+      }
       return SwapSuccess(newDb: newDb, version: version);
     } on Object catch (e, st) {
       // Best-effort close. Drift's `close()` can throw when the

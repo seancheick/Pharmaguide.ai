@@ -501,33 +501,48 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   Future<void> _activateStagedCatalog({
     required String downloadedVersion,
   }) async {
-    final swapResult = await _swapper.swap();
+    final swapResult = await _swapper.swap(expectedVersion: downloadedVersion);
 
     switch (swapResult) {
       case SwapSuccess(:final newDb, :final version):
-        if (!mounted) {
-          await newDb.close();
-          return;
+        if (await _adoptCatalog(newDb, version)) {
+          _showCatalogUpdatedToast(version);
         }
-        final oldDb = _coreDb;
-        setState(() {
-          _coreDb = newDb;
-          _activeCatalogVersion = version;
-          _catalogAvailable = true;
-          _catalogUnavailableReason = null;
-          _scopeVersion++;
-        });
-        unawaited(_persistActiveCatalogVersion(version));
-        unawaited(oldDb?.close());
-        _showCatalogUpdatedToast(version);
-      case SwapRolledBack(:final reason):
+      case SwapRolledBack(
+        :final reason,
+        :final restoredDb,
+        :final restoredVersion,
+      ):
         debugPrint('Catalog swap rolled back: $reason');
+        if (restoredDb != null && restoredVersion != null) {
+          await _adoptCatalog(restoredDb, restoredVersion);
+        }
       case SwapNoStaging():
         debugPrint(
           'Catalog swap: no staging file present after download '
           'returned $downloadedVersion',
         );
     }
+  }
+
+  /// Moves the app onto [db] and closes the handle it replaces. Returns false
+  /// (closing [db]) when the app is no longer mounted.
+  Future<bool> _adoptCatalog(CoreDatabase db, String version) async {
+    if (!mounted) {
+      await db.close();
+      return false;
+    }
+    final oldDb = _coreDb;
+    setState(() {
+      _coreDb = db;
+      _activeCatalogVersion = version;
+      _catalogAvailable = true;
+      _catalogUnavailableReason = null;
+      _scopeVersion++;
+    });
+    unawaited(_persistActiveCatalogVersion(version));
+    unawaited(oldDb?.close());
+    return true;
   }
 
   /// Persist the activated catalog version so the next launch's

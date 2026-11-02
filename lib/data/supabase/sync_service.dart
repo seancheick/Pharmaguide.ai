@@ -495,25 +495,24 @@ class SyncService {
 
     final currentFile = File(dbPath);
     final backupFile = File(backupPath);
-    var backedUpCurrent = false;
 
+    // The backup outlives this method: openCoreDatabase retires it once the
+    // new file opens and validates, and restores it if the new file does not.
     try {
       if (await backupFile.exists()) {
-        await backupFile.delete();
-      }
-
-      if (await currentFile.exists()) {
+        // A backup left behind means the live file was activated by a process
+        // that never confirmed it. The backup is still the last catalog known
+        // to work, so it stays and the unconfirmed file goes.
+        if (await currentFile.exists()) {
+          await currentFile.delete();
+        }
+      } else if (await currentFile.exists()) {
         await currentFile.rename(backupPath);
-        backedUpCurrent = true;
       }
 
       await stagingFile.rename(dbPath);
-
-      if (await backupFile.exists()) {
-        await backupFile.delete();
-      }
     } catch (_) {
-      if (backedUpCurrent && await backupFile.exists()) {
+      if (await backupFile.exists()) {
         if (await currentFile.exists()) {
           await currentFile.delete();
         }

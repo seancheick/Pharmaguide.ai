@@ -140,7 +140,11 @@ void main() {
       );
       expect(File(stagingPath).existsSync(), isFalse);
       expect(File(markerPath).existsSync(), isFalse);
-      expect(File(backupPath).existsSync(), isFalse);
+      expect(
+        File(backupPath).readAsStringSync(),
+        _liveSentinel,
+        reason: 'the previous catalog stays until the new one validates',
+      );
     });
 
     test(
