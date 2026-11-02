@@ -656,6 +656,67 @@ void main() {
         },
       );
 
+      test(
+        'a store recreated by an older build still opens, keeping every archive',
+        () async {
+          final guard = guardWith();
+          await guard.boot(sessionUid: _a);
+          await _addMedication(guard.database!, 'Current');
+          final folder = guard.account.folder!;
+          await Directory(guard.account.attachmentsPath!).create();
+          await guard.close();
+
+          Future<void> writeLegacyAttachment(String content) async {
+            final legacy = await Directory(
+              p.join(support.path, 'health_history_attachments'),
+            ).create();
+            await File(p.join(legacy.path, 'photo.jpg')).writeAsString(content);
+          }
+
+          Future<AccountSwitchGuard> launchWithLeftovers(String label) async {
+            await writeLegacyDatabase(label);
+            await writeLegacyAttachment(label);
+            final launch = guardWith();
+            await launch.boot(sessionUid: _a);
+            return launch;
+          }
+
+          final second = await launchWithLeftovers('First');
+          expect(await _names(second.database!), ['Current']);
+          await second.close();
+
+          // A downgrade and upgrade leaves the same paths behind again. Refusing
+          // here would lock this person out on every launch, retry included.
+          final third = await launchWithLeftovers('Second');
+          expect(third.database, isNotNull);
+          expect(await _names(third.database!), ['Current']);
+          expect(
+            File(p.join(documents.path, 'user_data.db')).existsSync(),
+            isFalse,
+          );
+
+          final archived = Directory(p.join(folder, 'legacy'))
+              .listSync(recursive: true)
+              .whereType<File>()
+              .map((file) => file.path)
+              .toList();
+          expect(
+            archived.where((f) => f.endsWith('user_data.db')),
+            hasLength(2),
+          );
+          final photos = archived
+              .where((f) => f.endsWith('photo.jpg'))
+              .toList();
+          expect(photos.map((f) => File(f).readAsStringSync()).toSet(), {
+            'First',
+            'Second',
+          });
+
+          await third.removeAccountData(_a);
+          expect(Directory(folder).existsSync(), isFalse);
+        },
+      );
+
       test('never overwrites an account that already has a database', () async {
         final guard = guardWith();
         await guard.boot(sessionUid: _a);

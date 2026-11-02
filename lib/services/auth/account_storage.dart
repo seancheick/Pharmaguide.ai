@@ -103,7 +103,8 @@ class AccountStorage {
   /// nothing opens the database until this returns. The main file moves last.
   /// An existing target is never overwritten, so a person's data can't be
   /// replaced by another's. Colliding files are retained inside that owner's
-  /// folder, so a later launch cannot assign them to the next account.
+  /// folder, so a later launch cannot assign them to the next account. A partly
+  /// moved archive slot is reused, so its sidecars stay with their main file.
   Future<void> migrateLegacyStore({required String? owner}) async {
     final documents = await _documentsDirectory();
     final support = await _supportDirectory();
@@ -123,12 +124,9 @@ class AccountStorage {
         await legacyAttachments.rename(target.path);
       } else {
         final archive = Directory(
-          p.join(folder.path, 'legacy', attachmentsName),
+          await _freeArchivePath(folder, attachmentsName),
         );
         await archive.parent.create(recursive: true);
-        if (await archive.exists()) {
-          throw const FileSystemException('Legacy attachment archive exists');
-        }
         await legacyAttachments.rename(archive.path);
       }
     }
@@ -136,16 +134,29 @@ class AccountStorage {
 
     var target = File(p.join(folder.path, databaseName));
     if (await target.exists()) {
-      target = File(p.join(folder.path, 'legacy', databaseName));
+      target = File(await _freeArchivePath(folder, databaseName));
       await target.parent.create(recursive: true);
-      if (await target.exists()) {
-        throw const FileSystemException('Legacy database archive exists');
-      }
     }
     for (final suffix in const ['-wal', '-shm', '-journal']) {
       final sidecar = File('${legacyDb.path}$suffix');
       if (await sidecar.exists()) await sidecar.rename('${target.path}$suffix');
     }
     await legacyDb.rename(target.path);
+  }
+
+  /// The first unused spot in [folder]'s archive. An older build can recreate
+  /// the shared store after any number of upgrades. Refusing would lock the
+  /// person out on every launch, and replacing would lose what was kept.
+  Future<String> _freeArchivePath(Directory folder, String name) async {
+    for (var slot = 1; ; slot++) {
+      final path = p.joinAll([
+        folder.path,
+        'legacy',
+        if (slot > 1) '$slot',
+        name,
+      ]);
+      final type = await FileSystemEntity.type(path);
+      if (type == FileSystemEntityType.notFound) return path;
+    }
   }
 }
