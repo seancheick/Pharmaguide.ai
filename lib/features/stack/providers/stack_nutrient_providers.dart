@@ -72,6 +72,7 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
   // Load product + detail blob for every stack entry.
   final items = <StackItemNutrients>[];
   var incomplete = false;
+  var catalogProductSkipped = false;
   for (final entry in stackEntries) {
     // Medications carry no nutrient rows by design — not a data gap.
     if (entry.type == 'medication') continue;
@@ -87,6 +88,7 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
       product = await coreDb.findById(dsldId);
     } on Object {
       incomplete = true;
+      catalogProductSkipped = true;
       continue;
     }
     if (product == null) {
@@ -99,10 +101,12 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
       blob = await ref.watch(detailBlobProvider(dsldId).future);
     } on Object {
       incomplete = true;
+      catalogProductSkipped = true;
       continue;
     }
     if (blob == null) {
       incomplete = true;
+      catalogProductSkipped = true;
       continue;
     }
 
@@ -111,6 +115,7 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
       ingredients = ProductHealthFacts.fromDetailBlob(blob).nutrients;
     } on Object {
       incomplete = true;
+      catalogProductSkipped = true;
       continue;
     }
     // A product with no nutrient rows contributes nothing to a nutrient
@@ -130,6 +135,7 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
     return StackNutrientStatuses(
       statuses: const <NutrientStatus>[],
       incomplete: incomplete,
+      catalogProductSkipped: catalogProductSkipped,
     );
   }
 
@@ -156,7 +162,11 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
     return bPct.compareTo(aPct);
   });
 
-  return StackNutrientStatuses(statuses: sorted, incomplete: incomplete);
+  return StackNutrientStatuses(
+    statuses: sorted,
+    incomplete: incomplete,
+    catalogProductSkipped: catalogProductSkipped,
+  );
 });
 
 final stackDoseThresholdAlertsProvider =

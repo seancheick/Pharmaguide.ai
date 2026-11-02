@@ -78,7 +78,11 @@ class StackSafetyBanner extends StatelessWidget {
       if (snapshot.limitedDataProducts.isNotEmpty) return _limitedDataBanner();
       // The recall card already names this product, so a card here would only
       // repeat it. The Stack Health rating still says the check is incomplete.
-      if (snapshot.notInCatalog.isNotEmpty && !snapshot.checksIncomplete) {
+      // A failed check or another product's missing details aren't on that
+      // card, so they still get theirs.
+      if (snapshot.notInCatalog.isNotEmpty &&
+          !snapshot.checksIncomplete &&
+          !snapshot.catalogProductSkipped) {
         return const SizedBox.shrink();
       }
       if (snapshot.coverageIncomplete) return _coverageHedgeBanner();

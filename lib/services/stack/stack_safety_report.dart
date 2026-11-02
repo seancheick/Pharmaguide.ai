@@ -36,6 +36,7 @@ class StackSafetyReport {
     this.timingOptimizations = const <TimingOptimization>[],
     this.coverageIncomplete = false,
     this.checksIncomplete = false,
+    this.catalogProductSkipped = false,
     this.limitedDataProducts = const <String>[],
   });
 
@@ -48,6 +49,10 @@ class StackSafetyReport {
   /// fired the interaction checks. The banner must hedge ("results may
   /// be incomplete") instead of rendering a success tone.
   final bool coverageIncomplete;
+
+  /// True when part of [coverageIncomplete] is a catalog product whose details
+  /// didn't load, as opposed to a product the catalog doesn't have.
+  final bool catalogProductSkipped;
 
   /// True when one or more safety subsystems failed while building the report.
   /// The UI must hedge instead of rendering an all-clear, because an empty

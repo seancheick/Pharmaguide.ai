@@ -276,11 +276,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // Set when the nutrient pass skipped a stack item; ORed into the report's
   // coverage flag below so the banner and the clinician report both hedge.
   var nutrientCoverageIncomplete = false;
+  var catalogProductSkipped = false;
   List<NutrientStatus> nutrientStatuses;
   try {
     final result = await ref.watch(stackNutrientStatusesProvider.future);
     nutrientStatuses = result.statuses;
     nutrientCoverageIncomplete = result.incomplete;
+    catalogProductSkipped = result.catalogProductSkipped;
   } on Object catch (e, st) {
     checksIncomplete = true;
     CrashReportingService().recordError(
@@ -651,6 +653,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     timingOptimizations: timingOptimizations,
     coverageIncomplete: coverageIncomplete,
     checksIncomplete: checksIncomplete,
+    catalogProductSkipped: catalogProductSkipped,
     limitedDataProducts: limitedDataProducts,
   );
 });

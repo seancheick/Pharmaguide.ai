@@ -22,12 +22,13 @@ void main() {
   Future<void> pumpBanner(
     WidgetTester tester, {
     required StackSafetyReport report,
+    RecalledIngredientsReport? recalledReport,
     VoidCallback? onTap,
   }) async {
     final snapshot = const StackIntelligenceEngine().summarizeFromReports(
       stackSize: 1,
       safetyReport: report,
-      recalledReport: RecalledIngredientsReport.empty(),
+      recalledReport: recalledReport ?? RecalledIngredientsReport.empty(),
       synergyReport: SynergyReport.empty(),
     );
     await tester.pumpWidget(
@@ -678,5 +679,42 @@ void main() {
     expect(banner.title, isNot(contains('Grapefruit')));
     expect(banner.body, contains('Space doses'));
     expect(banner.body, contains('1 more signal'));
+  });
+
+  group('a product missing from the catalog', () {
+    const missing = RecalledIngredientsReport(
+      violations: [],
+      incomplete: true,
+      notInCatalog: ['Old Brand Magnesium'],
+    );
+
+    testWidgets('adds no card of its own, because the recall card names it', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        report: const StackSafetyReport(coverageIncomplete: true),
+        recalledReport: missing,
+      );
+      expect(find.byKey(const Key('stack-safety-banner')), findsNothing);
+    });
+
+    testWidgets('does not hide another product whose details did not load', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        report: const StackSafetyReport(
+          coverageIncomplete: true,
+          catalogProductSkipped: true,
+        ),
+        recalledReport: missing,
+      );
+      expect(find.byKey(const Key('stack-safety-banner')), findsOneWidget);
+      expect(
+        find.textContaining("We couldn't load the details"),
+        findsOneWidget,
+      );
+    });
   });
 }

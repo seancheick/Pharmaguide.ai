@@ -298,14 +298,23 @@ class StackNutrientStatuses {
   const StackNutrientStatuses({
     required this.statuses,
     this.incomplete = false,
+    this.catalogProductSkipped = false,
   });
 
-  const StackNutrientStatuses.empty() : statuses = const [], incomplete = false;
+  const StackNutrientStatuses.empty()
+    : statuses = const [],
+      incomplete = false,
+      catalogProductSkipped = false;
 
   final List<NutrientStatus> statuses;
 
   /// True when at least one stack item was skipped while building [statuses].
   final bool incomplete;
+
+  /// True when a skipped item is in the catalog but its row or details didn't
+  /// load. An item absent from the catalog is named by the recall card, so this
+  /// is the part of [incomplete] no other surface explains.
+  final bool catalogProductSkipped;
 
   bool get isEmpty => statuses.isEmpty;
 }
