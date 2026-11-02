@@ -57,7 +57,7 @@ class SafetyAlertRepository {
         _cacheKey,
         jsonEncode(_cachePayload(release)),
       );
-      return await _withWatermark(release, isComplete: true);
+      return await _withWatermark(release, isComplete: !release.hasUnsupported);
     } on Object {
       final cached = await _loadCached();
       if (cached == null) {
@@ -107,13 +107,18 @@ class SafetyAlertRepository {
     if (decoded is! Map || decoded['alerts'] is! List) {
       throw const FormatException('Safety-alert feed is malformed.');
     }
-    final alerts = (decoded['alerts'] as List)
-        .map(
-          (raw) => SafetyAlert.fromJson(Map<String, Object?>.from(raw as Map)),
-        )
-        .toList(growable: false);
+    final alerts = <SafetyAlert>[];
+    var hasUnsupported = false;
+    for (final raw in decoded['alerts'] as List) {
+      try {
+        alerts.add(SafetyAlert.fromJson(Map<String, Object?>.from(raw as Map)));
+      } on UnsupportedSafetyAlert {
+        hasUnsupported = true;
+      }
+    }
     return _DecodedRelease(
-      alerts: alerts,
+      alerts: List.unmodifiable(alerts),
+      hasUnsupported: hasUnsupported,
       checksum: actual,
       feedBytes: Uint8List.fromList(bytes).asUnmodifiableView(),
     );
@@ -191,10 +196,15 @@ class SafetyAlertRepository {
 final class _DecodedRelease {
   const _DecodedRelease({
     required this.alerts,
+    required this.hasUnsupported,
     required this.checksum,
     required this.feedBytes,
   });
   final List<SafetyAlert> alerts;
+
+  /// The feed held alerts this build can't read, so it can never count as a
+  /// complete check.
+  final bool hasUnsupported;
   final String checksum;
   final Uint8List feedBytes;
 }

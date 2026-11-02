@@ -69,6 +69,67 @@ void main() {
     },
   );
 
+  group('a feed written for a newer app', () {
+    Future<SafetyAlertRelease> load(Map<String, Object?> extra) async {
+      final feed = jsonEncode({
+        'alerts': [record, extra],
+      });
+      final checksum = 'sha256:${sha256.convert(utf8.encode(feed))}';
+      final client = SupabaseClient(
+        'https://example.test',
+        'test-key',
+        httpClient: MockClient((request) async {
+          if (request.url.path.contains('/storage/')) {
+            return http.Response(feed, 200, request: request);
+          }
+          return http.Response(
+            jsonEncode({'feed_path': 'safety/feed.json', 'checksum': checksum}),
+            200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        }),
+      );
+      addTearDown(client.dispose);
+      return SafetyAlertRepository(
+        client: client,
+        preferences: _MemoryPreferences(),
+      ).loadCurrent();
+    }
+
+    final later = {...record, 'alert_id': 'SA_2026_0002'};
+
+    test('an unknown event type does not lose the alerts this build can '
+        'read', () async {
+      final release = await load({...later, 'event_type': 'interaction_rule'});
+
+      expect(release.alerts.map((a) => a.alertId), ['SA_2026_0001']);
+      expect(
+        release.isComplete,
+        isFalse,
+        reason: 'an alert this build could not read must not count as checked',
+      );
+    });
+
+    test('an unknown disposition does not lose them either', () async {
+      final release = await load({...later, 'consumer_disposition': 'future'});
+
+      expect(release.alerts.map((a) => a.alertId), ['SA_2026_0001']);
+      expect(release.isComplete, isFalse);
+    });
+
+    test('a malformed alert of a known type still rejects the feed', () async {
+      final release = await load({...later, 'revision': 0});
+
+      expect(
+        release.alerts,
+        isEmpty,
+        reason: 'damage is not forward compatibility; it stays fail-closed',
+      );
+      expect(release.isComplete, isFalse);
+    });
+  });
+
   test(
     'verified production feed survives cache-only/offline reads and rejects tampering',
     () async {
