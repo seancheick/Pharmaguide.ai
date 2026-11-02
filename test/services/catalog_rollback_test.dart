@@ -195,7 +195,7 @@ void main() {
 
   group('a failure after the file moved', () {
     test(
-      'a failed open that succeeds on retry hands back a working catalog',
+      'a failed open that succeeds on retry still installs the update',
       () async {
         _buildCatalog(dbPath, _lastGood);
         _buildCatalog(stagingPath, _update);
@@ -213,14 +213,11 @@ void main() {
           },
         ).swap(expectedVersion: _update);
 
-        expect(result, isA<SwapRolledBack>());
-        final rolledBack = result as SwapRolledBack;
-        addTearDown(() async => rolledBack.restoredDb?.close());
-        expect(rolledBack.restoredDb, isNotNull);
-        expect(
-          await rolledBack.restoredDb!.validateCatalogSnapshot(),
-          isNotEmpty,
-        );
+        expect(result, isA<SwapSuccess>());
+        final success = result as SwapSuccess;
+        addTearDown(success.newDb.close);
+        expect(success.version, _update);
+        expect(await success.newDb.validateCatalogSnapshot(), _update);
         await old.close();
       },
     );
@@ -261,6 +258,60 @@ void main() {
       ).swap(expectedVersion: _update);
 
       expect((result as SwapRolledBack).previousHandleInvalid, isFalse);
+    });
+
+    test('a wrong version that slips past the early check restores the last '
+        'good catalog', () async {
+      const unexpected = '2026.03.15.000000';
+      _buildCatalog(dbPath, _lastGood);
+      _buildCatalog(stagingPath, _update);
+      final sync = SyncService(appVersion: '1.0.0');
+
+      final result = await CatalogSwapper(
+        corePathProvider: () async => dbPath,
+        activator: () async {
+          // Fault injection: the staged file changes after the early check.
+          File(stagingPath).deleteSync();
+          _buildCatalog(stagingPath, unexpected);
+          await sync.activateStagedCoreDbAtPathForTest(dbPath);
+        },
+        opener: open,
+      ).swap(expectedVersion: _update);
+
+      expect(result, isA<SwapRolledBack>());
+      final rolledBack = result as SwapRolledBack;
+      addTearDown(() async => rolledBack.restoredDb?.close());
+      expect(_versionOf(dbPath), _lastGood);
+      expect(rolledBack.restoredVersion, _lastGood);
+      expect(File(backupPath).existsSync(), isFalse);
+    });
+
+    test('a wrong version that cannot be restored reports a failure, and '
+        'hands back no catalog', () async {
+      const unexpected = '2026.03.15.000000';
+      _buildCatalog(dbPath, _lastGood);
+      _buildCatalog(stagingPath, _update);
+      final sync = SyncService(appVersion: '1.0.0');
+      final directory = File(dbPath).parent.path;
+      addTearDown(() => Process.runSync('chmod', ['755', directory]));
+
+      final result = await CatalogSwapper(
+        corePathProvider: () async => dbPath,
+        activator: () async {
+          File(stagingPath).deleteSync();
+          _buildCatalog(stagingPath, unexpected);
+          await sync.activateStagedCoreDbAtPathForTest(dbPath);
+          // Fault injection: the backup can no longer be moved back.
+          Process.runSync('chmod', ['555', directory]);
+        },
+        opener: open,
+      ).swap(expectedVersion: _update);
+
+      expect(result, isA<SwapRolledBack>());
+      final rolledBack = result as SwapRolledBack;
+      expect(rolledBack.restoredDb, isNull);
+      expect(rolledBack.previousHandleInvalid, isTrue);
+      expect(File(backupPath).existsSync(), isTrue);
     });
 
     test(

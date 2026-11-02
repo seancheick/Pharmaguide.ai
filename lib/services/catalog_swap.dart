@@ -97,14 +97,17 @@ class CatalogSwapper {
   ///   3. Refuse a staged file that isn't [expectedVersion], before anything
   ///      moves.
   ///   4. Run the activator (atomic rename, keeping a backup).
-  ///   5. Open the new DB via [opener], which restores the backup if the new
+  ///   5. Require [expectedVersion] of the file now live, restoring the backup
+  ///      if it is anything else. This comes first because the next step
+  ///      retires the backup of any file that validates.
+  ///   6. Open the new DB via [opener], which restores the backup if the new
   ///      file doesn't validate.
-  ///   6. Validate via `db.validateCatalogSnapshot()`, and require
+  ///   7. Validate via `db.validateCatalogSnapshot()`, and require
   ///      [expectedVersion]: any other version means the update was rolled
   ///      back, and the caller must not treat it as an update. Any failure from
   ///      here on tries a fresh open, because the caller's handle no longer
   ///      works.
-  ///   7. Return [SwapSuccess] — caller closes the old DB.
+  ///   8. Return [SwapSuccess] — caller closes the old DB.
   Future<SwapResult> swap({required String expectedVersion}) async {
     final String dbPath;
     try {
@@ -161,7 +164,38 @@ class CatalogSwapper {
         fatal: true,
         hint: 'catalog_swap:activation',
       );
-      return _reopenAfterMove(e, 'Activation failed: $e');
+      return _reopenAfterMove(e, 'Activation failed: $e', expectedVersion);
+    }
+
+    final liveVersion = await _readVersion(dbPath);
+    if (liveVersion != null && liveVersion != expectedVersion) {
+      final error = StateError(
+        'Activated catalog $liveVersion instead of $expectedVersion',
+      );
+      CrashReportingService().recordError(
+        error,
+        StackTrace.current,
+        fatal: true,
+        hint: 'catalog_swap:version_mismatch',
+      );
+      try {
+        final backup = File('$dbPath.backup');
+        if (await backup.exists()) await backup.rename(dbPath);
+      } on Object catch (e, st) {
+        CrashReportingService().recordError(
+          e,
+          st,
+          fatal: true,
+          hint: 'catalog_swap:restore',
+        );
+        // Reopening now would adopt the file that was just refused.
+        return SwapRolledBack(
+          error: error,
+          reason: error.message,
+          previousHandleInvalid: true,
+        );
+      }
+      return _reopenAfterMove(error, error.message, expectedVersion);
     }
 
     final CoreDatabase newDb;
@@ -174,7 +208,7 @@ class CatalogSwapper {
         fatal: true,
         hint: 'catalog_swap:open',
       );
-      return _reopenAfterMove(e, 'Open failed: $e');
+      return _reopenAfterMove(e, 'Open failed: $e', expectedVersion);
     }
 
     try {
@@ -216,21 +250,30 @@ class CatalogSwapper {
         fatal: true,
         hint: 'catalog_swap:validation',
       );
-      return _reopenAfterMove(e, 'Validation failed: $e');
+      return _reopenAfterMove(e, 'Validation failed: $e', expectedVersion);
     }
   }
 
   /// The live file may have moved, so the caller's handle is finished either
-  /// way. One fresh open decides whether it gets a replacement.
-  Future<SwapRolledBack> _reopenAfterMove(Object error, String reason) async {
+  /// way. One fresh open decides whether it gets a replacement, which is the
+  /// update itself when only the first open failed.
+  Future<SwapResult> _reopenAfterMove(
+    Object error,
+    String reason,
+    String expectedVersion,
+  ) async {
     CoreDatabase? reopened;
     try {
       reopened = await opener();
+      final version = await reopened.validateCatalogSnapshot();
+      if (version == expectedVersion) {
+        return SwapSuccess(newDb: reopened, version: version);
+      }
       return SwapRolledBack(
         error: error,
         reason: reason,
         restoredDb: reopened,
-        restoredVersion: await reopened.validateCatalogSnapshot(),
+        restoredVersion: version,
         previousHandleInvalid: true,
       );
     } on Object {
@@ -252,15 +295,22 @@ class CatalogSwapper {
   Future<String?> _readStagedVersion(String dbPath) async {
     final stagingPath = '$dbPath.staging';
     if (await File('$stagingPath.version').exists()) return null;
-    CoreDatabase? staged;
+    return _readVersion(stagingPath);
+  }
+
+  /// The version inside the catalog at [path], or null when there is no file or
+  /// it doesn't validate. [opener] owns what happens to an invalid live file.
+  Future<String?> _readVersion(String path) async {
+    if (!await File(path).exists()) return null;
+    CoreDatabase? db;
     try {
-      staged = CoreDatabase.open(stagingPath);
-      return await staged.validateCatalogSnapshot();
+      db = CoreDatabase.open(path);
+      return await db.validateCatalogSnapshot();
     } on Object {
       return null;
     } finally {
       try {
-        await staged?.close();
+        await db?.close();
       } on Object {
         // Best-effort; the answer above is what matters.
       }
