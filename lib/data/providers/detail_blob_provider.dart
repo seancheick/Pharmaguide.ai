@@ -70,7 +70,8 @@ final detailBlobProvider = FutureProvider.family
         // cached blob from a previous catalog snapshot must be a miss, not
         // a stale hit feeding outdated ingredient/warning JSON.
         final product = await coreDb.findById(dsldId);
-        final expectedSha = product?.detailBlobSha256;
+        if (product == null) return null;
+        final expectedSha = product.detailBlobSha256;
 
         final cached = await userDb.getCachedDetail(dsldId);
         if (cached != null &&

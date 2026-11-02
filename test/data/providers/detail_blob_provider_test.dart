@@ -189,6 +189,17 @@ void main() {
       },
     );
 
+    test(
+      'a legacy row for a product no longer in the catalog is not served',
+      () async {
+        await userDb.cacheDetail('gone', jsonEncode({'v': 'legacy'}), null);
+
+        final container = buildContainer(_FakeBlobService(null));
+
+        expect(await container.read(detailBlobProvider('gone').future), isNull);
+      },
+    );
+
     test('matching cache row is served without any network fetch', () async {
       await seedProduct('p3', blobSha: 'same-sha');
       await userDb.cacheDetail('p3', jsonEncode({'v': 'cached'}), 'same-sha');
