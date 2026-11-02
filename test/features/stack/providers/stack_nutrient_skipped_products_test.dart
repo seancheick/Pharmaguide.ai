@@ -15,6 +15,14 @@ import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.da
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
+class _FailingCatalog extends CoreDatabase {
+  _FailingCatalog(super.dbFile);
+
+  @override
+  Future<ProductsCoreData?> findById(String dsldId) async =>
+      throw Exception('catalog read failed');
+}
+
 void main() {
   const inCatalog = 'in-catalog';
   const missing = 'missing';
@@ -134,5 +142,41 @@ void main() {
 
     expect(report.catalogProductSkipped, isTrue);
     expect(report.coverageIncomplete, isTrue);
+  });
+
+  test('a catalog read that fails in the report is the same gap', () async {
+    final interactionDb = InteractionDatabase(file('interaction.db'));
+    final coreDb = _FailingCatalog(file('core.db'));
+    addTearDown(interactionDb.close);
+    addTearDown(coreDb.close);
+    final container = ProviderContainer(
+      overrides: [
+        coreDatabaseProvider.overrideWithValue(coreDb),
+        interactionDatabaseProvider.overrideWithValue(interactionDb),
+        activeStackProvider.overrideWith(
+          (ref) async => [
+            UserStacksLocalData(
+              id: 'one',
+              type: 'supplement',
+              name: 'One',
+              dsldId: inCatalog,
+              addedAt: DateTime.utc(2026, 11, 2),
+              clientUpdatedAt: DateTime.utc(2026, 11, 2),
+            ),
+          ],
+        ),
+        loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
+        stackNutrientStatusesProvider.overrideWith(
+          (ref) async => const StackNutrientStatuses.empty(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final report = await container.read(stackSafetyReportProvider.future);
+
+    expect(report.catalogProductSkipped, isTrue);
+    expect(report.coverageIncomplete, isTrue);
+    expect(report.checksIncomplete, isTrue);
   });
 }

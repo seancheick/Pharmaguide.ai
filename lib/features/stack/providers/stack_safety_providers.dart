@@ -343,6 +343,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       // below, so the report must hedge rather than claim a clean result.
       coverageIncomplete = true;
       checksIncomplete = true;
+      catalogProductSkipped = true;
       continue;
     }
     if (product == null) {

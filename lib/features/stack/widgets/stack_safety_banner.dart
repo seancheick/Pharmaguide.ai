@@ -80,10 +80,10 @@ class StackSafetyBanner extends StatelessWidget {
       // repeat it. The Stack Health rating still says the check is incomplete.
       // A failed check or another product's missing details aren't on that
       // card, so they still get theirs.
-      if (snapshot.notInCatalog.isNotEmpty &&
-          !snapshot.checksIncomplete &&
-          !snapshot.catalogProductSkipped) {
-        return const SizedBox.shrink();
+      if (snapshot.notInCatalog.isNotEmpty && !snapshot.catalogProductSkipped) {
+        return snapshot.checksIncomplete
+            ? _checksIncompleteBanner()
+            : const SizedBox.shrink();
       }
       if (snapshot.coverageIncomplete) return _coverageHedgeBanner();
       if (analysisIncomplete) return _checksIncompleteBanner();
@@ -196,7 +196,8 @@ class StackSafetyBanner extends StatelessWidget {
       title: kCoverageHedgeBase,
       body:
           "We couldn't load the details for a product in your stack, so your "
-          'results may not include it yet.',
+          'results may not include it yet.'
+          '${snapshot.checksIncomplete ? ' Some stack safety checks could not finish, so results may be incomplete.' : ''}',
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,

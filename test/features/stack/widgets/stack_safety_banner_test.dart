@@ -699,6 +699,46 @@ void main() {
       expect(find.byKey(const Key('stack-safety-banner')), findsNothing);
     });
 
+    testWidgets('names a failed check, not details, when both are unrelated', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        report: const StackSafetyReport(
+          coverageIncomplete: true,
+          checksIncomplete: true,
+        ),
+        recalledReport: missing,
+      );
+      expect(
+        find.textContaining('Some stack safety checks could not finish'),
+        findsOneWidget,
+      );
+      expect(find.textContaining("We couldn't load the details"), findsNothing);
+    });
+
+    testWidgets('says both when details and a check each fell short', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        report: const StackSafetyReport(
+          coverageIncomplete: true,
+          catalogProductSkipped: true,
+          checksIncomplete: true,
+        ),
+        recalledReport: missing,
+      );
+      expect(
+        find.textContaining("We couldn't load the details"),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Some stack safety checks could not finish'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('does not hide another product whose details did not load', (
       tester,
     ) async {
@@ -716,5 +756,20 @@ void main() {
         findsOneWidget,
       );
     });
+  });
+
+  testWidgets('a details gap and a failed check are both said', (tester) async {
+    await pumpBanner(
+      tester,
+      report: const StackSafetyReport(
+        coverageIncomplete: true,
+        checksIncomplete: true,
+      ),
+    );
+    expect(find.textContaining("We couldn't load the details"), findsOneWidget);
+    expect(
+      find.textContaining('Some stack safety checks could not finish'),
+      findsOneWidget,
+    );
   });
 }
