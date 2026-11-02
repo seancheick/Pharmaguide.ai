@@ -210,42 +210,40 @@ final healthReminderSyncProvider =
       final guard = ref.watch(accountSwitchGuardProvider);
       final policy = ref.watch(notificationDeliveryPolicyProvider);
       final scheduler = ref.watch(healthReminderSchedulerProvider);
-      Future<HealthReminderSyncResult> run() async {
-        switch (policy.actionFor(NotificationCategory.healthHistoryReminders)) {
-          case NotificationDeliveryAction.cancel:
-            final cancelled = await scheduler.cancelOwned();
-            return HealthReminderSyncResult(
-              scheduled: 0,
-              cancelled: cancelled,
-              permissionGranted:
-                  policy.authorizationStatus ==
-                  NotificationAuthorizationStatus.allowed,
-              deliveryEnabled: false,
-            );
-          case NotificationDeliveryAction.preserve:
-            return HealthReminderSyncResult(
-              scheduled: 0,
-              cancelled: 0,
-              permissionGranted:
-                  policy.authorizationStatus ==
-                  NotificationAuthorizationStatus.allowed,
-              deliveryEnabled: false,
-            );
-          case NotificationDeliveryAction.schedule:
-            break;
-        }
+      final account = guard == null ? null : ref.watch(activeAccountProvider);
+      Future<T> osCall<T>(Future<T> Function() call) => guard == null
+          ? call()
+          : guard.runNotificationWork(call, account: account!);
 
-        final items = await ref.watch(healthHistoryUpcomingProvider.future);
-        return scheduler.sync(
-          items.map((item) => item.event).toList(growable: false),
-          permissionAlreadyGranted: true,
-        );
+      switch (policy.actionFor(NotificationCategory.healthHistoryReminders)) {
+        case NotificationDeliveryAction.cancel:
+          final cancelled = await osCall(scheduler.cancelOwned);
+          return HealthReminderSyncResult(
+            scheduled: 0,
+            cancelled: cancelled,
+            permissionGranted:
+                policy.authorizationStatus ==
+                NotificationAuthorizationStatus.allowed,
+            deliveryEnabled: false,
+          );
+        case NotificationDeliveryAction.preserve:
+          return HealthReminderSyncResult(
+            scheduled: 0,
+            cancelled: 0,
+            permissionGranted:
+                policy.authorizationStatus ==
+                NotificationAuthorizationStatus.allowed,
+            deliveryEnabled: false,
+          );
+        case NotificationDeliveryAction.schedule:
+          break;
       }
 
-      return guard == null
-          ? run()
-          : guard.runNotificationWork(
-              run,
-              account: ref.watch(activeAccountProvider),
-            );
+      final items = await ref.watch(healthHistoryUpcomingProvider.future);
+      return osCall(
+        () => scheduler.sync(
+          items.map((item) => item.event).toList(growable: false),
+          permissionAlreadyGranted: true,
+        ),
+      );
     });

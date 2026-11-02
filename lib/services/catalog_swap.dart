@@ -26,9 +26,10 @@ sealed class SwapResult {
 }
 
 /// Successful in-session swap. The caller MUST close the previously-live
-/// [CoreDatabase] after applying [newDb] via setState. Reads on the old handle
-/// fail from the moment its file moves, and never return the new catalog, so
-/// the caller should adopt [newDb] straight away.
+/// [CoreDatabase] after applying [newDb] via setState. Once its file moves, the
+/// old handle fails or keeps reading the old file, depending on the platform. It
+/// never returns the new catalog, so the caller should adopt [newDb] straight
+/// away.
 class SwapSuccess extends SwapResult {
   final CoreDatabase newDb;
   final String version;
@@ -46,10 +47,10 @@ class SwapNoStaging extends SwapResult {
 /// file doesn't validate.
 ///
 /// When [previousHandleInvalid] is true the caller's open handle can't be
-/// trusted any more: SQLite fails reads with a disk I/O error once a handle's
-/// file has been moved, even after it is moved back. The caller must adopt
-/// [restoredDb] (and owns closing it) in place of its current handle or, when
-/// that is null, stop using the handle and report the catalog unavailable.
+/// trusted any more: on macOS SQLite fails reads with a disk I/O error once a
+/// handle's file has been moved, even after it is moved back. The caller must
+/// adopt [restoredDb] (and owns closing it) in place of its current handle or,
+/// when that is null, stop using the handle and report the catalog unavailable.
 class SwapRolledBack extends SwapResult {
   final Object error;
   final String reason;
