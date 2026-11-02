@@ -193,35 +193,72 @@ Future<void> _writeBytesChunked(File file, Uint8List bytes) async {
   }
 }
 
-/// Decides what happens to a `.backup` left by catalog activation, before
-/// anything else touches the live file: a live catalog that validates retires
-/// the backup, and one that does not (or is missing) is replaced by it.
+/// Durable activation intent, written before any file moves. Both versions are
+/// needed: an interrupted activation can leave either the old or new file live.
+Future<void> recordCatalogActivation({
+  required String dbPath,
+  required String expectedVersion,
+  required String? previousVersion,
+}) async {
+  final marker = File('$dbPath.activation.json');
+  if (await marker.exists()) {
+    throw StateError('Previous catalog activation has not been settled');
+  }
+  final temporary = File('${marker.path}.tmp');
+  await temporary.writeAsString(
+    jsonEncode({'expected': expectedVersion, 'previous': previousVersion}),
+    flush: true,
+  );
+  await temporary.rename(marker.path);
+}
+
+/// Settle the interrupted activation before the bundle check can touch it.
+/// A structurally valid file is insufficient when a swap recorded a different
+/// version. Restoration failures propagate: never reopen a refused catalog.
 Future<void> _settleCatalogActivation(String dbPath) async {
   final backup = File('$dbPath.backup');
-  try {
-    if (!await backup.exists()) return;
-    final live = File(dbPath);
-    if (await live.exists()) {
-      if (await _catalogValidates(dbPath)) {
-        await backup.delete();
-        return;
-      }
+  final marker = File('$dbPath.activation.json');
+  final hasMarker = await marker.exists();
+  final hasBackup = await backup.exists();
+  if (!hasMarker && !hasBackup) return;
+
+  String? expected;
+  String? previous;
+  if (hasMarker) {
+    final intent = jsonDecode(await marker.readAsString());
+    if (intent is! Map ||
+        intent['expected'] is! String ||
+        (intent['expected'] as String).isEmpty ||
+        (intent['previous'] != null && intent['previous'] is! String)) {
+      throw StateError('Invalid catalog activation intent');
+    }
+    expected = intent['expected'] as String;
+    previous = intent['previous'] as String?;
+  }
+  final version = await _catalogVersion(dbPath);
+  final accepted =
+      version != null &&
+      (!hasMarker || version == expected || version == previous);
+  if (!accepted) {
+    if (!hasBackup) {
+      throw StateError('Catalog activation has no verified recovery file');
     }
     debugPrint('[catalog-rollback] restoring the last good catalog');
     await backup.rename(dbPath);
-  } on Object catch (e) {
-    debugPrint('[catalog-rollback] settling failed: ${e.runtimeType}');
+  } else if (hasBackup) {
+    await backup.delete();
   }
+  if (hasMarker) await marker.delete();
 }
 
-Future<bool> _catalogValidates(String path) async {
+Future<String?> _catalogVersion(String path) async {
+  if (!await File(path).exists()) return null;
   CoreDatabase? db;
   try {
     db = CoreDatabase.open(path);
-    await db.validateCatalogSnapshot();
-    return true;
+    return await db.validateCatalogSnapshot();
   } on Object {
-    return false;
+    return null;
   } finally {
     try {
       await db?.close();

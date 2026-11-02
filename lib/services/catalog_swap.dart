@@ -136,6 +136,18 @@ class CatalogSwapper {
       return SwapRolledBack(error: e, reason: 'Staging probe failed: $e');
     }
 
+    // Persist the versions before activation: even a failed restore followed
+    // by process death must not make a refused file trusted on the next boot.
+    try {
+      await recordCatalogActivation(
+        dbPath: dbPath,
+        expectedVersion: expectedVersion,
+        previousVersion: await _readVersion(dbPath),
+      );
+    } on Object catch (e) {
+      return SwapRolledBack(error: e, reason: 'Activation intent failed: $e');
+    }
+
     final stagedVersion = await _readStagedVersion(dbPath);
     if (stagedVersion != null && stagedVersion != expectedVersion) {
       final error = StateError(
@@ -149,6 +161,7 @@ class CatalogSwapper {
       );
       try {
         await File('$dbPath.staging').delete();
+        await File('$dbPath.activation.json').delete();
       } on Object {
         // The boot path revalidates anything left behind.
       }

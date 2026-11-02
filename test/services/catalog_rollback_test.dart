@@ -312,6 +312,12 @@ void main() {
       expect(rolledBack.restoredDb, isNull);
       expect(rolledBack.previousHandleInvalid, isTrue);
       expect(File(backupPath).existsSync(), isTrue);
+
+      // A later launch must retain the refusal, even once disk access returns.
+      Process.runSync('chmod', ['755', directory]);
+      final relaunched = await open();
+      addTearDown(relaunched.close);
+      expect(await relaunched.validateCatalogSnapshot(), _lastGood);
     });
 
     test(
@@ -332,6 +338,62 @@ void main() {
         expect(_versionOf(dbPath), _lastGood);
         expect(File(stagingPath).existsSync(), isFalse);
         expect(await old.validateCatalogSnapshot(), _lastGood);
+      },
+    );
+  });
+
+  group('durable catalog activation intent', () {
+    test(
+      'death before activation keeps the previous verified catalog',
+      () async {
+        _buildCatalog(dbPath, _lastGood);
+        await recordCatalogActivation(
+          dbPath: dbPath,
+          expectedVersion: _update,
+          previousVersion: _lastGood,
+        );
+        final db = await open();
+        addTearDown(db.close);
+        expect(await db.validateCatalogSnapshot(), _lastGood);
+        expect(File('$dbPath.activation.json').existsSync(), isFalse);
+      },
+    );
+
+    test(
+      'an unexpected live catalog with no backup is never adopted',
+      () async {
+        _buildCatalog(dbPath, '2026.03.15.000000');
+        await recordCatalogActivation(
+          dbPath: dbPath,
+          expectedVersion: _update,
+          previousVersion: _lastGood,
+        );
+        await expectLater(open(), throwsStateError);
+        expect(File('$dbPath.activation.json').existsSync(), isTrue);
+      },
+    );
+
+    test(
+      'a new attempt cannot overwrite unresolved activation intent',
+      () async {
+        _buildCatalog(dbPath, _lastGood);
+        await recordCatalogActivation(
+          dbPath: dbPath,
+          expectedVersion: _update,
+          previousVersion: _lastGood,
+        );
+        await expectLater(
+          recordCatalogActivation(
+            dbPath: dbPath,
+            expectedVersion: '2026.04.01.000000',
+            previousVersion: _update,
+          ),
+          throwsStateError,
+        );
+        final recorded =
+            jsonDecode(await File('$dbPath.activation.json').readAsString())
+                as Map;
+        expect(recorded['expected'], _update);
       },
     );
   });
