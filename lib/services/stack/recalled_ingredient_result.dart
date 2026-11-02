@@ -183,10 +183,10 @@ class RecalledIngredientsReport {
     if (notInCatalog.isEmpty) return '';
     if (notInCatalog.length == 1) {
       return "${notInCatalog.single} isn't in our current catalog, so we can't "
-          'check it for recalls.';
+          'check it for recalls or interactions.';
     }
     return "${notInCatalog.length} products in your stack aren't in our "
-        "current catalog, so we can't check them for recalls.";
+        "current catalog, so we can't check them for recalls or interactions.";
   }
 
   /// Consumer summary for the stack-level product-safety banner.

@@ -359,7 +359,7 @@ void main() {
     );
 
     expect(find.byKey(const Key('compare-coverage-hedge')), findsOneWidget);
-    expect(find.textContaining('couldn\'t be fully analyzed'), findsOneWidget);
+    expect(find.textContaining('couldn\'t be fully checked'), findsOneWidget);
 
     await tearDownDbs(tester);
   });

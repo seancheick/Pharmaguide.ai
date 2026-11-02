@@ -328,6 +328,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // product's ingredients may never fire the interaction checks, so the
   // report must hedge rather than claim a clean result.
   var coverageIncomplete = nutrientCoverageIncomplete;
+  final limitedDataProducts = <String>[];
   final hydrated = <HydratedSupplement>[];
   for (final entry in supplements) {
     final id = entry.dsldId;
@@ -345,7 +346,10 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       coverageIncomplete = true;
       continue;
     }
-    if (isLowCoverage(product.mappedCoverage)) coverageIncomplete = true;
+    if (isLowCoverage(product.mappedCoverage)) {
+      coverageIncomplete = true;
+      limitedDataProducts.add(entry.name);
+    }
     hydrated.add(HydratedSupplement(entry: entry, product: product));
   }
 
@@ -646,6 +650,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     timingOptimizations: timingOptimizations,
     coverageIncomplete: coverageIncomplete,
     checksIncomplete: checksIncomplete,
+    limitedDataProducts: limitedDataProducts,
   );
 });
 

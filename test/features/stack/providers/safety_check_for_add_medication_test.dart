@@ -547,6 +547,59 @@ void main() {
     );
   });
 
+  test('the stack report names low-coverage products and only those', () async {
+    final coreDb = CoreDatabase.memory();
+    final interactionDb = InteractionDatabase.memory();
+    final userDb = UserDatabase.memory();
+    addTearDown(() async {
+      await coreDb.close();
+      await interactionDb.close();
+      await userDb.close();
+    });
+    await _seedSupplement(
+      coreDb,
+      dsldId: 'LOW',
+      name: 'Fructose',
+      canonicalTags: const [],
+    );
+    await _seedSupplement(
+      coreDb,
+      dsldId: 'MAPPED',
+      name: 'Magnesium',
+      canonicalTags: const ['magnesium'],
+    );
+    await (coreDb.update(coreDb.productsCore)
+          ..where((t) => t.dsldId.equals('MAPPED')))
+        .write(const ProductsCoreCompanion(mappedCoverage: Value(1.0)));
+    for (final (id, name) in [('LOW', 'Fructose'), ('MAPPED', 'Magnesium')]) {
+      await userDb.addToStack(
+        UserStacksLocalCompanion.insert(
+          id: 'stack-$id',
+          name: name,
+          dsldId: Value(id),
+        ),
+      );
+    }
+
+    final container = ProviderContainer(
+      overrides: [
+        coreDatabaseProvider.overrideWithValue(coreDb),
+        interactionDatabaseProvider.overrideWithValue(interactionDb),
+        userDatabaseProvider.overrideWithValue(userDb),
+        loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
+        stackNutrientStatusesProvider.overrideWith(
+          (ref) async => const StackNutrientStatuses.empty(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final report = await container.read(stackSafetyReportProvider.future);
+
+    expect(report.limitedDataProducts, ['Fructose']);
+    expect(report.coverageIncomplete, isTrue);
+  });
+
   group('PreAddSafetyResult.isConfidentClear — pure decision', () {
     InteractionResult sampleResult() => const InteractionResult(
       id: 'X',

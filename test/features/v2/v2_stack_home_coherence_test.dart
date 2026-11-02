@@ -754,7 +754,7 @@ void main() {
         expect(
           find.text(
             "Magnesium isn't in our current catalog, so we can't check it "
-            'for recalls.',
+            'for recalls or interactions.',
             skipOffstage: false,
           ),
           findsOneWidget,

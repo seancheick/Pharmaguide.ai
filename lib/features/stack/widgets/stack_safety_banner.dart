@@ -75,6 +75,12 @@ class StackSafetyBanner extends StatelessWidget {
     // No renderable signal. Never imply "all clear" when a check or coverage
     // gap means we may not have seen everything.
     if (signals.isEmpty) {
+      if (snapshot.limitedDataProducts.isNotEmpty) return _limitedDataBanner();
+      // The recall card already names this product, so a card here would only
+      // repeat it. The Stack Health rating still says the check is incomplete.
+      if (snapshot.notInCatalog.isNotEmpty && !snapshot.checksIncomplete) {
+        return const SizedBox.shrink();
+      }
       if (snapshot.coverageIncomplete) return _coverageHedgeBanner();
       if (analysisIncomplete) return _checksIncompleteBanner();
       return const SizedBox.shrink();
@@ -124,8 +130,8 @@ class StackSafetyBanner extends StatelessWidget {
   }) {
     if (!checksIncomplete && !coverageIncomplete) return body;
     const hedge =
-        'Some checks or product labels could not be fully analyzed, so '
-        'results may be incomplete.';
+        "We couldn't check everything in your stack, so results may be "
+        'incomplete.';
     final value = body?.trim() ?? '';
     return value.isEmpty ? hedge : '$value $hedge';
   }
@@ -153,17 +159,36 @@ class StackSafetyBanner extends StatelessWidget {
     }
   }
 
-  /// Caution-toned hedge rendered when at least one stack product has a
-  /// label mapping coverage below the 0.3 trust floor. Copy is
-  /// calm-advisory per the voice guide — no imperatives.
+  /// Names the stack products below the 0.3 coverage trust floor, so the gap
+  /// reads as a fact about a product rather than a fault in the app.
+  Widget _limitedDataBanner() {
+    final names = snapshot.limitedDataProducts;
+    return PGSeverityBanner(
+      key: const Key('stack-safety-banner'),
+      tone: PGBannerTone.neutral,
+      title: names.length == 1
+          ? "We can't fully check ${names.single}"
+          : "We can't fully check ${names.length} products",
+      body: names.length == 1
+          ? "We can't match enough of its label to our safety data, so your "
+                'stack results may not include it.'
+          : "We can't match enough of their labels to our safety data, so "
+                'your stack results may not include them: '
+                '${names.join(', ')}.',
+      margin: margin,
+    );
+  }
+
+  /// A product whose details didn't load, or a catalog read that failed.
+  /// [stackDetailReadyProvider] fetches again when the connection changes.
   Widget _coverageHedgeBanner() {
     return PGSeverityBanner(
       key: const Key('stack-safety-banner'),
-      tone: PGBannerTone.caution,
+      tone: PGBannerTone.neutral,
       title: kCoverageHedgeBase,
       body:
-          'One or more products in your stack have limited ingredient '
-          'data — results may be incomplete.',
+          "We couldn't load the details for a product in your stack, so your "
+          'results may not include it yet.',
       actionLabel: onTap == null ? null : 'View details',
       onAction: onTap,
       margin: margin,
@@ -427,12 +452,12 @@ class _SignalOverviewCard extends StatelessWidget {
                     // an unfinished check must never read as an all-clear, and
                     // must never be mistaken for one of the listed concerns.
                     // `analysisIncomplete` covers label coverage as well as
-                    // checks, so the copy names both causes.
+                    // checks, so the copy doesn't name one cause.
                     if (analysisIncomplete) ...[
                       const SizedBox(height: V2Spacing.space8),
                       Text(
-                        'Some checks or product labels could not be fully '
-                        'analyzed, so results may be incomplete.',
+                        "We couldn't check everything in your stack, so "
+                        'results may be incomplete.',
                         style: V2Typography.bodySm(color: palette.fgMuted),
                       ),
                     ],
