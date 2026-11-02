@@ -245,6 +245,14 @@ Future<void> _pumpConnectedScreen(
   }
 }
 
+class _FailingCoreDatabase extends CoreDatabase {
+  _FailingCoreDatabase() : super.memory();
+
+  @override
+  Future<ProductsCoreData?> findById(String dsldId) =>
+      Future.error(StateError('disk I/O error'));
+}
+
 Future<void> _scrollConnectedTowardTop(WidgetTester tester) async {
   final scrollView = find.byType(CustomScrollView);
   for (var attempt = 0; attempt < 8; attempt++) {
@@ -387,6 +395,33 @@ void main() {
     }
   });
   group('connected unavailable states', () {
+    testWidgets('a failed catalog read leaves the loading state', (
+      tester,
+    ) async {
+      final coreDb = _FailingCoreDatabase();
+      final userDb = UserDatabase.memory();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+        await userDb.close();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+          child: const MaterialApp(
+            home: ProductDetailV2ConnectedScreen(dsldId: _connectedDsldId),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Product unavailable'), findsOneWidget);
+    });
+
     testWidgets('low coverage keeps the score and shows coverage beside it', (
       tester,
     ) async {

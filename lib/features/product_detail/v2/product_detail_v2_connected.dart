@@ -86,6 +86,7 @@ import 'package:pharmaguide/features/product_detail/widgets/pg_favorite_button.d
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/health/rda_reference_contract.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
@@ -309,7 +310,17 @@ class _ProductDetailV2ConnectedState
   Future<void> _loadProduct() async {
     final requestedDsldId = widget.dsldId;
     final coreDb = ref.read(coreDatabaseProvider);
-    final product = await coreDb.findById(requestedDsldId);
+    ProductsCoreData? product;
+    try {
+      product = await coreDb.findById(requestedDsldId);
+    } on Object catch (error, stackTrace) {
+      // Shown as unavailable, with no verdict, rather than loading forever.
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'product_detail:catalog_read_failed',
+      );
+    }
     if (mounted && widget.dsldId == requestedDsldId) {
       setState(() {
         _product = product;
