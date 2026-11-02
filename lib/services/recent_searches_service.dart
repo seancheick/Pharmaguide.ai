@@ -1,11 +1,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Stores recent search queries in SharedPreferences.
+/// Stores recent search queries in SharedPreferences, per account: they are the
+/// user's health-interest queries (ADR-013).
 /// Max 10 entries, most recent first. Deduplicates on add.
 class RecentSearchesService {
-  static const _key = 'recent_searches';
+  RecentSearchesService({String scope = AccountStorage.guestScope})
+    : _key = keyFor(scope);
+
+  static const legacyKey = 'recent_searches';
   static const _maxEntries = 10;
+
+  static String keyFor(String scope) => '$legacyKey.$scope';
+
+  final String _key;
+
+  /// The pre-ADR-013 shared list goes to whoever owned the shared database.
+  static Future<void> adoptLegacyEntries(String scope) =>
+      _move(legacyKey, keyFor(scope));
+
+  /// The guest's list follows the guest's data on a first sign-in.
+  static Future<void> moveScope({required String from, required String to}) =>
+      _move(keyFor(from), keyFor(to));
+
+  static Future<void> deleteScope(String scope) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(keyFor(scope));
+  }
+
+  static Future<void> _move(String from, String to) async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = prefs.getStringList(from);
+    if (entries == null) return;
+    if (prefs.getStringList(to) == null) {
+      await prefs.setStringList(to, entries);
+    }
+    await prefs.remove(from);
+  }
 
   /// Get the list of recent search queries, most recent first.
   ///
@@ -74,5 +106,5 @@ class RecentSearchesService {
 
 /// Riverpod provider for [RecentSearchesService].
 final recentSearchesServiceProvider = Provider<RecentSearchesService>(
-  (ref) => RecentSearchesService(),
+  (ref) => RecentSearchesService(scope: ref.watch(activeAccountProvider).scope),
 );

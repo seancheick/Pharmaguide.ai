@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/app.dart' show scaffoldMessengerKey;
+import 'package:pharmaguide/core/components/pg_toast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/features/ai_share/ai_connections_screen.dart';
 import 'package:pharmaguide/features/history/health_history_screen.dart';
-import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/contributions/providers/product_submission_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/settings/v2/delete_account_sheet.dart';
 import 'package:pharmaguide/features/settings/v2/notification_settings_sheet.dart';
 import 'package:pharmaguide/features/settings/v2/settings_v2_screen.dart';
+import 'package:pharmaguide/features/settings/v2/sign_out_choice_sheet.dart';
 import 'package:pharmaguide/features/settings/v2/theme_settings_sheet.dart';
 import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
 import 'package:pharmaguide/features/settings/providers/notification_settings_provider.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
-import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/clinician_report_preview_screen.dart';
 import 'package:pharmaguide/services/auth/account_deletion_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
-import 'package:pharmaguide/services/history/health_attachment_store.dart';
-import 'package:pharmaguide/services/recent_searches_service.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Production-wired settings screen. Reads:
@@ -113,36 +113,80 @@ class SettingsV2Connected extends ConsumerWidget {
         context: context,
         builder: (_) => const NotificationSettingsSheet(),
       ),
+      onSignOut: () => _signOutWithChoice(context, ref),
       onDeleteAccount: signedIn ? () => _openDeleteAccount(context, ref) : null,
     );
   }
 
+  static Future<bool> _signOutWithChoice(BuildContext context, WidgetRef ref) {
+    final guard = ref.read(accountSwitchGuardProvider);
+    return signOutWithChoice(
+      choose: () => PGModal.bottomSheet<SignOutChoice>(
+        context: context,
+        builder: (_) => const SignOutChoiceSheet(),
+      ),
+      signOut: PGAuthService().signOut,
+      currentUid: () => _safeCurrentUser()?.id,
+      removeAccountData: (uid) async {
+        try {
+          await guard?.removeAccountData(uid);
+        } on Object catch (error, stackTrace) {
+          CrashReportingService().recordError(
+            error,
+            stackTrace,
+            hint: 'sign_out:remove_failed',
+          );
+          PGToast.showWith(
+            scaffoldMessengerKey.currentState,
+            "Couldn't remove your data from this phone. It stays locked to "
+            'your account.',
+            variant: PGToastVariant.error,
+          );
+        }
+      },
+    );
+  }
+
   static Future<void> _openDeleteAccount(BuildContext context, WidgetRef ref) {
-    final auth = PGAuthService();
+    final guard = ref.read(accountSwitchGuardProvider);
+    final uid = _safeCurrentUser()?.id;
     final service = AccountDeletionService.production(
       localPurges: [
-        ref.read(userDatabaseProvider).clearAllLocalUserData,
-        HealthAttachmentStore().clearAll,
-        RecentSearchesService().clearAll,
-        AccountOwnerStore().clear,
-        auth.signOutLocal,
+        PGAuthService().signOutLocal,
+        if (guard != null && uid != null) () => guard.removeAccountData(uid),
       ],
     );
     return PGModal.bottomSheet<void>(
       context: context,
       builder: (_) => DeleteAccountSheet(
-        onDelete: (confirmation) =>
-            service.deleteAccount(confirmation: confirmation),
-        onDeleted: () {
-          ref.read(authStateProvider.notifier).onSignedOut();
-          ref.invalidate(activeStackProvider);
-          ref.invalidate(profileProvider);
-          ref.invalidate(favoritesProvider);
-          ref.invalidate(isFavoriteProvider);
-          ref.invalidate(healthHistoryTimelineProvider);
-          ref.invalidate(healthHistoryUpcomingProvider);
-          ref.invalidate(_scanCountProvider);
+        onDelete: (confirmation) async {
+          final result = await service.deleteAccount(
+            confirmation: confirmation,
+          );
+          // The sign-out replaced this tree and its sheet, so tell the user here.
+          switch (result) {
+            case AccountDeletionResult.deleted:
+              PGToast.showWith(
+                scaffoldMessengerKey.currentState,
+                'Your account was deleted.',
+                variant: PGToastVariant.info,
+              );
+            case AccountDeletionResult.deletedLocalCleanupIncomplete:
+              PGToast.showWith(
+                scaffoldMessengerKey.currentState,
+                'Your online account was deleted, but this device could not '
+                'confirm every local cleanup step. Close and reinstall the app '
+                'before giving this device to someone else.',
+                variant: PGToastVariant.error,
+                duration: const Duration(seconds: 10),
+              );
+            case AccountDeletionResult.remoteFailed ||
+                AccountDeletionResult.confirmationRequired:
+              break;
+          }
+          return result;
         },
+        onDeleted: () {},
       ),
     );
   }

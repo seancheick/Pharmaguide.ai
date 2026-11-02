@@ -184,6 +184,12 @@ class ProductSubmissionDraftStore implements ProductSubmissionDraftStorage {
   Directory _accountRoot(String userId) =>
       Directory('${root.path}/${_scope(userId)}');
 
+  /// Every draft of [userId]'s, when their data is removed from this phone.
+  Future<void> deleteAccount(String userId) async {
+    final account = _accountRoot(userId);
+    if (await account.exists()) await account.delete(recursive: true);
+  }
+
   static final _accountName = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
 
   /// The account's own identifier, used directly as a directory name.

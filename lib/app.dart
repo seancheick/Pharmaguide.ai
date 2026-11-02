@@ -57,15 +57,10 @@ import 'package:pharmaguide/features/splash/v2/animated_splash_v2_screen.dart';
 import 'package:pharmaguide/features/onboarding/v2/onboarding_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/auth_invitation_v2_screen.dart';
 import 'package:pharmaguide/features/auth/v2/magic_link_sheet.dart';
-import 'package:pharmaguide/features/profile/profile_provider.dart';
-import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
-import 'package:pharmaguide/features/stack/providers/favorites_providers.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
-import 'package:pharmaguide/services/history/health_attachment_store.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
-import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
@@ -930,6 +925,27 @@ String _visiblePath(GoRouter router) {
   return router.state.uri.path;
 }
 
+bool _isOnAuthPath(GoRouter router) {
+  final loc = _visiblePath(router);
+  return loc.startsWith('/dev/v2/auth') ||
+      loc == Routes.splashIntro ||
+      loc == Routes.onboarding ||
+      loc == Routes.authInvitation ||
+      // Magic-link deep links land on the /auth/callback spinner;
+      // without this the signedIn event had no navigator and the
+      // handoff spun forever.
+      loc == '/auth/callback';
+}
+
+/// The router outlives the provider tree, so its stack would otherwise rebuild
+/// the previous person's screens for the next one. Sign-in from an auth screen
+/// is routed by [navigatePostAuthIfOnAuthPath] instead.
+void returnHomeAfterAccountChange() {
+  final router = _appRouter;
+  if (router == null || _isOnAuthPath(router)) return;
+  router.go(Routes.home);
+}
+
 /// Shared post-sign-in navigation, called from both the direct
 /// Apple/Google handlers above and `_AuthEventListener._onAuth` below.
 /// Only navigates while the user is still sitting on an auth-adjacent
@@ -939,17 +955,7 @@ String _visiblePath(GoRouter router) {
 /// one-shot pending submission already consumed.
 @visibleForTesting
 void navigatePostAuthIfOnAuthPath(GoRouter router) {
-  final loc = _visiblePath(router);
-  final onAuthPath =
-      loc.startsWith('/dev/v2/auth') ||
-      loc == Routes.splashIntro ||
-      loc == Routes.onboarding ||
-      loc == Routes.authInvitation ||
-      // Magic-link deep links land on the /auth/callback spinner;
-      // without this the signedIn event had no navigator and the
-      // handoff spun forever.
-      loc == '/auth/callback';
-  if (!onAuthPath) return;
+  if (!_isOnAuthPath(router)) return;
   // Honor the dev-route override: if the gallery is the active root
   // (DEV_ROUTE=/dev/v2) land at the v2 home preview; otherwise the
   // production root. Phase 11.7L.B.9 — first-time users land on the
@@ -1460,19 +1466,17 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
     final event = data.event;
     final uid = data.session?.user.id;
     switch (event) {
-      // Shared-device account hygiene: every session-bearing event runs
-      // the account-switch guard FIRST. On a genuine different-uid
-      // sign-in the guard clears all local user data (and with it every
-      // sync-dirty row) before the auth mode flips — the guest→signedIn
-      // transition is what triggers the stack sync push, so flipping
-      // early could upload the previous user's rows under the new uid.
+      // Every session-bearing event runs the account-switch guard FIRST, so
+      // the right person's folder is open before the auth mode flips — the
+      // guest→signedIn transition is what triggers the stack sync push, so
+      // flipping early could upload the previous user's rows under the new uid.
       case AuthChangeEvent.signedIn ||
               AuthChangeEvent.initialSession ||
               AuthChangeEvent.tokenRefreshed ||
               AuthChangeEvent.userUpdated
           when uid != null && uid.isNotEmpty:
         unawaited(
-          _applyAccountHygieneThenSignIn(
+          _applyAccountSwitchThenSignIn(
             authState,
             event: event,
             uid: uid,
@@ -1489,10 +1493,10 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
         // always attaches a session here) — preserve legacy behavior.
         authState.onSignedIn();
       case AuthChangeEvent.signedOut:
-        // Sign-out never touches local data or the owner record: the
-        // SAME user returning keeps their data, and a DIFFERENT uid
-        // signing in later is what triggers the clear.
-        authState.onSignedOut();
+        // The account's data stays locked in its folder until they return.
+        unawaited(
+          _applyAccountSwitchThenSignOut(authState, event: event, uid: uid),
+        );
       default:
         break;
     }
@@ -1530,47 +1534,38 @@ class _AuthEventListenerState extends ConsumerState<_AuthEventListener> {
     }
   }
 
-  /// Runs the [AccountSwitchGuard] for a session-bearing auth event, then
-  /// (for sign-in-shaped events) flips the app auth mode. The await
-  /// ordering is the point: the destructive clear on an account switch
-  /// completes BEFORE anything can trigger a sync push for the new uid.
-  Future<void> _applyAccountHygieneThenSignIn(
+  Future<void> _applyAccountSwitchThenSignOut(
+    AuthStateService authState, {
+    required AuthChangeEvent event,
+    required String? uid,
+  }) async {
+    try {
+      await ref
+          .read(accountSwitchGuardProvider)
+          ?.onAuthEvent(event: event, uid: uid);
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(e, st, hint: 'account_switch_guard');
+    }
+    if (mounted) authState.onSignedOut();
+  }
+
+  /// Runs the [AccountSwitchGuard] for an auth event, then (for sign-in-shaped
+  /// events) flips the app auth mode. The await ordering is the point: the right
+  /// person's folder is open BEFORE anything can trigger a sync push for this
+  /// uid. A switch replaces this tree, and the new one reads the session itself.
+  Future<void> _applyAccountSwitchThenSignIn(
     AuthStateService authState, {
     required AuthChangeEvent event,
     required String uid,
     required bool flipToSignedIn,
   }) async {
     try {
-      final guard = AccountSwitchGuard(
-        ownerStore: AccountOwnerStore(),
-        db: ref.read(userDatabaseProvider),
-        // Per-user data living outside the user DB. Recent searches are
-        // the user's health-interest queries — they must not carry over.
-        clearPerUserPrefs: () async {
-          await Future.wait([
-            RecentSearchesService().clearAll(),
-            HealthAttachmentStore().clearAll(),
-            // The previous user's AI-share choices and opt-in refreshes.
-            ref.read(aiSharePrefsStoreProvider).clear(),
-          ]);
-        },
-      );
-      final action = await guard.onAuthEvent(event: event, uid: uid);
-      if (action == AccountSwitchAction.clearAndAdopt && mounted) {
-        // The cleared tables feed Future-based providers — invalidate
-        // the roots (their derived providers re-resolve automatically)
-        // so no mounted surface keeps showing the previous user's data.
-        ref.invalidate(activeStackProvider);
-        ref.invalidate(profileProvider);
-        ref.invalidate(favoritesProvider);
-        ref.invalidate(isFavoriteProvider);
-      }
+      await ref
+          .read(accountSwitchGuardProvider)
+          ?.onAuthEvent(event: event, uid: uid);
     } on Object catch (e, st) {
-      // Fail open for sign-in usability. Safe because ownership is only
-      // stamped AFTER a successful clear: on any guard failure the owner
-      // record still names the previous uid, and the sync-side owner
-      // gate (ownerAllowsPush) blocks every cross-account upload until a
-      // later sign-in completes the switch.
+      // The sync-side owner gate (ownerAllowsPush) still blocks a cross-account
+      // upload, because the owner is only recorded once the right folder opens.
       CrashReportingService().recordError(e, st, hint: 'account_switch_guard');
     }
     if (flipToSignedIn && mounted) authState.onSignedIn();

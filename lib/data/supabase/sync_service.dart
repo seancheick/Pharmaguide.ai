@@ -117,12 +117,6 @@ class SyncService {
     return p.join(dir.path, 'pharmaguide_core.db');
   }
 
-  /// Get the path where the user database should live.
-  Future<String> getUserDbPath() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return p.join(dir.path, 'user_data.db');
-  }
-
   /// Download the core database from Supabase storage.
   /// Fetches the current version from export_manifest, then downloads
   /// from the `pharmaguide` bucket at `v{db_version}/pharmaguide_core.db`.

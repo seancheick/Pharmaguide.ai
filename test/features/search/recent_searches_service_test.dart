@@ -36,7 +36,7 @@ void main() {
       // Simulates a list persisted before commit-only recording:
       // keystroke fragments, newest first.
       SharedPreferences.setMockInitialValues({
-        'flutter.recent_searches': <String>[
+        'flutter.recent_searches.guest': <String>[
           'thorne',
           'thorn',
           'thor',

@@ -291,10 +291,8 @@ Future<CoreDatabase> openCoreDatabase({
   }
 }
 
-/// Open the UserDatabase at the standard application documents path.
-Future<UserDatabase> openUserDatabase() async {
-  final dir = await getApplicationDocumentsDirectory();
-  final dbPath = p.join(dir.path, 'user_data.db');
+/// Open the UserDatabase at [dbPath], inside an account's folder.
+Future<UserDatabase> openUserDatabase(String dbPath) async {
   final db = UserDatabase.open(dbPath);
   // Fire-and-forget cache housekeeping — must never block or fail boot.
   unawaited(

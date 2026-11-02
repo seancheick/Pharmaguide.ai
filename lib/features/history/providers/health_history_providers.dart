@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
@@ -157,7 +159,10 @@ final userHealthEventServiceProvider = Provider<UserHealthEventService>((ref) {
 });
 
 final healthAttachmentStoreProvider = Provider<HealthAttachmentStore>((ref) {
-  return HealthAttachmentStore();
+  final root = ref.watch(activeAccountProvider).attachmentsPath;
+  return HealthAttachmentStore(
+    root: root == null ? null : () async => Directory(root),
+  );
 });
 
 final clinicalSignalLifecycleServiceProvider =

@@ -4,11 +4,14 @@ import 'dart:math' show Random;
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/notifications/safety_push_service.dart';
+import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:pharmaguide/services/settings/app_preferences.dart';
 import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
 import 'package:pharmaguide/services/sharing/ai_share_snapshot_client.dart';
@@ -16,79 +19,72 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// ─── Shared-device account hygiene — "clear on account switch" ─────────────
+// ─── Shared-device account separation (ADR-013) ────────────────────────
 //
-// The next user on a device must not inherit or upload the previous
-// user's medical data. We persist the OWNER uid durably; on each auth
-// event a PURE function decides between keep / adopt / clearAndAdopt,
-// and only clearAndAdopt is destructive.
-//
-// CRITICAL SAFETY: the clear is destructive and there is NO cloud backup
-// for profile/meds/conditions/allergens. It fires ONLY on a genuine
-// different-uid sign-in — never on tokenRefreshed, userUpdated, the same
-// uid reappearing, initialSession with the same uid, or signedOut.
+// Each account, and the guest, has its own folder (AccountStorage). On each
+// auth event a PURE function decides whose folder should be open, and the guard
+// closes the current one and opens that one. Nothing here destroys data:
+// removal is a separate, explicit request.
 
-/// What the account-switch gate decided for an auth event.
+/// What the account gate decided for an auth event.
 enum AccountSwitchAction {
-  /// No ownership change — leave local data and the owner record alone.
+  /// The right person's data is already open.
   keep,
 
-  /// First sign-in ever recorded on this install: stamp the incoming uid
-  /// as owner and KEEP all local (guest-era) data. Non-destructive.
-  adopt,
+  /// First sign-in for this account on this device, from the guest: the guest's
+  /// folder becomes the account's, as guest data always has on first sign-in.
+  adoptGuestData,
 
-  /// A DIFFERENT real uid signed in: clear ALL local user data (and with
-  /// it every sync-dirty row), then stamp the new owner. Destructive.
-  clearAndAdopt,
+  /// A different account signed in: open that account's own folder.
+  switchAccount,
+
+  /// Signed out: the account's data stays locked in its folder.
+  switchToGuest,
 }
 
-/// PURE decision for the account-switch gate. No I/O — every branch is
-/// unit-tested in test/services/auth/account_switch_gate_test.dart.
+/// PURE decision for the account gate. No I/O — every branch is unit-tested in
+/// test/services/auth/account_switch_gate_test.dart.
 ///
-/// Destructive `clearAndAdopt` is possible ONLY for sign-in-shaped events
-/// ([AuthChangeEvent.signedIn], [AuthChangeEvent.initialSession]) carrying
-/// a real uid that differs from a real stored owner. Session-maintenance
-/// events ([AuthChangeEvent.tokenRefreshed], [AuthChangeEvent.userUpdated])
-/// may stamp ownership when none is recorded (an active session means the
-/// current human IS that uid) but can NEVER clear. Everything else —
-/// signedOut, passwordRecovery, MFA, unknown future events — is keep.
+/// The session is the truth about who is using the app, so any session-bearing
+/// event can correct the open folder. Switching destroys nothing, which is why
+/// that is safe even for a maintenance event arriving after a missed sign-in.
 AccountSwitchAction decideAccountAction({
-  required String? storedOwner,
+  required String? activeOwner,
   required String? incomingUid,
   required AuthChangeEvent event,
+  required bool incomingHasData,
 }) {
-  // No uid → nothing to adopt and, above all, nothing to justify a clear.
+  final hasOwner = activeOwner != null && activeOwner.isNotEmpty;
+  if (event == AuthChangeEvent.signedOut) {
+    return hasOwner
+        ? AccountSwitchAction.switchToGuest
+        : AccountSwitchAction.keep;
+  }
   if (incomingUid == null || incomingUid.isEmpty) {
     return AccountSwitchAction.keep;
   }
-  final hasOwner = storedOwner != null && storedOwner.isNotEmpty;
   switch (event) {
-    case AuthChangeEvent.signedIn || AuthChangeEvent.initialSession:
-      if (!hasOwner) return AccountSwitchAction.adopt;
-      if (storedOwner == incomingUid) return AccountSwitchAction.keep;
-      return AccountSwitchAction.clearAndAdopt;
-    case AuthChangeEvent.tokenRefreshed || AuthChangeEvent.userUpdated:
-      // Never destructive: a refresh for a mismatched uid means a sign-in
-      // event was missed — the sync owner gate (ownerAllowsPush) blocks
-      // uploads until a genuine sign-in resolves it.
-      return hasOwner ? AccountSwitchAction.keep : AccountSwitchAction.adopt;
+    case AuthChangeEvent.signedIn ||
+        AuthChangeEvent.initialSession ||
+        AuthChangeEvent.tokenRefreshed ||
+        AuthChangeEvent.userUpdated:
+      if (incomingUid == activeOwner) return AccountSwitchAction.keep;
+      if (!hasOwner && !incomingHasData) {
+        return AccountSwitchAction.adoptGuestData;
+      }
+      return AccountSwitchAction.switchAccount;
     default:
-      // signedOut (owner intentionally stays — same user returning keeps
-      // their data; a different next sign-in triggers the clear),
       // passwordRecovery, mfaChallengeVerified, and any future events.
       return AccountSwitchAction.keep;
   }
 }
 
-/// Durable record of which uid owns the local user data on this install.
-/// SharedPreferences-backed (the user DB has no kv/meta table): survives
-/// restarts and sign-outs, dies with an uninstall — exactly like the user
-/// DB itself, so the two can't outlive each other.
+/// Durable record of which uid's folder is open, read by the sync owner gate
+/// ([ownerAllowsPush]) and, once, to place the pre-ADR-013 store. Null means the
+/// guest. SharedPreferences-backed: it dies with an uninstall, like the folders.
 class AccountOwnerStore {
   static const String prefsKey = 'account_owner_uid';
 
-  /// The uid that owns local data, or null if no one ever signed in on
-  /// this install (genuine guest data).
   Future<String?> read() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(prefsKey);
@@ -105,55 +101,210 @@ class AccountOwnerStore {
   }
 }
 
-/// Applies [decideAccountAction] to a live auth event: reads the durable
-/// owner, decides, and performs the (possibly destructive) side effects.
+/// The one owner of switching between people on a device (ADR-013). Holds the
+/// open user database, and applies [decideAccountAction] to live auth events.
 ///
-/// Ordering on clearAndAdopt is load-bearing: clear FIRST, stamp owner
-/// LAST. If anything fails mid-clear the owner still reads as the
-/// previous uid, so the next sign-in retries the clear and the sync
-/// owner gate keeps blocking cross-account uploads in the meantime.
+/// Ordering is the point. The tree using the old database comes down first, so
+/// nothing can read it. The handle closes next, so work still in flight fails
+/// rather than landing in someone else's data. The owner is recorded only after
+/// the new database opens. If it doesn't open, [database] stays null and the app
+/// shows a retry: never another person's data, and never an empty database that
+/// would read as having no medications.
 class AccountSwitchGuard {
-  final AccountOwnerStore _ownerStore;
-  final UserDatabase _db;
-
-  /// Clears per-user data living outside the user DB (e.g. recent
-  /// searches in SharedPreferences). Injected by the composition root so
-  /// this class doesn't grow feature imports.
-  final Future<void> Function()? _clearPerUserPrefs;
-
   AccountSwitchGuard({
     required this._ownerStore,
-    required this._db,
-    this._clearPerUserPrefs,
+    required this._storage,
+    required this._openDatabase,
+    this._onOwnerChange,
+    this._onAccountRemoved,
   });
 
-  /// Handle one auth event. Completes only after all side effects are
-  /// done — callers MUST await this before flipping the app's auth mode,
-  /// because the guest→signedIn transition is what triggers sync pushes.
+  factory AccountSwitchGuard.production({
+    required Future<UserDatabase> Function(String path) openDatabase,
+    Future<void> Function()? onOwnerChange,
+    Future<void> Function(String uid)? onAccountRemoved,
+  }) => AccountSwitchGuard(
+    ownerStore: AccountOwnerStore(),
+    storage: AccountStorage.production(),
+    openDatabase: openDatabase,
+    onOwnerChange: onOwnerChange,
+    onAccountRemoved: onAccountRemoved,
+  );
+
+  final AccountOwnerStore _ownerStore;
+  final AccountStorage _storage;
+  final Future<UserDatabase> Function(String path) _openDatabase;
+
+  /// Ends what belongs to the outgoing person but lives outside their folder,
+  /// such as scheduled notifications. A failure is reported and never stops the
+  /// switch.
+  final Future<void> Function()? _onOwnerChange;
+
+  /// Deletes what is keyed to the account but lives outside its folder.
+  final Future<void> Function(String uid)? _onAccountRemoved;
+
+  /// Takes down whatever is using [database], and returns once it is gone.
+  Future<void> Function()? releaseConsumers;
+
+  /// Called after each switch, whether or not a database opened.
+  void Function()? onChanged;
+
+  UserDatabase? _database;
+  ActiveAccount _account = ActiveAccount.guest;
+  String? _ownerUid;
+  Future<void> Function()? _retry;
+  Future<void> _tail = Future.value();
+
+  /// Null when the owner's data could not be opened. See [retry].
+  UserDatabase? get database => _database;
+  ActiveAccount get account => _account;
+  String? get ownerUid => _ownerUid;
+
+  /// Serial, so overlapping auth events can't interleave a switch.
+  Future<T> _enqueue<T>(Future<T> Function() work) {
+    final result = _tail.then((_) => work());
+    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return result;
+  }
+
+  /// Opens the data for the session the app launched with. Never throws.
+  Future<void> boot({required String? sessionUid}) => _enqueue(() async {
+    // No owner on record means the guest was open when the app last ran, so a
+    // session found now is the sign-in whose event never got handled.
+    final adoptGuest = sessionUid != null && await _ownerStore.read() == null;
+    await _open(sessionUid, adoptGuest: adoptGuest, migrate: true);
+  });
+
+  /// Tries again after [database] came back null.
+  Future<void> retry() => _enqueue(() async {
+    await _retry?.call();
+    onChanged?.call();
+  });
+
+  /// Handle one auth event. Completes only after all side effects are done —
+  /// callers MUST await this before flipping the app's auth mode, because the
+  /// guest→signedIn transition is what triggers sync pushes.
   Future<AccountSwitchAction> onAuthEvent({
     required AuthChangeEvent event,
     required String? uid,
-  }) async {
-    final storedOwner = await _ownerStore.read();
+  }) => _enqueue(() async {
     final action = decideAccountAction(
-      storedOwner: storedOwner,
+      activeOwner: _ownerUid,
       incomingUid: uid,
       event: event,
+      incomingHasData: await _storage.hasData(uid),
     );
     switch (action) {
       case AccountSwitchAction.keep:
         break;
-      case AccountSwitchAction.adopt:
-        await _ownerStore.write(uid!);
-      case AccountSwitchAction.clearAndAdopt:
-        // Destructive path — see class doc for the clear-first ordering.
-        await _db.clearAllLocalUserData();
-        await _clearPerUserPrefs?.call();
-        await _ownerStore.write(uid!);
+      case AccountSwitchAction.adoptGuestData:
+        await _switch(uid, adoptGuest: true);
+      case AccountSwitchAction.switchAccount:
+        await _switch(uid);
+      case AccountSwitchAction.switchToGuest:
+        await _switch(null);
     }
     return action;
+  });
+
+  /// Deletes [uid]'s folder from this device, moving to the guest first if that
+  /// account is open. Throws if the delete fails, and the data stays locked.
+  Future<void> removeAccountData(String uid) => _enqueue(() async {
+    if (_ownerUid == uid) await _switch(null);
+    await _storage.delete(uid);
+    await RecentSearchesService.deleteScope(AccountStorage.scopeFor(uid));
+    await _onAccountRemoved?.call(uid);
+  });
+
+  Future<void> close() => _enqueue(() async {
+    await _closeDatabase();
+  });
+
+  Future<void> _switch(String? uid, {bool adoptGuest = false}) async {
+    await releaseConsumers?.call();
+    try {
+      await _onOwnerChange?.call();
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:owner_change',
+      );
+    }
+    await _closeDatabase();
+    await _open(uid, adoptGuest: adoptGuest);
+    onChanged?.call();
+  }
+
+  Future<void> _closeDatabase() async {
+    final old = _database;
+    _database = null;
+    try {
+      await old?.close().timeout(const Duration(seconds: 5));
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:close',
+      );
+    }
+  }
+
+  Future<void> _open(
+    String? uid, {
+    bool adoptGuest = false,
+    bool migrate = false,
+  }) async {
+    _ownerUid = uid;
+    _account = ActiveAccount(scope: AccountStorage.scopeFor(uid));
+    _retry = () => _open(uid, adoptGuest: adoptGuest, migrate: migrate);
+    UserDatabase? opened;
+    try {
+      if (migrate) await _migrateLegacyStore();
+      if (adoptGuest && !await _storage.hasData(uid)) {
+        await _storage.adoptGuestFolder(uid!);
+        await RecentSearchesService.moveScope(
+          from: AccountStorage.guestScope,
+          to: AccountStorage.scopeFor(uid),
+        );
+      }
+      opened = await _openDatabase(await _storage.databasePathFor(uid));
+      // Runs the schema migration, so a bad file fails here and not in a screen.
+      await opened.customSelect('SELECT 1').get();
+      if (uid == null) {
+        await _ownerStore.clear();
+      } else {
+        await _ownerStore.write(uid);
+      }
+      _account = await _storage.accountFor(uid);
+      _database = opened;
+      _retry = null;
+    } on Object catch (error, stackTrace) {
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'account_switch:open',
+      );
+      try {
+        await opened?.close();
+      } on Object {
+        // Best-effort cleanup; the open failure is what gets reported.
+      }
+    }
+  }
+
+  Future<void> _migrateLegacyStore() async {
+    // The file belongs to the owner on record, whoever is signed in now.
+    final legacyOwner = await _ownerStore.read();
+    await _storage.migrateLegacyStore(owner: legacyOwner);
+    await RecentSearchesService.adoptLegacyEntries(
+      AccountStorage.scopeFor(legacyOwner),
+    );
   }
 }
+
+/// The app's guard, or null in a tree with no account storage behind it.
+final accountSwitchGuardProvider = Provider<AccountSwitchGuard?>((ref) => null);
 
 /// Result of a sign-in attempt. Callers pattern-match to decide UX —
 /// successes hand the new Supabase session back; cancellations are

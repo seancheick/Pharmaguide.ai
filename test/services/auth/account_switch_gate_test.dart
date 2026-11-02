@@ -1,383 +1,582 @@
-// Shared-device account hygiene — the "clear on account switch" gate.
-//
-// The next user on a device must not inherit or upload the previous
-// user's medical data. The decision is a PURE function
-// (`decideAccountAction`) so every branch is unit-testable; the
-// destructive clear is wired behind it in `AccountSwitchGuard`.
-//
-// CRITICAL SAFETY: the clear is destructive and there is NO cloud
-// backup for profile/meds/conditions/allergens. It must fire ONLY on a
-// genuine different-uid sign-in — never on tokenRefreshed, userUpdated,
-// the same uid reappearing, initialSession with the same uid, or
-// signedOut.
+// The account gate (ADR-013): every branch of the pure decision, then the real
+// guard against real folders on disk.
+
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
+import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
+import 'package:pharmaguide/services/recent_searches_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+
+const _a = 'account-a';
+const _b = 'account-b';
+
+Future<void> _addMedication(UserDatabase db, String name) => db.addToStack(
+  UserStacksLocalCompanion.insert(
+    id: 'id-$name',
+    name: name,
+    type: const Value('medication'),
+  ),
+);
+
+Future<List<String>> _names(UserDatabase db) async =>
+    (await db.select(db.userStacksLocal).get()).map((r) => r.name).toList();
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // ---------------------------------------------------------------------
-  // Pure decision function — every branch
-  // ---------------------------------------------------------------------
   group('decideAccountAction', () {
-    AccountSwitchAction decide({
+    AccountSwitchAction decide(
       String? owner,
       String? uid,
-      required AuthChangeEvent event,
-    }) =>
-        decideAccountAction(storedOwner: owner, incomingUid: uid, event: event);
+      AuthChangeEvent event, {
+      bool hasData = false,
+    }) => decideAccountAction(
+      activeOwner: owner,
+      incomingUid: uid,
+      event: event,
+      incomingHasData: hasData,
+    );
 
-    group('signedIn', () {
-      test('owner=null + signin U → adopt (genuine guest data kept)', () {
+    const sessionEvents = [
+      AuthChangeEvent.signedIn,
+      AuthChangeEvent.initialSession,
+      AuthChangeEvent.tokenRefreshed,
+      AuthChangeEvent.userUpdated,
+    ];
+
+    for (final event in sessionEvents) {
+      test('$event for the open owner keeps', () {
+        expect(decide(_a, _a, event), AccountSwitchAction.keep);
+      });
+
+      test('$event from the guest, with no account data, adopts', () {
+        expect(decide(null, _a, event), AccountSwitchAction.adoptGuestData);
+      });
+
+      test('$event from the guest, with account data, never merges', () {
         expect(
-          decide(owner: null, uid: 'U', event: AuthChangeEvent.signedIn),
-          AccountSwitchAction.adopt,
+          decide(null, _a, event, hasData: true),
+          AccountSwitchAction.switchAccount,
         );
       });
 
-      test('owner="" (empty) is treated as never-signed-in → adopt', () {
-        expect(
-          decide(owner: '', uid: 'U', event: AuthChangeEvent.signedIn),
-          AccountSwitchAction.adopt,
-        );
+      test('$event for a different account switches, without adopting', () {
+        expect(decide(_a, _b, event), AccountSwitchAction.switchAccount);
       });
 
-      test('owner=U + signin U (same user returning) → keep, no clear', () {
-        expect(
-          decide(owner: 'U', uid: 'U', event: AuthChangeEvent.signedIn),
-          AccountSwitchAction.keep,
-        );
+      test('$event with no uid keeps', () {
+        expect(decide(_a, null, event), AccountSwitchAction.keep);
+        expect(decide(_a, '', event), AccountSwitchAction.keep);
       });
-
-      test('owner=V + signin U (V!=U) → clearAndAdopt (account switch)', () {
-        expect(
-          decide(owner: 'V', uid: 'U', event: AuthChangeEvent.signedIn),
-          AccountSwitchAction.clearAndAdopt,
-        );
-      });
-
-      test('missing/empty uid NEVER clears, even with a stored owner', () {
-        expect(
-          decide(owner: 'V', uid: null, event: AuthChangeEvent.signedIn),
-          AccountSwitchAction.keep,
-        );
-        expect(
-          decide(owner: 'V', uid: '', event: AuthChangeEvent.signedIn),
-          AccountSwitchAction.keep,
-        );
-      });
-    });
-
-    group('initialSession', () {
-      test('no persisted session (uid null) → keep (fresh guest launch)', () {
-        expect(
-          decide(owner: null, uid: null, event: AuthChangeEvent.initialSession),
-          AccountSwitchAction.keep,
-        );
-      });
-
-      test(
-        'owner=null + persisted session U → adopt (app-update migration)',
-        () {
-          expect(
-            decide(
-              owner: null,
-              uid: 'U',
-              event: AuthChangeEvent.initialSession,
-            ),
-            AccountSwitchAction.adopt,
-          );
-        },
-      );
-
-      test('owner=U + initialSession U (same uid) → keep, MUST NOT clear', () {
-        expect(
-          decide(owner: 'U', uid: 'U', event: AuthChangeEvent.initialSession),
-          AccountSwitchAction.keep,
-        );
-      });
-
-      test(
-        'owner=V + initialSession U → clearAndAdopt (interrupted switch '
-        'recovery — the only way a different uid session appears at launch)',
-        () {
-          expect(
-            decide(owner: 'V', uid: 'U', event: AuthChangeEvent.initialSession),
-            AccountSwitchAction.clearAndAdopt,
-          );
-        },
-      );
-    });
-
-    group('tokenRefreshed / userUpdated — NEVER destructive', () {
-      for (final event in [
-        AuthChangeEvent.tokenRefreshed,
-        AuthChangeEvent.userUpdated,
-      ]) {
-        test('$event: owner=U + uid U → keep, no clear', () {
-          expect(
-            decide(owner: 'U', uid: 'U', event: event),
-            AccountSwitchAction.keep,
-          );
-        });
-
-        test('$event: owner=V + uid U MUST NOT clear (keep)', () {
-          expect(
-            decide(owner: 'V', uid: 'U', event: event),
-            AccountSwitchAction.keep,
-          );
-        });
-
-        test('$event: owner=null + uid U → adopt (non-destructive ownership '
-            'stamp; an active session means the current human IS U)', () {
-          expect(
-            decide(owner: null, uid: 'U', event: event),
-            AccountSwitchAction.adopt,
-          );
-        });
-      }
-    });
-
-    group('signedOut and other events', () {
-      test('signOut → keep; owner logic untouched', () {
-        expect(
-          decide(owner: 'V', uid: null, event: AuthChangeEvent.signedOut),
-          AccountSwitchAction.keep,
-        );
-        expect(
-          decide(owner: null, uid: null, event: AuthChangeEvent.signedOut),
-          AccountSwitchAction.keep,
-        );
-      });
-
-      test('passwordRecovery / mfaChallengeVerified → keep, never clear', () {
-        for (final event in [
-          AuthChangeEvent.passwordRecovery,
-          AuthChangeEvent.mfaChallengeVerified,
-        ]) {
-          expect(
-            decide(owner: 'V', uid: 'U', event: event),
-            AccountSwitchAction.keep,
-          );
-          expect(
-            decide(owner: null, uid: 'U', event: event),
-            AccountSwitchAction.keep,
-          );
-        }
-      });
-    });
-  });
-
-  // ---------------------------------------------------------------------
-  // Owner store — durable uid persistence (SharedPreferences)
-  // ---------------------------------------------------------------------
-  group('AccountOwnerStore', () {
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-    });
-
-    test('reads null on a fresh install', () async {
-      expect(await AccountOwnerStore().read(), isNull);
-    });
-
-    test('write then read round-trips, across instances', () async {
-      await AccountOwnerStore().write('uid-1');
-      expect(await AccountOwnerStore().read(), 'uid-1');
-    });
-  });
-
-  // ---------------------------------------------------------------------
-  // AccountSwitchGuard — orchestration against a real (in-memory) DB
-  // ---------------------------------------------------------------------
-  group('AccountSwitchGuard', () {
-    late UserDatabase db;
-
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-      db = UserDatabase.memory();
-    });
-
-    tearDown(() async {
-      await db.close();
-    });
-
-    Future<void> seedUserData(UserDatabase db) async {
-      await db.saveProfile(
-        const UserProfilesCompanion(
-          nickname: Value('Previous User'),
-          conditions: Value('["diabetes"]'),
-          allergens: Value('["peanut"]'),
-          drugClasses: Value('["biguanide"]'),
-        ),
-      );
-      // Dirty supplement (never synced) — would push on next sync.
-      await db.addToStack(
-        UserStacksLocalCompanion.insert(id: 'supp-1', name: 'Vitamin D'),
-      );
-      // Medication (PHI, local-only).
-      await db.addToStack(
-        UserStacksLocalCompanion.insert(
-          id: 'med-1',
-          name: 'Metformin',
-          type: const Value('medication'),
-        ),
-      );
-      // Dirty tombstone — a pending delete that would also push.
-      await db.addToStack(
-        UserStacksLocalCompanion.insert(
-          id: 'tomb-1',
-          name: 'Old Supplement',
-          deletedAt: Value(DateTime.now()),
-        ),
-      );
-      await db.addFavorite('dsld-1');
-      await db.recordScanEvent(dsldId: 'dsld-2', productName: 'Scanned');
-      // Product-keyed caches — NOT user data, must survive the clear.
-      await db.cacheDetail('dsld-9', '{"detail":true}', null);
-      await db.cacheImageUrl('dsld-9', 'https://img.example/x.jpg');
-      await db.recordFailedScan('012345678905');
     }
 
-    AccountSwitchGuard guardFor(
-      UserDatabase db, {
-      Future<void> Function()? clearPerUserPrefs,
-    }) => AccountSwitchGuard(
-      ownerStore: AccountOwnerStore(),
-      db: db,
-      clearPerUserPrefs: clearPerUserPrefs,
-    );
+    test('signed out moves to the guest, and is a no-op for the guest', () {
+      expect(
+        decide(_a, null, AuthChangeEvent.signedOut),
+        AccountSwitchAction.switchToGuest,
+      );
+      expect(
+        decide(null, null, AuthChangeEvent.signedOut),
+        AccountSwitchAction.keep,
+      );
+    });
+
+    test('other events keep', () {
+      expect(
+        decide(_a, _b, AuthChangeEvent.passwordRecovery),
+        AccountSwitchAction.keep,
+      );
+      expect(
+        decide(_a, _b, AuthChangeEvent.mfaChallengeVerified),
+        AccountSwitchAction.keep,
+      );
+    });
+  });
+
+  group('AccountSwitchGuard', () {
+    late Directory support;
+    late Directory documents;
+    late AccountStorage storage;
+
+    AccountSwitchGuard guardWith({
+      Future<UserDatabase> Function(String path)? open,
+      Future<void> Function()? onOwnerChange,
+    }) {
+      final guard = AccountSwitchGuard(
+        ownerStore: AccountOwnerStore(),
+        storage: storage,
+        openDatabase: open ?? (path) async => UserDatabase.open(path),
+        onOwnerChange: onOwnerChange,
+      );
+      addTearDown(guard.close);
+      return guard;
+    }
+
+    Future<void> signIn(AccountSwitchGuard guard, String uid) =>
+        guard.onAuthEvent(event: AuthChangeEvent.signedIn, uid: uid);
+    Future<void> signOut(AccountSwitchGuard guard) =>
+        guard.onAuthEvent(event: AuthChangeEvent.signedOut, uid: null);
+
+    Future<void> writeLegacyDatabase(String medication) async {
+      final legacy = UserDatabase.open(p.join(documents.path, 'user_data.db'));
+      await _addMedication(legacy, medication);
+      await legacy.close();
+    }
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      final root = await Directory.systemTemp.createTemp('account_gate');
+      addTearDown(() => root.delete(recursive: true));
+      support = await Directory(p.join(root.path, 'support')).create();
+      documents = await Directory(p.join(root.path, 'documents')).create();
+      storage = AccountStorage(
+        supportDirectory: () async => support,
+        documentsDirectory: () async => documents,
+      );
+    });
 
     test(
-      'ADOPT: owner=null + signin U keeps guest data, stamps owner',
+      'an account gets its data back after sign-out and a restart',
       () async {
-        await seedUserData(db);
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+        await _addMedication(guard.database!, 'Warfarin');
+        await signOut(guard);
+        expect(await _names(guard.database!), isEmpty);
+        await guard.close();
 
-        final action = await guardFor(
-          db,
-        ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
+        final signedOutLaunch = guardWith();
+        await signedOutLaunch.boot(sessionUid: null);
+        expect(await _names(signedOutLaunch.database!), isEmpty);
+        await signedOutLaunch.close();
 
-        expect(action, AccountSwitchAction.adopt);
-        expect(await AccountOwnerStore().read(), 'U');
-        // NOTHING cleared — guest data now belongs to U and may sync.
-        expect(await db.getProfile(), isNotNull);
-        expect((await db.select(db.userStacksLocal).get()).length, 3);
-        expect((await db.getFavorites()).length, 1);
+        final returning = guardWith();
+        await returning.boot(sessionUid: _a);
+        expect(await _names(returning.database!), ['Warfarin']);
       },
     );
 
-    test('KEEP: owner=U + signin U leaves everything untouched', () async {
-      await seedUserData(db);
-      await AccountOwnerStore().write('U');
+    test(
+      'a different account reads nothing, and nothing is destroyed',
+      () async {
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+        await _addMedication(guard.database!, 'Warfarin');
 
-      final action = await guardFor(
-        db,
-      ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
+        await signIn(guard, _b);
+        expect(await _names(guard.database!), isEmpty);
+        await _addMedication(guard.database!, 'Metformin');
 
-      expect(action, AccountSwitchAction.keep);
-      expect(await AccountOwnerStore().read(), 'U');
-      expect(await db.getProfile(), isNotNull);
-      expect((await db.select(db.userStacksLocal).get()).length, 3);
-    });
-
-    test('KEEP: tokenRefreshed with same owner never clears', () async {
-      await seedUserData(db);
-      await AccountOwnerStore().write('U');
-
-      final action = await guardFor(
-        db,
-      ).onAuthEvent(event: AuthChangeEvent.tokenRefreshed, uid: 'U');
-
-      expect(action, AccountSwitchAction.keep);
-      expect(await db.getProfile(), isNotNull);
-      expect((await db.select(db.userStacksLocal).get()).length, 3);
-    });
-
-    test('signOut event does not clear and does not change owner', () async {
-      await seedUserData(db);
-      await AccountOwnerStore().write('U');
-
-      final action = await guardFor(
-        db,
-      ).onAuthEvent(event: AuthChangeEvent.signedOut, uid: null);
-
-      expect(action, AccountSwitchAction.keep);
-      expect(await AccountOwnerStore().read(), 'U');
-      expect(await db.getProfile(), isNotNull);
-      expect((await db.select(db.userStacksLocal).get()).length, 3);
-    });
-
-    test('ACCOUNT SWITCH (integration): owner=V + signin U clears every '
-        'previous-user row locally and leaves nothing for the sync queue '
-        'to push remotely', () async {
-      await seedUserData(db);
-      await AccountOwnerStore().write('V');
-      final queue = StackSyncQueue(db);
-
-      // Sanity: before the switch, V has dirty rows that WOULD push,
-      // and the sync owner gate would refuse to push them as U.
-      expect((await queue.dirtyRows()).isNotEmpty, isTrue);
-      expect(ownerAllowsPush(storedOwner: 'V', currentUid: 'U'), isFalse);
-
-      var prefsCleared = false;
-      final action = await guardFor(
-        db,
-        clearPerUserPrefs: () async => prefsCleared = true,
-      ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
-
-      expect(action, AccountSwitchAction.clearAndAdopt);
-      // Zero previous-user rows locally — stack (supplements AND
-      // medications AND tombstones), profile, favorites, history.
-      expect(await db.select(db.userStacksLocal).get(), isEmpty);
-      expect(await db.getProfile(), isNull);
-      expect(await db.getFavorites(), isEmpty);
-      expect(await db.getRecentScans(), isEmpty);
-      // Nothing to push remotely: the dirty/tombstone queue is empty.
-      expect(await queue.dirtyRows(), isEmpty);
-      expect(await queue.tombstoneRows(), isEmpty);
-      // Per-user prefs (recent searches) cleared too.
-      expect(prefsCleared, isTrue);
-      // Ownership handed to U; U's own writes may sync normally.
-      expect(await AccountOwnerStore().read(), 'U');
-      expect(ownerAllowsPush(storedOwner: 'U', currentUid: 'U'), isTrue);
-      // Product-keyed caches survive — they contain no user data.
-      expect(await db.getCachedDetail('dsld-9'), isNotNull);
-      expect(await db.getCachedImage('dsld-9'), isNotNull);
-      expect(await db.getFailedScans(), isNotEmpty);
-    });
+        await signIn(guard, _a);
+        expect(await _names(guard.database!), ['Warfarin']);
+      },
+    );
 
     test(
-      'clear failure leaves owner=V so the switch retries next sign-in '
-      '(owner is stamped LAST — a half-done switch must not look done)',
+      'a first sign-in takes the guest data, leaving the guest empty',
       () async {
-        await seedUserData(db);
-        await AccountOwnerStore().write('V');
+        final guard = guardWith();
+        await guard.boot(sessionUid: null);
+        await _addMedication(guard.database!, 'Lisinopril');
+        await RecentSearchesService().addSearch('magnesium');
 
-        await expectLater(
-          guardFor(
-            db,
-            clearPerUserPrefs: () async => throw StateError('prefs boom'),
-          ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U'),
-          throwsA(isA<StateError>()),
+        await signIn(guard, _a);
+        expect(await _names(guard.database!), ['Lisinopril']);
+        expect(
+          await RecentSearchesService(scope: guard.account.scope).getRecent(),
+          ['magnesium'],
         );
 
-        // Owner unchanged → next sign-in as U re-triggers clearAndAdopt,
-        // and the sync owner gate keeps blocking pushes as U meanwhile.
-        expect(await AccountOwnerStore().read(), 'V');
-
-        // Recovery: a second successful run completes the switch.
-        final retry = await guardFor(
-          db,
-        ).onAuthEvent(event: AuthChangeEvent.signedIn, uid: 'U');
-        expect(retry, AccountSwitchAction.clearAndAdopt);
-        expect(await AccountOwnerStore().read(), 'U');
-        expect(await db.select(db.userStacksLocal).get(), isEmpty);
+        await signOut(guard);
+        expect(await _names(guard.database!), isEmpty);
+        expect(await RecentSearchesService().getRecent(), isEmpty);
       },
     );
+
+    test('guest data is never merged into an account that has data', () async {
+      final guard = guardWith();
+      await guard.boot(sessionUid: _a);
+      await _addMedication(guard.database!, 'Warfarin');
+      await signOut(guard);
+      await _addMedication(guard.database!, 'Aspirin');
+
+      await signIn(guard, _a);
+      expect(await _names(guard.database!), ['Warfarin']);
+
+      await signOut(guard);
+      expect(await _names(guard.database!), ['Aspirin']);
+    });
+
+    test('work in flight on the old handle fails, and lands nowhere', () async {
+      final guard = guardWith();
+      await guard.boot(sessionUid: _a);
+      final held = guard.database!;
+
+      await signIn(guard, _b);
+
+      await expectLater(_addMedication(held, 'Warfarin'), throwsA(anything));
+      expect(await _names(guard.database!), isEmpty);
+      await signIn(guard, _a);
+      expect(await _names(guard.database!), isEmpty);
+    });
+
+    test('consumers come down before the handle closes', () async {
+      final guard = guardWith();
+      await guard.boot(sessionUid: _a);
+      final held = guard.database!;
+      final steps = <String>[];
+      guard
+        ..releaseConsumers = () async {
+          await _names(held);
+          steps.add('released');
+        }
+        ..onChanged = () => steps.add('changed');
+
+      await signOut(guard);
+
+      expect(steps, ['released', 'changed']);
+    });
+
+    test(
+      'a failed switch shows no one, and a retry opens the right person',
+      () async {
+        var failing = false;
+        final guard = guardWith(
+          open: (path) async {
+            if (failing) throw const FileSystemException('disk full');
+            return UserDatabase.open(path);
+          },
+        );
+        await guard.boot(sessionUid: _a);
+        await _addMedication(guard.database!, 'Warfarin');
+        await signOut(guard);
+        await _addMedication(guard.database!, 'Aspirin');
+
+        failing = true;
+        await signIn(guard, _a);
+        expect(guard.database, isNull);
+        expect(await AccountOwnerStore().read(), isNull);
+
+        failing = false;
+        await guard.retry();
+        expect(await _names(guard.database!), ['Warfarin']);
+        expect(await AccountOwnerStore().read(), _a);
+      },
+    );
+
+    test(
+      'a failure ending the old owner\'s work does not stop the switch',
+      () async {
+        final guard = guardWith(
+          onOwnerChange: () async => throw StateError('notifications'),
+        );
+        await guard.boot(sessionUid: _a);
+        await _addMedication(guard.database!, 'Warfarin');
+
+        await signOut(guard);
+
+        expect(guard.ownerUid, isNull);
+        expect(await _names(guard.database!), isEmpty);
+      },
+    );
+
+    test('overlapping auth events end on the last, one at a time', () async {
+      final guard = guardWith();
+      await guard.boot(sessionUid: _a);
+      await _addMedication(guard.database!, 'Warfarin');
+
+      await Future.wait([
+        signOut(guard),
+        signIn(guard, _b),
+        signOut(guard),
+        signIn(guard, _a),
+      ]);
+
+      expect(guard.ownerUid, _a);
+      expect(await _names(guard.database!), ['Warfarin']);
+    });
+
+    test('the sync owner gate follows the open folder', () async {
+      final guard = guardWith();
+      await guard.boot(sessionUid: _a);
+      expect(
+        ownerAllowsPush(
+          storedOwner: await AccountOwnerStore().read(),
+          currentUid: _a,
+        ),
+        isTrue,
+      );
+
+      await signOut(guard);
+      expect(
+        ownerAllowsPush(
+          storedOwner: await AccountOwnerStore().read(),
+          currentUid: _a,
+        ),
+        isFalse,
+      );
+
+      await signIn(guard, _b);
+      expect(
+        ownerAllowsPush(
+          storedOwner: await AccountOwnerStore().read(),
+          currentUid: _a,
+        ),
+        isFalse,
+      );
+    });
+
+    group('removeAccountData', () {
+      test('deletes that account only, moving to the guest first', () async {
+        final guard = guardWith();
+        await guard.boot(sessionUid: _b);
+        await _addMedication(guard.database!, 'Metformin');
+        await signIn(guard, _a);
+        await _addMedication(guard.database!, 'Warfarin');
+        final scope = guard.account.scope;
+        await RecentSearchesService(scope: scope).addSearch('warfarin');
+
+        await guard.removeAccountData(_a);
+
+        expect(guard.ownerUid, isNull);
+        expect(await storage.hasData(_a), isFalse);
+        expect(await RecentSearchesService(scope: scope).getRecent(), isEmpty);
+
+        await signIn(guard, _a);
+        expect(await _names(guard.database!), isEmpty);
+        await signIn(guard, _b);
+        expect(await _names(guard.database!), ['Metformin']);
+      });
+
+      test('the sign-out event arriving afterwards changes nothing', () async {
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+        await _addMedication(guard.database!, 'Warfarin');
+
+        await guard.removeAccountData(_a);
+        final action = await guard.onAuthEvent(
+          event: AuthChangeEvent.signedOut,
+          uid: null,
+        );
+
+        expect(action, AccountSwitchAction.keep);
+        expect(await storage.hasData(_a), isFalse);
+      });
+    });
+
+    group('moving the old shared store', () {
+      test('goes to the owner on record, even when signed out', () async {
+        await writeLegacyDatabase('Warfarin');
+        await AccountOwnerStore().write(_a);
+
+        final guard = guardWith();
+        await guard.boot(sessionUid: null);
+
+        expect(await _names(guard.database!), isEmpty);
+        expect(
+          File(p.join(documents.path, 'user_data.db')).existsSync(),
+          isFalse,
+        );
+        await signIn(guard, _a);
+        expect(await _names(guard.database!), ['Warfarin']);
+      });
+
+      test('goes to the owner on record, not whoever is signed in', () async {
+        await writeLegacyDatabase('Warfarin');
+        await AccountOwnerStore().write(_a);
+
+        final guard = guardWith();
+        await guard.boot(sessionUid: _b);
+
+        expect(await _names(guard.database!), isEmpty);
+        await signIn(guard, _a);
+        expect(await _names(guard.database!), ['Warfarin']);
+      });
+
+      test('with no owner it is guest data, and a session adopts it', () async {
+        await writeLegacyDatabase('Lisinopril');
+
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+
+        expect(await _names(guard.database!), ['Lisinopril']);
+        expect(await AccountOwnerStore().read(), _a);
+      });
+
+      test('carries attachments and recent searches with it', () async {
+        await writeLegacyDatabase('Warfarin');
+        await AccountOwnerStore().write(_a);
+        SharedPreferences.setMockInitialValues({
+          'flutter.account_owner_uid': _a,
+          'flutter.recent_searches': <String>['warfarin'],
+        });
+        final legacy = await Directory(
+          p.join(support.path, 'health_history_attachments'),
+        ).create();
+        await File(p.join(legacy.path, 'photo.jpg')).writeAsString('photo');
+
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+
+        final moved = guard.account.attachmentFile('/old/container/photo.jpg');
+        expect(moved.readAsStringSync(), 'photo');
+        expect(legacy.existsSync(), isFalse);
+        expect(
+          await RecentSearchesService(scope: guard.account.scope).getRecent(),
+          ['warfarin'],
+        );
+        expect(await RecentSearchesService().getRecent(), isEmpty);
+      });
+
+      test('keeps the write-ahead log with its database', () async {
+        await writeLegacyDatabase('Warfarin');
+        final wal = File(p.join(documents.path, 'user_data.db-wal'));
+        await wal.writeAsString('');
+
+        await storage.migrateLegacyStore(owner: _a);
+
+        expect(wal.existsSync(), isFalse);
+        expect(
+          File('${await storage.databasePathFor(_a)}-wal').existsSync(),
+          isTrue,
+        );
+      });
+
+      test('a crash after the log moved finishes on the next launch', () async {
+        await writeLegacyDatabase('Warfarin');
+        final target = await storage.databasePathFor(_a);
+        await File(
+          p.join(documents.path, 'user_data.db-wal'),
+        ).writeAsString('');
+        await File(
+          p.join(documents.path, 'user_data.db-wal'),
+        ).rename('$target-wal');
+
+        await storage.migrateLegacyStore(owner: _a);
+
+        expect(File(target).existsSync(), isTrue);
+        expect(
+          File(p.join(documents.path, 'user_data.db')).existsSync(),
+          isFalse,
+        );
+      });
+
+      test('never overwrites an account that already has a database', () async {
+        final guard = guardWith();
+        await guard.boot(sessionUid: _a);
+        await _addMedication(guard.database!, 'Warfarin');
+        await guard.close();
+        await writeLegacyDatabase('Stale');
+
+        final next = guardWith();
+        await next.boot(sessionUid: _a);
+
+        expect(await _names(next.database!), ['Warfarin']);
+        expect(
+          File(p.join(documents.path, 'user_data.db')).existsSync(),
+          isTrue,
+        );
+      });
+    });
+
+    test('nothing on disk or in preferences names the uid', () async {
+      final guard = guardWith();
+      await guard.boot(sessionUid: _a);
+      await RecentSearchesService(scope: guard.account.scope).addSearch('x');
+
+      final paths = support.listSync(recursive: true).map((e) => e.path);
+      expect(paths.where((path) => path.contains(_a)), isEmpty);
+      final prefs = await SharedPreferences.getInstance();
+      final recents = prefs.getKeys().where((k) => k.startsWith('recent'));
+      expect(recents.where((key) => key.contains(_a)), isEmpty);
+      expect(recents, isNotEmpty);
+    });
+
+    test('each account imports attachments into its own folder', () async {
+      final guard = guardWith();
+      await guard.boot(sessionUid: _a);
+      final source = File(p.join(support.path, 'pick.jpg'));
+      await source.writeAsString('a');
+
+      Future<String> importAs(ActiveAccount account) async {
+        final container = ProviderContainer(
+          overrides: [activeAccountProvider.overrideWithValue(account)],
+        );
+        addTearDown(container.dispose);
+        final imported = await container
+            .read(healthAttachmentStoreProvider)
+            .importImage(XFile(source.path, name: 'pick.jpg'));
+        return imported.path;
+      }
+
+      final aFile = await importAs(guard.account);
+      expect(p.isWithin(guard.account.attachmentsPath!, aFile), isTrue);
+
+      await signIn(guard, _b);
+      final bFile = await importAs(guard.account);
+      expect(p.isWithin(guard.account.attachmentsPath!, bFile), isTrue);
+      expect(p.isWithin(guard.account.attachmentsPath!, aFile), isFalse);
+
+      await guard.removeAccountData(_a);
+      expect(File(aFile).existsSync(), isFalse);
+      expect(File(bFile).existsSync(), isTrue);
+    });
+
+    test(
+      'removing an account also removes what lives outside its folder',
+      () async {
+        final removed = <String>[];
+        final guard = AccountSwitchGuard(
+          ownerStore: AccountOwnerStore(),
+          storage: storage,
+          openDatabase: (path) async => UserDatabase.open(path),
+          onAccountRemoved: (uid) async => removed.add(uid),
+        );
+        addTearDown(guard.close);
+        await guard.boot(sessionUid: _a);
+
+        await guard.removeAccountData(_a);
+
+        expect(removed, [_a]);
+      },
+    );
+
+    test('recent searches follow the provider tree\'s account', () async {
+      final guard = guardWith();
+      await guard.boot(sessionUid: _a);
+
+      RecentSearchesService serviceFor(ActiveAccount account) {
+        final container = ProviderContainer(
+          overrides: [activeAccountProvider.overrideWithValue(account)],
+        );
+        addTearDown(container.dispose);
+        return container.read(recentSearchesServiceProvider);
+      }
+
+      await serviceFor(guard.account).addSearch('warfarin');
+      await signOut(guard);
+      expect(await serviceFor(guard.account).getRecent(), isEmpty);
+      await signIn(guard, _a);
+      expect(await serviceFor(guard.account).getRecent(), ['warfarin']);
+    });
+  });
+
+  group('ActiveAccount without storage', () {
+    test('uses the stored attachment path as it is', () {
+      expect(
+        ActiveAccount.guest.attachmentFile('/some/where/photo.jpg').path,
+        '/some/where/photo.jpg',
+      );
+    });
   });
 }

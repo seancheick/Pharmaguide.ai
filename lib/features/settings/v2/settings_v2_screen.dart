@@ -37,7 +37,9 @@ class SettingsV2Screen extends StatelessWidget {
   final int scanCount;
   final bool signedIn;
   final String? accountEmail;
-  final Future<void> Function()? onSignOut;
+
+  /// Returns false when the user backed out, so nothing is announced.
+  final Future<bool> Function()? onSignOut;
   final Future<bool> Function(Uri uri)? onOpenExternal;
   final VoidCallback? onOpenHealthHistory;
   final VoidCallback? onOpenClinicianReport;
@@ -115,7 +117,7 @@ class SettingsV2Screen extends StatelessWidget {
                   PGSettingsTile(
                     icon: Icons.logout_rounded,
                     title: 'Sign out',
-                    caption: 'Keep local health data on this device',
+                    caption: 'Choose what stays on this phone',
                     destructive: true,
                     onTap: () => _signOut(context, onSignOut),
                   ),
@@ -441,10 +443,14 @@ class _PendingSubmissionTrailing extends StatelessWidget {
 
 Future<void> _signOut(
   BuildContext context,
-  Future<void> Function()? onSignOut,
+  Future<bool> Function()? onSignOut,
 ) async {
   try {
-    await (onSignOut ?? PGAuthService().signOut)();
+    if (onSignOut == null) {
+      await PGAuthService().signOut();
+    } else if (!await onSignOut()) {
+      return;
+    }
     if (!context.mounted) return;
     PGToast.show(context, 'Signed out', variant: PGToastVariant.info);
   } on Object {

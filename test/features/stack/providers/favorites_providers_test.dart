@@ -74,9 +74,7 @@ void main() {
       expect(await userDb.isFavorite('dsld-1'), isFalse);
     });
 
-    // Like the stack ("Sign out · Keep local health data on this device"),
-    // the wishlist stays on the device after sign-out. A different account
-    // signing in clears it (AccountSwitchGuard → clearAllLocalUserData).
+    // Like the stack, the wishlist stays in the account's folder after sign-out.
     test('wishlist rows stay on the device after sign-out', () async {
       await userDb.addFavorite('dsld-kept');
       container.read(authStateProvider.notifier).onSignedOut();
@@ -93,28 +91,6 @@ void main() {
       final saved = await container.read(isFavoriteProvider('dsld-2').future);
       expect(saved, isTrue);
     });
-
-    test(
-      'favoritesProvider re-reads after an account switch clears rows',
-      () async {
-        await userDb.addFavorite('previous-user-product');
-        final subscription = container.listen(favoritesProvider, (_, __) {});
-        addTearDown(subscription.close);
-
-        expect(
-          (await container.read(
-            favoritesProvider.future,
-          )).map((row) => row.dsldId),
-          contains('previous-user-product'),
-        );
-
-        container.read(authStateProvider.notifier).onSignedOut();
-        // What AccountSwitchGuard does when a different account signs in.
-        await userDb.clearAllLocalUserData();
-        container.read(authStateProvider.notifier).onSignedIn();
-        expect(await container.read(favoritesProvider.future), isEmpty);
-      },
-    );
   });
 
   group('UserDatabase favorites helpers', () {
