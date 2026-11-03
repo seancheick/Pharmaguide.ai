@@ -557,6 +557,51 @@ void main() {
       expect(result['ginseng'], (value: 400.0, unit: 'mg'));
     });
 
+    test('321391: a mirrored row stays elemental under its mirror name', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow('ingredientRows[2]', 'Vitamin K', 'vitamin_k', 120, 'mcg'),
+            labelRow('ingredientRows[5]', 'Vitamin K', 'vitamin_k', 50, 'mcg'),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[2]',
+              'Vitamin K',
+              'vitamin_k',
+              120,
+              120,
+              'mcg',
+              standardName: 'Vitamin K1',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['vitamin_k'], (value: 170.0, unit: 'mcg'));
+    });
+
+    test('206322: a label repeating one name and amount stays one row', () {
+      List<Map<String, dynamic>> rows(
+        Map<String, dynamic> Function(String path) row,
+      ) => [
+        row('ingredientRows[8]'),
+        row('ingredientRows[18]'),
+        row('ingredientRows[26]'),
+      ];
+
+      final result = extractIngredientDoses(
+        blob(
+          rows((p) => labelRow(p, 'Colostrum', 'colostrum', 1500, 'mg')),
+          rows(
+            (p) => analyzedRow(p, 'Colostrum', 'colostrum', 1500, 1500, 'mg'),
+          ),
+        ),
+      );
+
+      expect(result['colostrum'], (value: 1500.0, unit: 'mg'));
+    });
+
     test('row 10 is not nested under row 1', () {
       final result = extractIngredientDoses(
         blob(
@@ -644,6 +689,115 @@ void main() {
       );
 
       expect(result['folate'], (value: 400.0, unit: 'mcg'));
+    });
+
+    test('18309: the total answers to every name its mirror spelled', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            {
+              ...labelRow(
+                'ingredientRows[0]',
+                "Cat's Claw",
+                'cat_s_claw',
+                500,
+                'mg',
+              ),
+              'normalized_key': 'cats_claw',
+            },
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[0]',
+              "Cat's Claw",
+              'cat_s_claw',
+              500,
+              1000,
+              'mg',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['cats_claw'], (value: 1000.0, unit: 'mg'));
+    });
+
+    test(
+      '178910: a hidden folic acid row keeps its own name, not the total',
+      () {
+        final result = extractIngredientDoses(
+          blob(
+            [
+              {
+                ...labelRow(
+                  'ingredientRows[8]',
+                  'Folate',
+                  'vitamin_b9_folate',
+                  680,
+                  'mcg DFE',
+                  standardName: 'Vitamin B9 (Folate)',
+                ),
+                'normalized_key': 'folate',
+              },
+              {
+                ...labelRow(
+                  'ingredientRows[8].nestedRows[0]',
+                  'Folic Acid',
+                  'vitamin_b9_folate',
+                  680,
+                  'mcg DFE',
+                  standardName: 'Vitamin B9 (Folate)',
+                ),
+                'normalized_key': 'folic_acid',
+              },
+            ],
+            [
+              analyzedRow(
+                'ingredientRows[8]',
+                'Folate',
+                'vitamin_b9_folate',
+                680,
+                680,
+                'mcg DFE',
+                standardName: 'Vitamin B9 (Folate)',
+              ),
+              analyzedRow(
+                'ingredientRows[8].nestedRows[0]',
+                'Folic Acid',
+                'vitamin_b9_folate',
+                680,
+                680,
+                'mcg DFE',
+                standardName: 'Vitamin B9 (Folate)',
+                doseRole: 'ul_scoped_component',
+              ),
+            ],
+          ),
+        );
+
+        expect(result['vitamin_b9_folate'], (value: 680.0, unit: 'mcg dfe'));
+        expect(result['folic_acid'], (value: 680.0, unit: 'mcg dfe'));
+      },
+    );
+
+    test('an ingredients row stamped with dose_role is not counted', () {
+      final result = extractIngredientDoses(
+        blob([
+          labelRow('ingredientRows[3]', 'Selenium', 'selenium', 55, 'mcg'),
+          {
+            ...labelRow(
+              'ingredientRows[16]',
+              'Selenium',
+              'selenium',
+              60,
+              'mcg',
+            ),
+            'dose_role': 'form_component',
+          },
+        ], const []),
+      );
+
+      expect(result['selenium'], (value: 55.0, unit: 'mcg'));
     });
 
     test('an analyzed row with no amount leaves its children counted', () {
