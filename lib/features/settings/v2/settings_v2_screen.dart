@@ -426,6 +426,9 @@ class _CheckForUpdatesTileState extends State<_CheckForUpdatesTile> {
   bool _checking = false;
 
   Future<void> _check() async {
+    // onTap stays live until the next frame. A second run would answer
+    // "couldn't check" over the first one's real result.
+    if (_checking) return;
     setState(() => _checking = true);
     try {
       await widget.onCheck();

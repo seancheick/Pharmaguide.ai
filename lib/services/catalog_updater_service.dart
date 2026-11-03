@@ -78,8 +78,10 @@ class InstalledRelease {
 }
 
 /// What someone who asked for an update check in Settings is told. Anything
-/// short of a proven answer is [couldNotCheck], never [upToDate].
-enum UpdateCheckOutcome { upToDate, updateReady, couldNotCheck }
+/// short of a proven answer is [couldNotCheck], never [upToDate]. A check that
+/// moved the phone off a blocked version is [deviceChanged], whatever else it
+/// found, because the other lines would then be untrue.
+enum UpdateCheckOutcome { upToDate, updateReady, couldNotCheck, deviceChanged }
 
 /// Outcome of a [CatalogUpdaterService.checkForUpdate] call.
 sealed class CatalogCheckResult {

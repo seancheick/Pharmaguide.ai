@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pharmaguide/core/components/pg_settings_tile.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -237,6 +238,34 @@ void main() {
 
     expect(find.text('Offline mode'), findsOneWidget);
     expect(find.text('Check for updates'), findsNothing);
+  });
+
+  testWidgets('update check tile takes a second tap before the next frame '
+      'as the same check', (tester) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    addTearDown(tester.view.resetPhysicalSize);
+    final running = Completer<void>();
+    var checks = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsV2Screen(
+          onCheckForUpdates: () {
+            checks++;
+            return running.future;
+          },
+        ),
+      ),
+    );
+
+    final tile = tester.widget<PGSettingsTile>(
+      find.widgetWithText(PGSettingsTile, 'Check for updates'),
+    );
+    tile.onTap!();
+    tile.onTap!();
+
+    expect(checks, 1);
+    running.complete();
+    await tester.pump();
   });
 
   testWidgets('update check tile takes no second tap while one runs', (

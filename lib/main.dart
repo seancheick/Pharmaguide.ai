@@ -512,7 +512,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           // Only stage() returns these.
           break;
       }
-      await _settleBlockedRelease(store);
+      // Whatever the check found, the line has to say the phone moved.
+      if (await _settleBlockedRelease(store)) {
+        outcome = UpdateCheckOutcome.deviceChanged;
+      }
       return outcome;
     } finally {
       _syncInFlight = false;
@@ -565,10 +568,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
   /// A verified manifest named a version this phone uses, and no replacement
   /// arrived. Selecting again returns to the previous release if it can, or
-  /// withholds only the affected assessment.
-  Future<void> _settleBlockedRelease(ReleaseStore store) async {
+  /// withholds only the affected assessment. Returns true when the app moved.
+  Future<bool> _settleBlockedRelease(ReleaseStore store) async {
     final generation = _generation;
-    if (generation == null || store.isSettled(generation)) return;
+    if (generation == null || store.isSettled(generation)) return false;
     try {
       final next = await store.reselect();
       // Nothing could change yet, such as on a full disk. Rebuilding the app
@@ -576,11 +579,12 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       if (next.record.id == generation.record.id &&
           next.rulesWithheld == generation.rulesWithheld) {
         await next.close();
-        return;
+        return false;
       }
-      await _adoptRelease(next);
+      return await _adoptRelease(next);
     } on Object catch (e) {
       debugPrint('Release reselection failed: $e');
+      return false;
     }
   }
 
@@ -684,7 +688,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         userDatabaseProvider.overrideWithValue(userDb),
         activeAccountProvider.overrideWithValue(widget.accountGuard.account),
         accountSwitchGuardProvider.overrideWithValue(widget.accountGuard),
-        checkForUpdatesProvider.overrideWithValue(_checkForUpdates),
+        // Without Supabase this session has no update path to offer.
+        checkForUpdatesProvider.overrideWithValue(
+          widget.supabaseReady ? _checkForUpdates : null,
+        ),
         if (_generation case final generation?) ...[
           coreDatabaseProvider.overrideWithValue(generation.core),
           if (generation.rules case final rules?)

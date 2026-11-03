@@ -41,6 +41,8 @@ const _upToDate = 'You’re up to date.';
 const _updateReady = 'An update is ready and now in use.';
 const _couldNotCheck =
     'Couldn’t check right now. Nothing on this device has changed.';
+const _deviceChanged =
+    'Checked. PharmaGuide changed what this device is using.';
 
 class _Publisher {
   HttpServer? server;
@@ -99,7 +101,8 @@ class _Publisher {
 class _App extends ConsumerStatefulWidget {
   const _App({required this.onMount, required this.userDb});
 
-  final void Function(CoreDatabase core, InteractionDatabase rules) onMount;
+  /// [rules] is null when the bootstrap has withheld them.
+  final void Function(CoreDatabase core, InteractionDatabase? rules) onMount;
   final UserDatabase userDb;
 
   @override
@@ -110,10 +113,13 @@ class _AppState extends ConsumerState<_App> {
   @override
   void initState() {
     super.initState();
-    widget.onMount(
-      ref.read(coreDatabaseProvider),
-      ref.read(interactionDatabaseProvider),
-    );
+    InteractionDatabase? rules;
+    try {
+      rules = ref.read(interactionDatabaseProvider);
+    } on Object {
+      rules = null;
+    }
+    widget.onMount(ref.read(coreDatabaseProvider), rules);
   }
 
   @override
@@ -192,7 +198,7 @@ void main() {
   late AccountSwitchGuard guard;
   late int mounts;
   late CoreDatabase core;
-  late InteractionDatabase rules;
+  late InteractionDatabase? rules;
 
   setUp(() async {
     if (publisher.server == null) await publisher.start();
@@ -244,14 +250,14 @@ void main() {
     expect(done(), isTrue, reason: 'timed out waiting');
   }
 
-  Future<void> boot(WidgetTester tester) async {
+  Future<void> boot(WidgetTester tester, {bool supabaseReady = true}) async {
     // Settings is a long list; the tile has to be built to be tapped.
     tester.view.physicalSize = const Size(1200, 6000);
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
       PharmaGuideBootstrap(
         accountGuard: guard,
-        supabaseReady: true,
+        supabaseReady: supabaseReady,
         hasSeenOnboarding: true,
         appPreferencesController: AppPreferencesController(
           repository: AppPreferencesRepository(_MemoryStore()),
@@ -268,7 +274,7 @@ void main() {
         ),
       ),
     );
-    await settleReal(tester, () => tester.any(find.text(_tile)));
+    await settleReal(tester, () => tester.any(find.text('Offline mode')));
   }
 
   /// Taps the real tile on the real event loop, and waits for its line.
@@ -282,7 +288,8 @@ void main() {
       () =>
           tester.any(find.text(_upToDate)) ||
           tester.any(find.text(_updateReady)) ||
-          tester.any(find.text(_couldNotCheck)),
+          tester.any(find.text(_couldNotCheck)) ||
+          tester.any(find.text(_deviceChanged)),
     );
   }
 
@@ -295,7 +302,7 @@ void main() {
           variables: [Variable.withString(kFixtureProduct)],
         )
         .getSingle();
-    return {...row.data, 'rule': await severityIn(rules)};
+    return {...row.data, 'rule': await severityIn(rules!)};
   }
 
   Future<void> expectNothingChanged(
@@ -460,9 +467,69 @@ void main() {
     );
   });
 
+  testWidgets('rules withheld during a live check are not "up to date"', (
+    tester,
+  ) async {
+    await boot(tester);
+    final coreBefore = core;
+    await tester.runAsync(() async {
+      await store.recordVerified(
+        sequence: 1,
+        blockedCatalog: const {},
+        blockedRules: const {'1.0.15'},
+      );
+      publisher.row = {
+        'db_version': _bundledCatalog,
+        'checksum': 'sha256:${sha(bundle.catalog!)}',
+        'is_current': true,
+      };
+    });
+
+    await checkForUpdates(tester);
+
+    expect(find.text(_deviceChanged), findsOneWidget);
+    expect(find.text(_upToDate), findsNothing);
+    expect(mounts, 2, reason: 'the app moved onto the settled release');
+    expect(rules, isNull, reason: 'the blocked rules are closed');
+    expect(identical(core, coreBefore), isFalse);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'rules withheld during a failed check are not "nothing changed"',
+    (tester) async {
+      await boot(tester);
+      await tester.runAsync(() async {
+        await store.recordVerified(
+          sequence: 1,
+          blockedCatalog: const {},
+          blockedRules: const {'1.0.15'},
+        );
+        await publisher.goOffline();
+      });
+
+      await checkForUpdates(tester);
+
+      expect(find.text(_deviceChanged), findsOneWidget);
+      expect(find.text(_couldNotCheck), findsNothing);
+      expect(mounts, 2, reason: 'the app moved onto the settled release');
+      expect(rules, isNull, reason: 'the blocked rules are closed');
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('with no backend this session, Settings offers no check', (
+    tester,
+  ) async {
+    await boot(tester, supabaseReady: false);
+
+    expect(find.text(_tile), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test('the wording stays calm and never implies results are stale', () {
     final lines = UpdateCheckOutcome.values.map(updateCheckLine).toList();
-    expect(lines, [_upToDate, _updateReady, _couldNotCheck]);
+    expect(lines, [_upToDate, _updateReady, _couldNotCheck, _deviceChanged]);
     for (final line in lines) {
       expect(
         line,
