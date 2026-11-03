@@ -249,7 +249,7 @@ class ReleaseGeneration {
   /// stay in their unavailable state and show a specific notice.
   final bool rulesWithheld;
 
-  bool get qualityWithheld => record.qualityWithheld;
+  bool get qualityWithheld => core.qualityWithheld;
 
   Future<void> close() async {
     await core.close();
@@ -507,7 +507,9 @@ class ReleaseStore {
     }
     final core = CoreDatabase.readOnly(
       catalogFile,
-      qualityWithheld: record.qualityWithheld,
+      qualityWithheld:
+          record.qualityWithheld ||
+          _pointer?.blockedCatalog.contains(record.catalogVersion) == true,
     );
     InteractionDatabase? rules;
     try {
@@ -698,9 +700,17 @@ class ReleaseStore {
 
     final assembly = await _startAssembly(record.id);
     await place(candidate.stagedCatalog, _catalogFile);
-    await place(stagedRules, _rulesFile);
+    if (rulesVersion != _noRules) await place(stagedRules, _rulesFile);
     await _prepareAndCheck(assembly, record);
     return (folder: assembly, record: record);
+  }
+
+  /// Copies [source]'s rules into [assembly]. A release with none has no file.
+  Future<void> _copyRules(ReleaseRecord source, Directory assembly) async {
+    if (source.rulesVersion == _noRules) return;
+    await File(
+      p.join(_folder(source.id).path, _rulesFile),
+    ).copy(p.join(assembly.path, _rulesFile));
   }
 
   /// Runs the open-time work on the staged copy and proves both files are what
@@ -724,7 +734,19 @@ class ReleaseStore {
       await _closeQuietly(core.close);
     }
 
-    final rulesPath = p.join(folder.path, _rulesFile);
+    await _flushFile(File(catalogPath));
+    if (record.rulesVersion != _noRules) {
+      await _checkRules(p.join(folder.path, _rulesFile), record);
+    }
+    await _step(ReleaseStep.writeRecord);
+    await _writeDurably(
+      File(p.join(folder.path, _recordFile)),
+      jsonEncode(record.toJson()),
+    );
+    await flushDirectory(folder.path);
+  }
+
+  Future<void> _checkRules(String rulesPath, ReleaseRecord record) async {
     final rules = InteractionDatabase.open(rulesPath);
     try {
       final metadata = await rules.getMetadata();
@@ -746,15 +768,7 @@ class ReleaseStore {
     } finally {
       await _closeQuietly(rules.close);
     }
-
-    await _flushFile(File(catalogPath));
     await _flushFile(File(rulesPath));
-    await _step(ReleaseStep.writeRecord);
-    await _writeDurably(
-      File(p.join(folder.path, _recordFile)),
-      jsonEncode(record.toJson()),
-    );
-    await flushDirectory(folder.path);
   }
 
   Future<void> _publishFolder(Directory assembly, ReleaseRecord record) async {
@@ -834,7 +848,7 @@ class ReleaseStore {
     final record = generation.record;
     return generation.rulesWithheld ==
             pointer.blockedRules.contains(record.rulesVersion) &&
-        record.qualityWithheld ==
+        generation.qualityWithheld ==
             pointer.blockedCatalog.contains(record.catalogVersion);
   }
 
@@ -863,8 +877,9 @@ class ReleaseStore {
         !pointer.blockedCatalog.contains(active.catalogVersion) &&
         previous?.catalogVersion == active.catalogVersion &&
         previous?.qualityWithheld == false) {
+      final restored = await _keepingNewerRules(active, previous!);
       await _writePointer(
-        pointer.copyWith(active: previous!.id, previous: () => null),
+        _pointer!.copyWith(active: restored.id, previous: () => null),
       );
       return;
     }
@@ -889,6 +904,43 @@ class ReleaseStore {
     }
   }
 
+  /// The rules a withheld copy gained after it was made, such as from an app
+  /// update, must not be lost with it when its scored file returns.
+  Future<ReleaseRecord> _keepingNewerRules(
+    ReleaseRecord withheld,
+    ReleaseRecord scored,
+  ) async {
+    if (withheld.rulesVersion == scored.rulesVersion ||
+        withheld.rulesVersion == _noRules ||
+        _pointer!.blockedRules.contains(withheld.rulesVersion)) {
+      return scored;
+    }
+    final record = ReleaseRecord(
+      id: ReleaseRecord.idFor(
+        sequence: scored.sequence,
+        catalogVersion: scored.catalogVersion,
+        rulesVersion: withheld.rulesVersion,
+      ),
+      sequence: scored.sequence,
+      catalogVersion: scored.catalogVersion,
+      rulesVersion: withheld.rulesVersion,
+      catalogSha256: scored.catalogSha256,
+      rulesSha256: withheld.rulesSha256,
+      minRulesVersion: scored.minRulesVersion,
+      preparation: kReleasePreparation,
+    );
+    if (await _readRecord(record.id) == null) {
+      final assembly = await _startAssembly(record.id);
+      await File(
+        p.join(_folder(scored.id).path, _catalogFile),
+      ).copy(p.join(assembly.path, _catalogFile));
+      await _copyRules(withheld, assembly);
+      await _prepareAndCheck(assembly, record);
+      await _publishFolder(assembly, record);
+    }
+    return record;
+  }
+
   bool _canReplaceRulesOf(ReleaseRecord active, ReleaseRecord previous) {
     final minimum = active.minRulesVersion;
     return !CatalogVersion.isRemoteNewer(
@@ -899,6 +951,9 @@ class ReleaseStore {
             (compareSemver(previous.rulesVersion, minimum) ?? -1) >= 0);
   }
 
+  /// Withholding never waits on the rules: a release with none gets a scoreless
+  /// copy with none. Rules that have gone bad fail here, and [reselect] then
+  /// falls back and withholds from what it lands on.
   Future<void> _withholdQuality(ReleaseRecord source) async {
     final record = ReleaseRecord(
       id: ReleaseRecord.idFor(
@@ -929,9 +984,7 @@ class ReleaseStore {
       await File(
         p.join(from, _catalogFile),
       ).copy(p.join(assembly.path, _catalogFile));
-      await File(
-        p.join(from, _rulesFile),
-      ).copy(p.join(assembly.path, _rulesFile));
+      await _copyRules(source, assembly);
       final core = CoreDatabase.open(p.join(assembly.path, _catalogFile));
       try {
         await core.withholdQualityScores();
@@ -1039,16 +1092,7 @@ class ReleaseStore {
     if (await _readRecord(record.id) != null) {
       await assembly.delete(recursive: true);
     } else {
-      if (rulesVersion == null) {
-        await _flushFile(File(catalogPath));
-        await _step(ReleaseStep.writeRecord);
-        await _writeDurably(
-          File(p.join(assembly.path, _recordFile)),
-          jsonEncode(record.toJson()),
-        );
-      } else {
-        await _prepareAndCheck(assembly, record);
-      }
+      await _prepareAndCheck(assembly, record);
       await _publishFolder(assembly, record);
     }
 
@@ -1164,7 +1208,7 @@ class ReleaseStore {
       if (rulesNewer) {
         await _writeAsset(bundledInteractionDatabaseAssetPath, rulesPath);
       } else {
-        await File(p.join(from, _rulesFile)).copy(rulesPath);
+        await _copyRules(active, assembly);
       }
       await _prepareAndCheck(assembly, record);
       await _publishFolder(assembly, record);
@@ -1172,7 +1216,8 @@ class ReleaseStore {
     await _writePointer(
       pointer.copyWith(
         active: record.id,
-        previous: () => active.id,
+        // A withheld catalog's previous is the file that still has its scores.
+        previous: () => qualityWithheld ? pointer.previous : active.id,
         confirmed: false,
         bundleSeen: bundled.tag,
       ),
@@ -1204,9 +1249,10 @@ class ReleaseStore {
     if (await _readRecord(record.id) == null) {
       final assembly = await _startAssembly(record.id);
       final from = _folder(active.id).path;
-      for (final name in [_catalogFile, _rulesFile]) {
-        await File(p.join(from, name)).copy(p.join(assembly.path, name));
-      }
+      await File(
+        p.join(from, _catalogFile),
+      ).copy(p.join(assembly.path, _catalogFile));
+      await _copyRules(active, assembly);
       await _prepareAndCheck(assembly, record);
       await _publishFolder(assembly, record);
     }
