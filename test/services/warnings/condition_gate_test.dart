@@ -890,7 +890,7 @@ void main() {
     });
 
     test(
-      '178910: a hidden folic acid row keeps its own name, not the total',
+      '178910: a hidden folic acid row is not counted under any name',
       () {
         final result = extractIngredientDoses(
           blob(
@@ -943,7 +943,7 @@ void main() {
         );
 
         expect(result['vitamin_b9_folate'], (value: 680.0, unit: 'mcg dfe'));
-        expect(result['folic_acid'], (value: 680.0, unit: 'mcg dfe'));
+        expect(result, isNot(contains('folic_acid')));
       },
     );
 
@@ -1033,7 +1033,7 @@ void main() {
       });
     }
 
-    test('a hidden row answers when its name is reported with no dose', () {
+    test('a hidden row stays hidden when its name reads no dose', () {
       final result = extractIngredientDoses(
         blob(
           [
@@ -1062,7 +1062,7 @@ void main() {
         ),
       );
 
-      expect(result['iron'], (value: 18.0, unit: 'mg'));
+      expect(result, isNot(contains('iron')));
     });
 
     test('an unresolved analyzed unit does not fall back to its mirror', () {
