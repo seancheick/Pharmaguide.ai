@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
@@ -34,6 +36,8 @@ class ClinicianPdfBuilder {
     required StackIntelligence intelligence,
     required StackSafetyReport safetyReport,
     required List<DepletionMatch> depletions,
+    List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
+        const [],
     MedNutrientLoadStatus depletionStatus = MedNutrientLoadStatus.loaded,
     String? clinicalDataVersion,
     String? clinicalDataHash,
@@ -100,6 +104,7 @@ class ClinicianPdfBuilder {
             theme,
             intelligence,
             safetyReport,
+            regulatorySafetyAlerts: regulatorySafetyAlerts,
             classOnlyReconciliation: unresolvedClassLabels.isNotEmpty,
           ),
           ..._nutrientSection(theme, safetyReport.nutrientStatuses),
@@ -443,8 +448,12 @@ class ClinicianPdfBuilder {
     StackIntelligence intelligence,
     StackSafetyReport safetyReport, {
     required bool classOnlyReconciliation,
+    required List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts,
   }) {
-    final signals = orderedSignalsFrom(safetyReport);
+    final signals = allClinicalSignalsFrom(
+      report: safetyReport,
+      regulatorySafetyAlerts: regulatorySafetyAlerts,
+    );
     final representedHeadlines = representedIssueHeadlines(signals);
     final remainingIssues = sortIssuesBySeverity(
       intelligence.issues
@@ -601,7 +610,15 @@ class ClinicianPdfBuilder {
         if (signal.body.trim().isNotEmpty) {
           detail.add(_line(theme, 'Clinical context: ${signal.body.trim()}'));
         }
-      case RegulatorySafetyPayload():
+      case RegulatorySafetyPayload(:final alert):
+        if (alert.interaction case final interaction?) {
+          detail.add(
+            _line(
+              theme,
+              'Evidence: ${evidenceLevelLabel(interaction.evidenceLevel.wireId)}',
+            ),
+          );
+        }
         if (signal.body.trim().isNotEmpty) {
           detail.add(_line(theme, 'Regulatory update: ${signal.body.trim()}'));
         }

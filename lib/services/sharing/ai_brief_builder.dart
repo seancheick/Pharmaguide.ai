@@ -370,10 +370,14 @@ class AiBriefBuilder {
       );
     }
 
-    final allSignals = orderedSignalsFrom(
-      report,
-      doseThresholdAlerts: data.doseThresholdAlerts,
-    ).where((s) => s.consumerDisposition != ConsumerDisposition.suppress);
+    final allSignals =
+        allClinicalSignalsFrom(
+              report: report,
+              regulatorySafetyAlerts: data.regulatorySafetyAlerts,
+              doseThresholdAlerts: data.doseThresholdAlerts,
+            )
+            .where((s) => s.consumerDisposition != ConsumerDisposition.suppress)
+            .toList(growable: false);
     final signals = <ClinicalSignal>[];
     var withheld = 0;
     for (final signal in allSignals) {
@@ -392,7 +396,7 @@ class AiBriefBuilder {
         scope.supplementAmounts &&
         scope.medicationNames &&
         scope.profile;
-    final represented = representedIssueHeadlines(signals);
+    final represented = representedIssueHeadlines(allSignals);
     final candidateIssues = intelligence.issues
         .where((issue) => !represented.contains(issue.headline.trim()))
         .toList(growable: false);
@@ -510,7 +514,14 @@ class AiBriefBuilder {
       DoseThresholdPayload(:final alert) =>
         scope.supplementAmounts &&
             (alert.conditionId.trim().isEmpty || scope.profile),
-      RegulatorySafetyPayload() => scope.supplementNames,
+      RegulatorySafetyPayload(:final alert) =>
+        scope.supplementNames &&
+            (alert.interaction == null ||
+                (alert.interaction!.profileGate == null
+                    ? scope.medicationNames
+                    : scope.profile &&
+                          (alert.interaction!.profileGate!['dose'] == null ||
+                              scope.supplementAmounts))),
       TimingSeparationPayload(:final optimization) =>
         scope.supplementNames &&
             (!optimization.involvesMedication || scope.medicationNames),
@@ -543,7 +554,8 @@ class AiBriefBuilder {
         detail('Clinical context', signal.body);
       case DoseThresholdPayload():
         detail('Clinical context', signal.body);
-      case RegulatorySafetyPayload():
+      case RegulatorySafetyPayload(:final alert):
+        detail('Evidence level', alert.interaction?.evidenceLevel.wireId);
         detail('Regulatory update', signal.body);
       case MedicationNutrientPayload():
         // Rendered in the medication-nutrient section.
