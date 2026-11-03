@@ -1,17 +1,12 @@
-# PR164 — confirmed personal upper-limit concerns — 2026-10-28
+# A2 + A3: one release generation, rollback, signing — 2026-11-03
 
-Codex owns this lane after Sean paused Claude and authorized integration. Root alone merges main and schedules combined checks/native qualification. Preserve the original synephrine fixture pin in 90e20e8430b5c6b331243cc4f75b0391449f5fdf; branch claude/bitter-orange-fixture, PR164. Baseline clean, fetched origin before edits and before handoff.
+Goal: build ADR-012 (app) and publish rules with the catalog (pipeline PR). Remote rules stay off for public builds until A9 and a production key.
 
-Owner: lib/services/stack/stack_ul_checker.dart::StackUlChecker.check — evidence: rg StackUlChecker,NutrientStatus,nutrientStatuses and pipeline source-of-truth matrix/glossary. Existing E1/E2b consume this checker; StackSafetyReport.severityForNutrient owns disposition severity. FitScoreResult is transient and ProfileRelevanceSummary owns the personal card. Will NOT create: age policy, clinical rule, scorer, persisted/public/export field, registry or fake pipeline DoseDecision.
+Owner: lib/services/catalog_swap.dart, catalog_updater_service.dart, lib/data/supabase/sync_service.dart, lib/data/providers/database_providers.dart, lib/main.dart bootstrap — evidence: read 2026-11-03. No owner for pointer, folders, signed manifest: searched lib for release_sequence, blocked_versions, active.json (zero hits).
+New files: lib/services/release_store.dart, lib/services/release_manifest.dart. New dependency: cryptography (Ed25519).
+Will NOT create: feature-flag framework, a second manifest table, stored results.
+Shared owners touched: AGENTS-listed export contract (export_manifest columns), supabase/migrations (new migration, NOT applied to production).
+Pipeline branch: claude/a2-release-manifest in /Users/seancheick/Downloads/dsld_clean_wt/a2-release-manifest. a4-finish owns scripts/rule_change_gate.py and its release_full.sh line; agreed by message.
+Simulator: a5-finish holds the QA simulator; agree a slot before device checks.
 
-Implemented: E1 exposes its existing qualified assessment once; E1/E2b/Fit service/card share those typed statuses. Confirmed exceedsUl caps strong-match and adds a review row using the existing severity owner. Approaching/exact UL retains existing panel semantics and adds no personal concern. Existing hard authored warnings retain precedence. Reference unit and existing consumer_ul_warnings source URLs travel with NutrientStatus; UI renders the existing reference warning, not new clinical copy. Pipeline exposure/skip/eligibility/form logic is unchanged.
-
-Observed defect: real supported ProfileState age14-18, Female, pregnancy resolves Pregnancy; qualified natural-alpha vitamin E900mg or retinol2900mcg RAE has personal UL800/2800. Checker already exceeded UL/E1=-5, but matched prenatal goal could report strongMatch and card No known concerns. Fail-first public card tests reproduced both. Fixed public provider and widget tests now show Review before use with reference/source.
-
-Validation class: behavioral consumer wiring. Focused 9-file owner/consumer run163 passed; subsequent public provider/card run59 passed (includes two new real-profile-provider probes and source callbacks). Targeted analyzer of10 changed Dart files: no issues. git diff --check passed. Controls: below/exact UL, adult E900 below1000, unknown form/missing amount with existing source review, existing product UL caution, hard authored warning; full existing StackUL form/source/partition/positive-verdict tests passed. No broad local suite or pipeline replay; pipeline scores/clinical references untouched. Root combined make check/CI still required before merge.
-
-Bootstrap: copied missing ignored interaction DB/.env from main without printing secrets; PATH-corrected make gen completed (initial missing-Dart failure retained). Read-only native doctor on87D69081-B4EE-4FE1-9610-C368DFC1C6D5 inspected installed1.0.0/build23 only; no launch/erase/update and user's other booted simulator untouched. No candidate native delivery claimed. Rendering screenshot/native journey remains root final-candidate qualification.
-
-Evidence: /Users/seancheick/pg_quality/adolescent_pregnancy_ul_20261028/ contains original probe, fail_first.log, owner_consumer.log, public_consumer.log, analyze_final.log and doctor_before. Existing blob UL rows retain their authored warnings; typed profile reference is a separate row if both are present (no unsafe text-based identity suppression introduced).
-
-Next unchecked: independent review, exact completed-candidate CI/combined app checks, actual native candidate screenshots/journey, then root integration. No main push/release/upload authorized for this lane.
+Status lives in the plan's Status tracker (A3 and A2 rows).
