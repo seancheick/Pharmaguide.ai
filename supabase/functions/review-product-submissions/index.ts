@@ -4,6 +4,7 @@ import {
   type SupabaseClient,
 } from "npm:@supabase/supabase-js@2.110.7";
 
+import { isOAuthClientToken } from "../_shared/oauth_token.ts";
 import {
   resolveSupabaseAdminKey,
   resolveSupabasePublicKey,
@@ -743,7 +744,7 @@ async function scheduleSubmissionPushDrain(
   }
 }
 
-Deno.serve(async (request: Request): Promise<Response> => {
+export async function handleReviewRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") {
     audit("unverified", "unknown", "method_not_allowed");
     return json({ error: "Method not allowed" }, 405);
@@ -753,6 +754,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
   if (!authorization?.startsWith("Bearer ")) {
     audit("unverified", "unknown", "missing_authentication");
     return json({ error: "Authentication required" }, 401);
+  }
+  // This function reads with the admin client, so the request guard that stops
+  // AI assistant tokens at PostgREST never sees these reads.
+  if (isOAuthClientToken(authorization)) {
+    audit("unverified", "unknown", "oauth_client_refused");
+    return json({ error: "Reviewer access required" }, 403);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -1532,4 +1539,6 @@ Deno.serve(async (request: Request): Promise<Response> => {
     }));
     return json({ error: correctionRecoveryMessage(action, error) }, 400);
   }
-});
+}
+
+if (import.meta.main) Deno.serve(handleReviewRequest);
