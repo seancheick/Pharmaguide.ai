@@ -302,7 +302,18 @@ class CatalogUpdaterService {
         '${installed.highestSequence}',
       );
     }
-    await onVerified?.call(manifest);
+    try {
+      await onVerified?.call(manifest);
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'catalog_updater:verified_manifest_not_persisted',
+      );
+      // The store keeps known revocations in memory. Return a normal result so
+      // the bootstrap still settles them instead of abandoning the check.
+      return _refuse('Verified release metadata could not be saved');
+    }
     if (manifest.sequence <= installed.sequence) return const CatalogUpToDate();
 
     try {

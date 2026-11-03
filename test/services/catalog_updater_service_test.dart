@@ -86,6 +86,17 @@ void main() {
   );
 
   group('signed builds', () {
+    test(
+      'failed persistence returns a refused check so the app can settle known blocks',
+      () async {
+        final result = await service(await signed()).checkForUpdate(
+          installed: installed,
+          onVerified: (_) async => throw const FileSystemException('disk full'),
+        );
+        expect(result, isA<CatalogRefused>());
+      },
+    );
+
     test('a newer signed release is found', () async {
       final result = await service(
         await signed(),

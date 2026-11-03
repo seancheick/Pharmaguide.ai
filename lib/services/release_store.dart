@@ -813,7 +813,8 @@ class ReleaseStore {
   // ---------------------------------------------------------------------------
 
   /// Records what a verified manifest said, even when the release itself can't
-  /// activate, so it survives a restart while offline.
+  /// activate. Keep it in memory even if storage cannot persist the pointer;
+  /// restart durability still requires a successful write.
   Future<void> recordVerified({
     required int sequence,
     required Set<String> blockedCatalog,
@@ -821,13 +822,15 @@ class ReleaseStore {
   }) async {
     final pointer = _pointer;
     if (pointer == null) return;
-    await _writePointer(
-      pointer.copyWith(
-        highestSequence: math.max(pointer.highestSequence, sequence),
-        blockedCatalog: blockedCatalog,
-        blockedRules: blockedRules,
-      ),
+    final verified = pointer.copyWith(
+      highestSequence: math.max(pointer.highestSequence, sequence),
+      blockedCatalog: blockedCatalog,
+      blockedRules: blockedRules,
     );
+    // Only verified metadata may take effect before a durable write. Activation
+    // pointers still change atomically after their prepared files are saved.
+    _pointer = verified;
+    await _writePointer(verified);
   }
 
   /// Whether the active release names a blocked version.
@@ -980,19 +983,30 @@ class ReleaseStore {
     }
     if (await _readRecord(record.id) == null) {
       final assembly = await _startAssembly(record.id);
-      final from = _folder(source.id).path;
-      await File(
-        p.join(from, _catalogFile),
-      ).copy(p.join(assembly.path, _catalogFile));
-      await _copyRules(source, assembly);
-      final core = CoreDatabase.open(p.join(assembly.path, _catalogFile));
       try {
-        await core.withholdQualityScores();
-      } finally {
-        await _closeQuietly(core.close);
+        final from = _folder(source.id).path;
+        await File(
+          p.join(from, _catalogFile),
+        ).copy(p.join(assembly.path, _catalogFile));
+        await _copyRules(source, assembly);
+        final core = CoreDatabase.open(p.join(assembly.path, _catalogFile));
+        try {
+          await core.withholdQualityScores();
+        } finally {
+          await _closeQuietly(core.close);
+        }
+        await _prepareAndCheck(assembly, record);
+        await _publishFolder(assembly, record);
+      } on SimulatedReleaseCrash {
+        rethrow;
+      } on Object {
+        // Release space immediately after a failed copy/preparation. A completed
+        // published folder has already moved and must remain intact.
+        await _keepingCurrentRelease('discard_withheld_failed', () async {
+          if (await assembly.exists()) await assembly.delete(recursive: true);
+        });
+        rethrow;
       }
-      await _prepareAndCheck(assembly, record);
-      await _publishFolder(assembly, record);
     }
     await _writePointer(
       _pointer!.copyWith(active: record.id, previous: () => source.id),
