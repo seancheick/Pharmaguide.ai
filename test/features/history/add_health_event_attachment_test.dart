@@ -2,6 +2,7 @@
 // else removes it, and it sits outside the account's folder, so Remove from
 // this phone and the switch guard can't reach it (ADR-013).
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -169,6 +170,25 @@ void main() {
     await save(tester);
 
     expect(stored(), hasLength(1));
+    expect(copy.existsSync(), isFalse);
+  });
+
+  testWidgets('removes a copy the picker returns after the sheet closed', (
+    tester,
+  ) async {
+    final copy = pickCopy('late.png');
+    final result = Completer<String>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_picker, (_) => result.future);
+    await openSheet(tester);
+    await tester.tap(find.byIcon(Icons.attach_file_rounded));
+    await tester.pump();
+
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pumpAndSettle();
+    result.complete(copy.path);
+    await tester.pumpAndSettle();
+
     expect(copy.existsSync(), isFalse);
   });
 }

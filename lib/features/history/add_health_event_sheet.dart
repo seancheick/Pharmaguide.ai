@@ -368,12 +368,15 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
 
   Future<void> _pickAttachment() async {
     final selected = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (selected != null && mounted) {
-      setState(() {
-        _discardSelection();
-        _selectedAttachment = selected;
-      });
+    if (selected == null) return;
+    if (!mounted) {
+      HealthAttachmentStore.discardPicked(selected);
+      return;
     }
+    setState(() {
+      _discardSelection();
+      _selectedAttachment = selected;
+    });
   }
 
   void _discardSelection() {
