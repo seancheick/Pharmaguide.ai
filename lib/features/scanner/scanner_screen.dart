@@ -154,11 +154,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
       setState(() => _isLookingUp = false);
 
-      bool isCritical(ProductsCoreData product) => scanResultIsSafetyCritical(
-        product,
-        alerts: alerts,
-        device: device,
-      );
+      bool isCritical(ProductsCoreData product) =>
+          scanResultIsSafetyCritical(product, alerts: alerts, device: device);
       final anyCritical = switch (resolution) {
         UpcUnique(:final product) => isCritical(product),
         UpcAmbiguous(:final candidates) => candidates.any(isCritical),

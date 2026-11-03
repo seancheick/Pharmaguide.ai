@@ -178,11 +178,8 @@ class ScanScreen extends ConsumerWidget {
       final device = await ref.read(deviceSafetyProfileProvider.future);
       if (!context.mounted) return;
 
-      bool isCritical(ProductsCoreData product) => scanResultIsSafetyCritical(
-        product,
-        alerts: alerts,
-        device: device,
-      );
+      bool isCritical(ProductsCoreData product) =>
+          scanResultIsSafetyCritical(product, alerts: alerts, device: device);
       final anyCritical = switch (resolution) {
         UpcUnique(:final product) => isCritical(product),
         UpcAmbiguous(:final candidates) => candidates.any(isCritical),
