@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 
@@ -154,10 +155,15 @@ void main() {
       bool unavailable = false,
       bool offline = false,
       bool unreadableDevice = false,
+      bool reloadMatches = false,
+      bool refreshMatches = false,
       bool throws = false,
       List<({SafetyAlert alert, String dsldId})> matches = const [],
     }) async {
       final now = DateTime.utc(2026, 11, 3);
+      var contextChanged = false;
+      final matchingContext = Provider<int>((_) => contextChanged ? 1 : 0);
+      final pendingMatches = Completer<SafetyAlertMatchSet>();
       final container = ProviderContainer(
         overrides: [
           activeStackProvider.overrideWith(
@@ -186,7 +192,9 @@ void main() {
             ),
             safetyAlertRepositoryProvider.overrideWithValue(_ReadableFeed()),
           ] else
-            safetyAlertMatchesProvider.overrideWith((_) async {
+            safetyAlertMatchesProvider.overrideWith((ref) async {
+              ref.watch(matchingContext);
+              if (contextChanged) return pendingMatches.future;
               if (throws) throw StateError('feed cannot be read');
               return SafetyAlertMatchSet(
                 matches: matches,
@@ -202,6 +210,21 @@ void main() {
         await container.read(safetyAlertMatchesProvider.future);
       } on Object {
         // The provider failure itself is the fixture under test.
+      }
+      if (reloadMatches) {
+        await container.read(stackHealthSnapshotProvider.future);
+        contextChanged = true;
+        if (refreshMatches) {
+          container.invalidate(safetyAlertMatchesProvider);
+        } else {
+          container.invalidate(matchingContext);
+        }
+        await container.pump();
+        expect(container.read(safetyAlertMatchesProvider).hasValue, isTrue);
+        expect(
+          container.read(safetyAlertMatchesProvider).isReloading,
+          !refreshMatches,
+        );
       }
       return container.read(stackHealthSnapshotProvider.future);
     }
@@ -222,6 +245,23 @@ void main() {
         expect(result.intelligence.tier, StackTier.optimized);
       }
     });
+
+    test(
+      'prior alert matches cannot clear a changed matching context',
+      () async {
+        for (final refresh in [false, true]) {
+          final result = await snapshot(
+            reloadMatches: true,
+            refreshMatches: refresh,
+          );
+          expect(result.checksIncomplete, !refresh);
+          expect(
+            result.intelligence.tier,
+            refresh ? StackTier.optimized : StackTier.incomplete,
+          );
+        }
+      },
+    );
 
     test('a readable feed cannot clear an unreadable device profile', () async {
       final result = await snapshot(unreadableDevice: true);

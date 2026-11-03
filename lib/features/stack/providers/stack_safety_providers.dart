@@ -1012,7 +1012,9 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
   // readable verified feed can support the shared clean result. Readable cached
   // feeds remain usable offline, matching the product-page contract.
   final alertsAsync = ref.watch(safetyAlertMatchesProvider);
-  final alerts = alertsAsync.value;
+  // A dependency reload can mean a different stack or profile. Only AsyncData
+  // (including a same-input refresh) belongs to the current matching context.
+  final alerts = alertsAsync.asData?.value;
   return const StackIntelligenceEngine().summarizeFromReports(
     regulatorySafetyAlerts: alerts?.matches ?? const [],
     alertChecksIncomplete:
