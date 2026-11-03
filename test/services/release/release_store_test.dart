@@ -1252,6 +1252,18 @@ void main() {
         return s;
       }
 
+      Future<void> expectProductsStillShow(ReleaseGeneration generation) async {
+        expect(generation.qualityWithheld, isFalse);
+        final product = await generation.core
+            .customSelect(
+              "SELECT quality_score_v4_100 AS score, product_safety_status AS status "
+              "FROM products_core",
+            )
+            .getSingle();
+        expect(product.read<double>('score'), 88);
+        expect(product.read<String>('status'), 'caution');
+      }
+
       test('the newer catalog stays, and only interaction checks are withheld '
           '(Sean, 2026-11-03)', () async {
         final s = await onRules(catalogVersion: _updateCatalog);
@@ -1263,10 +1275,12 @@ void main() {
         expect(generation.rules, isNull);
         expect(generation.rulesWithheld, isTrue);
         expect(s.isSettled(generation), isTrue);
+        await expectProductsStillShow(generation);
 
         final relaunch = await boot(store());
         expect(relaunch.record.catalogVersion, _updateCatalog);
         expect(relaunch.rulesWithheld, isTrue);
+        await expectProductsStillShow(relaunch);
       });
 
       test(
@@ -1298,6 +1312,7 @@ void main() {
 
           expect(generation.record.rulesVersion, _updateRules);
           expect(generation.rulesWithheld, isTrue);
+          await expectProductsStillShow(generation);
         },
       );
     });
