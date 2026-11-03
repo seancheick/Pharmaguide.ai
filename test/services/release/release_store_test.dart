@@ -1413,29 +1413,261 @@ void main() {
       );
     });
 
-    test(
-      'a crash during migration repeats it from the same root files',
-      () async {
+    test('a crash during migration keeps the catalog, and the next launch '
+        'finishes the move', () async {
+      await buildCatalog(
+        root('pharmaguide_core.db').path,
+        version: _updateCatalog,
+      );
+      final crashing = store(
+        onStep: (at) async {
+          if (at == ReleaseStep.writeRecord) throw SimulatedReleaseCrash(at);
+        },
+      );
+      await expectLater(crashing.open(), throwsA(anything));
+
+      await expectPair(
+        await boot(store()),
+        catalog: _updateCatalog,
+        rules: _bundledRules,
+      );
+      expect(root('pharmaguide_core.db').existsSync(), isFalse);
+    });
+
+    group('with no room to write', () {
+      test('a newer root catalog and its rules move, needing no new space, '
+          'on a phone that has none', () async {
         await buildCatalog(
           root('pharmaguide_core.db').path,
           version: _updateCatalog,
         );
-        final crashing = store(
-          onStep: (at) async {
-            if (at == ReleaseStep.writeRecord) throw SimulatedReleaseCrash(at);
-          },
-        );
-        await expectLater(crashing.open(), throwsA(anything));
-        expect(root('pharmaguide_core.db').existsSync(), isTrue);
+        await buildRules(root('interaction_db.sqlite').path, version: '1.0.1');
+        bundle.noSpaceForDatabases = true;
 
+        final generation = await boot(store());
+
+        await expectPair(generation, catalog: _updateCatalog, rules: '1.0.1');
+        expect(root('pharmaguide_core.db').existsSync(), isFalse);
+        expect(root('interaction_db.sqlite').existsSync(), isFalse);
+      });
+
+      test(
+        'an older root catalog keeps working while the bundled one can\'t '
+        'be written, and the bundled pair lands once there is room',
+        () async {
+          await buildCatalog(
+            root('pharmaguide_core.db').path,
+            version: '2025.06.01.000000',
+          );
+          await buildRules(
+            root('interaction_db.sqlite').path,
+            version: '1.0.1',
+          );
+          bundle.noSpaceForDatabases = true;
+
+          await expectPair(
+            await boot(store()),
+            catalog: '2025.06.01.000000',
+            rules: '1.0.1',
+          );
+
+          bundle.noSpaceForDatabases = false;
+          await expectPair(
+            await boot(store()),
+            catalog: _bundledCatalog,
+            rules: _bundledRules,
+          );
+        },
+      );
+
+      test(
+        'a failed staging folder doesn\'t strand a good root catalog',
+        () async {
+          await buildCatalog(
+            root('pharmaguide_core.db').path,
+            version: _updateCatalog,
+          );
+          final staging = Directory(
+            p.join(documents.path, 'releases', 'staging'),
+          )..createSync(recursive: true);
+          Process.runSync('chmod', ['555', staging.path]);
+          addTearDown(() => Process.runSync('chmod', ['755', staging.path]));
+
+          expect((await boot(store())).record.catalogVersion, _updateCatalog);
+        },
+      );
+
+      test('with nothing writable the root files open where they are, are '
+          'kept, and the next launch moves them', () async {
+        await buildCatalog(
+          root('pharmaguide_core.db').path,
+          version: _updateCatalog,
+        );
+        await buildRules(root('interaction_db.sqlite').path, version: '1.0.1');
+        final releases = Directory(p.join(documents.path, 'releases'))
+          ..createSync();
+        Process.runSync('chmod', ['555', releases.path]);
+        addTearDown(() => Process.runSync('chmod', ['755', releases.path]));
+
+        final s = store();
+        final generation = await boot(s);
+
+        await expectPair(generation, catalog: _updateCatalog, rules: '1.0.1');
+        expect(root('pharmaguide_core.db').existsSync(), isTrue);
+        expect(root('interaction_db.sqlite').existsSync(), isTrue);
+
+        // The session's own recheck must not fall over on the missing pointer.
+        final again = await s.reselect();
+        open.add(again);
+        expect(again.record.catalogVersion, _updateCatalog);
+
+        Process.runSync('chmod', ['755', releases.path]);
         await expectPair(
           await boot(store()),
           catalog: _updateCatalog,
           rules: _bundledRules,
         );
         expect(root('pharmaguide_core.db').existsSync(), isFalse);
-      },
-    );
+      });
+
+      test('a crash right after the move keeps the catalog even with an old '
+          'swap backup beside it', () async {
+        await buildCatalog(
+          root('pharmaguide_core.db').path,
+          version: _updateCatalog,
+        );
+        await buildCatalog(
+          root('pharmaguide_core.db.backup').path,
+          version: '2026.02.01.000000',
+        );
+        final crashing = store(
+          onStep: (at) async {
+            if (at == ReleaseStep.assemble) throw SimulatedReleaseCrash(at);
+          },
+        );
+        await expectLater(crashing.open(), throwsA(anything));
+
+        await expectPair(
+          await boot(store()),
+          catalog: _updateCatalog,
+          rules: _bundledRules,
+        );
+      });
+    });
+
+    group('rules that fail once at first launch', () {
+      late FakeReleaseBundle brokenRules;
+      setUp(() {
+        brokenRules = FakeReleaseBundle(
+          catalog: bundle.catalog,
+          rules: Uint8List.fromList(utf8.encode('not a database')),
+          catalogVersion: _bundledCatalog,
+          rulesVersion: _bundledRules,
+        );
+      });
+
+      test('come back on the next launch, and a catalog update then '
+          'works', () async {
+        final first = await boot(store(withBundle: brokenRules));
+        expect(first.rules, isNull);
+
+        final s = store();
+        await expectPair(
+          await boot(s),
+          catalog: _bundledCatalog,
+          rules: _bundledRules,
+        );
+
+        final result = await s.activate(
+          await candidate(sequence: 1, rulesVersion: null),
+        );
+        expect(result, isA<ReleaseActivated>());
+        open.add((result as ReleaseActivated).generation);
+        expect(result.generation.rules, isNotNull);
+      });
+
+      test('keep being retried while they keep failing', () async {
+        await boot(store(withBundle: brokenRules));
+        expect((await boot(store(withBundle: brokenRules))).rules, isNull);
+        expect((await boot(store())).rules, isNotNull);
+      });
+
+      test('fall back to the root rules when the bundled ones fail', () async {
+        await buildRules(root('interaction_db.sqlite').path, version: '1.0.1');
+
+        await expectPair(
+          await boot(store(withBundle: brokenRules)),
+          catalog: _bundledCatalog,
+          rules: '1.0.1',
+        );
+        await expectPair(
+          await boot(store()),
+          catalog: _bundledCatalog,
+          rules: _bundledRules,
+        );
+      });
+    });
+
+    group('a root catalog that can\'t be read right now', () {
+      void lock() {
+        Process.runSync('chmod', ['000', root('pharmaguide_core.db').path]);
+        addTearDown(() {
+          final file = root('pharmaguide_core.db');
+          if (file.existsSync()) Process.runSync('chmod', ['644', file.path]);
+        });
+      }
+
+      void unlock() =>
+          Process.runSync('chmod', ['644', root('pharmaguide_core.db').path]);
+
+      test('is kept, and wins once it can be read', () async {
+        await buildCatalog(
+          root('pharmaguide_core.db').path,
+          version: _updateCatalog,
+        );
+        lock();
+
+        await expectLater(boot(store()), throwsA(anything));
+        expect(root('pharmaguide_core.db').existsSync(), isTrue);
+
+        unlock();
+        await expectPair(
+          await boot(store()),
+          catalog: _updateCatalog,
+          rules: _bundledRules,
+        );
+      });
+
+      test('doesn\'t let an interrupted swap replace it', () async {
+        await buildCatalog(
+          root('pharmaguide_core.db').path,
+          version: _updateCatalog,
+        );
+        await buildCatalog(
+          root('pharmaguide_core.db.backup').path,
+          version: '2026.02.01.000000',
+        );
+        root(
+          'pharmaguide_core.db.activation.json',
+        ).writeAsStringSync(jsonEncode({'expected': _updateCatalog}));
+        lock();
+
+        await expectLater(boot(store()), throwsA(anything));
+
+        unlock();
+        expect((await boot(store())).record.catalogVersion, _updateCatalog);
+      });
+
+      test('still gives way when the file is really invalid', () async {
+        root('pharmaguide_core.db').writeAsStringSync('torn');
+
+        await expectPair(
+          await boot(store()),
+          catalog: _bundledCatalog,
+          rules: _bundledRules,
+        );
+      });
+    });
 
     test('a swap interrupted by the old code restores its backup', () async {
       const backupVersion = '2026.02.01.000000';
