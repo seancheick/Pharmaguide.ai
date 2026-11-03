@@ -602,6 +602,36 @@ void main() {
       expect(find.text(_allClear), findsOneWidget);
     });
 
+    // 19 blocked products in the 2026.11.02 build read `incomplete`, 232887 for
+    // one. The block comes from the safety status alone, so this field can't
+    // lift it.
+    for (final safety in ['blocked', 'unsafe']) {
+      testWidgets('$safety with unfinished safety checks keeps the block', (
+        tester,
+      ) async {
+        await pumpPage(
+          tester,
+          catalog: await _catalog(
+            score: null,
+            scoreStatus: 'suppressed_safety',
+            safetyAssessment: 'incomplete',
+            safety: safety,
+            verdict: 'BLOCKED',
+          ),
+          phone: await _phone(
+            profile: _noMatch,
+            cachedBlob: _stJohnsWortBlob(),
+          ),
+        );
+
+        expect(
+          find.text('PharmaGuide does not recommend this product'),
+          findsWidgets,
+        );
+        expect(find.text(_allClear), findsNothing);
+      });
+    }
+
     // Sean has not ruled on caution (ADR-014 leaves it); this pins today's
     // behaviour so a change is a decision, not a side effect.
     testWidgets('safety checks done with a catalog caution keeps today\'s '
