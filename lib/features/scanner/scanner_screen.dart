@@ -148,13 +148,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       final db = ref.read(coreDatabaseProvider);
       final resolution = await db.resolveByGtin(identity);
       final alerts = await _cachedSafetyAlerts();
+      final device = await ref.read(deviceSafetyProfileProvider.future);
 
       if (!mounted) return;
 
       setState(() => _isLookingUp = false);
 
       bool isCritical(ProductsCoreData product) =>
-          scanResultIsSafetyCritical(product, alerts: alerts);
+          scanResultIsSafetyCritical(product, alerts: alerts, device: device);
       final anyCritical = switch (resolution) {
         UpcUnique(:final product) => isCritical(product),
         UpcAmbiguous(:final candidates) => candidates.any(isCritical),

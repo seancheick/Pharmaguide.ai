@@ -1,7 +1,20 @@
 import {
   constantTimeEquals,
+  isPushableEventType,
   parseReleaseDispatchRequest,
 } from "./safety_alert_dispatch.ts";
+
+Deno.test("only product-scoped events are pushed from the server", () => {
+  for (const eventType of ["ingredient_ban", "product_recall"]) {
+    if (!isPushableEventType(eventType)) throw new Error(`${eventType} must push`);
+  }
+  // An interaction rule matches on the device against medications the server
+  // never sees, so pushing here would reach everyone holding the product. A
+  // type this function does not know gets the same answer.
+  for (const eventType of ["interaction_rule", "some_future_type", null, undefined, 7]) {
+    if (isPushableEventType(eventType)) throw new Error(`${eventType} must not push`);
+  }
+});
 
 Deno.test("dispatch requests require one UUID release identifier", async () => {
   const parsed = await parseReleaseDispatchRequest(

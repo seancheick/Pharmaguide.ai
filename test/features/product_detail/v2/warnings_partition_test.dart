@@ -485,7 +485,7 @@ void main() {
         severity: Severity.caution,
         ingredientName: 'Vitamin K',
         ingredientCanonicalId: 'vitamin_k',
-        drugClassIds: const ['class:vitamin_k_antagonists'],
+        drugClassIds: const ['vitamin_k_antagonists'],
         sourceUrls: const ['https://example.test/pairwise'],
       );
       final genericClassRule = _w(
@@ -496,14 +496,14 @@ void main() {
         severity: Severity.caution,
         ingredientName: 'Vitamin K',
         ingredientCanonicalId: 'vitamin_k',
-        drugClassIds: const ['class:vitamin_k_antagonists'],
+        drugClassIds: const ['vitamin_k_antagonists'],
         sourceUrls: const ['https://example.test/class-rule'],
       );
 
       final result = partitionProfileWarnings(
         warnings: [personalized, genericClassRule],
         userConditions: const {},
-        userDrugClasses: const {'class:vitamin_k_antagonists'},
+        userDrugClasses: const {'vitamin_k_antagonists'},
         userProfileFlags: const {},
       );
 

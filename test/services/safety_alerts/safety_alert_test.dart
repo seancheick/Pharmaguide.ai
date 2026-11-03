@@ -32,13 +32,18 @@ void main() {
       final alert = SafetyAlert.fromJson(record);
 
       expect(
-        alert.appliesTo(dsldId: '306237', ingredientCanonicalIds: const []),
+        alert.appliesTo(
+          dsldId: '306237',
+          ingredientCanonicalIds: const [],
+          device: const DeviceSafetyProfile(),
+        ),
         isTrue,
       );
       expect(
         alert.appliesTo(
           dsldId: '999999',
           ingredientCanonicalIds: const ['tianeptine'],
+          device: const DeviceSafetyProfile(),
         ),
         isTrue,
       );
@@ -46,6 +51,7 @@ void main() {
         alert.appliesTo(
           dsldId: '999999',
           ingredientCanonicalIds: const ['tianeptine sodium'],
+          device: const DeviceSafetyProfile(),
         ),
         isFalse,
       );
