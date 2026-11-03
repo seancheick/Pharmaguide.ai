@@ -167,10 +167,7 @@ class _AddHealthEventSheetState extends ConsumerState<_AddHealthEventSheet> {
           const SizedBox(height: V2Spacing.space8),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              Icons.attach_file_rounded,
-              color: context.v2.accent,
-            ),
+            leading: Icon(Icons.attach_file_rounded, color: context.v2.accent),
             title: Text(
               _selectedAttachment == null
                   ? 'Attach a photo (optional)'
@@ -401,10 +398,7 @@ class _DateRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        Icons.calendar_today_outlined,
-        color: context.v2.accent,
-      ),
+      leading: Icon(Icons.calendar_today_outlined, color: context.v2.accent),
       title: Text(label),
       subtitle: Text(DateFormat.yMMMMd().format(value)),
       trailing: const Icon(Icons.chevron_right_rounded),
