@@ -258,5 +258,89 @@ void main() {
         expect(await userDb.getCachedDetail('p4'), isNull);
       },
     );
+
+    group('fetchStackDetailForRelease', () {
+      Future<void> addToStack(String id) => userDb.addToStack(
+        UserStacksLocalCompanion.insert(
+          id: 'stack-$id',
+          name: id,
+          dsldId: Value(id),
+        ),
+      );
+
+      test('fetches first and stores only when the release says so', () async {
+        await seedProduct('p1', blobSha: 'new-sha');
+        await addToStack('p1');
+        await userDb.cacheDetail('p1', jsonEncode({'v': 'old'}), 'old-sha');
+        final service = _FakeBlobService({'v': 'new'});
+
+        final store = await fetchStackDetailForRelease(
+          candidate: coreDb,
+          userDb: userDb,
+          service: service,
+        );
+
+        expect(service.requestedHashes, ['new-sha']);
+        expect(
+          (await userDb.getCachedDetail('p1'))!.sha256,
+          'old-sha',
+          reason: 'the phone is still on the old release until the swap',
+        );
+
+        await store();
+        expect((await userDb.getCachedDetail('p1'))!.sha256, 'new-sha');
+      });
+
+      test(
+        'a blob that matches the new release is not fetched again',
+        () async {
+          await seedProduct('p1', blobSha: 'same-sha');
+          await addToStack('p1');
+          await userDb.cacheDetail('p1', jsonEncode({'v': 'kept'}), 'same-sha');
+          final service = _FakeBlobService({'v': 'new'});
+
+          final store = await fetchStackDetailForRelease(
+            candidate: coreDb,
+            userDb: userDb,
+            service: service,
+          );
+          await store();
+
+          expect(service.requestedHashes, isEmpty);
+          expect(jsonDecode((await userDb.getCachedDetail('p1'))!.blobJson), {
+            'v': 'kept',
+          });
+        },
+      );
+
+      test('a missing blob stops the update and stores nothing', () async {
+        await seedProduct('p1', blobSha: 'sha-1');
+        await seedProduct('p2', blobSha: 'sha-2');
+        await addToStack('p1');
+        await addToStack('p2');
+
+        await expectLater(
+          fetchStackDetailForRelease(
+            candidate: coreDb,
+            userDb: userDb,
+            service: _FakeBlobService(null),
+          ),
+          throwsA(isA<DetailBlobUnavailableException>()),
+        );
+        expect(await userDb.getCachedDetail('p1'), isNull);
+        expect(await userDb.getCachedDetail('p2'), isNull);
+      });
+
+      test('an empty stack fetches nothing', () async {
+        final service = _FakeBlobService({'v': 'new'});
+        final store = await fetchStackDetailForRelease(
+          candidate: coreDb,
+          userDb: userDb,
+          service: service,
+        );
+        await store();
+        expect(service.requestedHashes, isEmpty);
+      });
+    });
   });
 }

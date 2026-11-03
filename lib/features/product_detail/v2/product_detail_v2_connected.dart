@@ -86,6 +86,7 @@ import 'package:pharmaguide/features/product_detail/widgets/pg_favorite_button.d
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -501,9 +502,16 @@ class _ProductDetailV2ConnectedState
     // resolved source stack safety uses (no re-mapping) — so pipeline
     // drug-gated warnings fire whether the user ticked the chip OR added
     // the medication.
+    final stackMedicationClassesAsync = ref.watch(
+      currentStackMedicationClassIdsProvider,
+    );
     final stackMedicationClassIds =
-        ref.watch(currentStackMedicationClassIdsProvider).value ??
-        const <String>{};
+        stackMedicationClassesAsync.value ??
+        (stackMedicationClassesAsync.hasError
+            ? storedStackMedicationClassIds(
+                ref.watch(activeStackProvider).value ?? const [],
+              )
+            : const <String>{});
     final userDrugClassesSet = <String>{
       ...profile.drugClassesForEvaluator,
       ...stackMedicationClassIds,

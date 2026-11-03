@@ -24,19 +24,11 @@
 
 ### Symptom: OTA DB swap loses user data
 
-**Root Cause:** OTA swap replaced `user_data.db` instead of only `pharmaguide_core.db`.
+**Root Cause:** An update touched `user_data.db`. It lives apart from releases and no update path should reach it.
 
-**Fix:** This is a critical bug. Verify that `db_swap_service.dart` only touches `pharmaguide_core.db`. The swap flow must be:
-1. Download new DB to staging path
-2. Verify checksum
-3. Run integrity check (`PRAGMA integrity_check`)
-4. Close reference DB connection
-5. Rename current to `.bak`
-6. Rename staging to production
-7. Reopen reference DB
-8. Delete `.bak` on success, restore `.bak` on failure
+**Fix:** This is a critical bug. `lib/services/release_store.dart` writes only under `Documents/releases/` (ADR-012). Each update assembles a new folder, proves it, then replaces the one pointer, `active.json`. The installed catalog and rules are `Documents/releases/<id>/catalog.db` and `rules.sqlite`, and `active.json` names the id.
 
-**Prevention:** Test: after OTA swap, query `user_data.db` for a known user profile row and assert it still exists. Add this as an automated test.
+**Prevention:** Test: after an update, query `user_data.db` for a known user profile row and assert it still exists. Add this as an automated test.
 
 ---
 

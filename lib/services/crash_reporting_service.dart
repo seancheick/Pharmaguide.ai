@@ -132,7 +132,7 @@ class CrashReportingService {
     }
   }
 
-  /// [hint] is an opaque surface tag like `catalog_swap:backup_failed`. When
+  /// [hint] is an opaque surface tag like `release_store:open_failed`. When
   /// set it is attached to the Sentry event as `pg.surface=<hint>` so the
   /// dashboard can filter/group by failure surface. Safe to omit.
   void recordError(

@@ -7,6 +7,8 @@
 ///   BLOB_PREFIX     = "shared/details/sha256"
 ///   DB_PATH         = "v{version}/pharmaguide_core.db"
 ///   DETAIL_INDEX    = "v{version}/detail_index.json"
+///   RULES_PATH      = "rules/{version}/interaction_db.sqlite" (read from the
+///                     signed manifest, never built here)
 ///   MANIFEST_TABLE  = "export_manifest"
 ///
 /// If the pipeline changes any of these, update this file and the

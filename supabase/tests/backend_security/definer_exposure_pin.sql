@@ -120,7 +120,7 @@ INSERT INTO sec.definer_exposure(key, exec_by) VALUES
   ('review_product_submission_unchecked/17', ''),
   ('revoke_ai_connection_pairings/2', 'service_role'),
   ('rotate_manifest/8', ''),
-  ('rotate_manifest_with_submission_approvals/9', 'service_role'),
+  ('rotate_manifest_with_submission_approvals/12', 'service_role'),
   ('save_product_submission_reviewer_draft/6', 'authenticated'),
   ('set_product_submission_display_name/2', 'authenticated'),
   ('set_product_submission_field_verification/5', 'authenticated'),
