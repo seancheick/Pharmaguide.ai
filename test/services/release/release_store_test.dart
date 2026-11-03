@@ -75,6 +75,7 @@ void main() {
     String? rulesVersion = _updateRules,
     String severity = 'contraindicated',
     String? stagedName,
+    String minRulesVersion = '1.0.0',
   }) async {
     final name = stagedName ?? 's$sequence';
     final catalogFile = File(p.join(workspace.path, '$name.db'));
@@ -92,7 +93,7 @@ void main() {
       sequence: sequence,
       catalogVersion: catalogVersion,
       catalogSha256: sha256.convert(catalogFile.readAsBytesSync()).toString(),
-      minRulesVersion: '1.0.0',
+      minRulesVersion: minRulesVersion,
       stagedCatalog: catalogFile,
       stagedRules: rulesFile,
       rulesVersion: rulesVersion,
@@ -1139,7 +1140,7 @@ void main() {
       final s = store();
       final previous = await boot(s);
       final active = await activate(s, await candidate());
-      await block(s, rules: {_updateRules});
+      await block(s, catalog: {_updateCatalog});
       expect(s.isSettled(active), isFalse);
 
       final generation = await s.reselect();
@@ -1155,7 +1156,7 @@ void main() {
       final s = store();
       await boot(s);
       final active = await activate(s, await candidate());
-      await block(s, rules: {_updateRules});
+      await block(s, catalog: {_updateCatalog});
 
       final generation = await s.reselect();
       open.add(generation);
@@ -1226,6 +1227,100 @@ void main() {
       expect(
         (await restored.core.findById(kFixtureProduct))!.qualityScoreV4100,
         88,
+      );
+    });
+
+    group('when only the rules are blocked', () {
+      Future<ReleaseStore> onRules({
+        required String catalogVersion,
+        String minRulesVersion = '1.0.0',
+      }) async {
+        final s = store();
+        await boot(s);
+        final result = await s.activate(
+          await candidate(
+            catalogVersion: catalogVersion,
+            minRulesVersion: minRulesVersion,
+          ),
+        );
+        open.add((result as ReleaseActivated).generation);
+        await s.recordVerified(
+          sequence: 2,
+          blockedCatalog: const {},
+          blockedRules: const {_updateRules},
+        );
+        return s;
+      }
+
+      test('the newer catalog stays, and only interaction checks are withheld '
+          '(Sean, 2026-11-03)', () async {
+        final s = await onRules(catalogVersion: _updateCatalog);
+
+        final generation = await s.reselect();
+        open.add(generation);
+
+        expect(generation.record.catalogVersion, _updateCatalog);
+        expect(generation.rules, isNull);
+        expect(generation.rulesWithheld, isTrue);
+        expect(s.isSettled(generation), isTrue);
+
+        final relaunch = await boot(store());
+        expect(relaunch.record.catalogVersion, _updateCatalog);
+        expect(relaunch.rulesWithheld, isTrue);
+      });
+
+      test(
+        'the same catalog returns to the rules it was paired with',
+        () async {
+          final s = await onRules(catalogVersion: _bundledCatalog);
+
+          final generation = await s.reselect();
+          open.add(generation);
+
+          await expectPair(
+            generation,
+            catalog: _bundledCatalog,
+            rules: _bundledRules,
+          );
+        },
+      );
+
+      test(
+        'the same catalog doesn\'t return to rules below its minimum',
+        () async {
+          final s = await onRules(
+            catalogVersion: _bundledCatalog,
+            minRulesVersion: _updateRules,
+          );
+
+          final generation = await s.reselect();
+          open.add(generation);
+
+          expect(generation.record.rulesVersion, _updateRules);
+          expect(generation.rulesWithheld, isTrue);
+        },
+      );
+    });
+
+    test('a blocked catalog still returns to the previous release, even when '
+        'its rules are blocked too', () async {
+      final s = store();
+      await boot(s);
+      final result = await s.activate(await candidate());
+      open.add((result as ReleaseActivated).generation);
+      await s.recordVerified(
+        sequence: 2,
+        blockedCatalog: const {_updateCatalog},
+        blockedRules: const {_updateRules},
+      );
+
+      final generation = await s.reselect();
+      open.add(generation);
+
+      await expectPair(
+        generation,
+        catalog: _bundledCatalog,
+        rules: _bundledRules,
       );
     });
 

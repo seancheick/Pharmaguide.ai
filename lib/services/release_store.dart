@@ -842,7 +842,9 @@ class ReleaseStore {
   }
 
   /// A phone on a blocked version returns to its previous confirmed release if
-  /// that isn't blocked. Otherwise only the affected assessment is withheld:
+  /// that isn't blocked. When only the rules are blocked, it goes back only to a
+  /// catalog no older than its own, with rules that meet its minimum (Sean,
+  /// 2026-11-03). Otherwise only the affected assessment is withheld:
   /// [_openFolder] leaves blocked rules closed, and a blocked catalog becomes a
   /// local copy without quality scores. Products stay available, and catalog
   /// safety status is never touched.
@@ -865,9 +867,13 @@ class ReleaseStore {
     }
     if (!_isBlocked(active)) return;
 
+    final onlyRulesBlocked = !pointer.blockedCatalog.contains(
+      active.catalogVersion,
+    );
     if (previous != null &&
         !_isBlocked(previous) &&
-        !pointer.refused.contains(previous.id)) {
+        !pointer.refused.contains(previous.id) &&
+        (!onlyRulesBlocked || _canReplaceRulesOf(active, previous))) {
       await _writePointer(
         pointer.copyWith(active: previous.id, previous: () => null),
       );
@@ -878,6 +884,16 @@ class ReleaseStore {
         !active.qualityWithheld) {
       await _withholdQuality(active);
     }
+  }
+
+  bool _canReplaceRulesOf(ReleaseRecord active, ReleaseRecord previous) {
+    final minimum = active.minRulesVersion;
+    return !CatalogVersion.isRemoteNewer(
+          remoteVersion: active.catalogVersion,
+          localVersion: previous.catalogVersion,
+        ) &&
+        (minimum == null ||
+            (compareSemver(previous.rulesVersion, minimum) ?? -1) >= 0);
   }
 
   Future<void> _withholdQuality(ReleaseRecord source) async {
