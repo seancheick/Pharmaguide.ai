@@ -12,9 +12,7 @@ final safetyPushBootstrapProvider = FutureProvider<bool>((ref) async {
   final service = SafetyPushService();
   ref.onDispose(() => service.dispose());
   return service.initialize(
-    onSafetyAlert: () {
-      ref.invalidate(safetyAlertMatchesProvider);
-    },
+    onSafetyAlert: () => refreshSafetyAlerts(ref),
     // Foreground: quiet data refresh (no banner shows in foreground).
     onSubmissionUpdate: () {
       ref.invalidate(productSubmissionsProvider);

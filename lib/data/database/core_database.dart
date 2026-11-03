@@ -40,9 +40,24 @@ final class UpcAmbiguous extends UpcResolution {
 @DriftDatabase(tables: [ProductsCore])
 class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)
-    : super(NativeDatabase.createInBackground(dbFile, logStatements: false));
+    : _readOnly = false,
+      super(NativeDatabase.createInBackground(dbFile, logStatements: false));
 
-  CoreDatabase.memory() : super(NativeDatabase.memory());
+  /// A release file (ADR-012): any attempt to write throws, and the open-time
+  /// work below already ran when the release was prepared.
+  CoreDatabase.readOnly(File dbFile)
+    : _readOnly = true,
+      super(
+        NativeDatabase.createInBackground(
+          dbFile,
+          logStatements: false,
+          setup: (db) => db.execute('PRAGMA query_only = ON'),
+        ),
+      );
+
+  CoreDatabase.memory() : _readOnly = false, super(NativeDatabase.memory());
+
+  final bool _readOnly;
 
   @override
   int get schemaVersion => 3;
@@ -71,6 +86,7 @@ class CoreDatabase extends _$CoreDatabase {
       );
     },
     beforeOpen: (details) async {
+      if (_readOnly) return;
       // The pre-built DB from the pipeline may lack additive columns the
       // current app build expects. Add safe nullable columns so older local
       // snapshots don't crash during app startup.
@@ -95,24 +111,7 @@ class CoreDatabase extends _$CoreDatabase {
   /// Failures are logged (non-fatal) and swallowed — a missing index only
   /// degrades performance, it must never block catalog open.
   Future<void> _ensureAppIndexes() async {
-    const statements = [
-      // findAllByUpc: the REPLACE(...) normalization wrapper defeats the
-      // plain idx_core_upc index (verified SCAN via EXPLAIN QUERY PLAN).
-      // This expression index restores SEARCH — the expression matches
-      // [upcNormalizeSql] exactly.
-      'CREATE INDEX IF NOT EXISTS idx_core_upc_normalized '
-          'ON products_core ($upcNormalizeSql)',
-      // fetchBetterAlternativesPool: partial composite index matching the
-      // query's quality_score_status = 'scored' predicate, so the
-      // category branch of the intent OR resolves via SEARCH with the
-      // score range folded into the same index (verified via EXPLAIN
-      // QUERY PLAN: SEARCH ... idx_core_cat_score
-      // (primary_category=? AND quality_score_v4_100>?)).
-      "CREATE INDEX IF NOT EXISTS idx_core_cat_score "
-          "ON products_core (primary_category, quality_score_v4_100 DESC) "
-          "WHERE quality_score_status = 'scored'",
-    ];
-    for (final ddl in statements) {
+    for (final ddl in appIndexStatements) {
       try {
         await customStatement(ddl);
       } on Exception catch (e, st) {
@@ -125,75 +124,99 @@ class CoreDatabase extends _$CoreDatabase {
     }
   }
 
+  /// Changing this list means raising `kReleasePreparation`.
+  static const List<String> appIndexStatements = [
+    // findAllByUpc: the REPLACE(...) normalization wrapper defeats the
+    // plain idx_core_upc index (verified SCAN via EXPLAIN QUERY PLAN).
+    // This expression index restores SEARCH — the expression matches
+    // [upcNormalizeSql] exactly.
+    'CREATE INDEX IF NOT EXISTS idx_core_upc_normalized '
+        'ON products_core ($upcNormalizeSql)',
+    // fetchBetterAlternativesPool: partial composite index matching the
+    // query's quality_score_status = 'scored' predicate, so the
+    // category branch of the intent OR resolves via SEARCH with the
+    // score range folded into the same index (verified via EXPLAIN
+    // QUERY PLAN: SEARCH ... idx_core_cat_score
+    // (primary_category=? AND quality_score_v4_100>?)).
+    "CREATE INDEX IF NOT EXISTS idx_core_cat_score "
+        "ON products_core (primary_category, quality_score_v4_100 DESC) "
+        "WHERE quality_score_status = 'scored'",
+  ];
+
   /// Add additive nullable columns missing from the pre-built DB. Safe to call
   /// multiple times — each ALTER is wrapped so an already-present column is
   /// ignored.
+  ///
+  /// Changing this list means raising `kReleasePreparation`.
+  static const List<String> compatColumns = [
+    'image_is_pdf INTEGER',
+    'detail_blob_sha256 TEXT',
+    'interaction_summary_hint TEXT',
+    'decision_highlights TEXT',
+    'ingredient_fingerprint TEXT',
+    'key_nutrients_summary TEXT',
+    'contains_stimulants INTEGER',
+    'contains_sedatives INTEGER',
+    'contains_blood_thinners INTEGER',
+    'share_title TEXT',
+    'share_description TEXT',
+    'share_highlights TEXT',
+    'share_og_image_url TEXT',
+    'primary_category TEXT',
+    'secondary_categories TEXT',
+    // Phase 11.7L.G (2026-05-16): `supplement_type` is required by
+    // `fetchBetterAlternativesPool` + `rankAlternatives` tier
+    // classifier (tiers 0/1 keyed on this column). Older bundled
+    // catalogs predate the v92 schema where the column was added —
+    // without this defensive backfill, `supplement_type` is NULL on
+    // every row, collapsing tiers 0/1/2 to reject and forcing every
+    // candidate into tier 3 (primary_category only). That was the
+    // KSM-66 Ashwagandha → Magnesium Glycinate failure mode.
+    'supplement_type TEXT',
+    'contains_omega3 INTEGER',
+    'contains_probiotics INTEGER',
+    'contains_collagen INTEGER',
+    'contains_adaptogens INTEGER',
+    'contains_nootropics INTEGER',
+    'key_ingredient_tags TEXT',
+    'goal_matches TEXT',
+    'goal_match_confidence REAL',
+    // v2.x: Coverage "Partially supported" — goals present but underdosed.
+    'goal_matches_underdosed TEXT',
+    'dosing_summary TEXT',
+    'servings_per_container INTEGER',
+    'allergen_summary TEXT',
+    'image_thumbnail_url TEXT',
+    'calories_per_serving REAL',
+    'net_contents_quantity REAL',
+    'net_contents_unit TEXT',
+    // v1.6.x (2026-05-12): searchable ingredient text — defensive
+    // backfill for older bundled catalogs that predate the v92 schema.
+    // A fresh-built v1.6.x DB ships this column already; this is here
+    // only for in-place upgrades where the user is on an old snapshot.
+    'ingredients_text TEXT',
+    // v2.0.0 (2026-06): v4 /100 scoring contract.
+    'quality_score_v4_100 INTEGER',
+    'quality_score_status TEXT',
+    // v2.3.0: independent safety/quality states plus typed dose-safety detail.
+    'product_safety_status TEXT',
+    'quality_assessment_status TEXT',
+    // Older catalogs lack this; NULL means a finished public assessment
+    // decides the all-clear (ADR-015).
+    'safety_assessment_status TEXT',
+    'quality_tier TEXT',
+    'quality_score_suppressed_reason TEXT',
+    'v4_module TEXT',
+    // 2.4 canonical split: score confidence is never a gate state; route
+    // confidence and score-unavailable reason have their own columns.
+    'quality_score_confidence TEXT',
+    'score_unavailable_reason TEXT',
+    'route_confidence TEXT',
+    'score_model_version TEXT',
+  ];
+
   Future<void> _ensureCompatColumns() async {
-    const columns = [
-      'image_is_pdf INTEGER',
-      'detail_blob_sha256 TEXT',
-      'interaction_summary_hint TEXT',
-      'decision_highlights TEXT',
-      'ingredient_fingerprint TEXT',
-      'key_nutrients_summary TEXT',
-      'contains_stimulants INTEGER',
-      'contains_sedatives INTEGER',
-      'contains_blood_thinners INTEGER',
-      'share_title TEXT',
-      'share_description TEXT',
-      'share_highlights TEXT',
-      'share_og_image_url TEXT',
-      'primary_category TEXT',
-      'secondary_categories TEXT',
-      // Phase 11.7L.G (2026-05-16): `supplement_type` is required by
-      // `fetchBetterAlternativesPool` + `rankAlternatives` tier
-      // classifier (tiers 0/1 keyed on this column). Older bundled
-      // catalogs predate the v92 schema where the column was added —
-      // without this defensive backfill, `supplement_type` is NULL on
-      // every row, collapsing tiers 0/1/2 to reject and forcing every
-      // candidate into tier 3 (primary_category only). That was the
-      // KSM-66 Ashwagandha → Magnesium Glycinate failure mode.
-      'supplement_type TEXT',
-      'contains_omega3 INTEGER',
-      'contains_probiotics INTEGER',
-      'contains_collagen INTEGER',
-      'contains_adaptogens INTEGER',
-      'contains_nootropics INTEGER',
-      'key_ingredient_tags TEXT',
-      'goal_matches TEXT',
-      'goal_match_confidence REAL',
-      // v2.x: Coverage "Partially supported" — goals present but underdosed.
-      'goal_matches_underdosed TEXT',
-      'dosing_summary TEXT',
-      'servings_per_container INTEGER',
-      'allergen_summary TEXT',
-      'image_thumbnail_url TEXT',
-      'calories_per_serving REAL',
-      'net_contents_quantity REAL',
-      'net_contents_unit TEXT',
-      // v1.6.x (2026-05-12): searchable ingredient text — defensive
-      // backfill for older bundled catalogs that predate the v92 schema.
-      // A fresh-built v1.6.x DB ships this column already; this is here
-      // only for in-place upgrades where the user is on an old snapshot.
-      'ingredients_text TEXT',
-      // v2.0.0 (2026-06): v4 /100 scoring contract.
-      'quality_score_v4_100 INTEGER',
-      'quality_score_status TEXT',
-      // v2.3.0: independent safety/quality states plus typed dose-safety detail.
-      'product_safety_status TEXT',
-      'quality_assessment_status TEXT',
-      // Older catalogs lack this; NULL keeps the interim all-clear rule (ADR-014).
-      'safety_assessment_status TEXT',
-      'quality_tier TEXT',
-      'quality_score_suppressed_reason TEXT',
-      'v4_module TEXT',
-      // 2.4 canonical split: score confidence is never a gate state; route
-      // confidence and score-unavailable reason have their own columns.
-      'quality_score_confidence TEXT',
-      'score_unavailable_reason TEXT',
-      'route_confidence TEXT',
-      'score_model_version TEXT',
-    ];
+    const columns = compatColumns;
 
     for (final col in columns) {
       try {
@@ -245,6 +268,17 @@ class CoreDatabase extends _$CoreDatabase {
       }
     }
   }
+
+  /// Removes the quality assessment from a local copy of a blocked catalog
+  /// (ADR-012), so every score surface shows its existing not-scored state
+  /// through the existing owners. Products, and safety status, stay as they are.
+  Future<void> withholdQualityScores() => customStatement(
+    "UPDATE products_core SET quality_score_v4_100 = NULL, "
+    "quality_tier = NULL, grade = NULL, percentile_rank = NULL, "
+    "percentile_top_pct = NULL, quality_score_status = 'not_scored', "
+    "quality_assessment_status = 'failed' "
+    "WHERE quality_score_status IS NOT 'suppressed_safety'",
+  );
 
   /// Open a pre-built database file (downloaded from Supabase).
   static CoreDatabase open(String dbPath) {

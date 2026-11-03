@@ -26,6 +26,13 @@ DART_DEFINES := \
 	--dart-define=GOOGLE_WEB_CLIENT_ID=$(GOOGLE_WEB_CLIENT_ID) \
 	--dart-define=GOOGLE_IOS_CLIENT_ID=$(GOOGLE_IOS_CLIENT_ID)
 
+# QA builds only: verifies a locally signed test release. Ignored in release mode.
+ifdef PHARMAGUIDE_RELEASE_TEST_KEY
+DART_DEFINES += \
+	--dart-define=PHARMAGUIDE_RELEASE_TEST_KEY_ID=$(PHARMAGUIDE_RELEASE_TEST_KEY_ID) \
+	--dart-define=PHARMAGUIDE_RELEASE_TEST_KEY=$(PHARMAGUIDE_RELEASE_TEST_KEY)
+endif
+
 # ─── Development ──────────────────────────────────────────────────────────────
 
 .PHONY: hydrate-interaction-db

@@ -70,6 +70,20 @@ class NativeDoctorTests(unittest.TestCase):
             result = doctor.main()
         return result, json.loads((output / 'doctor.json').read_text())
 
+    def test_reads_the_catalog_of_the_active_release(self):
+        documents = self.data / 'Documents'
+        folder = documents / 'releases/s1_fixture.1_1.0.15_p1'
+        folder.mkdir(parents=True)
+        self.catalog.rename(folder / 'catalog.db')
+        (documents / 'releases/active.json').write_text(json.dumps({'active': folder.name}))
+        self.inputs = {p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+
+        result, report = self.run_doctor('--expected-catalog', 'fixture.1')
+
+        self.assertEqual(result, 0)
+        self.assertEqual(report['installed_catalog']['product']['dsld_id'], '295048')
+        self.assertTrue(report['expected_catalog_matches'])
+
     def test_exact_installed_schema_and_binary_identity_are_read_only(self):
         result, report = self.run_doctor('--expected-catalog', 'fixture.1')
         self.assertEqual(result, 0)

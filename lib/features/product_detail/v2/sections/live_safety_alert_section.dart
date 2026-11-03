@@ -7,7 +7,8 @@ import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_provid
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Live recall and ban alerts that match this product, shown under the hero.
+/// Live recall, ban and interaction-rule alerts that match this product, shown
+/// under the hero.
 ///
 /// The fast-lane feed reaches users between catalog releases, so a product
 /// recalled after the last release has no blocked status yet; without this
@@ -35,7 +36,9 @@ class LiveSafetyAlertSection extends ConsumerWidget {
                       ? PGBannerTone.danger
                       : PGBannerTone.caution,
                   title: alert.headline,
-                  body: '${alert.body} ${alert.action}',
+                  body:
+                      alert.interactionNotice ??
+                      '${alert.body} ${alert.action}',
                   actionLabel: 'View source',
                   onAction: () => launchUrl(
                     alert.sourceUrl,

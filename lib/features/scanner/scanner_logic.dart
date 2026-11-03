@@ -31,11 +31,13 @@ PGVerdictKind scanRevealKind(CatalogProductSafetyStatus status) =>
 
 /// Whether a scanned product must be shown even when a guest is out of
 /// scans: a blocked or unsafe catalog product, or one matched by a blocking
-/// live recall alert. Matching reuses [SafetyAlert.appliesTo] with the same
+/// live alert, including an interaction rule for a medication this user takes.
+/// Matching reuses [SafetyAlert.appliesTo] with the same
 /// canonical ids Stack uses, so the scan and the stack agree.
 bool scanResultIsSafetyCritical(
   ProductsCoreData product, {
   Iterable<SafetyAlert> alerts = const [],
+  DeviceSafetyProfile device = const DeviceSafetyProfile(),
 }) {
   if (catalogProductIsBlocked(product)) return true;
   final ingredientIds = canonical_ids.canonicalIdsForProduct(product);
@@ -45,6 +47,7 @@ bool scanResultIsSafetyCritical(
         alert.appliesTo(
           dsldId: product.dsldId,
           ingredientCanonicalIds: ingredientIds,
+          device: device,
         ),
   );
 }

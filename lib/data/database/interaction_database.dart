@@ -82,8 +82,8 @@ class InteractionDbMetadata {
 /// The DB is built deterministically by the pipeline's
 /// `release_interaction_artifact.py` (M2) and shipped as a Flutter asset
 /// (`assets/db/interaction_db.sqlite`). The app copies it to the documents
-/// directory on first launch via [ensureInteractionDatabaseAvailable] in
-/// `database_providers.dart`, then opens it through this wrapper.
+/// directory on first launch via `ReleaseStore`, then opens it through this
+/// wrapper.
 ///
 /// **Read-only contract.** Every row is verified by the pipeline; the app
 /// must never INSERT/UPDATE/DELETE here. Tombstoned rows are kept in the
@@ -105,10 +105,27 @@ class InteractionDbMetadata {
 )
 class InteractionDatabase extends _$InteractionDatabase {
   InteractionDatabase(File dbFile)
-    : super(NativeDatabase.createInBackground(dbFile, logStatements: false));
+    : _readOnly = false,
+      super(NativeDatabase.createInBackground(dbFile, logStatements: false));
+
+  /// A release file (ADR-012): any attempt to write throws, and the open-time
+  /// work below already ran when the release was prepared.
+  InteractionDatabase.readOnly(File dbFile)
+    : _readOnly = true,
+      super(
+        NativeDatabase.createInBackground(
+          dbFile,
+          logStatements: false,
+          setup: (db) => db.execute('PRAGMA query_only = ON'),
+        ),
+      );
 
   /// In-memory variant for tests that build a fixture DB on the fly.
-  InteractionDatabase.memory() : super(NativeDatabase.memory());
+  InteractionDatabase.memory()
+    : _readOnly = false,
+      super(NativeDatabase.memory());
+
+  final bool _readOnly;
 
   @override
   int get schemaVersion => 4;
@@ -144,6 +161,7 @@ class InteractionDatabase extends _$InteractionDatabase {
       );
     },
     beforeOpen: (details) async {
+      if (_readOnly) return;
       await _ensureAppIndexes();
     },
   );
@@ -167,17 +185,7 @@ class InteractionDatabase extends _$InteractionDatabase {
   /// Failures are swallowed — a missing index only degrades performance;
   /// it must never block interaction-DB open (safety surface).
   Future<void> _ensureAppIndexes() async {
-    const statements = [
-      'CREATE INDEX IF NOT EXISTS idx_int_a1_canon_lower '
-          'ON interactions (lower(agent1_canonical_id))',
-      'CREATE INDEX IF NOT EXISTS idx_int_a2_canon_lower '
-          'ON interactions (lower(agent2_canonical_id))',
-      'CREATE INDEX IF NOT EXISTS idx_rp_canon_a_lower '
-          'ON research_pairs (lower(canonical_id_a))',
-      'CREATE INDEX IF NOT EXISTS idx_rp_canon_b_lower '
-          'ON research_pairs (lower(canonical_id_b))',
-    ];
-    for (final ddl in statements) {
+    for (final ddl in appIndexStatements) {
       try {
         await customStatement(ddl);
       } on Exception {
@@ -187,8 +195,20 @@ class InteractionDatabase extends _$InteractionDatabase {
     }
   }
 
-  /// Open a pre-built database file (the bundled asset, copied to the
-  /// app documents directory by [ensureInteractionDatabaseAvailable]).
+  /// Changing this list means raising `kReleasePreparation`.
+  static const List<String> appIndexStatements = [
+    'CREATE INDEX IF NOT EXISTS idx_int_a1_canon_lower '
+        'ON interactions (lower(agent1_canonical_id))',
+    'CREATE INDEX IF NOT EXISTS idx_int_a2_canon_lower '
+        'ON interactions (lower(agent2_canonical_id))',
+    'CREATE INDEX IF NOT EXISTS idx_rp_canon_a_lower '
+        'ON research_pairs (lower(canonical_id_a))',
+    'CREATE INDEX IF NOT EXISTS idx_rp_canon_b_lower '
+        'ON research_pairs (lower(canonical_id_b))',
+  ];
+
+  /// Open a pre-built database file for preparation. The app reads a release
+  /// through [InteractionDatabase.readOnly].
   static InteractionDatabase open(String dbPath) {
     return InteractionDatabase(File(dbPath));
   }

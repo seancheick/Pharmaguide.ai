@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   * `sendDefaultPii` is OFF — no device identifiers or IPs attached.
 ///   * User health data (stack contents, ingredients, conditions, medications)
 ///     is NEVER forwarded. Only an opaque `userId` is sent for correlation.
+///   * `beforeSend` + `beforeBreadcrumb` remove failed SQL and its bound values.
 ///   * `beforeSend` + `beforeBreadcrumb` scrub request bodies, tags, and
 ///     extras for known sensitive keys before events leave the device.
 ///
@@ -131,7 +132,7 @@ class CrashReportingService {
     }
   }
 
-  /// [hint] is an opaque surface tag like `catalog_swap:backup_failed`. When
+  /// [hint] is an opaque surface tag like `release_store:open_failed`. When
   /// set it is attached to the Sentry event as `pg.surface=<hint>` so the
   /// dashboard can filter/group by failure surface. Safe to omit.
   void recordError(
@@ -472,9 +473,21 @@ class CrashReportingService {
         _offlineErrnoPattern.hasMatch(haystack);
   }
 
+  // SqliteException.toString appends the failed statement and its bound values,
+  // and on user_data.db those are medication names and RxCUIs. The failure's
+  // code and message come first and stay; nothing after this marker is sent.
+  static final RegExp _sqlDetail = RegExp(r'\s*Causing statement[\s\S]*');
+
+  static String _withoutSqlDetail(String text) =>
+      text.replaceFirst(_sqlDetail, '');
+
   @visibleForTesting
   static SentryEvent? scrubEventForTest(SentryEvent event, Hint hint) =>
       _scrubEvent(event, hint);
+
+  @visibleForTesting
+  static Breadcrumb? scrubBreadcrumbForTest(Breadcrumb? crumb, Hint hint) =>
+      _scrubBreadcrumb(crumb, hint);
 
   static SentryEvent? _scrubEvent(SentryEvent event, Hint hint) {
     // Drop debug-only Flutter framework asserts from dev environments.
@@ -501,6 +514,17 @@ class CrashReportingService {
       // event still shows "device was offline" context.
       CrashReportingService().log('offline: network-unavailable event dropped');
       return null;
+    }
+    final exceptions = event.exceptions;
+    if (exceptions != null) {
+      for (final exception in exceptions) {
+        final value = exception.value;
+        if (value != null) exception.value = _withoutSqlDetail(value);
+      }
+    }
+    final message = event.message;
+    if (message != null) {
+      message.formatted = _withoutSqlDetail(message.formatted);
     }
     // Scrub tags in-place.
     final tags = event.tags;
@@ -535,6 +559,8 @@ class CrashReportingService {
 
   static Breadcrumb? _scrubBreadcrumb(Breadcrumb? crumb, Hint hint) {
     if (crumb == null) return null;
+    final message = crumb.message;
+    if (message != null) crumb.message = _withoutSqlDetail(message);
     final data = crumb.data;
     if (data == null || data.isEmpty) return crumb;
     data

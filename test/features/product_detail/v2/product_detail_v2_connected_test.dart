@@ -23,6 +23,7 @@ import 'package:pharmaguide/features/product_detail/providers/personalized_warni
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
 
 const _connectedDsldId = 'label-ledger-connected';
@@ -174,6 +175,8 @@ Future<void> _pumpConnectedScreen(
   bool profiled = false,
   bool warningsFail = false,
   bool profileRulesFail = false,
+  List<UserStacksLocalData>? stack,
+  bool classLookupFails = false,
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
@@ -220,9 +223,12 @@ Future<void> _pumpConnectedScreen(
           }
           return fitResult;
         }),
-        currentStackMedicationClassIdsProvider.overrideWith(
-          (ref) async => const <String>{},
-        ),
+        if (stack != null)
+          activeStackProvider.overrideWith((ref) async => stack),
+        currentStackMedicationClassIdsProvider.overrideWith((ref) async {
+          if (classLookupFails) throw StateError('rules withheld');
+          return const <String>{};
+        }),
         // The clinical schema behind these flags is an app asset that never
         // resolves in widget tests; left pending, every check stays running.
         evaluatorProfileFlagsProvider.overrideWith(
@@ -475,6 +481,48 @@ void main() {
       expect(find.text('Personalized checks are incomplete'), findsOneWidget);
       expect(find.textContaining('not an all-clear'), findsOneWidget);
     });
+
+    testWidgets(
+      'withheld rules keep a catalog warning for a medication already on the stack',
+      (tester) async {
+        final addedAt = DateTime.utc(2026, 11, 3);
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          warningsFail: true,
+          classLookupFails: true,
+          stack: [
+            UserStacksLocalData(
+              id: 'warfarin',
+              type: 'medication',
+              name: 'Warfarin',
+              rxcui: '11289',
+              drugClassesCol: '["class:anticoagulants"]',
+              addedAt: addedAt,
+              clientUpdatedAt: addedAt,
+            ),
+          ],
+          detailBlob: {
+            'ingredients': const <Map<String, dynamic>>[],
+            'display_ingredients': [_activeLedgerRow('Active row', 0)],
+            'quality_pillars_v4': _connectedV4Pillars(),
+            'warnings': [
+              {
+                'type': 'interaction',
+                'severity': 'contraindicated',
+                'alert_headline': 'Do not combine with warfarin',
+                'alert_body': 'Catalog warning body.',
+                'evidence_level': 'established',
+                'drug_class_ids': ['anticoagulants'],
+              },
+            ],
+          },
+        );
+
+        expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+        expect(find.text('Do not combine with warfarin'), findsOneWidget);
+      },
+    );
 
     group('a personal check that failed is never an all-clear', () {
       const cleanFit = FitScoreResult(

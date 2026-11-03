@@ -169,6 +169,9 @@ Future<void> _seedWarfarinVitaminKPair(InteractionDatabase db) async {
 }
 
 void main() {
+  // The real device profile reads the bundled taxonomy through the asset binding.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('personalizedInteractionWarningsProvider', () {
     test('empty stack → empty warnings', () async {
       final coreDb = CoreDatabase.memory();
@@ -324,15 +327,40 @@ void main() {
         expect(result, hasLength(1));
         expect(result.single.title, "Because you're taking Warfarin");
         expect(result.single.ingredientCanonicalId, 'vitamin_k');
-        expect(
-          result.single.drugClassIds,
-          contains('class:vitamin_k_antagonists'),
-        );
+        expect(result.single.drugClassIds, contains('vitamin_k_antagonists'));
 
         await coreDb.close();
         await interactionDb.close();
       },
     );
+
+    test('rules withheld by a blocked version read as unavailable, never as no '
+        'interactions found', () async {
+      // main.dart leaves the provider at its throwing default when a release
+      // has no usable rules (ADR-012).
+      final coreDb = CoreDatabase.memory();
+      await _seedProduct(
+        coreDb,
+        keyIngredientTags: '["vitamin_k"]',
+        productName: 'Calcium K/D',
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          activeStackProvider.overrideWith((ref) async => [_stubWarfarin()]),
+          detailBlobProvider.overrideWith((ref, dsldId) async => null),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(personalizedInteractionWarningsProvider(_dsldId).future),
+        throwsA(anything),
+      );
+
+      await coreDb.close();
+    });
 
     test(
       'stack provider failure surfaces instead of returning an all-clear',

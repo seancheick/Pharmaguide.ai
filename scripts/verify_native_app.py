@@ -28,6 +28,15 @@ def digest(path):
     return checksum.hexdigest()
 
 
+def installed_catalog_path(data):
+    """The active release's catalog (ADR-012), or the root file of an older build."""
+    releases = data / 'Documents/releases'
+    pointer = releases / 'active.json'
+    if pointer.exists():
+        return releases / json.loads(pointer.read_text())['active'] / 'catalog.db'
+    return data / 'Documents/pharmaguide_core.db'
+
+
 def inspect_catalog(path, product_id):
     before = digest(path)
     with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
@@ -86,7 +95,7 @@ def main():
             for name in ('kernel_blob.bin', 'vm_snapshot_data', 'isolate_snapshot_data')
             if (dart_assets / name).is_file()
         }
-        report['installed_catalog'] = inspect_catalog(data / 'Documents/pharmaguide_core.db', args.product)
+        report['installed_catalog'] = inspect_catalog(installed_catalog_path(data), args.product)
         bundle_db = application / 'Frameworks/App.framework/flutter_assets/assets/db/pharmaguide_core.db'
         if bundle_db.exists():
             report['bundled_catalog'] = inspect_catalog(bundle_db, args.product)

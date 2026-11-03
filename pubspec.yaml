@@ -80,6 +80,8 @@ dependencies:
   # On-device Latin OCR for printed UPC/GTIN text. OCR only proposes digits;
   # GtinIdentity remains the sole validator and identity authority.
   google_mlkit_text_recognition: ^0.17.1
+  cryptography: ^2.9.0
+  ffi: ^2.2.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.1
