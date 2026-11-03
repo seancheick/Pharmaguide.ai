@@ -50,6 +50,7 @@ for migration in "$PG_MIGRATION_DEPLOYMENT_DIR"/supabase/migrations/*.sql; do
 done
 suite="$repo_dir/supabase/tests/backend_security"
 psql_admin -q < "$suite/harness.sql"
+python3 "$suite/app_reads.py" "$repo_dir/lib" | psql_admin -q
 psql_admin -q < "$suite/definer_exposure_pin.sql"
 psql_admin -q < "$suite/checks.sql"
 psql_admin -q < "$suite/mutations.sql"
