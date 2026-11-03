@@ -32,6 +32,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_empty_state.dart';
+import 'package:pharmaguide/core/components/pg_hero_section.dart'
+    show kAssessmentIncompleteBody, kAssessmentIncompleteTitle;
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
@@ -690,6 +692,13 @@ class _ProductDetailV2ConnectedState
       hasPregnancyOrBreastfeeding:
           userConditionsSet.contains('pregnancy') ||
           userConditionsSet.contains('lactation'),
+      hasCatalogCaution:
+          _product != null &&
+          catalogProductSafetyStatus(_product!) ==
+              CatalogProductSafetyStatus.caution,
+      hasMaterialSafetyNotes: partitionedWarnings.general.any(
+        isMaterialSafetyNote,
+      ),
       hasProfileInformation:
           profile.ageBracket != null ||
           profile.sex != null ||
@@ -829,6 +838,20 @@ class _ProductDetailV2ConnectedState
                               'try again before relying on these results.',
                           actionLabel: 'Retry',
                           onAction: _retryPersonalizedChecks,
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // The hero shows a finished score, so nothing else says
+                      // the safety checks behind the missing all-clear are
+                      // unfinished (ADR-015).
+                      if (catalogProductHasCompletePublicScore(_product) &&
+                          !catalogProductCanReportNoConcerns(_product)) ...[
+                        const PGSeverityBanner(
+                          key: Key('assessment-incomplete-banner'),
+                          tone: PGBannerTone.info,
+                          title: kAssessmentIncompleteTitle,
+                          body: kAssessmentIncompleteBody,
                         ),
                         const SizedBox(height: V2Spacing.space12),
                       ],

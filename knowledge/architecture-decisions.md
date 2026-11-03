@@ -378,3 +378,33 @@ OS encryption protects a locked phone. It does nothing about two people using th
 - The clinician line (`kLifeStageClinicianNote`) still shows when the all-clear is withheld, because it's advice for the life stage and not a finding about the product.
 
 **Not decided here:** whether to hold back products with no safety signal and no barcode, and whether a product with catalog status `caution` may say "No known concerns". Both questions stay with Sean. Caution keeps its earlier behaviour for now.
+
+---
+
+## ADR-015: A finished assessment decides "No known concerns"
+
+**Date:** 2026-11-03
+**Status:** DECIDED. Implemented in PR #177.
+**Supersedes:** the part of ADR-014 that lets a product whose only gap is evidence review say "No known concerns". The rest of ADR-014 stands: identity gaps, dose gaps, an unknown catalog safety status and failed personal checks withhold the all-clear, `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces, a null `safety_assessment_status` means a catalog older than the column, and the clinician line still shows when the all-clear is withheld. ADR-014's two open questions are answered here.
+
+**Context:** Under ADR-014 the page put "Assessment incomplete" directly above "No known concerns" on evidence-only products: 5,686 products in the next build. Sean reviewed that pairing and the other open questions from PR #177.
+
+**Decision:** Sean's answers, as given:
+
+1. Caution products: "No. Caution products should not say "No known concerns." Use the proposed qualified wording and investigate the 17 informational "avoid" interactions and the critical warning before treating those cases as correct."
+2. Evidence-only products: "No. Don't pair "Assessment incomplete" with "No known concerns." Show the incomplete assessment without the all-clear."
+3. Products with no safety signal and no barcode: "Keep them in search, can't be scanned without a barcode."
+4. A hard interaction with no warning row: "Leave for now. No current product reaches that state; revisit the wording when one does."
+5. The For You card going away on withheld products: "Accept if the incomplete status remains clear elsewhere on the product."
+6. Unknown safety status with no incomplete copy: "Leave for now, but add coverage so an unknown safety status can't accidentally appear as an all-clear."
+
+**What this means in the code:**
+
+- `catalogProductCanReportNoConcerns` needs a finished public assessment, a known catalog safety status, and `safety_assessment_status` of `complete` or null. An unfinished assessment shows as incomplete with no all-clear, whatever the safety checks say.
+- **What `safety_assessment_status` still decides:** it can only withhold, and only on a product whose public assessment is finished. There it keeps the all-clear and the caution wording away when the safety checks are unfinished, and the page then says the assessment is incomplete beside the finished score. It never lifts or hides a block, and it no longer grants anything to an unfinished product. In the next build that reaches 31 products that aren't blocked: 9 with no known concern and 22 with a caution.
+- That note beside a finished score (`assessment-incomplete-banner`) exists for decision 5. Without it those 31 products showed a finished score and nothing saying the checks were unfinished. It reuses the hero's existing strings.
+- A catalog caution with no personal finding reads "Nothing specific to your profile" / "This product has general safety notes." Only a product with a Product Safety card adds "See Product Safety below." A caution product can have only watchlist notes and no such card, and sending the user to a card that isn't there would be wrong.
+- A caution product with an unfinished assessment gets no qualified wording, for the same reason as decision 2: the hero already says incomplete.
+- A concern the checks found always leads, on any of these products.
+
+**Not changed:** the pipeline's `safety_assessment_status` field and its rule (pipeline PR #338), and the page's wording for a hard interaction with no warning row (decision 4).
