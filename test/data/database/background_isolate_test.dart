@@ -21,7 +21,10 @@ void main() {
         isFalse,
         reason: 'NativeDatabase(file) runs SQLite on the UI isolate',
       );
-      expect(source, contains('NativeDatabase.createInBackground(dbFile'));
+      expect(
+        source,
+        matches(RegExp(r'NativeDatabase\.createInBackground\(\s*dbFile')),
+      );
     });
   }
 }
