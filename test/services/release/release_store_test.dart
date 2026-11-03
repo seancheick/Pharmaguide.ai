@@ -1436,6 +1436,74 @@ void main() {
         },
       );
 
+      test(
+        'verified revocations remain effective when the pointer cannot be saved',
+        () async {
+          final s = store();
+          final initial = await boot(s);
+          final obstruction = Directory(
+            p.join(documents.path, 'releases', 'active.json.tmp'),
+          );
+          await obstruction.create();
+          await expectLater(
+            s.recordVerified(
+              sequence: 9,
+              blockedCatalog: {_bundledCatalog},
+              blockedRules: {_bundledRules},
+            ),
+            throwsA(isA<FileSystemException>()),
+          );
+          expect(s.isSettled(initial), isFalse);
+          final withheld = await s.reselect();
+          open.add(withheld);
+          await expectScoreWithheld(withheld);
+          expect(withheld.rulesWithheld, isTrue);
+          expect(withheld.rules, isNull);
+          await obstruction.delete();
+          await s.recordVerified(
+            sequence: 9,
+            blockedCatalog: {_bundledCatalog},
+            blockedRules: {_bundledRules},
+          );
+          await expectScoreWithheld(await boot(store()));
+        },
+      );
+
+      test(
+        'a failed scoreless preparation removes its assembly in the same session',
+        () async {
+          var failPreparation = false;
+          final s = store(
+            onStep: (step) async {
+              if (failPreparation && step == ReleaseStep.prepare) {
+                throw const FileSystemException(
+                  'No space left on device',
+                  '',
+                  OSError('disk full', 28),
+                );
+              }
+            },
+          );
+          await boot(s);
+          await block(s, catalog: {_bundledCatalog});
+          failPreparation = true;
+          final withheld = await s.reselect();
+          open.add(withheld);
+          await expectScoreWithheld(withheld);
+          final leftovers = Directory(p.join(documents.path, 'releases'))
+              .listSync(recursive: true)
+              .whereType<Directory>()
+              .where((d) => p.basename(d.path).startsWith('assembly-'))
+              .toList();
+          expect(
+            leftovers,
+            isEmpty,
+            reason:
+                'a failed copy must not consume space until the next launch',
+          );
+        },
+      );
+
       for (final hasRules in [false, true]) {
         test('disk-full withholding protects every read and relaunch '
             '(rules=$hasRules)', () async {

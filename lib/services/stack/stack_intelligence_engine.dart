@@ -11,6 +11,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/synergy_result.dart' as core_models;
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
@@ -63,6 +64,9 @@ class StackIntelligenceEngine {
     required RecalledIngredientsReport recalledReport,
     required SynergyReport synergyReport,
     List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+    List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
+        const [],
+    bool alertChecksIncomplete = false,
   }) {
     return StackHealthSnapshot(
       intelligence: diagnoseFromReports(
@@ -71,14 +75,17 @@ class StackIntelligenceEngine {
         recalledReport: recalledReport,
         synergyReport: synergyReport,
         doseThresholdAlerts: doseThresholdAlerts,
+        regulatorySafetyAlerts: regulatorySafetyAlerts,
+        alertChecksIncomplete: alertChecksIncomplete,
       ),
       reviewSignals: List<ClinicalSignal>.unmodifiable(
-        orderedSignalsFrom(
-          safetyReport,
+        allClinicalSignalsFrom(
+          report: safetyReport,
           doseThresholdAlerts: doseThresholdAlerts,
+          regulatorySafetyAlerts: regulatorySafetyAlerts,
         ),
       ),
-      checksIncomplete: safetyReport.checksIncomplete,
+      checksIncomplete: safetyReport.checksIncomplete || alertChecksIncomplete,
       coverageIncomplete: safetyReport.coverageIncomplete,
       catalogProductSkipped: safetyReport.catalogProductSkipped,
       limitedDataProducts: safetyReport.limitedDataProducts,
@@ -97,6 +104,9 @@ class StackIntelligenceEngine {
     required RecalledIngredientsReport recalledReport,
     required SynergyReport synergyReport,
     List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+    List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
+        const [],
+    bool alertChecksIncomplete = false,
   }) {
     final safetyScore = const StackSafetyScorer().compute(
       issues: _interactionIssuesForScore(safetyReport),
@@ -110,6 +120,8 @@ class StackIntelligenceEngine {
       synergyReport: synergyReport,
       qualityScore: safetyScore.score,
       doseThresholdAlerts: doseThresholdAlerts,
+      regulatorySafetyAlerts: regulatorySafetyAlerts,
+      alertChecksIncomplete: alertChecksIncomplete,
     );
   }
 
@@ -131,12 +143,16 @@ class StackIntelligenceEngine {
     required SynergyReport synergyReport,
     int? qualityScore,
     List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+    List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
+        const [],
+    bool alertChecksIncomplete = false,
   }) {
     final hasBannedIngredient = recalledReport.violations.any(
       (violation) => violation.isBannedSubstance,
     );
     final hasRecalledIngredient = !recalledReport.isEmpty;
     final analysisIncomplete =
+        alertChecksIncomplete ||
         safetyReport.checksIncomplete ||
         safetyReport.coverageIncomplete ||
         recalledReport.incomplete ||
@@ -148,7 +164,15 @@ class StackIntelligenceEngine {
       ...safetyReport.stackInteractions,
     ];
 
+    final regulatorySignals = [
+      for (final match in regulatorySafetyAlerts)
+        ClinicalSignal.fromRegulatorySafety(match.alert, dsldId: match.dsldId),
+    ];
+
     int countBy(Severity s) =>
+        regulatorySignals
+            .where((signal) => signal.clinicalSeverity == s)
+            .length +
         allInteractions.where((i) => i.severity == s).length +
         safetyReport.medicationProfileWarnings
             .where((warning) => warning.severity == s)
@@ -170,8 +194,17 @@ class StackIntelligenceEngine {
     final monitorCount =
         countBy(Severity.monitor) + doseCountBy(Severity.monitor);
     final hasContraindicatedInteraction = contraindicatedCount > 0;
+    // Recall/ban signals still drive the tier, but are not interactions in
+    // consumer summaries. Their canonical adapter maps to avoid or caution.
+    final nonInteractionAlertCount = regulatorySafetyAlerts
+        .where((match) => match.alert.interaction == null)
+        .length;
     final interactionCount =
-        contraindicatedCount + avoidCount + cautionCount + monitorCount;
+        contraindicatedCount +
+        avoidCount +
+        cautionCount +
+        monitorCount -
+        nonInteractionAlertCount;
 
     final nutrientWarningCount =
         safetyReport.nutrientStatuses.where((n) => n.shouldWarn).length +
@@ -194,6 +227,7 @@ class StackIntelligenceEngine {
       safetyReport: safetyReport,
       recalledReport: recalledReport,
       doseThresholdAlerts: doseThresholdAlerts,
+      regulatorySafetyAlerts: regulatorySafetyAlerts,
     );
 
     return StackIntelligence(
@@ -214,6 +248,7 @@ class StackIntelligenceEngine {
     required StackSafetyReport safetyReport,
     required RecalledIngredientsReport recalledReport,
     required List<StackDoseThresholdAlert> doseThresholdAlerts,
+    required List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts,
   }) {
     final out = <StackIssue>[];
 
@@ -226,9 +261,10 @@ class StackIntelligenceEngine {
     // excluded upstream. The engine READS the envelope's ordering and each
     // payload's authored severity/copy — it never re-derives severity,
     // disposition, or medical conclusions.
-    for (final signal in orderedSignalsFrom(
-      safetyReport,
+    for (final signal in allClinicalSignalsFrom(
+      report: safetyReport,
       doseThresholdAlerts: doseThresholdAlerts,
+      regulatorySafetyAlerts: regulatorySafetyAlerts,
     )) {
       switch (signal.payload) {
         case InteractionPayload(:final result):
@@ -272,9 +308,12 @@ class StackIntelligenceEngine {
           // Timing separations are not wired into the aggregator until the unified Clinical Guidance work lands, so this cannot arrive yet. The adapter exists now on purpose: it is the shape the rule audit is written against. Asserted unreachable by clinical_signal_timing_adapter_test.dart.
           continue;
         case RegulatorySafetyPayload():
-          // Regulatory safety alerts are not part of Stack Health until the
-          // regulatory producer is passed into this engine.
-          continue;
+          out.add(
+            StackIssue(
+              severity: signal.clinicalSeverity,
+              headline: signal.body,
+            ),
+          );
       }
     }
 

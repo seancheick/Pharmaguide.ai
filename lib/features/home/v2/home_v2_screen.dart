@@ -504,7 +504,9 @@ class _StackHealthCard extends ConsumerWidget {
     final healthSnapshot = healthSnapshotAsync.asData?.value;
     final intelligence = healthSnapshot?.intelligence;
     final status = intelligence?.tier.healthLabel;
-    final isAnalyzing = healthSnapshotAsync.isLoading;
+    // A dependency reload has no result to show yet, and that dependency may be
+    // the stack itself. Only a refresh keeps the verified one.
+    final isAnalyzing = healthSnapshotAsync.isLoading && healthSnapshot == null;
     final hasError = healthSnapshotAsync.hasError;
     final needsMoreInfo =
         hasRealData && intelligence?.tier == StackTier.incomplete;
@@ -697,7 +699,9 @@ class _StackHealthCard extends ConsumerWidget {
                   medicationCount: medicationLabel,
                   safetySignalCount: safetySignalCount,
                   safetyCheckIncomplete:
-                      hasError || (intelligence?.analysisIncomplete ?? false),
+                      isAnalyzing ||
+                      hasError ||
+                      (intelligence?.analysisIncomplete ?? false),
                 ),
               ),
               // CTA footer.

@@ -523,6 +523,28 @@ void main() {
     List<String> ids(SafetyAlertRelease release) =>
         release.alerts.map((alert) => alert.alertId).toList()..sort();
 
+    test(
+      'a failed extended fetch keeps the verified copy of the same release usable',
+      () async {
+        Object? superset = _feedBytes;
+        Object? base = _baseBytes;
+        final repository = SafetyAlertRepository(
+          client: _client(() => base, extended: () => superset),
+          preferences: _MemoryPreferences(),
+        );
+        final verified = await repository.loadCurrent();
+        superset = null;
+        final retained = await repository.loadCurrent();
+        expect(ids(retained), ids(verified));
+        expect(retained.neverVerified, isFalse);
+        base = null;
+        final offline = await repository.loadCurrent();
+        expect(ids(offline), ids(verified));
+        expect(offline.neverVerified, isFalse);
+        expect(offline.isComplete, isFalse);
+      },
+    );
+
     test('this build reads every alert when the release names it', () async {
       final release = await SafetyAlertRepository(
         client: _client(() => _baseBytes, extended: () => _feedBytes),
@@ -559,6 +581,24 @@ void main() {
       expect(release.isComplete, isFalse);
     });
 
+    test(
+      'an unavailable extended feed stays unverified offline without held rules',
+      () async {
+        Object? base = _baseBytes;
+        final repository = SafetyAlertRepository(
+          client: _client(() => base, extended: () => null),
+          preferences: _MemoryPreferences(),
+        );
+        final partial = await repository.loadCurrent();
+        expect(partial.neverVerified, isTrue);
+        base = null;
+        final offline = await repository.loadCurrent();
+        expect(ids(offline), ids(partial));
+        expect(offline.neverVerified, isTrue);
+        expect(offline.isComplete, isFalse);
+      },
+    );
+
     test('tampered bytes count as unavailable', () async {
       final release = await SafetyAlertRepository(
         client: _client(() => _baseBytes, extended: () => utf8.encode('{}')),
@@ -586,8 +626,16 @@ void main() {
         'through a second failure too', () async {
       Object? superset = _feedBytes;
       Object? base = _baseBytes;
+      final extendedMetadata = {
+        'path': _extendedPath,
+        'checksum': 'sha256:${sha256.convert(_feedBytes)}',
+      };
       final repository = SafetyAlertRepository(
-        client: _client(() => base, extended: () => superset),
+        client: _client(
+          () => base,
+          extended: () => superset,
+          manifest: {'extended_feed': extendedMetadata},
+        ),
         preferences: _MemoryPreferences(),
       );
       await repository.loadCurrent();
@@ -600,10 +648,17 @@ void main() {
           ],
         }),
       );
+      // A changed published superset has a different content hash; the old
+      // verified bytes cannot answer for this newly announced release.
+      extendedMetadata['checksum'] =
+          'sha256:${sha256.convert(utf8.encode(jsonEncode({
+            'alerts': [_feedAlert('ingredient_ban')..['alert_id'] = 'SA_9999_0009', ...(jsonDecode(utf8.decode(_feedBytes))['alerts'] as List).where((row) => row['event_type'] == 'interaction_rule')],
+          })))}';
       for (var i = 0; i < 2; i++) {
         final release = await repository.loadCurrent();
         expect(ids(release), ['SA_9999_0001', 'SA_9999_0003', 'SA_9999_0009']);
         expect(release.isComplete, isFalse);
+        expect(release.neverVerified, isTrue);
       }
     });
 
