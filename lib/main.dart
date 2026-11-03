@@ -758,8 +758,8 @@ class _UserDataUnavailableScreen extends StatelessWidget {
             eyebrow: 'Your health data',
             headline: "Your health data didn't open",
             body:
-                'Nothing on this phone has changed. Please try again. Until it '
-                'opens, PharmaGuide can\'t check your medications.',
+                'Please try again. Until it opens, PharmaGuide can\'t check '
+                'your medications.',
             primaryLabel: 'Try again',
             primaryIcon: Icons.refresh_rounded,
             onPrimaryTap: onRetry,

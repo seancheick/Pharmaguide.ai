@@ -20,6 +20,8 @@ import 'package:pharmaguide/data/repositories/reference_data_repository.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/features/compare/compare_screen.dart';
+import 'package:pharmaguide/features/history/health_history_screen.dart';
+import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/medications/v2/medication_entry_v2_screen.dart';
 import 'package:pharmaguide/features/product_detail/widgets/safety_check_sheet.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -42,6 +44,11 @@ enum _Rules { unset, failing }
 
 const _productA = 'withheld-a';
 const _productB = 'withheld-b';
+
+const _notChecked = "These two weren't checked together";
+const _notCheckedBody =
+    "This isn't an all-clear. If you have questions about taking them "
+    "together, it's worth a conversation with your doctor or pharmacist.";
 
 /// Anything that could read as a clean result.
 final _clean = RegExp(
@@ -118,6 +125,7 @@ Future<void> _pumpStack(
   required CoreDatabase core,
   required List<UserStacksLocalData> stack,
   required List<Override> overrides,
+  int segment = 0,
 }) async {
   final userDb = UserDatabase.memory();
   addTearDown(userDb.close);
@@ -127,7 +135,8 @@ Future<void> _pumpStack(
     routes: [
       GoRoute(
         path: Routes.stack,
-        builder: (_, __) => const StackV2Screen(showNavBar: false),
+        builder: (_, __) =>
+            StackV2Screen(showNavBar: false, initialSegment: segment),
       ),
     ],
   );
@@ -153,6 +162,41 @@ Future<void> _pumpStack(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 150));
+}
+
+Future<void> _pumpHome(
+  WidgetTester tester, {
+  required CoreDatabase core,
+  required List<UserStacksLocalData> stack,
+  required List<Override> overrides,
+  bool withScan = false,
+}) async {
+  final userDb = UserDatabase.memory();
+  addTearDown(userDb.close);
+  addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+  if (withScan) await userDb.recordScanEvent(dsldId: _productA);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        coreDatabaseProvider.overrideWithValue(core),
+        userDatabaseProvider.overrideWithValue(userDb),
+        activeStackProvider.overrideWith((ref) async => stack),
+        synergyReportProvider.overrideWith(
+          (ref) async => SynergyReport.empty(),
+        ),
+        recalledIngredientsReportProvider.overrideWith(
+          (ref) async => RecalledIngredientsReport.empty(),
+        ),
+        stackDoseThresholdAlertsProvider.overrideWith((ref) async => const []),
+        profileProvider.overrideWith((ref) => ProfileNotifier()),
+        ...overrides,
+      ],
+      child: const MaterialApp(home: HomeV2Screen(showNavBar: false)),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pump(const Duration(milliseconds: 300));
 }
 
 class _EmptyRulesRepository extends ReferenceDataRepository {
@@ -230,7 +274,11 @@ void main() {
           await tester.pumpAndSettle();
 
           expect(tester.takeException(), isNull);
-          expect(find.text('Database unavailable'), findsOneWidget);
+          // Trying again can't bring withheld rules back.
+          expect(find.text('Database unavailable'), findsNothing);
+          expect(find.textContaining('Try again'), findsNothing);
+          expect(find.text(_notChecked), findsOneWidget);
+          expect(find.text(_notCheckedBody), findsOneWidget);
           expect(find.text(kRulesWithheldNotice), findsOneWidget);
           _expectNoCleanResult(tester);
         });
@@ -290,6 +338,75 @@ void main() {
             _expectNoCleanResult(tester);
           });
         }
+
+        for (final segment in [1, 2]) {
+          testWidgets('stack tab $segment: says so, with no clean result', (
+            tester,
+          ) async {
+            final core = await _catalog(tester);
+            await _pumpStack(
+              tester,
+              core: core,
+              stack: [_stackRow(_productA, 'Magnesium One')],
+              overrides: _rulesOverrides(rules, null),
+              segment: segment,
+            );
+            await tester.pump(const Duration(milliseconds: 300));
+
+            expect(tester.takeException(), isNull);
+            expect(find.text(kRulesWithheldNotice), findsOneWidget);
+            _expectNoCleanResult(tester);
+          });
+        }
+
+        for (final (name, stack) in [
+          ('empty stack', const <UserStacksLocalData>[]),
+          ('a stack', [_stackRow(_productA, 'Magnesium One')]),
+        ]) {
+          testWidgets('Home ($name): says so, with no clean result', (
+            tester,
+          ) async {
+            final core = await _catalog(tester);
+            await _pumpHome(
+              tester,
+              core: core,
+              stack: stack,
+              overrides: _rulesOverrides(rules, null),
+            );
+
+            expect(tester.takeException(), isNull);
+            expect(find.text(kRulesWithheldNotice), findsOneWidget);
+            _expectNoCleanResult(tester);
+          });
+        }
+
+        testWidgets('Health History: no clean result', (tester) async {
+          final core = await _catalog(tester);
+          final userDb = UserDatabase.memory();
+          addTearDown(userDb.close);
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                coreDatabaseProvider.overrideWithValue(core),
+                userDatabaseProvider.overrideWithValue(userDb),
+                activeStackProvider.overrideWith(
+                  (ref) async => [_stackRow(_productA, 'Magnesium One')],
+                ),
+                ..._rulesOverrides(rules, null),
+              ],
+              child: const MaterialApp(home: HealthHistoryScreen()),
+            ),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+
+          expect(tester.takeException(), isNull);
+          _expectNoCleanResult(tester);
+
+          // Its database streams close on a zero timer.
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 1));
+        });
 
         for (final (name, stack) in [
           ('empty stack', const <UserStacksLocalData>[]),
@@ -456,6 +573,27 @@ void main() {
   });
 
   group('quality scores withheld', () {
+    for (final segment in [1, 2]) {
+      testWidgets('stack tab $segment says so', (tester) async {
+        final core = await _catalog(tester, qualityWithheld: true);
+        await _pumpStack(
+          tester,
+          core: core,
+          stack: [_stackRow(_productA, 'Magnesium One')],
+          segment: segment,
+          overrides: [
+            stackSafetyReportProvider.overrideWith(
+              (ref) async => const StackSafetyReport(),
+            ),
+          ],
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(tester.takeException(), isNull);
+        expect(find.text(kQualityWithheldNotice), findsOneWidget);
+      });
+    }
+
     Future<void> pumpSearch(WidgetTester tester, CoreDatabase core) async {
       addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
       await tester.pumpWidget(
@@ -508,12 +646,50 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
 
+    Future<void> pumpHomeScans(WidgetTester tester, CoreDatabase core) async {
+      await _pumpHome(
+        tester,
+        core: core,
+        stack: const [],
+        withScan: true,
+        overrides: [
+          stackSafetyReportProvider.overrideWith(
+            (ref) async => const StackSafetyReport(),
+          ),
+        ],
+      );
+    }
+
+    Future<void> pumpQuickCheck(WidgetTester tester, CoreDatabase core) async {
+      final rulesDb = InteractionDatabase.memory();
+      addTearDown(rulesDb.close);
+      addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(core),
+            interactionDatabaseProvider.overrideWithValue(rulesDb),
+            rxNormApiServiceProvider.overrideWithValue(
+              RxNormApiService(httpGet: _rxNormHttp, offlineDb: rulesDb),
+            ),
+          ],
+          child: const MaterialApp(home: QuickCheckV2Screen()),
+        ),
+      );
+      await tester.pump();
+      await tester.enterText(find.byType(TextField).first, 'magnesium');
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+    }
+
     Finder score() => find.textContaining('86', skipOffstage: false);
 
     for (final (screen, pump) in [
       ('search rows', pumpSearch),
       ('stack rows', pumpStackRows),
       ('Compare', pumpCompare),
+      ('Home recent scans', pumpHomeScans),
+      ('Quick Check rows', pumpQuickCheck),
     ]) {
       testWidgets('$screen: says so, and shows no score', (tester) async {
         final core = await _catalog(tester, qualityWithheld: true);

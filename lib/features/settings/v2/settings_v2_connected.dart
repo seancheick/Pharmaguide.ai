@@ -31,8 +31,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 String updateCheckLine(UpdateCheckOutcome outcome) => switch (outcome) {
   UpdateCheckOutcome.upToDate => 'You’re up to date.',
   UpdateCheckOutcome.updateReady => 'An update is ready and now in use.',
-  UpdateCheckOutcome.couldNotCheck =>
-    'Couldn’t check right now. Nothing on this device has changed.',
+  UpdateCheckOutcome.couldNotCheck => 'Couldn’t check right now.',
   UpdateCheckOutcome.deviceChanged =>
     'PharmaGuide changed the data used on this device.',
 };

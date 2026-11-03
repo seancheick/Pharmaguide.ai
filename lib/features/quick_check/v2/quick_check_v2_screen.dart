@@ -639,6 +639,9 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
                     const RulesWithheldNotice(
                       margin: EdgeInsets.only(bottom: V2Spacing.space24),
                     ),
+                    const QualityWithheldNotice(
+                      margin: EdgeInsets.only(bottom: V2Spacing.space24),
+                    ),
                     _ProductSearchSection(
                       eyebrow: 'First product',
                       icon: Icons.looks_one_outlined,
@@ -688,7 +691,17 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
                       ),
                       const SizedBox(height: V2Spacing.space12),
                     ],
-                    if (_checkError)
+                    if (_checkError && interactionRulesUnavailable(ref))
+                      _StateCard(
+                        icon: Icons.help_outline_rounded,
+                        tint: context.v2.monitor,
+                        headline: "These two weren't checked together",
+                        body:
+                            "This isn't an all-clear. If you have questions "
+                            "about taking them together, it's worth a "
+                            'conversation with your doctor or pharmacist.',
+                      )
+                    else if (_checkError)
                       _StateCard(
                         icon: Icons.cloud_off_rounded,
                         tint: context.v2.caution,

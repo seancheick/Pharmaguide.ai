@@ -150,35 +150,46 @@ class _StackV2ScreenState extends State<StackV2Screen> {
           segment: _segment,
           onSegmentChanged: (i) => setState(() => _segment = i),
         ),
-        body: AnimatedSwitcher(
-          duration: V2Motion.base,
-          switchInCurve: V2Motion.emphasized,
-          switchOutCurve: V2Motion.smooth,
-          transitionBuilder: (child, animation) {
-            // Fade + tiny lift so the panes feel like they slide in,
-            // not just hard-cut. Stays within the perf budget — no
-            // gradient/blur animation.
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.02),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
+        body: Column(
+          children: [
+            // Above the tabs, since all three show products or totals.
+            const RulesWithheldNotice(margin: _stackNoticeMargin),
+            const QualityWithheldNotice(margin: _stackNoticeMargin),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: V2Motion.base,
+                switchInCurve: V2Motion.emphasized,
+                switchOutCurve: V2Motion.smooth,
+                transitionBuilder: (child, animation) {
+                  // Fade + tiny lift so the panes feel like they slide in,
+                  // not just hard-cut. Stays within the perf budget — no
+                  // gradient/blur animation.
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.02),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey(_segment),
+                  child: switch (_segment) {
+                    0 => _StackTab(
+                      showPreviewFixtures: widget.showPreviewFixtures,
+                    ),
+                    1 => _NutrientsTab(
+                      showPreviewFixtures: widget.showPreviewFixtures,
+                    ),
+                    _ => const _WishlistTab(),
+                  },
+                ),
               ),
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey(_segment),
-            child: switch (_segment) {
-              0 => _StackTab(showPreviewFixtures: widget.showPreviewFixtures),
-              1 => _NutrientsTab(
-                showPreviewFixtures: widget.showPreviewFixtures,
-              ),
-              _ => const _WishlistTab(),
-            },
-          ),
+            ),
+          ],
         ),
         bottomNavigationBar: widget.showNavBar
             ? PGFrostedNavBar(
@@ -629,8 +640,6 @@ class _StackTabState extends ConsumerState<_StackTab> {
           // to SizedBox.shrink when there's nothing to surface, so
           // these silently disappear on a clean stack.
           const _RecallAlertSlot(),
-          const RulesWithheldNotice(margin: _stackNoticeMargin),
-          const QualityWithheldNotice(margin: _stackNoticeMargin),
           const _StackSafetyBannerSlot(),
           const _ProfileNudgeSlot(),
           const SizedBox(height: V2Spacing.space24),

@@ -172,7 +172,7 @@ const _rulesNotice =
 
 Future<void> _pumpConnectedScreen(
   WidgetTester tester, {
-  required Map<String, dynamic> detailBlob,
+  required Map<String, dynamic>? detailBlob,
   String? initialSection = 'ingredients',
   bool fitFails = false,
   Completer<void>? fitGate,
@@ -632,6 +632,40 @@ void main() {
             // Trying again can't bring withheld rules back.
             expect(find.text('Retry'), findsNothing);
           });
+        }
+      }
+
+      // Offline is the detail blob not arriving.
+      for (final (network, offlineBlob) in [
+        ('online', blob),
+        ('offline', null),
+      ]) {
+        for (final profiled in [true, false]) {
+          for (final (stackName, stack) in [
+            ('empty stack', const <UserStacksLocalData>[]),
+            ('stack', [supplementRow]),
+          ]) {
+            testWidgets(
+              '$network, ${profiled ? 'profile' : 'no profile'}, $stackName: '
+              'says so, and is never an all-clear',
+              (tester) async {
+                await _pumpConnectedScreen(
+                  tester,
+                  initialSection: null,
+                  detailBlob: offlineBlob,
+                  profiled: profiled,
+                  fitResult: cleanFit,
+                  realWarnings: true,
+                  rules: _Rules.unset,
+                  stack: stack,
+                );
+
+                expect(find.text('No known concerns'), findsNothing);
+                expect(find.text(_rulesNotice), findsOneWidget);
+                expect(tester.takeException(), isNull);
+              },
+            );
+          }
         }
       }
 

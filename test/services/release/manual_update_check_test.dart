@@ -15,6 +15,7 @@ import 'package:path/path.dart' as p;
 import 'package:pharmaguide/app.dart' show scaffoldMessengerKey;
 import 'package:pharmaguide/core/components/pg_settings_tile.dart';
 import 'package:pharmaguide/core/navigation/launch_link_buffer.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
@@ -39,8 +40,7 @@ const _newerCatalog = '2026.02.01.000000';
 const _tile = 'Check for updates';
 const _upToDate = 'You’re up to date.';
 const _updateReady = 'An update is ready and now in use.';
-const _couldNotCheck =
-    'Couldn’t check right now. Nothing on this device has changed.';
+const _couldNotCheck = 'Couldn’t check right now.';
 const _deviceChanged = 'PharmaGuide changed the data used on this device.';
 
 class _Publisher {
@@ -199,6 +199,22 @@ void main() {
   late CoreDatabase core;
   late InteractionDatabase? rules;
 
+  /// A launch's own guard. The last one's database closed with its app.
+  Future<AccountSwitchGuard> openAccount() async {
+    final root = Directory(p.join(workspace.path, 'account'))
+      ..createSync(recursive: true);
+    final opened = AccountSwitchGuard(
+      ownerStore: AccountOwnerStore(),
+      storage: AccountStorage(
+        supportDirectory: () async => root,
+        documentsDirectory: () async => root,
+      ),
+      openDatabase: (path) async => UserDatabase.open(path),
+    );
+    await opened.boot(sessionUid: null);
+    return opened;
+  }
+
   setUp(() async {
     if (publisher.server == null) await publisher.start();
     workspace = await Directory.systemTemp.createTemp('manual-update-check');
@@ -219,16 +235,7 @@ void main() {
         }
       },
     );
-    final root = Directory(p.join(workspace.path, 'account'))..createSync();
-    guard = AccountSwitchGuard(
-      ownerStore: AccountOwnerStore(),
-      storage: AccountStorage(
-        supportDirectory: () async => root,
-        documentsDirectory: () async => root,
-      ),
-      openDatabase: (path) async => UserDatabase.open(path),
-    );
-    await guard.boot(sessionUid: null);
+    guard = await openAccount();
     mounts = 0;
     publisher
       ..row = null
@@ -249,7 +256,12 @@ void main() {
     expect(done(), isTrue, reason: 'timed out waiting');
   }
 
-  Future<void> boot(WidgetTester tester, {bool supabaseReady = true}) async {
+  Future<void> boot(
+    WidgetTester tester, {
+    bool supabaseReady = true,
+    Widget? app,
+    ReleaseStore? relaunchedStore,
+  }) async {
     // Settings is a long list; the tile has to be built to be tapped.
     tester.view.physicalSize = const Size(1200, 6000);
     addTearDown(tester.view.resetPhysicalSize);
@@ -262,18 +274,22 @@ void main() {
           repository: AppPreferencesRepository(_MemoryStore()),
         ),
         launchLinks: LaunchLinkBuffer(),
-        releaseStoreForTesting: store,
-        appForTesting: _App(
-          userDb: guard.database!,
-          onMount: (c, r) {
-            mounts++;
-            core = c;
-            rules = r;
-          },
-        ),
+        releaseStoreForTesting: relaunchedStore ?? store,
+        appForTesting:
+            app ??
+            _App(
+              userDb: guard.database!,
+              onMount: (c, r) {
+                mounts++;
+                core = c;
+                rules = r;
+              },
+            ),
       ),
     );
-    await settleReal(tester, () => tester.any(find.text('Offline mode')));
+    if (app == null) {
+      await settleReal(tester, () => tester.any(find.text('Offline mode')));
+    }
   }
 
   /// Taps the real tile on the real event loop, and waits for its line.
@@ -517,6 +533,76 @@ void main() {
     },
   );
 
+  group('the notices come back on a relaunch with no network', () {
+    Future<void> relaunchOffline(
+      WidgetTester tester, {
+      required Set<String> blockedCatalog,
+      required Set<String> blockedRules,
+    }) async {
+      await boot(tester);
+      await tester.runAsync(() async {
+        await store.recordVerified(
+          sequence: 1,
+          blockedCatalog: blockedCatalog,
+          blockedRules: blockedRules,
+        );
+        await publisher.goOffline();
+      });
+      await checkForUpdates(tester);
+      expect(find.text(_deviceChanged), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.runAsync(() async => guard = await openAccount());
+
+      // Sean's line has gone with the old screen. A fresh store is what a
+      // relaunch opens from the same files.
+      await boot(
+        tester,
+        app: const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [RulesWithheldNotice(), QualityWithheldNotice()],
+            ),
+          ),
+        ),
+        relaunchedStore: ReleaseStore(
+          documents: store.documents,
+          bundle: bundle,
+        ),
+      );
+      await settleReal(
+        tester,
+        () =>
+            tester.any(find.text(kRulesWithheldNotice)) ||
+            tester.any(find.text(kQualityWithheldNotice)),
+      );
+    }
+
+    testWidgets('rules withheld', (tester) async {
+      await relaunchOffline(
+        tester,
+        blockedCatalog: const {},
+        blockedRules: const {'1.0.15'},
+      );
+
+      expect(find.text(kRulesWithheldNotice), findsOneWidget);
+      expect(find.text(kQualityWithheldNotice), findsNothing);
+      expect(find.text(_deviceChanged), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('scores withheld', (tester) async {
+      await relaunchOffline(
+        tester,
+        blockedCatalog: const {_bundledCatalog},
+        blockedRules: const {},
+      );
+
+      expect(find.text(kQualityWithheldNotice), findsOneWidget);
+      expect(find.text(kRulesWithheldNotice), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
+
   testWidgets('with no backend this session, Settings offers no check', (
     tester,
   ) async {
@@ -535,7 +621,7 @@ void main() {
         isNot(
           matches(
             RegExp(
-              'stale|outdated|out of date|old|unconfirmed|'
+              'stale|outdated|out of date|old|unconfirmed|nothing|'
               r'stop|avoid|do not|\d{4}',
               caseSensitive: false,
             ),
