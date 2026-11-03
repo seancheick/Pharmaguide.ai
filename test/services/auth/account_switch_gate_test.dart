@@ -914,6 +914,13 @@ void main() {
         'a favorite': (db) => db.addFavorite('123'),
         'a scan': (db) => db.recordScanEvent(dsldId: '123', upcSku: '456'),
         'a history entry': (db) => _addHistoryEvent(db, 'medication'),
+        'a cleared profile with retained personal history': (db) async {
+          await _addHistoryEvent(db, 'profile');
+          await db.customStatement(
+            "UPDATE health_history_events SET previous_value_json = "
+            "'{\"conditions\":[\"pregnancy\"]}' WHERE subject_type = 'profile'",
+          );
+        },
       };
       personal.forEach((name, add) {
         test('$name is something to ask about', () async {

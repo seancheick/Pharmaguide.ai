@@ -177,8 +177,9 @@ class UserDatabase extends _$UserDatabase {
   }
 
   /// Whether a person has put anything here themselves. A blank profile row, and
-  /// the history entry saving one writes, say nothing about anyone. Neither do
-  /// the catalog caches or the failed-scan list, which holds only barcodes.
+  /// an empty snapshot saving one writes, say nothing about anyone. Retained
+  /// personal values in history still need consent even after a profile clears.
+  /// Catalog caches and failed scans, which hold only barcodes, do not count.
   Future<bool> hasPersonalData() async {
     final row = await customSelect('''
       SELECT EXISTS(
@@ -196,7 +197,13 @@ class UserDatabase extends _$UserDatabase {
           OR EXISTS(SELECT 1 FROM user_scan_history)
           OR EXISTS(
                SELECT 1 FROM health_history_events
-               WHERE subject_type != 'profile') AS found
+               WHERE subject_type != 'profile'
+                  OR EXISTS(
+                       SELECT 1 FROM json_tree(previous_value_json)
+                       WHERE atom IS NOT NULL AND CAST(atom AS TEXT) != '')
+                  OR EXISTS(
+                       SELECT 1 FROM json_tree(current_value_json)
+                       WHERE atom IS NOT NULL AND CAST(atom AS TEXT) != '')) AS found
     ''').getSingle();
     return row.read<bool>('found');
   }
