@@ -1436,6 +1436,171 @@ void main() {
         },
       );
 
+      for (final hasRules in [false, true]) {
+        test('disk-full withholding protects every read and relaunch '
+            '(rules=$hasRules)', () async {
+          var cannotAssemble = false;
+          Future<void> failCopy(ReleaseStep step) async {
+            if (cannotAssemble && step == ReleaseStep.assemble) {
+              throw const FileSystemException(
+                'No space left on device',
+                '',
+                OSError('disk full', 28),
+              );
+            }
+          }
+
+          final chosenBundle = hasRules ? bundle : brokenRules;
+          final s = store(withBundle: chosenBundle, onStep: failCopy);
+          final initial = await boot(s);
+          final scoredPath = p.join(
+            documents.path,
+            'releases',
+            initial.record.id,
+            'catalog.db',
+          );
+          await block(s, catalog: {_bundledCatalog});
+          cannotAssemble = true;
+
+          final withheld = await s.reselect();
+          open.add(withheld);
+          await expectScoreWithheld(withheld);
+          expect(withheld.core.qualityWithheld, isTrue);
+          expect(s.isSettled(withheld), isTrue);
+          expect(withheld.rules != null, hasRules);
+          final rows = await withheld.core
+              .customSelect(
+                'SELECT rowid, quality_score_v4_100, quality_tier, '
+                'quality_score_status, product_safety_status FROM products_core',
+              )
+              .get();
+          expect(rows.single.data['rowid'], isNotNull);
+          expect(rows.single.data['quality_score_v4_100'], isNull);
+          expect(rows.single.data['quality_tier'], isNull);
+          expect(rows.single.data['quality_score_status'], 'not_scored');
+          expect(rows.single.data['product_safety_status'], 'caution');
+          expect(
+            (await withheld.core.searchProducts(
+              'Fixture',
+            )).single.qualityScoreV4100,
+            isNull,
+          );
+          expect(
+            (await withheld.core.filterProducts()).single.qualityScoreV4100,
+            isNull,
+          );
+
+          // The original file stays intact: withholding is a read boundary,
+          // not an in-place mutation of the only usable catalog.
+          final original = raw.sqlite3.open(scoredPath);
+          try {
+            expect(
+              original
+                  .select(
+                    'SELECT quality_score_v4_100 '
+                    'FROM products_core',
+                  )
+                  .single
+                  .values
+                  .single,
+              88,
+            );
+          } finally {
+            original.close();
+          }
+          final reopened = store(withBundle: chosenBundle, onStep: failCopy);
+          await expectScoreWithheld(await boot(reopened));
+          await block(reopened);
+          final restored = await reopened.reselect();
+          open.add(restored);
+          expect(restored.qualityWithheld, isFalse);
+          expect(
+            (await restored.core.findById(kFixtureProduct))!.qualityScoreV4100,
+            88,
+          );
+        });
+      }
+
+      test(
+        'read projection matches scoreless copy and preserves FTS and bans',
+        () async {
+          final initial = await boot(store());
+          final source = File(
+            p.join(documents.path, 'releases', initial.record.id, 'catalog.db'),
+          );
+          final prepared = File(p.join(workspace.path, 'projection.db'));
+          await source.copy(prepared.path);
+          final setup = raw.sqlite3.open(prepared.path);
+          try {
+            setup.execute("UPDATE products_core SET upc_sku = '012345678905'");
+            setup.execute(
+              'CREATE VIRTUAL TABLE products_fts USING fts5('
+              'product_name, content=products_core, content_rowid=rowid)',
+            );
+            setup.execute(
+              "INSERT INTO products_fts(products_fts) VALUES('rebuild')",
+            );
+          } finally {
+            setup.close();
+          }
+          final projected = CoreDatabase.readOnly(
+            prepared,
+            qualityWithheld: true,
+          );
+          addTearDown(projected.close);
+          expect(
+            (await projected.searchProducts(
+              'Fixture',
+            )).single.qualityScoreV4100,
+            isNull,
+          );
+          final fts = await projected
+              .customSelect(
+                "SELECT p.quality_score_v4_100 FROM products_fts f "
+                "JOIN products_core p ON p.rowid = f.rowid "
+                "WHERE products_fts MATCH 'Fixture'",
+              )
+              .get();
+          expect(fts, hasLength(1));
+          expect(fts.single.data['quality_score_v4_100'], isNull);
+          expect(
+            (await projected.findAllByUpc(
+              '012345678905',
+            )).single.qualityScoreV4100,
+            isNull,
+          );
+          final projectedRow = Map<String, dynamic>.from(
+            (await projected
+                    .customSelect('SELECT * FROM products_core')
+                    .getSingle())
+                .data,
+          )..remove('rowid');
+          final writable = CoreDatabase(prepared);
+          await writable.withholdQualityScores();
+          final copiedRow =
+              (await writable
+                      .customSelect('SELECT * FROM products_core')
+                      .getSingle())
+                  .data;
+          expect(projectedRow, copiedRow);
+          await writable.customStatement(
+            "UPDATE products_core SET "
+            "quality_score_status = 'suppressed_safety', "
+            "quality_assessment_status = 'complete', "
+            "product_safety_status = 'blocked'",
+          );
+          await writable.close();
+          final banned = await projected.findById(kFixtureProduct);
+          expect(banned!.qualityScoreStatus, 'suppressed_safety');
+          expect(banned.qualityAssessmentStatus, 'complete');
+          expect(banned.productSafetyStatus, 'blocked');
+          await expectLater(
+            projected.customStatement('DELETE FROM products_core'),
+            throwsA(anything),
+          );
+        },
+      );
+
       test('withholds the score during a session too', () async {
         final s = store(withBundle: brokenRules);
         await boot(s);

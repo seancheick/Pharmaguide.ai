@@ -249,7 +249,7 @@ class ReleaseGeneration {
   /// stay in their unavailable state and show a specific notice.
   final bool rulesWithheld;
 
-  bool get qualityWithheld => record.qualityWithheld;
+  bool get qualityWithheld => core.qualityWithheld;
 
   Future<void> close() async {
     await core.close();
@@ -507,7 +507,9 @@ class ReleaseStore {
     }
     final core = CoreDatabase.readOnly(
       catalogFile,
-      qualityWithheld: record.qualityWithheld,
+      qualityWithheld:
+          record.qualityWithheld ||
+          _pointer?.blockedCatalog.contains(record.catalogVersion) == true,
     );
     InteractionDatabase? rules;
     try {
@@ -846,7 +848,7 @@ class ReleaseStore {
     final record = generation.record;
     return generation.rulesWithheld ==
             pointer.blockedRules.contains(record.rulesVersion) &&
-        record.qualityWithheld ==
+        generation.qualityWithheld ==
             pointer.blockedCatalog.contains(record.catalogVersion);
   }
 

@@ -538,7 +538,7 @@ void main() {
     },
   );
 
-  testWidgets('a blocked release that cannot be left yet is not "up to date"', (
+  testWidgets('disk-full quality withholding is adopted during a live check', (
     tester,
   ) async {
     await boot(tester);
@@ -560,11 +560,20 @@ void main() {
 
     await checkForUpdates(tester);
 
-    expect(find.text(_couldNotCheck), findsOneWidget);
+    expect(find.text(_deviceChanged), findsOneWidget);
     expect(find.text(_upToDate), findsNothing);
-    expect(store.active!.id, releaseBefore);
-    expect(mounts, 1, reason: 'nothing moved');
-    expect(identical(core, coreBefore), isTrue);
+    expect(
+      store.active!.id,
+      releaseBefore,
+      reason: 'the original file is still the usable catalog',
+    );
+    expect(mounts, 2, reason: 'the app adopted the withheld read boundary');
+    expect(identical(core, coreBefore), isFalse);
+    expect(core.qualityWithheld, isTrue);
+    final current = await tester.runAsync(results);
+    expect(current!['quality_score_v4_100'], isNull);
+    expect(current['quality_tier'], isNull);
+    expect(current['product_safety_status'], 'caution');
     await tester.pumpWidget(const SizedBox());
   });
 

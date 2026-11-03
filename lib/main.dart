@@ -579,10 +579,11 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     if (generation == null || store.isSettled(generation)) return false;
     try {
       final next = await store.reselect();
-      // Nothing could change yet, such as on a full disk. Rebuilding the app
-      // would only reset the screen; the next tick tries again.
+      // Rebuild only when the selected data or assessment availability changed.
+      // A disk-full quality mask can change availability on the same file.
       if (next.record.id == generation.record.id &&
-          next.rulesWithheld == generation.rulesWithheld) {
+          next.rulesWithheld == generation.rulesWithheld &&
+          next.qualityWithheld == generation.qualityWithheld) {
         await next.close();
         return false;
       }
