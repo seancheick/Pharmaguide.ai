@@ -408,15 +408,17 @@ class ClinicalSignal {
       family: SignalFamily.regulatorySafety,
       sourceRuleId: alert.alertId,
       subjectIds: _sortedSubjects([dsldId]),
-      clinicalSeverity: alert.disposition == SafetyAlertDisposition.block
-          ? Severity.avoid
-          : Severity.caution,
+      clinicalSeverity:
+          alert.interaction?.severity ??
+          (alert.disposition == SafetyAlertDisposition.block
+              ? Severity.avoid
+              : Severity.caution),
       consumerDisposition: alert.disposition == SafetyAlertDisposition.block
           ? ConsumerDisposition.block
           : ConsumerDisposition.review,
       evaluationStatus: EvaluationStatus.applicable,
       title: alert.headline,
-      body: '${alert.body}\n\n${alert.action}',
+      body: alert.interactionNotice ?? '${alert.body}\n\n${alert.action}',
       copyId: '${alert.alertId}:${alert.revision}',
       sourceUrls: [alert.sourceUrl.toString()],
       ruleVersion: 'safety_alert:${alert.revision}',

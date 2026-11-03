@@ -20,6 +20,7 @@ import 'package:pharmaguide/features/scanner/scanner_screen.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/services/gtin.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -248,6 +249,7 @@ void main() {
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
           userDatabaseProvider.overrideWithValue(userDb),
+          evaluatorProfileFlagsProvider.overrideWith((ref) async => const {}),
         ],
         child: const MaterialApp(home: ScannerScreen()),
       ),
@@ -316,8 +318,9 @@ void main() {
           GoRoute(path: '/scan', builder: (_, __) => const ScannerScreen()),
           GoRoute(
             path: '/product/:id',
-            builder: (_, state) =>
-                Scaffold(body: Text('Product page ${state.pathParameters['id']}')),
+            builder: (_, state) => Scaffold(
+              body: Text('Product page ${state.pathParameters['id']}'),
+            ),
           ),
           GoRoute(
             path: '/auth',
@@ -330,6 +333,7 @@ void main() {
           overrides: [
             coreDatabaseProvider.overrideWithValue(coreDb),
             userDatabaseProvider.overrideWithValue(userDb),
+            evaluatorProfileFlagsProvider.overrideWith((ref) async => const {}),
           ],
           child: MaterialApp.router(routerConfig: router),
         ),
@@ -386,6 +390,7 @@ void main() {
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
           userDatabaseProvider.overrideWithValue(userDb),
+          evaluatorProfileFlagsProvider.overrideWith((ref) async => const {}),
         ],
         child: const MaterialApp(home: ScannerScreen()),
       ),
