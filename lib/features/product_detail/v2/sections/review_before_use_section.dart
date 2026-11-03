@@ -55,7 +55,8 @@ class ProfileRelevanceSummary {
   final bool needsGoals;
   final bool startExpanded;
 
-  /// Small muted line under an all-clear (see [kLifeStageClinicianNote]).
+  /// Small muted line under an all-clear, and all that shows when the all-clear
+  /// is withheld (see [kLifeStageClinicianNote]).
   final String? footnote;
 
   const ProfileRelevanceSummary({
@@ -84,9 +85,12 @@ class ProfileRelevanceSummary {
     footnote: note,
   );
 
-  /// A defensive low-coverage state remains silent in consumer UI. Catalog
-  /// completeness is enforced by the release gate, not explained here.
-  bool get shouldRender => status != ProfileRelevanceStatus.coverageLimited;
+  bool get isWithheld => status == ProfileRelevanceStatus.coverageLimited;
+
+  /// A withheld all-clear remains silent in consumer UI, except for the
+  /// clinician line. Catalog completeness is enforced by the release gate, not
+  /// explained here.
+  bool get shouldRender => !isWithheld || footnote != null;
 }
 
 ProfileRelevanceSummary buildProfileRelevanceSummary({
@@ -132,7 +136,7 @@ ProfileRelevanceSummary buildProfileRelevanceSummary({
     onTapCitations: onTapCitations,
   );
   return hasPregnancyOrBreastfeeding &&
-          summary.headline == kNoProfileConcernsHeadline
+          (summary.headline == kNoProfileConcernsHeadline || summary.isWithheld)
       ? summary.withFootnote(kLifeStageClinicianNote)
       : summary;
 }
@@ -389,6 +393,12 @@ class ProfileRelevanceSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!summary.shouldRender) {
       return const SizedBox.shrink();
+    }
+    if (summary.isWithheld) {
+      return Text(
+        summary.footnote!,
+        style: V2Typography.caption(color: context.v2.fgMuted),
+      );
     }
 
     final actionLabel = summary.profileIncomplete

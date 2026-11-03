@@ -158,6 +158,11 @@ bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
 /// That sentence claims the data behind it was finished. An unfinished
 /// assessment or an unknown catalog safety status keeps the incomplete state;
 /// concerns the checks did find still show.
+///
+/// Interim: an unfinished quality assessment stands in for unfinished safety
+/// work because the core row cannot tell them apart, so an evidence-only gap
+/// also withholds the sentence. This errs on the safe side. Replace the score
+/// check once the pipeline declares a safety-specific status.
 bool catalogProductCanReportNoConcerns(ProductsCoreData? product) =>
     catalogProductHasCompletePublicScore(product) &&
     catalogProductSafetyStatus(product!) !=

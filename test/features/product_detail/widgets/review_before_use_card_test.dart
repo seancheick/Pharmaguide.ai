@@ -90,6 +90,7 @@ ProfileRelevanceSummary _summary({
   bool hasProfileInformation = true,
   List<String> selectedGoalLabels = const [],
   bool hasPregnancyOrBreastfeeding = false,
+  bool checksFailed = false,
   void Function(List<String>)? onTapCitations,
 }) {
   return buildProfileRelevanceSummary(
@@ -105,6 +106,7 @@ ProfileRelevanceSummary _summary({
     hasProfileInformation: hasProfileInformation,
     selectedGoalLabels: selectedGoalLabels,
     hasPregnancyOrBreastfeeding: hasPregnancyOrBreastfeeding,
+    checksFailed: checksFailed,
   );
 }
 
@@ -332,6 +334,38 @@ void main() {
       );
       expect(summary.headline, isNot('No known concerns'));
       expect(summary.footnote, isNull);
+    });
+
+    test('a withheld all-clear keeps the obstetrician line', () {
+      final summary = _summary(
+        fitResult: _fit(),
+        hasPregnancyOrBreastfeeding: true,
+        checksFailed: true,
+      );
+      expect(summary.status, ProfileRelevanceStatus.coverageLimited);
+      expect(summary.footnote, kLifeStageClinicianNote);
+      expect(summary.shouldRender, isTrue);
+    });
+
+    test('a withheld all-clear stays silent for other profiles', () {
+      final summary = _summary(fitResult: _fit(), checksFailed: true);
+      expect(summary.footnote, isNull);
+      expect(summary.shouldRender, isFalse);
+    });
+
+    testWidgets('a withheld all-clear shows only the line, verbatim', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _summary(
+          fitResult: _fit(mappedCoverage: 0.2),
+          hasPregnancyOrBreastfeeding: true,
+        ),
+      );
+      expect(find.text(kLifeStageClinicianNote), findsOneWidget);
+      expect(find.text('Profile assessment unavailable'), findsNothing);
+      expect(find.text('For You'), findsNothing);
     });
 
     testWidgets('the footnote renders under the verdict', (tester) async {

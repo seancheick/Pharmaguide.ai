@@ -28,6 +28,7 @@ import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
+import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
@@ -50,6 +51,11 @@ const _onWarfarin = ProfileState(
   drugClasses: ['anticoagulants'],
 );
 const _noMatch = ProfileState(ageBracket: '31-50', sex: 'Female');
+const _pregnant = ProfileState(
+  ageBracket: '31-50',
+  sex: 'Female',
+  conditions: ['pregnancy'],
+);
 
 Map<String, dynamic> _json(String path) =>
     jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
@@ -358,6 +364,26 @@ void main() {
 
       expect(find.text(_allClear), findsNothing);
     });
+
+    for (final (name, profile, shown) in [
+      ('a pregnant user keeps the clinician line', _pregnant, findsOneWidget),
+      ('other users get no clinician line', _noMatch, findsNothing),
+    ]) {
+      testWidgets('all-clear withheld: $name', (tester) async {
+        await pumpPage(
+          tester,
+          catalog: await _catalog(
+            score: 60,
+            scoreStatus: 'scored',
+            assessment: 'partial',
+          ),
+          phone: await _phone(profile: profile, cachedBlob: _vitaminEBlob()),
+        );
+
+        expect(find.text(_allClear), findsNothing);
+        expect(find.text(kLifeStageClinicianNote), shown);
+      });
+    }
 
     testWidgets('a concern still shows when the rest is incomplete', (
       tester,
