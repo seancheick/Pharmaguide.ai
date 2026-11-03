@@ -38,6 +38,9 @@ Future<void> _seedProduct(CoreDatabase coreDb) async {
 }
 
 void main() {
+  // The real device profile reads the bundled taxonomy through the asset binding.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test(
     'interaction DB unavailable → provider surfaces error (not empty list)',
     () async {

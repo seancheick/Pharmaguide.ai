@@ -8,6 +8,7 @@ class MedicationClassResolution {
     required this.curatedInteractionClassIds,
     required this.mergedInteractionClassIds,
     required this.profileGateClassIds,
+    required this.rxcuis,
   });
 
   /// RxClass-derived ids already stored by the medication-entry flow
@@ -26,6 +27,9 @@ class MedicationClassResolution {
 
   /// Profile-gate vocabulary ids (`nsaids`) derived from curated ids.
   final List<String> profileGateClassIds;
+
+  /// Every RxCUI this medication answers to, offline ingredient aliases included.
+  final List<String> rxcuis;
 }
 
 class MedicationClassBridge {
@@ -129,6 +133,7 @@ class MedicationClassBridge {
       curatedInteractionClassIds: curated,
       mergedInteractionClassIds: merged,
       profileGateClassIds: profileGateIdsForClasses(curated),
+      rxcuis: rxcuis,
     );
   }
 

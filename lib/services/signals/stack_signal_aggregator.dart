@@ -63,9 +63,11 @@ String clinicalSignalKindLabel(ClinicalSignal signal) {
     case TimingSeparationPayload():
       return 'Timing guidance';
     case RegulatorySafetyPayload(:final alert):
-      return alert.eventType == SafetyAlertEventType.ingredientBan
-          ? 'Regulatory ingredient alert'
-          : 'Product recall';
+      return switch (alert.eventType) {
+        SafetyAlertEventType.ingredientBan => 'Regulatory ingredient alert',
+        SafetyAlertEventType.productRecall => 'Product recall',
+        SafetyAlertEventType.interactionRule => 'Supplement interaction',
+      };
   }
 }
 
@@ -77,10 +79,11 @@ String clinicalSignalContextLabel(ClinicalSignal signal) {
     MedicationNutrientPayload(:final match) => EvidenceLevel.fromString(
       match.evidenceLevel,
     ).label,
+    RegulatorySafetyPayload(:final alert) =>
+      alert.interaction?.evidenceLevel.label,
     CumulativeExposurePayload() ||
     DoseThresholdPayload() ||
-    TimingSeparationPayload() ||
-    RegulatorySafetyPayload() => null,
+    TimingSeparationPayload() => null,
   };
   return evidence == null ? kind : '$kind · $evidence';
 }
