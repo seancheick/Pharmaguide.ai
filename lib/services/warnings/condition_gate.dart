@@ -205,8 +205,8 @@ List<InteractionWarning> applyEmittedBeneficialGate(
 /// above or below an analyzed row is the same dose seen as a form or a source
 /// mass, so it no longer adds to the keys that analyzed row reports (328600:
 /// 2000 mg Magtein under 144 mg Magnesium); it still counts toward its own
-/// name. Rows with no path, from older catalogs, fall back to matching
-/// canonical name + value + normalized unit.
+/// name. Only a path makes two rows one row. Rows with no path, from older
+/// catalogs, fall back to matching canonical name + value + normalized unit.
 Map<String, IngredientDose> extractIngredientDoses(
   Map<String, dynamic>? detailBlob,
 ) {
@@ -216,7 +216,7 @@ Map<String, IngredientDose> extractIngredientDoses(
 
   // Pass 1 — parse rows, dropping unusable ones and mirrored duplicates.
   final parsed = <_ParsedDoseRow>[];
-  final seenLabels = <String, Set<String?>>{};
+  final seenSignatures = <String, bool>{};
   for (final (row: entry, :keys, :names) in _doseRows(detailBlob)) {
     // Honor the SAME usability filter the stack summers enforce
     // ([isUsableDoseRow]): drop proprietary-blend containers, parent-total
@@ -252,20 +252,16 @@ Map<String, IngredientDose> extractIngredientDoses(
     if (value == null || unit.isEmpty) continue;
 
     // Older catalogs have no row path to join on, so a mirror can only be
-    // recognized by its value. Rows with a path are distinct unless the label
-    // repeats the same name and amount (206322: colostrum listed three times),
-    // which stays one row until the pipeline marks it. Two ginseng extracts at
-    // 200 mg each are 400 mg.
+    // recognized by its value. Rows with a path are distinct however equal they
+    // look: [_doseRows] already joined the mirrors, and only the pipeline can
+    // say a repeated row is a duplicate (206322: colostrum listed three times).
     if (primaryName != null) {
       final signature =
           '${canonicalizeIngredientName(primaryName)}|$value|$unit';
-      final labels = seenLabels.putIfAbsent(signature, () => {});
-      final label = _labelRowPath(entry) == null ? null : _labelName(entry);
-      if (labels.isNotEmpty &&
-          (label == null || labels.contains(null) || labels.contains(label))) {
-        continue;
-      }
-      labels.add(label);
+      final hasNoPath = _labelRowPath(entry) == null;
+      final seenNoPath = seenSignatures[signature];
+      if (seenNoPath != null && (hasNoPath || seenNoPath)) continue;
+      seenSignatures[signature] = hasNoPath;
     }
 
     parsed.add(
@@ -479,11 +475,6 @@ Set<String> _keysNotOwnedOnBranch(
 String? _labelRowPath(Map<String, dynamic> row) {
   final path = row['raw_source_path'];
   return path is String && path.trim().isNotEmpty ? path.trim() : null;
-}
-
-String _labelName(Map<String, dynamic> row) {
-  final name = (row['name'] ?? row['ingredient'])?.toString() ?? '';
-  return canonicalizeIngredientName(name);
 }
 
 List<Map<String, dynamic>> _rowMaps(Object? rows) => rows is List
