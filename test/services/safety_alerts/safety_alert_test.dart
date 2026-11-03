@@ -77,6 +77,7 @@ void main() {
 
   group('a revision this build cannot read', () {
     late String? feed;
+    var noCurrentRelease = false;
     late _MemoryPreferences preferences;
     late SafetyAlertRepository repository;
 
@@ -86,11 +87,20 @@ void main() {
 
     setUp(() {
       feed = null;
+      noCurrentRelease = false;
       preferences = _MemoryPreferences();
       final client = SupabaseClient(
         'https://example.test',
         'test-key',
         httpClient: MockClient((request) async {
+          if (noCurrentRelease) {
+            return http.Response(
+              'null',
+              200,
+              headers: {'content-type': 'application/json'},
+              request: request,
+            );
+          }
           final body = feed;
           if (body == null) throw http.ClientException('offline');
           if (request.url.path.contains('/storage/')) {
@@ -149,6 +159,41 @@ void main() {
         },
       );
     }
+
+    test('no current release without a verified copy is incomplete', () async {
+      noCurrentRelease = true;
+      final release = await repository.loadCurrent();
+      expect(release.isComplete, isFalse);
+      expect(release.neverVerified, isTrue);
+      expect(preferences.values, isEmpty);
+    });
+
+    test('no current release does not withdraw a saved warning', () async {
+      publish([record]);
+      final verified = await repository.loadCurrent();
+      noCurrentRelease = true;
+
+      final release = await repository.loadCurrent();
+      expect(release.isComplete, isFalse);
+      expect(release.neverVerified, isFalse);
+      expect(release.alerts.single.alertId, record['alert_id']);
+      expect(release.baselineRevisions, verified.baselineRevisions);
+      expect(
+        (await repository.loadCachedAlerts()).single.alertId,
+        record['alert_id'],
+      );
+    });
+
+    test('no current release retains a verified empty copy', () async {
+      publish([]);
+      await repository.loadCurrent();
+      noCurrentRelease = true;
+
+      final release = await repository.loadCurrent();
+      expect(release.isComplete, isFalse);
+      expect(release.neverVerified, isFalse);
+      expect(release.alerts, isEmpty);
+    });
 
     test('keeps the warning the device already had', () async {
       publish([record]);

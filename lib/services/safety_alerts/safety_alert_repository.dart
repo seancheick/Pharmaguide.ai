@@ -23,8 +23,8 @@ final class SafetyAlertRelease {
   final Map<String, int> baselineRevisions;
   final bool isComplete;
 
-  /// A fetch failed and this device holds no verified copy, so [alerts] being
-  /// empty says nothing about any product.
+  /// This device holds no verified copy, so [alerts] being empty says nothing
+  /// about any product. A missing published release is not a verified empty feed.
   final bool neverVerified;
 }
 
@@ -51,11 +51,10 @@ class SafetyAlertRepository {
           .eq('is_current', true)
           .maybeSingle();
       if (row == null) {
-        return const SafetyAlertRelease(
-          alerts: [],
-          baselineRevisions: {},
-          isComplete: true,
-        );
+        // Missing metadata cannot withdraw saved alerts or establish that the
+        // reviewed alert set is empty. Use the same verified-cache fallback as
+        // an unavailable feed; only verified feed bytes can replace that copy.
+        throw const FormatException('No current safety-alert release.');
       }
       final remote = await _decodeRemote(Map<String, dynamic>.from(row));
       final release = remote.keeping(

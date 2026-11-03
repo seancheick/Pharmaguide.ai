@@ -852,11 +852,25 @@ void main() {
         expect(find.text(allClear), findsNothing);
       });
 
-      // The server answered and has published nothing, which is the live state
-      // until a first release. No bytes were verified, so it isn't a verified
-      // empty feed; no fetch failed, so it isn't a feed that never loaded.
-      testWidgets('no current release is not a failure', (tester) async {
+      // A successful metadata request is not a verified alert assessment.
+      testWidgets('no current release withholds the all-clear without a copy', (
+        tester,
+      ) async {
         await open(tester, _AlertFeed()..server = _FeedServer.noCurrentRelease);
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+      });
+
+      testWidgets('no current release retains a verified saved result', (
+        tester,
+      ) async {
+        final feed = _AlertFeed();
+        await tester.runAsync(feed.saveACopyThenGoOffline);
+        feed.server = _FeedServer.noCurrentRelease;
+
+        await open(tester, feed);
 
         expect(find.text(allClear), findsOneWidget);
         expect(find.text(incomplete), findsNothing);
