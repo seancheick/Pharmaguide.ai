@@ -34,7 +34,7 @@ String updateCheckLine(UpdateCheckOutcome outcome) => switch (outcome) {
   UpdateCheckOutcome.couldNotCheck =>
     'Couldn’t check right now. Nothing on this device has changed.',
   UpdateCheckOutcome.deviceChanged =>
-    'Checked. PharmaGuide changed what this device is using.',
+    'PharmaGuide changed the data used on this device.',
 };
 
 /// Production-wired settings screen. Reads:

@@ -41,8 +41,7 @@ const _upToDate = 'You’re up to date.';
 const _updateReady = 'An update is ready and now in use.';
 const _couldNotCheck =
     'Couldn’t check right now. Nothing on this device has changed.';
-const _deviceChanged =
-    'Checked. PharmaGuide changed what this device is using.';
+const _deviceChanged = 'PharmaGuide changed the data used on this device.';
 
 class _Publisher {
   HttpServer? server;
