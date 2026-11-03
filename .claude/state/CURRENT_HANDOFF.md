@@ -1,17 +1,32 @@
-# PR164 — confirmed personal upper-limit concerns — 2026-10-28
+# A2 + A3: one release generation, rollback, signing — 2026-11-03
 
-Codex owns this lane after Sean paused Claude and authorized integration. Root alone merges main and schedules combined checks/native qualification. Preserve the original synephrine fixture pin in 90e20e8430b5c6b331243cc4f75b0391449f5fdf; branch claude/bitter-orange-fixture, PR164. Baseline clean, fetched origin before edits and before handoff.
+Branch `claude/sharp-mayer-5d6e53`, app PR #178. Decision record: ADR-012 in `knowledge/architecture-decisions.md`.
+Pipeline: PharmaGuide_Pipeline #336 merged as `eab3a334`; follow-up #341 merged as `0c897b8ec`.
 
-Owner: lib/services/stack/stack_ul_checker.dart::StackUlChecker.check — evidence: rg StackUlChecker,NutrientStatus,nutrientStatuses and pipeline source-of-truth matrix/glossary. Existing E1/E2b consume this checker; StackSafetyReport.severityForNutrient owns disposition severity. FitScoreResult is transient and ProfileRelevanceSummary owns the personal card. Will NOT create: age policy, clinical rule, scorer, persisted/public/export field, registry or fake pipeline DoseDecision.
+## State
+- All independent-review fixes are on #178, each with a test that failed first. main `120d0008` is merged in.
+- Migration `supabase/migrations/20261103130000_signed_release_manifest.sql` is NOT applied to production.
+  Rehearsal is committed: `scripts/test_release_rehearsal.sh <pipeline repo>`, 53/53 on PostgREST 14.5. Storage is faked.
+- No key is bundled (`_kProductionReleaseKeys` is empty), so public builds stay catalog-only. Remote rules are
+  tested, not publicly enabled. `scripts/config/remote_rules_gate.json` stays closed. Enabling needs Sean, after A9.
+- Public-build move re-proved at `df9e9215` on iPhone 17 Pro Max iOS 26.5 `5CFF10CF`: upgrade plus kills at six
+  points. Keyed device rows ran before the review fixes and were not rerun. Phone restored and shut down.
+  Logs and screenshots: `a2-device/` in the session's shared notes folder.
 
-Implemented: E1 exposes its existing qualified assessment once; E1/E2b/Fit service/card share those typed statuses. Confirmed exceedsUl caps strong-match and adds a review row using the existing severity owner. Approaching/exact UL retains existing panel semantics and adds no personal concern. Existing hard authored warnings retain precedence. Reference unit and existing consumer_ul_warnings source URLs travel with NutrientStatus; UI renders the existing reference warning, not new clinical copy. Pipeline exposure/skip/eligibility/form logic is unchanged.
+## Owed
+1. Integrator merges #178. #181 rebases on #178.
+2. Sean: apply the migration; first production key; remote rules after A9.
+3. Sean: copy for a notice naming a blocked-version correction; whether the publisher should refuse a rules-only
+   correction that a schema 2 catalog can't show.
+4. CodeRabbit on #178 (limit hit, requested again). #341 reviewed; both comments fixed in `e1f8d4327`.
+5. Not tested: physical device, Android, release mode, real Storage.
 
-Observed defect: real supported ProfileState age14-18, Female, pregnancy resolves Pregnancy; qualified natural-alpha vitamin E900mg or retinol2900mcg RAE has personal UL800/2800. Checker already exceeded UL/E1=-5, but matched prenatal goal could report strongMatch and card No known concerns. Fail-first public card tests reproduced both. Fixed public provider and widget tests now show Review before use with reference/source.
+## Known limits
+- A root catalog that stays unreadable forever keeps the app on its unavailable screen, like kept release folders.
+- Review finding 7, not changed: a failed stack-blob fetch makes `activate` clear the assembly holding the moved
+  catalog, so the next check re-downloads 66 MB. Blobs are stored before the pointer swap; a crash there is a cache
+  miss, not wrong data. Proposed fix: publish the validated folder before fetching stack data.
 
-Validation class: behavioral consumer wiring. Focused 9-file owner/consumer run163 passed; subsequent public provider/card run59 passed (includes two new real-profile-provider probes and source callbacks). Targeted analyzer of10 changed Dart files: no issues. git diff --check passed. Controls: below/exact UL, adult E900 below1000, unknown form/missing amount with existing source review, existing product UL caution, hard authored warning; full existing StackUL form/source/partition/positive-verdict tests passed. No broad local suite or pipeline replay; pipeline scores/clinical references untouched. Root combined make check/CI still required before merge.
-
-Bootstrap: copied missing ignored interaction DB/.env from main without printing secrets; PATH-corrected make gen completed (initial missing-Dart failure retained). Read-only native doctor on87D69081-B4EE-4FE1-9610-C368DFC1C6D5 inspected installed1.0.0/build23 only; no launch/erase/update and user's other booted simulator untouched. No candidate native delivery claimed. Rendering screenshot/native journey remains root final-candidate qualification.
-
-Evidence: /Users/seancheick/pg_quality/adolescent_pregnancy_ul_20261028/ contains original probe, fail_first.log, owner_consumer.log, public_consumer.log, analyze_final.log and doctor_before. Existing blob UL rows retain their authored warnings; typed profile reference is a separate row if both are present (no unsafe text-based identity suppression introduced).
-
-Next unchecked: independent review, exact completed-candidate CI/combined app checks, actual native candidate screenshots/journey, then root integration. No main push/release/upload authorized for this lane.
+## Lane
+Shared owners touched: `lib/main.dart`, `database_providers.dart`, `sync_service.dart`, ADR log,
+`scripts/verify_native_app.py`. Root catalog files in Documents are gone after first launch on this branch.

@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pharmaguide/app.dart';
 import 'package:pharmaguide/core/components/pg_toast.dart';
@@ -19,10 +20,10 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/retry.dart';
-import 'package:pharmaguide/data/database/core_database.dart';
-import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
+import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
+import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
@@ -35,8 +36,8 @@ import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_provid
 import 'package:pharmaguide/features/safety_alerts/providers/safety_push_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
-import 'package:pharmaguide/services/catalog_swap.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
+import 'package:pharmaguide/services/release_store.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/settings/app_preferences.dart';
@@ -47,9 +48,8 @@ import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/product_submission_draft_store.dart';
 import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
 
-/// SharedPreferences key for the most recently activated catalog
-/// version. Persisting this means a relaunch with the same remote
-/// version doesn't trigger a redundant download/swap cycle (T0.6).
+/// SharedPreferences key for the active catalog version, which tags Sentry
+/// events (crash_reporting_service.dart).
 const String _kCatalogVersionPrefKey = 'activeCatalogVersion';
 
 // Phase 11.11 hygiene (2026-05-17): staged route toggles were removed
@@ -156,26 +156,6 @@ Future<void> _runApp() async {
   );
   await accountGuard.boot(sessionUid: _launchSessionUid());
 
-  // Materialize the bundled interaction DB and open it. Soft-fail: if the
-  // bundle is missing or corrupt, we still launch the app — interaction
-  // checks degrade to "no curated data available" rather than blocking the
-  // user from scanning products. The release-gate test
-  // `bundled_interaction_db_test.dart` makes a missing bundle a build
-  // failure, so we should never see this branch in shipped builds.
-  InteractionDatabase? interactionDb;
-  final interactionLoadStopwatch = Stopwatch()..start();
-  try {
-    interactionDb = await openInteractionDatabase();
-    interactionLoadStopwatch.stop();
-    debugPrint(
-      '[interaction-db] bootstrap load: '
-      '${interactionLoadStopwatch.elapsedMilliseconds}ms',
-    );
-  } on Object catch (e) {
-    interactionLoadStopwatch.stop();
-    debugPrint('[interaction-db] bootstrap failed: $e');
-  }
-
   final hasSeenOnboarding = await OnboardingPrefs.hasSeen();
 
   final appPreferencesStore = SharedPreferencesAsyncAppPreferencesStore(
@@ -193,7 +173,6 @@ Future<void> _runApp() async {
     runApp(
       PharmaGuideBootstrap(
         accountGuard: accountGuard,
-        interactionDb: interactionDb,
         supabaseReady: supabaseReady,
         hasSeenOnboarding: hasSeenOnboarding,
         appPreferencesController: appPreferencesController,
@@ -234,7 +213,6 @@ Future<void> _endOutgoingOwnerWork() async {
 
 class PharmaGuideBootstrap extends StatefulWidget {
   final AccountSwitchGuard accountGuard;
-  final InteractionDatabase? interactionDb;
   final bool supabaseReady;
   final bool hasSeenOnboarding;
   final AppPreferencesController appPreferencesController;
@@ -245,7 +223,6 @@ class PharmaGuideBootstrap extends StatefulWidget {
   const PharmaGuideBootstrap({
     super.key,
     required this.accountGuard,
-    required this.interactionDb,
     required this.supabaseReady,
     required this.hasSeenOnboarding,
     required this.appPreferencesController,
@@ -258,15 +235,13 @@ class PharmaGuideBootstrap extends StatefulWidget {
 
 class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   late final SyncService _syncService = SyncService();
-  late final CatalogSwapper _swapper = CatalogSwapper.production(
-    syncService: _syncService,
-  );
-  late final CatalogUpdaterService _updater = CatalogUpdaterService.production(
-    syncService: _syncService,
-  );
+  ReleaseStore? _store;
+  CatalogUpdaterService? _updater;
 
-  CoreDatabase? _coreDb;
-  String? _activeCatalogVersion;
+  /// The open release. A replaced one stays open until the process ends, so a
+  /// check that was already running can always finish (ADR-012).
+  ReleaseGeneration? _generation;
+  final List<ReleaseGeneration> _retired = [];
   String? _catalogUnavailableReason;
   bool _catalogAvailable = false;
   bool _bootstrapped = false;
@@ -304,8 +279,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   void dispose() {
     _launchLinks.detach();
     _catalogRefreshTimer?.cancel();
-    unawaited(_coreDb?.close());
-    unawaited(widget.interactionDb?.close());
+    unawaited(_generation?.close());
+    for (final retired in _retired) {
+      unawaited(retired.close());
+    }
     unawaited(widget.accountGuard.close());
     widget.appPreferencesController.dispose();
     super.dispose();
@@ -336,55 +313,25 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   }
 
   Future<void> _bootstrapCatalog() async {
-    CoreDatabase? initialDb;
-    String? initialReason;
-
-    // T0.6: prime _activeCatalogVersion from SharedPreferences so the
-    // version guard in _refreshCatalogIfNeeded recognizes a no-op
-    // refresh on relaunch (same remote version → skip download). The
-    // value is overwritten by validateCatalogSnapshot() once the DB
-    // actually opens, so a stale prefs entry can't cause us to skip
-    // legitimate updates — it only affects the very first refresh tick.
-    _activeCatalogVersion = await _restoreActiveCatalogVersion();
-
-    if (widget.supabaseReady) {
-      try {
-        // Boot-time promote hardening: a `.staging` left by a previous
-        // process is of unknown provenance (the OS may have killed the
-        // app mid-download), so revalidate before letting it replace the
-        // live catalog. SyncService also refuses outright while the
-        // `.staging.version` marker (= not yet validated) is present.
-        await _syncService.activateStagedCoreDbIfPresent(revalidate: true);
-      } on Object catch (e) {
-        debugPrint('Catalog staged activation failed: $e');
-      }
-    }
-
+    ReleaseGeneration? initial;
     try {
-      initialDb = await _openValidatedCatalog();
+      final store = ReleaseStore(
+        documents: await getApplicationDocumentsDirectory(),
+      );
+      _store = store;
+      _updater = CatalogUpdaterService.production(
+        store: store,
+        syncService: _syncService,
+      );
+      initial = await store.open();
+      debugPrint('[release] active ${initial.record.id}');
     } on Object catch (e) {
       debugPrint('Local/bundled catalog unavailable: $e');
     }
-
-    if (initialDb == null && widget.supabaseReady) {
-      try {
-        debugPrint('No verified local catalog. Attempting network download...');
-        await _syncService.downloadCoreDb();
-        initialDb = await _openValidatedCatalog();
-      } on Object catch (e) {
-        initialReason = _unavailableReason(includeRetryHint: true);
-        debugPrint('Initial catalog download failed: $e');
-      }
-    }
-
-    if (initialDb == null && initialReason == null) {
-      initialReason = _unavailableReason(
-        includeRetryHint: widget.supabaseReady,
-      );
-    }
+    final initialDb = initial?.core;
 
     if (!mounted) {
-      await initialDb?.close();
+      await initial?.close();
       return;
     }
 
@@ -401,9 +348,11 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     }
 
     setState(() {
-      _coreDb = initialDb;
-      _catalogAvailable = initialDb != null;
-      _catalogUnavailableReason = initialDb == null ? initialReason : null;
+      _generation = initial;
+      _catalogAvailable = initial != null;
+      _catalogUnavailableReason = initial == null
+          ? _unavailableReason(includeRetryHint: widget.supabaseReady)
+          : null;
       _launchLocation = _launchLinks.takeLocation();
       _bootstrapped = true;
       _scopeVersion++;
@@ -419,24 +368,21 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       }
     });
 
-    _scheduleCatalogRefresh(initialDelay: const Duration(seconds: 10));
-  }
-
-  Future<CoreDatabase> _openValidatedCatalog() async {
-    final db = await openCoreDatabase();
-    try {
-      _activeCatalogVersion = await db.validateCatalogSnapshot();
-      return db;
-    } on Object {
-      await db.close();
-      rethrow;
+    if (initial != null) {
+      unawaited(_persistActiveCatalogVersion(initial.record.catalogVersion));
     }
+    _scheduleCatalogRefresh(
+      // With no catalog at all there is nothing to de-synchronize.
+      initialDelay: initial == null
+          ? Duration.zero
+          : const Duration(seconds: 10),
+    );
   }
 
   Future<void> _retryCatalogLoad() async {
     // Manual retry: re-checks the manifest and only downloads when a
     // new/needed version exists (no blanket force-download). When no
-    // live DB is open, _refreshCatalogIfNeeded still forces the fetch.
+    // release is open, _refreshCatalogIfNeeded still forces the fetch.
     await _refreshCatalogIfNeeded(manual: true);
   }
 
@@ -469,191 +415,174 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   }
 
   Future<void> _refreshCatalogIfNeeded({bool manual = false}) async {
-    if (!widget.supabaseReady || _syncInFlight) {
+    final store = _store;
+    final updater = _updater;
+    if (!widget.supabaseReady ||
+        _syncInFlight ||
+        store == null ||
+        updater == null) {
+      return;
+    }
+    if (_accountSwitching) {
+      _scheduleCatalogRefresh();
       return;
     }
 
     _syncInFlight = true;
     Duration? nextDelayOverride;
     try {
-      // Fleet de-sync: when a ROUTINE refresh tick (not first-install,
-      // not a manual retry) detects a remote version bump, defer the
-      // download by a random 0-60min so the whole installed base doesn't
-      // download the new catalog in the same minute. First-install
-      // (_coreDb == null) and manual paths stay immediate.
-      if (!manual &&
-          _coreDb != null &&
-          _activeCatalogVersion != null &&
-          !_jitterApplied) {
-        final bumped = await _syncService.isUpdateAvailable(
-          _activeCatalogVersion!,
-        );
-        if (bumped) {
-          _jitterApplied = true;
-          nextDelayOverride = Duration(
-            minutes: _refreshRandom.nextInt(61), // 0-60 min
-          );
-          debugPrint(
-            'Catalog version bump detected; jittering download by '
-            '$nextDelayOverride to de-synchronize the fleet',
-          );
-          return;
-        }
-      }
-      _jitterApplied = false;
-
-      // D2: probe + stage logic lives in CatalogUpdaterService now.
-      // The widget keeps ownership of the swap step (which mutates
-      // setState and closes the previous DB) — see swap branch below.
-      // `_coreDb == null` forces a download even when the remote
-      // version matches `_activeCatalogVersion`: a primed-from-prefs
-      // version with no live DB means we still need to fetch.
-      final checkResult = await _updater.checkForUpdate(
-        installedVersion: _activeCatalogVersion,
-        forceDownload: _coreDb == null,
+      final installed = InstalledRelease.of(store);
+      final check = await updater.checkForUpdate(
+        installed: installed,
+        // With no open release, take the current one whatever its version.
+        forceDownload: _generation == null,
+        onVerified: (manifest) => store.recordVerified(
+          sequence: manifest.sequence,
+          blockedCatalog: manifest.blockedCatalog,
+          blockedRules: manifest.blockedRules,
+        ),
       );
 
-      switch (checkResult) {
+      switch (check) {
         case CatalogUpToDate():
-          return;
+          _jitterApplied = false;
         case CatalogUnreachable(:final error):
-          // Two sub-cases under one variant:
-          //   error == null → probe returned no row (legit "no
-          //                   manifest yet" / first-push state).
-          //                   Match pre-D2 behavior: silent return,
-          //                   no UI flip — even if `_coreDb == null`,
-          //                   the bundled-asset bootstrap path
-          //                   handles that downstream.
-          //   error != null → probe threw (network/RPC failure).
-          //                   Flip the "catalog unavailable" UI iff
-          //                   we have nothing to fall back on.
+          // error == null means the probe found no row (legit first-push
+          // state), which changes nothing on screen.
           if (error != null) {
             debugPrint('Catalog probe failed: $error');
-            if (mounted && _coreDb == null) {
-              setState(() {
-                _catalogAvailable = false;
-                _catalogUnavailableReason = _unavailableReason(
-                  includeRetryHint: true,
-                );
-              });
-            }
+            _showUnavailableIfNoRelease();
           }
-          return;
-        case CatalogStageFailed(:final reason):
-          // Network drop mid-download (partial .staging is kept for
-          // Range-resume on the next tick) or validation failure
-          // (staged file already cleaned by stageCoreDbDownload).
-          debugPrint('Catalog stage failed: $reason');
-          if (mounted && _coreDb == null) {
-            setState(() {
-              _catalogAvailable = false;
-              _catalogUnavailableReason = _unavailableReason(
-                includeRetryHint: true,
-              );
-            });
+        case CatalogRefused(:final reason):
+          debugPrint('Catalog release refused: $reason');
+          _showUnavailableIfNoRelease();
+        case CatalogUpdateFound():
+          // Fleet de-sync: a ROUTINE tick defers the download by a random
+          // 0-60min so the whole installed base doesn't download in the same
+          // minute. First install, manual and blocked-version paths don't wait.
+          if (!manual &&
+              _generation != null &&
+              !_jitterApplied &&
+              !check.isUrgentFor(InstalledRelease.of(store))) {
+            _jitterApplied = true;
+            nextDelayOverride = Duration(
+              minutes: _refreshRandom.nextInt(61), // 0-60 min
+            );
+            debugPrint(
+              'Release update found; jittering download by '
+              '$nextDelayOverride to de-synchronize the fleet',
+            );
+            return;
           }
-          return;
-        case CatalogStaged(:final version):
-          // Bundle validated and waiting in `*.staging`. Fall through
-          // to the swap routine below.
-          await _activateStagedCatalog(downloadedVersion: version);
+          _jitterApplied = false;
+          await _stageAndActivate(store, updater, check, installed);
+        case CatalogStaged() || CatalogStageFailed():
+          // Only stage() returns these.
+          break;
       }
+      await _settleBlockedRelease(store);
     } finally {
       _syncInFlight = false;
       _scheduleCatalogRefresh(initialDelay: nextDelayOverride);
     }
   }
 
-  /// Activate a freshly-staged catalog file in-session.
-  ///
-  /// Spec: T0.6 / Track D D3. The validation gate inside
-  /// `_validateStagedDatabase` has already cleared the file by the
-  /// time `CatalogUpdaterService` returns [CatalogStaged]; the swap
-  /// routine adds a second-line defense by closing the new DB on a
-  /// validation failure during open.
-  Future<void> _activateStagedCatalog({
-    required String downloadedVersion,
-  }) async {
-    final swapResult = await _swapper.swap(expectedVersion: downloadedVersion);
-
-    switch (swapResult) {
-      case SwapSuccess(:final newDb, :final version):
-        if (await _adoptCatalog(newDb, version)) {
-          _showCatalogUpdatedToast(version);
-        }
-      case SwapRolledBack(
-        :final reason,
-        :final restoredDb,
-        :final restoredVersion,
-        :final previousHandleInvalid,
-      ):
-        debugPrint('Catalog swap rolled back: $reason');
-        if (restoredDb != null && restoredVersion != null) {
-          await _adoptCatalog(restoredDb, restoredVersion);
-        } else if (previousHandleInvalid) {
-          _dropDeadCatalog();
-        }
-      case SwapNoStaging():
-        debugPrint(
-          'Catalog swap: no staging file present after download '
-          'returned $downloadedVersion',
+  Future<void> _stageAndActivate(
+    ReleaseStore store,
+    CatalogUpdaterService updater,
+    CatalogUpdateFound found,
+    InstalledRelease installed,
+  ) async {
+    final staged = await updater.stage(found, installed: installed);
+    switch (staged) {
+      case CatalogStaged(:final candidate):
+        final userDb = widget.accountGuard.database;
+        final result = await store.activate(
+          candidate,
+          stackData: userDb == null
+              ? null
+              : (catalog) => fetchStackDetailForRelease(
+                  candidate: catalog,
+                  userDb: userDb,
+                  service: DetailBlobService(),
+                ),
         );
+        switch (result) {
+          case ReleaseActivated(:final generation):
+            if (await _adoptRelease(generation)) {
+              _showCatalogUpdatedToast(generation.record.catalogVersion);
+            }
+          case ReleaseNotActivated(:final reason):
+            // The phone stays on its release. Nothing it has open moved.
+            debugPrint('Release not activated: $reason');
+            _showUnavailableIfNoRelease();
+        }
+      case CatalogStageFailed(:final reason):
+        // Network drop mid-download (the partial is kept for Range-resume) or a
+        // file that failed validation (already deleted).
+        debugPrint('Catalog stage failed: $reason');
+        _showUnavailableIfNoRelease();
+      default:
+        break;
     }
   }
 
-  /// Moves the app onto [db] and closes the handle it replaces. Returns false
-  /// (closing [db]) when the app is no longer mounted.
-  Future<bool> _adoptCatalog(CoreDatabase db, String version) async {
+  /// A verified manifest named a version this phone uses, and no replacement
+  /// arrived. Selecting again returns to the previous release if it can, or
+  /// withholds only the affected assessment.
+  Future<void> _settleBlockedRelease(ReleaseStore store) async {
+    final generation = _generation;
+    if (generation == null || store.isSettled(generation)) return;
+    try {
+      final next = await store.reselect();
+      // Nothing could change yet, such as on a full disk. Rebuilding the app
+      // would only reset the screen; the next tick tries again.
+      if (next.record.id == generation.record.id &&
+          next.rulesWithheld == generation.rulesWithheld) {
+        await next.close();
+        return;
+      }
+      await _adoptRelease(next);
+    } on Object catch (e) {
+      debugPrint('Release reselection failed: $e');
+    }
+  }
+
+  void _showUnavailableIfNoRelease() {
+    if (!mounted || _generation != null) return;
+    setState(() {
+      _catalogAvailable = false;
+      _catalogUnavailableReason = _unavailableReason(includeRetryHint: true);
+    });
+  }
+
+  /// Moves the app onto [generation] with one rebuild, so both databases change
+  /// together and no restart is needed. Returns false (closing it) when the app
+  /// is no longer mounted.
+  Future<bool> _adoptRelease(ReleaseGeneration generation) async {
     if (!mounted) {
-      await db.close();
+      await generation.close();
       return false;
     }
-    final oldDb = _coreDb;
+    final old = _generation;
     setState(() {
-      _coreDb = db;
-      _activeCatalogVersion = version;
+      _generation = generation;
       _catalogAvailable = true;
       _catalogUnavailableReason = null;
       _scopeVersion++;
     });
-    unawaited(_persistActiveCatalogVersion(version));
-    unawaited(oldDb?.close());
+    if (old != null) _retired.add(old);
+    unawaited(_persistActiveCatalogVersion(generation.record.catalogVersion));
     return true;
   }
 
-  /// The open handle stopped working and no replacement could be opened. The
-  /// unavailable state and its retry take over, as when boot finds no catalog.
-  void _dropDeadCatalog() {
-    if (!mounted) return;
-    final oldDb = _coreDb;
-    setState(() {
-      _coreDb = null;
-      _catalogAvailable = false;
-      _catalogUnavailableReason = _unavailableReason(includeRetryHint: true);
-      _scopeVersion++;
-    });
-    unawaited(oldDb?.close());
-  }
-
-  /// Persist the activated catalog version so the next launch's
-  /// version guard can short-circuit a redundant download when the
-  /// remote hasn't changed.
+  /// Persist the active catalog version for the Sentry tag.
   Future<void> _persistActiveCatalogVersion(String version) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kCatalogVersionPrefKey, version);
     } on Object catch (e) {
       debugPrint('Catalog version persistence failed: $e');
-    }
-  }
-
-  Future<String?> _restoreActiveCatalogVersion() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_kCatalogVersionPrefKey);
-    } on Object catch (e) {
-      debugPrint('Catalog version restore failed: $e');
-      return null;
     }
   }
 
@@ -719,9 +648,11 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         userDatabaseProvider.overrideWithValue(userDb),
         activeAccountProvider.overrideWithValue(widget.accountGuard.account),
         accountSwitchGuardProvider.overrideWithValue(widget.accountGuard),
-        if (_coreDb != null) coreDatabaseProvider.overrideWithValue(_coreDb!),
-        if (widget.interactionDb != null)
-          interactionDatabaseProvider.overrideWithValue(widget.interactionDb!),
+        if (_generation case final generation?) ...[
+          coreDatabaseProvider.overrideWithValue(generation.core),
+          if (generation.rules case final rules?)
+            interactionDatabaseProvider.overrideWithValue(rules),
+        ],
       ],
       // Register the stack sync auto-listener as soon as the ProviderScope
       // mounts. The Consumer reads [stackSyncListenerProvider] once; the

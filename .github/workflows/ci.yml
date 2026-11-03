@@ -73,13 +73,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: seancheick/PharmaGuide_Pipeline
-          ref: c8e3ced2ad49b65592c53179adad63128266d052
+          ref: eab3a33413ec2d2a5a2815b16baaf6f9815c94c3
           path: pipeline-schema
 
       - name: Assemble and replay shared migration deployment stream
         run: |
           python3 scripts/test_assemble_supabase_migrations.py
-          python3 scripts/assemble_supabase_migrations.py --app-ref HEAD --pipeline-repo pipeline-schema --pipeline-ref c8e3ced2ad49b65592c53179adad63128266d052 --output "$RUNNER_TEMP/shared-supabase-deployment"
+          python3 scripts/assemble_supabase_migrations.py --app-ref HEAD --pipeline-repo pipeline-schema --pipeline-ref eab3a33413ec2d2a5a2815b16baaf6f9815c94c3 --output "$RUNNER_TEMP/shared-supabase-deployment"
           PG_MIGRATION_DEPLOYMENT_DIR="$RUNNER_TEMP/shared-supabase-deployment" bash scripts/test_ai_connector_rls.sh
           bash scripts/test_submission_identity.sh
 

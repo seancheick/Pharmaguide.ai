@@ -1,20 +1,23 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:pharmaguide/core/utils/app_version.dart';
 import 'package:pharmaguide/core/utils/retry.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
+import 'package:pharmaguide/data/providers/database_providers.dart'
+    show enforceInteractionDatabaseVersionGate;
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart'
     show PublicFetchDeniedException;
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
-import 'package:pharmaguide/services/catalog_version.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 /// Thrown when a downloaded catalog passes integrity + version checks but
 /// is refused activation because this app build cannot safely read it
@@ -27,15 +30,29 @@ class CatalogVersionGateException implements Exception {
   String toString() => 'CatalogVersionGateException: $message';
 }
 
+/// The current `export_manifest` row. Signed fields are absent on rows published
+/// before release signing, and before their migration has been applied.
+class RemoteRelease {
+  const RemoteRelease({
+    required this.dbVersion,
+    this.checksum,
+    this.signedRelease,
+    this.releaseSignature,
+  });
+
+  final String dbVersion;
+  final String? checksum;
+  final String? signedRelease;
+  final String? releaseSignature;
+}
+
 /// Handles OTA database updates from Supabase storage.
 class SyncService {
   SyncService({
-    this._currentDbVersionFetcher,
     this._appVersion = kAppVersion,
     http.Client Function()? httpClientFactory,
   }) : _httpClientFactory = httpClientFactory ?? http.Client.new;
 
-  final Future<String?> Function()? _currentDbVersionFetcher;
   final String _appVersion;
   final http.Client Function() _httpClientFactory;
 
@@ -60,13 +77,30 @@ class SyncService {
   /// retryWithBackoff.
   static const _authedDownloadTimeout = Duration(minutes: 2);
 
-  /// Returns the current remote DB version published in export_manifest.
-  Future<String?> fetchCurrentDbVersion() async {
-    final injected = _currentDbVersionFetcher;
-    if (injected != null) {
-      return injected();
+  /// Keeps the app updating on a database that doesn't have the signed columns
+  /// yet: PostgREST answers 42703 for a named column the table lacks. Reads a
+  /// list because `maybeSingle` reports every failure as code 400, hiding that.
+  Future<Map<String, dynamic>?> _readCurrentManifestRow() async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await supabase
+          .from(SupabaseContract.manifestTable)
+          .select('db_version,checksum,signed_release,release_signature')
+          .eq('is_current', true)
+          .limit(1);
+    } on PostgrestException catch (error) {
+      if (error.code != '42703') rethrow;
+      rows = await supabase
+          .from(SupabaseContract.manifestTable)
+          .select('db_version,checksum')
+          .eq('is_current', true)
+          .limit(1);
     }
+    return rows.firstOrNull;
+  }
 
+  /// Returns the current `export_manifest` row.
+  Future<RemoteRelease?> fetchCurrentRelease() async {
     final span = _startCatalogSpan(
       operation: 'http.client',
       description: 'Fetch current catalog manifest',
@@ -74,20 +108,21 @@ class SyncService {
     );
     SpanStatus status = const SpanStatus.ok();
     try {
-      final manifest = await retryWithBackoff(
-        () => supabase
-            .from(SupabaseContract.manifestTable)
-            .select('db_version')
-            .eq('is_current', true)
-            .limit(1)
-            .maybeSingle(),
+      final row = await retryWithBackoff(
+        _readCurrentManifestRow,
         timeout: _manifestTimeout,
       );
-      final version = manifest?['db_version'] as String?;
+      final version = row?['db_version'] as String?;
       span
         ?..setData('catalog.has_current', version != null)
         ..setData('catalog.version', version);
-      return version;
+      if (row == null || version == null) return null;
+      return RemoteRelease(
+        dbVersion: version,
+        checksum: row['checksum'] as String?,
+        signedRelease: row['signed_release'] as String?,
+        releaseSignature: row['release_signature'] as String?,
+      );
     } on Object catch (error) {
       status = _catalogSpanStatusForError(error);
       span?.throwable = error;
@@ -97,99 +132,47 @@ class SyncService {
     }
   }
 
-  /// Check if a new database version is available.
-  /// Compares local export_manifest version against remote.
-  Future<bool> isUpdateAvailable(String localVersion) async {
-    try {
-      final remoteVersion = await fetchCurrentDbVersion();
-      return CatalogVersion.isRemoteNewer(
-        remoteVersion: remoteVersion,
-        localVersion: localVersion,
-      );
-    } on Object {
-      return false;
-    }
-  }
-
-  /// Get the path where the core database should live.
-  Future<String> getCoreDbPath() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return p.join(dir.path, 'pharmaguide_core.db');
-  }
-
-  /// Download the core database from Supabase storage.
-  /// Fetches the current version from export_manifest, then downloads
-  /// from the `pharmaguide` bucket at `v{db_version}/pharmaguide_core.db`.
-  Future<String> downloadCoreDb({String? expectedVersion}) async {
-    final validatedVersion = await stageCoreDbDownload(
-      expectedVersion: expectedVersion,
-    );
-    await activateStagedCoreDbIfPresent();
-    return validatedVersion;
-  }
-
-  /// Downloads the latest database into staging and validates it.
+  /// Downloads a catalog into [downloads] and validates it, without touching
+  /// anything live. [expectedSha256], when known, is checked on the bytes as
+  /// published, before anything opens the file.
   ///
   /// Cleanup contract (resume support):
-  /// - Transient download failure → the partial `.staging` file is KEPT so
-  ///   the next attempt can resume via HTTP Range.
-  /// - Validation failure (corrupt / version mismatch / version gate) →
-  ///   the staged file is deleted; it can never become valid.
-  Future<String> stageCoreDbDownload({String? expectedVersion}) async {
-    final dbPath = await getCoreDbPath();
-    final stagingPath = '$dbPath.staging';
-    final stagingFile = File(stagingPath);
-
-    final dbVersion = expectedVersion ?? await fetchCurrentDbVersion();
-    if (dbVersion == null) {
-      throw Exception('No current export_manifest entry found');
-    }
-
+  /// - Transient download failure → the partial file is KEPT so the next
+  ///   attempt can resume via HTTP Range.
+  /// - Hash or validation failure (corrupt / version mismatch / version gate)
+  ///   → the file is deleted; it can never become valid.
+  Future<File> stageCatalog({
+    required Directory downloads,
+    required String version,
+    String? storagePath,
+    String? expectedSha256,
+  }) async {
+    final stagingFile = File(p.join(downloads.path, 'catalog.staging'));
     final span = _startCatalogSpan(
       operation: 'app.catalog',
       description: 'Stage catalog DB download',
       surface: 'catalog_stage',
     );
-    span?.setData('catalog.expected_version', dbVersion);
+    span?.setData('catalog.expected_version', version);
     SpanStatus status = const SpanStatus.ok();
-
-    final storagePath = SupabaseContract.coreDbPath(dbVersion);
-
     try {
-      // A partial .staging left over from a DIFFERENT version must not be
-      // resumed into — drop it and start fresh for this version.
-      await _prepareStagingForVersion(stagingFile, dbVersion);
-
-      // Download failures propagate WITHOUT deleting the staging file so a
-      // later attempt can resume the partial download.
-      await _downloadToStaging(storagePath, stagingFile);
-
+      await _downloadVerified(
+        storagePath: storagePath ?? SupabaseContract.coreDbPath(version),
+        stagingFile: stagingFile,
+        version: version,
+        expectedSha256: expectedSha256,
+      );
       try {
         final validatedVersion = await _validateStagedDatabase(
-          stagingPath,
-          expectedVersion: dbVersion,
+          stagingFile.path,
+          expectedVersion: version,
         );
         span?.setData('catalog.validated_version', validatedVersion);
         await _deleteStagingVersionMarker(stagingFile);
-        return validatedVersion;
-      } on Object catch (validationError) {
-        // The fully-downloaded file failed validation — it is permanently
-        // unusable, so clean it up (best-effort: a cleanup failure must not
-        // mask the validation error).
-        try {
-          if (await stagingFile.exists()) {
-            await stagingFile.delete();
-          }
-        } on Object catch (cleanupError, st) {
-          CrashReportingService().recordError(
-            cleanupError,
-            st,
-            hint: 'catalog_sync:staging_cleanup_failed',
-          );
-        }
+        return stagingFile;
+      } on Object {
+        await _deleteQuietly(stagingFile);
         await _deleteStagingVersionMarker(stagingFile);
-        status = _catalogSpanStatusForError(validationError);
-        span?.throwable = validationError;
         rethrow;
       }
     } on Object catch (error) {
@@ -198,6 +181,87 @@ class SyncService {
       rethrow;
     } finally {
       await _finishCatalogSpan(span, status);
+    }
+  }
+
+  /// Downloads a rules file into [downloads] and checks it the same way. The
+  /// pair check has already passed; this proves the file is what was named.
+  Future<File> stageRules({
+    required Directory downloads,
+    required String version,
+    required String storagePath,
+    required String expectedSha256,
+  }) async {
+    final stagingFile = File(p.join(downloads.path, 'rules.staging'));
+    await _downloadVerified(
+      storagePath: storagePath,
+      stagingFile: stagingFile,
+      version: version,
+      expectedSha256: expectedSha256,
+    );
+    final db = InteractionDatabase.open(stagingFile.path);
+    var valid = false;
+    try {
+      final integrity = await db.customSelect('PRAGMA integrity_check').get();
+      if (integrity.isEmpty || integrity.first.data.values.first != 'ok') {
+        throw StateError('Rules integrity_check failed');
+      }
+      final metadata = await db.getMetadata();
+      if (metadata.interactionDbVersion != version) {
+        throw StateError(
+          'Downloaded rules are ${metadata.interactionDbVersion}, '
+          'expected $version',
+        );
+      }
+      enforceInteractionDatabaseVersionGate(
+        minAppVersion: metadata.minAppVersion,
+        schemaVersion: metadata.schemaVersion,
+        appVersion: _appVersion,
+      );
+      valid = true;
+      return stagingFile;
+    } finally {
+      await db.close();
+      if (!valid) await _deleteQuietly(stagingFile);
+      await _deleteStagingVersionMarker(stagingFile);
+    }
+  }
+
+  Future<void> _downloadVerified({
+    required String storagePath,
+    required File stagingFile,
+    required String version,
+    required String? expectedSha256,
+  }) async {
+    await stagingFile.parent.create(recursive: true);
+    // A partial left over from a DIFFERENT version must not be resumed into —
+    // drop it and start fresh for this version.
+    await _prepareStagingForVersion(stagingFile, version);
+    // Download failures propagate WITHOUT deleting the file so a later attempt
+    // can resume the partial download.
+    await _downloadToStaging(storagePath, stagingFile);
+    if (expectedSha256 == null) return;
+    final expected = expectedSha256.startsWith('sha256:')
+        ? expectedSha256.substring('sha256:'.length)
+        : expectedSha256;
+    final actual = (await sha256.bind(stagingFile.openRead()).first).toString();
+    if (actual != expected.toLowerCase()) {
+      await _deleteQuietly(stagingFile);
+      await _deleteStagingVersionMarker(stagingFile);
+      throw StateError('Downloaded file for $version failed its hash check');
+    }
+  }
+
+  Future<void> _deleteQuietly(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
+    } on Object catch (cleanupError, st) {
+      // A cleanup failure must not mask the error that got us here.
+      CrashReportingService().recordError(
+        cleanupError,
+        st,
+        hint: 'catalog_sync:staging_cleanup_failed',
+      );
     }
   }
 
@@ -420,156 +484,6 @@ class SyncService {
   }
 
   // ---------------------------------------------------------------------
-  // Activation
-  // ---------------------------------------------------------------------
-
-  /// Promotes a validated staging database into the live path.
-  /// Safe to call repeatedly; it no-ops if no staged file exists.
-  ///
-  /// REFUSES to promote while the `.staging.version` marker is present:
-  /// [stageCoreDbDownload] writes the marker before the first downloaded
-  /// byte and clears it only after [_validateStagedDatabase] passes, so a
-  /// staging file still carrying its marker is a partial or unvalidated
-  /// download (e.g. the OS killed the app mid-stream). Promoting it would
-  /// replace the live catalog with torn bytes and silently downgrade the
-  /// user to the bundled build-time catalog when the torn file fails to
-  /// open. The partial and its marker are left untouched so the next
-  /// [stageCoreDbDownload] can Range-resume and re-validate.
-  ///
-  /// [revalidate] additionally re-runs the full staged-DB validation
-  /// (PRAGMA integrity_check, snapshot probe, version gate, schema
-  /// columns) before promoting. Boot passes true: a marker-less file left
-  /// by a previous process is of unknown provenance because the marker
-  /// bookkeeping is best-effort (see [_prepareStagingForVersion]).
-  /// In-session callers ([downloadCoreDb], CatalogSwapper) validated the
-  /// file moments earlier and skip the second pass.
-  Future<void> activateStagedCoreDbIfPresent({bool revalidate = false}) async {
-    final dbPath = await getCoreDbPath();
-    await _activateStagedCoreDb(dbPath, revalidate: revalidate);
-  }
-
-  /// Test seam for [_activateStagedCoreDb] with an explicit db path, so
-  /// tests can exercise the real marker-refusal/backup/rename logic against
-  /// a temp directory without `path_provider` (mirrors
-  /// [validateStagedDatabaseForTest]).
-  @visibleForTesting
-  Future<void> activateStagedCoreDbAtPathForTest(
-    String dbPath, {
-    bool revalidate = false,
-  }) {
-    return _activateStagedCoreDb(dbPath, revalidate: revalidate);
-  }
-
-  Future<void> _activateStagedCoreDb(
-    String dbPath, {
-    required bool revalidate,
-  }) async {
-    final stagingPath = '$dbPath.staging';
-    final backupPath = '$dbPath.backup';
-    final stagingFile = File(stagingPath);
-    if (!await stagingFile.exists()) {
-      return;
-    }
-
-    // Marker present = downloaded but NOT yet validated (see the resume
-    // contract on stageCoreDbDownload). Never promote it — keep the
-    // current catalog and leave the partial + marker for Range-resume.
-    if (await _versionMarkerFor(stagingFile).exists()) {
-      CrashReportingService().log(
-        'catalog staged activation refused: .staging.version marker present '
-        '(download not yet validated) — keeping current catalog, leaving '
-        'partial for resume',
-      );
-      return;
-    }
-
-    if (revalidate && !await _revalidateStagedBeforePromote(stagingFile)) {
-      return;
-    }
-
-    final currentFile = File(dbPath);
-    final backupFile = File(backupPath);
-
-    // The backup outlives this method: openCoreDatabase retires it once the
-    // new file opens and validates, and restores it if the new file does not.
-    try {
-      if (await backupFile.exists()) {
-        // A backup left behind means the live file was activated by a process
-        // that never confirmed it. The backup is still the last catalog known
-        // to work, so it stays and the unconfirmed file goes.
-        if (await currentFile.exists()) {
-          await currentFile.delete();
-        }
-      } else if (await currentFile.exists()) {
-        await currentFile.rename(backupPath);
-      }
-
-      await stagingFile.rename(dbPath);
-    } catch (_) {
-      if (await backupFile.exists()) {
-        await backupFile.rename(dbPath);
-      }
-      rethrow;
-    } finally {
-      // Cleanup is best-effort: a delete failure here must never mask the
-      // original activation error (same pattern as catalog_swap.dart).
-      try {
-        if (await stagingFile.exists()) {
-          await stagingFile.delete();
-        }
-      } on Object catch (e, st) {
-        CrashReportingService().recordError(
-          e,
-          st,
-          hint: 'catalog_sync:activation_cleanup_failed',
-        );
-      }
-      await _deleteStagingVersionMarker(stagingFile);
-    }
-  }
-
-  /// Defense-in-depth for boot-time promotes: re-runs [_validateStagedDatabase]
-  /// on a marker-less staging file. The marker bookkeeping in
-  /// [_prepareStagingForVersion] is best-effort, so a mid-download kill can
-  /// (rarely) leave a torn `.staging` with no marker; this backstop keeps it
-  /// from clobbering the live catalog.
-  ///
-  /// Returns true when the staged file is safe to promote. On failure the
-  /// staged file is deleted — mirroring [stageCoreDbDownload]'s contract
-  /// that a fully-downloaded file which failed validation can never become
-  /// valid — the live catalog is left untouched, and no error propagates
-  /// (boot proceeds on the current catalog).
-  Future<bool> _revalidateStagedBeforePromote(File stagingFile) async {
-    try {
-      // expectedVersion is unknowable here: boot may be offline and the
-      // remote manifest unreachable. Integrity check, snapshot probe,
-      // version gate, and schema-column checks still run.
-      await _validateStagedDatabase(stagingFile.path);
-      return true;
-    } on Object catch (error, st) {
-      CrashReportingService().recordError(
-        error,
-        st,
-        fatal: false,
-        hint: 'catalog_sync:staged_revalidation_failed',
-      );
-      try {
-        if (await stagingFile.exists()) {
-          await stagingFile.delete();
-        }
-      } on Object catch (cleanupError, cleanupSt) {
-        CrashReportingService().recordError(
-          cleanupError,
-          cleanupSt,
-          hint: 'catalog_sync:staging_cleanup_failed',
-        );
-      }
-      await _deleteStagingVersionMarker(stagingFile);
-      return false;
-    }
-  }
-
-  // ---------------------------------------------------------------------
   // Validation
   // ---------------------------------------------------------------------
 
@@ -583,13 +497,12 @@ class SyncService {
     return _validateStagedDatabase(dbPath, expectedVersion: expectedVersion);
   }
 
-  /// Pure version-gate decision, extracted for unit testing.
+  /// Pure version-gate decision.
   ///
   /// Fails CLOSED on every uncertainty: a missing, blank or unparseable key,
   /// a catalog that needs a newer app, a schema major this build cannot
   /// read, or a schema older than [kMinSupportedCatalogSchema]. A refused
   /// catalog is not activated; the current catalog stays in place.
-  @visibleForTesting
   static void enforceCatalogVersionGate({
     required String? minAppVersion,
     required String? schemaVersion,
@@ -659,9 +572,7 @@ class SyncService {
   /// field from the DB's embedded `export_manifest` key-value table, so the
   /// two values must match byte-for-byte. A mismatch means Supabase Storage
   /// served us a file that disagrees with its own manifest row — we refuse
-  /// to activate it. Pass null when the remote manifest is unreachable
-  /// (boot-time revalidation in [_revalidateStagedBeforePromote]): the
-  /// equality check is skipped but every other gate still runs.
+  /// to activate it.
   ///
   /// VERSION GATE: after the version match, the embedded manifest's
   /// `min_app_version` and `schema_version` are checked against this app
@@ -670,7 +581,7 @@ class SyncService {
   /// deletes the staged file upstream.
   Future<String> _validateStagedDatabase(
     String dbPath, {
-    String? expectedVersion,
+    required String expectedVersion,
   }) async {
     final db = CoreDatabase.open(dbPath);
     try {
@@ -693,7 +604,7 @@ class SyncService {
       }
 
       final validatedVersion = await db.validateCatalogSnapshot();
-      if (expectedVersion != null && validatedVersion != expectedVersion) {
+      if (validatedVersion != expectedVersion) {
         throw StateError(
           'Downloaded catalog version mismatch: '
           'expected db_version $expectedVersion, got $validatedVersion. '

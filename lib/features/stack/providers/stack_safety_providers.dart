@@ -1225,6 +1225,18 @@ final currentStackMedicationClassIdsProvider = FutureProvider<Set<String>>((
   return MedicationClassBridge.profileGateIdsForClasses(classIds).toSet();
 });
 
+/// The classes the stack rows themselves record, for a screen that still has
+/// catalog warnings to match when [currentStackMedicationClassIdsProvider] has
+/// failed, as it does while the rules file is withheld. Screens keep reporting
+/// that failure; this only stops an unrelated warning from disappearing.
+Set<String> storedStackMedicationClassIds(
+  Iterable<UserStacksLocalData> stack,
+) => MedicationClassBridge.profileGateIdsForClasses(
+  stack
+      .where((e) => e.type == 'medication')
+      .expand((e) => MedicationIdentitySnapshot.fromStackRow(e).drugClassIds),
+).toSet();
+
 List<String> _decodeStackStringList(String? raw) {
   if (raw == null || raw.isEmpty) return const <String>[];
   try {
