@@ -17,6 +17,7 @@ import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as reference_data;
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_nutrient_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_provider_helpers.dart';
@@ -1007,7 +1008,15 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
     stackDoseThresholdAlertsProvider.future,
   );
 
+  // Keep known findings available while the feed loads or fails; only a fully
+  // readable verified feed can support the shared clean result. Readable cached
+  // feeds remain usable offline, matching the product-page contract.
+  final alertsAsync = ref.watch(safetyAlertMatchesProvider);
+  final alerts = alertsAsync.value;
   return const StackIntelligenceEngine().summarizeFromReports(
+    regulatorySafetyAlerts: alerts?.matches ?? const [],
+    alertChecksIncomplete:
+        alertsAsync.hasError || alerts == null || alerts.neverVerified,
     stackSize: stack.length,
     safetyReport: safetyReport,
     recalledReport: recalledReport,

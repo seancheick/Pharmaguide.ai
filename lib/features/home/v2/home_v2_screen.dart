@@ -697,7 +697,9 @@ class _StackHealthCard extends ConsumerWidget {
                   medicationCount: medicationLabel,
                   safetySignalCount: safetySignalCount,
                   safetyCheckIncomplete:
-                      hasError || (intelligence?.analysisIncomplete ?? false),
+                      isAnalyzing ||
+                      hasError ||
+                      (intelligence?.analysisIncomplete ?? false),
                 ),
               ),
               // CTA footer.

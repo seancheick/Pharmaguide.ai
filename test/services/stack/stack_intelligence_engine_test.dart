@@ -1,6 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
+import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
@@ -130,6 +136,108 @@ void main() {
   const engine = StackIntelligenceEngine();
   final emptySynergy = SynergyReport.empty();
   final emptyRecall = RecalledIngredientsReport.empty();
+
+  group('the shared snapshot reads regulatory alerts', () {
+    Future<StackHealthSnapshot> snapshot({
+      bool unavailable = false,
+      bool offline = false,
+      bool throws = false,
+      List<({SafetyAlert alert, String dsldId})> matches = const [],
+    }) async {
+      final now = DateTime.utc(2026, 11, 3);
+      final container = ProviderContainer(
+        overrides: [
+          activeStackProvider.overrideWith(
+            (_) async => [
+              UserStacksLocalData(
+                id: 'p',
+                type: 'supplement',
+                name: 'Fixture',
+                dsldId: '999',
+                addedAt: now,
+                clientUpdatedAt: now,
+              ),
+            ],
+          ),
+          stackSafetyReportProvider.overrideWith(
+            (_) async => const StackSafetyReport(),
+          ),
+          recalledIngredientsReportProvider.overrideWith(
+            (_) async => emptyRecall,
+          ),
+          synergyReportProvider.overrideWith((_) async => emptySynergy),
+          stackDoseThresholdAlertsProvider.overrideWith((_) async => []),
+          safetyAlertMatchesProvider.overrideWith((_) async {
+            if (throws) throw StateError('feed cannot be read');
+            return SafetyAlertMatchSet(
+              matches: matches,
+              baselineSignalKeys: {},
+              isComplete: !unavailable && !offline,
+              neverVerified: unavailable,
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      try {
+        await container.read(safetyAlertMatchesProvider.future);
+      } on Object {
+        // The provider failure itself is the fixture under test.
+      }
+      return container.read(stackHealthSnapshotProvider.future);
+    }
+
+    test('an unverified feed withholds a clean Stack Health result', () async {
+      for (final throws in [false, true]) {
+        final result = await snapshot(unavailable: true, throws: throws);
+        expect(result.checksIncomplete, isTrue);
+        expect(result.intelligence.analysisIncomplete, isTrue);
+        expect(result.intelligence.tier, StackTier.incomplete);
+      }
+    });
+
+    test('a verified feed preserves the clean Stack Health result', () async {
+      for (final offline in [false, true]) {
+        final result = await snapshot(offline: offline);
+        expect(result.checksIncomplete, isFalse);
+        expect(result.intelligence.tier, StackTier.optimized);
+      }
+    });
+
+    test(
+      'an authored alert reaches Home and Stack through the shared snapshot',
+      () async {
+        final feed = jsonDecode(
+          File(
+            'test/fixtures/safety_alerts/interaction_rule_feed.json',
+          ).readAsStringSync(),
+        );
+        final alert = SafetyAlert.fromJson(
+          Map<String, Object?>.from(
+            (feed['alerts'] as List).cast<Map<String, dynamic>>().firstWhere(
+              (row) => row['event_type'] == 'interaction_rule',
+            ),
+          ),
+        );
+        for (final unavailable in [false, true]) {
+          final result = await snapshot(
+            unavailable: unavailable,
+            matches: [(alert: alert, dsldId: '999')],
+          );
+          expect(result.reviewSignals, hasLength(1));
+          expect(
+            result.reviewSignals.single.payload,
+            isA<RegulatorySafetyPayload>(),
+          );
+          expect(
+            result.intelligence.issues.single.headline,
+            contains(alert.body),
+          );
+          expect(result.intelligence.tier, StackTier.unsafe);
+        }
+      },
+    );
+  });
 
   group('StackIntelligenceEngine.diagnose', () {
     test('an incomplete recall scan prevents an optimized all-clear', () {
