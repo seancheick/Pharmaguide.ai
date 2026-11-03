@@ -43,6 +43,7 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -553,7 +554,12 @@ class _ProductDetailV2ConnectedState
     final fitAsync = ref.watch(fitScoreForProductProvider(widget.dsldId));
     final fitResult = fitAsync.asData?.value;
     final deviceProfileAsync = ref.watch(deviceSafetyProfileProvider);
+    // Some paths never read the rules, such as an empty stack or a product with
+    // no canonical ids, so their own results can't report that the rules are
+    // missing. Finding nothing without the rules is not an all-clear.
+    final rulesUnavailable = interactionRulesUnavailable(ref);
     final personalizedChecksFailed =
+        rulesUnavailable ||
         personalizedWarningsFailed ||
         profileRuleWarningsFailed ||
         fitAsync.hasError ||
@@ -831,7 +837,10 @@ class _ProductDetailV2ConnectedState
                       // ---- 2. ProfileRelevance (personalized) ----------
                       // A blocked product hides personal results, so a
                       // failed personal check has nothing to qualify.
-                      if (personalizedChecksFailed && !isBlocked) ...[
+                      if (rulesUnavailable && !isBlocked) ...[
+                        const RulesWithheldNotice(),
+                        const SizedBox(height: V2Spacing.space12),
+                      ] else if (personalizedChecksFailed && !isBlocked) ...[
                         PGSeverityBanner(
                           key: const Key('personalized-checks-error-banner'),
                           tone: PGBannerTone.caution,
