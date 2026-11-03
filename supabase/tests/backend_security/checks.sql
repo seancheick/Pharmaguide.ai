@@ -111,6 +111,20 @@ BEGIN
   PERFORM sec.expect('anon', 'DELETE FROM public.user_stacks', 'denied:42501', 'anon delete');
 END $$;
 
+CREATE FUNCTION sec.check_anon_only_reads_public_tables() RETURNS void LANGUAGE plpgsql AS $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY sec.public_read_tables() LOOP
+    IF has_table_privilege('anon', format('public.%I', t), 'INSERT, UPDATE, DELETE, TRUNCATE')
+       OR has_any_column_privilege('anon', format('public.%I', t), 'INSERT, UPDATE') THEN
+      RAISE EXCEPTION 'FAIL: anon can write to %', t;
+    END IF;
+    IF sec.try('anon', format('SELECT * FROM public.%I', t)) LIKE 'denied:%' THEN
+      RAISE EXCEPTION 'FAIL: anon cannot read %, and the app needs it before sign-in', t;
+    END IF;
+  END LOOP;
+END $$;
+
 CREATE FUNCTION sec.check_anon_runs_only_the_request_guard() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE d record;
 BEGIN

@@ -20,6 +20,9 @@ INSERT INTO sec.mutations(name, check_name, ddl) VALUES
 ('anon inserts', 'check_anon_cannot_write', 'GRANT INSERT ON public.user_stacks TO anon; CREATE POLICY sec_open ON public.user_stacks FOR INSERT TO anon WITH CHECK (true)'),
 ('anon updates', 'check_anon_cannot_write', 'GRANT UPDATE ON public.user_stacks TO anon'),
 ('anon deletes', 'check_anon_cannot_write', 'GRANT DELETE ON public.user_stacks TO anon'),
+('anon writes catalog', 'check_anon_only_reads_public_tables', 'GRANT INSERT ON public.catalog_releases TO anon'),
+('anon updates alert column', 'check_anon_only_reads_public_tables', 'GRANT UPDATE (is_current) ON public.safety_alert_releases TO anon'),
+('anon loses catalog read', 'check_anon_only_reads_public_tables', 'REVOKE SELECT ON public.export_manifest FROM anon'),
 ('anon runs owner RPC', 'check_anon_runs_only_the_request_guard', 'GRANT EXECUTE ON FUNCTION public.hide_product_submission(uuid) TO anon'),
 ('anon runs server RPC', 'check_anon_runs_only_the_request_guard', 'GRANT EXECUTE ON FUNCTION public.list_product_submission_objects_for_user(uuid) TO anon'),
 
