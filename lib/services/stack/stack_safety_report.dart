@@ -25,6 +25,16 @@ import 'package:pharmaguide/services/health/dose_safety.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 
+/// A stack product below the coverage trust floor, with the pipeline's reason
+/// its score is unavailable.
+@immutable
+class LimitedDataProduct {
+  const LimitedDataProduct(this.name, {this.scoreUnavailableReason});
+
+  final String name;
+  final String? scoreUnavailableReason;
+}
+
 @immutable
 class StackSafetyReport {
   const StackSafetyReport({
@@ -37,12 +47,12 @@ class StackSafetyReport {
     this.coverageIncomplete = false,
     this.checksIncomplete = false,
     this.catalogProductSkipped = false,
-    this.limitedDataProducts = const <String>[],
+    this.limitedDataProducts = const <LimitedDataProduct>[],
   });
 
-  /// Stack products whose label coverage is below the trust floor, by name, so
-  /// the consumer copy can say which product the gap belongs to.
-  final List<String> limitedDataProducts;
+  /// Stack products whose label coverage is below the trust floor, so the
+  /// consumer copy can say which product the gap belongs to and why.
+  final List<LimitedDataProduct> limitedDataProducts;
 
   /// True when at least one product in the stack has a label mapping
   /// coverage below the 0.3 trust floor — its ingredients may not have
