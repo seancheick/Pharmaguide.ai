@@ -30,6 +30,8 @@ class _FakePublisher {
   final Map<String, Uint8List> files = {};
   final List<String> downloads = [];
   bool down = false;
+  bool signedColumnsMissing = false;
+  String? manifestSelect;
 
   Future<void> start() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -38,7 +40,22 @@ class _FakePublisher {
       final response = request.response;
       if (down) {
         response.statusCode = 503;
+      } else if (path == '/rest/v1/export_manifest' &&
+          signedColumnsMissing &&
+          request.uri.queryParameters['select']!.contains('signed_release')) {
+        // What PostgREST 14.5 answers before the release migration is applied.
+        response.statusCode = 400;
+        response.headers.contentType = ContentType.json;
+        response.write(
+          jsonEncode({
+            'code': '42703',
+            'details': null,
+            'hint': null,
+            'message': 'column export_manifest.signed_release does not exist',
+          }),
+        );
       } else if (path == '/rest/v1/export_manifest') {
+        manifestSelect = request.uri.queryParameters['select'];
         final wantsObject = request.headers
             .value('accept')
             ?.contains('vnd.pgrst.object');
@@ -388,6 +405,45 @@ void main() {
     final offline = await launch();
     expect(offline.generation.rulesWithheld, isTrue);
     expect(await offline.generation.core.countProducts(), 1);
+  });
+
+  test('the manifest read names its columns, so a column grant cannot break '
+      'it', () async {
+    publisher.row = {
+      'db_version': '2026.02.01.000000',
+      'checksum': 'sha256:abc',
+      'is_current': true,
+      'signed_release': '{}',
+      'release_signature': 'signature',
+    };
+
+    final release = await SyncService().fetchCurrentRelease();
+
+    expect(
+      publisher.manifestSelect,
+      'db_version,checksum,signed_release,release_signature',
+    );
+    expect(release!.signedRelease, '{}');
+    expect(release.releaseSignature, 'signature');
+  });
+
+  test('a database without the release migration keeps updating the catalog, '
+      'because naming the signed columns must not stop updates', () async {
+    publisher.row = {
+      'db_version': '2026.02.01.000000',
+      'checksum': 'sha256:abc',
+      'is_current': true,
+    };
+    publisher.signedColumnsMissing = true;
+    addTearDown(() => publisher.signedColumnsMissing = false);
+
+    final release = await SyncService().fetchCurrentRelease();
+
+    expect(publisher.manifestSelect, 'db_version,checksum');
+    expect(release!.dbVersion, '2026.02.01.000000');
+    expect(release.checksum, 'sha256:abc');
+    expect(release.signedRelease, isNull);
+    expect(release.releaseSignature, isNull);
   });
 
   test('a build with no keys, like every public build today, ignores a signed '

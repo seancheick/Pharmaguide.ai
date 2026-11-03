@@ -17,6 +17,7 @@ import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/supabase_contract.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 /// Thrown when a downloaded catalog passes integrity + version checks but
 /// is refused activation because this app build cannot safely read it
@@ -76,8 +77,29 @@ class SyncService {
   /// retryWithBackoff.
   static const _authedDownloadTimeout = Duration(minutes: 2);
 
-  /// Returns the current `export_manifest` row. Selects every column so the app
-  /// keeps updating on a database that doesn't have the signed columns yet.
+  /// Keeps the app updating on a database that doesn't have the signed columns
+  /// yet: PostgREST answers 42703 for a named column the table lacks. Reads a
+  /// list because `maybeSingle` reports every failure as code 400, hiding that.
+  Future<Map<String, dynamic>?> _readCurrentManifestRow() async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await supabase
+          .from(SupabaseContract.manifestTable)
+          .select('db_version,checksum,signed_release,release_signature')
+          .eq('is_current', true)
+          .limit(1);
+    } on PostgrestException catch (error) {
+      if (error.code != '42703') rethrow;
+      rows = await supabase
+          .from(SupabaseContract.manifestTable)
+          .select('db_version,checksum')
+          .eq('is_current', true)
+          .limit(1);
+    }
+    return rows.firstOrNull;
+  }
+
+  /// Returns the current `export_manifest` row.
   Future<RemoteRelease?> fetchCurrentRelease() async {
     final span = _startCatalogSpan(
       operation: 'http.client',
@@ -87,12 +109,7 @@ class SyncService {
     SpanStatus status = const SpanStatus.ok();
     try {
       final row = await retryWithBackoff(
-        () => supabase
-            .from(SupabaseContract.manifestTable)
-            .select()
-            .eq('is_current', true)
-            .limit(1)
-            .maybeSingle(),
+        _readCurrentManifestRow,
         timeout: _manifestTimeout,
       );
       final version = row?['db_version'] as String?;
