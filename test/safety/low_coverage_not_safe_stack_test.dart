@@ -184,24 +184,24 @@ void main() {
         );
       });
 
-      testWidgets('not a product type we assess, one product', (tester) async {
+      testWidgets('no quality score, one product', (tester) async {
         await expectBody(
           tester,
           const [LimitedDataProduct('A', scoreUnavailableReason: intentional)],
-          "This isn't a product type we assess, so your stack results may "
-          'not include it.',
+          "We don't provide a quality score for this product, and its safety "
+          'checks may be incomplete.',
         );
       });
 
-      testWidgets('not a product type we assess, several', (tester) async {
+      testWidgets('no quality score, several', (tester) async {
         await expectBody(
           tester,
           const [
             LimitedDataProduct('A', scoreUnavailableReason: intentional),
             LimitedDataProduct('B', scoreUnavailableReason: intentional),
           ],
-          "These aren't product types we assess, so your stack results may "
-          'not include them: A, B.',
+          "We don't provide quality scores for these products, and their "
+          'safety checks may be incomplete: A, B.',
         );
       });
 
