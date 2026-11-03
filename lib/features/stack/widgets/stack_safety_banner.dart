@@ -166,7 +166,7 @@ class StackSafetyBanner extends StatelessWidget {
   /// Names the stack products below the 0.3 coverage trust floor, so the gap
   /// reads as a fact about a product rather than a fault in the app.
   Widget _limitedDataBanner() {
-    final names = snapshot.limitedDataProducts;
+    final names = [for (final p in snapshot.limitedDataProducts) p.name];
     return PGSeverityBanner(
       key: const Key('stack-safety-banner'),
       tone: PGBannerTone.neutral,
@@ -174,17 +174,46 @@ class StackSafetyBanner extends StatelessWidget {
           ? "We can't fully check ${names.single}"
           : "We can't fully check ${names.length} products",
       body:
-          (names.length == 1
-              ? "We can't match enough of its label to our safety data, so your "
-                    'stack results may not include it.'
-              : "We can't match enough of their labels to our safety data, so "
-                    'your stack results may not include them: '
-                    '${names.join(', ')}.') +
+          _limitedDataReason(names) +
           (snapshot.checksIncomplete
               ? ' Some stack safety checks could not finish, so results may be incomplete.'
               : ''),
       margin: margin,
     );
+  }
+
+  /// Says why, using the pipeline's `score_unavailable_reason`. Coverage alone
+  /// can't tell these apart. A reason without its own wording, or none, keeps
+  /// the conservative sentence.
+  String _limitedDataReason(List<String> names) {
+    final one = names.length == 1;
+    final results = one
+        ? 'so your stack results may not include it.'
+        : 'so your stack results may not include them: ${names.join(', ')}.';
+    final reasons = {
+      for (final p in snapshot.limitedDataProducts)
+        switch (p.scoreUnavailableReason?.trim().toLowerCase()) {
+          final reason?
+              when reason == 'blocked_by_completeness_gate' ||
+                  reason == 'intentional_non_scoreable_product' =>
+            reason,
+          _ => null,
+        },
+    };
+    if (reasons.length > 1) return "We can't check these fully, $results";
+    return switch (reasons.single) {
+      'blocked_by_completeness_gate' =>
+        "The label details we have aren't complete enough to check "
+            "${one ? 'it' : 'them'}, $results",
+      'intentional_non_scoreable_product' =>
+        one
+            ? "This isn't a product type we assess, $results"
+            : "These aren't product types we assess, $results",
+      _ =>
+        one
+            ? "We can't match enough of its label to our safety data, $results"
+            : "We can't match enough of their labels to our safety data, $results",
+    };
   }
 
   /// A product whose details didn't load, or a catalog read that failed.

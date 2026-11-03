@@ -95,7 +95,7 @@ void main() {
         tester,
         const StackSafetyReport(
           coverageIncomplete: true,
-          limitedDataProducts: ['Fructose'],
+          limitedDataProducts: [LimitedDataProduct('Fructose')],
         ),
       );
       expect(find.text("We can't fully check Fructose"), findsOneWidget);
@@ -110,7 +110,7 @@ void main() {
         tester,
         const StackSafetyReport(
           coverageIncomplete: true,
-          limitedDataProducts: ['Fructose'],
+          limitedDataProducts: [LimitedDataProduct('Fructose')],
           checksIncomplete: true,
         ),
       );
@@ -126,11 +126,147 @@ void main() {
         tester,
         const StackSafetyReport(
           coverageIncomplete: true,
-          limitedDataProducts: ['Fructose', 'Sucralose'],
+          limitedDataProducts: [
+            LimitedDataProduct('Fructose'),
+            LimitedDataProduct('Sucralose'),
+          ],
         ),
       );
       expect(find.text("We can't fully check 2 products"), findsOneWidget);
       expect(find.textContaining('Fructose, Sucralose'), findsOneWidget);
+    });
+
+    group('words the gap by the pipeline reason', () {
+      const incomplete = 'blocked_by_completeness_gate';
+      const intentional = 'intentional_non_scoreable_product';
+
+      Future<void> expectBody(
+        WidgetTester tester,
+        List<LimitedDataProduct> products,
+        String body,
+      ) async {
+        await pump(
+          tester,
+          StackSafetyReport(
+            coverageIncomplete: true,
+            limitedDataProducts: products,
+          ),
+        );
+        expect(find.text(body), findsOneWidget);
+        expect(find.textContaining('Safe'), findsNothing);
+      }
+
+      const today =
+          "We can't match enough of its label to our safety data, so your "
+          'stack results may not include it.';
+
+      testWidgets('incomplete label details, one product', (tester) async {
+        await expectBody(
+          tester,
+          const [
+            LimitedDataProduct('Adrenal', scoreUnavailableReason: incomplete),
+          ],
+          "The label details we have aren't complete enough to check it, so "
+          'your stack results may not include it.',
+        );
+        expect(find.text("We can't fully check Adrenal"), findsOneWidget);
+      });
+
+      testWidgets('incomplete label details, several products', (tester) async {
+        await expectBody(
+          tester,
+          const [
+            LimitedDataProduct('A', scoreUnavailableReason: incomplete),
+            LimitedDataProduct('B', scoreUnavailableReason: incomplete),
+          ],
+          "The label details we have aren't complete enough to check them, "
+          'so your stack results may not include them: A, B.',
+        );
+      });
+
+      testWidgets('not a product type we assess, one product', (tester) async {
+        await expectBody(
+          tester,
+          const [LimitedDataProduct('A', scoreUnavailableReason: intentional)],
+          "This isn't a product type we assess, so your stack results may "
+          'not include it.',
+        );
+      });
+
+      testWidgets('not a product type we assess, several', (tester) async {
+        await expectBody(
+          tester,
+          const [
+            LimitedDataProduct('A', scoreUnavailableReason: intentional),
+            LimitedDataProduct('B', scoreUnavailableReason: intentional),
+          ],
+          "These aren't product types we assess, so your stack results may "
+          'not include them: A, B.',
+        );
+      });
+
+      testWidgets('mixed reasons', (tester) async {
+        const mixed =
+            "We can't check these fully, so your stack results may not "
+            'include them: A, B.';
+        await expectBody(tester, const [
+          LimitedDataProduct('A', scoreUnavailableReason: incomplete),
+          LimitedDataProduct('B', scoreUnavailableReason: intentional),
+        ], mixed);
+        await expectBody(tester, const [
+          LimitedDataProduct('A', scoreUnavailableReason: incomplete),
+          LimitedDataProduct('B'),
+        ], mixed);
+      });
+
+      testWidgets('a reason is read regardless of case and spacing', (
+        tester,
+      ) async {
+        await expectBody(
+          tester,
+          const [
+            LimitedDataProduct(
+              'A',
+              scoreUnavailableReason: ' Blocked_By_Completeness_Gate ',
+            ),
+          ],
+          "The label details we have aren't complete enough to check it, so "
+          'your stack results may not include it.',
+        );
+      });
+
+      for (final reason in [
+        null,
+        '',
+        'blocked_by_safety_gate',
+        'release_assessment_incomplete',
+        'safety_assessment_incomplete',
+        'safety_policy_review_required',
+        'probiotic_afu_reference_unavailable',
+        'a_reason_this_build_has_never_seen',
+      ]) {
+        testWidgets('reason "$reason" keeps the conservative wording', (
+          tester,
+        ) async {
+          await expectBody(tester, [
+            LimitedDataProduct('A', scoreUnavailableReason: reason),
+          ], today);
+        });
+      }
+
+      testWidgets('several unknown reasons keep the conservative wording', (
+        tester,
+      ) async {
+        await expectBody(
+          tester,
+          const [
+            LimitedDataProduct('A', scoreUnavailableReason: 'one'),
+            LimitedDataProduct('B', scoreUnavailableReason: 'two'),
+          ],
+          "We can't match enough of their labels to our safety data, so "
+          'your stack results may not include them: A, B.',
+        );
+      });
     });
 
     testWidgets('a product the recall card already names gets no second card', (
