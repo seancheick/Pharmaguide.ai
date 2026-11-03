@@ -324,6 +324,43 @@ void main() {
   });
 
   group('other surfaces', () {
+    // No page open: someone with the product and the medication in their stack
+    // still gets the signal the Stack tab and health history read.
+    Future<SafetyAlertMatchSet> matchesFor(Set<String> medicationIds) {
+      final ts = DateTime.utc(2026, 11, 3, 12);
+      final container = ProviderContainer(
+        overrides: [
+          activeStackProvider.overrideWith(
+            (ref) async => [
+              UserStacksLocalData(
+                id: 'supp-fake',
+                type: 'supplement',
+                name: _product.productName,
+                dsldId: _dsldId,
+                ingredientKeys: '["fake_fakeroot"]',
+                addedAt: ts,
+                clientUpdatedAt: ts,
+              ),
+            ],
+          ),
+          safetyAlertRepositoryProvider.overrideWithValue(
+            _FakeRepository([_rule()]),
+          ),
+          localMedicationIdentityProvider.overrideWith(
+            (ref) async => medicationIds,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container.read(safetyAlertMatchesProvider.future);
+    }
+
+    test('a stack product matches without opening its page', () async {
+      final matches = await matchesFor({_classId});
+      expect(matches.matches.single.alert.interaction?.ruleId, _ruleId);
+      expect((await matchesFor(const {})).matches, isEmpty);
+    });
+
     test('the Stack signal carries severity, evidence and the notice', () {
       final signal = ClinicalSignal.fromRegulatorySafety(
         _rule(),
