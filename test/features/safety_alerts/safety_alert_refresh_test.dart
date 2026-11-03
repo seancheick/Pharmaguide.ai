@@ -75,7 +75,9 @@ void main() {
       overrides: [
         safetyAlertRepositoryProvider.overrideWithValue(repository),
         activeStackProvider.overrideWith((ref) async => const []),
-        localMedicationIdentityProvider.overrideWith((ref) async => const {}),
+        localMedicationIdentityProvider.overrideWith(
+          (ref) async => (ids: const <String>{}, isComplete: true),
+        ),
         loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
         evaluatorProfileFlagsProvider.overrideWith((ref) async => const {}),
         connectionStatusProvider.overrideWith((ref) => connection.stream),

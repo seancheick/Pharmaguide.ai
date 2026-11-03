@@ -106,7 +106,7 @@ Future<void> _pumpSection(
           _FakeRepository([_rule()]),
         ),
         localMedicationIdentityProvider.overrideWith(
-          (ref) async => medicationIds,
+          (ref) async => (ids: medicationIds, isComplete: true),
         ),
         loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
         evaluatorProfileFlagsProvider.overrideWith((ref) async => const {}),
@@ -199,7 +199,9 @@ Future<List<InteractionWarning>> _warnings({
       detailBlobProvider.overrideWith((ref, dsldId) async => null),
       safetyAlertRepositoryProvider.overrideWithValue(_FakeRepository(alerts)),
       localMedicationIdentityProvider.overrideWith(
-        (ref) async => medicationIds,
+        (ref) async => profileFails
+            ? throw StateError('unreadable')
+            : (ids: medicationIds, isComplete: true),
       ),
       loadedProfileProvider.overrideWith((ref) async => profile),
       evaluatorProfileFlagsProvider.overrideWith(
@@ -207,10 +209,6 @@ Future<List<InteractionWarning>> _warnings({
             ? throw StateError('no taxonomy')
             : {if (profile.conditions.contains('pregnancy')) 'pregnant'},
       ),
-      if (profileFails)
-        localMedicationIdentityProvider.overrideWith(
-          (ref) async => throw StateError('unreadable'),
-        ),
     ],
   );
   addTearDown(container.dispose);
@@ -376,44 +374,27 @@ void main() {
       },
     );
 
-    test('an unreadable device profile surfaces, never as nothing to '
-        'report', () async {
-      await expectLater(
-        _warnings(
-          alerts: [_pregnancyRule()],
-          medicationIds: const {},
-          profileFails: true,
-        ),
-        throwsA(anything),
+    test('unreadable medications still give the warning the profile can '
+        'find', () async {
+      final warnings = await _warnings(
+        alerts: [_pregnancyRule()],
+        medicationIds: const {},
+        profile: _pregnant,
+        profileFails: true,
       );
+
+      expect(warnings.single.title, contains('pregnancy'));
     });
 
-    test('a failed taxonomy surfaces for someone whose profile is on file, '
-        'with products in the stack too', () async {
-      final ts = DateTime.utc(2026, 11, 3, 12);
-      for (final stack in [
-        const <UserStacksLocalData>[],
-        [
-          UserStacksLocalData(
-            id: 'supp-other',
-            type: 'supplement',
-            name: 'Other',
-            addedAt: ts,
-            clientUpdatedAt: ts,
-          ),
-        ],
-      ]) {
-        await expectLater(
-          _warnings(
-            alerts: [_pregnancyRule()],
-            medicationIds: const {},
-            profile: _pregnant,
-            flagsFail: true,
-            stack: stack,
-          ),
-          throwsA(anything),
-        );
-      }
+    test('a failed taxonomy does not hide the medication warning', () async {
+      final warnings = await _warnings(
+        alerts: [_rule()],
+        medicationIds: const {_classId},
+        profile: _pregnant,
+        flagsFail: true,
+      );
+
+      expect(warnings.single.evidenceLevel, EvidenceLevel.established);
     });
 
     test('nobody else sees it', () async {
@@ -461,7 +442,7 @@ void main() {
             _FakeRepository(alerts ?? [_rule()]),
           ),
           localMedicationIdentityProvider.overrideWith(
-            (ref) async => medicationIds,
+            (ref) async => (ids: medicationIds, isComplete: true),
           ),
           loadedProfileProvider.overrideWith((ref) async => profile),
           evaluatorProfileFlagsProvider.overrideWith(

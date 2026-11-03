@@ -16,7 +16,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final medications = localMedicationIdentityProvider.overrideWith(
-    (ref) async => const {'class:fake'},
+    (ref) async => (ids: const {'class:fake'}, isComplete: true),
   );
   ProfileState throwing() => throw StateError('unreadable');
 

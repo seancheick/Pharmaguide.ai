@@ -35,7 +35,9 @@ Future<Set<String>> _identity(
     ],
   );
   addTearDown(container.dispose);
-  return container.read(localMedicationIdentityProvider.future);
+  return container
+      .read(localMedicationIdentityProvider.future)
+      .then((identity) => identity.ids);
 }
 
 void main() {

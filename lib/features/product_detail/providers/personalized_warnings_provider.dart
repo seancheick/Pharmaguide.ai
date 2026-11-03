@@ -53,12 +53,10 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
         );
         rethrow;
       }
-      // A profile can match a live rule with an empty stack. An unreadable one
-      // must surface: a short list here would read as nothing to report.
+      // A profile can match a live rule with an empty stack. A part that can't
+      // be read doesn't stop the checks the rest allows: the page reads the same
+      // provider and says this list isn't complete.
       final device = await ref.watch(deviceSafetyProfileProvider.future);
-      if (!device.isComplete) {
-        throw StateError('The device profile could not be read.');
-      }
       if (stack.isEmpty && device.isEmpty) return const [];
 
       final coreDb = ref.watch(coreDatabaseProvider);

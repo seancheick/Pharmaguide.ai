@@ -33,7 +33,10 @@ final deviceSafetyProfileProvider = FutureProvider<DeviceSafetyProfile>((
   }
 
   final medicationIds = await read(
-    ref.watch(localMedicationIdentityProvider.future),
+    ref.watch(localMedicationIdentityProvider.future).then((identity) {
+      if (!identity.isComplete) isComplete = false;
+      return identity.ids;
+    }),
   );
   final conditions = await read(
     ref
