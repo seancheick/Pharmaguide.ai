@@ -82,6 +82,7 @@ void main() {
     bool alertFeedAvailable = true,
     Future<StackHealthSnapshot>? pendingSnapshot,
     Future<StackHealthSnapshot> Function()? snapshotLoader,
+    Future<List<StackDoseThresholdAlert>> Function()? doseThresholdLoader,
   }) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
@@ -138,7 +139,9 @@ void main() {
             return recallReport;
           }),
           stackDoseThresholdAlertsProvider.overrideWith(
-            (ref) async => doseThresholdAlerts,
+            (ref) =>
+                doseThresholdLoader?.call() ??
+                Future.value(doseThresholdAlerts),
           ),
           profileProvider.overrideWith((ref) => ProfileNotifier()),
         ],
@@ -278,6 +281,70 @@ void main() {
         expect(find.text('No signals'), findsNothing);
         expect(find.text('Check incomplete'), findsOneWidget);
         expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'Home never reads clean while a dependency reloads the result',
+      (tester) async {
+        const alert = StackDoseThresholdAlert(
+          conditionId: 'pregnancy',
+          canonicalId: 'caffeine',
+          displayName: 'Caffeine',
+          totalValue: 240,
+          unit: 'mg',
+          thresholdValue: 200,
+          thresholdUnit: 'mg',
+          contributions: [],
+        );
+        final pending = Completer<List<StackDoseThresholdAlert>>();
+        var reloading = false;
+        await pumpWithStack(
+          tester,
+          const HomeV2Screen(showNavBar: false),
+          stack: [
+            stackEntry(
+              id: 's',
+              name: 'Caffeine',
+              type: 'supplement',
+              dsldId: '123',
+            ),
+          ],
+          doseThresholdLoader: () =>
+              reloading ? pending.future : Future.value(const [alert]),
+        );
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(find.text('1 Signal'), findsOneWidget);
+
+        reloading = true;
+        final metrics = find.byType(StackHealthMicroMetrics);
+        final container = ProviderScope.containerOf(tester.element(metrics));
+        container.invalidate(stackDoseThresholdAlertsProvider);
+        await tester.pump();
+        await tester.pump();
+        expect(container.read(stackHealthSnapshotProvider).isReloading, isTrue);
+        tester
+            .element(
+              find
+                  .ancestor(
+                    of: metrics,
+                    matching: find.byWidgetPredicate(
+                      (w) => w is ConsumerWidget,
+                    ),
+                  )
+                  .last,
+            )
+            .markNeedsBuild();
+        await tester.pump();
+        expect(find.text('No signals'), findsNothing);
+        expect(find.text('No data yet'), findsNothing);
+        expect(find.text('Analyzing'), findsOneWidget);
+        expect(find.text('Check incomplete'), findsOneWidget);
+
+        pending.complete(const [alert]);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(find.text('1 Signal'), findsOneWidget);
       },
     );
 
