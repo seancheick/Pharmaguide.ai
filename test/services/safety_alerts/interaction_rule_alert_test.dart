@@ -176,6 +176,20 @@ void main() {
       'null severity': _interactionWith({'severity': null}),
       'unknown severity': _interactionWith({'severity': 'severe_future_tier'}),
       'informational severity': _interactionWith({'severity': 'informational'}),
+      'no scope': {..._feedAlert('interaction_rule')}..remove('scope'),
+      'no scope ingredients': {
+        ..._feedAlert('interaction_rule'),
+        'scope': <String, Object?>{'dsld_ids': <String>[]},
+      },
+      'null resolved products': {
+        ..._feedAlert('interaction_rule'),
+        'resolved_dsld_ids': null,
+      },
+      'blank reason': {..._feedAlert('interaction_rule'), 'body': ' '},
+      'insecure source': {
+        ..._feedAlert('interaction_rule'),
+        'source_url': 'http://example.org/fake',
+      },
     }.entries) {
       test('is skipped safely with $name', () {
         expect(
@@ -240,6 +254,16 @@ void main() {
         );
       },
     );
+
+    test('a damaged ban still rejects the feed, as it always has', () {
+      expect(
+        () => SafetyAlert.fromJson({
+          ..._feedAlert('ingredient_ban'),
+          'source_url': 'http://example.org/fake',
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
 
     test('fetching the feed sends nothing about medications', () async {
       final requests = <http.Request>[];

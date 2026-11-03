@@ -125,7 +125,24 @@ final class SafetyAlert {
         '${rule.evidenceLevel.label}';
   }
 
+  /// A damaged ban or recall rejects the feed, so the last good copy stays. A
+  /// damaged interaction rule skips itself instead: this type must not cost
+  /// anyone the bans in the same release, which is what older builds do with it.
   factory SafetyAlert.fromJson(Map<String, Object?> json) {
+    try {
+      return SafetyAlert._parse(json);
+    } on FormatException {
+      final id = json['alert_id'];
+      if (json['event_type'] == 'interaction_rule' &&
+          id is String &&
+          id.trim().isNotEmpty) {
+        throw const UnsupportedSafetyAlert('interaction_rule');
+      }
+      rethrow;
+    }
+  }
+
+  factory SafetyAlert._parse(Map<String, Object?> json) {
     String requiredString(String key) {
       final value = json[key];
       if (value is! String || value.trim().isEmpty) {
