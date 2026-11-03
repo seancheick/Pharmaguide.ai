@@ -182,6 +182,8 @@ class CoreDatabase extends _$CoreDatabase {
       // v2.3.0: independent safety/quality states plus typed dose-safety detail.
       'product_safety_status TEXT',
       'quality_assessment_status TEXT',
+      // Older catalogs lack this; NULL keeps the interim all-clear rule (ADR-014).
+      'safety_assessment_status TEXT',
       'quality_tier TEXT',
       'quality_score_suppressed_reason TEXT',
       'v4_module TEXT',

@@ -365,7 +365,7 @@ OS encryption protects a locked phone. It does nothing about two people using th
 ## ADR-014: Safety checks decide "No known concerns", not quality completion
 
 **Date:** 2026-11-03
-**Status:** DECIDED. The final predicate waits on a pipeline field.
+**Status:** DECIDED. Implemented in PR #177 on the field declared by pipeline PR #338.
 **Context:** PR #177 added `catalogProductCanReportNoConcerns`, which withholds "No known concerns" unless the public quality score is complete. That uses quality completion as a stand-in for safety completion. In the unpublished 2026.11.02 build, 6,264 of the 6,294 scored partial products carry only evidence-review blockers in `assessment_readiness.release_assessment.blockers`. The core row can't show that today.
 
 **Decision:** Sean, asked "May a product missing only evidence review say 'no known concerns' once its safety checks are done?", answered: "Yes, safety checks decide."
@@ -373,7 +373,8 @@ OS encryption protects a locked phone. It does nothing about two people using th
 - A product whose only gap is evidence review may say "No known concerns" once its safety checks are complete.
 - Identity gaps, dose gaps, an unknown catalog safety status and failed personal checks keep withholding it.
 - This decides the all-clear only. Such a product still shows no completed quality score or verdict, and `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces.
-- The predicate reads a safety-specific status the pipeline declares. Until that field exists the conservative check stays, and a missing or unknown value withholds.
+- The predicate reads `safety_assessment_status`, which the pipeline declares (`complete` or `incomplete`). Only `complete` allows the all-clear, and any other value withholds it.
+- A null value means a catalog older than the column: the app backfills it as null and accepts that catalog, so those rows keep the stricter earlier check (a complete public score and a known catalog safety status). Withholding on null would remove the all-clear from every finished product until the new catalog ships. A release build cannot write null (`--strict`, pipeline PR #338).
 - The clinician line (`kLifeStageClinicianNote`) still shows when the all-clear is withheld, because it's advice for the life stage and not a finding about the product.
 
-**Not decided here:** whether to hold back products with no safety signal and no barcode. That question stays with Sean.
+**Not decided here:** whether to hold back products with no safety signal and no barcode, and whether a product with catalog status `caution` may say "No known concerns". Both questions stay with Sean. Caution keeps its earlier behaviour for now.

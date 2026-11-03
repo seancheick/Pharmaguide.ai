@@ -27,6 +27,7 @@ import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
+import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
@@ -131,6 +132,7 @@ Future<CoreDatabase> _catalog({
   double? score = 95,
   String? scoreStatus = 'scored',
   String? assessment = 'complete',
+  String? safetyAssessment,
   String? safety = 'no_known_catalog_concern',
   String? verdict = 'SAFE',
   double coverage = 1,
@@ -149,6 +151,7 @@ Future<CoreDatabase> _catalog({
           qualityScoreV4100: Value(score),
           qualityScoreStatus: Value(scoreStatus),
           qualityAssessmentStatus: Value(assessment),
+          safetyAssessmentStatus: Value(safetyAssessment),
           productSafetyStatus: Value(safety),
           verdict: Value(verdict),
           mappedCoverage: Value(coverage),
@@ -201,6 +204,7 @@ void main() {
     String dsldId = _stJohnsWort,
     Key? scope,
     bool settle = true,
+    List<Override> extraOverrides = const [],
   }) async {
     addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
     await tester.pumpWidget(
@@ -213,6 +217,7 @@ void main() {
           fitScoreServiceProvider.overrideWith((ref) async => fitService),
           clinicalProfileSchemaProvider.overrideWith((ref) async => schema),
           rdaOptimalUlsProvider.overrideWith((ref) async => rda),
+          ...extraOverrides,
         ],
         child: MaterialApp(
           home: ProductDetailV2ConnectedScreen(
@@ -403,6 +408,216 @@ void main() {
 
       expect(find.text(_notRecommended), findsOneWidget);
       expect(find.text(_allClear), findsNothing);
+    });
+  });
+
+  group('safety checks decide the all-clear (ADR-014)', () {
+    // The pipeline folds identity, dose and not-scored gaps into `incomplete`
+    // (`assessment_readiness.py::safety_assessment_status`). The row cannot
+    // name the gap, so the page has one state for all of them.
+    testWidgets('evidence review alone missing: the all-clear shows, with no '
+        'finished score beside it', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyAssessment: 'complete',
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(find.text(_allClear), findsOneWidget);
+      expect(find.text('Assessment incomplete'), findsOneWidget);
+      expect(find.text('60/100'), findsNothing);
+    });
+
+    testWidgets('evidence review alone missing: a real concern still leads', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyAssessment: 'complete',
+        ),
+        phone: await _phone(
+          profile: _onWarfarin,
+          cachedBlob: _stJohnsWortBlob(),
+        ),
+      );
+
+      expect(find.text(_notRecommended), findsOneWidget);
+      expect(find.text(_allClear), findsNothing);
+    });
+
+    testWidgets('evidence review alone missing: a pregnant user sees the '
+        'clinician line under the all-clear', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyAssessment: 'complete',
+        ),
+        phone: await _phone(profile: _pregnant, cachedBlob: _vitaminEBlob()),
+      );
+
+      expect(find.text(_allClear), findsOneWidget);
+      await tester.ensureVisible(find.text(_allClear));
+      await tester.tap(find.text(_allClear));
+      await tester.pumpAndSettle();
+      expect(find.text(kLifeStageClinicianNote), findsOneWidget);
+    });
+
+    for (final (name, assessment, safetyAssessment, safety, coverage)
+        in <(String, String, String?, String?, double)>[
+          (
+            'identity or dose gap: the safety check is unfinished',
+            'partial',
+            'incomplete',
+            'no_known_catalog_concern',
+            1,
+          ),
+          (
+            'incomplete wins over a finished quality assessment',
+            'complete',
+            'incomplete',
+            'no_known_catalog_concern',
+            1,
+          ),
+          (
+            'a value this build has never seen',
+            'complete',
+            'something_new',
+            'no_known_catalog_concern',
+            1,
+          ),
+          ('an empty value', 'complete', '', 'no_known_catalog_concern', 1),
+          (
+            'older catalog: no status, assessment unfinished',
+            'partial',
+            null,
+            'no_known_catalog_concern',
+            1,
+          ),
+          (
+            'safety checks done, catalog safety not assessed',
+            'partial',
+            'complete',
+            'not_assessed',
+            1,
+          ),
+          (
+            'safety checks done, no catalog safety status',
+            'partial',
+            'complete',
+            null,
+            1,
+          ),
+          (
+            'safety checks done, a safety status this build has never seen',
+            'partial',
+            'complete',
+            'something_new',
+            1,
+          ),
+          (
+            'safety checks done, coverage below the floor',
+            'partial',
+            'complete',
+            'no_known_catalog_concern',
+            0.29,
+          ),
+        ]) {
+      testWidgets('withheld: $name', (tester) async {
+        await pumpPage(
+          tester,
+          catalog: await _catalog(
+            score: 60,
+            assessment: assessment,
+            safetyAssessment: safetyAssessment,
+            safety: safety,
+            coverage: coverage,
+          ),
+          phone: await _phone(
+            profile: _noMatch,
+            cachedBlob: _stJohnsWortBlob(),
+          ),
+        );
+
+        expect(find.text(_allClear), findsNothing);
+      });
+    }
+
+    testWidgets('withheld: safety checks done, personal check failed', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyAssessment: 'complete',
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+        extraOverrides: [
+          personalizedInteractionWarningsProvider(_stJohnsWort).overrideWith(
+            (ref) => throw StateError('interaction lookup failed'),
+          ),
+        ],
+      );
+
+      expect(find.text(_allClear), findsNothing);
+      expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+    });
+
+    testWidgets('withheld: safety checks done, the blob is not on the phone', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyAssessment: 'complete',
+        ),
+        phone: await _phone(profile: _noMatch),
+      );
+
+      expect(find.text(_allClear), findsNothing);
+      expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+    });
+
+    testWidgets('older catalog: a finished product keeps the all-clear', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(find.text(_allClear), findsOneWidget);
+    });
+
+    // Sean has not ruled on caution (ADR-014 leaves it); this pins today's
+    // behaviour so a change is a decision, not a side effect.
+    testWidgets('safety checks done with a catalog caution keeps today\'s '
+        'all-clear', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyAssessment: 'complete',
+          safety: 'caution',
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(find.text(_allClear), findsOneWidget);
     });
   });
 

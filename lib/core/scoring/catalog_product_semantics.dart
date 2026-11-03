@@ -155,19 +155,26 @@ bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
 
 /// Whether a check that found nothing may be reported as "no known concerns".
 ///
-/// That sentence claims the data behind it was finished. An unfinished
-/// assessment or an unknown catalog safety status keeps the incomplete state;
-/// concerns the checks did find still show.
+/// Safety checks decide this, not quality completion (ADR-014): the pipeline's
+/// `safety_assessment_status` says `complete` even when only evidence review is
+/// missing. Unfinished safety checks, an unknown catalog safety status and any
+/// value this build does not know keep the incomplete state. Concerns the
+/// checks did find still show.
 ///
-/// Interim (ADR-014): safety checks decide this, not quality completion. An
-/// unfinished quality assessment stands in for them only because the core row
-/// cannot tell the two apart, so an evidence-only gap also withholds the
-/// sentence for now. Replace the score check once the pipeline declares a
-/// safety-specific status.
-bool catalogProductCanReportNoConcerns(ProductsCoreData? product) =>
-    catalogProductHasCompletePublicScore(product) &&
-    catalogProductSafetyStatus(product!) !=
-        CatalogProductSafetyStatus.notAssessed;
+/// An older catalog has no such column, so the row reads null. Those rows keep
+/// the stricter rule from before the column existed: a complete public score.
+bool catalogProductCanReportNoConcerns(ProductsCoreData? product) {
+  if (product == null ||
+      catalogProductSafetyStatus(product) ==
+          CatalogProductSafetyStatus.notAssessed) {
+    return false;
+  }
+  return switch (product.safetyAssessmentStatus) {
+    null => catalogProductHasCompletePublicScore(product),
+    'complete' => true,
+    _ => false,
+  };
+}
 
 /// Whether the catalog has no usable quality number for this product.
 ///
