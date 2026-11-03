@@ -81,6 +81,7 @@ void main() {
     bool rulesAvailable = true,
     bool alertFeedAvailable = true,
     Future<StackHealthSnapshot>? pendingSnapshot,
+    Future<StackHealthSnapshot> Function()? snapshotLoader,
   }) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
@@ -115,6 +116,8 @@ void main() {
               neverVerified: !alertFeedAvailable,
             ),
           ),
+          if (snapshotLoader != null)
+            stackHealthSnapshotProvider.overrideWith((ref) => snapshotLoader()),
           if (pendingSnapshot != null)
             stackHealthSnapshotProvider.overrideWith((ref) => pendingSnapshot),
           stackSafetyReportProvider.overrideWith((ref) async {
@@ -277,6 +280,55 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    testWidgets('Home keeps a verified result during refresh', (tester) async {
+      final initial = const StackIntelligenceEngine().summarizeFromReports(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: RecalledIngredientsReport.empty(),
+        synergyReport: SynergyReport.empty(),
+      );
+      final pending = Completer<StackHealthSnapshot>();
+      var refreshing = false;
+      await pumpWithStack(
+        tester,
+        const HomeV2Screen(showNavBar: false),
+        stack: [
+          stackEntry(
+            id: 's',
+            name: 'Fixture',
+            type: 'supplement',
+            dsldId: '123',
+          ),
+        ],
+        snapshotLoader: () =>
+            refreshing ? pending.future : Future.value(initial),
+      );
+      expect(find.text('No signals'), findsOneWidget);
+      refreshing = true;
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(HomeV2Screen)),
+      );
+      container.invalidate(stackHealthSnapshotProvider);
+      await tester.pump();
+      await tester.pump();
+      expect(container.read(stackHealthSnapshotProvider).isLoading, isTrue);
+      expect(container.read(stackHealthSnapshotProvider).hasValue, isTrue);
+      // A layout/theme rebuild can happen while Riverpod retains prior data.
+      tester
+          .element(
+            find
+                .ancestor(
+                  of: find.byType(StackHealthMicroMetrics),
+                  matching: find.byWidgetPredicate((w) => w is ConsumerWidget),
+                )
+                .last,
+          )
+          .markNeedsBuild();
+      await tester.pump();
+      expect(find.text('No signals'), findsOneWidget);
+      expect(find.text('Check incomplete'), findsNothing);
+    });
 
     testWidgets(
       'dose-alert-only stack shares one tappable signal across summary, hero, and sheet',

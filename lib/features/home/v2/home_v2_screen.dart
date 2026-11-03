@@ -504,7 +504,8 @@ class _StackHealthCard extends ConsumerWidget {
     final healthSnapshot = healthSnapshotAsync.asData?.value;
     final intelligence = healthSnapshot?.intelligence;
     final status = intelligence?.tier.healthLabel;
-    final isAnalyzing = healthSnapshotAsync.isLoading;
+    final isAnalyzing =
+        healthSnapshotAsync.isLoading && !healthSnapshotAsync.hasValue;
     final hasError = healthSnapshotAsync.hasError;
     final needsMoreInfo =
         hasRealData && intelligence?.tier == StackTier.incomplete;
