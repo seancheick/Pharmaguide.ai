@@ -1,10 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_ingredient_tile.dart';
@@ -24,7 +29,11 @@ import 'package:pharmaguide/features/product_detail/providers/personalized_warni
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/services/connectivity_service.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
@@ -186,10 +195,13 @@ Future<void> _pumpConnectedScreen(
   bool profileRulesFail = false,
   List<UserStacksLocalData>? stack,
   bool classLookupFails = false,
+  Set<String> stackMedicationClassIds = const {},
   _Rules rules = _Rules.available,
   bool realWarnings = false,
   List<SafetyAlert> liveAlerts = const [],
   bool qualityWithheld = false,
+  SafetyAlertRepository Function()? buildAlertFeed,
+  Stream<ConnectionStatus>? connection,
 }) async {
   final coreDb = CoreDatabase.memory(qualityWithheld: qualityWithheld);
   final userDb = UserDatabase.memory();
@@ -222,6 +234,11 @@ Future<void> _pumpConnectedScreen(
           productSafetyAlertsProvider.overrideWith(
             (ref, product) async => liveAlerts,
           ),
+        safetyAlertRepositoryProvider.overrideWith(
+          (ref) => (buildAlertFeed ?? _VerifiedNoAlerts.new)(),
+        ),
+        if (connection != null)
+          connectionStatusProvider.overrideWith((ref) => connection),
         detailBlobProvider.overrideWith((ref, dsldId) async {
           expect(dsldId, _connectedDsldId);
           return detailBlob;
@@ -254,7 +271,7 @@ Future<void> _pumpConnectedScreen(
           activeStackProvider.overrideWith((ref) async => stack),
         currentStackMedicationClassIdsProvider.overrideWith((ref) async {
           if (classLookupFails) throw StateError('rules withheld');
-          return const <String>{};
+          return stackMedicationClassIds;
         }),
         // The clinical schema behind these flags is an app asset that never
         // resolves in widget tests; left pending, every check stays running.
@@ -263,10 +280,16 @@ Future<void> _pumpConnectedScreen(
         ),
         rdaOptimalUlsProvider.overrideWith((ref) async => const {}),
       ],
-      child: MaterialApp(
-        home: ProductDetailV2ConnectedScreen(
-          dsldId: _connectedDsldId,
-          initialSection: initialSection,
+      child: Consumer(
+        builder: (context, ref, child) {
+          if (connection != null) ref.watch(safetyAlertRefreshProvider);
+          return child!;
+        },
+        child: MaterialApp(
+          home: ProductDetailV2ConnectedScreen(
+            dsldId: _connectedDsldId,
+            initialSection: initialSection,
+          ),
         ),
       ),
     ),
@@ -278,6 +301,126 @@ Future<void> _pumpConnectedScreen(
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
+}
+
+/// A feed that loaded and has nothing to say, for tests about something else.
+class _VerifiedNoAlerts implements SafetyAlertRepository {
+  @override
+  Future<SafetyAlertRelease> loadCurrent() async => const SafetyAlertRelease(
+    alerts: [],
+    baselineRevisions: {},
+    isComplete: true,
+  );
+
+  @override
+  Future<List<SafetyAlert>> loadCachedAlerts() async => const [];
+}
+
+enum _FeedServer {
+  unreachable,
+  noCurrentRelease,
+  serving,
+  servingNoAlerts,
+  unreadable,
+}
+
+/// The real repository over a fake server and this phone's saved preferences.
+class _AlertFeed {
+  _AlertFeed() {
+    // Nothing here signs in, and its refresh timer would outlive the test.
+    _client.auth.stopAutoRefresh();
+  }
+
+  static final _alertsForOtherProducts = File(
+    'test/fixtures/safety_alerts/interaction_rule_base_feed.json',
+  ).readAsBytesSync();
+  static final _noAlerts = utf8.encode('{"alerts":[]}');
+  static final _unreadable = utf8.encode(
+    jsonEncode({
+      'alerts': [
+        for (final row
+            in (jsonDecode(utf8.decode(_alertsForOtherProducts))
+                    as Map<String, dynamic>)['alerts']
+                as List)
+          {...row as Map<String, dynamic>, 'event_type': 'future_type'},
+      ],
+    }),
+  );
+
+  var server = _FeedServer.unreachable;
+  Completer<void>? gate;
+  final saved = _SavedPreferences();
+
+  late final _client = SupabaseClient(
+    'https://example.test',
+    'test-key',
+    httpClient: MockClient((request) async {
+      await gate?.future;
+      switch (server) {
+        case _FeedServer.unreachable:
+          throw http.ClientException('offline');
+        case _FeedServer.noCurrentRelease:
+          return http.Response(
+            'null',
+            200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        case _FeedServer.serving ||
+            _FeedServer.servingNoAlerts ||
+            _FeedServer.unreadable:
+          final bytes = switch (server) {
+            _FeedServer.serving => _alertsForOtherProducts,
+            _FeedServer.unreadable => _unreadable,
+            _ => _noAlerts,
+          };
+          if (request.url.path.contains('/storage/')) {
+            return http.Response.bytes(bytes, 200, request: request);
+          }
+          return http.Response(
+            jsonEncode({
+              'feed_path': 'safety/feed.json',
+              'checksum': 'sha256:${sha256.convert(bytes)}',
+              'manifest': null,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+      }
+    }),
+  );
+
+  late final repository = SafetyAlertRepository(
+    client: _client,
+    preferences: saved,
+  );
+
+  /// Fetches once, so this phone holds a verified copy, then loses the server.
+  Future<void> saveACopyThenGoOffline() async {
+    server = _FeedServer.serving;
+    await repository.loadCurrent();
+    server = _FeedServer.unreachable;
+  }
+}
+
+class _SavedPreferences implements SharedPreferencesAsync {
+  final values = <String, String>{};
+
+  @override
+  Future<String?> getString(String key) async => values[key];
+
+  @override
+  Future<void> setString(String key, String value) async => values[key] = value;
+
+  @override
+  Object? noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnreadablePreferences extends _SavedPreferences {
+  @override
+  Future<String?> getString(String key) async =>
+      throw StateError('This storage will not open');
 }
 
 class _FailingCoreDatabase extends CoreDatabase {
@@ -583,6 +726,344 @@ void main() {
 
         expect(find.text(qualityNotice), findsNothing);
         expect(find.text('88/100'), findsOneWidget);
+      });
+    });
+
+    group('an alert feed this phone has never had', () {
+      const cleanFit = FitScoreResult(
+        missingFields: [],
+        state: FitAssessmentState.limitedFit,
+        reasons: [],
+        mappedCoverage: 1,
+      );
+      const allClear = 'No known concerns';
+      const incomplete = 'Personalized checks are incomplete';
+      final blob = <String, dynamic>{
+        'ingredients': const <Map<String, dynamic>>[],
+        'display_ingredients': [_activeLedgerRow('Active row', 0)],
+        'quality_pillars_v4': _connectedV4Pillars(),
+      };
+      final addedAt = DateTime.utc(2026, 11, 3);
+      final supplementRow = UserStacksLocalData(
+        id: 'other',
+        type: 'supplement',
+        name: 'Another supplement',
+        addedAt: addedAt,
+        clientUpdatedAt: addedAt,
+      );
+
+      Future<void> settleFeed(WidgetTester tester) async {
+        for (var i = 0; i < 6; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          // A failed fetch retries after 1, 2 and 4 seconds.
+          await tester.pump(const Duration(seconds: 2));
+        }
+      }
+
+      Future<void> open(
+        WidgetTester tester,
+        _AlertFeed? feed, {
+        SafetyAlertRepository Function()? buildAlertFeed,
+        bool profiled = true,
+        List<UserStacksLocalData> stack = const [],
+        Stream<ConnectionStatus>? connection,
+      }) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          settle: false,
+          profiled: profiled,
+          fitResult: cleanFit,
+          realWarnings: true,
+          stack: stack,
+          buildAlertFeed: buildAlertFeed ?? () => feed!.repository,
+          connection: connection,
+        );
+        await settleFeed(tester);
+      }
+
+      for (final profiled in [true, false]) {
+        for (final (stackName, stack) in [
+          ('empty stack', const <UserStacksLocalData>[]),
+          ('stack', [supplementRow]),
+        ]) {
+          testWidgets(
+            'offline, ${profiled ? 'profile' : 'no profile'}, $stackName: '
+            'says the checks are incomplete, and is never an all-clear',
+            (tester) async {
+              await open(
+                tester,
+                _AlertFeed(),
+                profiled: profiled,
+                stack: stack,
+              );
+
+              expect(find.text(allClear), findsNothing);
+              expect(find.text(incomplete), findsOneWidget);
+              expect(find.text('Retry'), findsOneWidget);
+            },
+          );
+        }
+      }
+
+      testWidgets('a saved copy keeps its result when the fetch fails', (
+        tester,
+      ) async {
+        final feed = _AlertFeed();
+        await tester.runAsync(feed.saveACopyThenGoOffline);
+
+        await open(tester, feed);
+
+        expect(find.text(allClear), findsOneWidget);
+        expect(find.text(incomplete), findsNothing);
+      });
+
+      testWidgets('a successful fetch gives the all-clear', (tester) async {
+        await open(tester, _AlertFeed()..server = _FeedServer.serving);
+
+        expect(find.text(allClear), findsOneWidget);
+        expect(find.text(incomplete), findsNothing);
+      });
+
+      testWidgets('a verified feed with no alerts keeps the all-clear', (
+        tester,
+      ) async {
+        await open(tester, _AlertFeed()..server = _FeedServer.servingNoAlerts);
+
+        expect(find.text(allClear), findsOneWidget);
+        expect(find.text(incomplete), findsNothing);
+      });
+
+      for (final offline in [false, true]) {
+        testWidgets('an unreadable verified feed is not an empty assessment '
+            '(offline=$offline)', (tester) async {
+          final feed = _AlertFeed()..server = _FeedServer.unreadable;
+          if (offline) {
+            await tester.runAsync(feed.repository.loadCurrent);
+            feed.server = _FeedServer.unreachable;
+          }
+          await open(tester, feed);
+          expect(find.text(allClear), findsNothing);
+          expect(find.text(incomplete), findsOneWidget);
+        });
+      }
+
+      testWidgets('a saved copy with no alerts keeps the all-clear offline', (
+        tester,
+      ) async {
+        final feed = _AlertFeed()..server = _FeedServer.servingNoAlerts;
+        await tester.runAsync(feed.repository.loadCurrent);
+        feed.server = _FeedServer.unreachable;
+
+        await open(tester, feed);
+
+        expect(find.text(allClear), findsOneWidget);
+        expect(find.text(incomplete), findsNothing);
+      });
+
+      testWidgets('a finding stays on screen when the all-clear is withheld', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          settle: false,
+          profiled: true,
+          fitResult: cleanFit,
+          realWarnings: true,
+          stack: [
+            UserStacksLocalData(
+              id: 'warfarin',
+              type: 'medication',
+              name: 'Warfarin',
+              rxcui: '11289',
+              drugClassesCol: '["class:anticoagulants"]',
+              addedAt: addedAt,
+              clientUpdatedAt: addedAt,
+            ),
+          ],
+          stackMedicationClassIds: const {'anticoagulants'},
+          buildAlertFeed: () => _AlertFeed().repository,
+          detailBlob: {
+            ...blob,
+            'warnings': [
+              {
+                'type': 'interaction',
+                'severity': 'contraindicated',
+                'alert_headline': 'Do not combine with warfarin',
+                'alert_body': 'Catalog warning body.',
+                'evidence_level': 'established',
+                'drug_class_ids': ['anticoagulants'],
+              },
+            ],
+          },
+        );
+        await settleFeed(tester);
+
+        expect(find.text('Do not combine with warfarin'), findsOneWidget);
+        expect(find.text(incomplete), findsOneWidget);
+        expect(find.text(allClear), findsNothing);
+      });
+
+      // A successful metadata request is not a verified alert assessment.
+      testWidgets('no current release withholds the all-clear without a copy', (
+        tester,
+      ) async {
+        await open(tester, _AlertFeed()..server = _FeedServer.noCurrentRelease);
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+      });
+
+      testWidgets('no current release retains a verified saved result', (
+        tester,
+      ) async {
+        final feed = _AlertFeed();
+        await tester.runAsync(feed.saveACopyThenGoOffline);
+        feed.server = _FeedServer.noCurrentRelease;
+
+        await open(tester, feed);
+
+        expect(find.text(allClear), findsOneWidget);
+        expect(find.text(incomplete), findsNothing);
+      });
+
+      testWidgets('no current release saves no copy, so a failed fetch after '
+          'it is withheld', (tester) async {
+        final feed = _AlertFeed()..server = _FeedServer.noCurrentRelease;
+        await tester.runAsync(feed.repository.loadCurrent);
+        feed.server = _FeedServer.unreachable;
+
+        await open(tester, feed);
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+      });
+
+      testWidgets('a corrupt saved copy counts as no copy', (tester) async {
+        final feed = _AlertFeed();
+        await tester.runAsync(feed.saveACopyThenGoOffline);
+        feed.saved.values['safety_alert_release_v1'] = '{corrupt';
+
+        await open(tester, feed);
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+      });
+
+      testWidgets('a saved copy that can\'t be read counts as no copy', (
+        tester,
+      ) async {
+        await open(
+          tester,
+          null,
+          buildAlertFeed: () =>
+              SafetyAlertRepository(preferences: _UnreadablePreferences()),
+        );
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+      });
+
+      testWidgets('a feed that can\'t even be set up is withheld', (
+        tester,
+      ) async {
+        await open(
+          tester,
+          null,
+          buildAlertFeed: () => throw StateError('No storage on this phone'),
+        );
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+      });
+
+      // Supabase failing to start on a phone is a failed fetch, not a lost copy.
+      group('Supabase never started', () {
+        testWidgets('no saved copy is withheld', (tester) async {
+          final saved = _SavedPreferences();
+          await open(
+            tester,
+            null,
+            buildAlertFeed: () => SafetyAlertRepository(preferences: saved),
+          );
+
+          expect(find.text(allClear), findsNothing);
+          expect(find.text(incomplete), findsOneWidget);
+        });
+
+        testWidgets('a saved copy keeps its result', (tester) async {
+          final feed = _AlertFeed();
+          await tester.runAsync(feed.saveACopyThenGoOffline);
+
+          await open(
+            tester,
+            null,
+            buildAlertFeed: () =>
+                SafetyAlertRepository(preferences: feed.saved),
+          );
+
+          expect(find.text(allClear), findsOneWidget);
+          expect(find.text(incomplete), findsNothing);
+        });
+      });
+
+      testWidgets('reconnecting brings the all-clear back without a relaunch', (
+        tester,
+      ) async {
+        final feed = _AlertFeed();
+        final connection = StreamController<ConnectionStatus>.broadcast();
+        addTearDown(connection.close);
+        await open(tester, feed, connection: connection.stream);
+        connection.add(ConnectionStatus.offline);
+        await settleFeed(tester);
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+
+        feed.server = _FeedServer.serving;
+        connection.add(ConnectionStatus.online);
+        await settleFeed(tester);
+
+        expect(find.text(allClear), findsOneWidget);
+        expect(find.text(incomplete), findsNothing);
+      });
+
+      testWidgets('Retry fetches the feed again', (tester) async {
+        final feed = _AlertFeed();
+        await open(tester, feed);
+        expect(find.text(incomplete), findsOneWidget);
+
+        feed.server = _FeedServer.serving;
+        await tester.ensureVisible(find.text('Retry'));
+        await tester.pump();
+        await tester.tap(find.text('Retry'));
+        await settleFeed(tester);
+
+        await _scrollConnectedTowardTop(tester);
+        expect(find.text(allClear), findsOneWidget);
+        expect(find.text(incomplete), findsNothing);
+      });
+
+      testWidgets('a first fetch still running is not an all-clear', (
+        tester,
+      ) async {
+        final feed = _AlertFeed()
+          ..server = _FeedServer.serving
+          ..gate = Completer<void>();
+        await open(tester, feed);
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text('Checking this product for you'), findsOneWidget);
+
+        feed.gate!.complete();
+        await settleFeed(tester);
+
+        expect(find.text(allClear), findsOneWidget);
       });
     });
 
