@@ -207,8 +207,10 @@ class StackSafetyBanner extends StatelessWidget {
             "${one ? 'it' : 'them'}, $results",
       'intentional_non_scoreable_product' =>
         one
-            ? "This isn't a product type we assess, $results"
-            : "These aren't product types we assess, $results",
+            ? "We don't provide a quality score for this product, and its "
+                  'safety checks may be incomplete.'
+            : "We don't provide quality scores for these products, and their "
+                  "safety checks may be incomplete: ${names.join(', ')}.",
       _ =>
         one
             ? "We can't match enough of its label to our safety data, $results"
