@@ -243,6 +243,17 @@ void main() {
     );
   });
 
+  test('old builds and the old dispatcher only ever read `feed_path`', () {
+    // A rule can't reach the push path before the new dispatcher deploys: the
+    // dispatcher reads this one file, and the publisher refuses a rule in it.
+    final dispatcher = File(
+      'supabase/functions/dispatch-safety-alert-release/index.ts',
+    ).readAsStringSync();
+    expect(dispatcher, contains('feed_path'));
+    expect(dispatcher, isNot(contains('extended_feed')));
+    expect(dispatcher, isNot(contains('manifest')));
+  });
+
   test('no medication reaches the code that talks to the feed', () {
     // Interaction rules match on the device: the repository fetches the whole
     // feed for everyone and is never told who is taking what.
@@ -256,6 +267,8 @@ void main() {
       'drugclass',
       'profile',
       'stack',
+      'condition',
+      'pregnan',
     ]) {
       expect(repository, isNot(contains(private)), reason: private);
     }

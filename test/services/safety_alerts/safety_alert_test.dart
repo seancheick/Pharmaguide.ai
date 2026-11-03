@@ -35,7 +35,7 @@ void main() {
         alert.appliesTo(
           dsldId: '306237',
           ingredientCanonicalIds: const [],
-          medicationIds: const {},
+          device: const DeviceSafetyProfile(),
         ),
         isTrue,
       );
@@ -43,7 +43,7 @@ void main() {
         alert.appliesTo(
           dsldId: '999999',
           ingredientCanonicalIds: const ['tianeptine'],
-          medicationIds: const {},
+          device: const DeviceSafetyProfile(),
         ),
         isTrue,
       );
@@ -51,7 +51,7 @@ void main() {
         alert.appliesTo(
           dsldId: '999999',
           ingredientCanonicalIds: const ['tianeptine sodium'],
-          medicationIds: const {},
+          device: const DeviceSafetyProfile(),
         ),
         isFalse,
       );

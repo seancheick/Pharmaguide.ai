@@ -1,5 +1,5 @@
 {
-  "alert_count": 2,
+  "alert_count": 4,
   "alerts": [
     {
       "action": "Test fixture only. Worth a conversation with your doctor.",
@@ -69,6 +69,94 @@
         "ingredient_canonical_ids": [
           "fake_bannedroot"
         ]
+      },
+      "source_url": "https://example.org/fake-ban-source",
+      "status": "published"
+    },
+    {
+      "action": "Test fixture only. Worth a conversation with your doctor.",
+      "alert_id": "SA_9999_0003",
+      "authority": "TEST FIXTURE - not a real authority",
+      "body": "Test fixture only. Fakeroot is a made-up ingredient that this fictional rule says is not for use during pregnancy.",
+      "catalog_snapshot_version": "2026.11.03.000000",
+      "consumer_disposition": "block",
+      "effective_date": "2026-11-01",
+      "event_type": "interaction_rule",
+      "evidence_verified_at": "2026-11-03",
+      "expires_at": null,
+      "fda_class": null,
+      "headline": "Fictional test notice: Fakeroot in pregnancy",
+      "interaction": {
+        "evidence_level": "established",
+        "ingredient_name": "Fakeroot (fictional)",
+        "profile_context": "Pregnancy",
+        "profile_gate": {
+          "dose": null,
+          "excludes": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "nutrient_forms_any": [],
+            "product_forms_any": [],
+            "profile_flags_any": []
+          },
+          "gate_type": "profile_flag",
+          "requires": {
+            "conditions_any": [],
+            "drug_classes_any": [],
+            "profile_flags_any": [
+              "pregnant"
+            ]
+          }
+        },
+        "rule_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "rule_id": "RULE_FAKE_FAKEROOT_PREGNANCY#condition:pregnancy",
+        "severity": "contraindicated"
+      },
+      "jurisdiction": "US",
+      "lots": null,
+      "published_at": "2026-11-03T12:00:00Z",
+      "resolved_dsld_ids": [
+        "9990001"
+      ],
+      "retracted": false,
+      "revision": 1,
+      "scope": {
+        "dsld_ids": [],
+        "ingredient_canonical_ids": [
+          "fake_fakeroot"
+        ]
+      },
+      "source_url": "https://example.org/fake-interaction-source",
+      "status": "published"
+    },
+    {
+      "action": "Test fixture only.",
+      "alert_id": "SA_9999_0004",
+      "authority": "TEST FIXTURE - not a real authority",
+      "body": "Test fixture only. This fictional recall covers one made-up product.",
+      "catalog_snapshot_version": "2026.11.03.000000",
+      "consumer_disposition": "block",
+      "effective_date": "2026-11-01",
+      "event_type": "product_recall",
+      "evidence_verified_at": "2026-11-03",
+      "expires_at": null,
+      "fda_class": "II",
+      "headline": "Fictional test notice: Fakeroot capsules recall",
+      "jurisdiction": "US",
+      "lots": [
+        "FAKE-LOT-1"
+      ],
+      "published_at": "2026-11-03T12:00:00Z",
+      "resolved_dsld_ids": [
+        "9990002"
+      ],
+      "retracted": false,
+      "revision": 1,
+      "scope": {
+        "dsld_ids": [
+          "9990002"
+        ],
+        "ingredient_canonical_ids": []
       },
       "source_url": "https://example.org/fake-ban-source",
       "status": "published"

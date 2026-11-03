@@ -29,6 +29,7 @@ import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart'
 import 'package:pharmaguide/services/signals/clinical_signal_envelope.dart';
 import 'package:pharmaguide/services/signals/stack_signal_aggregator.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 
 const _dsldId = '9990001';
 const _classId = 'class:fake_test_medications';
@@ -62,6 +63,23 @@ SafetyAlert _rule({String severity = 'contraindicated'}) {
   });
 }
 
+SafetyAlert _pregnancyRule() {
+  final feed =
+      jsonDecode(
+            File(
+              'test/fixtures/safety_alerts/interaction_rule_feed.json',
+            ).readAsStringSync(),
+          )
+          as Map<String, dynamic>;
+  return SafetyAlert.fromJson(
+    (feed['alerts'] as List).cast<Map<String, dynamic>>().firstWhere(
+      (alert) => alert['alert_id'] == 'SA_9999_0003',
+    ),
+  );
+}
+
+const _pregnant = ProfileState(conditions: ['pregnancy']);
+
 class _FakeRepository implements SafetyAlertRepository {
   _FakeRepository(this.alerts);
   final List<SafetyAlert> alerts;
@@ -90,6 +108,8 @@ Future<void> _pumpSection(
         localMedicationIdentityProvider.overrideWith(
           (ref) async => medicationIds,
         ),
+        loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
+        evaluatorProfileFlagsProvider.overrideWith((ref) async => const {}),
       ],
       child: const MaterialApp(
         home: Scaffold(body: LiveSafetyAlertSection(product: _product)),
@@ -149,6 +169,8 @@ Future<List<InteractionWarning>> _warnings({
   required Set<String> medicationIds,
   List<UserStacksLocalData> stack = const [],
   String? bundledSeverity,
+  ProfileState profile = const ProfileState(),
+  bool profileFails = false,
 }) async {
   final coreDb = CoreDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
@@ -178,6 +200,16 @@ Future<List<InteractionWarning>> _warnings({
       localMedicationIdentityProvider.overrideWith(
         (ref) async => medicationIds,
       ),
+      loadedProfileProvider.overrideWith((ref) async => profile),
+      evaluatorProfileFlagsProvider.overrideWith(
+        (ref) async => {
+          if (profile.conditions.contains('pregnancy')) 'pregnant',
+        },
+      ),
+      if (profileFails)
+        localMedicationIdentityProvider.overrideWith(
+          (ref) async => throw StateError('unreadable'),
+        ),
     ],
   );
   addTearDown(container.dispose);
@@ -323,10 +355,63 @@ void main() {
     });
   });
 
+  group('a rule for pregnancy', () {
+    test(
+      'the verdict leads with it, with no stack and no medication',
+      () async {
+        final warnings = await _warnings(
+          alerts: [_pregnancyRule()],
+          medicationIds: const {},
+          profile: _pregnant,
+        );
+
+        final warning = warnings.single;
+        expect(warning.title, 'Fictional test notice: Fakeroot in pregnancy');
+        expect(warning.mechanism, contains('not for use during pregnancy'));
+        expect(warning.evidenceLevel, EvidenceLevel.established);
+        expect(warning.sourceUrls, isNotEmpty);
+        expect(warning.title, isNot(contains('taking')));
+        expect(_headline(warnings), 'Not recommended for your profile');
+      },
+    );
+
+    test('an unreadable device profile surfaces, never as nothing to '
+        'report', () async {
+      await expectLater(
+        _warnings(
+          alerts: [_pregnancyRule()],
+          medicationIds: const {},
+          profileFails: true,
+        ),
+        throwsA(anything),
+      );
+    });
+
+    test('nobody else sees it', () async {
+      expect(
+        await _warnings(alerts: [_pregnancyRule()], medicationIds: const {}),
+        isEmpty,
+      );
+      expect(
+        await _warnings(
+          alerts: [_pregnancyRule()],
+          medicationIds: const {},
+          profile: const ProfileState(conditions: ['diabetes']),
+        ),
+        isEmpty,
+      );
+    });
+  });
+
   group('other surfaces', () {
     // No page open: someone with the product and the medication in their stack
     // still gets the signal the Stack tab and health history read.
-    Future<SafetyAlertMatchSet> matchesFor(Set<String> medicationIds) {
+    Future<SafetyAlertMatchSet> matchesFor(
+      Set<String> medicationIds, {
+      List<SafetyAlert>? alerts,
+      ProfileState profile = const ProfileState(),
+      bool flagsFail = false,
+    }) {
       final ts = DateTime.utc(2026, 11, 3, 12);
       final container = ProviderContainer(
         overrides: [
@@ -344,10 +429,16 @@ void main() {
             ],
           ),
           safetyAlertRepositoryProvider.overrideWithValue(
-            _FakeRepository([_rule()]),
+            _FakeRepository(alerts ?? [_rule()]),
           ),
           localMedicationIdentityProvider.overrideWith(
             (ref) async => medicationIds,
+          ),
+          loadedProfileProvider.overrideWith((ref) async => profile),
+          evaluatorProfileFlagsProvider.overrideWith(
+            (ref) async => flagsFail
+                ? throw StateError('no taxonomy')
+                : {if (profile.conditions.contains('pregnancy')) 'pregnant'},
           ),
         ],
       );
@@ -381,11 +472,49 @@ void main() {
         scanResultIsSafetyCritical(
           _product,
           alerts: [_rule()],
-          medicationIds: {_classId},
+          device: const DeviceSafetyProfile(medicationIds: {_classId}),
         ),
         isTrue,
       );
       expect(scanResultIsSafetyCritical(_product, alerts: [_rule()]), isFalse);
+    });
+
+    test('a stack product matches a pregnancy rule on this device', () async {
+      final matches = await matchesFor(
+        const {},
+        alerts: [_pregnancyRule()],
+        profile: _pregnant,
+      );
+      expect(matches.matches.single.alert.alertId, 'SA_9999_0003');
+      expect(matches.isComplete, isTrue);
+      expect(
+        (await matchesFor(const {}, alerts: [_pregnancyRule()])).matches,
+        isEmpty,
+      );
+    });
+
+    test('an unreadable profile is an incomplete check, not an all-clear, '
+        'and a ban still shows', () async {
+      final matches = await matchesFor(
+        const {},
+        alerts: [_pregnancyRule()],
+        profile: _pregnant,
+        flagsFail: true,
+      );
+      expect(matches.isComplete, isFalse);
+    });
+
+    test('a scan is critical for a pregnancy rule only if pregnant', () {
+      final rule = _pregnancyRule();
+      expect(
+        scanResultIsSafetyCritical(
+          _product,
+          alerts: [rule],
+          device: const DeviceSafetyProfile(profileFlags: {'pregnant'}),
+        ),
+        isTrue,
+      );
+      expect(scanResultIsSafetyCritical(_product, alerts: [rule]), isFalse);
     });
   });
 }

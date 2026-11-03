@@ -1,4 +1,5 @@
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
 /// Strict, authored regulatory-event feed model.
 ///
@@ -9,27 +10,72 @@ enum SafetyAlertEventType { ingredientBan, productRecall, interactionRule }
 
 enum SafetyAlertDisposition { block, review }
 
+/// What this device knows about the person, for matching rules on the phone.
+/// None of it is ever sent anywhere.
+final class DeviceSafetyProfile {
+  const DeviceSafetyProfile({
+    this.medicationIds = const {},
+    this.conditions = const {},
+    this.profileFlags = const {},
+    this.isComplete = true,
+  });
+
+  /// `class:*`, RxCUI and profile drug-class ids.
+  final Set<String> medicationIds;
+  final Set<String> conditions;
+  final Set<String> profileFlags;
+
+  /// False when part of this couldn't be read, so a missing match proves nothing.
+  final bool isComplete;
+
+  bool get isEmpty =>
+      medicationIds.isEmpty && conditions.isEmpty && profileFlags.isEmpty;
+}
+
 /// What an `interaction_rule` alert adds: who it is for and how serious it is.
 /// The reason and management are the alert's own `body` and `action`.
 final class SafetyAlertInteraction {
   const SafetyAlertInteraction({
     required this.ruleId,
     required this.ingredientName,
-    required this.medicationName,
-    required this.medicationIds,
+    this.medicationName,
+    this.medicationIds = const {},
+    this.profileGate,
+    this.profileContext,
     required this.severity,
     required this.evidenceLevel,
   });
 
   final String ruleId;
   final String ingredientName;
-  final String medicationName;
+  final String? medicationName;
 
   /// Exact ids in the rule's own vocabulary: `class:*`, RxCUI or profile
   /// drug-class id. Compared only on the device, never sent anywhere.
   final Set<String> medicationIds;
+
+  /// A rule for pregnancy, lactation or a condition targets this gate instead
+  /// of medications, evaluated on the device from the profile alone.
+  final Map<String, dynamic>? profileGate;
+
+  /// Who [profileGate] is for, as the user reads it.
+  final String? profileContext;
   final Severity severity;
   final EvidenceLevel evidenceLevel;
+
+  bool matches(DeviceSafetyProfile device) {
+    final gate = profileGate;
+    if (gate == null) return medicationIds.any(device.medicationIds.contains);
+    return evaluateProfileGate(
+      gate,
+      UserProfile(
+        conditions: device.conditions,
+        drugClasses: device.medicationIds,
+        profileFlags: device.profileFlags,
+      ),
+      const ProductContext(),
+    ).fires;
+  }
 
   /// Malformed or newer blocks skip this one alert rather than rejecting the
   /// feed: a bad interaction block must not cost anyone the bans in the same
@@ -44,17 +90,14 @@ final class SafetyAlertInteraction {
       return value.trim();
     }
 
-    final ids = json['medication_ids'];
-    if (ids is! List || ids.isEmpty) {
+    final targetsMedication =
+        json.containsKey('medication_ids') ||
+        json.containsKey('medication_name');
+    final targetsProfile =
+        json.containsKey('profile_gate') || json.containsKey('profile_context');
+    if (targetsMedication == targetsProfile) {
       throw const UnsupportedSafetyAlert('interaction');
     }
-    final medicationIds = <String>{
-      for (final id in ids)
-        if (id is String && id.trim().isNotEmpty)
-          id.trim()
-        else
-          throw const UnsupportedSafetyAlert('interaction'),
-    };
     final severity = switch (json['severity']) {
       'contraindicated' => Severity.contraindicated,
       'avoid' => Severity.avoid,
@@ -66,13 +109,61 @@ final class SafetyAlertInteraction {
     return SafetyAlertInteraction(
       ruleId: text('rule_id'),
       ingredientName: text('ingredient_name'),
-      medicationName: text('medication_name'),
-      medicationIds: Set.unmodifiable(medicationIds),
+      medicationName: targetsMedication ? text('medication_name') : null,
+      medicationIds: targetsMedication
+          ? Set.unmodifiable(_medicationIds(json['medication_ids']))
+          : const {},
+      profileGate: targetsProfile ? _deviceGate(json['profile_gate']) : null,
+      profileContext: targetsProfile ? text('profile_context') : null,
       severity: severity,
       evidenceLevel: EvidenceLevel.fromString(
         evidence is String ? evidence : '',
       ),
     );
+  }
+
+  static Set<String> _medicationIds(Object? ids) {
+    if (ids is! List || ids.isEmpty) {
+      throw const UnsupportedSafetyAlert('interaction');
+    }
+    return {
+      for (final id in ids)
+        if (id is String && id.trim().isNotEmpty)
+          id.trim()
+        else
+          throw const UnsupportedSafetyAlert('interaction'),
+    };
+  }
+
+  /// A gate the profile alone can answer, narrowed to someone. A gate with no
+  /// requirement fires for everyone, a dose or a form needs a product in hand,
+  /// and a key this build doesn't know would be ignored, widening the rule.
+  static Map<String, dynamic> _deviceGate(Object? raw) {
+    const unsupported = UnsupportedSafetyAlert('interaction profile_gate');
+    if (raw is! Map) throw unsupported;
+    final gate = Map<String, dynamic>.from(raw);
+    if (validateProfileGate(gate).isNotEmpty || gate['dose'] != null) {
+      throw unsupported;
+    }
+    const profileKeys = {
+      'conditions_any',
+      'drug_classes_any',
+      'profile_flags_any',
+    };
+    final requires = gate['requires'];
+    final excludes = gate['excludes'];
+    if (requires is! Map || excludes is! Map) throw unsupported;
+    bool populated(Object? value) => value is List && value.isNotEmpty;
+    if (!profileKeys.any((key) => populated(requires[key])) ||
+        requires.keys.any(
+          (key) => !profileKeys.contains(key) && populated(requires[key]),
+        ) ||
+        excludes.keys.any(
+          (key) => !profileKeys.contains(key) && populated(excludes[key]),
+        )) {
+      throw unsupported;
+    }
+    return gate;
   }
 }
 
@@ -118,8 +209,11 @@ final class SafetyAlert {
   String? get interactionNotice {
     final rule = interaction;
     if (rule == null) return null;
+    final target = rule.medicationName != null
+        ? 'Medication: ${rule.medicationName}'
+        : 'Applies to: ${rule.profileContext}';
     return 'Ingredient: ${rule.ingredientName}\n'
-        'Medication: ${rule.medicationName}\n\n'
+        '$target\n\n'
         '$body\n\n'
         '$action\n\n'
         '${rule.evidenceLevel.label}';
@@ -202,18 +296,16 @@ final class SafetyAlert {
     );
   }
 
-  /// [medicationIds] is the device's own medication identity, and it stays on
-  /// the device. An interaction rule never applies without a medication match,
-  /// so nobody else is told about it; it plays no part in the other event types.
+  /// [device] stays on the device. An interaction rule never applies without
+  /// a match on it, so nobody else is told about it; it plays no part in the
+  /// other event types.
   bool appliesTo({
     required String dsldId,
     required Iterable<String> ingredientCanonicalIds,
-    required Set<String> medicationIds,
+    required DeviceSafetyProfile device,
   }) {
     final rule = interaction;
-    if (rule != null && !rule.medicationIds.any(medicationIds.contains)) {
-      return false;
-    }
+    if (rule != null && !rule.matches(device)) return false;
     if (resolvedDsldIds.contains(dsldId)) return true;
     return ingredientCanonicalIds.any(this.ingredientCanonicalIds.contains);
   }

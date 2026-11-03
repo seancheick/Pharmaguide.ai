@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
     as canonical_ids;
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
@@ -13,6 +14,41 @@ import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart'
 
 final safetyAlertRepositoryProvider = Provider<SafetyAlertRepository>((ref) {
   return SafetyAlertRepository();
+});
+
+/// Medications and profile, read from this device only, for matching rules.
+/// A part that can't be read leaves the rest usable and marks this incomplete:
+/// a recall must still show, and a missing profile must not read as an all-clear.
+final deviceSafetyProfileProvider = FutureProvider<DeviceSafetyProfile>((
+  ref,
+) async {
+  var isComplete = true;
+  Future<Set<String>> read(Future<Iterable<String>> part) async {
+    try {
+      return (await part).toSet();
+    } on Object {
+      isComplete = false;
+      return const {};
+    }
+  }
+
+  final medicationIds = await read(
+    ref.watch(localMedicationIdentityProvider.future),
+  );
+  final conditions = await read(
+    ref
+        .watch(loadedProfileProvider.future)
+        .then((profile) => profile.conditionsForEvaluator),
+  );
+  final profileFlags = await read(
+    ref.watch(evaluatorProfileFlagsProvider.future),
+  );
+  return DeviceSafetyProfile(
+    medicationIds: medicationIds,
+    conditions: conditions,
+    profileFlags: profileFlags,
+    isComplete: isComplete,
+  );
 });
 
 final class SafetyAlertMatchSet {
@@ -34,7 +70,7 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((
   ref,
 ) async {
   final stack = await ref.watch(activeStackProvider.future);
-  final medicationIds = await ref.watch(localMedicationIdentityProvider.future);
+  final device = await ref.watch(deviceSafetyProfileProvider.future);
   final release = await ref.read(safetyAlertRepositoryProvider).loadCurrent();
   final matches = <({SafetyAlert alert, String dsldId})>[];
   final baseline = <String>{};
@@ -46,7 +82,7 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((
       if (!alert.appliesTo(
         dsldId: dsldId,
         ingredientCanonicalIds: ingredients,
-        medicationIds: medicationIds,
+        device: device,
       )) {
         continue;
       }
@@ -60,7 +96,7 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((
   return SafetyAlertMatchSet(
     matches: List.unmodifiable(matches),
     baselineSignalKeys: Set.unmodifiable(baseline),
-    isComplete: release.isComplete,
+    isComplete: release.isComplete && device.isComplete,
   );
 });
 
@@ -70,28 +106,18 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((
 /// device.
 final productSafetyAlertsProvider = FutureProvider.autoDispose
     .family<List<SafetyAlert>, ProductsCoreData>((ref, product) async {
-      // A recall must still show if medications can't be read right now.
-      final Set<String> medicationIds;
-      try {
-        medicationIds = await ref.watch(localMedicationIdentityProvider.future);
-      } on Object {
-        return _matching(
-          await ref.read(safetyAlertRepositoryProvider).loadCurrent(),
-          product,
-          const {},
-        );
-      }
+      final device = await ref.watch(deviceSafetyProfileProvider.future);
       return _matching(
         await ref.read(safetyAlertRepositoryProvider).loadCurrent(),
         product,
-        medicationIds,
+        device,
       );
     });
 
 List<SafetyAlert> _matching(
   SafetyAlertRelease release,
   ProductsCoreData product,
-  Set<String> medicationIds,
+  DeviceSafetyProfile device,
 ) {
   final ingredientIds = canonical_ids.canonicalIdsForProduct(product);
   return release.alerts
@@ -99,7 +125,7 @@ List<SafetyAlert> _matching(
         (alert) => alert.appliesTo(
           dsldId: product.dsldId,
           ingredientCanonicalIds: ingredientIds,
-          medicationIds: medicationIds,
+          device: device,
         ),
       )
       .toList(growable: false);

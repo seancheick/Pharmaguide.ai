@@ -20,6 +20,11 @@ final _feedBytes = File(
   'test/fixtures/safety_alerts/interaction_rule_feed.json',
 ).readAsBytesSync();
 
+/// What `feed_path` names: what every installed build reads.
+final _baseBytes = File(
+  'test/fixtures/safety_alerts/interaction_rule_base_feed.json',
+).readAsBytesSync();
+
 Map<String, Object?> _feedAlert(String eventType) {
   final feed = jsonDecode(utf8.decode(_feedBytes)) as Map<String, dynamic>;
   return Map<String, Object?>.from(
@@ -37,10 +42,16 @@ Map<String, Object?> _interactionWith(Map<String, Object?> changes) {
   };
 }
 
+const _extendedPath = 'safety/extended.json';
+
 /// Serves [body] the way Supabase does, and records what the app asked for.
+/// With [extended], the release names a superset feed too. [manifest] replaces
+/// that entry, for a release whose manifest is damaged.
 SupabaseClient _client(
   Object? Function() body, {
   List<http.Request>? requests,
+  Object? Function()? extended,
+  Object? manifest,
 }) {
   final client = SupabaseClient(
     'https://example.test',
@@ -50,6 +61,15 @@ SupabaseClient _client(
       final current = body();
       if (current == null) throw http.ClientException('offline');
       final bytes = current as List<int>;
+      if (request.url.path.contains(_extendedPath)) {
+        final superset = extended!();
+        if (superset == null) throw http.ClientException('missing');
+        return http.Response.bytes(
+          superset as List<int>,
+          200,
+          request: request,
+        );
+      }
       if (request.url.path.contains('/storage/')) {
         return http.Response.bytes(bytes, 200, request: request);
       }
@@ -57,6 +77,15 @@ SupabaseClient _client(
         jsonEncode({
           'feed_path': 'safety/feed.json',
           'checksum': 'sha256:${sha256.convert(bytes)}',
+          'manifest':
+              manifest ??
+              {
+                if (extended != null)
+                  'extended_feed': {
+                    'path': _extendedPath,
+                    'checksum': 'sha256:${sha256.convert(_feedBytes)}',
+                  },
+              },
         }),
         200,
         headers: {'content-type': 'application/json'},
@@ -70,11 +99,15 @@ SupabaseClient _client(
 
 void main() {
   test('reads the same bytes the pipeline staged', () {
-    // Two pins, one fixture: the pipeline pins this digest in
+    // Two pins, one fixture: the pipeline pins these digests in
     // scripts/tests/test_safety_alerts_publisher.py. Regenerate there.
     expect(
       'sha256:${sha256.convert(_feedBytes)}',
-      'sha256:7c17891cabd3e4fa495c19bd2d42765e229ef4bb46dd3176ce11d84e006b0219',
+      'sha256:e0f20b54bcdf8aa77eef02c2c8420644adb390510546f8121e8e3359f3c1eb8f',
+    );
+    expect(
+      'sha256:${sha256.convert(_baseBytes)}',
+      'sha256:7564e689beaa6fe47a794d3121ac715c211a487476098e3c80c6b0bde2a940c5',
     );
   });
 
@@ -91,6 +124,197 @@ void main() {
       expect(interaction.severity, Severity.contraindicated);
       expect(interaction.evidenceLevel, EvidenceLevel.established);
       expect(alert.sourceUrl.host, 'example.org');
+    });
+
+    group('for pregnancy, lactation or a condition', () {
+      Map<String, Object?> pregnancyRow() {
+        final feed =
+            jsonDecode(utf8.decode(_feedBytes)) as Map<String, dynamic>;
+        return Map<String, Object?>.from(
+          (feed['alerts'] as List).cast<Map<String, dynamic>>().firstWhere(
+            (alert) => alert['alert_id'] == 'SA_9999_0003',
+          ),
+        );
+      }
+
+      Map<String, Object?> withGate(
+        Map<String, Object?> Function(Map<String, dynamic> gate) change,
+      ) {
+        final row = pregnancyRow();
+        final block = Map<String, dynamic>.from(row['interaction'] as Map);
+        final gate =
+            jsonDecode(jsonEncode(block['profile_gate']))
+                as Map<String, dynamic>;
+        return {
+          ...row,
+          'interaction': {...block, 'profile_gate': change(gate)},
+        };
+      }
+
+      Map<String, Object?> requiring(String key, List<String> ids) =>
+          withGate((gate) {
+            (gate['requires'] as Map)['profile_flags_any'] = <String>[];
+            (gate['requires'] as Map)[key] = ids;
+            gate['gate_type'] = key == 'conditions_any'
+                ? 'condition'
+                : 'profile_flag';
+            return gate;
+          });
+
+      bool matches(Map<String, Object?> row, DeviceSafetyProfile device) =>
+          SafetyAlert.fromJson(row).appliesTo(
+            dsldId: 'not-in-the-set',
+            ingredientCanonicalIds: const ['fake_fakeroot'],
+            device: device,
+          );
+
+      test('matches only someone it is for', () {
+        expect(
+          matches(
+            pregnancyRow(),
+            const DeviceSafetyProfile(profileFlags: {'pregnant'}),
+          ),
+          isTrue,
+        );
+        for (final device in const [
+          DeviceSafetyProfile(),
+          DeviceSafetyProfile(profileFlags: {'breastfeeding'}),
+          DeviceSafetyProfile(conditions: {'liver_disease'}),
+          DeviceSafetyProfile(medicationIds: {_medicationId}),
+        ]) {
+          expect(matches(pregnancyRow(), device), isFalse);
+        }
+      });
+
+      test('still needs the product or ingredient to match', () {
+        expect(
+          SafetyAlert.fromJson(pregnancyRow()).appliesTo(
+            dsldId: 'not-in-the-set',
+            ingredientCanonicalIds: const ['another_ingredient'],
+            device: const DeviceSafetyProfile(profileFlags: {'pregnant'}),
+          ),
+          isFalse,
+        );
+      });
+
+      test('lactation and a condition match the same way', () {
+        final lactation = requiring('profile_flags_any', ['breastfeeding']);
+        expect(
+          matches(
+            lactation,
+            const DeviceSafetyProfile(profileFlags: {'breastfeeding'}),
+          ),
+          isTrue,
+        );
+        expect(
+          matches(
+            lactation,
+            const DeviceSafetyProfile(profileFlags: {'pregnant'}),
+          ),
+          isFalse,
+        );
+
+        final condition = requiring('conditions_any', ['liver_disease']);
+        expect(
+          matches(
+            condition,
+            const DeviceSafetyProfile(conditions: {'liver_disease'}),
+          ),
+          isTrue,
+        );
+        expect(
+          matches(
+            condition,
+            const DeviceSafetyProfile(conditions: {'diabetes'}),
+          ),
+          isFalse,
+        );
+      });
+
+      test('an excluded person is not told', () {
+        final row = withGate((gate) {
+          (gate['excludes'] as Map)['conditions_any'] = ['liver_disease'];
+          return gate;
+        });
+        expect(
+          matches(
+            row,
+            const DeviceSafetyProfile(
+              profileFlags: {'pregnant'},
+              conditions: {'liver_disease'},
+            ),
+          ),
+          isFalse,
+        );
+      });
+
+      test('the notice names who it is for, the reason and the evidence', () {
+        final notice = SafetyAlert.fromJson(pregnancyRow()).interactionNotice!;
+        expect(notice, contains('Ingredient: Fakeroot (fictional)'));
+        expect(notice, contains('Applies to: Pregnancy'));
+        expect(notice, isNot(contains('Medication:')));
+        expect(notice, contains('not for use during pregnancy'));
+        expect(notice, contains(EvidenceLevel.established.label));
+      });
+
+      final refused = <String, Map<String, Object?> Function()>{
+        'no one': () => withGate((gate) {
+          (gate['requires'] as Map)['profile_flags_any'] = <String>[];
+          return gate;
+        }),
+        'a dose': () => withGate((gate) {
+          gate['dose'] = {'threshold': 1};
+          return gate;
+        }),
+        'a product form': () => withGate((gate) {
+          (gate['excludes'] as Map)['product_forms_any'] = ['topical'];
+          return gate;
+        }),
+        'a nutrient form': () => withGate((gate) {
+          (gate['excludes'] as Map)['nutrient_forms_any'] = ['retinol'];
+          return gate;
+        }),
+        'a key this build does not know': () => withGate((gate) {
+          (gate['requires'] as Map)['ages_any'] = ['adult'];
+          return gate;
+        }),
+        'both targets': () {
+          final row = pregnancyRow();
+          return {
+            ...row,
+            'interaction': {
+              ...(row['interaction'] as Map),
+              'medication_name': 'Fake',
+              'medication_ids': ['0000001'],
+            },
+          };
+        },
+        'no target': () {
+          final row = pregnancyRow();
+          return {
+            ...row,
+            'interaction': Map<String, dynamic>.from(row['interaction'] as Map)
+              ..remove('profile_gate')
+              ..remove('profile_context'),
+          };
+        },
+        'no label': () {
+          final row = pregnancyRow();
+          return {
+            ...row,
+            'interaction': Map<String, dynamic>.from(row['interaction'] as Map)
+              ..remove('profile_context'),
+          };
+        },
+      };
+      for (final entry in refused.entries) {
+        test('skips one with ${entry.key}, without costing the feed', () {
+          expect(
+            () => SafetyAlert.fromJson(entry.value()),
+            throwsA(isA<UnsupportedSafetyAlert>()),
+          );
+        });
+      }
     });
 
     test('other event types carry no interaction', () {
@@ -113,7 +337,7 @@ void main() {
           alert.appliesTo(
             dsldId: id,
             ingredientCanonicalIds: ingredients,
-            medicationIds: const {_medicationId},
+            device: const DeviceSafetyProfile(medicationIds: {_medicationId}),
           ),
           isTrue,
         );
@@ -125,7 +349,7 @@ void main() {
             alert.appliesTo(
               dsldId: id,
               ingredientCanonicalIds: ingredients,
-              medicationIds: medications,
+              device: DeviceSafetyProfile(medicationIds: medications),
             ),
             isFalse,
             reason: 'Nobody without the medication gets this notice.',
@@ -140,7 +364,7 @@ void main() {
         alert.appliesTo(
           dsldId: 'not-in-the-set',
           ingredientCanonicalIds: const ['another_ingredient'],
-          medicationIds: const {_medicationId},
+          device: const DeviceSafetyProfile(medicationIds: {_medicationId}),
         ),
         isFalse,
       );
@@ -152,7 +376,7 @@ void main() {
         alert.appliesTo(
           dsldId: alert.resolvedDsldIds.first,
           ingredientCanonicalIds: const [],
-          medicationIds: const {},
+          device: const DeviceSafetyProfile(),
         ),
         isTrue,
       );
@@ -237,9 +461,9 @@ void main() {
     test(
       'a rule already received stays after the phone goes offline',
       () async {
-        Object? served = _feedBytes;
+        Object? served = _baseBytes;
         final repository = SafetyAlertRepository(
-          client: _client(() => served),
+          client: _client(() => served, extended: () => _feedBytes),
           preferences: _MemoryPreferences(),
         );
         await repository.loadCurrent();
@@ -268,11 +492,15 @@ void main() {
     test('fetching the feed sends nothing about medications', () async {
       final requests = <http.Request>[];
       final release = await SafetyAlertRepository(
-        client: _client(() => _feedBytes, requests: requests),
+        client: _client(
+          () => _baseBytes,
+          extended: () => _feedBytes,
+          requests: requests,
+        ),
         preferences: _MemoryPreferences(),
       ).loadCurrent();
 
-      expect(release.alerts, hasLength(2));
+      expect(release.alerts, hasLength(4));
       expect(requests, isNotEmpty);
       for (final request in requests) {
         final sent = [
@@ -291,72 +519,182 @@ void main() {
     });
   });
 
-  group('builds already on phones, reading the new feed', () {
-    late List<int> feed;
-    setUp(() => feed = _feedBytes);
+  group('the extended feed', () {
+    List<String> ids(SafetyAlertRelease release) =>
+        release.alerts.map((alert) => alert.alertId).toList()..sort();
 
-    final oldFeed = utf8.encode(
-      jsonEncode({
-        'alerts': [
-          _feedAlert('ingredient_ban')
-            ..['alert_id'] = 'SA_9999_0009'
-            ..['headline'] = 'Earlier fake alert',
-        ],
-      }),
-    );
+    test('this build reads every alert when the release names it', () async {
+      final release = await SafetyAlertRepository(
+        client: _client(() => _baseBytes, extended: () => _feedBytes),
+        preferences: _MemoryPreferences(),
+      ).loadCurrent();
 
-    test('a build with the skip reads the ban, skips the rule, stays '
-        'incomplete', () async {
+      expect(ids(release), [
+        'SA_9999_0001',
+        'SA_9999_0002',
+        'SA_9999_0003',
+        'SA_9999_0004',
+      ]);
+      expect(release.isComplete, isTrue);
+    });
+
+    test('a release that names none is read as it always was', () async {
+      final release = await SafetyAlertRepository(
+        client: _client(() => _baseBytes),
+        preferences: _MemoryPreferences(),
+      ).loadCurrent();
+
+      expect(ids(release), ['SA_9999_0002', 'SA_9999_0004']);
+      expect(release.isComplete, isTrue);
+    });
+
+    test('unavailable: bans and recalls still load, and it is not a complete '
+        'check', () async {
+      final release = await SafetyAlertRepository(
+        client: _client(() => _baseBytes, extended: () => null),
+        preferences: _MemoryPreferences(),
+      ).loadCurrent();
+
+      expect(ids(release), ['SA_9999_0002', 'SA_9999_0004']);
+      expect(release.isComplete, isFalse);
+    });
+
+    test('tampered bytes count as unavailable', () async {
+      final release = await SafetyAlertRepository(
+        client: _client(() => _baseBytes, extended: () => utf8.encode('{}')),
+        preferences: _MemoryPreferences(),
+      ).loadCurrent();
+
+      expect(ids(release), ['SA_9999_0002', 'SA_9999_0004']);
+      expect(release.isComplete, isFalse);
+    });
+
+    test('a damaged manifest entry counts as unavailable', () async {
+      final release = await SafetyAlertRepository(
+        client: _client(
+          () => _baseBytes,
+          manifest: {'extended_feed': 'not a location'},
+        ),
+        preferences: _MemoryPreferences(),
+      ).loadCurrent();
+
+      expect(ids(release), ['SA_9999_0002', 'SA_9999_0004']);
+      expect(release.isComplete, isFalse);
+    });
+
+    test('unavailable later: a new ban arrives and rules already held stay, '
+        'through a second failure too', () async {
+      Object? superset = _feedBytes;
+      Object? base = _baseBytes;
+      final repository = SafetyAlertRepository(
+        client: _client(() => base, extended: () => superset),
+        preferences: _MemoryPreferences(),
+      );
+      await repository.loadCurrent();
+
+      superset = null;
+      base = utf8.encode(
+        jsonEncode({
+          'alerts': [
+            _feedAlert('ingredient_ban')..['alert_id'] = 'SA_9999_0009',
+          ],
+        }),
+      );
+      for (var i = 0; i < 2; i++) {
+        final release = await repository.loadCurrent();
+        expect(ids(release), ['SA_9999_0001', 'SA_9999_0003', 'SA_9999_0009']);
+        expect(release.isComplete, isFalse);
+      }
+    });
+
+    test('offline, the rules come back from the verified copy', () async {
+      Object? base = _baseBytes;
+      final repository = SafetyAlertRepository(
+        client: _client(() => base, extended: () => _feedBytes),
+        preferences: _MemoryPreferences(),
+      );
+      await repository.loadCurrent();
+
+      base = null;
+      final release = await repository.loadCurrent();
+
+      expect(release.alerts, hasLength(4));
+      expect(release.isComplete, isFalse);
+    });
+  });
+
+  group('builds already on phones, on the real old path', () {
+    const banAndRecall = ['SA_9999_0002', 'SA_9999_0004'];
+    List<String> ids(Iterable<String> alertIds) => alertIds.toList()..sort();
+
+    test('the feed they read has no rule in it', () {
+      final feed = jsonDecode(utf8.decode(_baseBytes)) as Map<String, dynamic>;
+      expect(feed['schema_version'], '1.0.0');
+      expect(
+        (feed['alerts'] as List).map((alert) => (alert as Map)['event_type']),
+        unorderedEquals(['ingredient_ban', 'product_recall']),
+      );
+    });
+
+    test('a fresh install before the skip gets the ban and the recall, '
+        'complete', () async {
+      final release = await pre_skip.SafetyAlertRepository(
+        client: _client(() => _baseBytes, extended: () => _feedBytes),
+        preferences: _MemoryPreferences(),
+      ).loadCurrent();
+
+      expect(ids(release.alerts.map((a) => a.alertId)), banAndRecall);
+      expect(release.isComplete, isTrue);
+    });
+
+    test('a fresh install with the skip gets the ban and the recall, '
+        'complete', () async {
       final repository = skip_unknown.SafetyAlertRepository(
-        client: _client(() => feed),
+        client: _client(() => _baseBytes, extended: () => _feedBytes),
         preferences: _MemoryPreferences(),
       );
 
       final release = await repository.loadCurrent();
 
-      expect(release.alerts.map((a) => a.alertId), [
-        _feedAlert('ingredient_ban')['alert_id'],
-      ]);
-      expect(release.isComplete, isFalse);
-      expect(await repository.loadCachedAlerts(), hasLength(1));
+      expect(ids(release.alerts.map((a) => a.alertId)), banAndRecall);
+      expect(release.isComplete, isTrue);
+      expect(await repository.loadCachedAlerts(), hasLength(2));
     });
 
-    test('a build before the skip keeps its last good copy and does not '
-        'crash', () async {
-      final preferences = _MemoryPreferences();
+    test('an install with an earlier copy moves on to the ban and the '
+        'recall', () async {
+      late List<int> feed;
       final repository = pre_skip.SafetyAlertRepository(
-        client: _client(() => feed),
-        preferences: preferences,
+        client: _client(() => feed, extended: () => _feedBytes),
+        preferences: _MemoryPreferences(),
       );
-      feed = oldFeed;
+      feed = utf8.encode(
+        jsonEncode({
+          'alerts': [
+            _feedAlert('ingredient_ban')
+              ..['alert_id'] = 'SA_9999_0009'
+              ..['headline'] = 'Earlier fake alert',
+          ],
+        }),
+      );
       await repository.loadCurrent();
 
-      feed = _feedBytes;
+      feed = _baseBytes;
       final release = await repository.loadCurrent();
 
-      expect(release.alerts.map((a) => a.alertId), ['SA_9999_0009']);
-      expect(release.isComplete, isFalse);
+      expect(ids(release.alerts.map((a) => a.alertId)), banAndRecall);
+      expect(release.isComplete, isTrue);
     });
 
-    test('LIMIT: a fresh install of a build before the skip gets no alerts '
-        'at all', () async {
+    test('WHY: a rule on that path would cost a fresh install every '
+        'alert', () async {
       final release = await pre_skip.SafetyAlertRepository(
-        client: _client(() => feed),
+        client: _client(() => _feedBytes),
         preferences: _MemoryPreferences(),
       ).loadCurrent();
 
       expect(release.alerts, isEmpty);
       expect(release.isComplete, isFalse);
-    });
-
-    test('the current build reads both', () async {
-      final release = await SafetyAlertRepository(
-        client: _client(() => feed),
-        preferences: _MemoryPreferences(),
-      ).loadCurrent();
-
-      expect(release.alerts, hasLength(2));
-      expect(release.isComplete, isTrue);
     });
   });
 }

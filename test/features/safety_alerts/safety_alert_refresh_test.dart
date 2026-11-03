@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/services/connectivity_service.dart';
@@ -75,6 +76,8 @@ void main() {
         safetyAlertRepositoryProvider.overrideWithValue(repository),
         activeStackProvider.overrideWith((ref) async => const []),
         localMedicationIdentityProvider.overrideWith((ref) async => const {}),
+        loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
+        evaluatorProfileFlagsProvider.overrideWith((ref) async => const {}),
         connectionStatusProvider.overrideWith((ref) => connection.stream),
       ],
     );

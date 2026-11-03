@@ -23,7 +23,6 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
-import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
@@ -54,11 +53,15 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
         );
         rethrow;
       }
-      // A profile's drug-class picks can match a live rule with an empty stack.
-      final medicationIds = await ref.watch(
-        localMedicationIdentityProvider.future,
-      );
-      if (stack.isEmpty && medicationIds.isEmpty) return const [];
+      // A profile can match a live rule with an empty stack. An unreadable one
+      // must surface: empty here would read as nothing to report.
+      final device = await ref.watch(deviceSafetyProfileProvider.future);
+      if (stack.isEmpty && device.isEmpty) {
+        if (!device.isComplete) {
+          throw StateError('The device profile could not be read.');
+        }
+        return const [];
+      }
 
       final coreDb = ref.watch(coreDatabaseProvider);
       final ProductsCoreData? product;
@@ -319,11 +322,14 @@ InteractionWarning _liveRuleToWarning(SafetyAlert alert) {
   return InteractionWarning(
     severity: rule.severity,
     evidenceLevel: rule.evidenceLevel,
-    title: "Because you're taking ${rule.medicationName}",
+    title: rule.medicationName != null
+        ? "Because you're taking ${rule.medicationName}"
+        : alert.headline,
     mechanism: alert.body,
     management: alert.action,
     sourceUrls: [alert.sourceUrl.toString()],
     drugClassIds: rule.medicationIds.toList(growable: false),
+    profileGate: rule.profileGate,
     ingredientName: rule.ingredientName,
     matchedOnDevice: true,
   );

@@ -37,7 +37,7 @@ PGVerdictKind scanRevealKind(CatalogProductSafetyStatus status) =>
 bool scanResultIsSafetyCritical(
   ProductsCoreData product, {
   Iterable<SafetyAlert> alerts = const [],
-  Set<String> medicationIds = const {},
+  DeviceSafetyProfile device = const DeviceSafetyProfile(),
 }) {
   if (catalogProductIsBlocked(product)) return true;
   final ingredientIds = canonical_ids.canonicalIdsForProduct(product);
@@ -47,7 +47,7 @@ bool scanResultIsSafetyCritical(
         alert.appliesTo(
           dsldId: product.dsldId,
           ingredientCanonicalIds: ingredientIds,
-          medicationIds: medicationIds,
+          device: device,
         ),
   );
 }
