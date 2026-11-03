@@ -35,13 +35,17 @@ class SafetyAlertRepository {
   SafetyAlertRepository({
     SupabaseClient? client,
     SharedPreferencesAsync? preferences,
-  }) : _client = client ?? supabase,
+  }) : _givenClient = client,
        _preferences = preferences ?? SharedPreferencesAsync();
 
   static const _cacheKey = 'safety_alert_release_v1';
   static const _watermarkKey = 'safety_alert_baseline_revisions_v1';
-  final SupabaseClient _client;
+  final SupabaseClient? _givenClient;
   final SharedPreferencesAsync _preferences;
+
+  /// Read inside the fetch: Supabase failing to start is a failed fetch, and a
+  /// saved copy still counts.
+  SupabaseClient get _client => _givenClient ?? supabase;
 
   Future<SafetyAlertRelease> loadCurrent() async {
     try {
