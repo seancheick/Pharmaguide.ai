@@ -311,7 +311,7 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
       fitReasons: fitResult?.reasons ?? const [],
       rows: rows,
     ),
-    FitLimitedFit() || FitNotRecommended() => _cleanProfileSummary(
+    FitLimitedFit() => _cleanProfileSummary(
       status: ProfileRelevanceStatus.neutral,
       tone: hasCriticalGlobalNote ? PGReviewTone.info : PGReviewTone.safe,
       topGoalLabel: null,
@@ -319,7 +319,9 @@ ProfileRelevanceSummary _buildProfileRelevanceSummary({
       fitReasons: const [],
       rows: rows,
     ),
-    FitHidden() => ProfileRelevanceSummary(
+    // FitScoreService returns notRecommended only for a hard severity, which
+    // holds even when the blob carries no warning row to explain it.
+    FitHidden() || FitNotRecommended() => ProfileRelevanceSummary(
       status: ProfileRelevanceStatus.notRecommended,
       tone: PGReviewTone.danger,
       headline: 'Not recommended for your profile',

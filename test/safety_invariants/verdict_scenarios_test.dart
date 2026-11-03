@@ -14,7 +14,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
+import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -24,10 +26,15 @@ import 'package:pharmaguide/data/supabase/detail_blob_service.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 
 const _stJohnsWort = '18219';
 const _allClear = 'No known concerns';
@@ -54,6 +61,46 @@ Map<String, dynamic> _stJohnsWortBlob() {
       .singleWhere((p) => p['dsld_id'].toString() == _stJohnsWort);
   return Map<String, dynamic>.from(product['blob'] as Map);
 }
+
+/// The same label before the warfarin rule was published: no warning row and
+/// no interaction summary entry for the class.
+Map<String, dynamic> _stJohnsWortBlobWithoutWarfarinRule() {
+  final blob = _stJohnsWortBlob();
+  blob['warnings'] = (blob['warnings'] as List<dynamic>)
+      .cast<Map<String, dynamic>>()
+      .where((w) => !(w['drug_class_ids'] as List).contains('anticoagulants'))
+      .toList();
+  final summary = Map<String, dynamic>.from(blob['interaction_summary'] as Map);
+  summary['drug_class_summary'] = Map<String, dynamic>.from(
+    summary['drug_class_summary'] as Map,
+  )..remove('anticoagulants');
+  blob['interaction_summary'] = summary;
+  return blob;
+}
+
+/// 900 mg sits under the adult upper limit and over the one for a pregnant
+/// 14-18 year old, so only the profile decides which result is right.
+Map<String, dynamic> _vitaminEBlob() => {
+  'rda_ul_data': {
+    'analyzed_ingredients': [
+      {
+        'canonical_id': 'vitamin_e',
+        'standard_name': 'Vitamin E',
+        'quantity': 900,
+        'per_day_min': 900,
+        'per_day_max': 900,
+        'unit': 'mg alpha-tocopherol',
+        'converted_unit': 'mg alpha-tocopherol',
+        'safety_exposure': {'per_day': 900, 'unit': 'mg alpha-tocopherol'},
+        'over_ul': false,
+        'ul': 1000,
+        'pct_ul': 90,
+        'ul_gate_eligible': true,
+        'skip_ul_check': false,
+      },
+    ],
+  },
+};
 
 class _Blobs extends DetailBlobService {
   _Blobs(this.fetch);
@@ -338,6 +385,246 @@ void main() {
 
       expect(find.text(_notRecommended), findsOneWidget);
       expect(find.text(_allClear), findsNothing);
+    });
+  });
+
+  group('unknown product', () {
+    testWidgets('a product the catalog does not hold gets no verdict', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(tester),
+        phone: await _phone(tester, profile: _onWarfarin),
+        dsldId: 'not-in-catalog',
+      );
+
+      expect(find.text('Product unavailable'), findsOneWidget);
+      expect(find.text(_allClear), findsNothing);
+      expect(find.text(_notRecommended), findsNothing);
+      expect(find.textContaining('/100'), findsNothing);
+    });
+  });
+
+  group('new contraindication reaches the user', () {
+    testWidgets('a catalog update with a new rule changes the verdict', (
+      tester,
+    ) async {
+      final phone = await _phone(
+        tester,
+        profile: _onWarfarin,
+        cachedBlob: _stJohnsWortBlobWithoutWarfarinRule(),
+        cachedSha: 'before',
+      );
+      await pumpPage(
+        tester,
+        catalog: await _catalog(tester, sha: 'before'),
+        phone: phone,
+        scope: const ValueKey('catalog-before'),
+      );
+      expect(find.text(_allClear), findsOneWidget);
+
+      final fetched = <String>[];
+      await pumpPage(
+        tester,
+        catalog: await _catalog(tester, sha: 'after'),
+        phone: phone,
+        scope: const ValueKey('catalog-after'),
+        blobs: _Blobs((sha) async {
+          fetched.add(sha);
+          return _stJohnsWortBlob();
+        }),
+      );
+
+      expect(fetched, ['after']);
+      expect(find.text(_notRecommended), findsOneWidget);
+      expect(find.text(_warfarinWarning), findsWidgets);
+      expect(find.textContaining('citation'), findsWidgets);
+      expect(find.text(_allClear), findsNothing);
+      expect((await phone.getCachedDetail(_stJohnsWort))?.sha256, 'after');
+    });
+
+    testWidgets('offline, the update never falls back to the old all-clear', (
+      tester,
+    ) async {
+      final phone = await _phone(
+        tester,
+        profile: _onWarfarin,
+        cachedBlob: _stJohnsWortBlobWithoutWarfarinRule(),
+        cachedSha: 'before',
+      );
+      await pumpPage(
+        tester,
+        catalog: await _catalog(tester, sha: 'after'),
+        phone: phone,
+      );
+
+      expect(find.text(_allClear), findsNothing);
+      expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a hard interaction with no warning row is never an all-clear',
+      (tester) async {
+        final blob = _stJohnsWortBlob();
+        blob['warnings'] = const <Object>[];
+      blob['warnings_profile_gated'] = const <Object>[];
+        await pumpPage(
+          tester,
+          catalog: await _catalog(tester),
+          phone: await _phone(tester, profile: _onWarfarin, cachedBlob: blob),
+        );
+
+        expect(find.text(_allClear), findsNothing);
+        expect(find.text(_notRecommended), findsOneWidget);
+      },
+    );
+  });
+
+  group('profile change during a scan', () {
+    testWidgets('the edit wins over the check in flight, and undoing it '
+        'recalculates', (tester) async {
+      final network = Completer<Map<String, dynamic>?>();
+      await pumpPage(
+        tester,
+        catalog: await _catalog(tester),
+        phone: await _phone(tester, profile: _noMatch),
+        blobs: _Blobs((_) => network.future),
+        settle: false,
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text(_allClear), findsNothing);
+
+      final scope = ProviderScope.containerOf(
+        tester.element(find.byType(ProductDetailV2ConnectedScreen)),
+      );
+      scope.read(profileProvider.notifier)
+        ..setAgeBracket('14-18')
+        ..setConditions(const ['pregnancy']);
+      await tester.pump();
+      network.complete(_vitaminEBlob());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Vitamin E above the upper limit'), findsWidgets);
+      expect(find.text(_allClear), findsNothing);
+
+      scope.read(profileProvider.notifier)
+        ..setAgeBracket('31-50')
+        ..setConditions(const []);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Vitamin E above the upper limit'), findsNothing);
+      expect(find.text(_allClear), findsOneWidget);
+    });
+  });
+
+  group('account switch mid-request', () {
+    const accountA = 'account-a';
+    const accountB = 'account-b';
+
+    test('the old account\'s scan lands nowhere and never reaches the new '
+        'account', () async {
+      SharedPreferences.setMockInitialValues({});
+      final root = await Directory.systemTemp.createTemp('a7_switch');
+      addTearDown(() => root.delete(recursive: true));
+      final support = await Directory(p.join(root.path, 'support')).create();
+      final documents = await Directory(
+        p.join(root.path, 'documents'),
+      ).create();
+      final guard = AccountSwitchGuard(
+        ownerStore: AccountOwnerStore(),
+        storage: AccountStorage(
+          supportDirectory: () async => support,
+          documentsDirectory: () async => documents,
+        ),
+        openDatabase: (path) async => UserDatabase.open(path),
+      );
+      addTearDown(guard.close);
+      final catalog = CoreDatabase.memory();
+      addTearDown(catalog.close);
+      await catalog
+          .into(catalog.productsCore)
+          .insert(
+            ProductsCoreCompanion.insert(
+              dsldId: _stJohnsWort,
+              productName: 'Vitamin E',
+              exportVersion: 'test',
+              exportedAt: '2026-10-21T00:00:00Z',
+              detailBlobSha256: const Value('blob-sha'),
+              mappedCoverage: const Value(1),
+            ),
+          );
+      final network = Completer<Map<String, dynamic>?>();
+
+      await guard.boot(sessionUid: accountA);
+      await guard.database!.saveProfile(
+        const ProfileState(
+          ageBracket: '14-18',
+          sex: 'Female',
+          conditions: ['pregnancy'],
+        ).toCompanion(),
+      );
+
+      // Same lifecycle as the app's root: the provider tree comes down before
+      // the handle closes, and a new tree opens on the new account's database.
+      ProviderContainer openScope() => ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(catalog),
+          userDatabaseProvider.overrideWithValue(guard.database!),
+          detailBlobServiceProvider.overrideWithValue(
+            _Blobs((_) => network.future),
+          ),
+          fitScoreServiceProvider.overrideWith((ref) async => fitService),
+          clinicalProfileSchemaProvider.overrideWith((ref) async => schema),
+        ],
+      );
+      var scope = openScope();
+      addTearDown(() => scope.dispose());
+      guard
+        ..releaseConsumers = () async {
+          scope.dispose();
+        }
+        ..onChanged = () => scope = openScope();
+
+      // The provider is autoDispose: a listener keeps it alive across its awaits.
+      Future<FitScoreResult?> fitNow() async {
+        final listener = scope.listen(
+          fitScoreForProductProvider(_stJohnsWort).future,
+          (_, _) {},
+        );
+        try {
+          return await listener.read();
+        } finally {
+          listener.close();
+        }
+      }
+
+      final resultsForA = <FitScoreResult?>[];
+      scope.listen(fitScoreForProductProvider(_stJohnsWort), (_, next) {
+        if (next.hasValue && !next.isLoading) resultsForA.add(next.value);
+      });
+      await pumpEventQueue();
+
+      await guard.onAuthEvent(event: AuthChangeEvent.signedIn, uid: accountB);
+      network.complete(_vitaminEBlob());
+      await pumpEventQueue();
+
+      expect(resultsForA, isEmpty, reason: 'A left before the result arrived');
+      expect(await guard.database!.getProfile(), isNull);
+      expect(
+        await guard.database!.getCachedDetail(_stJohnsWort),
+        isNull,
+        reason: "A's fetch must not write into B's database",
+      );
+
+      final forB = await fitNow();
+      expect(forB!.nutrientStatuses.single.tier, isNot(NutrientTier.exceedsUl));
+
+      await guard.onAuthEvent(event: AuthChangeEvent.signedIn, uid: accountA);
+      final forA = await fitNow();
+      expect(forA!.nutrientStatuses.single.tier, NutrientTier.exceedsUl);
     });
   });
 }
