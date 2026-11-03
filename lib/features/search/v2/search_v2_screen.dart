@@ -391,13 +391,17 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
                 }
               },
             ),
-            const QualityWithheldNotice(
-              margin: EdgeInsets.fromLTRB(
-                V2Spacing.space24,
-                0,
-                V2Spacing.space24,
-                V2Spacing.space8,
-              ),
+            const WithheldNoticeArea(
+              children: [
+                QualityWithheldNotice(
+                  margin: EdgeInsets.fromLTRB(
+                    V2Spacing.space24,
+                    0,
+                    V2Spacing.space24,
+                    V2Spacing.space8,
+                  ),
+                ),
+              ],
             ),
             if (_showFilterChips) ...[
               const SizedBox(height: V2Spacing.space8),

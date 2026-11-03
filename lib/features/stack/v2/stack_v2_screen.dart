@@ -153,8 +153,12 @@ class _StackV2ScreenState extends State<StackV2Screen> {
         body: Column(
           children: [
             // Above the tabs, since all three show products or totals.
-            const RulesWithheldNotice(margin: _stackNoticeMargin),
-            const QualityWithheldNotice(margin: _stackNoticeMargin),
+            const WithheldNoticeArea(
+              children: [
+                RulesWithheldNotice(margin: _stackNoticeMargin),
+                QualityWithheldNotice(margin: _stackNoticeMargin),
+              ],
+            ),
             Expanded(
               child: AnimatedSwitcher(
                 duration: V2Motion.base,

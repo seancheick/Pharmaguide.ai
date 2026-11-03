@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
@@ -10,6 +12,31 @@ const String kRulesWithheldNotice =
 const String kQualityWithheldNotice =
     'Quality scores are temporarily unavailable. Product information is still '
     'available.';
+
+/// Notices above a list that fills the rest of the screen. An upright phone
+/// keeps 400 points for the app bar and the list; on a short screen, such as a
+/// phone on its side, the notices stop at 30% and scroll.
+class WithheldNoticeArea extends StatelessWidget {
+  const WithheldNoticeArea({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleHeight =
+        MediaQuery.sizeOf(context).height -
+        MediaQuery.viewInsetsOf(context).bottom;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: math.max(visibleHeight * 0.3, visibleHeight - 400),
+      ),
+      child: SingleChildScrollView(
+        primary: false,
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
+      ),
+    );
+  }
+}
 
 /// Rules that are withheld (ADR-012) or failed to open leave
 /// [interactionDatabaseProvider] failing, and that failure is the one signal.

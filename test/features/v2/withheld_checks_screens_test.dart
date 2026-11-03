@@ -53,7 +53,8 @@ const _notCheckedBody =
 /// Anything that could read as a clean result.
 final _clean = RegExp(
   r'no known|no interaction|all clear|no concerns|looks (good|clear)|'
-  r'no issues|optimi[sz]ed|\bsafe\b|still check|checks each new',
+  r'no issues|no (safety )?signals|optimi[sz]ed|\bsafe\b|still check|'
+  r'checks each new',
   caseSensitive: false,
 );
 
@@ -569,6 +570,83 @@ void main() {
         );
         expect(find.text(kRulesWithheldNotice), findsNothing);
       });
+    });
+  });
+
+  group('a short screen at a large text size', () {
+    void shortScreen(WidgetTester tester) {
+      tester.view.physicalSize = const Size(568, 320);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    testWidgets('both notices leave the stack tab room', (tester) async {
+      shortScreen(tester);
+      final core = await _catalog(tester, qualityWithheld: true);
+      await _pumpStack(
+        tester,
+        core: core,
+        stack: [_stackRow(_productA, 'Magnesium One')],
+        overrides: _rulesOverrides(_Rules.unset, null),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text(kRulesWithheldNotice), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(AnimatedSwitcher)).height,
+        greaterThan(80),
+      );
+
+      // Neither notice is lost: the second is a scroll away.
+      await tester.ensureVisible(find.text(kQualityWithheldNotice));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('both notices show in full on an upright phone', (
+      tester,
+    ) async {
+      shortScreen(tester);
+      tester.view.physicalSize = const Size(390, 844);
+      final core = await _catalog(tester, qualityWithheld: true);
+      await _pumpStack(
+        tester,
+        core: core,
+        stack: [_stackRow(_productA, 'Magnesium One')],
+        overrides: _rulesOverrides(_Rules.unset, null),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getBottomLeft(find.text(kQualityWithheldNotice)).dy,
+        lessThanOrEqualTo(tester.getTopLeft(find.byType(AnimatedSwitcher)).dy),
+      );
+    });
+
+    testWidgets('the notice leaves search results room above a keyboard', (
+      tester,
+    ) async {
+      shortScreen(tester);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 100);
+      final core = await _catalog(tester, qualityWithheld: true);
+      addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(core),
+            recentSearchesServiceProvider.overrideWithValue(_NoRecents()),
+          ],
+          child: const MaterialApp(home: SearchV2Screen()),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text(kQualityWithheldNotice), findsOneWidget);
     });
   });
 
