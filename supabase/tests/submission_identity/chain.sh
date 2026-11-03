@@ -49,4 +49,5 @@ submission_migration_chain() {
   printf '%s\n' "$repo_dir/supabase/migrations/20261026160229_submission_correction_workflow_repair.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20261026202655_alternate_identifier_submissions.sql"
   printf '%s\n' "$repo_dir/supabase/migrations/20261028120000_review_list_approval_hash_grant.sql"
+  printf '%s\n' "$repo_dir/supabase/migrations/20261103120000_submission_staff_columns_private.sql"
 }
