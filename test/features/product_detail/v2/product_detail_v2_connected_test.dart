@@ -518,6 +518,7 @@ void main() {
           initialSection: null,
           warningsFail: true,
           classLookupFails: true,
+          rules: _Rules.unset,
           stack: [
             UserStacksLocalData(
               id: 'warfarin',
@@ -546,7 +547,7 @@ void main() {
           },
         );
 
-        expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+        expect(find.text(_rulesNotice), findsOneWidget);
         expect(find.text('Do not combine with warfarin'), findsOneWidget);
       },
     );
@@ -634,6 +635,50 @@ void main() {
           });
         }
       }
+
+      testWidgets('a check that failed for its own reason can be retried', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          profiled: true,
+          realWarnings: true,
+          rules: _Rules.unset,
+          stack: const [],
+          fitFails: true,
+        );
+
+        expect(find.text(_rulesNotice), findsOneWidget);
+        expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+        // Retrying can't bring the rules back, so the banner doesn't offer it.
+        expect(find.textContaining('every profile check'), findsOneWidget);
+        expect(find.textContaining('interaction and profile'), findsNothing);
+        // The card has no result to show; the two lines above say why.
+        expect(find.text('Profile assessment unavailable'), findsNothing);
+        expect(find.text('No known concerns'), findsNothing);
+      });
+
+      testWidgets('a fit check the rules themselves stopped has no retry', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          profiled: true,
+          realWarnings: true,
+          rules: _Rules.unset,
+          stack: const [],
+          fitFails: true,
+          classLookupFails: true,
+        );
+
+        expect(find.text(_rulesNotice), findsOneWidget);
+        expect(find.text('Retry'), findsNothing);
+      });
 
       // Offline is the detail blob not arriving.
       for (final (network, offlineBlob) in [

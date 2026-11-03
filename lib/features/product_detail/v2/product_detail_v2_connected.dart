@@ -566,6 +566,13 @@ class _ProductDetailV2ConnectedState
         userProfileFlagsAsync.hasError ||
         deviceProfileAsync.hasError ||
         deviceProfileAsync.value?.isComplete == false;
+    // The rules notice can't speak for a check that failed for its own reason,
+    // and that one can still be retried. Fit reads the rules only through the
+    // stack's medication classes.
+    final checkFailedWithoutRules =
+        userProfileFlagsAsync.hasError ||
+        deviceProfileAsync.hasError ||
+        (fitAsync.hasError && !stackMedicationClassesAsync.hasError);
     // Still running is not a failure, and not a result either: while any
     // check is in flight the fit result is null, which would otherwise read
     // as "No known concerns" for a profiled user.
@@ -844,14 +851,19 @@ class _ProductDetailV2ConnectedState
                       if (rulesUnavailable && !isBlocked) ...[
                         const RulesWithheldNotice(),
                         const SizedBox(height: V2Spacing.space12),
-                      ] else if (personalizedChecksFailed && !isBlocked) ...[
+                      ],
+                      if (personalizedChecksFailed &&
+                          (!rulesUnavailable || checkFailedWithoutRules) &&
+                          !isBlocked) ...[
                         PGSeverityBanner(
                           key: const Key('personalized-checks-error-banner'),
                           tone: PGBannerTone.caution,
                           title: 'Personalized checks are incomplete',
                           body:
-                              'We couldn\'t complete every interaction and profile '
-                              'check for this product. This is not an all-clear; '
+                              // Retrying can't bring withheld rules back.
+                              'We couldn\'t complete every '
+                              '${rulesUnavailable ? '' : 'interaction and '}'
+                              'profile check for this product. This is not an all-clear; '
                               'try again before relying on these results.',
                           actionLabel: 'Retry',
                           onAction: _retryPersonalizedChecks,
