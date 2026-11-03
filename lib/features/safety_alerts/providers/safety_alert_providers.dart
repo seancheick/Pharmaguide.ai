@@ -59,11 +59,15 @@ final class SafetyAlertMatchSet {
     required this.matches,
     required this.baselineSignalKeys,
     required this.isComplete,
+    this.neverVerified = false,
   });
 
   final List<({SafetyAlert alert, String dsldId})> matches;
   final Set<String> baselineSignalKeys;
   final bool isComplete;
+
+  /// See [SafetyAlertRelease.neverVerified].
+  final bool neverVerified;
 }
 
 /// The device performs the authoritative product match. Supabase only stores
@@ -100,6 +104,7 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((
     matches: List.unmodifiable(matches),
     baselineSignalKeys: Set.unmodifiable(baseline),
     isComplete: release.isComplete && device.isComplete,
+    neverVerified: release.neverVerified,
   );
 });
 

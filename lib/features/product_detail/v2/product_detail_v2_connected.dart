@@ -558,8 +558,11 @@ class _ProductDetailV2ConnectedState
     // no canonical ids, so their own results can't report that the rules are
     // missing. Finding nothing without the rules is not an all-clear.
     final rulesUnavailable = interactionRulesUnavailable(ref);
+    final alertFeedAsync = ref.watch(safetyAlertMatchesProvider);
+    final alertFeedNeverVerified = alertFeedAsync.value?.neverVerified == true;
     final personalizedChecksFailed =
         rulesUnavailable ||
+        alertFeedNeverVerified ||
         personalizedWarningsFailed ||
         profileRuleWarningsFailed ||
         fitAsync.hasError ||
@@ -570,6 +573,7 @@ class _ProductDetailV2ConnectedState
     // and that one can still be retried. Fit reads the rules only through the
     // stack's medication classes.
     final checkFailedWithoutRules =
+        alertFeedNeverVerified ||
         userProfileFlagsAsync.hasError ||
         deviceProfileAsync.hasError ||
         (fitAsync.hasError && !stackMedicationClassesAsync.hasError);
@@ -582,7 +586,9 @@ class _ProductDetailV2ConnectedState
             profileRuleWarningsAsync.isLoading ||
             fitAsync.isLoading ||
             userProfileFlagsAsync.isLoading ||
-            deviceProfileAsync.isLoading);
+            deviceProfileAsync.isLoading ||
+            // Only the first fetch: a refresh keeps the result it already has.
+            (alertFeedAsync.isLoading && !alertFeedAsync.hasValue));
 
     // -------------------------------------------------------------
     // Blob-derived flags used by downstream sections.

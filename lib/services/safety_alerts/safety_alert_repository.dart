@@ -13,6 +13,7 @@ final class SafetyAlertRelease {
     required this.alerts,
     required this.baselineRevisions,
     required this.isComplete,
+    this.neverVerified = false,
   });
 
   final List<SafetyAlert> alerts;
@@ -21,6 +22,10 @@ final class SafetyAlertRelease {
   /// They surface in-app, but never create a retrospective "new" event.
   final Map<String, int> baselineRevisions;
   final bool isComplete;
+
+  /// A fetch failed and this device holds no verified copy, so [alerts] being
+  /// empty says nothing about any product.
+  final bool neverVerified;
 }
 
 /// Fetches only the public, current release and refuses bytes that do not
@@ -68,6 +73,7 @@ class SafetyAlertRepository {
           alerts: [],
           baselineRevisions: {},
           isComplete: false,
+          neverVerified: true,
         );
       }
       return await _withWatermark(cached, isComplete: false);
