@@ -83,6 +83,11 @@ jobs:
           PG_MIGRATION_DEPLOYMENT_DIR="$RUNNER_TEMP/shared-supabase-deployment" bash scripts/test_ai_connector_rls.sh
           bash scripts/test_submission_identity.sh
 
+      # Anonymous, other-user and assistant-token negative tests. Every protection
+      # is also removed once, and the run fails unless its test notices.
+      - name: Backend security tests
+        run: PG_MIGRATION_DEPLOYMENT_DIR="$RUNNER_TEMP/shared-supabase-deployment" bash scripts/test_backend_security.sh
+
       # interaction_db.sqlite is distributed as a versioned GitHub Release asset
       # (not Git LFS). Hydrate + verify it BEFORE analyze/test/package.
       # fetch_interaction_db.sh fails closed on a bad checksum, header, size, or
