@@ -154,7 +154,7 @@ INSERT INTO sec.mutations(name, check_name, ddl, fails_on) VALUES
   $f$assistant token read of ai_connections (as oauth:A)$f$),
 -- The log and photo policies look through a second filtered table.
 ('assistant filter off: access log', 'check_assistant_token_reads_no_owned_rows', 'DROP POLICY ai_connector_no_oauth_client ON public.mcp_access_log; DROP POLICY ai_connector_no_oauth_client ON public.ai_connections',
-  $f$assistant token read of ai_connections (as oauth:A)$f$),
+  $f$assistant token read of mcp_access_log (as oauth:A)$f$),
 ('assistant filter off: submissions', 'check_assistant_token_reads_no_owned_rows', 'DROP POLICY ai_connector_no_oauth_client ON public.product_submissions',
   $f$assistant token read of submissions (as oauth:A)$f$),
 ('assistant filter off: photos', 'check_assistant_token_reads_no_owned_rows', 'DROP POLICY ai_connector_no_oauth_client ON storage.objects; DROP POLICY ai_connector_no_oauth_client ON public.product_submission_photos',

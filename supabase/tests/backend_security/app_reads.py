@@ -9,9 +9,9 @@ import pathlib
 import re
 import sys
 
-CHAIN = re.compile(r"\.from\(\s*([^()]+?)\s*,?\s*\)\s*\.select\(")
+CHAIN = re.compile(r"\.from\s*\(\s*([^()]+?)\s*,?\s*\)\s*\.select\s*\(")
 LITERAL = re.compile(r"'([^'$\\]*)'")
-COLUMN_ARG = re.compile(r"\.\w+\(\s*'(\w+)'")
+COLUMN_ARG = re.compile(r"""\.\w+\s*\(\s*['"](\w+)['"]""")
 EMBED = re.compile(r"^(\w+)!(\w+)\((.*)\)$")
 # The one read whose table arrives as a parameter.
 PARAMETERS = {("product_submission_service.dart", "table"): "product_submissions"}

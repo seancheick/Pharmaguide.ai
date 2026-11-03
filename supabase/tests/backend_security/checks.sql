@@ -358,7 +358,9 @@ END $$;
 CREATE FUNCTION sec.check_assistant_token_reads_no_owned_rows() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['user_stacks','user_usage','ai_connections','mcp_access_log'] LOOP
+  -- The log before the connections: its policy looks through them, so with both
+  -- filters off this read must be the one that fails.
+  FOREACH t IN ARRAY ARRAY['user_stacks','user_usage','mcp_access_log','ai_connections'] LOOP
     PERFORM sec.expect('oauth:A', format('SELECT * FROM public.%I', t), 'rows:0', 'assistant token read of ' || t);
   END LOOP;
   PERFORM sec.expect('oauth:A', 'SELECT id FROM public.product_submissions', 'rows:0', 'assistant token read of submissions');
