@@ -559,10 +559,12 @@ class _ProductDetailV2ConnectedState
     // missing. Finding nothing without the rules is not an all-clear.
     final rulesUnavailable = interactionRulesUnavailable(ref);
     final alertFeedAsync = ref.watch(safetyAlertMatchesProvider);
-    final alertFeedNeverVerified = alertFeedAsync.value?.neverVerified == true;
+    // An error is the same state: no verified feed this phone can read.
+    final alertFeedUnavailable =
+        alertFeedAsync.hasError || alertFeedAsync.value?.neverVerified == true;
     final personalizedChecksFailed =
         rulesUnavailable ||
-        alertFeedNeverVerified ||
+        alertFeedUnavailable ||
         personalizedWarningsFailed ||
         profileRuleWarningsFailed ||
         fitAsync.hasError ||
@@ -573,7 +575,7 @@ class _ProductDetailV2ConnectedState
     // and that one can still be retried. Fit reads the rules only through the
     // stack's medication classes.
     final checkFailedWithoutRules =
-        alertFeedNeverVerified ||
+        alertFeedUnavailable ||
         userProfileFlagsAsync.hasError ||
         deviceProfileAsync.hasError ||
         (fitAsync.hasError && !stackMedicationClassesAsync.hasError);

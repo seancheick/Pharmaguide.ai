@@ -200,7 +200,7 @@ Future<void> _pumpConnectedScreen(
   bool realWarnings = false,
   List<SafetyAlert> liveAlerts = const [],
   bool qualityWithheld = false,
-  SafetyAlertRepository? alertFeed,
+  SafetyAlertRepository Function()? buildAlertFeed,
   Stream<ConnectionStatus>? connection,
 }) async {
   final coreDb = CoreDatabase.memory(qualityWithheld: qualityWithheld);
@@ -234,8 +234,9 @@ Future<void> _pumpConnectedScreen(
           productSafetyAlertsProvider.overrideWith(
             (ref, product) async => liveAlerts,
           ),
-        if (alertFeed != null)
-          safetyAlertRepositoryProvider.overrideWithValue(alertFeed),
+        safetyAlertRepositoryProvider.overrideWith(
+          (ref) => (buildAlertFeed ?? _VerifiedNoAlerts.new)(),
+        ),
         if (connection != null)
           connectionStatusProvider.overrideWith((ref) => connection),
         detailBlobProvider.overrideWith((ref, dsldId) async {
@@ -300,6 +301,19 @@ Future<void> _pumpConnectedScreen(
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
+}
+
+/// A feed that loaded and has nothing to say, for tests about something else.
+class _VerifiedNoAlerts implements SafetyAlertRepository {
+  @override
+  Future<SafetyAlertRelease> loadCurrent() async => const SafetyAlertRelease(
+    alerts: [],
+    baselineRevisions: {},
+    isComplete: true,
+  );
+
+  @override
+  Future<List<SafetyAlert>> loadCachedAlerts() async => const [];
 }
 
 enum _FeedServer { unreachable, noCurrentRelease, serving, servingNoAlerts }
@@ -380,6 +394,12 @@ class _SavedPreferences implements SharedPreferencesAsync {
 
   @override
   Object? noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnreadablePreferences extends _SavedPreferences {
+  @override
+  Future<String?> getString(String key) async =>
+      throw StateError('This storage will not open');
 }
 
 class _FailingCoreDatabase extends CoreDatabase {
@@ -723,7 +743,8 @@ void main() {
 
       Future<void> open(
         WidgetTester tester,
-        _AlertFeed feed, {
+        _AlertFeed? feed, {
+        SafetyAlertRepository Function()? buildAlertFeed,
         bool profiled = true,
         List<UserStacksLocalData> stack = const [],
         Stream<ConnectionStatus>? connection,
@@ -737,7 +758,7 @@ void main() {
           fitResult: cleanFit,
           realWarnings: true,
           stack: stack,
-          alertFeed: feed.repository,
+          buildAlertFeed: buildAlertFeed ?? () => feed!.repository,
           connection: connection,
         );
         await settleFeed(tester);
@@ -830,7 +851,7 @@ void main() {
             ),
           ],
           stackMedicationClassIds: const {'anticoagulants'},
-          alertFeed: _AlertFeed().repository,
+          buildAlertFeed: () => _AlertFeed().repository,
           detailBlob: {
             ...blob,
             'warnings': [
@@ -883,6 +904,64 @@ void main() {
 
         expect(find.text(allClear), findsNothing);
         expect(find.text(incomplete), findsOneWidget);
+      });
+
+      testWidgets('a saved copy that can\'t be read counts as no copy', (
+        tester,
+      ) async {
+        await open(
+          tester,
+          null,
+          buildAlertFeed: () =>
+              SafetyAlertRepository(preferences: _UnreadablePreferences()),
+        );
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+      });
+
+      testWidgets('a feed that can\'t even be set up is withheld', (
+        tester,
+      ) async {
+        await open(
+          tester,
+          null,
+          buildAlertFeed: () => throw StateError('No storage on this phone'),
+        );
+
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
+      });
+
+      // Supabase failing to start on a phone is a failed fetch, not a lost copy.
+      group('Supabase never started', () {
+        testWidgets('no saved copy is withheld', (tester) async {
+          final saved = _SavedPreferences();
+          await open(
+            tester,
+            null,
+            buildAlertFeed: () => SafetyAlertRepository(preferences: saved),
+          );
+
+          expect(find.text(allClear), findsNothing);
+          expect(find.text(incomplete), findsOneWidget);
+        });
+
+        testWidgets('a saved copy keeps its result', (tester) async {
+          final feed = _AlertFeed();
+          await tester.runAsync(feed.saveACopyThenGoOffline);
+
+          await open(
+            tester,
+            null,
+            buildAlertFeed: () =>
+                SafetyAlertRepository(preferences: feed.saved),
+          );
+
+          expect(find.text(allClear), findsOneWidget);
+          expect(find.text(incomplete), findsNothing);
+        });
       });
 
       testWidgets('reconnecting brings the all-clear back without a relaunch', (
