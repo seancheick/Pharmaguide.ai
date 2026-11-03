@@ -39,7 +39,9 @@ class PGSettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = destructive ? context.v2.contraindicated : context.v2.fg;
-    final iconColor = destructive ? context.v2.contraindicated : context.v2.fgMuted;
+    final iconColor = destructive
+        ? context.v2.contraindicated
+        : context.v2.fgMuted;
     final captionColor = destructive
         ? context.v2.contraindicated
         : context.v2.fgMuted;
