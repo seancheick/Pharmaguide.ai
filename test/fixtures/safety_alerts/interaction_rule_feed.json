@@ -1,0 +1,79 @@
+{
+  "alert_count": 2,
+  "alerts": [
+    {
+      "action": "Test fixture only. Worth a conversation with your doctor.",
+      "alert_id": "SA_9999_0001",
+      "authority": "TEST FIXTURE - not a real authority",
+      "body": "Test fixture only. Fakeroot is a made-up ingredient that this fictional rule says can raise Testoprilex levels.",
+      "catalog_snapshot_version": "2026.11.03.000000",
+      "consumer_disposition": "block",
+      "effective_date": "2026-11-01",
+      "event_type": "interaction_rule",
+      "evidence_verified_at": "2026-11-03",
+      "expires_at": null,
+      "fda_class": null,
+      "headline": "Fictional test notice: Fakeroot and Testoprilex",
+      "interaction": {
+        "evidence_level": "established",
+        "ingredient_name": "Fakeroot (fictional)",
+        "medication_ids": [
+          "class:fake_test_medications",
+          "0000001"
+        ],
+        "medication_name": "Testoprilex (fictional)",
+        "rule_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "rule_id": "DSI_FAKE_TESTOPRILEX_FAKEROOT",
+        "severity": "contraindicated"
+      },
+      "jurisdiction": "US",
+      "lots": null,
+      "published_at": "2026-11-03T12:00:00Z",
+      "resolved_dsld_ids": [
+        "9990001"
+      ],
+      "retracted": false,
+      "revision": 1,
+      "scope": {
+        "dsld_ids": [],
+        "ingredient_canonical_ids": [
+          "fake_fakeroot"
+        ]
+      },
+      "source_url": "https://example.org/fake-interaction-source",
+      "status": "published"
+    },
+    {
+      "action": "Test fixture only.",
+      "alert_id": "SA_9999_0002",
+      "authority": "TEST FIXTURE - not a real authority",
+      "body": "Test fixture only. Bannedroot is a made-up prohibited ingredient.",
+      "catalog_snapshot_version": "2026.11.03.000000",
+      "consumer_disposition": "block",
+      "effective_date": "2026-11-01",
+      "event_type": "ingredient_ban",
+      "evidence_verified_at": "2026-11-03",
+      "expires_at": null,
+      "fda_class": null,
+      "headline": "Fictional test notice: Bannedroot",
+      "jurisdiction": "US",
+      "lots": null,
+      "published_at": "2026-11-03T12:00:00Z",
+      "resolved_dsld_ids": [
+        "9990002"
+      ],
+      "retracted": false,
+      "revision": 1,
+      "scope": {
+        "dsld_ids": [],
+        "ingredient_canonical_ids": [
+          "fake_bannedroot"
+        ]
+      },
+      "source_url": "https://example.org/fake-ban-source",
+      "status": "published"
+    }
+  ],
+  "generated_at": "2026-11-03",
+  "schema_version": "1.1.0"
+}

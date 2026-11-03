@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/medications/medication_identity_hydrator.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
@@ -23,6 +25,61 @@ final medicationIdentityHydrationProvider = FutureProvider<int>((ref) async {
     ref.invalidate(depletionReportProvider);
   }
   return updated;
+});
+
+/// Every id this device knows the user's medications by: RxCUIs, `class:*`
+/// ids and profile drug-class ids. For exact comparison on the device only;
+/// this must never be sent anywhere.
+final localMedicationIdentityProvider = FutureProvider<Set<String>>((
+  ref,
+) async {
+  final stack = await ref.watch(activeStackProvider.future);
+  final ids = <String>{};
+  try {
+    final profile = await ref.watch(loadedProfileProvider.future);
+    ids.addAll(profile.drugClassesForEvaluator);
+  } on Object catch (e, st) {
+    // The stack still identifies medications; losing the profile's class picks
+    // must not stop a match on what the stack does know.
+    CrashReportingService().recordError(
+      e,
+      st,
+      fatal: false,
+      hint: 'medication_identity:profile_unavailable',
+    );
+  }
+  for (final row in stack.where((entry) => entry.type == 'medication')) {
+    final snapshot = MedicationIdentitySnapshot.fromStackRow(row);
+    ids.addAll([
+      ?snapshot.rxcui,
+      ?snapshot.genericRxcui,
+      ...snapshot.ingredientRxcuis,
+      ...snapshot.drugClassIds,
+    ]);
+    try {
+      final resolution =
+          await MedicationClassBridge(
+            db: ref.read(interactionDatabaseProvider),
+          ).resolve(
+            selectedRxcui: snapshot.rxcui,
+            genericRxcui: snapshot.genericRxcui,
+            ingredientRxcuis: snapshot.ingredientRxcuis,
+            runtimeClassIds: snapshot.drugClassIds,
+          );
+      ids
+        ..addAll(resolution.mergedInteractionClassIds)
+        ..addAll(resolution.profileGateClassIds);
+    } on Object catch (e, st) {
+      // Same reason: the ids saved on the row remain usable.
+      CrashReportingService().recordError(
+        e,
+        st,
+        fatal: false,
+        hint: 'medication_identity:class_bridge_unavailable',
+      );
+    }
+  }
+  return Set.unmodifiable(ids);
 });
 
 class MedicationIdentityAssessment {

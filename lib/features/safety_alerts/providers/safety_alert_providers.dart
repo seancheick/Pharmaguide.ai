@@ -5,6 +5,7 @@ import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
     as canonical_ids;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
+import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart';
 
@@ -29,6 +30,7 @@ final class SafetyAlertMatchSet {
 /// is sent back during this calculation.
 final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((ref) async {
   final stack = await ref.watch(activeStackProvider.future);
+  final medicationIds = await ref.watch(localMedicationIdentityProvider.future);
   final release = await ref.read(safetyAlertRepositoryProvider).loadCurrent();
   final matches = <({SafetyAlert alert, String dsldId})>[];
   final baseline = <String>{};
@@ -37,7 +39,13 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((ref) asy
     if (dsldId == null || dsldId.isEmpty) continue;
     final ingredients = _ingredientIds(item.ingredientKeys);
     for (final alert in release.alerts) {
-      if (!alert.appliesTo(dsldId: dsldId, ingredientCanonicalIds: ingredients)) continue;
+      if (!alert.appliesTo(
+        dsldId: dsldId,
+        ingredientCanonicalIds: ingredients,
+        medicationIds: medicationIds,
+      )) {
+        continue;
+      }
       matches.add((alert: alert, dsldId: dsldId));
       final knownRevision = release.baselineRevisions[alert.alertId];
       if (knownRevision != null && alert.revision <= knownRevision) {
@@ -58,19 +66,42 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((ref) asy
 /// device.
 final productSafetyAlertsProvider = FutureProvider.autoDispose
     .family<List<SafetyAlert>, ProductsCoreData>((ref, product) async {
-      final release = await ref
-          .read(safetyAlertRepositoryProvider)
-          .loadCurrent();
-      final ingredientIds = canonical_ids.canonicalIdsForProduct(product);
-      return release.alerts
-          .where(
-            (alert) => alert.appliesTo(
-              dsldId: product.dsldId,
-              ingredientCanonicalIds: ingredientIds,
-            ),
-          )
-          .toList(growable: false);
+      // A recall must still show if medications can't be read right now.
+      final Set<String> medicationIds;
+      try {
+        medicationIds = await ref.watch(
+          localMedicationIdentityProvider.future,
+        );
+      } on Object {
+        return _matching(
+          await ref.read(safetyAlertRepositoryProvider).loadCurrent(),
+          product,
+          const {},
+        );
+      }
+      return _matching(
+        await ref.read(safetyAlertRepositoryProvider).loadCurrent(),
+        product,
+        medicationIds,
+      );
     });
+
+List<SafetyAlert> _matching(
+  SafetyAlertRelease release,
+  ProductsCoreData product,
+  Set<String> medicationIds,
+) {
+  final ingredientIds = canonical_ids.canonicalIdsForProduct(product);
+  return release.alerts
+      .where(
+        (alert) => alert.appliesTo(
+          dsldId: product.dsldId,
+          ingredientCanonicalIds: ingredientIds,
+          medicationIds: medicationIds,
+        ),
+      )
+      .toList(growable: false);
+}
 
 Set<String> _ingredientIds(String? raw) {
   if (raw == null || raw.isEmpty) return const {};

@@ -65,6 +65,7 @@ import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/scan_limit_service.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/services/product_submission_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -175,10 +176,14 @@ class ScanScreen extends ConsumerWidget {
           .read(coreDatabaseProvider)
           .resolveByUpc(barcode);
       final alerts = await _cachedSafetyAlerts(ref);
+      final medicationIds = await _localMedicationIds(ref);
       if (!context.mounted) return;
 
-      bool isCritical(ProductsCoreData product) =>
-          scanResultIsSafetyCritical(product, alerts: alerts);
+      bool isCritical(ProductsCoreData product) => scanResultIsSafetyCritical(
+        product,
+        alerts: alerts,
+        medicationIds: medicationIds,
+      );
       final anyCritical = switch (resolution) {
         UpcUnique(:final product) => isCritical(product),
         UpcAmbiguous(:final candidates) => candidates.any(isCritical),
@@ -285,6 +290,16 @@ class ScanScreen extends ConsumerWidget {
       return await ref.read(safetyAlertRepositoryProvider).loadCachedAlerts();
     } on Object {
       return const [];
+    }
+  }
+
+  /// Read from this device only. A failure means no interaction-rule match;
+  /// the lookup itself and every other check still run.
+  Future<Set<String>> _localMedicationIds(WidgetRef ref) async {
+    try {
+      return await ref.read(localMedicationIdentityProvider.future);
+    } on Object {
+      return const {};
     }
   }
 

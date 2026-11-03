@@ -27,6 +27,7 @@ import 'package:pharmaguide/features/scanner/product_version_picker_sheet.dart';
 import 'package:pharmaguide/features/scanner/scanner_logic.dart';
 import 'package:pharmaguide/features/scanner/v2/camera_permission_v2_screen.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
@@ -148,13 +149,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       final db = ref.read(coreDatabaseProvider);
       final resolution = await db.resolveByGtin(identity);
       final alerts = await _cachedSafetyAlerts();
+      final medicationIds = await _localMedicationIds();
 
       if (!mounted) return;
 
       setState(() => _isLookingUp = false);
 
-      bool isCritical(ProductsCoreData product) =>
-          scanResultIsSafetyCritical(product, alerts: alerts);
+      bool isCritical(ProductsCoreData product) => scanResultIsSafetyCritical(
+        product,
+        alerts: alerts,
+        medicationIds: medicationIds,
+      );
       final anyCritical = switch (resolution) {
         UpcUnique(:final product) => isCritical(product),
         UpcAmbiguous(:final candidates) => candidates.any(isCritical),
@@ -391,6 +396,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       return await ref.read(safetyAlertRepositoryProvider).loadCachedAlerts();
     } on Object {
       return const [];
+    }
+  }
+
+  /// Read from this device only. A failure means no interaction-rule match;
+  /// the scan itself and every other check still run.
+  Future<Set<String>> _localMedicationIds() async {
+    try {
+      return await ref.read(localMedicationIdentityProvider.future);
+    } on Object {
+      return const {};
     }
   }
 
