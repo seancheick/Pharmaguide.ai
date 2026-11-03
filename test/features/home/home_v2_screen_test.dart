@@ -7,6 +7,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_theme.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
@@ -41,10 +42,13 @@ void main() {
     UserDatabase userDb, {
     ThemeData? theme,
   }) async {
+    final rulesDb = InteractionDatabase.memory();
+    addTearDown(rulesDb.close);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
+          interactionDatabaseProvider.overrideWithValue(rulesDb),
           userDatabaseProvider.overrideWithValue(userDb),
         ],
         child: MaterialApp(

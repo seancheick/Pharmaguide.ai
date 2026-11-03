@@ -1067,11 +1067,15 @@ void main() {
           blockedCatalog: {_bundledCatalog},
           blockedRules: const {},
         );
-        expect((await boot(store())).qualityWithheld, isTrue);
+        final relaunched = await boot(store());
+        expect(relaunched.qualityWithheld, isTrue);
+        // What the screens read to say so.
+        expect(relaunched.core.qualityWithheld, isTrue);
 
         final updated = await newBundle(_bundledCatalog, '1.0.20');
         final generation = await boot(store(withBundle: updated));
         expect(generation.qualityWithheld, isTrue);
+        expect(generation.core.qualityWithheld, isTrue);
         expect(
           (await generation.core.findById(kFixtureProduct))!.qualityScoreV4100,
           isNull,

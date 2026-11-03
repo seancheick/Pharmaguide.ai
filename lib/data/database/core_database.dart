@@ -41,11 +41,12 @@ final class UpcAmbiguous extends UpcResolution {
 class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)
     : _readOnly = false,
+      qualityWithheld = false,
       super(NativeDatabase.createInBackground(dbFile, logStatements: false));
 
   /// A release file (ADR-012): any attempt to write throws, and the open-time
   /// work below already ran when the release was prepared.
-  CoreDatabase.readOnly(File dbFile)
+  CoreDatabase.readOnly(File dbFile, {this.qualityWithheld = false})
     : _readOnly = true,
       super(
         NativeDatabase.createInBackground(
@@ -55,9 +56,16 @@ class CoreDatabase extends _$CoreDatabase {
         ),
       );
 
-  CoreDatabase.memory() : _readOnly = false, super(NativeDatabase.memory());
+  CoreDatabase.memory({this.qualityWithheld = false})
+    : _readOnly = false,
+      super(NativeDatabase.memory());
 
   final bool _readOnly;
+
+  /// This release's quality scores were withheld, so this file has none
+  /// (see [withholdQualityScores]). Lets a screen say so rather than leave the
+  /// missing score to read as a fact about the product.
+  final bool qualityWithheld;
 
   @override
   int get schemaVersion => 3;

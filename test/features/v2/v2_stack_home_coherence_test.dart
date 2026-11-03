@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:go_router/go_router.dart';
@@ -73,15 +74,18 @@ void main() {
     ),
     StackSafetyReport safetyReport = const StackSafetyReport(),
     List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+    bool rulesAvailable = true,
   }) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
+    final rulesDb = InteractionDatabase.memory();
     await seedCore?.call(coreDb);
     await seedUser?.call(userDb);
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
       await userDb.close();
+      await rulesDb.close();
     });
 
     await tester.pumpWidget(
@@ -89,6 +93,8 @@ void main() {
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
           userDatabaseProvider.overrideWithValue(userDb),
+          if (rulesAvailable)
+            interactionDatabaseProvider.overrideWithValue(rulesDb),
           authStateProvider.overrideWith((ref) {
             final service = AuthStateService();
             if (signedIn) service.onSignedIn();
@@ -131,6 +137,7 @@ void main() {
   Future<void> pumpStackRouteHarness(WidgetTester tester) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
+    final rulesDb = InteractionDatabase.memory();
     final router = GoRouter(
       initialLocation: Routes.stack,
       routes: [
@@ -156,6 +163,7 @@ void main() {
       router.dispose();
       await coreDb.close();
       await userDb.close();
+      await rulesDb.close();
     });
 
     await tester.pumpWidget(
@@ -163,6 +171,7 @@ void main() {
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
           userDatabaseProvider.overrideWithValue(userDb),
+          interactionDatabaseProvider.overrideWithValue(rulesDb),
           activeStackProvider.overrideWith((ref) async => const []),
           stackSafetyReportProvider.overrideWith(
             (ref) async => const StackSafetyReport(),
@@ -895,6 +904,8 @@ void main() {
               dsldId: '12345',
             ),
           ],
+          // Without the rules this medication's identity can't be assessed.
+          rulesAvailable: false,
         );
 
         expect(
@@ -908,6 +919,8 @@ void main() {
         expect(find.text('metformin Pill', skipOffstage: false), findsNothing);
         expect(find.text('Metformin', skipOffstage: false), findsOneWidget);
 
+        await tester.ensureVisible(find.text('Metformin'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Metformin'));
         await tester.pumpAndSettle();
 

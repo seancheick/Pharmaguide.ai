@@ -12,6 +12,7 @@ import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
@@ -22,6 +23,8 @@ import 'package:pharmaguide/features/product_detail/providers/profile_warning_ru
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
@@ -159,9 +162,17 @@ Map<String, dynamic> _activeLedgerRow(String name, int order) => {
   'form_display_state': 'not_disclosed',
 };
 
+/// How the interaction rules reach the page. On a phone, withheld rules and
+/// rules that failed to open both leave the provider unset (lib/main.dart).
+enum _Rules { available, unset, failing }
+
+const _rulesNotice =
+    'Interaction checks are temporarily unavailable. Product information is '
+    'still available.';
+
 Future<void> _pumpConnectedScreen(
   WidgetTester tester, {
-  required Map<String, dynamic> detailBlob,
+  required Map<String, dynamic>? detailBlob,
   String? initialSection = 'ingredients',
   bool fitFails = false,
   Completer<void>? fitGate,
@@ -175,18 +186,25 @@ Future<void> _pumpConnectedScreen(
   bool profileRulesFail = false,
   List<UserStacksLocalData>? stack,
   bool classLookupFails = false,
+  _Rules rules = _Rules.available,
+  bool realWarnings = false,
+  List<SafetyAlert> liveAlerts = const [],
+  bool qualityWithheld = false,
 }) async {
-  final coreDb = CoreDatabase.memory();
+  final coreDb = CoreDatabase.memory(qualityWithheld: qualityWithheld);
   final userDb = UserDatabase.memory();
+  final interactionDb = InteractionDatabase.memory();
   await _seedConnectedProduct(
     coreDb,
     blocked: blocked,
     mappedCoverage: mappedCoverage,
   );
+  if (qualityWithheld) await coreDb.withholdQualityScores();
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
     await userDb.close();
+    await interactionDb.close();
   });
 
   await tester.pumpWidget(
@@ -194,6 +212,16 @@ Future<void> _pumpConnectedScreen(
       overrides: [
         coreDatabaseProvider.overrideWithValue(coreDb),
         userDatabaseProvider.overrideWithValue(userDb),
+        if (rules == _Rules.available)
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+        if (rules == _Rules.failing)
+          interactionDatabaseProvider.overrideWith(
+            (ref) => throw StateError('This rules file will not open'),
+          ),
+        if (liveAlerts.isNotEmpty)
+          productSafetyAlertsProvider.overrideWith(
+            (ref, product) async => liveAlerts,
+          ),
         detailBlobProvider.overrideWith((ref, dsldId) async {
           expect(dsldId, _connectedDsldId);
           return detailBlob;
@@ -202,13 +230,14 @@ Future<void> _pumpConnectedScreen(
           profileProvider.overrideWith(
             (ref) => ProfileNotifier()..setAgeBracket('31-50'),
           ),
-        personalizedInteractionWarningsProvider.overrideWith((
-          ref,
-          dsldId,
-        ) async {
-          if (warningsFail) throw StateError('interaction check unavailable');
-          return const [];
-        }),
+        if (!realWarnings)
+          personalizedInteractionWarningsProvider.overrideWith((
+            ref,
+            dsldId,
+          ) async {
+            if (warningsFail) throw StateError('interaction check unavailable');
+            return const [];
+          }),
         if (profileRulesFail)
           profileWarningRuleWarningsProvider.overrideWith(
             (ref, dsldId) async => throw StateError('rules unavailable'),
@@ -489,6 +518,7 @@ void main() {
           initialSection: null,
           warningsFail: true,
           classLookupFails: true,
+          rules: _Rules.unset,
           stack: [
             UserStacksLocalData(
               id: 'warfarin',
@@ -517,10 +547,294 @@ void main() {
           },
         );
 
-        expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+        expect(find.text(_rulesNotice), findsOneWidget);
         expect(find.text('Do not combine with warfarin'), findsOneWidget);
       },
     );
+
+    group('quality scores that are withheld', () {
+      const qualityNotice =
+          'Quality scores are temporarily unavailable. Product information is '
+          'still available.';
+      final blob = <String, dynamic>{
+        'quality_pillars_v4': _connectedV4Pillars(),
+      };
+
+      testWidgets('the page says so and shows no score', (tester) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          qualityWithheld: true,
+        );
+
+        expect(find.text(qualityNotice), findsOneWidget);
+        expect(find.textContaining('88', skipOffstage: false), findsNothing);
+      });
+
+      testWidgets('the same product with its score shows no notice', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+        );
+
+        expect(find.text(qualityNotice), findsNothing);
+        expect(find.text('88/100'), findsOneWidget);
+      });
+    });
+
+    group('rules that are withheld or failed to open', () {
+      const cleanFit = FitScoreResult(
+        missingFields: [],
+        state: FitAssessmentState.limitedFit,
+        reasons: [],
+        mappedCoverage: 1,
+      );
+      final blob = <String, dynamic>{
+        'ingredients': const <Map<String, dynamic>>[],
+        'display_ingredients': [_activeLedgerRow('Active row', 0)],
+        'quality_pillars_v4': _connectedV4Pillars(),
+      };
+      final addedAt = DateTime.utc(2026, 11, 3);
+      final supplementRow = UserStacksLocalData(
+        id: 'other',
+        type: 'supplement',
+        name: 'Another supplement',
+        addedAt: addedAt,
+        clientUpdatedAt: addedAt,
+      );
+
+      for (final rules in [_Rules.unset, _Rules.failing]) {
+        for (final (name, stack) in [
+          ('an empty stack', const <UserStacksLocalData>[]),
+          // The blob names no ingredients, so the provider returns before it
+          // reads the rules.
+          ('a stack and a product with no canonical ids', [supplementRow]),
+        ]) {
+          testWidgets('${rules.name}: $name is never an all-clear', (
+            tester,
+          ) async {
+            await _pumpConnectedScreen(
+              tester,
+              initialSection: null,
+              detailBlob: blob,
+              profiled: true,
+              fitResult: cleanFit,
+              realWarnings: true,
+              rules: rules,
+              stack: stack,
+            );
+
+            expect(find.text('No known concerns'), findsNothing);
+            expect(find.text(_rulesNotice), findsOneWidget);
+            // Trying again can't bring withheld rules back.
+            expect(find.text('Retry'), findsNothing);
+          });
+        }
+      }
+
+      testWidgets('a check that failed for its own reason can be retried', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          profiled: true,
+          realWarnings: true,
+          rules: _Rules.unset,
+          stack: const [],
+          fitFails: true,
+        );
+
+        expect(find.text(_rulesNotice), findsOneWidget);
+        expect(find.text('Personalized checks are incomplete'), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+        // Retrying can't bring the rules back, so the banner doesn't offer it.
+        expect(find.textContaining('every profile check'), findsOneWidget);
+        expect(find.textContaining('interaction and profile'), findsNothing);
+        // The card has no result to show; the two lines above say why.
+        expect(find.text('Profile assessment unavailable'), findsNothing);
+        expect(find.text('No known concerns'), findsNothing);
+      });
+
+      testWidgets('a fit check the rules themselves stopped has no retry', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          profiled: true,
+          realWarnings: true,
+          rules: _Rules.unset,
+          stack: const [],
+          fitFails: true,
+          classLookupFails: true,
+        );
+
+        expect(find.text(_rulesNotice), findsOneWidget);
+        expect(find.text('Retry'), findsNothing);
+      });
+
+      // Offline is the detail blob not arriving.
+      for (final (network, offlineBlob) in [
+        ('online', blob),
+        ('offline', null),
+      ]) {
+        for (final profiled in [true, false]) {
+          for (final (stackName, stack) in [
+            ('empty stack', const <UserStacksLocalData>[]),
+            ('stack', [supplementRow]),
+          ]) {
+            testWidgets(
+              '$network, ${profiled ? 'profile' : 'no profile'}, $stackName: '
+              'says so, and is never an all-clear',
+              (tester) async {
+                await _pumpConnectedScreen(
+                  tester,
+                  initialSection: null,
+                  detailBlob: offlineBlob,
+                  profiled: profiled,
+                  fitResult: cleanFit,
+                  realWarnings: true,
+                  rules: _Rules.unset,
+                  stack: stack,
+                );
+
+                expect(find.text('No known concerns'), findsNothing);
+                expect(find.text(_rulesNotice), findsOneWidget);
+                expect(tester.takeException(), isNull);
+              },
+            );
+          }
+        }
+      }
+
+      testWidgets('control: with the rules, the same user gets the all-clear', (
+        tester,
+      ) async {
+        for (final stack in [
+          const <UserStacksLocalData>[],
+          [supplementRow],
+        ]) {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: blob,
+            profiled: true,
+            fitResult: cleanFit,
+            realWarnings: true,
+            stack: stack,
+          );
+
+          expect(find.text('No known concerns'), findsOneWidget);
+          expect(find.text(_rulesNotice), findsNothing);
+          await tester.pumpWidget(const SizedBox.shrink());
+        }
+      });
+
+      testWidgets(
+        'no profile: invited to set one up, and told checks are off',
+        (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: blob,
+            realWarnings: true,
+            rules: _Rules.unset,
+            stack: const [],
+          );
+
+          expect(find.text('No known concerns'), findsNothing);
+          expect(find.text('Check this product for you'), findsOneWidget);
+          expect(find.text(_rulesNotice), findsOneWidget);
+        },
+      );
+
+      testWidgets('a blob warning still shows, verbatim, ahead of the notice', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          realWarnings: true,
+          rules: _Rules.unset,
+          stack: const [],
+          profiled: true,
+          fitResult: cleanFit,
+          detailBlob: {
+            ...blob,
+            'warnings': [
+              {
+                'type': 'banned_substance',
+                'severity': 'contraindicated',
+                'alert_headline': 'Do not combine with warfarin',
+                'alert_body': 'Catalog warning body.',
+                'evidence_level': 'established',
+              },
+            ],
+          },
+        );
+
+        expect(find.text('No known concerns'), findsNothing);
+        expect(find.text('Do not combine with warfarin'), findsOneWidget);
+        expect(find.text('Profile assessment unavailable'), findsNothing);
+        expect(find.text(_rulesNotice), findsOneWidget);
+      });
+
+      testWidgets('a live recall still shows, verbatim', (tester) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          realWarnings: true,
+          rules: _Rules.unset,
+          stack: const [],
+          profiled: true,
+          fitResult: cleanFit,
+          liveAlerts: [
+            SafetyAlert(
+              alertId: 'recall-1',
+              revision: 1,
+              eventType: SafetyAlertEventType.productRecall,
+              sourceUrl: Uri.parse('https://www.fda.gov/recall-1'),
+              headline: 'FDA recall: lot 42',
+              body: 'Recall body.',
+              action: 'Recall action.',
+              disposition: SafetyAlertDisposition.block,
+              resolvedDsldIds: const {_connectedDsldId},
+              ingredientCanonicalIds: const {},
+            ),
+          ],
+        );
+
+        expect(find.text('FDA recall: lot 42'), findsOneWidget);
+        expect(find.text('No known concerns'), findsNothing);
+        expect(find.text(_rulesNotice), findsOneWidget);
+      });
+
+      testWidgets('a banned product keeps its block, verbatim', (tester) async {
+        await _pumpConnectedScreen(
+          tester,
+          blocked: true,
+          initialSection: null,
+          detailBlob: blob,
+          realWarnings: true,
+          rules: _Rules.unset,
+          stack: const [],
+        );
+
+        expect(
+          find.text('Banned substance: organic Hemp Oil extract'),
+          findsOneWidget,
+        );
+        expect(find.text('No known concerns'), findsNothing);
+      });
+    });
 
     group('a personal check that failed is never an all-clear', () {
       const cleanFit = FitScoreResult(

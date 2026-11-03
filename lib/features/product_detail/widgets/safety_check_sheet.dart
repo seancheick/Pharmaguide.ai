@@ -9,6 +9,7 @@ import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/pg_modal.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_pill.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 
@@ -68,6 +69,7 @@ class _SafetyCheckSheet extends ConsumerWidget {
     // completes in the same frame as the interaction check.
     final blockedAsync = ref.watch(_sheetProductBlockedProvider(dsldId));
     final isUnsafe = blockedAsync.asData?.value ?? false;
+    final rulesUnavailable = interactionRulesUnavailable(ref);
 
     return Padding(
       // `viewInsetsOf.bottom` lifts content above the keyboard when
@@ -101,6 +103,8 @@ class _SafetyCheckSheet extends ConsumerWidget {
 
             if (isUnsafe)
               const _UnsafeProductBanner()
+            else if (rulesUnavailable)
+              const RulesWithheldNotice()
             else
               safetyAsync.when(
                 loading: () => const _VerifyingSafety(),
@@ -132,7 +136,9 @@ class _SafetyCheckSheet extends ConsumerWidget {
                       : safetyAsync.maybeWhen(
                           data: (check) => FilledButton(
                             onPressed: () {
-                              _fireHaptic(check);
+                              // An empty stack reads as clear without a check,
+                              // but no check could have run here.
+                              if (!rulesUnavailable) _fireHaptic(check);
                               Navigator.of(context).pop(true);
                             },
                             child: Text(
