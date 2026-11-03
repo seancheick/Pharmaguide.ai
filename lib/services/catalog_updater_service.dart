@@ -46,6 +46,7 @@ class InstalledRelease {
     this.rulesSha256,
     this.qualityWithheld = false,
     this.blocked = false,
+    this.refused = const {},
   });
 
   factory InstalledRelease.of(ReleaseStore store) {
@@ -59,6 +60,7 @@ class InstalledRelease {
       rulesSha256: active?.rulesSha256,
       qualityWithheld: active?.qualityWithheld ?? false,
       blocked: store.activeIsBlocked,
+      refused: store.refused,
     );
   }
 
@@ -70,6 +72,9 @@ class InstalledRelease {
   final String? rulesSha256;
   final bool qualityWithheld;
   final bool blocked;
+
+  /// Releases that failed to open on this phone.
+  final Set<String> refused;
 }
 
 /// Outcome of a [CatalogUpdaterService.checkForUpdate] call.
@@ -246,6 +251,14 @@ class CatalogUpdaterService {
         }
       }
     }
+    final id = ReleaseRecord.idFor(
+      sequence: 0,
+      catalogVersion: remote.dbVersion,
+      rulesVersion: installed.rulesVersion ?? '',
+    );
+    if (installed.refused.contains(id)) {
+      return _refuse('Catalog ${remote.dbVersion} failed to open here before');
+    }
     return CatalogUpdateFound(
       manifest: null,
       version: remote.dbVersion,
@@ -297,6 +310,15 @@ class CatalogUpdaterService {
             );
     } on Exception catch (e) {
       return _refuse('Release ${manifest.sequence} is incompatible: $e');
+    }
+    // Decided here because downloading it again would only fail again.
+    final id = ReleaseRecord.idFor(
+      sequence: manifest.sequence,
+      catalogVersion: manifest.catalog.version,
+      rulesVersion: manifest.rules?.version ?? installed.rulesVersion ?? '',
+    );
+    if (installed.refused.contains(id)) {
+      return _refuse('Release ${manifest.sequence} failed to open here before');
     }
     return CatalogUpdateFound(
       manifest: manifest,

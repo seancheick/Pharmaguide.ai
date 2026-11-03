@@ -418,9 +418,12 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     final updater = _updater;
     if (!widget.supabaseReady ||
         _syncInFlight ||
-        _accountSwitching ||
         store == null ||
         updater == null) {
+      return;
+    }
+    if (_accountSwitching) {
+      _scheduleCatalogRefresh();
       return;
     }
 
@@ -530,7 +533,15 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     final generation = _generation;
     if (generation == null || store.isSettled(generation)) return;
     try {
-      await _adoptRelease(await store.open());
+      final next = await store.reselect();
+      // Nothing could change yet, such as on a full disk. Rebuilding the app
+      // would only reset the screen; the next tick tries again.
+      if (next.record.id == generation.record.id &&
+          next.rulesWithheld == generation.rulesWithheld) {
+        await next.close();
+        return;
+      }
+      await _adoptRelease(next);
     } on Object catch (e) {
       debugPrint('Release reselection failed: $e');
     }

@@ -7,6 +7,7 @@ import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/release_manifest.dart';
+import 'package:pharmaguide/services/release_store.dart';
 
 import 'release/release_fixtures.dart';
 
@@ -210,6 +211,35 @@ void main() {
           );
       expect(result, isA<CatalogUpToDate>());
       expect(recorded!.blockedRules, {'1.0.15'});
+    });
+
+    test('a release that failed to open here is refused before any download, '
+        'and a newer one is not', () async {
+      final calls = <String>[];
+      final phone = InstalledRelease(
+        sequence: 5,
+        highestSequence: 10,
+        catalogVersion: '2026.10.01.000000',
+        rulesVersion: '1.0.15',
+        refused: {
+          ReleaseRecord.idFor(
+            sequence: 10,
+            catalogVersion: _catalog,
+            rulesVersion: '1.0.16',
+          ),
+        },
+      );
+      final result = await service(
+        await signed(),
+        calls: calls,
+      ).checkForUpdate(installed: phone);
+      expect(result, isA<CatalogRefused>());
+      expect(calls, isEmpty);
+
+      final newer = await service(
+        await signed(sequence: 11),
+      ).checkForUpdate(installed: phone);
+      expect(newer, isA<CatalogUpdateFound>());
     });
 
     test('a block on what the phone runs makes the update urgent', () async {

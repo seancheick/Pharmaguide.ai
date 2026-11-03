@@ -12,6 +12,9 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:math' as math;
 
+// ignore: experimental_member_use
+import 'package:drift/remote.dart' show DriftRemoteException;
+import 'package:drift/native.dart' show SqliteException;
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -321,9 +324,11 @@ class ReleaseStore {
 
   ReleasePointer? _pointer;
   ReleaseRecord? _active;
+  bool _unreadableAtOpen = false;
 
   /// The release in use, once [open] has run.
   ReleaseRecord? get active => _active;
+  Set<String> get refused => _pointer?.refused ?? const {};
   int get highestSequence => _pointer?.highestSequence ?? 0;
 
   /// Where a download for this store keeps its partial files.
@@ -340,7 +345,7 @@ class ReleaseStore {
   /// Selects a release and opens it. Safe to call again at any time, which
   /// opens fresh handles; the caller adopts them and keeps its old ones until
   /// the process ends. Needs no network. Throws only when even the bundled
-  /// catalog can't open.
+  /// catalog can't open, or when nothing on disk can be read right now.
   Future<ReleaseGeneration> open() async {
     await _root.create(recursive: true);
     await _clearAssemblies();
@@ -348,20 +353,61 @@ class ReleaseStore {
     pointer ??= await _migrateLegacyFiles();
     _pointer = pointer;
 
-    await _reconcileWithBundle(await _bundledIdentity());
-    await _reprepareIfNeeded();
-    await _resolveBlockedVersions();
-
-    final generation = await _openFirstUsable();
+    final bundled = await _bundledIdentity();
+    await _keepingCurrentRelease(
+      'reconcile_failed',
+      () => _reconcileWithBundle(bundled),
+    );
+    await _keepingCurrentRelease('reprepare_failed', _reprepareIfNeeded);
+    final generation = await reselect();
     await _deleteLegacyFiles();
-    await _retainActiveAndPrevious();
+    if (!_unreadableAtOpen) await _retainActiveAndPrevious();
     return generation;
+  }
+
+  /// Applies the known revocations and opens what they require, during a
+  /// session as well as at launch. Deletes nothing: the caller's current handles
+  /// must stay usable until the process ends.
+  Future<ReleaseGeneration> reselect() async {
+    await _keepingCurrentRelease(
+      'resolve_blocked_failed',
+      _resolveBlockedVersions,
+    );
+    final generation = await _openFirstUsable();
+    if (isSettled(generation) || _unreadableAtOpen) return generation;
+
+    // A fallback landed on a version the revocations cover. Resolve once more
+    // from there; if that can't finish, the next launch tries again.
+    await _keepingCurrentRelease(
+      'resolve_blocked_failed',
+      _resolveBlockedVersions,
+    );
+    final resolved = await _openFirstUsable();
+    await generation.close();
+    return resolved;
+  }
+
+  /// A step that can only improve on the selected release. If it fails, such as
+  /// on a full disk, the phone stays where it is and the next launch tries again.
+  Future<void> _keepingCurrentRelease(
+    String hint,
+    Future<void> Function() step,
+  ) async {
+    try {
+      await step();
+    } on SimulatedReleaseCrash {
+      rethrow;
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(e, st, hint: 'release_store:$hint');
+    }
   }
 
   /// Tries the active release, the previous one, any other kept folder, then
   /// the bundled pair. A release that fails is recorded so that it isn't
-  /// selected again.
+  /// selected again. A file that can't be read right now, such as before first
+  /// unlock, says nothing about the release, so nothing on disk changes.
   Future<ReleaseGeneration> _openFirstUsable() async {
+    _unreadableAtOpen = false;
     final tried = <String>{};
     Future<ReleaseGeneration?> attempt(String id) async {
       if (!tried.add(id)) return null;
@@ -378,9 +424,13 @@ class ReleaseStore {
           st,
           hint: 'release_store:open_failed',
         );
-        await _writePointer(
-          pointer.copyWith(refused: {...pointer.refused, id}),
-        );
+        if (_isTemporaryReadFailure(e)) {
+          _unreadableAtOpen = true;
+        } else {
+          await _writePointer(
+            pointer.copyWith(refused: {...pointer.refused, id}),
+          );
+        }
         return null;
       }
     }
@@ -393,8 +443,15 @@ class ReleaseStore {
     ]) {
       final generation = await attempt(id);
       if (generation == null) continue;
-      await _select(generation.record);
+      if (_unreadableAtOpen) {
+        _active = generation.record;
+      } else {
+        await _select(generation.record);
+      }
       return generation;
+    }
+    if (_unreadableAtOpen) {
+      throw StateError('No release can be read right now');
     }
 
     final record = await _assembleBundled(await _bundledIdentity());
@@ -421,7 +478,11 @@ class ReleaseStore {
   /// Read-only handles over a complete folder, proved usable.
   Future<ReleaseGeneration> _openFolder(ReleaseRecord record) async {
     final folder = _folder(record.id);
-    final core = CoreDatabase.readOnly(File(p.join(folder.path, _catalogFile)));
+    final catalogFile = File(p.join(folder.path, _catalogFile));
+    if (!await catalogFile.exists()) {
+      throw StateError('Release ${record.id} has no catalog file');
+    }
+    final core = CoreDatabase.readOnly(catalogFile);
     InteractionDatabase? rules;
     try {
       await core.validateCatalogSnapshot();
@@ -429,7 +490,11 @@ class ReleaseStore {
       final withheld =
           pointer?.blockedRules.contains(record.rulesVersion) == true;
       if (!withheld && record.rulesVersion != _noRules) {
-        rules = await _openRules(p.join(folder.path, _rulesFile));
+        final rulesPath = p.join(folder.path, _rulesFile);
+        if (!await File(rulesPath).exists()) {
+          throw StateError('Release ${record.id} has no rules file');
+        }
+        rules = await _openRules(rulesPath);
       }
       return ReleaseGeneration(
         record: record,
@@ -766,7 +831,8 @@ class ReleaseStore {
     // The block was lifted: return to the file with its scores.
     if (active.qualityWithheld &&
         !pointer.blockedCatalog.contains(active.catalogVersion) &&
-        previous?.catalogVersion == active.catalogVersion) {
+        previous?.catalogVersion == active.catalogVersion &&
+        previous?.qualityWithheld == false) {
       await _writePointer(pointer.copyWith(active: previous!.id));
       return;
     }
@@ -804,6 +870,13 @@ class ReleaseStore {
       preparation: kReleasePreparation,
       qualityWithheld: true,
     );
+    if (_pointer!.refused.contains(record.id)) {
+      // Built here from a good file, so a damaged copy can simply be rebuilt.
+      await _folder(record.id).delete(recursive: true);
+      await _writePointer(
+        _pointer!.copyWith(refused: _pointer!.refused.difference({record.id})),
+      );
+    }
     if (await _readRecord(record.id) == null) {
       final assembly = await _startAssembly(record.id);
       final from = _folder(source.id).path;
@@ -963,7 +1036,9 @@ class ReleaseStore {
     final rulesNewer =
         bundled.rulesVersion != null &&
         !pointer.blockedRules.contains(bundled.rulesVersion) &&
-        (compareSemver(bundled.rulesVersion!, active.rulesVersion) ?? -1) > 0 &&
+        (active.rulesVersion == _noRules ||
+            (compareSemver(bundled.rulesVersion!, active.rulesVersion) ?? -1) >
+                0) &&
         (active.minRulesVersion == null ||
             (compareSemver(bundled.rulesVersion!, active.minRulesVersion!) ??
                     -1) >=
@@ -973,6 +1048,8 @@ class ReleaseStore {
       return;
     }
 
+    // A catalog with its scores removed stays marked, so it is never reused.
+    final qualityWithheld = active.qualityWithheld && !catalogNewer;
     final record = ReleaseRecord(
       id: ReleaseRecord.idFor(
         sequence: active.sequence,
@@ -980,6 +1057,7 @@ class ReleaseStore {
             ? bundled.catalogVersion!
             : active.catalogVersion,
         rulesVersion: rulesNewer ? bundled.rulesVersion! : active.rulesVersion,
+        qualityWithheld: qualityWithheld,
       ),
       sequence: active.sequence,
       catalogVersion: catalogNewer
@@ -992,6 +1070,7 @@ class ReleaseStore {
       rulesSha256: rulesNewer ? bundled.rulesSha256 : active.rulesSha256,
       minRulesVersion: active.minRulesVersion,
       preparation: kReleasePreparation,
+      qualityWithheld: qualityWithheld,
     );
     if (await _readRecord(record.id) == null) {
       final assembly = await _startAssembly(record.id);
@@ -1053,7 +1132,11 @@ class ReleaseStore {
       await _publishFolder(assembly, record);
     }
     await _writePointer(
-      pointer.copyWith(active: record.id, previous: () => active.id),
+      pointer.copyWith(
+        active: record.id,
+        // A withheld catalog's previous is the file that still has its scores.
+        previous: () => active.qualityWithheld ? pointer.previous : active.id,
+      ),
     );
   }
 
@@ -1374,4 +1457,14 @@ Future<void> flushDirectory(String path) async {
   } on Object {
     // See above.
   }
+}
+
+/// Busy, locked, I/O, full disk and can't-open say something about this moment.
+/// Anything else, such as corrupt bytes or a failed validation, is about the
+/// release itself.
+bool _isTemporaryReadFailure(Object error) {
+  final cause = error is DriftRemoteException ? error.remoteCause : error;
+  if (cause is FileSystemException) return true;
+  if (cause is! SqliteException) return false;
+  return const {5, 6, 10, 13, 14}.contains(cause.extendedResultCode & 0xff);
 }

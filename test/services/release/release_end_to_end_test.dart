@@ -177,7 +177,7 @@ void main() {
       }
     }
     if (!store.isSettled(generation)) {
-      generation = await store.open();
+      generation = await store.reselect();
       open.add(generation);
     }
     return generation;

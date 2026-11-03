@@ -591,6 +591,69 @@ void main() {
       expect(again.record.id, old.record.id);
     });
 
+    test('a release missing a file is refused, since that won\'t come back '
+        'on its own', () async {
+      final s = store();
+      final old = await boot(s);
+      final active = await activate(s, await candidate());
+      await active.close();
+      open.remove(active);
+      File(
+        p.join(documents.path, 'releases', active.record.id, 'catalog.db'),
+      ).deleteSync();
+
+      final generation = await boot(store());
+
+      expect(generation.record.id, old.record.id);
+      expect(pointerOnDisk()['refused'], contains(active.record.id));
+    });
+
+    test('a file that can\'t be read right now is not condemned, and the next '
+        'launch returns to it', () async {
+      final s = store();
+      final old = await boot(s);
+      final active = await activate(s, await candidate());
+      await active.close();
+      open.remove(active);
+      final catalog = File(
+        p.join(documents.path, 'releases', active.record.id, 'catalog.db'),
+      );
+      Process.runSync('chmod', ['000', catalog.path]);
+      addTearDown(() => Process.runSync('chmod', ['644', catalog.path]));
+
+      final during = await boot(store());
+      expect(during.record.id, old.record.id);
+      expect(pointerOnDisk()['refused'], isEmpty);
+      expect(pointerOnDisk()['active'], active.record.id);
+      expect(foldersOnDisk(), contains(active.record.id));
+
+      Process.runSync('chmod', ['644', catalog.path]);
+      await expectPair(
+        await boot(store()),
+        catalog: _updateCatalog,
+        rules: _updateRules,
+      );
+    });
+
+    test('with nothing readable right now, launch fails without touching what '
+        'is on disk', () async {
+      final s = store();
+      final generation = await boot(s);
+      await generation.close();
+      open.remove(generation);
+      final catalog = File(
+        p.join(documents.path, 'releases', generation.record.id, 'catalog.db'),
+      );
+      Process.runSync('chmod', ['000', catalog.path]);
+      addTearDown(() => Process.runSync('chmod', ['644', catalog.path]));
+      final before = pointerOnDisk();
+
+      await expectLater(store().open(), throwsA(anything));
+
+      expect(pointerOnDisk()['active'], before['active']);
+      expect(foldersOnDisk(), contains(generation.record.id));
+    });
+
     test('with every release damaged, the bundled pair takes over', () async {
       final s = store();
       final old = await boot(s);
@@ -858,6 +921,91 @@ void main() {
       );
     });
 
+    test(
+      'a newer bundle that fails validation leaves the phone on its release',
+      () async {
+        final s = store();
+        await boot(s);
+        await activate(s, await candidate());
+
+        final broken = FakeReleaseBundle(
+          catalog: Uint8List.fromList(utf8.encode('not a database')),
+          rules: bundle.rules,
+          catalogVersion: '2026.05.01.000000',
+          rulesVersion: _bundledRules,
+        );
+        await expectPair(
+          await boot(store(withBundle: broken)),
+          catalog: _updateCatalog,
+          rules: _updateRules,
+        );
+      },
+    );
+
+    test('a later good bundle replaces rules that never opened', () async {
+      final noRules = FakeReleaseBundle(
+        catalog: bundle.catalog,
+        rules: Uint8List.fromList(utf8.encode('not a database')),
+        catalogVersion: _bundledCatalog,
+        rulesVersion: _bundledRules,
+      );
+      expect((await boot(store(withBundle: noRules))).rules, isNull);
+
+      final updated = await newBundle(_bundledCatalog, '1.0.20');
+      await expectPair(
+        await boot(store(withBundle: updated)),
+        catalog: _bundledCatalog,
+        rules: '1.0.20',
+      );
+    });
+
+    test(
+      'a catalog correction arrives on a phone whose rules never opened',
+      () async {
+        final noRules = FakeReleaseBundle(
+          catalog: bundle.catalog,
+          rules: Uint8List.fromList(utf8.encode('not a database')),
+          catalogVersion: _bundledCatalog,
+          rulesVersion: _bundledRules,
+        );
+        await boot(store(withBundle: noRules));
+
+        final updated = await FakeReleaseBundle.build(
+          workspace,
+          catalogVersion: '2026.05.01.000000',
+          rulesVersion: _bundledRules,
+        );
+        final generation = await boot(store(withBundle: updated));
+        expect(
+          await generation.core.validateCatalogSnapshot(),
+          '2026.05.01.000000',
+        );
+      },
+    );
+
+    test(
+      'a rule correction keeps a withheld catalog marked as withheld',
+      () async {
+        final s = store();
+        await boot(s);
+        await s.recordVerified(
+          sequence: 1,
+          blockedCatalog: {_bundledCatalog},
+          blockedRules: const {},
+        );
+        expect((await boot(store())).qualityWithheld, isTrue);
+
+        final updated = await newBundle(_bundledCatalog, '1.0.20');
+        final generation = await boot(store(withBundle: updated));
+        expect(generation.qualityWithheld, isTrue);
+        expect(
+          (await generation.core.findById(kFixtureProduct))!.qualityScoreV4100,
+          isNull,
+        );
+        expect(await severityIn(generation.rules), 'avoid');
+      },
+    );
+
     test('a blocked bundled version is never picked', () async {
       final s = store();
       await boot(s);
@@ -921,12 +1069,91 @@ void main() {
       await block(s, rules: {_updateRules});
       expect(s.isSettled(active), isFalse);
 
-      final generation = await s.open();
+      final generation = await s.reselect();
       open.add(generation);
       expect(generation.record.id, previous.record.id);
       expect(generation.rules, isNotNull);
       expect(generation.rulesWithheld, isFalse);
       expect(s.isSettled(generation), isTrue);
+    });
+
+    test('re-selecting during a session leaves the folder on screen in place, '
+        'so a running check can finish', () async {
+      final s = store();
+      await boot(s);
+      final active = await activate(s, await candidate());
+      await block(s, rules: {_updateRules});
+
+      final generation = await s.reselect();
+      open.add(generation);
+
+      expect(generation.rules, isNotNull);
+      expect(generation.record.id, isNot(active.record.id));
+      expect(foldersOnDisk(), contains(active.record.id));
+      expect(await severityIn(active.rules), 'contraindicated');
+      expect(await active.core.countProducts(), 1);
+
+      await boot(store());
+      expect(foldersOnDisk(), isNot(contains(active.record.id)));
+    });
+
+    test('a damaged copy without scores is rebuilt, and never falls back to '
+        'the blocked file that still has them', () async {
+      final s = store();
+      await boot(s);
+      await block(s, catalog: {_bundledCatalog});
+      final withheld = await boot(store());
+      expect(withheld.qualityWithheld, isTrue);
+      await withheld.close();
+      open.remove(withheld);
+      File(
+        p.join(documents.path, 'releases', withheld.record.id, 'catalog.db'),
+      ).writeAsStringSync('torn');
+
+      final generation = await boot(store());
+      expect(generation.qualityWithheld, isTrue);
+      expect(
+        (await generation.core.findById(kFixtureProduct))!.qualityScoreV4100,
+        isNull,
+      );
+    });
+
+    test('a build that rebuilds prepared files keeps the scored source of a '
+        'withheld catalog, so a lifted block still restores scores', () async {
+      final s = store();
+      await boot(s);
+      await block(s, catalog: {_bundledCatalog});
+      final withheld = await boot(store());
+      await withheld.close();
+      open.remove(withheld);
+
+      final id = withheld.record.id;
+      final oldId = id.replaceFirst('_p$kReleasePreparation', '_p0');
+      final folder = p.join(documents.path, 'releases', id);
+      final record = File(p.join(folder, 'release.json'));
+      final json = jsonDecode(record.readAsStringSync()) as Map;
+      json['preparation'] = 0;
+      json['id'] = oldId;
+      record.writeAsStringSync(jsonEncode(json));
+      Directory(folder).renameSync(p.join(documents.path, 'releases', oldId));
+      File(
+        p.join(documents.path, 'releases', 'active.json'),
+      ).writeAsStringSync(jsonEncode(pointerOnDisk()..['active'] = oldId));
+
+      final rebuilt = store();
+      expect((await boot(rebuilt)).qualityWithheld, isTrue);
+      await rebuilt.recordVerified(
+        sequence: 100,
+        blockedCatalog: const {},
+        blockedRules: const {},
+      );
+      final restored = await rebuilt.reselect();
+      open.add(restored);
+      expect(restored.qualityWithheld, isFalse);
+      expect(
+        (await restored.core.findById(kFixtureProduct))!.qualityScoreV4100,
+        88,
+      );
     });
 
     test('blocked rules with nowhere to go withhold interaction checks only, '
@@ -1035,7 +1262,7 @@ void main() {
         blockedCatalog: const {},
         blockedRules: const {},
       );
-      final restored = await withheld.open();
+      final restored = await withheld.reselect();
       open.add(restored);
       expect(restored.qualityWithheld, isFalse);
       expect(
@@ -1218,6 +1445,20 @@ void main() {
         );
       },
     );
+
+    test('a root catalog that fails validation gives way to the bundled one, '
+        'on this launch and not only the next', () async {
+      await buildCatalog(
+        root('pharmaguide_core.db').path,
+        version: _updateCatalog,
+        empty: true,
+      );
+      await expectPair(
+        await boot(store()),
+        catalog: _bundledCatalog,
+        rules: _bundledRules,
+      );
+    });
 
     test('a leftover root staging file is dropped', () async {
       await buildCatalog(
