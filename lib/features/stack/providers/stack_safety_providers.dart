@@ -1016,7 +1016,10 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
   return const StackIntelligenceEngine().summarizeFromReports(
     regulatorySafetyAlerts: alerts?.matches ?? const [],
     alertChecksIncomplete:
-        alertsAsync.hasError || alerts == null || alerts.neverVerified,
+        alertsAsync.hasError ||
+        alerts == null ||
+        alerts.neverVerified ||
+        !alerts.isDeviceComplete,
     stackSize: stack.length,
     safetyReport: safetyReport,
     recalledReport: recalledReport,

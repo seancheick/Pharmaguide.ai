@@ -7,6 +7,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
@@ -132,6 +133,17 @@ StackDoseThresholdAlert _doseAlert({
   );
 }
 
+class _ReadableFeed implements SafetyAlertRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  @override
+  Future<SafetyAlertRelease> loadCurrent() async => const SafetyAlertRelease(
+    alerts: [],
+    baselineRevisions: {},
+    isComplete: true,
+  );
+}
+
 void main() {
   const engine = StackIntelligenceEngine();
   final emptySynergy = SynergyReport.empty();
@@ -141,6 +153,7 @@ void main() {
     Future<StackHealthSnapshot> snapshot({
       bool unavailable = false,
       bool offline = false,
+      bool unreadableDevice = false,
       bool throws = false,
       List<({SafetyAlert alert, String dsldId})> matches = const [],
     }) async {
@@ -167,15 +180,21 @@ void main() {
           ),
           synergyReportProvider.overrideWith((_) async => emptySynergy),
           stackDoseThresholdAlertsProvider.overrideWith((_) async => []),
-          safetyAlertMatchesProvider.overrideWith((_) async {
-            if (throws) throw StateError('feed cannot be read');
-            return SafetyAlertMatchSet(
-              matches: matches,
-              baselineSignalKeys: {},
-              isComplete: !unavailable && !offline,
-              neverVerified: unavailable,
-            );
-          }),
+          if (unreadableDevice) ...[
+            deviceSafetyProfileProvider.overrideWith(
+              (_) async => const DeviceSafetyProfile(isComplete: false),
+            ),
+            safetyAlertRepositoryProvider.overrideWithValue(_ReadableFeed()),
+          ] else
+            safetyAlertMatchesProvider.overrideWith((_) async {
+              if (throws) throw StateError('feed cannot be read');
+              return SafetyAlertMatchSet(
+                matches: matches,
+                baselineSignalKeys: {},
+                isComplete: !unavailable && !offline,
+                neverVerified: unavailable,
+              );
+            }),
         ],
       );
       addTearDown(container.dispose);
@@ -202,6 +221,12 @@ void main() {
         expect(result.checksIncomplete, isFalse);
         expect(result.intelligence.tier, StackTier.optimized);
       }
+    });
+
+    test('a readable feed cannot clear an unreadable device profile', () async {
+      final result = await snapshot(unreadableDevice: true);
+      expect(result.checksIncomplete, isTrue);
+      expect(result.intelligence.tier, StackTier.incomplete);
     });
 
     test('recall and ban summaries do not call them interactions', () async {
