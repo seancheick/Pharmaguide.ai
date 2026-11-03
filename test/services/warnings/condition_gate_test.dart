@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
+import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 
 void main() {
@@ -242,6 +245,491 @@ void main() {
       });
 
       expect(result['magnesium'], (value: 300.0, unit: 'mg'));
+    });
+  });
+
+  group('extractIngredientDoses - one label row, one exposure', () {
+    // Rows below are trimmed from the real detail blobs named in each test.
+    // `ingredients` rows are per serving and never carry `dose_role`;
+    // `rda_ul_data.analyzed_ingredients` rows carry the per-day figure.
+    Map<String, dynamic> labelRow(
+      String path,
+      String name,
+      String canonicalId,
+      num quantity,
+      String unit, {
+      String? standardName,
+    }) => {
+      'raw_source_path': path,
+      'name': name,
+      'standard_name': standardName ?? name,
+      'canonical_id': canonicalId,
+      'quantity': quantity,
+      'unit': unit,
+      'normalized_amount': quantity,
+      'normalized_unit': unit,
+    };
+
+    Map<String, dynamic> analyzedRow(
+      String path,
+      String name,
+      String canonicalId,
+      num quantity,
+      num perDayMax,
+      String unit, {
+      String? standardName,
+      String doseRole = 'declared_total',
+    }) => {
+      'raw_source_path': path,
+      'ingredient': name,
+      'standard_name': standardName ?? name,
+      'canonical_id': canonicalId,
+      'quantity': quantity,
+      'unit': unit,
+      'converted_quantity': quantity,
+      'converted_unit': unit,
+      'per_day_min': quantity,
+      'per_day_max': perDayMax,
+      'dose_role': doseRole,
+      'skip_ul_check': false,
+    };
+
+    Map<String, dynamic> blob(
+      List<Map<String, dynamic>> ingredients,
+      List<Map<String, dynamic>> analyzed,
+    ) => {
+      'ingredients': ingredients,
+      'rda_ul_data': {'analyzed_ingredients': analyzed},
+    };
+
+    test('207221: a per-serving row and its per-day mirror count once', () {
+      final result = extractIngredientDoses(
+        blob(
+          [labelRow('ingredientRows[0]', 'Vitamin C', 'vitamin_c', 500, 'mg')],
+          [
+            analyzedRow(
+              'ingredientRows[0]',
+              'Vitamin C',
+              'vitamin_c',
+              500,
+              1000,
+              'mg',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['vitamin_c'], (value: 1000.0, unit: 'mg'));
+    });
+
+    test('207221: the stack dose total reads the per-day figure', () {
+      final facts = ProductHealthFacts.fromDetailBlob(
+        blob(
+          [labelRow('ingredientRows[0]', 'Vitamin C', 'vitamin_c', 500, 'mg')],
+          [
+            analyzedRow(
+              'ingredientRows[0]',
+              'Vitamin C',
+              'vitamin_c',
+              500,
+              1000,
+              'mg',
+            ),
+          ],
+        ),
+      );
+
+      final totals = const StackDoseSummer().sum([
+        StackItemNutrients(
+          stackEntryId: 'a',
+          productName: 'Chewable Vitamin C',
+          ingredients: facts.doseRowsForThresholds,
+        ),
+      ]);
+
+      expect(totals['vitamin_c']?.totalValue, 1000.0);
+    });
+
+    test('257002: the per-serving mirror cannot win the elemental pass', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow(
+              'ingredientRows[3]',
+              'Vitamin K',
+              'vitamin_k',
+              12.5,
+              'mcg',
+            ),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[3]',
+              'Vitamin K',
+              'vitamin_k',
+              12.5,
+              25,
+              'mcg',
+              standardName: 'Vitamin K1',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['vitamin_k'], (value: 25.0, unit: 'mcg'));
+    });
+
+    test('294081: K1 and K2 each read their own per-day figure', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow(
+              'ingredientRows[1]',
+              'Vitamin K',
+              'vitamin_k1',
+              184,
+              'mcg',
+              standardName: 'Vitamin K1',
+            ),
+            labelRow(
+              'ingredientRows[8]',
+              'Vitamin K2',
+              'vitamin_k2',
+              30,
+              'mcg',
+            ),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[1]',
+              'Vitamin K',
+              'vitamin_k1',
+              184,
+              368,
+              'mcg',
+              standardName: 'Vitamin K',
+            ),
+            analyzedRow(
+              'ingredientRows[8]',
+              'Vitamin K2',
+              'vitamin_k2',
+              30,
+              60,
+              'mcg',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['vitamin_k1'], (value: 368.0, unit: 'mcg'));
+      expect(result['vitamin_k2'], (value: 60.0, unit: 'mcg'));
+    });
+
+    test(
+      '328600: a nested source mass does not add to its analyzed parent',
+      () {
+        final result = extractIngredientDoses(
+          blob(
+            [
+              labelRow(
+                'ingredientRows[0]',
+                'Magnesium',
+                'magnesium',
+                144,
+                'mg',
+              ),
+              labelRow(
+                'ingredientRows[0].nestedRows[0]',
+                'Magtein',
+                'magnesium',
+                2000,
+                'mg',
+                standardName: 'Magnesium',
+              ),
+            ],
+            [
+              analyzedRow(
+                'ingredientRows[0]',
+                'Magnesium',
+                'magnesium',
+                144,
+                144,
+                'mg',
+              ),
+            ],
+          ),
+        );
+
+        expect(result['magnesium'], (value: 144.0, unit: 'mg'));
+        // It still answers to its own name, like any compound row.
+        expect(result['magtein'], (value: 2000.0, unit: 'mg'));
+      },
+    );
+
+    test('299037: a source-mass parent does not add to its analyzed child', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow(
+              'ingredientRows[0]',
+              'Magtein Magnesium L-Threonate',
+              'magnesium',
+              1000,
+              'mg',
+              standardName: 'Magnesium',
+            ),
+            labelRow(
+              'ingredientRows[0].nestedRows[0]',
+              'Magnesium',
+              'magnesium',
+              72,
+              'mg',
+            ),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[0].nestedRows[0]',
+              'Magnesium',
+              'magnesium',
+              72,
+              144,
+              'mg',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['magnesium'], (value: 144.0, unit: 'mg'));
+    });
+
+    test('74499: a separate label row for the nutrient stays additive', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow('ingredientRows[3]', 'Vitamin E', 'vitamin_e', 67, 'mg'),
+            labelRow(
+              'ingredientRows[27]',
+              'natural Mixed Tocopherols',
+              'vitamin_e',
+              20,
+              'mg',
+              standardName: 'Vitamin E',
+            ),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[3]',
+              'Vitamin E',
+              'vitamin_e',
+              67,
+              67,
+              'mg',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['vitamin_e'], (value: 87.0, unit: 'mg'));
+    });
+
+    test('1627: distinct label rows with equal amounts both count', () {
+      final result = extractIngredientDoses(
+        blob([
+          labelRow(
+            'ingredientRows[0]',
+            'American Ginseng root extract',
+            'ginseng',
+            200,
+            'mg',
+            standardName: 'Ginseng',
+          ),
+          labelRow(
+            'ingredientRows[1]',
+            'Panax Ginseng Root Extract',
+            'ginseng',
+            200,
+            'mg',
+            standardName: 'Ginseng',
+          ),
+        ], const []),
+      );
+
+      expect(result['ginseng'], (value: 400.0, unit: 'mg'));
+    });
+
+    test('row 10 is not nested under row 1', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow('ingredientRows[1]', 'Vitamin E', 'vitamin_e', 67, 'mg'),
+            labelRow('ingredientRows[10]', 'Vitamin E', 'vitamin_e', 20, 'mg'),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[1]',
+              'Vitamin E',
+              'vitamin_e',
+              67,
+              67,
+              'mg',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['vitamin_e'], (value: 87.0, unit: 'mg'));
+    });
+
+    for (final role in const ['ul_scoped_component', 'form_component']) {
+      test('a $role row does not leak back through its mirror', () {
+        final result = extractIngredientDoses(
+          blob(
+            [
+              labelRow('ingredientRows[2]', 'Selenium', 'selenium', 55, 'mcg'),
+              labelRow('ingredientRows[16]', 'Selenium', 'selenium', 55, 'mcg'),
+            ],
+            [
+              analyzedRow(
+                'ingredientRows[2]',
+                'Selenium',
+                'selenium',
+                55,
+                110,
+                'mcg',
+              ),
+              analyzedRow(
+                'ingredientRows[16]',
+                'Selenium',
+                'selenium',
+                55,
+                110,
+                'mcg',
+                doseRole: role,
+              ),
+            ],
+          ),
+        );
+
+        expect(result['selenium'], (value: 110.0, unit: 'mcg'));
+      });
+    }
+
+    test('a row hidden by dose_role never takes the total from its branch', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow('ingredientRows[0]', 'Folate', 'folate', 400, 'mcg'),
+            labelRow(
+              'ingredientRows[0].nestedRows[0]',
+              'Folic Acid',
+              'folate',
+              400,
+              'mcg',
+              standardName: 'Folate',
+            ),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[0].nestedRows[0]',
+              'Folic Acid',
+              'folate',
+              400,
+              400,
+              'mcg',
+              standardName: 'Folate',
+              doseRole: 'ul_scoped_component',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['folate'], (value: 400.0, unit: 'mcg'));
+    });
+
+    test('an analyzed row with no amount leaves its children counted', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow('ingredientRows[0]', 'Iron', 'iron', 0, 'mg'),
+            labelRow(
+              'ingredientRows[0].nestedRows[0]',
+              'Iron Bisglycinate',
+              'iron',
+              18,
+              'mg',
+              standardName: 'Iron',
+            ),
+          ],
+          [analyzedRow('ingredientRows[0]', 'Iron', 'iron', 0, 0, 'mg')],
+        ),
+      );
+
+      expect(result['iron'], (value: 18.0, unit: 'mg'));
+    });
+
+    test('older catalogs without row paths keep the signature dedupe', () {
+      final rows = [
+        {
+          'name': 'Vitamin C',
+          'canonical_id': 'vitamin_c',
+          'quantity': 500,
+          'unit': 'mg',
+        },
+      ];
+
+      final result = extractIngredientDoses({
+        'ingredients': rows,
+        'rda_ul_data': {'analyzed_ingredients': rows},
+      });
+
+      expect(result['vitamin_c'], (value: 500.0, unit: 'mg'));
+    });
+
+    test('an analyzed row without a path still dedupes by signature', () {
+      final result = extractIngredientDoses({
+        'ingredients': [
+          labelRow('ingredientRows[0]', 'Vitamin C', 'vitamin_c', 500, 'mg'),
+        ],
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'standard_name': 'Vitamin C',
+              'canonical_id': 'vitamin_c',
+              'quantity': 500,
+              'unit': 'mg',
+            },
+          ],
+        },
+      });
+
+      expect(result['vitamin_c'], (value: 500.0, unit: 'mg'));
+    });
+
+    test('a malformed row path is treated as no path', () {
+      final result = extractIngredientDoses({
+        'ingredients': [
+          {
+            'raw_source_path': 7,
+            'name': 'Vitamin C',
+            'canonical_id': 'vitamin_c',
+            'quantity': 500,
+            'unit': 'mg',
+          },
+        ],
+        'rda_ul_data': {
+          'analyzed_ingredients': [
+            {
+              'raw_source_path': 7,
+              'standard_name': 'Vitamin C',
+              'canonical_id': 'vitamin_c',
+              'quantity': 500,
+              'unit': 'mg',
+            },
+          ],
+        },
+      });
+
+      expect(result['vitamin_c'], (value: 500.0, unit: 'mg'));
     });
   });
 
