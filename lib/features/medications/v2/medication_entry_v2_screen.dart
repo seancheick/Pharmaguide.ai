@@ -93,6 +93,7 @@ import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/app.dart' show scaffoldMessengerKey;
 import 'package:pharmaguide/core/components/pg_toast.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 
 class MedicationEntryV2Screen extends ConsumerStatefulWidget {
   const MedicationEntryV2Screen({super.key});
@@ -264,7 +265,20 @@ class _MedicationEntryV2ScreenState
 
   Future<void> _runSearch(String query) async {
     final version = ++_searchVersion;
-    final results = await _service.search(query);
+    final List<RxNormSuggestion> results;
+    try {
+      results = await _service.search(query);
+    } on Object {
+      // The lookup needs the rules. Without them the page's notice says so;
+      // anything else this search could say would imply a check.
+      if (mounted && version == _searchVersion) {
+        setState(() {
+          _suggestions = const <RxNormSuggestion>[];
+          _searching = false;
+        });
+      }
+      return;
+    }
     if (!mounted || version != _searchVersion) return;
 
     setState(() {
@@ -888,6 +902,9 @@ class _MedicationEntryV2ScreenState
                   children: [
                     const _Header(),
                     const SizedBox(height: V2Spacing.space24),
+                    const RulesWithheldNotice(
+                      margin: EdgeInsets.only(bottom: V2Spacing.space24),
+                    ),
                     const _PrivacyRow(),
                     const SizedBox(height: V2Spacing.space24),
                     _SearchSection(
@@ -900,6 +917,7 @@ class _MedicationEntryV2ScreenState
                     ),
                     const SizedBox(height: V2Spacing.space12),
                     _SuggestionArea(
+                      rulesUnavailable: interactionRulesUnavailable(ref),
                       selectedName: _selectedName,
                       searching: _searching,
                       suggestions: _suggestions,
@@ -1167,6 +1185,7 @@ class _SearchSection extends StatelessWidget {
 // =============================================================================
 
 class _SuggestionArea extends StatelessWidget {
+  final bool rulesUnavailable;
   final String? selectedName;
   final bool searching;
   final List<RxNormSuggestion> suggestions;
@@ -1176,6 +1195,7 @@ class _SuggestionArea extends StatelessWidget {
   final VoidCallback onOpenClassSheet;
 
   const _SuggestionArea({
+    required this.rulesUnavailable,
     required this.selectedName,
     required this.searching,
     required this.suggestions,
@@ -1191,6 +1211,9 @@ class _SuggestionArea extends StatelessWidget {
     // the empty state so we never render "no match" over a chosen
     // medication. Sean's Phase 11.7j.9 invariant preserved.
     if (selectedName != null) return const SizedBox.shrink();
+
+    // "No match" would be untrue and its class fallback promises a check.
+    if (rulesUnavailable) return const SizedBox.shrink();
 
     if (searching) {
       return const _SearchSkeleton();

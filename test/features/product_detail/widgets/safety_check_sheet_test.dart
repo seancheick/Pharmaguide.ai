@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/widgets/safety_check_sheet.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
@@ -13,14 +14,17 @@ import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 void main() {
   Future<void> openSheet(WidgetTester tester, PreAddSafetyResult check) async {
     final coreDb = CoreDatabase.memory();
+    final rulesDb = InteractionDatabase.memory();
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
+      await rulesDb.close();
     });
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
+          interactionDatabaseProvider.overrideWithValue(rulesDb),
           safetyCheckForAddProvider.overrideWith((ref, id) async => check),
         ],
         child: MaterialApp(

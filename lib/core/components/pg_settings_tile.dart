@@ -39,7 +39,9 @@ class PGSettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = destructive ? context.v2.contraindicated : context.v2.fg;
-    final iconColor = destructive ? context.v2.contraindicated : context.v2.fgMuted;
+    final iconColor = destructive
+        ? context.v2.contraindicated
+        : context.v2.fgMuted;
     final captionColor = destructive
         ? context.v2.contraindicated
         : context.v2.fgMuted;
@@ -99,7 +101,7 @@ class PGSettingsTile extends StatelessWidget {
 class PGSettingsGroup extends StatelessWidget {
   /// Optional mono caps label rendered above the group.
   final String? eyebrow;
-  final List<PGSettingsTile> children;
+  final List<Widget> children;
 
   const PGSettingsGroup({super.key, this.eyebrow, required this.children});
 

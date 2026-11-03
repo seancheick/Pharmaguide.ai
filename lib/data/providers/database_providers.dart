@@ -8,6 +8,7 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
 import 'package:pharmaguide/core/utils/app_version.dart';
 import 'package:pharmaguide/services/auth/account_database_cipher.dart';
+import 'package:pharmaguide/services/catalog_updater_service.dart';
 
 /// Provides the singleton CoreDatabase instance (read-only product data).
 /// Must be overridden at app startup with a real instance.
@@ -40,6 +41,11 @@ final healthEventRepositoryProvider = Provider<HealthEventRepository>((ref) {
 /// failed to materialize at boot — by design, so screens that depend on
 /// medication-interaction data fail loud rather than silently miss
 /// safety warnings.
+/// Runs the app's one update check on request. Overridden in lib/main.dart;
+/// null where no update path exists, such as a test or the design gallery.
+final checkForUpdatesProvider =
+    Provider<Future<UpdateCheckOutcome> Function()?>((ref) => null);
+
 final interactionDatabaseProvider = Provider<InteractionDatabase>((ref) {
   throw UnimplementedError(
     'interactionDatabaseProvider must be overridden at app startup',
