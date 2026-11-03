@@ -8,6 +8,15 @@ function isObject(value: unknown): value is JsonObject {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+// Events the server can target from a product alone. Anything else, such as an
+// interaction rule that matches on the device against medications the server
+// never sees, is left for the app to find when it refreshes the feed.
+const PUSHABLE_EVENT_TYPES = new Set(["ingredient_ban", "product_recall"]);
+
+export function isPushableEventType(eventType: unknown): boolean {
+  return typeof eventType === "string" && PUSHABLE_EVENT_TYPES.has(eventType);
+}
+
 export async function parseReleaseDispatchRequest(request: Request): Promise<string> {
   const text = await request.text();
   if (new TextEncoder().encode(text).byteLength > MAX_REQUEST_BYTES) {

@@ -95,10 +95,36 @@ class SafetyAlertRepository {
         'Safety-alert release metadata is malformed.',
       );
     }
-    final bytes = await _client.storage
-        .from(SupabaseContract.storageBucket)
-        .download(path);
-    return _decodeBytes(bytes, checksum);
+    Future<_DecodedRelease> read(String path, String checksum) async =>
+        _decodeBytes(
+          await _client.storage
+              .from(SupabaseContract.storageBucket)
+              .download(path),
+          checksum,
+        );
+
+    // `feed_path` stays readable by every installed build, so event types an
+    // older reader would reject live in a superset the manifest names.
+    final manifest = row['manifest'];
+    final extended = manifest is Map ? manifest['extended_feed'] : null;
+    if (extended == null) return read(path, checksum);
+    try {
+      final extendedPath = extended['path'];
+      final extendedChecksum = extended['checksum'];
+      if (extendedPath is! String || extendedChecksum is! String) {
+        throw const FormatException('Extended feed location is malformed.');
+      }
+      return await read(extendedPath, extendedChecksum);
+    } on Object {
+      // Bans and recalls must still arrive. Rules this device already holds
+      // stay until a verified fetch can say otherwise.
+      return (await read(path, checksum)).missingExtended(
+        (await _loadCached())?.alerts
+                .where((alert) => alert.interaction != null)
+                .map((alert) => alert.alertId) ??
+            const [],
+      );
+    }
   }
 
   _DecodedRelease _decodeBytes(Uint8List bytes, String expectedChecksum) {
@@ -154,10 +180,16 @@ class SafetyAlertRepository {
       if (kept is! String || decoded['kept_checksum'] != _checksumOf(kept)) {
         return null;
       }
-      return release.keeping([
+      final rows = [
         for (final row in jsonDecode(kept) as List)
           Map<String, Object?>.from(row as Map),
-      ]);
+      ];
+      return (decoded['extended_missing'] == true
+              ? release.missingExtended(
+                  rows.map((row) => (row['alert_id'] as String).trim()),
+                )
+              : release)
+          .keeping(rows);
     } on Object {
       return null;
     }
@@ -168,6 +200,7 @@ class SafetyAlertRepository {
     // Retain exactly the verified downloaded bytes: re-encoding parsed alert
     // models loses feed metadata/formatting and invalidates the checksum.
     'feed': base64Encode(release.feedBytes),
+    if (release.extendedMissing) 'extended_missing': true,
     if (release.keptRows.isNotEmpty)
       ...() {
         final kept = jsonEncode(release.keptRows);
@@ -230,6 +263,7 @@ final class _DecodedRelease {
     required this.checksum,
     required this.feedBytes,
     this.keptRows = const [],
+    this.extendedMissing = false,
   });
   final List<SafetyAlert> alerts;
 
@@ -248,6 +282,9 @@ final class _DecodedRelease {
   /// The feed held alerts this build can't read, so it can never count as a
   /// complete check.
   final bool hasUnsupported;
+
+  /// This is the base feed standing in for a superset that couldn't be read.
+  final bool extendedMissing;
   final String checksum;
   final Uint8List feedBytes;
 
@@ -255,6 +292,19 @@ final class _DecodedRelease {
     for (final id in ids)
       if (rows[id] case final row?) row,
   ];
+
+  /// The superset couldn't be read, so this can't count as a complete check, and
+  /// [heldIds] may be carried over as if this build couldn't read them.
+  _DecodedRelease missingExtended(Iterable<String> heldIds) => _DecodedRelease(
+    alerts: alerts,
+    rows: rows,
+    unreadableIds: {...unreadableIds, ...heldIds},
+    hasUnsupported: true,
+    checksum: checksum,
+    feedBytes: feedBytes,
+    keptRows: keptRows,
+    extendedMissing: true,
+  );
 
   _DecodedRelease keeping(List<Map<String, Object?>> kept) {
     // Re-evaluate carried rows with this reader: an app upgrade may now read
@@ -278,6 +328,7 @@ final class _DecodedRelease {
       checksum: checksum,
       feedBytes: feedBytes,
       keptRows: kept,
+      extendedMissing: extendedMissing,
     );
   }
 }

@@ -22,10 +22,12 @@ import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -52,7 +54,11 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
         );
         rethrow;
       }
-      if (stack.isEmpty) return const [];
+      // A profile can match a live rule with an empty stack. A part that can't
+      // be read doesn't stop the checks the rest allows: the page reads the same
+      // provider and says this list isn't complete.
+      final device = await ref.watch(deviceSafetyProfileProvider.future);
+      if (stack.isEmpty && device.isEmpty) return const [];
 
       final coreDb = ref.watch(coreDatabaseProvider);
       final ProductsCoreData? product;
@@ -68,6 +74,9 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
         rethrow;
       }
       if (product == null) return const [];
+
+      final liveRules = await _liveInteractionRules(ref, product);
+      if (stack.isEmpty) return liveRules.map(_liveRuleToWarning).toList();
 
       Map<String, dynamic>? detailBlob;
       try {
@@ -85,7 +94,9 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
         product,
         detailBlob: detailBlob,
       );
-      if (canonicalIds.isEmpty) return const [];
+      if (canonicalIds.isEmpty) {
+        return liveRules.map(_liveRuleToWarning).toList();
+      }
 
       final InteractionDatabase interactionDb;
       try {
@@ -134,8 +145,26 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
         stack: stack,
         interactionDb: interactionDb,
         pairwiseDoseTotals: pairwiseDoseTotals,
+        liveRules: liveRules,
       );
     });
+
+/// Interaction rules that reached this device through the alert feed before the
+/// interaction DB did. The feed being unavailable is not a failed personal
+/// check: the bundled DB still answers, and the feed's own surface stays quiet.
+Future<List<SafetyAlert>> _liveInteractionRules(
+  Ref ref,
+  ProductsCoreData product,
+) async {
+  try {
+    final alerts = await ref.watch(productSafetyAlertsProvider(product).future);
+    return alerts
+        .where((alert) => alert.interaction != null)
+        .toList(growable: false);
+  } on Object {
+    return const [];
+  }
+}
 
 /// Pure-ish lookup against the bundled InteractionDatabase.
 ///
@@ -148,11 +177,22 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
   required InteractionDatabase interactionDb,
   required Map<String, StackDoseTotal> pairwiseDoseTotals,
   Map<String, Set<String>?> productForms = const {},
+  List<SafetyAlert> liveRules = const [],
 }) async {
   try {
     final checker = StackInteractionChecker();
-    final warnings = <InteractionWarning>[];
+    final warnings = liveRules.map(_liveRuleToWarning).toList();
+    // The feed only ever adds: its rule replaces the bundled row it corrects,
+    // but never hides a stricter warning this device already had.
     final seenIds = <String>{};
+    bool isNew(InteractionResult hit) {
+      final corrected = liveRules.any(
+        (alert) =>
+            alert.interaction!.ruleId == hit.id &&
+            alert.interaction!.severity.weight >= hit.severity.weight,
+      );
+      return !corrected && seenIds.add(hit.id);
+    }
 
     final supplements = stack
         .where((e) => e.type == 'supplement')
@@ -166,9 +206,7 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
         stackDoseTotals: pairwiseDoseTotals,
       );
       for (final hit in hits) {
-        if (seenIds.add(hit.id)) {
-          warnings.add(_interactionResultToWarning(hit));
-        }
+        if (isNew(hit)) warnings.add(_interactionResultToWarning(hit));
       }
     }
 
@@ -185,9 +223,7 @@ Future<List<InteractionWarning>> _computePersonalizedWarnings({
         stackDoseTotals: pairwiseDoseTotals,
       );
       for (final hit in hits) {
-        if (seenIds.add(hit.id)) {
-          warnings.add(_interactionResultToWarning(hit));
-        }
+        if (isNew(hit)) warnings.add(_interactionResultToWarning(hit));
       }
     }
 
@@ -273,6 +309,26 @@ Future<Map<String, StackDoseTotal>> _pairwiseDoseTotalsForProductAndStack({
   return const StackDoseSummer().sum(
     items,
     formFactsComplete: formFactsComplete,
+  );
+}
+
+/// The same warning this rule becomes once the interaction DB carries it, so a
+/// live rule moves the personal verdict exactly as the shipped rule will.
+InteractionWarning _liveRuleToWarning(SafetyAlert alert) {
+  final rule = alert.interaction!;
+  return InteractionWarning(
+    severity: rule.severity,
+    evidenceLevel: rule.evidenceLevel,
+    title: rule.medicationName != null
+        ? "Because you're taking ${rule.medicationName}"
+        : alert.headline,
+    mechanism: alert.body,
+    management: alert.action,
+    sourceUrls: [alert.sourceUrl.toString()],
+    drugClassIds: rule.medicationIds.toList(growable: false),
+    profileGate: rule.profileGate,
+    ingredientName: rule.ingredientName,
+    matchedOnDevice: true,
   );
 }
 

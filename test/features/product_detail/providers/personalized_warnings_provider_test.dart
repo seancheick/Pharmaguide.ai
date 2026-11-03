@@ -169,6 +169,9 @@ Future<void> _seedWarfarinVitaminKPair(InteractionDatabase db) async {
 }
 
 void main() {
+  // The real device profile reads the bundled taxonomy through the asset binding.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('personalizedInteractionWarningsProvider', () {
     test('empty stack → empty warnings', () async {
       final coreDb = CoreDatabase.memory();
