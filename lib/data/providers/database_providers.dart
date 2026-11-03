@@ -45,22 +45,6 @@ final interactionDatabaseProvider = Provider<InteractionDatabase>((ref) {
   );
 });
 
-/// What the open release withholds, because a version is blocked with no
-/// replacement (ADR-012). Products stay available either way.
-class ReleaseWithholding {
-  const ReleaseWithholding({this.rules = false, this.quality = false});
-
-  /// Interaction checks are in their unavailable state.
-  final bool rules;
-
-  /// Quality scores were removed from the local catalog copy.
-  final bool quality;
-}
-
-final releaseWithholdingProvider = Provider<ReleaseWithholding>(
-  (ref) => const ReleaseWithholding(),
-);
-
 class InteractionDatabaseVersionGateException implements Exception {
   const InteractionDatabaseVersionGateException(this.message);
 

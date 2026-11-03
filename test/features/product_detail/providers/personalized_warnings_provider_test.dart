@@ -334,6 +334,34 @@ void main() {
       },
     );
 
+    test('rules withheld by a blocked version read as unavailable, never as no '
+        'interactions found', () async {
+      // main.dart leaves the provider at its throwing default when a release
+      // has no usable rules (ADR-012).
+      final coreDb = CoreDatabase.memory();
+      await _seedProduct(
+        coreDb,
+        keyIngredientTags: '["vitamin_k"]',
+        productName: 'Calcium K/D',
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          activeStackProvider.overrideWith((ref) async => [_stubWarfarin()]),
+          detailBlobProvider.overrideWith((ref, dsldId) async => null),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(personalizedInteractionWarningsProvider(_dsldId).future),
+        throwsA(anything),
+      );
+
+      await coreDb.close();
+    });
+
     test(
       'stack provider failure surfaces instead of returning an all-clear',
       () async {

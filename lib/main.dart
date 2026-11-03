@@ -640,12 +640,6 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           coreDatabaseProvider.overrideWithValue(generation.core),
           if (generation.rules case final rules?)
             interactionDatabaseProvider.overrideWithValue(rules),
-          releaseWithholdingProvider.overrideWithValue(
-            ReleaseWithholding(
-              rules: generation.rulesWithheld,
-              quality: generation.qualityWithheld,
-            ),
-          ),
         ],
       ],
       // Register the stack sync auto-listener as soon as the ProviderScope

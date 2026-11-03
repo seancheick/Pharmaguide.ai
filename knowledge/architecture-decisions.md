@@ -312,7 +312,11 @@ No personal profile/medication/goal data is added to Supabase. Publication and i
 - Swapping the two files in place with a backup: not atomic across two files, and it moves open files.
 - Storing results with a dependency fingerprint: results aren't stored, and storing them would add the staleness this avoids.
 
-**Known limit:** nothing reaches a phone that stays offline. It keeps its last complete release.
+**Known limits:** nothing reaches a phone that stays offline. It keeps its last complete release. A pointer file that can't be read loses the stored revocations and replay floor until the next online check, which restores them; the release itself comes from the newest kept folder. Local tampering on a jailbroken phone is outside the threat model.
+
+**Rollback procedure:** republish known-good data under a newer `release_sequence`, naming the bad versions in `blocked_versions`. Steps and key custody are in the pipeline's `docs/RELEASE_SIGNING_RUNBOOK.md`. Phones compare sequences, so older content versions are accepted; a replay of the bad release is refused. Proved by `test/services/release/release_end_to_end_test.dart` and the `rollback` group in `release_store_test.dart`.
+
+**Withholding:** a blocked rules file with no replacement uses the existing unavailable state, so the product page shows "Personalized checks are incomplete". A blocked catalog with no replacement becomes a local copy with quality scores removed, which reads as not scored. Safety status and the product list are untouched. No new copy was added; a notice that names the correction is Sean's copy decision.
 
 **Open decision for Sean:** an alert of a new kind that names a product this build can't read currently leaves that product page able to say "no known concerns" (the alert is skipped; `isComplete` reaches only signal resolution). Offline must not trigger any hedge, so a fix has to act only on an unreadable alert that names this product, and it needs new copy such as "a safety notice for this product needs a newer app". No current feed does this. Outside review on 2026-11-02 supports a notice limited to the affected product that keeps existing known concerns and doesn't invent the unreadable alert's severity. Still to settle before A4 publishes a new kind: Sean's approval of the copy, how scope is matched when the alert can't be parsed, and what current and older builds do.
 
