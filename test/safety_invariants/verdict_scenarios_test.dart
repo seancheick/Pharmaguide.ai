@@ -1,8 +1,10 @@
 // The A7 verdict scenarios, driven through the real product page.
 //
-// Only what sits outside this repo's logic is replaced: the two databases run
-// in memory, the blob network is a fake, and reference data is read from the
-// shipped asset files because widget tests cannot load the asset bundle.
+// Only what sits outside this repo's logic is replaced: the page tests run both
+// databases in memory (the account-switch tests use real files, because file
+// ownership is the behavior there), the blob network is a fake, and reference
+// data is read from the shipped asset files because widget tests cannot load
+// the asset bundle.
 // Warnings, fit, profile and catalog semantics are all the real owners, so a
 // regression in any of them changes what these tests see on screen.
 
@@ -117,8 +119,7 @@ _Blobs _offline() =>
 
 /// One installed catalog row. Defaults are a finished assessment that found
 /// nothing, with a high quality score.
-Future<CoreDatabase> _catalog(
-  WidgetTester tester, {
+Future<CoreDatabase> _catalog({
   String dsldId = _stJohnsWort,
   String? sha = 'blob-sha',
   double? score = 95,
@@ -152,8 +153,7 @@ Future<CoreDatabase> _catalog(
 
 /// A user's phone: the saved profile, and the product's blob already cached
 /// under [cachedSha] when one is given.
-Future<UserDatabase> _phone(
-  WidgetTester tester, {
+Future<UserDatabase> _phone({
   required ProfileState profile,
   Map<String, dynamic>? cachedBlob,
   String cachedSha = 'blob-sha',
@@ -225,9 +225,8 @@ void main() {
     ) async {
       await pumpPage(
         tester,
-        catalog: await _catalog(tester),
+        catalog: await _catalog(),
         phone: await _phone(
-          tester,
           profile: _onWarfarin,
           cachedBlob: _stJohnsWortBlob(),
         ),
@@ -244,12 +243,8 @@ void main() {
     ) async {
       await pumpPage(
         tester,
-        catalog: await _catalog(tester),
-        phone: await _phone(
-          tester,
-          profile: _noMatch,
-          cachedBlob: _stJohnsWortBlob(),
-        ),
+        catalog: await _catalog(),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
       );
 
       expect(find.text('95/100'), findsOneWidget);
@@ -324,7 +319,6 @@ void main() {
         await pumpPage(
           tester,
           catalog: await _catalog(
-            tester,
             score: score,
             scoreStatus: scoreStatus,
             assessment: assessment,
@@ -332,7 +326,6 @@ void main() {
             coverage: coverage,
           ),
           phone: await _phone(
-            tester,
             profile: _noMatch,
             cachedBlob: _stJohnsWortBlob(),
           ),
@@ -348,8 +341,8 @@ void main() {
     ) async {
       await pumpPage(
         tester,
-        catalog: await _catalog(tester),
-        phone: await _phone(tester, profile: _noMatch),
+        catalog: await _catalog(),
+        phone: await _phone(profile: _noMatch),
       );
 
       expect(find.text(_allClear), findsNothing);
@@ -359,8 +352,8 @@ void main() {
     testWidgets('a row that declares no blob at all', (tester) async {
       await pumpPage(
         tester,
-        catalog: await _catalog(tester, sha: null),
-        phone: await _phone(tester, profile: _noMatch),
+        catalog: await _catalog(sha: null),
+        phone: await _phone(profile: _noMatch),
       );
 
       expect(find.text(_allClear), findsNothing);
@@ -372,13 +365,11 @@ void main() {
       await pumpPage(
         tester,
         catalog: await _catalog(
-          tester,
           score: null,
           scoreStatus: 'not_scored',
           assessment: 'partial',
         ),
         phone: await _phone(
-          tester,
           profile: _onWarfarin,
           cachedBlob: _stJohnsWortBlob(),
         ),
@@ -395,8 +386,8 @@ void main() {
     ) async {
       await pumpPage(
         tester,
-        catalog: await _catalog(tester),
-        phone: await _phone(tester, profile: _onWarfarin),
+        catalog: await _catalog(),
+        phone: await _phone(profile: _onWarfarin),
         dsldId: 'not-in-catalog',
       );
 
@@ -412,14 +403,13 @@ void main() {
       tester,
     ) async {
       final phone = await _phone(
-        tester,
         profile: _onWarfarin,
         cachedBlob: _stJohnsWortBlobWithoutWarfarinRule(),
         cachedSha: 'before',
       );
       await pumpPage(
         tester,
-        catalog: await _catalog(tester, sha: 'before'),
+        catalog: await _catalog(sha: 'before'),
         phone: phone,
         scope: const ValueKey('catalog-before'),
       );
@@ -428,7 +418,7 @@ void main() {
       final fetched = <String>[];
       await pumpPage(
         tester,
-        catalog: await _catalog(tester, sha: 'after'),
+        catalog: await _catalog(sha: 'after'),
         phone: phone,
         scope: const ValueKey('catalog-after'),
         blobs: _Blobs((sha) async {
@@ -449,14 +439,13 @@ void main() {
       tester,
     ) async {
       final phone = await _phone(
-        tester,
         profile: _onWarfarin,
         cachedBlob: _stJohnsWortBlobWithoutWarfarinRule(),
         cachedSha: 'before',
       );
       await pumpPage(
         tester,
-        catalog: await _catalog(tester, sha: 'after'),
+        catalog: await _catalog(sha: 'after'),
         phone: phone,
       );
 
@@ -472,8 +461,8 @@ void main() {
         blob['warnings_profile_gated'] = const <Object>[];
         await pumpPage(
           tester,
-          catalog: await _catalog(tester),
-          phone: await _phone(tester, profile: _onWarfarin, cachedBlob: blob),
+          catalog: await _catalog(),
+          phone: await _phone(profile: _onWarfarin, cachedBlob: blob),
         );
 
         expect(find.text(_allClear), findsNothing);
@@ -488,8 +477,8 @@ void main() {
       final network = Completer<Map<String, dynamic>?>();
       await pumpPage(
         tester,
-        catalog: await _catalog(tester),
-        phone: await _phone(tester, profile: _noMatch),
+        catalog: await _catalog(),
+        phone: await _phone(profile: _noMatch),
         blobs: _Blobs((_) => network.future),
         settle: false,
       );
