@@ -460,6 +460,45 @@ void main() {
       expect(await severityIn(generation.rules), 'contraindicated');
     });
 
+    test('a release that fails to open as it activates is refused, and the '
+        'phone stays on its release', () async {
+      final s = store(
+        onStep: (at) async {
+          if (at != ReleaseStep.openNew) return;
+          final folder = pointerOnDisk()['active'] as String;
+          File(
+            p.join(documents.path, 'releases', folder, 'catalog.db'),
+          ).writeAsStringSync('torn');
+        },
+      );
+      final current = await boot(s);
+      final result = await s.activate(await candidate());
+
+      expect(result, isA<ReleaseNotActivated>());
+      expect(pointerOnDisk()['active'], current.record.id);
+      expect(pointerOnDisk()['refused'], hasLength(1));
+    });
+
+    test('a file that can\'t be read the moment it activates stays eligible, '
+        'and the phone stays on its release', () async {
+      final s = store(
+        onStep: (at) async {
+          if (at != ReleaseStep.openNew) return;
+          final folder = pointerOnDisk()['active'] as String;
+          Process.runSync('chmod', [
+            '000',
+            p.join(documents.path, 'releases', folder, 'catalog.db'),
+          ]);
+        },
+      );
+      final current = await boot(s);
+      final result = await s.activate(await candidate());
+
+      expect(result, isA<ReleaseNotActivated>());
+      expect(pointerOnDisk()['active'], current.record.id);
+      expect(pointerOnDisk()['refused'], isEmpty);
+    });
+
     test(
       'a stack blob that cannot be fetched leaves the phone on its release',
       () async {
@@ -540,6 +579,13 @@ void main() {
           contains(relaunched.record.id),
           reason: 'the pointer names a folder that exists',
         );
+        expect(
+          Directory(documents.path)
+              .listSync(recursive: true)
+              .where((e) => p.basename(e.path).startsWith('assembly-')),
+          isEmpty,
+          reason: 'a half-built folder does not outlive the crash',
+        );
 
         // The phone can still take the update afterwards.
         if (!afterSwap) {
@@ -589,6 +635,32 @@ void main() {
 
       final again = await boot(store());
       expect(again.record.id, old.record.id);
+    });
+
+    test('a damaged release returns to the last good one, not the bundled '
+        'one', () async {
+      final s = store();
+      await boot(s);
+      final good = await activate(s, await candidate());
+      final bad = await activate(
+        s,
+        await candidate(
+          sequence: 20,
+          catalogVersion: '2026.12.01.000000',
+          stagedName: 'second',
+        ),
+      );
+      expect(bad.record.id, isNot(good.record.id));
+      await bad.close();
+      open.remove(bad);
+      File(
+        p.join(documents.path, 'releases', bad.record.id, 'catalog.db'),
+      ).writeAsStringSync('torn');
+
+      final generation = await boot(store());
+
+      expect(generation.record.id, good.record.id);
+      expect(pointerOnDisk()['refused'], contains(bad.record.id));
     });
 
     test('a release missing a file is refused, since that won\'t come back '

@@ -606,7 +606,9 @@ class ReleaseStore {
       // Back to the last good pair, whose handles the caller still holds.
       await _writePointer(
         before.copyWith(
-          refused: {...before.refused, record.id},
+          refused: _isTemporaryReadFailure(e)
+              ? before.refused
+              : {...before.refused, record.id},
           highestSequence: math.max(before.highestSequence, candidate.sequence),
         ),
       );
