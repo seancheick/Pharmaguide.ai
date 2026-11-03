@@ -1,10 +1,10 @@
 # A2 + A3: one release generation, rollback, signing — 2026-11-03
 
 Branch `claude/sharp-mayer-5d6e53`, app PR #178. Decision record: ADR-012 in `knowledge/architecture-decisions.md`.
-Pipeline: PharmaGuide_Pipeline #336 merged as `eab3a334`; follow-up #341, branch `claude/a2-rule-gate-baseline`, open.
+Pipeline: PharmaGuide_Pipeline #336 merged as `eab3a334`; follow-up #341 merged as `0c897b8ec`.
 
 ## State
-- All independent-review fixes are on #178, each with a test that failed first. main `e043e9b0` is merged in.
+- All independent-review fixes are on #178, each with a test that failed first. main `120d0008` is merged in.
 - Migration `supabase/migrations/20261103130000_signed_release_manifest.sql` is NOT applied to production.
   Rehearsal is committed: `scripts/test_release_rehearsal.sh <pipeline repo>`, 53/53 on PostgREST 14.5. Storage is faked.
 - No key is bundled (`_kProductionReleaseKeys` is empty), so public builds stay catalog-only. Remote rules are
@@ -14,7 +14,7 @@ Pipeline: PharmaGuide_Pipeline #336 merged as `eab3a334`; follow-up #341, branch
   Logs and screenshots: `a2-device/` in the session's shared notes folder.
 
 ## Owed
-1. Integrator merges #341 and #178. #181 rebases on #178. #185 may need one more update of #178.
+1. Integrator merges #178. #181 rebases on #178.
 2. Sean: apply the migration; first production key; remote rules after A9.
 3. Sean: copy for a notice naming a blocked-version correction; whether the publisher should refuse a rules-only
    correction that a schema 2 catalog can't show.
@@ -26,11 +26,6 @@ Pipeline: PharmaGuide_Pipeline #336 merged as `eab3a334`; follow-up #341, branch
 - Review finding 7, not changed: a failed stack-blob fetch makes `activate` clear the assembly holding the moved
   catalog, so the next check re-downloads 66 MB. Blobs are stored before the pointer swap; a crash there is a cache
   miss, not wrong data. Proposed fix: publish the validated folder before fetching stack data.
-
-## Found, not fixed here
-A medication rule that exists only in the rules file is dropped on the product page: `class:*` ids in
-`_interactionResultToWarning` against bare ids in the page's filter. On main too. Note:
-`a2-device/medication-rule-dropped-on-product-page.md`. Proposed as its own task.
 
 ## Lane
 Shared owners touched: `lib/main.dart`, `database_providers.dart`, `sync_service.dart`, ADR log,
