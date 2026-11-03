@@ -30,7 +30,9 @@ final class SafetyAlertMatchSet {
 /// The device performs the authoritative product match. Supabase only stores
 /// a frozen target set for generic push fan-out; no ingredient or health data
 /// is sent back during this calculation.
-final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((ref) async {
+final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((
+  ref,
+) async {
   final stack = await ref.watch(activeStackProvider.future);
   final medicationIds = await ref.watch(localMedicationIdentityProvider.future);
   final release = await ref.read(safetyAlertRepositoryProvider).loadCurrent();
@@ -71,9 +73,7 @@ final productSafetyAlertsProvider = FutureProvider.autoDispose
       // A recall must still show if medications can't be read right now.
       final Set<String> medicationIds;
       try {
-        medicationIds = await ref.watch(
-          localMedicationIdentityProvider.future,
-        );
+        medicationIds = await ref.watch(localMedicationIdentityProvider.future);
       } on Object {
         return _matching(
           await ref.read(safetyAlertRepositoryProvider).loadCurrent(),
@@ -118,7 +118,9 @@ final safetyAlertRefreshProvider = Provider<void>((ref) {
   // stack analysis that also consumes it. Scans read the copy this caches.
   ref.listen(safetyAlertMatchesProvider, (_, _) {});
 
-  final lifecycle = AppLifecycleListener(onResume: () => refreshSafetyAlerts(ref));
+  final lifecycle = AppLifecycleListener(
+    onResume: () => refreshSafetyAlerts(ref),
+  );
   ref.onDispose(lifecycle.dispose);
 
   var wasOffline = false;
@@ -140,7 +142,10 @@ Set<String> _ingredientIds(String? raw) {
   try {
     final decoded = jsonDecode(raw);
     if (decoded is! List) return const {};
-    return decoded.whereType<String>().where((id) => id.trim().isNotEmpty).toSet();
+    return decoded
+        .whereType<String>()
+        .where((id) => id.trim().isNotEmpty)
+        .toSet();
   } on Object {
     return const {};
   }
