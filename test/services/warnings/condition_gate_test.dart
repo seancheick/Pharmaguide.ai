@@ -821,6 +821,138 @@ void main() {
       expect(result['iron'], (value: 18.0, unit: 'mg'));
     });
 
+    // No current blob has these shapes; the export could change that, and a
+    // lost dose or skip would read as no concern.
+    Map<String, dynamic> without(
+      Map<String, dynamic> row,
+      List<String> fields,
+    ) => {...row}..removeWhere((field, _) => fields.contains(field));
+    const amountFields = [
+      'quantity',
+      'converted_quantity',
+      'per_day_min',
+      'per_day_max',
+    ];
+    const unitFields = ['unit', 'converted_unit'];
+    final iron = analyzedRow('ingredientRows[0]', 'Iron', 'iron', 18, 18, 'mg');
+    final ironMirror = labelRow('ingredientRows[0]', 'Iron', 'iron', 18, 'mg');
+    final nestedIron = labelRow(
+      'ingredientRows[0].nestedRows[0]',
+      'Iron Bisglycinate',
+      'iron',
+      18,
+      'mg',
+      standardName: 'Iron',
+    );
+
+    test('an analyzed row with no unit leaves its children counted', () {
+      final result = extractIngredientDoses(
+        blob([nestedIron], [without(iron, unitFields)]),
+      );
+
+      expect(result['iron'], (value: 18.0, unit: 'mg'));
+    });
+
+    for (final (missing, fields) in [
+      ('amount', amountFields),
+      ('unit', unitFields),
+    ]) {
+      test('an analyzed row with no $missing keeps its mirror', () {
+        final result = extractIngredientDoses(
+          blob([ironMirror], [without(iron, fields)]),
+        );
+
+        expect(result['iron'], (value: 18.0, unit: 'mg'));
+      });
+    }
+
+    test('a hidden row answers when its name is reported with no dose', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow(
+              'ingredientRows[1]',
+              'Iron Bisglycinate',
+              'iron',
+              18,
+              'mg',
+              standardName: 'Iron',
+            ),
+          ],
+          [
+            without(iron, amountFields),
+            analyzedRow(
+              'ingredientRows[1]',
+              'Iron Bisglycinate',
+              'iron',
+              18,
+              18,
+              'mg',
+              standardName: 'Iron',
+              doseRole: 'ul_scoped_component',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['iron'], (value: 18.0, unit: 'mg'));
+    });
+
+    test('an unresolved analyzed unit does not fall back to its mirror', () {
+      final result = extractIngredientDoses(
+        blob(
+          [ironMirror],
+          [
+            {
+              ...iron,
+              'dose_data_quality': {'status': 'unresolved_unit'},
+            },
+          ],
+        ),
+      );
+
+      expect(result, isNot(contains('iron')));
+    });
+
+    test('a skipped analyzed row with no amount still blocks its mirror', () {
+      final result = extractIngredientDoses(
+        blob(
+          [ironMirror],
+          [
+            {...without(iron, amountFields), 'skip_ul_check': true},
+          ],
+        ),
+      );
+
+      expect(result, isNot(contains('iron')));
+    });
+
+    test('a skip on the ingredients row outlives its analyzed twin', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            {...ironMirror, 'skip_ul_check': true},
+          ],
+          [iron],
+        ),
+      );
+
+      expect(result, isNot(contains('iron')));
+    });
+
+    test('a skip on a nested row still blocks what its parent reports', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            {...nestedIron, 'skip_ul_check': true},
+          ],
+          [iron],
+        ),
+      );
+
+      expect(result, isNot(contains('iron')));
+    });
+
     test('older catalogs without row paths keep the signature dedupe', () {
       final rows = [
         {
