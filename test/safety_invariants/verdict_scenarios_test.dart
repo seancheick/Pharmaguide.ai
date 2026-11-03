@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
@@ -468,7 +469,7 @@ void main() {
       (tester) async {
         final blob = _stJohnsWortBlob();
         blob['warnings'] = const <Object>[];
-      blob['warnings_profile_gated'] = const <Object>[];
+        blob['warnings_profile_gated'] = const <Object>[];
         await pumpPage(
           tester,
           catalog: await _catalog(tester),
@@ -523,9 +524,34 @@ void main() {
   group('account switch mid-request', () {
     const accountA = 'account-a';
     const accountB = 'account-b';
+    const productId = 'vitamin-e';
+    late AccountSwitchGuard guard;
+    late ProviderContainer scope;
+    late Completer<Map<String, dynamic>?> network;
 
-    test('the old account\'s scan lands nowhere and never reaches the new '
-        'account', () async {
+    Future<FitScoreResult?> fitNow() async {
+      // The provider is autoDispose: a listener keeps it alive across awaits.
+      final listener = scope.listen(
+        fitScoreForProductProvider(productId).future,
+        (_, _) {},
+      );
+      try {
+        return await listener.read();
+      } finally {
+        listener.close();
+      }
+    }
+
+    Future<void> switchTo(String uid) =>
+        guard.onAuthEvent(event: AuthChangeEvent.signedIn, uid: uid);
+
+    /// Account A is signed in with a pregnancy profile and a scan is waiting
+    /// on the network. Same lifecycle as the app's root: the provider tree
+    /// comes down before the handle closes, and a new tree opens on the new
+    /// account's database. [overrides] replaces how the blob arrives.
+    Future<List<FitScoreResult?>> scanInFlightForA({
+      List<Override> Function()? overrides,
+    }) async {
       SharedPreferences.setMockInitialValues({});
       final root = await Directory.systemTemp.createTemp('a7_switch');
       addTearDown(() => root.delete(recursive: true));
@@ -533,7 +559,7 @@ void main() {
       final documents = await Directory(
         p.join(root.path, 'documents'),
       ).create();
-      final guard = AccountSwitchGuard(
+      guard = AccountSwitchGuard(
         ownerStore: AccountOwnerStore(),
         storage: AccountStorage(
           supportDirectory: () async => support,
@@ -548,7 +574,7 @@ void main() {
           .into(catalog.productsCore)
           .insert(
             ProductsCoreCompanion.insert(
-              dsldId: _stJohnsWort,
+              dsldId: productId,
               productName: 'Vitamin E',
               exportVersion: 'test',
               exportedAt: '2026-10-21T00:00:00Z',
@@ -556,7 +582,7 @@ void main() {
               mappedCoverage: const Value(1),
             ),
           );
-      final network = Completer<Map<String, dynamic>?>();
+      network = Completer<Map<String, dynamic>?>();
 
       await guard.boot(sessionUid: accountA);
       await guard.database!.saveProfile(
@@ -567,8 +593,6 @@ void main() {
         ).toCompanion(),
       );
 
-      // Same lifecycle as the app's root: the provider tree comes down before
-      // the handle closes, and a new tree opens on the new account's database.
       ProviderContainer openScope() => ProviderContainer(
         overrides: [
           coreDatabaseProvider.overrideWithValue(catalog),
@@ -578,9 +602,10 @@ void main() {
           ),
           fitScoreServiceProvider.overrideWith((ref) async => fitService),
           clinicalProfileSchemaProvider.overrideWith((ref) async => schema),
+          ...?overrides?.call(),
         ],
       );
-      var scope = openScope();
+      scope = openScope();
       addTearDown(() => scope.dispose());
       guard
         ..releaseConsumers = () async {
@@ -588,41 +613,50 @@ void main() {
         }
         ..onChanged = () => scope = openScope();
 
-      // The provider is autoDispose: a listener keeps it alive across its awaits.
-      Future<FitScoreResult?> fitNow() async {
-        final listener = scope.listen(
-          fitScoreForProductProvider(_stJohnsWort).future,
-          (_, _) {},
-        );
-        try {
-          return await listener.read();
-        } finally {
-          listener.close();
-        }
-      }
-
       final resultsForA = <FitScoreResult?>[];
-      scope.listen(fitScoreForProductProvider(_stJohnsWort), (_, next) {
+      scope.listen(fitScoreForProductProvider(productId), (_, next) {
         if (next.hasValue && !next.isLoading) resultsForA.add(next.value);
       });
       await pumpEventQueue();
+      return resultsForA;
+    }
 
-      await guard.onAuthEvent(event: AuthChangeEvent.signedIn, uid: accountB);
+    test("the old account's fetch writes into no one's database", () async {
+      final resultsForA = await scanInFlightForA();
+
+      await switchTo(accountB);
       network.complete(_vitaminEBlob());
       await pumpEventQueue();
 
       expect(resultsForA, isEmpty, reason: 'A left before the result arrived');
       expect(await guard.database!.getProfile(), isNull);
+      expect(await guard.database!.getCachedDetail(productId), isNull);
+      await switchTo(accountA);
       expect(
-        await guard.database!.getCachedDetail(_stJohnsWort),
+        await guard.database!.getCachedDetail(productId),
         isNull,
-        reason: "A's fetch must not write into B's database",
+        reason: "the old handle closed, so A's late write landed nowhere",
       );
+    });
+
+    test("the old account's result never reaches the new account", () async {
+      // The blob arrives without touching a database, so only the provider
+      // tree coming down can stop A's result.
+      final resultsForA = await scanInFlightForA(
+        overrides: () => [
+          detailBlobProvider.overrideWith((ref, id) => network.future),
+        ],
+      );
+
+      await switchTo(accountB);
+      network.complete(_vitaminEBlob());
+      await pumpEventQueue();
+      expect(resultsForA, isEmpty, reason: 'A left before the result arrived');
 
       final forB = await fitNow();
       expect(forB!.nutrientStatuses.single.tier, isNot(NutrientTier.exceedsUl));
 
-      await guard.onAuthEvent(event: AuthChangeEvent.signedIn, uid: accountA);
+      await switchTo(accountA);
       final forA = await fitNow();
       expect(forA!.nutrientStatuses.single.tier, NutrientTier.exceedsUl);
     });
