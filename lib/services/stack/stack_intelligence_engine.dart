@@ -36,7 +36,7 @@ class StackHealthSnapshot {
   final bool checksIncomplete;
   final bool coverageIncomplete;
   final bool catalogProductSkipped;
-  final List<String> limitedDataProducts;
+  final List<LimitedDataProduct> limitedDataProducts;
   final List<String> notInCatalog;
 
   const StackHealthSnapshot({
