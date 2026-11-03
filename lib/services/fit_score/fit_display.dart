@@ -53,10 +53,10 @@ final class FitLimitedFit extends FitDisplay {
   const FitLimitedFit();
 }
 
-/// Rendered for [FitAssessmentState.notRecommended] — the product itself
-/// is safe-or-mild, but the fit math came back low. Concerned-neutral
-/// treatment. Distinct from [FitHidden]: here the product is fine, the fit
-/// is the issue. Tier label only — no number shown to the user.
+/// Rendered for [FitAssessmentState.notRecommended], which FitScoreService
+/// returns only for a hard severity on this user's profile. Distinct from
+/// [FitHidden]: here the severity came from the fit inputs rather than from a
+/// warning row. Tier label only — no number shown to the user.
 final class FitNotRecommended extends FitDisplay {
   const FitNotRecommended();
 }
