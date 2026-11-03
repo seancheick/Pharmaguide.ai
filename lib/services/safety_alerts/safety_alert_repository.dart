@@ -124,6 +124,11 @@ class SafetyAlertRepository {
       if (extendedPath is! String || extendedChecksum is! String) {
         throw const FormatException('Extended feed location is malformed.');
       }
+      // This checksum names the immutable current superset. Reusing its verified
+      // bytes avoids degrading a usable saved release on a transient download
+      // failure. A new checksum must still be fetched and checked normally.
+      final cached = await _loadCached();
+      if (cached?.checksum == extendedChecksum) return cached!;
       return await read(extendedPath, extendedChecksum);
     } on Object {
       // Bans and recalls must still arrive. Rules this device already holds
@@ -186,7 +191,11 @@ class SafetyAlertRepository {
         decoded['checksum'] as String,
       );
       final kept = decoded['kept'];
-      if (kept == null) return release;
+      if (kept == null) {
+        return decoded['extended_missing'] == true
+            ? release.missingExtended(const [])
+            : release;
+      }
       if (kept is! String || decoded['kept_checksum'] != _checksumOf(kept)) {
         return null;
       }

@@ -322,6 +322,7 @@ enum _FeedServer {
   serving,
   servingNoAlerts,
   unreadable,
+  extendedUnavailable,
 }
 
 /// The real repository over a fake server and this phone's saved preferences.
@@ -368,6 +369,7 @@ class _AlertFeed {
           );
         case _FeedServer.serving ||
             _FeedServer.servingNoAlerts ||
+            _FeedServer.extendedUnavailable ||
             _FeedServer.unreadable:
           final bytes = switch (server) {
             _FeedServer.serving => _alertsForOtherProducts,
@@ -375,13 +377,24 @@ class _AlertFeed {
             _ => _noAlerts,
           };
           if (request.url.path.contains('/storage/')) {
+            if (request.url.path.endsWith('/extended.json')) {
+              throw http.ClientException('extended feed unavailable');
+            }
             return http.Response.bytes(bytes, 200, request: request);
           }
           return http.Response(
             jsonEncode({
               'feed_path': 'safety/feed.json',
               'checksum': 'sha256:${sha256.convert(bytes)}',
-              'manifest': null,
+              'manifest': server == _FeedServer.extendedUnavailable
+                  ? {
+                      'extended_feed': {
+                        'path': 'safety/extended.json',
+                        'checksum':
+                            'sha256:${sha256.convert(_alertsForOtherProducts)}',
+                      },
+                    }
+                  : null,
             }),
             200,
             headers: {'content-type': 'application/json'},
@@ -862,6 +875,17 @@ void main() {
 
         expect(find.text(allClear), findsOneWidget);
         expect(find.text(incomplete), findsNothing);
+      });
+
+      testWidgets('a partial saved feed never becomes an all-clear offline', (
+        tester,
+      ) async {
+        final feed = _AlertFeed()..server = _FeedServer.extendedUnavailable;
+        await tester.runAsync(feed.repository.loadCurrent);
+        feed.server = _FeedServer.unreachable;
+        await open(tester, feed);
+        expect(find.text(allClear), findsNothing);
+        expect(find.text(incomplete), findsOneWidget);
       });
 
       testWidgets('a finding stays on screen when the all-clear is withheld', (
