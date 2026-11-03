@@ -199,9 +199,10 @@ List<InteractionWarning> applyEmittedBeneficialGate(
 /// **One label row, one exposure (2026-11-03):** `ingredients` rows are per
 /// serving and `rda_ul_data.analyzed_ingredients` rows are per day, and both
 /// carry the label row's `raw_source_path` (see [_doseRows]). An analyzed row
-/// replaces its `ingredients` mirror. That holds when [isUsableDoseRow] then
-/// drops it, because no `ingredients` row carries `dose_role`. The mirror stays
-/// only if the analyzed row has no dose to read, or carries a skip. A row nested
+/// replaces its `ingredients` mirror. When [isUsableDoseRow] then drops it, the
+/// dose is gone under every name: no `ingredients` row carries `dose_role`, so
+/// the mirror can't be left to count it. The mirror stays only if the analyzed
+/// row has no dose to read, or carries a skip. A row nested
 /// above or below an analyzed row is the same dose seen as a form or a source
 /// mass, so it no longer adds to the keys that analyzed row reports (328600:
 /// 2000 mg Magtein under 144 mg Magnesium); it still counts toward its own
@@ -407,7 +408,6 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
 
   final rows = <_DoseRow>[];
   final mirrors = <String, Map<String, dynamic>>{};
-  final hiddenMirrors = <Map<String, dynamic>>[];
   for (final row in _rowMaps(detailBlob['ingredients'])) {
     // The pipeline's skip blocks every name it covers, on whichever copy.
     if (row['skip_ul_check'] == true) {
@@ -420,8 +420,6 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
       rows.add(_doseRow(row, _keysNotOwnedOnBranch(row, owners)));
     } else if (isUsableDoseRow(twin)) {
       mirrors[path!] = row;
-    } else {
-      hiddenMirrors.add(row);
     }
   }
   // The mirror's names carry over: an analyzed row can spell fewer of them.
@@ -435,17 +433,7 @@ List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
     );
   }
 
-  // A row hidden by its dose_role adds to nothing another row reports, but
-  // still answers to its own name (712 folic acid rows under a folate total).
-  final reported = <String>{
-    for (final entry in rows)
-      if (isUsableDoseRow(entry.row) && !_lostItsDose(entry.row)) ...entry.keys,
-  };
-  return [
-    ...rows,
-    for (final row in hiddenMirrors)
-      _doseRow(row, readDoseNameKeys(row).difference(reported)),
-  ];
+  return rows;
 }
 
 /// A usable analyzed row with no amount or unit to read, and no pipeline reason
