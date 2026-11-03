@@ -2,17 +2,21 @@
 -- ignore these columns, so applying this changes nothing for them. A build with
 -- verification keys reads signed_release and refuses a row without it.
 
+-- The columns may already exist: the pipeline's scripts/sql/supabase_schema.sql
+-- declares them, and a replay runs that file first.
 ALTER TABLE public.export_manifest
-  ADD COLUMN release_sequence bigint,
-  ADD COLUMN signed_release text,
-  ADD COLUMN release_signature text,
+  ADD COLUMN IF NOT EXISTS release_sequence bigint,
+  ADD COLUMN IF NOT EXISTS signed_release text,
+  ADD COLUMN IF NOT EXISTS release_signature text,
+  DROP CONSTRAINT IF EXISTS export_manifest_release_sequence_positive,
   ADD CONSTRAINT export_manifest_release_sequence_positive
     CHECK (release_sequence > 0),
+  DROP CONSTRAINT IF EXISTS export_manifest_signed_release_complete,
   ADD CONSTRAINT export_manifest_signed_release_complete
     CHECK (num_nonnulls(release_sequence, signed_release, release_signature)
            IN (0, 3));
 
-CREATE UNIQUE INDEX export_manifest_release_sequence_unique
+CREATE UNIQUE INDEX IF NOT EXISTS export_manifest_release_sequence_unique
   ON public.export_manifest (release_sequence);
 
 -- Dropped rather than replaced: added parameters would leave an overload that

@@ -167,6 +167,11 @@ class FakeReleaseBundle extends CachingAssetBundle {
   /// new should never do.
   int databaseLoads = 0;
 
+  /// Stands in for a phone with no room for the bundled files: the failure
+  /// comes from the same step as a real ENOSPC, but nothing fills a disk here.
+  /// `release_full_disk_test.dart` runs the real one.
+  bool noSpaceForDatabases = false;
+
   static Future<FakeReleaseBundle> build(
     Directory workspace, {
     required String catalogVersion,
@@ -194,6 +199,13 @@ class FakeReleaseBundle extends CachingAssetBundle {
   @override
   Future<ByteData> load(String key) async {
     databaseLoads++;
+    if (noSpaceForDatabases) {
+      throw FileSystemException(
+        'No space left on device',
+        key,
+        const OSError('No space left on device', 28),
+      );
+    }
     final Uint8List? bytes = switch (key) {
       bundledCoreDatabaseAssetPath => catalog,
       bundledInteractionDatabaseAssetPath => rules,

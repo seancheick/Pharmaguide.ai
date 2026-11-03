@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.110.7";
 import { resolveSupabaseAdminKey } from "../_shared/supabase_server_keys.ts";
 import {
   constantTimeEquals,
+  isPushableEventType,
   parseReleaseDispatchRequest,
 } from "../_shared/safety_alert_dispatch.ts";
 import {
@@ -87,6 +88,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
   let removed = 0;
   let failed = 0;
   for (const alert of alerts) {
+    if (!isPushableEventType(alert.event_type)) continue;
     const alertId = alert.alert_id;
     const revision = alert.revision;
     const resolved = alert.resolved_dsld_ids;

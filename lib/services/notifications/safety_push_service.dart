@@ -41,7 +41,6 @@ class SafetyPushService with WidgetsBindingObserver {
   StreamSubscription<RemoteMessage>? _foreground;
   StreamSubscription<RemoteMessage>? _opened;
   StreamSubscription<dynamic>? _authState;
-  FutureOr<void> Function()? _onSafetyAlert;
 
   Future<bool> initialize({
     required FutureOr<void> Function() onSafetyAlert,
@@ -56,7 +55,6 @@ class SafetyPushService with WidgetsBindingObserver {
       return false;
     }
     try {
-      _onSafetyAlert = onSafetyAlert;
       debugPrint('Safety push: initializing');
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
       debugPrint('Safety push: Firebase ready');
@@ -125,8 +123,6 @@ class SafetyPushService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      final refresh = _onSafetyAlert;
-      if (refresh != null) unawaited(Future<void>.sync(refresh));
       // First-launch APNs readiness can outlast startup; finish registration
       // on the next foreground instead of staying dark for the session.
       if (!_tokenRegistered && _hasAuthenticatedUser) {

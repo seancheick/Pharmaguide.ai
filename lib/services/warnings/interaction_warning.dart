@@ -229,6 +229,10 @@ class InteractionWarning {
   /// ingredient-detail drawer can render medical codes (CUI lookup).
   final Map<String, dynamic>? identifiers;
 
+  /// Already matched against this device's medications by exact id, as a live
+  /// interaction-rule alert is. No profile gate is left to evaluate.
+  final bool matchedOnDevice;
+
   /// Pipeline `ingredient_name` — the ingredient this warning is
   /// about (e.g., "Niacin", "Chromium"). Useful for linking a
   /// warning back to its ingredient row in UI (e.g., ingredient
@@ -286,6 +290,7 @@ class InteractionWarning {
     required this.mechanism,
     required this.management,
     this.warningType,
+    this.matchedOnDevice = false,
     this.sourceUrls = const [],
     this.severityContextual,
     this.displayModeDefault,
@@ -500,6 +505,7 @@ class InteractionWarning {
     Set<String> nutrientForms = const <String>{},
     num? dosePerDay,
   }) {
+    if (matchedOnDevice) return true;
     if (profileGate != null) {
       final result = evaluateProfileGate(
         profileGate,

@@ -169,6 +169,9 @@ Future<void> _seedWarfarinVitaminKPair(InteractionDatabase db) async {
 }
 
 void main() {
+  // The real device profile reads the bundled taxonomy through the asset binding.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('personalizedInteractionWarningsProvider', () {
     test('empty stack → empty warnings', () async {
       final coreDb = CoreDatabase.memory();
@@ -324,10 +327,7 @@ void main() {
         expect(result, hasLength(1));
         expect(result.single.title, "Because you're taking Warfarin");
         expect(result.single.ingredientCanonicalId, 'vitamin_k');
-        expect(
-          result.single.drugClassIds,
-          contains('class:vitamin_k_antagonists'),
-        );
+        expect(result.single.drugClassIds, contains('vitamin_k_antagonists'));
 
         await coreDb.close();
         await interactionDb.close();

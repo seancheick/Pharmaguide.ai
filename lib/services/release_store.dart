@@ -38,6 +38,7 @@ const _rulesFile = 'rules.sqlite';
 const _recordFile = 'release.json';
 const _pointerFile = 'active.json';
 const _stagingDir = 'staging';
+const _legacyHoldingDir = 'legacy';
 
 /// A build whose bundled rules can't open still launches, and interaction
 /// checks show their unavailable state. A release gate fails such a build.
@@ -320,6 +321,8 @@ class ReleaseStore {
 
   Directory get _root => Directory(p.join(documents.path, 'releases'));
   Directory get _staging => Directory(p.join(_root.path, _stagingDir));
+  Directory get _legacyHolding =>
+      Directory(p.join(_root.path, _legacyHoldingDir));
   File get _pointerPath => File(p.join(_root.path, _pointerFile));
 
   ReleasePointer? _pointer;
@@ -347,11 +350,25 @@ class ReleaseStore {
   /// the process ends. Needs no network. Throws only when even the bundled
   /// catalog can't open, or when nothing on disk can be read right now.
   Future<ReleaseGeneration> open() async {
-    await _root.create(recursive: true);
-    await _clearAssemblies();
-    var pointer = await _readPointer() ?? await _rebuildPointer();
-    pointer ??= await _migrateLegacyFiles();
-    _pointer = pointer;
+    try {
+      await _root.create(recursive: true);
+      await _keepingCurrentRelease('clear_failed', _clearAssemblies);
+      _pointer =
+          await _readPointer() ??
+          await _rebuildPointer() ??
+          await _migrateLegacyFiles();
+    } on SimulatedReleaseCrash {
+      rethrow;
+    } on Object catch (e, st) {
+      final inPlace = await _openLegacyInPlace();
+      if (inPlace == null) rethrow;
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'release_store:migration_failed',
+      );
+      return inPlace;
+    }
 
     final bundled = await _bundledIdentity();
     await _keepingCurrentRelease(
@@ -369,6 +386,12 @@ class ReleaseStore {
   /// session as well as at launch. Deletes nothing: the caller's current handles
   /// must stay usable until the process ends.
   Future<ReleaseGeneration> reselect() async {
+    if (_pointer == null) {
+      // Running from the old files. Moving them now would break the handles the
+      // caller holds, so the move waits for the next launch.
+      return await _openLegacyInPlace() ??
+          (throw StateError('No release can be read right now'));
+    }
     await _keepingCurrentRelease(
       'resolve_blocked_failed',
       _resolveBlockedVersions,
@@ -819,7 +842,9 @@ class ReleaseStore {
   }
 
   /// A phone on a blocked version returns to its previous confirmed release if
-  /// that isn't blocked. Otherwise only the affected assessment is withheld:
+  /// that isn't blocked. When only the rules are blocked, it goes back only to a
+  /// catalog no older than its own, with rules that meet its minimum (Sean,
+  /// 2026-11-03). Otherwise only the affected assessment is withheld:
   /// [_openFolder] leaves blocked rules closed, and a blocked catalog becomes a
   /// local copy without quality scores. Products stay available, and catalog
   /// safety status is never touched.
@@ -835,14 +860,20 @@ class ReleaseStore {
         !pointer.blockedCatalog.contains(active.catalogVersion) &&
         previous?.catalogVersion == active.catalogVersion &&
         previous?.qualityWithheld == false) {
-      await _writePointer(pointer.copyWith(active: previous!.id));
+      await _writePointer(
+        pointer.copyWith(active: previous!.id, previous: () => null),
+      );
       return;
     }
     if (!_isBlocked(active)) return;
 
+    final onlyRulesBlocked = !pointer.blockedCatalog.contains(
+      active.catalogVersion,
+    );
     if (previous != null &&
         !_isBlocked(previous) &&
-        !pointer.refused.contains(previous.id)) {
+        !pointer.refused.contains(previous.id) &&
+        (!onlyRulesBlocked || _canReplaceRulesOf(active, previous))) {
       await _writePointer(
         pointer.copyWith(active: previous.id, previous: () => null),
       );
@@ -853,6 +884,16 @@ class ReleaseStore {
         !active.qualityWithheld) {
       await _withholdQuality(active);
     }
+  }
+
+  bool _canReplaceRulesOf(ReleaseRecord active, ReleaseRecord previous) {
+    final minimum = active.minRulesVersion;
+    return !CatalogVersion.isRemoteNewer(
+          remoteVersion: active.catalogVersion,
+          localVersion: previous.catalogVersion,
+        ) &&
+        (minimum == null ||
+            (compareSemver(previous.rulesVersion, minimum) ?? -1) >= 0);
   }
 
   Future<void> _withholdQuality(ReleaseRecord source) async {
@@ -935,18 +976,24 @@ class ReleaseStore {
     );
   }
 
-  /// Copies the bundled pair, or [keepCatalog] and the bundled rules, into a
-  /// complete folder and points at it.
+  /// Puts the bundled pair, or the held root catalog and the bundled rules,
+  /// into a complete folder and points at it. The bundle counts as seen only if
+  /// all of it is in use or was passed over for something newer, so a launch
+  /// that couldn't use it tries again.
   Future<ReleaseRecord> _assembleBundled(
     _BundleIdentity identity, {
-    File? keepCatalog,
+    bool fromHolding = false,
   }) async {
-    final assembly = await _startAssembly('bundled');
+    final Directory assembly;
+    if (fromHolding) {
+      assembly = _legacyHolding;
+      await _step(ReleaseStep.assemble);
+    } else {
+      assembly = await _startAssembly('bundled');
+    }
     final catalogPath = p.join(assembly.path, _catalogFile);
     final rulesPath = p.join(assembly.path, _rulesFile);
-    if (keepCatalog != null) {
-      await keepCatalog.copy(catalogPath);
-    } else {
+    if (!fromHolding) {
       await _writeAsset(bundledCoreDatabaseAssetPath, catalogPath);
     }
     final catalogVersion = await _readCatalogVersion(catalogPath);
@@ -960,6 +1007,10 @@ class ReleaseStore {
     } on Object catch (e) {
       debugPrint('[release] bundled rules unavailable: ${e.runtimeType}');
     }
+    final bundleApplied =
+        rulesVersion != null &&
+        !(fromHolding && _bundleIsNewer(identity, catalogVersion));
+    rulesVersion ??= await _adoptRootRules(rulesPath);
 
     final record = ReleaseRecord(
       id: ReleaseRecord.idFor(
@@ -970,7 +1021,7 @@ class ReleaseStore {
       sequence: 0,
       catalogVersion: catalogVersion,
       rulesVersion: rulesVersion ?? _noRules,
-      catalogSha256: keepCatalog == null ? identity.catalogSha256 : null,
+      catalogSha256: fromHolding ? null : identity.catalogSha256,
       rulesSha256: identity.rulesSha256,
       minRulesVersion: null,
       preparation: kReleasePreparation,
@@ -1004,10 +1055,30 @@ class ReleaseStore {
         previous: () => null,
         confirmed: false,
         refused: refused.difference({record.id}),
-        bundleSeen: identity.tag,
+        bundleSeen: bundleApplied ? identity.tag : null,
       ),
     );
     return record;
+  }
+
+  bool _bundleIsNewer(_BundleIdentity identity, String catalogVersion) =>
+      identity.catalogVersion != null &&
+      CatalogVersion.isRemoteNewer(
+        remoteVersion: identity.catalogVersion,
+        localVersion: catalogVersion,
+      );
+
+  /// The bundled rules can't be used this launch: the old install's rules, if
+  /// valid, are better than none until they can. Otherwise [rulesPath] is left
+  /// empty so nothing later reuses a damaged file.
+  Future<String?> _adoptRootRules(String rulesPath) async {
+    final partial = File(rulesPath);
+    if (await partial.exists()) await partial.delete();
+    final root = File(p.join(documents.path, 'interaction_db.sqlite'));
+    if (!await root.exists()) return null;
+    final version = await _readRulesVersion(root.path);
+    if (version != null) await root.rename(rulesPath);
+    return version;
   }
 
   Future<void> _writeAsset(String assetPath, String targetPath) async {
@@ -1046,7 +1117,10 @@ class ReleaseStore {
                     -1) >=
                 0);
     if (!catalogNewer && !rulesNewer) {
-      await _writePointer(pointer.copyWith(bundleSeen: bundled.tag));
+      // With no rules at all, keep looking for bundled ones on later launches.
+      if (active.rulesVersion != _noRules) {
+        await _writePointer(pointer.copyWith(bundleSeen: bundled.tag));
+      }
       return;
     }
 
@@ -1146,26 +1220,101 @@ class ReleaseStore {
   // Installs from before release folders
   // ---------------------------------------------------------------------------
 
-  /// Moves an existing install into a folder, keeping an over-the-air catalog
-  /// that is newer than the bundled one. Works from a copy, so a crash anywhere
-  /// repeats it from the same root files. Those are deleted only once a pointer
-  /// names the new folder.
+  /// Moves an existing install into a folder. A root catalog at least as new as
+  /// the bundled one moves rather than copies, so an install that had no room
+  /// for a second copy still upgrades. An older one is replaced by the bundled
+  /// catalog, or moved too if that can't be written. The move goes through a
+  /// holding folder that launch doesn't clear, so a crash anywhere repeats from
+  /// there.
   Future<ReleasePointer> _migrateLegacyFiles() async {
-    final rootCatalog = File(p.join(documents.path, 'pharmaguide_core.db'));
     final bundled = await _bundledIdentity();
-    await _settleInterruptedSwap(rootCatalog.path);
-
-    File? keep;
-    final version = await _readCatalogVersion(rootCatalog.path);
-    if (version != null &&
-        CatalogVersion.isRemoteNewer(
-          remoteVersion: version,
-          localVersion: bundled.catalogVersion,
-        )) {
-      keep = rootCatalog;
+    final held = File(p.join(_legacyHolding.path, _catalogFile));
+    if (await held.exists()) {
+      await _assembleBundled(bundled, fromHolding: true);
+      return _pointer!;
     }
-    await _assembleBundled(bundled, keepCatalog: keep);
+
+    final rootCatalog = File(p.join(documents.path, 'pharmaguide_core.db'));
+    await _settleInterruptedSwap(rootCatalog.path);
+    final version = await _readCatalogVersion(rootCatalog.path);
+    if (version != null && !_bundleIsNewer(bundled, version)) {
+      await _holdRootCatalog(rootCatalog, held);
+      await _assembleBundled(bundled, fromHolding: true);
+      return _pointer!;
+    }
+    try {
+      await _assembleBundled(bundled);
+    } on SimulatedReleaseCrash {
+      rethrow;
+    } on Object {
+      if (version == null) rethrow;
+      await _clearAssemblies();
+      await _holdRootCatalog(rootCatalog, held);
+      await _assembleBundled(bundled, fromHolding: true);
+    }
     return _pointer!;
+  }
+
+  Future<void> _holdRootCatalog(File rootCatalog, File held) async {
+    await _legacyHolding.create();
+    await rootCatalog.rename(held.path);
+    await flushDirectory(documents.path);
+    await flushDirectory(_legacyHolding.path);
+  }
+
+  /// When an old install can't be moved at all, such as on a completely full
+  /// disk, its files still work: read-only handles over them, with no pointer,
+  /// and the next launch tries the move again. Returns null if they can't open.
+  Future<ReleaseGeneration?> _openLegacyInPlace() async {
+    File inHolding(String name) => File(p.join(_legacyHolding.path, name));
+    File inRoot(String name) => File(p.join(documents.path, name));
+    final catalog = await inHolding(_catalogFile).exists()
+        ? inHolding(_catalogFile)
+        : inRoot('pharmaguide_core.db');
+    if (!await catalog.exists()) return null;
+
+    CoreDatabase? core;
+    try {
+      core = CoreDatabase.readOnly(catalog);
+      final catalogVersion = await core.validateCatalogSnapshot();
+      InteractionDatabase? rules;
+      String? rulesVersion;
+      for (final file in [
+        inHolding(_rulesFile),
+        inRoot('interaction_db.sqlite'),
+      ]) {
+        if (rules != null || !await file.exists()) continue;
+        try {
+          rules = await _openRules(file.path);
+          rulesVersion = (await rules.getMetadata()).interactionDbVersion;
+        } on Object catch (e) {
+          debugPrint('[release] old rules unavailable: ${e.runtimeType}');
+        }
+      }
+      return ReleaseGeneration(
+        record: ReleaseRecord(
+          id: ReleaseRecord.idFor(
+            sequence: 0,
+            catalogVersion: catalogVersion,
+            rulesVersion: rulesVersion ?? _noRules,
+          ),
+          sequence: 0,
+          catalogVersion: catalogVersion,
+          rulesVersion: rulesVersion ?? _noRules,
+          catalogSha256: null,
+          rulesSha256: null,
+          minRulesVersion: null,
+          preparation: kReleasePreparation,
+        ),
+        core: core,
+        rules: rules,
+        rulesWithheld: false,
+      );
+    } on Object catch (e) {
+      debugPrint('[release] old install unavailable: ${e.runtimeType}');
+      await _closeQuietly(() async => core?.close());
+      return null;
+    }
   }
 
   /// What the root-file catalog swap left behind if it was interrupted: the
@@ -1345,7 +1494,9 @@ class ReleaseStore {
     try {
       db = CoreDatabase.open(path);
       return await db.validateCatalogSnapshot();
-    } on Object {
+    } on Object catch (e) {
+      // Not being able to read a file says nothing about the file.
+      if (_isTemporaryReadFailure(e)) rethrow;
       return null;
     } finally {
       await _closeQuietly(() async => db?.close());

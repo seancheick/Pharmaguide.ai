@@ -32,6 +32,7 @@ import 'package:pharmaguide/features/settings/v2/guest_data_question_screen.dart
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_push_provider.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
@@ -707,6 +708,8 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           // signals. It is fail-closed: partial or unavailable analysis never
           // resolves an existing event as an all-clear.
           ref.watch(clinicalSignalLifecycleProvider);
+          // Launch, resume and reconnect each re-check the verified feed.
+          ref.watch(safetyAlertRefreshProvider);
           // FCM is only a generic nudge. The handler invalidates the verified
           // feed provider, which re-fetches before any copy reaches the user.
           ref.watch(safetyPushBootstrapProvider);

@@ -330,7 +330,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // product's ingredients may never fire the interaction checks, so the
   // report must hedge rather than claim a clean result.
   var coverageIncomplete = nutrientCoverageIncomplete;
-  final limitedDataProducts = <String>[];
+  final limitedDataProducts = <LimitedDataProduct>[];
   final hydrated = <HydratedSupplement>[];
   for (final entry in supplements) {
     final id = entry.dsldId;
@@ -352,7 +352,12 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     }
     if (isLowCoverage(product.mappedCoverage)) {
       coverageIncomplete = true;
-      limitedDataProducts.add(entry.name);
+      limitedDataProducts.add(
+        LimitedDataProduct(
+          entry.name,
+          scoreUnavailableReason: product.scoreUnavailableReason,
+        ),
+      );
     }
     hydrated.add(HydratedSupplement(entry: entry, product: product));
   }
@@ -1219,6 +1224,18 @@ final currentStackMedicationClassIdsProvider = FutureProvider<Set<String>>((
   // Crosswalk via the single bridge contract (fail-open, verified-seed-only).
   return MedicationClassBridge.profileGateIdsForClasses(classIds).toSet();
 });
+
+/// The classes the stack rows themselves record, for a screen that still has
+/// catalog warnings to match when [currentStackMedicationClassIdsProvider] has
+/// failed, as it does while the rules file is withheld. Screens keep reporting
+/// that failure; this only stops an unrelated warning from disappearing.
+Set<String> storedStackMedicationClassIds(
+  Iterable<UserStacksLocalData> stack,
+) => MedicationClassBridge.profileGateIdsForClasses(
+  stack
+      .where((e) => e.type == 'medication')
+      .expand((e) => MedicationIdentitySnapshot.fromStackRow(e).drugClassIds),
+).toSet();
 
 List<String> _decodeStackStringList(String? raw) {
   if (raw == null || raw.isEmpty) return const <String>[];
