@@ -698,21 +698,30 @@ void main() {
         thresholdUnit: 'mg',
       );
 
-      List<StackDoseThresholdAlert> alertsFor(Map<String, dynamic> detailBlob) {
-        final facts = ProductHealthFacts.fromDetailBlob(detailBlob);
+      List<StackDoseThresholdAlert> alertsForStack(
+        List<Map<String, dynamic>> blobs,
+        StackDoseThresholdRule rule,
+      ) {
         const summer = StackDoseSummer();
         return summer.thresholdAlerts(
           totals: summer.sum([
-            StackItemNutrients(
-              stackEntryId: 'a',
-              productName: 'Vitamin C',
-              ingredients: facts.doseRowsForThresholds,
-            ),
+            for (final (index, detailBlob) in blobs.indexed)
+              StackItemNutrients(
+                stackEntryId: '$index',
+                productName: 'Product $index',
+                ingredients: ProductHealthFacts.fromDetailBlob(
+                  detailBlob,
+                ).doseRowsForThresholds,
+              ),
           ]),
-          userConditions: const ['kidney_disease'],
-          thresholdRules: const [rule],
+          userConditions: [rule.conditionId],
+          thresholdRules: [rule],
         );
       }
+
+      List<StackDoseThresholdAlert> alertsFor(
+        Map<String, dynamic> detailBlob,
+      ) => alertsForStack([detailBlob], rule);
 
       test('rows at distinct paths reach the threshold together', () {
         final alerts = alertsFor(
@@ -766,6 +775,120 @@ void main() {
         );
 
         expect(alerts, isEmpty);
+      });
+
+      group('across a stack', () {
+        const primroseRule = StackDoseThresholdRule(
+          conditionId: 'bleeding_disorders',
+          canonicalId: 'evening_primrose_oil',
+          displayName: 'Evening Primrose Oil',
+          thresholdValue: 3000,
+          thresholdUnit: 'mg',
+          comparator: '>',
+        );
+        Map<String, dynamic> primrose(num perServing, num perDay) => blob(
+          [
+            labelRow(
+              'ingredientRows[2]',
+              'Evening Primrose Oil',
+              'evening_primrose_oil',
+              perServing,
+              'mg',
+            ),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[2]',
+              'Evening Primrose Oil',
+              'evening_primrose_oil',
+              perServing,
+              perDay,
+              'mg',
+            ),
+          ],
+        );
+
+        test('76104: one product at its per-day figure is not over', () {
+          // Main read 1000 + 3000 = 4000 and alerted.
+          expect(alertsForStack([primrose(1000, 3000)], primroseRule), isEmpty);
+        });
+
+        test('a second product adds its per-day figure, once', () {
+          final alerts = alertsForStack([
+            primrose(1000, 3000),
+            primrose(500, 1000),
+          ], primroseRule);
+
+          expect(alerts, hasLength(1));
+          expect(alerts.single.totalValue, 4000);
+        });
+
+        test('a hidden row adds nothing to another product', () {
+          final hidden = blob(
+            [
+              labelRow(
+                'ingredientRows[1].nestedRows[0]',
+                'Evening Primrose Oil',
+                'evening_primrose_oil',
+                500,
+                'mg',
+              ),
+            ],
+            [
+              analyzedRow(
+                'ingredientRows[1].nestedRows[0]',
+                'Evening Primrose Oil',
+                'evening_primrose_oil',
+                500,
+                500,
+                'mg',
+                doseRole: 'ul_scoped_component',
+              ),
+            ],
+          );
+
+          expect(
+            alertsForStack([primrose(1000, 3000), hidden], primroseRule),
+            isEmpty,
+          );
+        });
+      });
+
+      // Export contract: the pipeline removes a row from analyzed_ingredients
+      // when it has no UL comparison, but the exposure is real. The row reads
+      // per serving until the pipeline puts the per-day figure on it (253281).
+      test('a filtered exposure reads per day once the row carries it', () {
+        const caffeineRule = StackDoseThresholdRule(
+          conditionId: 'pregnancy',
+          canonicalId: 'caffeine',
+          displayName: 'Caffeine',
+          thresholdValue: 200,
+          thresholdUnit: 'mg',
+          comparator: '>',
+        );
+        final row = labelRow(
+          'ingredientRows[0]',
+          'Caffeine Anhydrous',
+          'caffeine',
+          200,
+          'mg',
+          standardName: 'Caffeine',
+        );
+
+        expect(
+          alertsForStack([
+            blob([row], const []),
+          ], caffeineRule),
+          isEmpty,
+        );
+        expect(
+          alertsForStack([
+            blob([
+              {...row, 'per_day_max': 600},
+            ], const []),
+          ], caffeineRule).single.totalValue,
+          600,
+        );
       });
     });
 
@@ -889,63 +1012,60 @@ void main() {
       expect(result['cats_claw'], (value: 1000.0, unit: 'mg'));
     });
 
-    test(
-      '178910: a hidden folic acid row is not counted under any name',
-      () {
-        final result = extractIngredientDoses(
-          blob(
-            [
-              {
-                ...labelRow(
-                  'ingredientRows[8]',
-                  'Folate',
-                  'vitamin_b9_folate',
-                  680,
-                  'mcg DFE',
-                  standardName: 'Vitamin B9 (Folate)',
-                ),
-                'normalized_key': 'folate',
-              },
-              {
-                ...labelRow(
-                  'ingredientRows[8].nestedRows[0]',
-                  'Folic Acid',
-                  'vitamin_b9_folate',
-                  680,
-                  'mcg DFE',
-                  standardName: 'Vitamin B9 (Folate)',
-                ),
-                'normalized_key': 'folic_acid',
-              },
-            ],
-            [
-              analyzedRow(
+    test('178910: a hidden folic acid row is not counted under any name', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            {
+              ...labelRow(
                 'ingredientRows[8]',
                 'Folate',
                 'vitamin_b9_folate',
                 680,
-                680,
                 'mcg DFE',
                 standardName: 'Vitamin B9 (Folate)',
               ),
-              analyzedRow(
+              'normalized_key': 'folate',
+            },
+            {
+              ...labelRow(
                 'ingredientRows[8].nestedRows[0]',
                 'Folic Acid',
                 'vitamin_b9_folate',
                 680,
-                680,
                 'mcg DFE',
                 standardName: 'Vitamin B9 (Folate)',
-                doseRole: 'ul_scoped_component',
               ),
-            ],
-          ),
-        );
+              'normalized_key': 'folic_acid',
+            },
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[8]',
+              'Folate',
+              'vitamin_b9_folate',
+              680,
+              680,
+              'mcg DFE',
+              standardName: 'Vitamin B9 (Folate)',
+            ),
+            analyzedRow(
+              'ingredientRows[8].nestedRows[0]',
+              'Folic Acid',
+              'vitamin_b9_folate',
+              680,
+              680,
+              'mcg DFE',
+              standardName: 'Vitamin B9 (Folate)',
+              doseRole: 'ul_scoped_component',
+            ),
+          ],
+        ),
+      );
 
-        expect(result['vitamin_b9_folate'], (value: 680.0, unit: 'mcg dfe'));
-        expect(result, isNot(contains('folic_acid')));
-      },
-    );
+      expect(result['vitamin_b9_folate'], (value: 680.0, unit: 'mcg dfe'));
+      expect(result, isNot(contains('folic_acid')));
+    });
 
     test('an ingredients row stamped with dose_role is not counted', () {
       final result = extractIngredientDoses(
