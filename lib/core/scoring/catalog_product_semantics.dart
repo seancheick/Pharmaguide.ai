@@ -153,6 +153,16 @@ bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
   return catalogAssessmentStatus(product) == CatalogAssessmentStatus.complete;
 }
 
+/// Whether a check that found nothing may be reported as "no known concerns".
+///
+/// That sentence claims the data behind it was finished. An unfinished
+/// assessment or an unknown catalog safety status keeps the incomplete state;
+/// concerns the checks did find still show.
+bool catalogProductCanReportNoConcerns(ProductsCoreData? product) =>
+    catalogProductHasCompletePublicScore(product) &&
+    catalogProductSafetyStatus(product!) !=
+        CatalogProductSafetyStatus.notAssessed;
+
 /// Whether the catalog has no usable quality number for this product.
 ///
 /// Narrow by design. A `partial` assessment is deliberately NOT not-scored:
