@@ -326,7 +326,7 @@ void main() {
         expect(result.single.ingredientCanonicalId, 'vitamin_k');
         expect(
           result.single.drugClassIds,
-          contains('class:vitamin_k_antagonists'),
+          contains('vitamin_k_antagonists'),
         );
 
         await coreDb.close();
