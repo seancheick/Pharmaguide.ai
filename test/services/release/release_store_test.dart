@@ -366,6 +366,7 @@ void main() {
 
       expect(result, isA<ReleaseNotActivated>());
       expect(pointerOnDisk()['active'], old.record.id);
+      expect(foldersOnDisk(), [old.record.id], reason: 'never published');
       expect(await old.core.countProducts(), 1);
       await expectPair(
         await boot(store()),
