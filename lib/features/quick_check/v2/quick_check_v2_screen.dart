@@ -84,8 +84,10 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/verdict_badge.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/quick_check/quick_check_logic.dart';
+import 'package:pharmaguide/services/medications/rxnorm_api_service.dart';
 import 'package:pharmaguide/services/medications/rxnorm_providers.dart';
 
 /// One selected Quick Check slot reduced to what the self-verdict guard
@@ -189,7 +191,7 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
     final productFuture = ref
         .read(coreDatabaseProvider)
         .searchProducts(query, limit: 6);
-    final medicationFuture = ref.read(rxNormApiServiceProvider).search(query);
+    final medicationFuture = _searchMedications(query);
 
     final products = await productFuture;
     final medications = await medicationFuture;
@@ -200,6 +202,19 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
         (m) => QuickCheckItem.medication(name: m.name, rxcui: m.rxcui),
       ),
     ];
+  }
+
+  /// The medicine lookup needs the rules and product search doesn't. Without
+  /// them products still come back, and the page's notice says why no medicines
+  /// do.
+  Future<List<RxNormSuggestion>> _searchMedications(String query) {
+    final RxNormApiService service;
+    try {
+      service = ref.read(rxNormApiServiceProvider);
+    } on Object {
+      return Future.value(const []);
+    }
+    return service.search(query);
   }
 
   Future<void> _selectItem1(QuickCheckItem item) async {
@@ -621,6 +636,9 @@ class _QuickCheckV2ScreenState extends ConsumerState<QuickCheckV2Screen> {
                   children: [
                     const _Header(),
                     const SizedBox(height: V2Spacing.space24),
+                    const RulesWithheldNotice(
+                      margin: EdgeInsets.only(bottom: V2Spacing.space24),
+                    ),
                     _ProductSearchSection(
                       eyebrow: 'First product',
                       icon: Icons.looks_one_outlined,

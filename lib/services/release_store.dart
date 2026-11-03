@@ -505,7 +505,10 @@ class ReleaseStore {
     if (!await catalogFile.exists()) {
       throw StateError('Release ${record.id} has no catalog file');
     }
-    final core = CoreDatabase.readOnly(catalogFile);
+    final core = CoreDatabase.readOnly(
+      catalogFile,
+      qualityWithheld: record.qualityWithheld,
+    );
     InteractionDatabase? rules;
     try {
       await core.validateCatalogSnapshot();

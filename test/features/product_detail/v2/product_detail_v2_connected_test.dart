@@ -189,8 +189,9 @@ Future<void> _pumpConnectedScreen(
   _Rules rules = _Rules.available,
   bool realWarnings = false,
   List<SafetyAlert> liveAlerts = const [],
+  bool qualityWithheld = false,
 }) async {
-  final coreDb = CoreDatabase.memory();
+  final coreDb = CoreDatabase.memory(qualityWithheld: qualityWithheld);
   final userDb = UserDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
   await _seedConnectedProduct(
@@ -198,6 +199,7 @@ Future<void> _pumpConnectedScreen(
     blocked: blocked,
     mappedCoverage: mappedCoverage,
   );
+  if (qualityWithheld) await coreDb.withholdQualityScores();
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await coreDb.close();
@@ -548,6 +550,40 @@ void main() {
         expect(find.text('Do not combine with warfarin'), findsOneWidget);
       },
     );
+
+    group('quality scores that are withheld', () {
+      const qualityNotice =
+          'Quality scores are temporarily unavailable. Product information is '
+          'still available.';
+      final blob = <String, dynamic>{
+        'quality_pillars_v4': _connectedV4Pillars(),
+      };
+
+      testWidgets('the page says so and shows no score', (tester) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          qualityWithheld: true,
+        );
+
+        expect(find.text(qualityNotice), findsOneWidget);
+        expect(find.textContaining('88', skipOffstage: false), findsNothing);
+      });
+
+      testWidgets('the same product with its score shows no notice', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+        );
+
+        expect(find.text(qualityNotice), findsNothing);
+        expect(find.text('88/100'), findsOneWidget);
+      });
+    });
 
     group('rules that are withheld or failed to open', () {
       const cleanFit = FitScoreResult(

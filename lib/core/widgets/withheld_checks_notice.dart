@@ -7,6 +7,10 @@ const String kRulesWithheldNotice =
     'Interaction checks are temporarily unavailable. Product information is '
     'still available.';
 
+const String kQualityWithheldNotice =
+    'Quality scores are temporarily unavailable. Product information is still '
+    'available.';
+
 /// Rules that are withheld (ADR-012) or failed to open leave
 /// [interactionDatabaseProvider] failing, and that failure is the one signal.
 /// Watch this on any screen that could otherwise read as a clean result.
@@ -33,6 +37,34 @@ class RulesWithheldNotice extends ConsumerWidget {
       key: const Key('rules-withheld-notice'),
       tone: PGBannerTone.neutral,
       title: kRulesWithheldNotice,
+      margin: margin,
+    );
+  }
+}
+
+/// False when no catalog is open, since there are no scores to withhold then.
+bool qualityScoresWithheld(WidgetRef ref) {
+  try {
+    return ref.watch(coreDatabaseProvider).qualityWithheld;
+  } on Object {
+    return false;
+  }
+}
+
+/// Stays on screen for as long as the catalog in use has its scores withheld.
+/// Shows nothing otherwise.
+class QualityWithheldNotice extends ConsumerWidget {
+  const QualityWithheldNotice({super.key, this.margin = EdgeInsets.zero});
+
+  final EdgeInsetsGeometry margin;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!qualityScoresWithheld(ref)) return const SizedBox.shrink();
+    return PGSeverityBanner(
+      key: const Key('quality-withheld-notice'),
+      tone: PGBannerTone.neutral,
+      title: kQualityWithheldNotice,
       margin: margin,
     );
   }

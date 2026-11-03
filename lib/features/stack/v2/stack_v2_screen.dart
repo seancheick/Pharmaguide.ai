@@ -31,6 +31,7 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
@@ -628,6 +629,8 @@ class _StackTabState extends ConsumerState<_StackTab> {
           // to SizedBox.shrink when there's nothing to surface, so
           // these silently disappear on a clean stack.
           const _RecallAlertSlot(),
+          const RulesWithheldNotice(margin: _stackNoticeMargin),
+          const QualityWithheldNotice(margin: _stackNoticeMargin),
           const _StackSafetyBannerSlot(),
           const _ProfileNudgeSlot(),
           const SizedBox(height: V2Spacing.space24),
@@ -2302,6 +2305,13 @@ class _RecallCheckUnfinishedBanner extends StatelessWidget {
   }
 }
 
+const EdgeInsets _stackNoticeMargin = EdgeInsets.fromLTRB(
+  V2Spacing.space24,
+  V2Spacing.space12,
+  V2Spacing.space24,
+  0,
+);
+
 class _StackSafetyBannerSlot extends ConsumerWidget {
   const _StackSafetyBannerSlot();
 
@@ -2329,13 +2339,16 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       // Never vanish silently on error — hedge (neutral) so a failed safety
-      // pass does not read as "no interactions".
-      error: (_, __) => const _SafetyUnavailableBanner(
-        title: "Couldn't check your stack",
-        body:
-            "We couldn't finish checking your stack for interactions or "
-            'timing guidance. Please reopen PharmaGuide to try again.',
-      ),
+      // pass does not read as "no interactions". Reopening can't bring withheld
+      // rules back, so their own notice stands in for this one.
+      error: (_, __) => interactionRulesUnavailable(ref)
+          ? const SizedBox.shrink()
+          : const _SafetyUnavailableBanner(
+              title: "Couldn't check your stack",
+              body:
+                  "We couldn't finish checking your stack for interactions or "
+                  'timing guidance. Please reopen PharmaGuide to try again.',
+            ),
     );
   }
 }

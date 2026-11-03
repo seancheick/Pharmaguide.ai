@@ -834,6 +834,10 @@ class _ProductDetailV2ConnectedState
                       if (_product != null)
                         LiveSafetyAlertSection(product: _product!),
 
+                      const QualityWithheldNotice(
+                        margin: EdgeInsets.only(bottom: V2Spacing.space12),
+                      ),
+
                       // ---- 2. ProfileRelevance (personalized) ----------
                       // A blocked product hides personal results, so a
                       // failed personal check has nothing to qualify.

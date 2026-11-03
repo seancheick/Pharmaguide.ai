@@ -68,6 +68,7 @@ import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
 import 'package:pharmaguide/core/widgets/product_image.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/services/recent_searches_service.dart';
@@ -389,6 +390,14 @@ class _SearchV2ScreenState extends ConsumerState<SearchV2Screen> {
                   context.go(Routes.home);
                 }
               },
+            ),
+            const QualityWithheldNotice(
+              margin: EdgeInsets.fromLTRB(
+                V2Spacing.space24,
+                0,
+                V2Spacing.space24,
+                V2Spacing.space8,
+              ),
             ),
             if (_showFilterChips) ...[
               const SizedBox(height: V2Spacing.space8),
