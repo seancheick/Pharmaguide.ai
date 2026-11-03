@@ -678,6 +678,13 @@ void main() {
     await (coreDb.update(coreDb.productsCore)
           ..where((t) => t.dsldId.equals('MAPPED')))
         .write(const ProductsCoreCompanion(mappedCoverage: Value(1.0)));
+    await (coreDb.update(
+      coreDb.productsCore,
+    )..where((t) => t.dsldId.equals('LOW'))).write(
+      const ProductsCoreCompanion(
+        scoreUnavailableReason: Value('blocked_by_completeness_gate'),
+      ),
+    );
     for (final (id, name) in [('LOW', 'Fructose'), ('MAPPED', 'Magnesium')]) {
       await userDb.addToStack(
         UserStacksLocalCompanion.insert(
@@ -703,7 +710,11 @@ void main() {
 
     final report = await container.read(stackSafetyReportProvider.future);
 
-    expect(report.limitedDataProducts, ['Fructose']);
+    expect(report.limitedDataProducts.map((p) => p.name), ['Fructose']);
+    expect(
+      report.limitedDataProducts.single.scoreUnavailableReason,
+      'blocked_by_completeness_gate',
+    );
     expect(report.coverageIncomplete, isTrue);
   });
 
