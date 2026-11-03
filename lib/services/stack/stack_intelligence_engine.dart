@@ -194,8 +194,17 @@ class StackIntelligenceEngine {
     final monitorCount =
         countBy(Severity.monitor) + doseCountBy(Severity.monitor);
     final hasContraindicatedInteraction = contraindicatedCount > 0;
+    // Recall/ban signals still drive the tier, but are not interactions in
+    // consumer summaries. Their canonical adapter maps to avoid or caution.
+    final nonInteractionAlertCount = regulatorySafetyAlerts
+        .where((match) => match.alert.interaction == null)
+        .length;
     final interactionCount =
-        contraindicatedCount + avoidCount + cautionCount + monitorCount;
+        contraindicatedCount +
+        avoidCount +
+        cautionCount +
+        monitorCount -
+        nonInteractionAlertCount;
 
     final nutrientWarningCount =
         safetyReport.nutrientStatuses.where((n) => n.shouldWarn).length +

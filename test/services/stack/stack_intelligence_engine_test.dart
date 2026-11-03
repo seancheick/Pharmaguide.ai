@@ -204,6 +204,39 @@ void main() {
       }
     });
 
+    test('recall and ban summaries do not call them interactions', () async {
+      final feed = jsonDecode(
+        File(
+          'test/fixtures/safety_alerts/interaction_rule_feed.json',
+        ).readAsStringSync(),
+      );
+      for (final row
+          in (feed['alerts'] as List).cast<Map<String, dynamic>>().where(
+            (r) => r['event_type'] != 'interaction_rule',
+          )) {
+        for (final disposition in ['block', 'review']) {
+          final alert = SafetyAlert.fromJson({
+            ...row,
+            'consumer_disposition': disposition,
+          });
+          final result = await snapshot(
+            matches: [(alert: alert, dsldId: '999')],
+          );
+          expect(result.reviewSignals, hasLength(1));
+          expect(result.intelligence.interactionCount, 0);
+          expect(
+            result.intelligence.tier,
+            disposition == 'block' ? StackTier.concerning : StackTier.decent,
+          );
+          expect(
+            describeStackSummary(result.intelligence),
+            isNot(contains('interaction')),
+          );
+          expect(describeStackSummary(result.intelligence), contains('review'));
+        }
+      }
+    });
+
     test(
       'an authored alert reaches Home and Stack through the shared snapshot',
       () async {
