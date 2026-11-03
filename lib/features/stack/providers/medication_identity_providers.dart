@@ -54,7 +54,6 @@ final localMedicationIdentityProvider = FutureProvider<Set<String>>((
       ?snapshot.rxcui,
       ?snapshot.genericRxcui,
       ...snapshot.ingredientRxcuis,
-      ...snapshot.drugClassIds,
     ]);
     try {
       final resolution =
@@ -66,11 +65,14 @@ final localMedicationIdentityProvider = FutureProvider<Set<String>>((
             ingredientRxcuis: snapshot.ingredientRxcuis,
             runtimeClassIds: snapshot.drugClassIds,
           );
+      // Not the row's saved classes: the bridge has dropped any the data excludes.
       ids
+        ..addAll(resolution.rxcuis)
         ..addAll(resolution.mergedInteractionClassIds)
         ..addAll(resolution.profileGateClassIds);
     } on Object catch (e, st) {
       // Same reason: the ids saved on the row remain usable.
+      ids.addAll(snapshot.drugClassIds);
       CrashReportingService().recordError(
         e,
         st,
