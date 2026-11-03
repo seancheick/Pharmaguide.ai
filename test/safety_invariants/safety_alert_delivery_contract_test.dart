@@ -114,4 +114,20 @@ void main() {
     expect(plist, contains('<string>fetch</string>'));
     expect(plist, contains('<string>remote-notification</string>'));
   });
+
+  test('the feed refreshes for the life of the app, whatever push does', () {
+    final main = File('lib/main.dart').readAsStringSync();
+    expect(main, contains('ref.watch(safetyAlertRefreshProvider)'));
+  });
+
+  test('no medication reaches the code that talks to the feed', () {
+    // Interaction rules match on the device: the repository fetches the whole
+    // feed for everyone and is never told who is taking what.
+    final repository = File(
+      'lib/services/safety_alerts/safety_alert_repository.dart',
+    ).readAsStringSync().toLowerCase();
+    for (final private in ['medication', 'rxcui', 'drug_class', 'drugclass', 'profile', 'stack']) {
+      expect(repository, isNot(contains(private)), reason: private);
+    }
+  });
 }

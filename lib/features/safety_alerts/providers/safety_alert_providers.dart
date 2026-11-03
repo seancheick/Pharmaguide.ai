@@ -1,11 +1,13 @@
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
     as canonical_ids;
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
+import 'package:pharmaguide/services/connectivity_service.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart';
 
@@ -102,6 +104,36 @@ List<SafetyAlert> _matching(
       )
       .toList(growable: false);
 }
+
+/// Re-fetches the verified feed and everything computed from it.
+void refreshSafetyAlerts(Ref ref) {
+  ref.invalidate(safetyAlertMatchesProvider);
+  ref.invalidate(productSafetyAlertsProvider);
+}
+
+/// Keeps the feed current on launch, on resume and on reconnect. Push is only a
+/// supplement to this, so none of it may depend on Firebase being configured.
+final safetyAlertRefreshProvider = Provider<void>((ref) {
+  // Listened to directly so the launch fetch doesn't wait on, or fail with, the
+  // stack analysis that also consumes it. Scans read the copy this caches.
+  ref.listen(safetyAlertMatchesProvider, (_, _) {});
+
+  final lifecycle = AppLifecycleListener(onResume: () => refreshSafetyAlerts(ref));
+  ref.onDispose(lifecycle.dispose);
+
+  var wasOffline = false;
+  ref.listen(connectionStatusProvider, (_, next) {
+    switch (next.value) {
+      case ConnectionStatus.offline:
+        wasOffline = true;
+      case ConnectionStatus.online when wasOffline:
+        wasOffline = false;
+        refreshSafetyAlerts(ref);
+      case ConnectionStatus.online || ConnectionStatus.syncing || null:
+        break;
+    }
+  });
+});
 
 Set<String> _ingredientIds(String? raw) {
   if (raw == null || raw.isEmpty) return const {};
