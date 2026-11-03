@@ -1342,6 +1342,8 @@ void main() {
         (await restored.core.findById(kFixtureProduct))!.qualityScoreV4100,
         88,
       );
+      // Nothing else is left to return to, and the file is not its own backup.
+      expect(pointerOnDisk()['previous'], isNull);
     });
 
     test('a release with removed scores is never the source of a reused '

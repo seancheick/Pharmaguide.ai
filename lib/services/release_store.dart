@@ -835,7 +835,9 @@ class ReleaseStore {
         !pointer.blockedCatalog.contains(active.catalogVersion) &&
         previous?.catalogVersion == active.catalogVersion &&
         previous?.qualityWithheld == false) {
-      await _writePointer(pointer.copyWith(active: previous!.id));
+      await _writePointer(
+        pointer.copyWith(active: previous!.id, previous: () => null),
+      );
       return;
     }
     if (!_isBlocked(active)) return;
