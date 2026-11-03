@@ -15,7 +15,7 @@
 // 2. `assets/db/interaction_db_manifest.json` is declared, parseable,
 //    and has every required key the import gate guarantees.
 // 3. The bundled SQLite opens through the production
-//    `openInteractionDatabase` helper, hitting the same
+//    release store, hitting the same
 //    `ensureInteractionDatabaseAvailable` materialization path the app
 //    uses at boot.
 // 4. The end-to-end materialize-and-open path writes the complete bundled
@@ -38,7 +38,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:pharmaguide/data/database/interaction_database.dart';
-import 'package:pharmaguide/data/providers/database_providers.dart';
+import 'package:pharmaguide/services/release_store.dart';
+
+import '../services/release/release_fixtures.dart';
 
 // 16 KiB — well above the 4-byte test fixture and far below the real
 // pipeline output. The bundle ships ~half a MiB today; this lower bound
@@ -63,6 +65,48 @@ const _requiredManifestKeys = <String>[
   'pipeline_version',
   'min_app_version',
 ];
+
+/// The real bundled rules, opened the way the app opens them, beside a fixture
+/// catalog so this gate doesn't need the catalog's Git LFS object.
+Future<
+  ({
+    ReleaseGeneration generation,
+    Directory documents,
+    Future<void> Function() dispose,
+  })
+>
+_openThroughStore() async {
+  final workspace = await Directory.systemTemp.createTemp('rg-idb-store');
+  final catalogPath = p.join(workspace.path, 'catalog.db');
+  await buildCatalog(catalogPath, version: '2026.01.01.000000');
+  final manifest =
+      json.decode(
+            await rootBundle.loadString(
+              'assets/db/interaction_db_manifest.json',
+            ),
+          )
+          as Map<String, dynamic>;
+  final rules = await rootBundle.load('assets/db/interaction_db.sqlite');
+  final documents = Directory(p.join(workspace.path, 'documents'))
+    ..createSync();
+  final generation = await ReleaseStore(
+    documents: documents,
+    bundle: FakeReleaseBundle(
+      catalog: File(catalogPath).readAsBytesSync(),
+      rules: rules.buffer.asUint8List(rules.offsetInBytes, rules.lengthInBytes),
+      catalogVersion: '2026.01.01.000000',
+      rulesVersion: manifest['interaction_db_version'] as String,
+    ),
+  ).open();
+  return (
+    generation: generation,
+    documents: documents,
+    dispose: () async {
+      await generation.close();
+      await workspace.delete(recursive: true);
+    },
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -171,37 +215,11 @@ void main() {
       );
     });
 
-    test('openInteractionDatabase materializes the complete bundle and opens '
-        'it', () async {
-      // Use a fresh temp dir so the test always exercises the cold
-      // path (writeAsBytes), not the cached path.
-      final tmpDir = await Directory.systemTemp.createTemp('rg-idb-boot');
-      addTearDown(() => tmpDir.delete(recursive: true));
-
-      final bundled = await rootBundle.load('assets/db/interaction_db.sqlite');
-      final db = await openInteractionDatabase(documentsDirectory: tmpDir);
-
-      try {
-        // Confirm the materialized file is on disk where the helper
-        // promised it would be — guards against a future refactor that
-        // accidentally leaks an in-memory or truncated DB.
-        final materialized = File(p.join(tmpDir.path, 'interaction_db.sqlite'));
-        expect(await materialized.exists(), isTrue);
-        expect(
-          await materialized.length(),
-          greaterThanOrEqualTo(bundled.lengthInBytes),
-          reason:
-              'The local DB must contain the complete bundled asset. A '
-              'schema-1 compatibility copy may grow when the app creates '
-              'the empty schema-2 warning-rule table.',
-        );
-        final marker =
-            json.decode(
-                  await File(
-                    '${materialized.path}.bundle_marker.json',
-                  ).readAsString(),
-                )
-                as Map<String, dynamic>;
+    test(
+      'the store materializes the complete bundled rules and opens them',
+      () async {
+        final fixture = await _openThroughStore();
+        addTearDown(fixture.dispose);
         final manifest =
             json.decode(
                   await rootBundle.loadString(
@@ -209,23 +227,41 @@ void main() {
                   ),
                 )
                 as Map<String, dynamic>;
-        expect(
-          marker['checksum_sha256'],
-          (manifest['checksum'] as String).replaceFirst('sha256:', ''),
-          reason: 'the local copy marker must fingerprint the bundled bytes',
+        final bundled = await rootBundle.load(
+          'assets/db/interaction_db.sqlite',
         );
-      } finally {
-        await db.close();
-      }
-    });
+        final record = fixture.generation.record;
+
+        expect(fixture.generation.rules, isNotNull);
+        expect(
+          await File(
+            p.join(
+              fixture.documents.path,
+              'releases',
+              record.id,
+              'rules.sqlite',
+            ),
+          ).length(),
+          greaterThanOrEqualTo(bundled.lengthInBytes),
+          reason:
+              'The release must contain the complete bundled asset. A schema-1 '
+              'compatibility copy may grow when the app creates the empty '
+              'schema-2 warning-rule table.',
+        );
+        expect(
+          record.rulesSha256,
+          (manifest['checksum'] as String).replaceFirst('sha256:', ''),
+          reason: 'the release record must fingerprint the bundled bytes',
+        );
+      },
+    );
 
     test(
       'embedded interaction_db_metadata agrees with the bundled JSON manifest',
       () async {
-        final tmpDir = await Directory.systemTemp.createTemp('rg-idb-meta');
-        addTearDown(() => tmpDir.delete(recursive: true));
-
-        final db = await openInteractionDatabase(documentsDirectory: tmpDir);
+        final fixture = await _openThroughStore();
+        addTearDown(fixture.dispose);
+        final db = fixture.generation.rules!;
 
         try {
           final rawJson = await rootBundle.loadString(
@@ -311,7 +347,7 @@ void main() {
                 'Warfarin RxCUI should connect to Vitamin K research evidence.',
           );
         } finally {
-          await db.close();
+          // The fixture closes the release.
         }
       },
     );
