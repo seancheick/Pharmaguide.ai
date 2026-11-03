@@ -219,6 +219,13 @@ class PharmaGuideBootstrap extends StatefulWidget {
   /// Attached in `_runApp` before any setup; released once the router mounts.
   final LaunchLinkBuffer launchLinks;
 
+  /// Test seams: a store over a temp folder, and a small app in place of the
+  /// real one, so a test can drive the real update step.
+  @visibleForTesting
+  final ReleaseStore? releaseStoreForTesting;
+  @visibleForTesting
+  final Widget? appForTesting;
+
   const PharmaGuideBootstrap({
     super.key,
     required this.accountGuard,
@@ -226,6 +233,8 @@ class PharmaGuideBootstrap extends StatefulWidget {
     required this.hasSeenOnboarding,
     required this.appPreferencesController,
     required this.launchLinks,
+    this.releaseStoreForTesting,
+    this.appForTesting,
   });
 
   @override
@@ -314,9 +323,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   Future<void> _bootstrapCatalog() async {
     ReleaseGeneration? initial;
     try {
-      final store = ReleaseStore(
-        documents: await getApplicationDocumentsDirectory(),
-      );
+      final store =
+          widget.releaseStoreForTesting ??
+          ReleaseStore(documents: await getApplicationDocumentsDirectory());
       _store = store;
       _updater = CatalogUpdaterService.production(
         store: store,
@@ -385,6 +394,21 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     await _refreshCatalogIfNeeded(manual: true);
   }
 
+  /// The Settings action: the same step the timer and the retry button run,
+  /// so there is one way to update. Its line replaces the routine toast.
+  Future<UpdateCheckOutcome> _checkForUpdates() async {
+    try {
+      return await _refreshCatalogIfNeeded(manual: true);
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'catalog_updater:settings_check',
+      );
+      return UpdateCheckOutcome.couldNotCheck;
+    }
+  }
+
   void _scheduleCatalogRefresh({Duration? initialDelay}) {
     _catalogRefreshTimer?.cancel();
     if (!widget.supabaseReady) return;
@@ -413,18 +437,23 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     });
   }
 
-  Future<void> _refreshCatalogIfNeeded({bool manual = false}) async {
+  /// Stays [UpdateCheckOutcome.couldNotCheck] unless this run proved otherwise,
+  /// which includes a run that couldn't start because another is in flight.
+  Future<UpdateCheckOutcome> _refreshCatalogIfNeeded({
+    bool manual = false,
+  }) async {
+    var outcome = UpdateCheckOutcome.couldNotCheck;
     final store = _store;
     final updater = _updater;
     if (!widget.supabaseReady ||
         _syncInFlight ||
         store == null ||
         updater == null) {
-      return;
+      return outcome;
     }
     if (_accountSwitching) {
       _scheduleCatalogRefresh();
-      return;
+      return outcome;
     }
 
     _syncInFlight = true;
@@ -445,6 +474,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       switch (check) {
         case CatalogUpToDate():
           _jitterApplied = false;
+          outcome = UpdateCheckOutcome.upToDate;
         case CatalogUnreachable(:final error):
           // error == null means the probe found no row (legit first-push
           // state), which changes nothing on screen.
@@ -471,22 +501,26 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
               'Release update found; jittering download by '
               '$nextDelayOverride to de-synchronize the fleet',
             );
-            return;
+            return outcome;
           }
           _jitterApplied = false;
-          await _stageAndActivate(store, updater, check, installed);
+          if (await _stageAndActivate(store, updater, check, installed)) {
+            outcome = UpdateCheckOutcome.updateReady;
+          }
         case CatalogStaged() || CatalogStageFailed():
           // Only stage() returns these.
           break;
       }
       await _settleBlockedRelease(store);
+      return outcome;
     } finally {
       _syncInFlight = false;
       _scheduleCatalogRefresh(initialDelay: nextDelayOverride);
     }
   }
 
-  Future<void> _stageAndActivate(
+  /// Returns true when the phone moved onto the new release.
+  Future<bool> _stageAndActivate(
     ReleaseStore store,
     CatalogUpdaterService updater,
     CatalogUpdateFound found,
@@ -510,6 +544,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           case ReleaseActivated(:final generation):
             if (await _adoptRelease(generation)) {
               _showCatalogUpdatedToast(generation.record.catalogVersion);
+              return true;
             }
           case ReleaseNotActivated(:final reason):
             // The phone stays on its release. Nothing it has open moved.
@@ -524,6 +559,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       default:
         break;
     }
+    return false;
   }
 
   /// A verified manifest named a version this phone uses, and no replacement
@@ -647,6 +683,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
         userDatabaseProvider.overrideWithValue(userDb),
         activeAccountProvider.overrideWithValue(widget.accountGuard.account),
         accountSwitchGuardProvider.overrideWithValue(widget.accountGuard),
+        checkForUpdatesProvider.overrideWithValue(_checkForUpdates),
         if (_generation case final generation?) ...[
           coreDatabaseProvider.overrideWithValue(generation.core),
           if (generation.rules case final rules?)
@@ -659,6 +696,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       // subscriptions survive disposal of this Consumer.
       child: Consumer(
         builder: (context, ref, child) {
+          if (widget.appForTesting case final app?) return app;
           ref.watch(stackSyncListenerProvider);
           // Keeps the stack's product detail ready for offline checks.
           ref.watch(stackDetailReadyProvider);

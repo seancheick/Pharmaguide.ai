@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -224,6 +226,51 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('3'), findsOneWidget);
+  });
+
+  testWidgets('update check tile is absent with no update path', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(const MaterialApp(home: SettingsV2Screen()));
+
+    expect(find.text('Offline mode'), findsOneWidget);
+    expect(find.text('Check for updates'), findsNothing);
+  });
+
+  testWidgets('update check tile takes no second tap while one runs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 6000);
+    addTearDown(tester.view.resetPhysicalSize);
+    final running = Completer<void>();
+    var checks = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsV2Screen(
+          onCheckForUpdates: () {
+            checks++;
+            return running.future;
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('Updates also arrive on their own'), findsOneWidget);
+    await tester.tap(find.text('Check for updates'));
+    await tester.pump();
+    expect(find.text('Checking…'), findsOneWidget);
+    await tester.tap(find.text('Check for updates'));
+    await tester.pump();
+    expect(checks, 1);
+
+    running.complete();
+    await tester.pump();
+    expect(find.text('Updates also arrive on their own'), findsOneWidget);
+    await tester.tap(find.text('Check for updates'));
+    await tester.pump();
+    expect(checks, 2);
   });
 
   testWidgets('connected settings reacts when auth state becomes guest', (

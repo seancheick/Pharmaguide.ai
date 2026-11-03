@@ -52,6 +52,9 @@ class SettingsV2Screen extends StatelessWidget {
   final VoidCallback? onOpenThemeSettings;
   final VoidCallback? onOpenNotificationSettings;
 
+  /// Runs the update check and says how it went. No tile when null.
+  final Future<void> Function()? onCheckForUpdates;
+
   const SettingsV2Screen({
     super.key,
     this.nickname = 'Sean',
@@ -72,6 +75,7 @@ class SettingsV2Screen extends StatelessWidget {
     this.notificationCaption = 'Not enabled',
     this.onOpenThemeSettings,
     this.onOpenNotificationSettings,
+    this.onCheckForUpdates,
   }) : assert(pendingProductSubmissionCount >= 0);
 
   @override
@@ -246,6 +250,8 @@ class SettingsV2Screen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onCheckForUpdates case final check?)
+                  _CheckForUpdatesTile(onCheck: check),
               ],
             ),
             const SizedBox(height: V2Spacing.space24),
@@ -402,6 +408,45 @@ class SettingsV2Screen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Takes no second tap while a check runs, because a download can take a while.
+class _CheckForUpdatesTile extends StatefulWidget {
+  const _CheckForUpdatesTile({required this.onCheck});
+
+  final Future<void> Function() onCheck;
+
+  @override
+  State<_CheckForUpdatesTile> createState() => _CheckForUpdatesTileState();
+}
+
+class _CheckForUpdatesTileState extends State<_CheckForUpdatesTile> {
+  bool _checking = false;
+
+  Future<void> _check() async {
+    setState(() => _checking = true);
+    try {
+      await widget.onCheck();
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PGSettingsTile(
+      icon: Icons.refresh_rounded,
+      title: 'Check for updates',
+      caption: _checking ? 'Checking…' : 'Updates also arrive on their own',
+      trailing: _checking
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : null,
+      onTap: _checking ? null : _check,
     );
   }
 }

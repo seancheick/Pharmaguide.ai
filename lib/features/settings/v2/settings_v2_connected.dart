@@ -22,8 +22,18 @@ import 'package:pharmaguide/features/stack/widgets/clinician_report_preview_scre
 import 'package:pharmaguide/services/auth/account_deletion_service.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
+import 'package:pharmaguide/services/catalog_updater_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// The one line someone reads after asking for an update check. It must not
+/// imply that what they have is out of date.
+String updateCheckLine(UpdateCheckOutcome outcome) => switch (outcome) {
+  UpdateCheckOutcome.upToDate => 'You’re up to date.',
+  UpdateCheckOutcome.updateReady => 'An update is ready and now in use.',
+  UpdateCheckOutcome.couldNotCheck =>
+    'Couldn’t check right now. Nothing on this device has changed.',
+};
 
 /// Production-wired settings screen. Reads:
 ///   - `profileProvider`: nickname for the avatar hero
@@ -113,6 +123,17 @@ class SettingsV2Connected extends ConsumerWidget {
         context: context,
         builder: (_) => const NotificationSettingsSheet(),
       ),
+      onCheckForUpdates: switch (ref.watch(checkForUpdatesProvider)) {
+        final check? => () async {
+          // The global messenger: an update rebuilds the app under this tile.
+          final outcome = await check();
+          PGToast.showWith(
+            scaffoldMessengerKey.currentState,
+            updateCheckLine(outcome),
+          );
+        },
+        null => null,
+      },
       onSignOut: () => _signOutWithChoice(context, ref),
       onDeleteAccount: signedIn ? () => _openDeleteAccount(context, ref) : null,
     );

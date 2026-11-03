@@ -99,7 +99,7 @@ class PGSettingsTile extends StatelessWidget {
 class PGSettingsGroup extends StatelessWidget {
   /// Optional mono caps label rendered above the group.
   final String? eyebrow;
-  final List<PGSettingsTile> children;
+  final List<Widget> children;
 
   const PGSettingsGroup({super.key, this.eyebrow, required this.children});
 

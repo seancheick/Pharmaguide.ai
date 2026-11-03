@@ -77,6 +77,10 @@ class InstalledRelease {
   final Set<String> refused;
 }
 
+/// What someone who asked for an update check in Settings is told. Anything
+/// short of a proven answer is [couldNotCheck], never [upToDate].
+enum UpdateCheckOutcome { upToDate, updateReady, couldNotCheck }
+
 /// Outcome of a [CatalogUpdaterService.checkForUpdate] call.
 sealed class CatalogCheckResult {
   const CatalogCheckResult();
