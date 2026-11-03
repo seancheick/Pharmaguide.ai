@@ -196,11 +196,18 @@ List<InteractionWarning> applyEmittedBeneficialGate(
 /// + 'Magnesium (as citrate)') still sum — both names strip to the
 /// elemental name, so neither is a compound duplicate.
 ///
-/// **Mirrored-row dedup (2026-06-12):** `_doseRows` concatenates
-/// `ingredients` and `rda_ul_data.analyzed_ingredients`, and live blobs
-/// (315678) carry the SAME rows in both arrays. Rows whose canonical
-/// name + value + normalized unit match an already-seen row are treated
-/// as the same label row and counted once.
+/// **One label row, one exposure (2026-11-03):** `ingredients` rows are per
+/// serving and `rda_ul_data.analyzed_ingredients` rows are per day, and both
+/// carry the label row's `raw_source_path` (see [_doseRows]). An analyzed row
+/// replaces its `ingredients` mirror. When [isUsableDoseRow] then drops it, the
+/// dose is gone under every name: no `ingredients` row carries `dose_role`, so
+/// the mirror can't be left to count it. The mirror stays only if the analyzed
+/// row has no dose to read, or carries a skip. A row nested
+/// above or below an analyzed row is the same dose seen as a form or a source
+/// mass, so it no longer adds to the keys that analyzed row reports (328600:
+/// 2000 mg Magtein under 144 mg Magnesium); it still counts toward its own
+/// name. Only a path makes two rows one row. Rows with no path, from older
+/// catalogs, fall back to matching canonical name + value + normalized unit.
 Map<String, IngredientDose> extractIngredientDoses(
   Map<String, dynamic>? detailBlob,
 ) {
@@ -210,8 +217,8 @@ Map<String, IngredientDose> extractIngredientDoses(
 
   // Pass 1 — parse rows, dropping unusable ones and mirrored duplicates.
   final parsed = <_ParsedDoseRow>[];
-  final seenSignatures = <String>{};
-  for (final entry in _doseRows(detailBlob)) {
+  final seenSignatures = <String, bool>{};
+  for (final (row: entry, :keys, :names) in _doseRows(detailBlob)) {
     // Honor the SAME usability filter the stack summers enforce
     // ([isUsableDoseRow]): drop proprietary-blend containers, parent-total
     // roll-ups, inactive rows, and label-descriptor fragments. Previously
@@ -220,7 +227,6 @@ Map<String, IngredientDose> extractIngredientDoses(
     // dose-dependent rule over (or fail to suppress below) its threshold.
     if (!isUsableDoseRow(entry)) continue;
 
-    final keys = readDoseNameKeys(entry);
     if (keys.isEmpty) continue;
 
     final primaryName = _primaryDoseName(entry);
@@ -229,7 +235,7 @@ Map<String, IngredientDose> extractIngredientDoses(
       parsed.add(
         _ParsedDoseRow(
           keys: keys,
-          primaryName: primaryName,
+          names: names,
           skip: true,
           value: 0,
           unit: '',
@@ -246,18 +252,23 @@ Map<String, IngredientDose> extractIngredientDoses(
     final unit = readDoseUnit(entry);
     if (value == null || unit.isEmpty) continue;
 
-    // Mirrored-row dedup: the same label row shipped in both
-    // `ingredients` and `rda_ul_data.analyzed_ingredients`.
+    // Older catalogs have no row path to join on, so a mirror can only be
+    // recognized by its value. Rows with a path are distinct however equal they
+    // look: [_doseRows] already joined the mirrors, and only the pipeline can
+    // say a repeated row is a duplicate (206322: colostrum listed three times).
     if (primaryName != null) {
       final signature =
           '${canonicalizeIngredientName(primaryName)}|$value|$unit';
-      if (!seenSignatures.add(signature)) continue;
+      final hasNoPath = _labelRowPath(entry) == null;
+      final seenNoPath = seenSignatures[signature];
+      if (seenNoPath != null && (hasNoPath || seenNoPath)) continue;
+      seenSignatures[signature] = hasNoPath;
     }
 
     parsed.add(
       _ParsedDoseRow(
         keys: keys,
-        primaryName: primaryName,
+        names: names,
         skip: false,
         value: value,
         unit: unit,
@@ -269,11 +280,9 @@ Map<String, IngredientDose> extractIngredientDoses(
   // row names the bare elemental nutrient for that key.
   final elementalKeys = <String>{};
   for (final row in parsed) {
-    if (row.skip || row.primaryName == null) continue;
+    if (row.skip) continue;
     for (final key in row.keys) {
-      if (isElementalIngredientName(row.primaryName!, key)) {
-        elementalKeys.add(key);
-      }
+      if (row.isElemental(key)) elementalKeys.add(key);
     }
   }
 
@@ -295,8 +304,8 @@ Map<String, IngredientDose> extractIngredientDoses(
       // key. Skip the compound contribution (it still counts toward
       // its own compound-name key).
       if (elementalKeys.contains(key) &&
-          row.primaryName != null &&
-          !isElementalIngredientName(row.primaryName!, key)) {
+          row.names.isNotEmpty &&
+          !row.isElemental(key)) {
         continue;
       }
 
@@ -327,17 +336,23 @@ Map<String, IngredientDose> extractIngredientDoses(
 class _ParsedDoseRow {
   const _ParsedDoseRow({
     required this.keys,
-    required this.primaryName,
+    required this.names,
     required this.skip,
     required this.value,
     required this.unit,
   });
 
   final Set<String> keys;
-  final String? primaryName;
+
+  /// The row's display names; a mirrored row has its mirror's as well, because
+  /// the two arrays can spell one label row differently (Vitamin K / Vitamin K1).
+  final Set<String> names;
   final bool skip;
   final double value;
   final String unit;
+
+  bool isElemental(String key) =>
+      names.any((name) => isElementalIngredientName(name, key));
 }
 
 /// The label-facing display name of a dose row — used for elemental
@@ -352,29 +367,107 @@ String? _primaryDoseName(Map<String, dynamic> entry) {
   return null;
 }
 
-List<Map<String, dynamic>> _doseRows(Map<String, dynamic> detailBlob) {
-  final rows = <Map<String, dynamic>>[];
+typedef _DoseRow = ({
+  Map<String, dynamic> row,
+  Set<String> keys,
+  Set<String> names,
+});
 
-  final ingredients = detailBlob['ingredients'];
-  if (ingredients is List) {
-    rows.addAll(
-      ingredients.whereType<Map<Object?, Object?>>().map(
-        (entry) => Map<String, dynamic>.from(entry),
-      ),
-    );
+_DoseRow _doseRow(
+  Map<String, dynamic> row,
+  Set<String> keys, {
+  Map<String, dynamic>? mirror,
+}) => (
+  row: row,
+  keys: keys,
+  names: {
+    ?_primaryDoseName(row),
+    if (mirror != null) ?_primaryDoseName(mirror),
+  },
+);
+
+/// The blob's dose rows, each with the name keys it may add to.
+List<_DoseRow> _doseRows(Map<String, dynamic> detailBlob) {
+  final rdaUlData = detailBlob['rda_ul_data'];
+  final analyzed = _rowMaps(
+    rdaUlData is Map ? rdaUlData['analyzed_ingredients'] : null,
+  );
+  final analyzedByPath = <String, Map<String, dynamic>>{};
+  final owners = <({String path, Set<String> keys})>[];
+  for (final row in analyzed) {
+    final path = _labelRowPath(row);
+    if (path == null) continue;
+    analyzedByPath[path] = row;
+    // A row the total can't come from can't take the total from its branch.
+    if (isUsableDoseRow(row) &&
+        (readDoseAmount(row) ?? 0) > 0 &&
+        readDoseUnit(row).isNotEmpty) {
+      owners.add((path: path, keys: readDoseNameKeys(row)));
+    }
   }
 
-  final rdaUlData = detailBlob['rda_ul_data'];
-  if (rdaUlData is Map) {
-    final analyzed = rdaUlData['analyzed_ingredients'];
-    if (analyzed is List) {
-      rows.addAll(
-        analyzed.whereType<Map<Object?, Object?>>().map(
-          (entry) => Map<String, dynamic>.from(entry),
-        ),
-      );
+  final rows = <_DoseRow>[];
+  final mirrors = <String, Map<String, dynamic>>{};
+  for (final row in _rowMaps(detailBlob['ingredients'])) {
+    // The pipeline's skip blocks every name it covers, on whichever copy.
+    if (row['skip_ul_check'] == true) {
+      rows.add(_doseRow(row, readDoseNameKeys(row)));
+      continue;
     }
+    final path = _labelRowPath(row);
+    final twin = analyzedByPath[path];
+    if (twin == null || _lostItsDose(twin)) {
+      rows.add(_doseRow(row, _keysNotOwnedOnBranch(row, owners)));
+    } else if (isUsableDoseRow(twin)) {
+      mirrors[path!] = row;
+    }
+  }
+  // The mirror's names carry over: an analyzed row can spell fewer of them.
+  for (final row in analyzed) {
+    final mirror = mirrors[_labelRowPath(row)];
+    rows.add(
+      _doseRow(row, {
+        ...readDoseNameKeys(row),
+        if (mirror != null) ...readDoseNameKeys(mirror),
+      }, mirror: mirror),
+    );
   }
 
   return rows;
 }
+
+/// A usable analyzed row with no amount or unit to read, and no pipeline reason
+/// for it: a skip reads no amount by design, and an unresolved unit is the
+/// pipeline saying the printed quantity can't be read.
+bool _lostItsDose(Map<String, dynamic> row) =>
+    isUsableDoseRow(row) &&
+    row['skip_ul_check'] != true &&
+    !hasUnresolvedDoseUnit(row) &&
+    (readDoseAmount(row) == null || readDoseUnit(row).isEmpty);
+
+Set<String> _keysNotOwnedOnBranch(
+  Map<String, dynamic> row,
+  List<({String path, Set<String> keys})> owners,
+) {
+  final keys = readDoseNameKeys(row);
+  final path = _labelRowPath(row);
+  if (path == null) return keys;
+  for (final owner in owners) {
+    if (path.startsWith('${owner.path}.') || owner.path.startsWith('$path.')) {
+      keys.removeAll(owner.keys);
+    }
+  }
+  return keys;
+}
+
+String? _labelRowPath(Map<String, dynamic> row) {
+  final path = row['raw_source_path'];
+  return path is String && path.trim().isNotEmpty ? path.trim() : null;
+}
+
+List<Map<String, dynamic>> _rowMaps(Object? rows) => rows is List
+    ? [
+        for (final row in rows.whereType<Map<Object?, Object?>>())
+          Map<String, dynamic>.from(row),
+      ]
+    : const [];
