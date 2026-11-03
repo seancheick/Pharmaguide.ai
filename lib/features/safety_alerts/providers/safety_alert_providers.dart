@@ -59,11 +59,21 @@ final class SafetyAlertMatchSet {
     required this.matches,
     required this.baselineSignalKeys,
     required this.isComplete,
+    this.neverVerified = false,
+    this.isDeviceComplete = true,
   });
 
   final List<({SafetyAlert alert, String dsldId})> matches;
   final Set<String> baselineSignalKeys;
   final bool isComplete;
+
+  /// Local profile/medication readability, separate from network freshness.
+  /// A saved feed can be usable offline while an unreadable profile still
+  /// prevents a personal all-clear. This is in-memory matching state only.
+  final bool isDeviceComplete;
+
+  /// See [SafetyAlertRelease.neverVerified].
+  final bool neverVerified;
 }
 
 /// The device performs the authoritative product match. Supabase only stores
@@ -100,6 +110,8 @@ final safetyAlertMatchesProvider = FutureProvider<SafetyAlertMatchSet>((
     matches: List.unmodifiable(matches),
     baselineSignalKeys: Set.unmodifiable(baseline),
     isComplete: release.isComplete && device.isComplete,
+    isDeviceComplete: device.isComplete,
+    neverVerified: release.neverVerified,
   );
 });
 

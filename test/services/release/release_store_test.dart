@@ -1067,11 +1067,15 @@ void main() {
           blockedCatalog: {_bundledCatalog},
           blockedRules: const {},
         );
-        expect((await boot(store())).qualityWithheld, isTrue);
+        final relaunched = await boot(store());
+        expect(relaunched.qualityWithheld, isTrue);
+        // What the screens read to say so.
+        expect(relaunched.core.qualityWithheld, isTrue);
 
         final updated = await newBundle(_bundledCatalog, '1.0.20');
         final generation = await boot(store(withBundle: updated));
         expect(generation.qualityWithheld, isTrue);
+        expect(generation.core.qualityWithheld, isTrue);
         expect(
           (await generation.core.findById(kFixtureProduct))!.qualityScoreV4100,
           isNull,
@@ -1387,6 +1391,476 @@ void main() {
         expect(await severityIn(generation.rules), 'caution');
       },
     );
+
+    group('a blocked catalog with no usable rules', () {
+      late FakeReleaseBundle brokenRules;
+      setUp(() {
+        brokenRules = FakeReleaseBundle(
+          catalog: bundle.catalog,
+          rules: Uint8List.fromList(utf8.encode('not a database')),
+          catalogVersion: _bundledCatalog,
+          rulesVersion: _bundledRules,
+        );
+      });
+
+      File activeRulesFile(ReleaseStore s) => File(
+        p.join(documents.path, 'releases', s.active!.id, 'rules.sqlite'),
+      );
+
+      Future<void> expectScoreWithheld(ReleaseGeneration generation) async {
+        expect(generation.qualityWithheld, isTrue);
+        final product = (await generation.core.findById(kFixtureProduct))!;
+        expect(product.productName, 'Fixture Product');
+        expect(product.qualityScoreV4100, isNull);
+        expect(catalogProductIsNotScored(product), isTrue);
+        expect(
+          catalogProductSafetyStatus(product),
+          CatalogProductSafetyStatus.caution,
+        );
+      }
+
+      test(
+        'withholds the score, and keeps it withheld through a relaunch',
+        () async {
+          final s = store(withBundle: brokenRules);
+          expect((await boot(s)).rules, isNull);
+          await block(s, catalog: {_bundledCatalog});
+
+          final reopened = store(withBundle: brokenRules);
+          final generation = await boot(reopened);
+          await expectScoreWithheld(generation);
+          expect(generation.rules, isNull);
+          expect(reopened.isSettled(generation), isTrue);
+
+          await expectScoreWithheld(await boot(store(withBundle: brokenRules)));
+        },
+      );
+
+      test(
+        'verified revocations remain effective when the pointer cannot be saved',
+        () async {
+          final s = store();
+          final initial = await boot(s);
+          final obstruction = Directory(
+            p.join(documents.path, 'releases', 'active.json.tmp'),
+          );
+          await obstruction.create();
+          await expectLater(
+            s.recordVerified(
+              sequence: 9,
+              blockedCatalog: {_bundledCatalog},
+              blockedRules: {_bundledRules},
+            ),
+            throwsA(isA<FileSystemException>()),
+          );
+          expect(s.isSettled(initial), isFalse);
+          final withheld = await s.reselect();
+          open.add(withheld);
+          await expectScoreWithheld(withheld);
+          expect(withheld.rulesWithheld, isTrue);
+          expect(withheld.rules, isNull);
+          await obstruction.delete();
+          await s.recordVerified(
+            sequence: 9,
+            blockedCatalog: {_bundledCatalog},
+            blockedRules: {_bundledRules},
+          );
+          await expectScoreWithheld(await boot(store()));
+        },
+      );
+
+      test(
+        'a failed scoreless preparation removes its assembly in the same session',
+        () async {
+          var failPreparation = false;
+          final s = store(
+            onStep: (step) async {
+              if (failPreparation && step == ReleaseStep.prepare) {
+                throw const FileSystemException(
+                  'No space left on device',
+                  '',
+                  OSError('disk full', 28),
+                );
+              }
+            },
+          );
+          await boot(s);
+          await block(s, catalog: {_bundledCatalog});
+          failPreparation = true;
+          final withheld = await s.reselect();
+          open.add(withheld);
+          await expectScoreWithheld(withheld);
+          final leftovers = Directory(p.join(documents.path, 'releases'))
+              .listSync(recursive: true)
+              .whereType<Directory>()
+              .where((d) => p.basename(d.path).startsWith('assembly-'))
+              .toList();
+          expect(
+            leftovers,
+            isEmpty,
+            reason:
+                'a failed copy must not consume space until the next launch',
+          );
+        },
+      );
+
+      for (final hasRules in [false, true]) {
+        test('disk-full withholding protects every read and relaunch '
+            '(rules=$hasRules)', () async {
+          var cannotAssemble = false;
+          Future<void> failCopy(ReleaseStep step) async {
+            if (cannotAssemble && step == ReleaseStep.assemble) {
+              throw const FileSystemException(
+                'No space left on device',
+                '',
+                OSError('disk full', 28),
+              );
+            }
+          }
+
+          final chosenBundle = hasRules ? bundle : brokenRules;
+          final s = store(withBundle: chosenBundle, onStep: failCopy);
+          final initial = await boot(s);
+          final scoredPath = p.join(
+            documents.path,
+            'releases',
+            initial.record.id,
+            'catalog.db',
+          );
+          await block(s, catalog: {_bundledCatalog});
+          cannotAssemble = true;
+
+          final withheld = await s.reselect();
+          open.add(withheld);
+          await expectScoreWithheld(withheld);
+          expect(withheld.core.qualityWithheld, isTrue);
+          expect(s.isSettled(withheld), isTrue);
+          expect(withheld.rules != null, hasRules);
+          final rows = await withheld.core
+              .customSelect(
+                'SELECT rowid, quality_score_v4_100, quality_tier, '
+                'quality_score_status, product_safety_status FROM products_core',
+              )
+              .get();
+          expect(rows.single.data['rowid'], isNotNull);
+          expect(rows.single.data['quality_score_v4_100'], isNull);
+          expect(rows.single.data['quality_tier'], isNull);
+          expect(rows.single.data['quality_score_status'], 'not_scored');
+          expect(rows.single.data['product_safety_status'], 'caution');
+          expect(
+            (await withheld.core.searchProducts(
+              'Fixture',
+            )).single.qualityScoreV4100,
+            isNull,
+          );
+          expect(
+            (await withheld.core.filterProducts()).single.qualityScoreV4100,
+            isNull,
+          );
+
+          // The original file stays intact: withholding is a read boundary,
+          // not an in-place mutation of the only usable catalog.
+          final original = raw.sqlite3.open(scoredPath);
+          try {
+            expect(
+              original
+                  .select(
+                    'SELECT quality_score_v4_100 '
+                    'FROM products_core',
+                  )
+                  .single
+                  .values
+                  .single,
+              88,
+            );
+          } finally {
+            original.close();
+          }
+          final reopened = store(withBundle: chosenBundle, onStep: failCopy);
+          await expectScoreWithheld(await boot(reopened));
+          await block(reopened);
+          final restored = await reopened.reselect();
+          open.add(restored);
+          expect(restored.qualityWithheld, isFalse);
+          expect(
+            (await restored.core.findById(kFixtureProduct))!.qualityScoreV4100,
+            88,
+          );
+        });
+      }
+
+      test(
+        'read projection matches scoreless copy and preserves FTS and bans',
+        () async {
+          final initial = await boot(store());
+          final source = File(
+            p.join(documents.path, 'releases', initial.record.id, 'catalog.db'),
+          );
+          final prepared = File(p.join(workspace.path, 'projection.db'));
+          await source.copy(prepared.path);
+          final setup = raw.sqlite3.open(prepared.path);
+          try {
+            setup.execute("UPDATE products_core SET upc_sku = '012345678905'");
+            setup.execute(
+              'CREATE VIRTUAL TABLE products_fts USING fts5('
+              'product_name, content=products_core, content_rowid=rowid)',
+            );
+            setup.execute(
+              "INSERT INTO products_fts(products_fts) VALUES('rebuild')",
+            );
+          } finally {
+            setup.close();
+          }
+          final projected = CoreDatabase.readOnly(
+            prepared,
+            qualityWithheld: true,
+          );
+          addTearDown(projected.close);
+          expect(
+            (await projected.searchProducts(
+              'Fixture',
+            )).single.qualityScoreV4100,
+            isNull,
+          );
+          final fts = await projected
+              .customSelect(
+                "SELECT p.quality_score_v4_100 FROM products_fts f "
+                "JOIN products_core p ON p.rowid = f.rowid "
+                "WHERE products_fts MATCH 'Fixture'",
+              )
+              .get();
+          expect(fts, hasLength(1));
+          expect(fts.single.data['quality_score_v4_100'], isNull);
+          expect(
+            (await projected.findAllByUpc(
+              '012345678905',
+            )).single.qualityScoreV4100,
+            isNull,
+          );
+          final projectedRow = Map<String, dynamic>.from(
+            (await projected
+                    .customSelect('SELECT * FROM products_core')
+                    .getSingle())
+                .data,
+          )..remove('rowid');
+          final writable = CoreDatabase(prepared);
+          await writable.withholdQualityScores();
+          final copiedRow =
+              (await writable
+                      .customSelect('SELECT * FROM products_core')
+                      .getSingle())
+                  .data;
+          expect(projectedRow, copiedRow);
+          await writable.customStatement(
+            "UPDATE products_core SET "
+            "quality_score_status = 'suppressed_safety', "
+            "quality_assessment_status = 'complete', "
+            "product_safety_status = 'blocked'",
+          );
+          await writable.close();
+          final banned = await projected.findById(kFixtureProduct);
+          expect(banned!.qualityScoreStatus, 'suppressed_safety');
+          expect(banned.qualityAssessmentStatus, 'complete');
+          expect(banned.productSafetyStatus, 'blocked');
+          await expectLater(
+            projected.customStatement('DELETE FROM products_core'),
+            throwsA(anything),
+          );
+        },
+      );
+
+      test('withholds the score during a session too', () async {
+        final s = store(withBundle: brokenRules);
+        await boot(s);
+        await block(s, catalog: {_bundledCatalog});
+
+        final generation = await s.reselect();
+        open.add(generation);
+
+        await expectScoreWithheld(generation);
+        expect(s.isSettled(generation), isTrue);
+      });
+
+      test(
+        'withholds the score when the release\'s rules file is corrupt',
+        () async {
+          final s = store();
+          await boot(s);
+          activeRulesFile(s).writeAsBytesSync(utf8.encode('not a database'));
+          await block(s, catalog: {_bundledCatalog});
+
+          final generation = await boot(store(withBundle: brokenRules));
+
+          await expectScoreWithheld(generation);
+          expect(generation.rules, isNull);
+        },
+      );
+
+      test(
+        'withholds the score when the release\'s rules file is missing',
+        () async {
+          final s = store();
+          await boot(s);
+          activeRulesFile(s).deleteSync();
+          await block(s, catalog: {_bundledCatalog});
+
+          final generation = await boot(store(withBundle: brokenRules));
+
+          await expectScoreWithheld(generation);
+          expect(generation.rules, isNull);
+        },
+      );
+
+      test('corrupt rules with a good bundle get the bundled rules back, and '
+          'the score stays withheld', () async {
+        final s = store();
+        await boot(s);
+        activeRulesFile(s).writeAsBytesSync(utf8.encode('not a database'));
+        await block(s, catalog: {_bundledCatalog});
+
+        final generation = await boot(store());
+
+        await expectScoreWithheld(generation);
+        expect(await severityIn(generation.rules), 'caution');
+      });
+
+      test('rules that recover later don\'t bring the score back', () async {
+        final s = store(withBundle: brokenRules);
+        await boot(s);
+        await block(s, catalog: {_bundledCatalog});
+        await boot(store(withBundle: brokenRules));
+
+        final recovered = await boot(store());
+
+        await expectScoreWithheld(recovered);
+        expect(await severityIn(recovered.rules), 'caution');
+        await expectScoreWithheld(await boot(store()));
+      });
+
+      test('lifting the block returns the score and keeps the rules that '
+          'recovered', () async {
+        final s = store(withBundle: brokenRules);
+        await boot(s);
+        await block(s, catalog: {_bundledCatalog});
+        await boot(store(withBundle: brokenRules));
+        final recovering = store();
+        await boot(recovering);
+
+        await block(recovering);
+        final generation = await boot(store());
+
+        expect(generation.qualityWithheld, isFalse);
+        final product = (await generation.core.findById(kFixtureProduct))!;
+        expect(product.qualityScoreV4100, 88);
+        expect(await severityIn(generation.rules), 'caution');
+      });
+
+      test('lifting the block keeps newer rules a bundle brought while the '
+          'score was withheld', () async {
+        final s = store();
+        await boot(s);
+        await block(s, catalog: {_bundledCatalog});
+        await boot(store());
+        final update = await FakeReleaseBundle.build(
+          workspace,
+          catalogVersion: _bundledCatalog,
+          rulesVersion: _updateRules,
+        );
+        final updated = store(withBundle: update);
+        await expectPair(
+          await boot(updated),
+          catalog: _bundledCatalog,
+          rules: _updateRules,
+        );
+
+        await block(updated);
+        final generation = await boot(store(withBundle: update));
+
+        expect(generation.qualityWithheld, isFalse);
+        final product = (await generation.core.findById(kFixtureProduct))!;
+        expect(product.qualityScoreV4100, 88);
+        await expectPair(
+          generation,
+          catalog: _bundledCatalog,
+          rules: _updateRules,
+        );
+      });
+
+      test('a catalog that isn\'t blocked keeps its score', () async {
+        final s = store(withBundle: brokenRules);
+        await boot(s);
+        await block(s, catalog: {_updateCatalog});
+
+        final generation = await boot(store(withBundle: brokenRules));
+
+        expect(generation.qualityWithheld, isFalse);
+        final product = (await generation.core.findById(kFixtureProduct))!;
+        expect(product.qualityScoreV4100, 88);
+      });
+
+      test('a phone with no rules can still take a catalog update, which '
+          'ends the withholding', () async {
+        final s = store(withBundle: brokenRules);
+        await boot(s);
+        await block(s, catalog: {_bundledCatalog});
+        final withheld = store(withBundle: brokenRules);
+        await boot(withheld);
+
+        final result = await withheld.activate(
+          await candidate(sequence: 100, rulesVersion: null),
+        );
+
+        expect(result, isA<ReleaseActivated>());
+        final generation = (result as ReleaseActivated).generation;
+        open.add(generation);
+        expect(generation.record.catalogVersion, _updateCatalog);
+        expect(generation.qualityWithheld, isFalse);
+        expect(generation.rules, isNull);
+        final product = (await generation.core.findById(kFixtureProduct))!;
+        expect(product.qualityScoreV4100, 88);
+      });
+
+      test('a phone with no rules can take a newer bundled catalog whose '
+          'rules are blocked', () async {
+        await boot(store(withBundle: brokenRules));
+        final s = store(withBundle: brokenRules);
+        await boot(s);
+        await block(s, rules: {_updateRules});
+        final update = await FakeReleaseBundle.build(
+          workspace,
+          catalogVersion: _updateCatalog,
+          rulesVersion: _updateRules,
+        );
+
+        final generation = await boot(store(withBundle: update));
+
+        expect(generation.record.catalogVersion, _updateCatalog);
+        expect(generation.rules, isNull);
+      });
+
+      test('a no-rules release from an older build is rebuilt', () async {
+        final s = store(withBundle: brokenRules);
+        await boot(s);
+        final id = s.active!.id;
+        final oldId = id.replaceFirst('_p$kReleasePreparation', '_p0');
+        final releases = p.join(documents.path, 'releases');
+        Directory(p.join(releases, id)).renameSync(p.join(releases, oldId));
+        final recordFile = File(p.join(releases, oldId, 'release.json'));
+        final json = jsonDecode(recordFile.readAsStringSync()) as Map;
+        json['id'] = oldId;
+        json['preparation'] = 0;
+        recordFile.writeAsStringSync(jsonEncode(json));
+        final pointerFile = File(p.join(releases, 'active.json'));
+        pointerFile.writeAsStringSync(
+          pointerFile.readAsStringSync().replaceAll(id, oldId),
+        );
+
+        final generation = await boot(store(withBundle: brokenRules));
+
+        expect(generation.record.preparation, kReleasePreparation);
+        expect(generation.rules, isNull);
+      });
+    });
 
     test('a safety-suppressed product keeps its status when scores are '
         'withheld', () async {

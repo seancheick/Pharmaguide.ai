@@ -4,6 +4,7 @@ import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as reference_data;
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
@@ -18,8 +19,8 @@ export 'package:pharmaguide/services/sharing/clinician_report_data.dart';
 /// Profile and Stack surfaces, the clinician PDF and the AI brief all consume
 /// this provider. Keeping collection here prevents any entry point from
 /// silently omitting a safety provider, provenance field, or
-/// unavailable-analysis state. Everything is read on this device; nothing
-/// here touches the network.
+/// unavailable-analysis state. Personal data stays on this device. Public alert
+/// data uses the existing verified repository/cache; matching stays local.
 final clinicianReportDataProvider =
     FutureProvider.autoDispose<ClinicianReportData>((ref) async {
       try {
@@ -75,6 +76,19 @@ Future<ClinicianReportData> _collectClinicianReportData(Ref ref) async {
   final depletionReport = await ref.read(depletionReportProvider.future);
   final doseAlerts = await ref.read(stackDoseThresholdAlertsProvider.future);
 
+  SafetyAlertMatchSet? alerts;
+  try {
+    // Wait for this matching context, rather than exporting a loading or
+    // retained result from a different stack/profile as an all-clear.
+    alerts = await ref.read(safetyAlertMatchesProvider.future);
+  } on Object catch (error, stackTrace) {
+    CrashReportingService().recordError(
+      error,
+      stackTrace,
+      hint: 'clinician_report:alerts_unavailable',
+    );
+  }
+
   Map<String, dynamic> depletionMetadata = const <String, dynamic>{};
   try {
     final depletionArtifact = await referenceDataRepository
@@ -122,6 +136,9 @@ Future<ClinicianReportData> _collectClinicianReportData(Ref ref) async {
   }
 
   final intelligence = const StackIntelligenceEngine().diagnoseFromReports(
+    regulatorySafetyAlerts: alerts?.matches ?? const [],
+    alertChecksIncomplete:
+        alerts == null || alerts.neverVerified || !alerts.isDeviceComplete,
     stackSize: stack.length,
     safetyReport: safetyReport,
     recalledReport: recalledReport,
@@ -137,6 +154,7 @@ Future<ClinicianReportData> _collectClinicianReportData(Ref ref) async {
     depletions: depletionReport.matches,
     depletionStatus: depletionReport.status,
     doseThresholdAlerts: doseAlerts,
+    regulatorySafetyAlerts: alerts?.matches ?? const [],
     clinicalDataVersion: depletionMetadata['content_version']?.toString(),
     clinicalDataHash: depletionMetadata['content_hash']?.toString(),
     productCatalogVersion: productCatalogVersion,
@@ -164,6 +182,7 @@ Future<Uint8List> _buildClinicianReportDocument(
     stack: data.stack,
     intelligence: data.intelligence,
     safetyReport: data.safetyReport,
+    regulatorySafetyAlerts: data.regulatorySafetyAlerts,
     depletions: data.depletions,
     depletionStatus: data.depletionStatus,
     clinicalDataVersion: data.clinicalDataVersion,

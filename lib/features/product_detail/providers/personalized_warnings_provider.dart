@@ -152,6 +152,8 @@ final personalizedInteractionWarningsProvider = FutureProvider.family
 /// Interaction rules that reached this device through the alert feed before the
 /// interaction DB did. The feed being unavailable is not a failed personal
 /// check: the bundled DB still answers, and the feed's own surface stays quiet.
+/// The exception is a phone that has never had a verified copy, which the
+/// product page reports through [SafetyAlertRelease.neverVerified].
 Future<List<SafetyAlert>> _liveInteractionRules(
   Ref ref,
   ProductsCoreData product,

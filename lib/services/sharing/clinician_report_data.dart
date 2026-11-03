@@ -1,4 +1,5 @@
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/services/medications/medication_identity_status.dart';
 import 'package:pharmaguide/services/stack/depletion_checker.dart';
@@ -22,6 +23,7 @@ class ClinicianReportData {
     required this.generatedAt,
     this.depletionStatus = MedNutrientLoadStatus.loaded,
     this.doseThresholdAlerts = const <StackDoseThresholdAlert>[],
+    this.regulatorySafetyAlerts = const [],
     this.clinicalDataVersion,
     this.clinicalDataHash,
     this.productCatalogVersion,
@@ -38,6 +40,7 @@ class ClinicianReportData {
   final List<DepletionMatch> depletions;
   final MedNutrientLoadStatus depletionStatus;
   final List<StackDoseThresholdAlert> doseThresholdAlerts;
+  final List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts;
   final String? clinicalDataVersion;
   final String? clinicalDataHash;
   final String? productCatalogVersion;

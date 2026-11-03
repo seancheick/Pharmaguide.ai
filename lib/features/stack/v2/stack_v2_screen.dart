@@ -31,6 +31,7 @@ import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/features/stack/providers/medication_identity_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
@@ -149,35 +150,50 @@ class _StackV2ScreenState extends State<StackV2Screen> {
           segment: _segment,
           onSegmentChanged: (i) => setState(() => _segment = i),
         ),
-        body: AnimatedSwitcher(
-          duration: V2Motion.base,
-          switchInCurve: V2Motion.emphasized,
-          switchOutCurve: V2Motion.smooth,
-          transitionBuilder: (child, animation) {
-            // Fade + tiny lift so the panes feel like they slide in,
-            // not just hard-cut. Stays within the perf budget — no
-            // gradient/blur animation.
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.02),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
+        body: Column(
+          children: [
+            // Above the tabs, since all three show products or totals.
+            const WithheldNoticeArea(
+              children: [
+                RulesWithheldNotice(margin: _stackNoticeMargin),
+                QualityWithheldNotice(margin: _stackNoticeMargin),
+              ],
+            ),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: V2Motion.base,
+                switchInCurve: V2Motion.emphasized,
+                switchOutCurve: V2Motion.smooth,
+                transitionBuilder: (child, animation) {
+                  // Fade + tiny lift so the panes feel like they slide in,
+                  // not just hard-cut. Stays within the perf budget — no
+                  // gradient/blur animation.
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.02),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey(_segment),
+                  child: switch (_segment) {
+                    0 => _StackTab(
+                      showPreviewFixtures: widget.showPreviewFixtures,
+                    ),
+                    1 => _NutrientsTab(
+                      showPreviewFixtures: widget.showPreviewFixtures,
+                    ),
+                    _ => const _WishlistTab(),
+                  },
+                ),
               ),
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey(_segment),
-            child: switch (_segment) {
-              0 => _StackTab(showPreviewFixtures: widget.showPreviewFixtures),
-              1 => _NutrientsTab(
-                showPreviewFixtures: widget.showPreviewFixtures,
-              ),
-              _ => const _WishlistTab(),
-            },
-          ),
+            ),
+          ],
         ),
         bottomNavigationBar: widget.showNavBar
             ? PGFrostedNavBar(
@@ -2302,6 +2318,13 @@ class _RecallCheckUnfinishedBanner extends StatelessWidget {
   }
 }
 
+const EdgeInsets _stackNoticeMargin = EdgeInsets.fromLTRB(
+  V2Spacing.space24,
+  V2Spacing.space12,
+  V2Spacing.space24,
+  0,
+);
+
 class _StackSafetyBannerSlot extends ConsumerWidget {
   const _StackSafetyBannerSlot();
 
@@ -2329,13 +2352,16 @@ class _StackSafetyBannerSlot extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       // Never vanish silently on error — hedge (neutral) so a failed safety
-      // pass does not read as "no interactions".
-      error: (_, __) => const _SafetyUnavailableBanner(
-        title: "Couldn't check your stack",
-        body:
-            "We couldn't finish checking your stack for interactions or "
-            'timing guidance. Please reopen PharmaGuide to try again.',
-      ),
+      // pass does not read as "no interactions". Reopening can't bring withheld
+      // rules back, so their own notice stands in for this one.
+      error: (_, __) => interactionRulesUnavailable(ref)
+          ? const SizedBox.shrink()
+          : const _SafetyUnavailableBanner(
+              title: "Couldn't check your stack",
+              body:
+                  "We couldn't finish checking your stack for interactions or "
+                  'timing guidance. Please reopen PharmaGuide to try again.',
+            ),
     );
   }
 }

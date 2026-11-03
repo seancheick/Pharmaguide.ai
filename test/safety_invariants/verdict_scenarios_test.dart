@@ -21,6 +21,7 @@ import 'package:path/path.dart' as p;
 import 'package:pharmaguide/core/data/clinical_profile_schema.dart';
 import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
@@ -31,12 +32,15 @@ import 'package:pharmaguide/features/product_detail/providers/personalized_warni
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/review_before_use_section.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
 import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
 import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
@@ -129,6 +133,19 @@ Map<String, dynamic> _vitaminEBlob() => {
     ],
   },
 };
+
+/// A feed that loaded and has nothing to say, for tests about something else.
+class _VerifiedNoAlerts implements SafetyAlertRepository {
+  @override
+  Future<SafetyAlertRelease> loadCurrent() async => const SafetyAlertRelease(
+    alerts: [],
+    baselineRevisions: {},
+    isComplete: true,
+  );
+
+  @override
+  Future<List<SafetyAlert>> loadCachedAlerts() async => const [];
+}
 
 class _Blobs extends DetailBlobService {
   _Blobs(this.fetch);
@@ -224,6 +241,8 @@ void main() {
     bool settle = true,
     List<Override> extraOverrides = const [],
   }) async {
+    final rules = InteractionDatabase.memory();
+    addTearDown(rules.close);
     addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
     await tester.pumpWidget(
       ProviderScope(
@@ -231,10 +250,12 @@ void main() {
         overrides: [
           coreDatabaseProvider.overrideWithValue(catalog),
           userDatabaseProvider.overrideWithValue(phone),
+          interactionDatabaseProvider.overrideWithValue(rules),
           detailBlobServiceProvider.overrideWithValue(blobs ?? _offline()),
           fitScoreServiceProvider.overrideWith((ref) async => fitService),
           clinicalProfileSchemaProvider.overrideWith((ref) async => schema),
           rdaOptimalUlsProvider.overrideWith((ref) async => rda),
+          safetyAlertRepositoryProvider.overrideWithValue(_VerifiedNoAlerts()),
           ...extraOverrides,
         ],
         child: MaterialApp(

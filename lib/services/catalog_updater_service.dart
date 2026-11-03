@@ -77,6 +77,12 @@ class InstalledRelease {
   final Set<String> refused;
 }
 
+/// What someone who asked for an update check in Settings is told. Anything
+/// short of a proven answer is [couldNotCheck], never [upToDate]. A check that
+/// moved the phone off a blocked version is [deviceChanged], whatever else it
+/// found, because the other lines would then be untrue.
+enum UpdateCheckOutcome { upToDate, updateReady, couldNotCheck, deviceChanged }
+
 /// Outcome of a [CatalogUpdaterService.checkForUpdate] call.
 sealed class CatalogCheckResult {
   const CatalogCheckResult();
@@ -296,7 +302,18 @@ class CatalogUpdaterService {
         '${installed.highestSequence}',
       );
     }
-    await onVerified?.call(manifest);
+    try {
+      await onVerified?.call(manifest);
+    } on Object catch (e, st) {
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'catalog_updater:verified_manifest_not_persisted',
+      );
+      // The store keeps known revocations in memory. Return a normal result so
+      // the bootstrap still settles them instead of abandoning the check.
+      return _refuse('Verified release metadata could not be saved');
+    }
     if (manifest.sequence <= installed.sequence) return const CatalogUpToDate();
 
     try {

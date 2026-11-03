@@ -312,7 +312,7 @@ No personal profile/medication/goal data is added to Supabase. Publication and i
 - Swapping the two files in place with a backup: not atomic across two files, and it moves open files.
 - Storing results with a dependency fingerprint: results aren't stored, and storing them would add the staleness this avoids.
 
-**Known limits:** nothing reaches a phone that stays offline. It keeps its last complete release. A pointer file that can't be read loses the stored revocations, the replay floor and the record that this bundle was already reconciled until the next online check, which restores the first two; the release itself comes from the newest kept folder. A blocked catalog keeps its scores until a copy without them can be made, so on a full disk they stay visible until a later launch or check succeeds; safety status is never touched either way. Stack blobs are stored just before the pointer swap, because either order leaves a window: a kill inside it leaves the old release with new-hash blobs, so a stack product offline reads as incomplete until the next online check, which is honest and never a false reassurance. A launch that can read nothing on disk, as before first unlock, opens no catalog until the next launch and changes nothing. If a fallback serves such a launch, revocations covering the fallback apply at the next launch or check. Local tampering on a jailbroken phone is outside the threat model.
+**Known limits:** nothing reaches a phone that stays offline. It keeps its last complete release. A pointer file that can't be read loses the stored revocations, the replay floor and the record that this bundle was already reconciled until the next online check, which restores the first two; the release itself comes from the newest kept folder. A known-blocked catalog withholds quality at the database read boundary even if a full disk prevents creating its scoreless copy. The memory-only projection preserves product identity, safety status and search row IDs; the original file stays intact, and a later launch can still prepare the copy. Stack blobs are stored just before the pointer swap, because either order leaves a window: a kill inside it leaves the old release with new-hash blobs, so a stack product offline reads as incomplete until the next online check, which is honest and never a false reassurance. A launch that can read nothing on disk, as before first unlock, opens no catalog until the next launch and changes nothing. If a fallback serves such a launch, revocations covering the fallback apply at the next launch or check. Local tampering on a jailbroken phone is outside the threat model.
 
 **What a rules-only release can change (device run, 2026-11-03):** the Stack tab's interaction signals, live and with no app update. It can't change the product page's pregnancy or condition wording on a schema 2 catalog. That wording is inline in the detail blob, and `profile_warning_rules` is read only for schema 3 blobs (`warning_rule_refs`), so such a correction looks published and changes nothing. Ship it as a signed catalog release, which also needs no app update and was proved on screen. A new medication rule doesn't reach the product page today either: `_interactionResultToWarning` carries `class:*` ids and the page compares them against the crosswalked profile ids, so the row is filtered out and the page can say "No known concerns" while the Stack tab says Concerning. Tracked as its own fix, not part of this decision.
 
@@ -320,7 +320,7 @@ No personal profile/medication/goal data is added to Supabase. Publication and i
 
 **Rollback procedure:** republish known-good data under a newer `release_sequence`, naming the bad versions in `blocked_versions`. Steps and key custody are in the pipeline's `docs/RELEASE_SIGNING_RUNBOOK.md`. Phones compare sequences, so older content versions are accepted; a replay of the bad release is refused. Proved by `test/services/release/release_end_to_end_test.dart` and the `rollback` group in `release_store_test.dart`.
 
-**Withholding:** a blocked rules file with no replacement uses the existing unavailable state, so the product page shows "Personalized checks are incomplete", and it keeps the catalog the phone has. A new folder pairing that catalog with the older rules is not built: nothing has validated that pair. A blocked catalog with no replacement becomes a local copy with quality scores removed, which reads as not scored. Safety status and the product list are untouched. No new copy was added; a notice that names the correction is Sean's copy decision.
+**Withholding:** a blocked rules file with no replacement uses the existing unavailable state, so the product page shows "Personalized checks are incomplete", and it keeps the catalog the phone has. A new folder pairing that catalog with the older rules is not built: nothing has validated that pair. A blocked catalog with no replacement becomes a local copy with quality scores removed, which reads as not scored. Safety status and the product list are untouched. No new copy was added; a notice that names the correction is Sean's copy decision. Withholding a blocked catalog's scores doesn't depend on the rules: a release with no rules gets a scoreless copy with none, and rules that recover later stay beside the withheld scores. The copy needs room for a second catalog. On a phone without it, the scores stay readable until a launch that has room.
 
 **Open decision for Sean:** an alert of a new kind that names a product this build can't read currently leaves that product page able to say "no known concerns" (the alert is skipped; `isComplete` reaches only signal resolution). Offline must not trigger any hedge, so a fix has to act only on an unreadable alert that names this product, and it needs new copy such as "a safety notice for this product needs a newer app". No current feed does this. Outside review on 2026-11-02 supports a notice limited to the affected product that keeps existing known concerns and doesn't invent the unreadable alert's severity. Still to settle before A4 publishes a new kind: Sean's approval of the copy, how scope is matched when the alert can't be parsed, and what current and older builds do.
 
@@ -371,22 +371,25 @@ OS encryption protects a locked phone. It does nothing about two people using th
 
 **Tests required, before implementation is called done:** Person B or a guest can't reach Person A's data through screens, cached views, background jobs, searches or retained files, across sign-out, guest, account switch and restart; the checks run through real auth transitions, not only provider overrides; a failure partway through a switch leaves no one on another person's data; attachments and preferences follow their owner; work in flight during a switch (sync, AI share, reminders, fetches) can't write to or read from the wrong owner; `test/safety/guest_cannot_read_previous_account_test.dart` is unskipped and made an enforced release gate, because a skipped test blocks nothing; an account switch mid-request drops the old result; migration killed at each step loses nothing; "remove" leaves no file or key; SQLCipher works on real iOS and Android devices, with the app-size change measured.
 
-## ADR-014: Safety checks decide "No known concerns", not quality completion
+---
+
+## ADR-014: Verified unavailable states remain effective across app consumers
 
 **Date:** 2026-11-03
-**Status:** DECIDED. Implemented in PR #177 on the field declared by pipeline PR #338.
-**Context:** PR #177 added `catalogProductCanReportNoConcerns`, which withholds "No known concerns" unless the public quality score is complete. That uses quality completion as a stand-in for safety completion. In the unpublished 2026.11.02 build, 6,264 of the 6,294 scored partial products carry only evidence-review blockers in `assessment_readiness.release_assessment.blockers`. The core row can't show that today.
+**Status:** Implemented in #193 and follow-up #194; publication and native candidate acceptance remain separate gates.
+**Supersedes:** ADR-012's **Withholding** low-space limitation and the current-runtime behavior described under **Open decision for Sean**. Historical text above is retained; the future-format publication decisions remain open.
 
-**Decision:** Sean, asked "May a product missing only evidence review say 'no known concerns' once its safety checks are done?", answered: "Yes, safety checks decide."
+**Context:** A verified revocation must not leave quality scores readable merely because preparing a second catalog or saving the pointer fails. A failed or unreadable alert check must not become an all-clear in a different consumer. These are corrections to the existing withholding and offline contracts, not new clinical meanings.
 
-- A product whose only gap is evidence review may say "No known concerns" once its safety checks are complete.
-- Identity gaps, dose gaps, an unknown catalog safety status and failed personal checks keep withholding it.
-- This decides the all-clear only. Such a product still shows no completed quality score or verdict, and `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces.
-- The predicate reads `safety_assessment_status`, which the pipeline declares (`complete` or `incomplete`). Only `complete` allows the all-clear, and any other value withholds it.
-- A null value means a catalog older than the column: the app backfills it as null and accepts that catalog, so those rows keep the stricter earlier check (a complete public score and a known catalog safety status). Withholding on null would remove the all-clear from every finished product until the new catalog ships. A release build cannot write null (`--strict`, pipeline PR #338).
-- The clinician line (`kLifeStageClinicianNote`) still shows when the all-clear is withheld, because it's advice for the life stage and not a finding about the product.
+**Decision:**
+- A blocked catalog's read boundary withholds quality scores with a memory-only projection when a scoreless copy cannot be prepared. Product identity, safety status and search row IDs remain readable. Failed preparation cleans up its own staging folder in the same session.
+- Verified revocations take effect in memory even if the small pointer cannot be saved. Offline relaunch durability still requires a successful pointer write; this does not promise persistence on a full or unwritable disk.
+- A missing or unreadable verified alert feed withholds the all-clear while retaining known findings. A readable saved feed remains usable offline. A missing extended feed remains incomplete when loaded from cache, even if no older interaction rows were retained. A verified cache matching the extended-feed checksum does not need another download.
+- Home, Stack and the canonical export snapshot consume the existing alert matcher and its device-profile completeness. A changed matching context cannot reuse the previous context's clean result. The export waits for current matches and retains their typed provenance and existing sharing-category restrictions.
 
-**Not decided here:** whether to hold back products with no safety signal and no barcode, and whether a product with catalog status `caution` may say "No known concerns". Both questions stay with Sean. Caution keeps its earlier behaviour for now.
+**Unchanged gates:** A4 must review candidate feed overlap and compatibility before publication. Product-specific upgrade copy, future alert-format support, clinical rule sign-off and actual publication remain separate decisions. This record grants none of those approvals.
+
+**Verification:** Regression tests cover pointer-write failure, failed preparation cleanup, offline partial feeds, refresh versus dependency reload, and canonical report availability/provenance/consent. Device screenshots, relaunch and disk-pressure acceptance remain part of the combined candidate session.
 
 ---
 
@@ -394,9 +397,9 @@ OS encryption protects a locked phone. It does nothing about two people using th
 
 **Date:** 2026-11-03
 **Status:** DECIDED. Implemented in PR #177.
-**Supersedes:** the part of ADR-014 that lets a product whose only gap is evidence review say "No known concerns". The rest of ADR-014 stands: identity gaps, dose gaps, an unknown catalog safety status and failed personal checks withhold the all-clear, `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces, a null `safety_assessment_status` means a catalog older than the column, and the clinician line still shows when the all-clear is withheld. ADR-014's two open questions are answered here.
+**Supersedes:** the part of the earlier step below that lets a product whose only gap is evidence review say "No known concerns". The rest of that step stands: identity gaps, dose gaps, an unknown catalog safety status and failed personal checks withhold the all-clear, `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces, a null `safety_assessment_status` means a catalog older than the column, and the clinician line still shows when the all-clear is withheld. ADR-014's two open questions are answered here.
 
-**Context:** Under ADR-014 the page put "Assessment incomplete" directly above "No known concerns" on evidence-only products: 5,686 products in the next build. Sean reviewed that pairing and the other open questions from PR #177.
+**Context:** Under that step the page put "Assessment incomplete" directly above "No known concerns" on evidence-only products: 5,686 products in the next build. Sean reviewed that pairing and the other open questions from PR #177.
 
 **Decision:** Sean's answers, as given:
 
@@ -417,3 +420,20 @@ OS encryption protects a locked phone. It does nothing about two people using th
 - A concern the checks found always leads, on any of these products.
 
 **Not changed:** the pipeline's `safety_assessment_status` field and its rule (pipeline PR #338), and the page's wording for a hard interaction with no warning row (decision 4).
+
+### Earlier step in PR #177: safety checks decide "No known concerns"
+
+**Date:** 2026-11-03
+**Status:** DECIDED. Implemented in PR #177 on the field declared by pipeline PR #338.
+**Context:** PR #177 added `catalogProductCanReportNoConcerns`, which withholds "No known concerns" unless the public quality score is complete. That uses quality completion as a stand-in for safety completion. In the unpublished 2026.11.02 build, 6,264 of the 6,294 scored partial products carry only evidence-review blockers in `assessment_readiness.release_assessment.blockers`. The core row can't show that today.
+
+**Decision:** Sean, asked "May a product missing only evidence review say 'no known concerns' once its safety checks are done?", answered: "Yes, safety checks decide."
+
+- A product whose only gap is evidence review may say "No known concerns" once its safety checks are complete.
+- Identity gaps, dose gaps, an unknown catalog safety status and failed personal checks keep withholding it.
+- This decides the all-clear only. Such a product still shows no completed quality score or verdict, and `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces.
+- The predicate reads `safety_assessment_status`, which the pipeline declares (`complete` or `incomplete`). Only `complete` allows the all-clear, and any other value withholds it.
+- A null value means a catalog older than the column: the app backfills it as null and accepts that catalog, so those rows keep the stricter earlier check (a complete public score and a known catalog safety status). Withholding on null would remove the all-clear from every finished product until the new catalog ships. A release build cannot write null (`--strict`, pipeline PR #338).
+- The clinician line (`kLifeStageClinicianNote`) still shows when the all-clear is withheld, because it's advice for the life stage and not a finding about the product.
+
+**Not decided here:** whether to hold back products with no safety signal and no barcode, and whether a product with catalog status `caution` may say "No known concerns". Both questions stay with Sean. Caution keeps its earlier behaviour for now.

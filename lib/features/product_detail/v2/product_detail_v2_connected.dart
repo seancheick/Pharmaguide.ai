@@ -45,6 +45,7 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/core/widgets/pg_severity_banner.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
@@ -555,13 +556,31 @@ class _ProductDetailV2ConnectedState
     final fitAsync = ref.watch(fitScoreForProductProvider(widget.dsldId));
     final fitResult = fitAsync.asData?.value;
     final deviceProfileAsync = ref.watch(deviceSafetyProfileProvider);
+    // Some paths never read the rules, such as an empty stack or a product with
+    // no canonical ids, so their own results can't report that the rules are
+    // missing. Finding nothing without the rules is not an all-clear.
+    final rulesUnavailable = interactionRulesUnavailable(ref);
+    final alertFeedAsync = ref.watch(safetyAlertMatchesProvider);
+    // An error is the same state: no verified feed this phone can read.
+    final alertFeedUnavailable =
+        alertFeedAsync.hasError || alertFeedAsync.value?.neverVerified == true;
     final personalizedChecksFailed =
+        rulesUnavailable ||
+        alertFeedUnavailable ||
         personalizedWarningsFailed ||
         profileRuleWarningsFailed ||
         fitAsync.hasError ||
         userProfileFlagsAsync.hasError ||
         deviceProfileAsync.hasError ||
         deviceProfileAsync.value?.isComplete == false;
+    // The rules notice can't speak for a check that failed for its own reason,
+    // and that one can still be retried. Fit reads the rules only through the
+    // stack's medication classes.
+    final checkFailedWithoutRules =
+        alertFeedUnavailable ||
+        userProfileFlagsAsync.hasError ||
+        deviceProfileAsync.hasError ||
+        (fitAsync.hasError && !stackMedicationClassesAsync.hasError);
     // Still running is not a failure, and not a result either: while any
     // check is in flight the fit result is null, which would otherwise read
     // as "No known concerns" for a profiled user.
@@ -571,7 +590,9 @@ class _ProductDetailV2ConnectedState
             profileRuleWarningsAsync.isLoading ||
             fitAsync.isLoading ||
             userProfileFlagsAsync.isLoading ||
-            deviceProfileAsync.isLoading);
+            deviceProfileAsync.isLoading ||
+            // Only the first fetch: a refresh keeps the result it already has.
+            (alertFeedAsync.isLoading && !alertFeedAsync.hasValue));
 
     // -------------------------------------------------------------
     // Blob-derived flags used by downstream sections.
@@ -839,17 +860,29 @@ class _ProductDetailV2ConnectedState
                       if (_product != null)
                         LiveSafetyAlertSection(product: _product!),
 
+                      const QualityWithheldNotice(
+                        margin: EdgeInsets.only(bottom: V2Spacing.space12),
+                      ),
+
                       // ---- 2. ProfileRelevance (personalized) ----------
                       // A blocked product hides personal results, so a
                       // failed personal check has nothing to qualify.
-                      if (personalizedChecksFailed && !isBlocked) ...[
+                      if (rulesUnavailable && !isBlocked) ...[
+                        const RulesWithheldNotice(),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+                      if (personalizedChecksFailed &&
+                          (!rulesUnavailable || checkFailedWithoutRules) &&
+                          !isBlocked) ...[
                         PGSeverityBanner(
                           key: const Key('personalized-checks-error-banner'),
                           tone: PGBannerTone.caution,
                           title: 'Personalized checks are incomplete',
                           body:
-                              'We couldn\'t complete every interaction and profile '
-                              'check for this product. This is not an all-clear; '
+                              // Retrying can't bring withheld rules back.
+                              'We couldn\'t complete every '
+                              '${rulesUnavailable ? '' : 'interaction and '}'
+                              'profile check for this product. This is not an all-clear; '
                               'try again before relying on these results.',
                           actionLabel: 'Retry',
                           onAction: _retryPersonalizedChecks,

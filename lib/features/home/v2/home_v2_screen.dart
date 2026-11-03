@@ -29,6 +29,7 @@ import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 
 /// v2 Home — production home surface.
 ///
@@ -49,6 +50,13 @@ import 'package:pharmaguide/core/widgets/pg_frosted_nav_bar.dart';
 ///
 /// Nav bar at the bottom: PGFrostedNavBar with Scan centered
 /// (Home / Stack / Scan / Chat / Profile).
+const EdgeInsets _homeNoticeMargin = EdgeInsets.fromLTRB(
+  V2Spacing.space24,
+  V2Spacing.space24,
+  V2Spacing.space24,
+  0,
+);
+
 class HomeV2Screen extends ConsumerWidget {
   final ValueChanged<int>? onDestinationSelected;
   final int selectedIndex;
@@ -112,6 +120,14 @@ class HomeV2Screen extends ConsumerWidget {
             0,
           ),
           sliver: SliverToBoxAdapter(child: _ScanCta()),
+        ),
+
+        // A release's withheld checks or scores, above what they affect.
+        const SliverToBoxAdapter(
+          child: RulesWithheldNotice(margin: _homeNoticeMargin),
+        ),
+        const SliverToBoxAdapter(
+          child: QualityWithheldNotice(margin: _homeNoticeMargin),
         ),
 
         // 4. Stack Health — reads the same StackHealthSnapshot provider as the
@@ -488,7 +504,9 @@ class _StackHealthCard extends ConsumerWidget {
     final healthSnapshot = healthSnapshotAsync.asData?.value;
     final intelligence = healthSnapshot?.intelligence;
     final status = intelligence?.tier.healthLabel;
-    final isAnalyzing = healthSnapshotAsync.isLoading;
+    // A dependency reload has no result to show yet, and that dependency may be
+    // the stack itself. Only a refresh keeps the verified one.
+    final isAnalyzing = healthSnapshotAsync.isLoading && healthSnapshot == null;
     final hasError = healthSnapshotAsync.hasError;
     final needsMoreInfo =
         hasRealData && intelligence?.tier == StackTier.incomplete;
@@ -681,7 +699,9 @@ class _StackHealthCard extends ConsumerWidget {
                   medicationCount: medicationLabel,
                   safetySignalCount: safetySignalCount,
                   safetyCheckIncomplete:
-                      hasError || (intelligence?.analysisIncomplete ?? false),
+                      isAnalyzing ||
+                      hasError ||
+                      (intelligence?.analysisIncomplete ?? false),
                 ),
               ),
               // CTA footer.

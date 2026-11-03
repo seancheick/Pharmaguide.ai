@@ -16,8 +16,11 @@ import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
+import 'package:pharmaguide/services/safety_alerts/safety_alert_repository.dart';
 
 const _dsldId = 'dsld-warfarin-page';
 const _title = "Because you're taking Warfarin";
@@ -117,6 +120,7 @@ Future<void> _pumpPage(
         coreDatabaseProvider.overrideWithValue(coreDb),
         userDatabaseProvider.overrideWithValue(userDb),
         interactionDatabaseProvider.overrideWithValue(interactionDb),
+        safetyAlertRepositoryProvider.overrideWithValue(_VerifiedNoAlerts()),
         activeStackProvider.overrideWith((ref) async => [medication]),
         // No blob warning, so nothing else can stand in for the real check.
         detailBlobProvider.overrideWith(
@@ -172,4 +176,17 @@ void main() {
     expect(find.textContaining(_title), findsWidgets);
     expect(find.text('No known concerns'), findsNothing);
   });
+}
+
+/// A feed that loaded and has nothing to say.
+class _VerifiedNoAlerts implements SafetyAlertRepository {
+  @override
+  Future<SafetyAlertRelease> loadCurrent() async => const SafetyAlertRelease(
+    alerts: [],
+    baselineRevisions: {},
+    isComplete: true,
+  );
+
+  @override
+  Future<List<SafetyAlert>> loadCachedAlerts() async => const [];
 }

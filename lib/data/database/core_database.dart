@@ -41,23 +41,59 @@ final class UpcAmbiguous extends UpcResolution {
 class CoreDatabase extends _$CoreDatabase {
   CoreDatabase(File dbFile)
     : _readOnly = false,
+      qualityWithheld = false,
       super(NativeDatabase.createInBackground(dbFile, logStatements: false));
 
   /// A release file (ADR-012): any attempt to write throws, and the open-time
   /// work below already ran when the release was prepared.
-  CoreDatabase.readOnly(File dbFile)
+  CoreDatabase.readOnly(File dbFile, {this.qualityWithheld = false})
     : _readOnly = true,
       super(
         NativeDatabase.createInBackground(
           dbFile,
           logStatements: false,
-          setup: (db) => db.execute('PRAGMA query_only = ON'),
+          setup: (db) {
+            if (qualityWithheld) {
+              // A blocked file must not expose scores if there is no room for
+              // the prepared scoreless copy. A memory-only view shadows the
+              // table for every ordinary SQL/Drift reader on this connection.
+              // Keep rowid: full-text search joins the catalog through it.
+              db.execute('PRAGMA temp_store = MEMORY');
+              final columns = db.select(
+                'PRAGMA main.table_info(products_core)',
+              );
+              final projection = columns
+                  .map((column) {
+                    final name = column['name'] as String;
+                    final quoted = '"${name.replaceAll('"', '""')}"';
+                    final withheld = _withheldQualityValues[name];
+                    if (withheld == null) return 'source.$quoted';
+                    return "CASE WHEN source.quality_score_status IS "
+                        "'suppressed_safety' THEN source.$quoted ELSE $withheld "
+                        'END AS $quoted';
+                  })
+                  .join(', ');
+              db.execute(
+                'CREATE TEMP VIEW products_core AS SELECT '
+                'source.rowid AS rowid, $projection '
+                'FROM main.products_core AS source',
+              );
+            }
+            db.execute('PRAGMA query_only = ON');
+          },
         ),
       );
 
-  CoreDatabase.memory() : _readOnly = false, super(NativeDatabase.memory());
+  CoreDatabase.memory({this.qualityWithheld = false})
+    : _readOnly = false,
+      super(NativeDatabase.memory());
 
   final bool _readOnly;
+
+  /// This connection withholds quality, either from a scoreless copy or a
+  /// memory-only read projection when that copy cannot be made. Screens can
+  /// distinguish a blocked release from a product with no quality score.
+  final bool qualityWithheld;
 
   @override
   int get schemaVersion => 3;
@@ -269,14 +305,23 @@ class CoreDatabase extends _$CoreDatabase {
     }
   }
 
+  /// Shared by the prepared copy and the memory-only read boundary.
+  static const _withheldQualityValues = <String, String>{
+    'quality_score_v4_100': 'NULL',
+    'quality_tier': 'NULL',
+    'grade': 'NULL',
+    'percentile_rank': 'NULL',
+    'percentile_top_pct': 'NULL',
+    'quality_score_status': "'not_scored'",
+    'quality_assessment_status': "'failed'",
+  };
+
   /// Removes the quality assessment from a local copy of a blocked catalog
   /// (ADR-012), so every score surface shows its existing not-scored state
   /// through the existing owners. Products, and safety status, stay as they are.
   Future<void> withholdQualityScores() => customStatement(
-    "UPDATE products_core SET quality_score_v4_100 = NULL, "
-    "quality_tier = NULL, grade = NULL, percentile_rank = NULL, "
-    "percentile_top_pct = NULL, quality_score_status = 'not_scored', "
-    "quality_assessment_status = 'failed' "
+    'UPDATE products_core SET '
+    '${_withheldQualityValues.entries.map((e) => '${e.key} = ${e.value}').join(', ')} '
     "WHERE quality_score_status IS NOT 'suppressed_safety'",
   );
 

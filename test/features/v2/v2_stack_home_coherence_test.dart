@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/interaction_database.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +15,8 @@ import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/features/home/v2/home_v2_screen.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_providers.dart';
+import 'package:pharmaguide/services/stack/stack_intelligence_engine.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/coverage_report_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
@@ -73,15 +78,22 @@ void main() {
     ),
     StackSafetyReport safetyReport = const StackSafetyReport(),
     List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
+    bool rulesAvailable = true,
+    bool alertFeedAvailable = true,
+    Future<StackHealthSnapshot>? pendingSnapshot,
+    Future<StackHealthSnapshot> Function()? snapshotLoader,
+    Future<List<StackDoseThresholdAlert>> Function()? doseThresholdLoader,
   }) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
+    final rulesDb = InteractionDatabase.memory();
     await seedCore?.call(coreDb);
     await seedUser?.call(userDb);
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await coreDb.close();
       await userDb.close();
+      await rulesDb.close();
     });
 
     await tester.pumpWidget(
@@ -89,12 +101,26 @@ void main() {
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
           userDatabaseProvider.overrideWithValue(userDb),
+          if (rulesAvailable)
+            interactionDatabaseProvider.overrideWithValue(rulesDb),
           authStateProvider.overrideWith((ref) {
             final service = AuthStateService();
             if (signedIn) service.onSignedIn();
             return service;
           }),
           activeStackProvider.overrideWith((ref) async => stack),
+          safetyAlertMatchesProvider.overrideWith(
+            (ref) async => SafetyAlertMatchSet(
+              matches: const [],
+              baselineSignalKeys: const {},
+              isComplete: alertFeedAvailable,
+              neverVerified: !alertFeedAvailable,
+            ),
+          ),
+          if (snapshotLoader != null)
+            stackHealthSnapshotProvider.overrideWith((ref) => snapshotLoader()),
+          if (pendingSnapshot != null)
+            stackHealthSnapshotProvider.overrideWith((ref) => pendingSnapshot),
           stackSafetyReportProvider.overrideWith((ref) async {
             if (stackSafetyFails) {
               throw StateError('stack safety unavailable');
@@ -113,7 +139,9 @@ void main() {
             return recallReport;
           }),
           stackDoseThresholdAlertsProvider.overrideWith(
-            (ref) async => doseThresholdAlerts,
+            (ref) =>
+                doseThresholdLoader?.call() ??
+                Future.value(doseThresholdAlerts),
           ),
           profileProvider.overrideWith((ref) => ProfileNotifier()),
         ],
@@ -131,6 +159,7 @@ void main() {
   Future<void> pumpStackRouteHarness(WidgetTester tester) async {
     final coreDb = CoreDatabase.memory();
     final userDb = UserDatabase.memory();
+    final rulesDb = InteractionDatabase.memory();
     final router = GoRouter(
       initialLocation: Routes.stack,
       routes: [
@@ -156,6 +185,7 @@ void main() {
       router.dispose();
       await coreDb.close();
       await userDb.close();
+      await rulesDb.close();
     });
 
     await tester.pumpWidget(
@@ -163,6 +193,7 @@ void main() {
         overrides: [
           coreDatabaseProvider.overrideWithValue(coreDb),
           userDatabaseProvider.overrideWithValue(userDb),
+          interactionDatabaseProvider.overrideWithValue(rulesDb),
           activeStackProvider.overrideWith((ref) async => const []),
           stackSafetyReportProvider.overrideWith(
             (ref) async => const StackSafetyReport(),
@@ -209,6 +240,162 @@ void main() {
         expect(find.text('No data yet', skipOffstage: false), findsNothing);
       },
     );
+
+    testWidgets('Home does not say No signals while checks are loading', (
+      tester,
+    ) async {
+      final pending = Completer<StackHealthSnapshot>();
+      await pumpWithStack(
+        tester,
+        const HomeV2Screen(showNavBar: false),
+        stack: [
+          stackEntry(
+            id: 's',
+            name: 'Fixture',
+            type: 'supplement',
+            dsldId: '123',
+          ),
+        ],
+        pendingSnapshot: pending.future,
+      );
+      expect(find.text('No signals'), findsNothing);
+      expect(find.text('Check incomplete'), findsOneWidget);
+    });
+
+    testWidgets(
+      'Home explains an unreadable alert feed instead of No signals',
+      (tester) async {
+        await pumpWithStack(
+          tester,
+          const HomeV2Screen(showNavBar: false),
+          stack: [
+            stackEntry(
+              id: 's',
+              name: 'Fixture',
+              type: 'supplement',
+              dsldId: '123',
+            ),
+          ],
+          alertFeedAvailable: false,
+        );
+        expect(find.text('No signals'), findsNothing);
+        expect(find.text('Check incomplete'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'Home never reads clean while a dependency reloads the result',
+      (tester) async {
+        const alert = StackDoseThresholdAlert(
+          conditionId: 'pregnancy',
+          canonicalId: 'caffeine',
+          displayName: 'Caffeine',
+          totalValue: 240,
+          unit: 'mg',
+          thresholdValue: 200,
+          thresholdUnit: 'mg',
+          contributions: [],
+        );
+        final pending = Completer<List<StackDoseThresholdAlert>>();
+        var reloading = false;
+        await pumpWithStack(
+          tester,
+          const HomeV2Screen(showNavBar: false),
+          stack: [
+            stackEntry(
+              id: 's',
+              name: 'Caffeine',
+              type: 'supplement',
+              dsldId: '123',
+            ),
+          ],
+          doseThresholdLoader: () =>
+              reloading ? pending.future : Future.value(const [alert]),
+        );
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(find.text('1 Signal'), findsOneWidget);
+
+        reloading = true;
+        final metrics = find.byType(StackHealthMicroMetrics);
+        final container = ProviderScope.containerOf(tester.element(metrics));
+        container.invalidate(stackDoseThresholdAlertsProvider);
+        await tester.pump();
+        await tester.pump();
+        expect(container.read(stackHealthSnapshotProvider).isReloading, isTrue);
+        tester
+            .element(
+              find
+                  .ancestor(
+                    of: metrics,
+                    matching: find.byWidgetPredicate(
+                      (w) => w is ConsumerWidget,
+                    ),
+                  )
+                  .last,
+            )
+            .markNeedsBuild();
+        await tester.pump();
+        expect(find.text('No signals'), findsNothing);
+        expect(find.text('No data yet'), findsNothing);
+        expect(find.text('Analyzing'), findsOneWidget);
+        expect(find.text('Check incomplete'), findsOneWidget);
+
+        pending.complete(const [alert]);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 150));
+        expect(find.text('1 Signal'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Home keeps a verified result during refresh', (tester) async {
+      final initial = const StackIntelligenceEngine().summarizeFromReports(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(),
+        recalledReport: RecalledIngredientsReport.empty(),
+        synergyReport: SynergyReport.empty(),
+      );
+      final pending = Completer<StackHealthSnapshot>();
+      var refreshing = false;
+      await pumpWithStack(
+        tester,
+        const HomeV2Screen(showNavBar: false),
+        stack: [
+          stackEntry(
+            id: 's',
+            name: 'Fixture',
+            type: 'supplement',
+            dsldId: '123',
+          ),
+        ],
+        snapshotLoader: () =>
+            refreshing ? pending.future : Future.value(initial),
+      );
+      expect(find.text('No signals'), findsOneWidget);
+      refreshing = true;
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(HomeV2Screen)),
+      );
+      container.invalidate(stackHealthSnapshotProvider);
+      await tester.pump();
+      await tester.pump();
+      expect(container.read(stackHealthSnapshotProvider).isLoading, isTrue);
+      expect(container.read(stackHealthSnapshotProvider).hasValue, isTrue);
+      // A layout/theme rebuild can happen while Riverpod retains prior data.
+      tester
+          .element(
+            find
+                .ancestor(
+                  of: find.byType(StackHealthMicroMetrics),
+                  matching: find.byWidgetPredicate((w) => w is ConsumerWidget),
+                )
+                .last,
+          )
+          .markNeedsBuild();
+      await tester.pump();
+      expect(find.text('No signals'), findsOneWidget);
+      expect(find.text('Check incomplete'), findsNothing);
+    });
 
     testWidgets(
       'dose-alert-only stack shares one tappable signal across summary, hero, and sheet',
@@ -895,6 +1082,8 @@ void main() {
               dsldId: '12345',
             ),
           ],
+          // Without the rules this medication's identity can't be assessed.
+          rulesAvailable: false,
         );
 
         expect(
@@ -908,6 +1097,8 @@ void main() {
         expect(find.text('metformin Pill', skipOffstage: false), findsNothing);
         expect(find.text('Metformin', skipOffstage: false), findsOneWidget);
 
+        await tester.ensureVisible(find.text('Metformin'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Metformin'));
         await tester.pumpAndSettle();
 

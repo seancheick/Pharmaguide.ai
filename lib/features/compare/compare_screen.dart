@@ -21,6 +21,7 @@ import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
 import 'package:pharmaguide/core/theme/v2/v2_shadows.dart';
 import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
+import 'package:pharmaguide/core/widgets/withheld_checks_notice.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/features/compare/compare_providers.dart';
 import 'package:pharmaguide/features/product_detail/v2/gating.dart';
@@ -178,6 +179,9 @@ class _CompareBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(V2Spacing.space16),
       children: [
+        const QualityWithheldNotice(
+          margin: EdgeInsets.only(bottom: V2Spacing.space12),
+        ),
         if (categoriesDiffer) ...[
           Text(
             'These are different product types — pillar comparisons are '
