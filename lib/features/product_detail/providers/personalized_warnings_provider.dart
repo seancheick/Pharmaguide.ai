@@ -26,6 +26,7 @@ import 'package:pharmaguide/features/safety_alerts/providers/safety_alert_provid
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
+import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/safety_alerts/safety_alert.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/stack/stack_interaction_checker.dart';
@@ -354,7 +355,11 @@ InteractionWarning _interactionResultToWarning(InteractionResult result) {
     management: result.management,
     sourceUrls: result.sourceUrls,
     ingredientCanonicalId: result.matchedSupplementCanonicalId,
-    drugClassIds: result.matchedMedicationClassIds,
+    // The page filters on profile vocabulary. Without this crosswalk a matched
+    // medication warning is dropped before it renders.
+    drugClassIds: MedicationClassBridge.profileGateIdsForClasses(
+      result.matchedMedicationClassIds,
+    ),
     direction: result.direction,
     materiality: result.materiality,
   );
