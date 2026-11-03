@@ -316,7 +316,13 @@ class _VerifiedNoAlerts implements SafetyAlertRepository {
   Future<List<SafetyAlert>> loadCachedAlerts() async => const [];
 }
 
-enum _FeedServer { unreachable, noCurrentRelease, serving, servingNoAlerts }
+enum _FeedServer {
+  unreachable,
+  noCurrentRelease,
+  serving,
+  servingNoAlerts,
+  unreadable,
+}
 
 /// The real repository over a fake server and this phone's saved preferences.
 class _AlertFeed {
@@ -329,6 +335,17 @@ class _AlertFeed {
     'test/fixtures/safety_alerts/interaction_rule_base_feed.json',
   ).readAsBytesSync();
   static final _noAlerts = utf8.encode('{"alerts":[]}');
+  static final _unreadable = utf8.encode(
+    jsonEncode({
+      'alerts': [
+        for (final row
+            in (jsonDecode(utf8.decode(_alertsForOtherProducts))
+                    as Map<String, dynamic>)['alerts']
+                as List)
+          {...row as Map<String, dynamic>, 'event_type': 'future_type'},
+      ],
+    }),
+  );
 
   var server = _FeedServer.unreachable;
   Completer<void>? gate;
@@ -349,10 +366,14 @@ class _AlertFeed {
             headers: {'content-type': 'application/json'},
             request: request,
           );
-        case _FeedServer.serving || _FeedServer.servingNoAlerts:
-          final bytes = server == _FeedServer.serving
-              ? _alertsForOtherProducts
-              : _noAlerts;
+        case _FeedServer.serving ||
+            _FeedServer.servingNoAlerts ||
+            _FeedServer.unreadable:
+          final bytes = switch (server) {
+            _FeedServer.serving => _alertsForOtherProducts,
+            _FeedServer.unreadable => _unreadable,
+            _ => _noAlerts,
+          };
           if (request.url.path.contains('/storage/')) {
             return http.Response.bytes(bytes, 200, request: request);
           }
@@ -815,6 +836,20 @@ void main() {
         expect(find.text(allClear), findsOneWidget);
         expect(find.text(incomplete), findsNothing);
       });
+
+      for (final offline in [false, true]) {
+        testWidgets('an unreadable verified feed is not an empty assessment '
+            '(offline=$offline)', (tester) async {
+          final feed = _AlertFeed()..server = _FeedServer.unreadable;
+          if (offline) {
+            await tester.runAsync(feed.repository.loadCurrent);
+            feed.server = _FeedServer.unreachable;
+          }
+          await open(tester, feed);
+          expect(find.text(allClear), findsNothing);
+          expect(find.text(incomplete), findsOneWidget);
+        });
+      }
 
       testWidgets('a saved copy with no alerts keeps the all-clear offline', (
         tester,

@@ -23,8 +23,9 @@ final class SafetyAlertRelease {
   final Map<String, int> baselineRevisions;
   final bool isComplete;
 
-  /// This device holds no verified copy, so [alerts] being empty says nothing
-  /// about any product. A missing published release is not a verified empty feed.
+  /// No fully readable verified feed is available for an all-clear. This also
+  /// covers verified bytes containing unsupported alerts or a missing extended
+  /// feed. A readable saved copy remains usable when only the network fails.
   final bool neverVerified;
 }
 
@@ -234,6 +235,7 @@ class SafetyAlertRepository {
         alerts: release.alerts,
         baselineRevisions: current,
         isComplete: isComplete,
+        neverVerified: release.hasUnsupported,
       );
     }
     final baseline = <String, int>{};
@@ -253,12 +255,14 @@ class SafetyAlertRepository {
         alerts: release.alerts,
         baselineRevisions: current,
         isComplete: isComplete,
+        neverVerified: release.hasUnsupported,
       );
     }
     return SafetyAlertRelease(
       alerts: release.alerts,
       baselineRevisions: baseline,
       isComplete: isComplete,
+      neverVerified: release.hasUnsupported,
     );
   }
 }
