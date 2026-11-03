@@ -35,6 +35,21 @@ void main() {
     expect(device.isComplete, isTrue);
   });
 
+  test('breastfeeding becomes the flag rules ask for, and a condition stays '
+      'itself, through the bundled taxonomy', () async {
+    final device = await _read([
+      medications,
+      loadedProfileProvider.overrideWith(
+        (ref) async =>
+            const ProfileState(conditions: ['lactation', 'hypertension']),
+      ),
+    ]);
+
+    expect(device.profileFlags, contains('breastfeeding'));
+    expect(device.conditions, contains('hypertension'));
+    expect(device.isComplete, isTrue);
+  });
+
   test('a failed taxonomy is incomplete, not an all-clear', () async {
     final device = await _read([
       medications,
