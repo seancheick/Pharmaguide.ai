@@ -49,7 +49,9 @@ Hygiene items, no leak:
 
 `scripts/test_backend_security.sh` replays the stream and runs `supabase/tests/backend_security/`. It
 checks anonymous callers, other users' rows, writes, gated functions, storage and assistant tokens,
-then removes each protection once and fails unless its check notices. A new definer function or a
+then removes each protection once and fails unless its check fails on the assertion named for that
+protection. The app's table reads are loaded from `lib/` on each run, so a Dart select list naming a
+column with no grant fails it. A new definer function or a
 changed grant fails the run until `definer_exposure_pin.sql` and this page are updated together. CI
 runs it on every code change.
 

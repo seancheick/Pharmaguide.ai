@@ -3,6 +3,8 @@
 -- scripts/test_backend_security.sh. A check raises to fail.
 CREATE SCHEMA sec;
 GRANT USAGE ON SCHEMA sec TO PUBLIC;
+-- Filled from lib/ by app_reads.py, so these reads can't drift from the app.
+CREATE TABLE sec.app_reads(parent_table text NOT NULL, table_name text NOT NULL, embedded_fk text, columns text NOT NULL);
 CREATE TABLE sec.check_results(name text PRIMARY KEY, result text NOT NULL);
 CREATE TABLE sec.mutation_results(name text PRIMARY KEY, check_name text NOT NULL, result text NOT NULL);
 
@@ -129,9 +131,14 @@ BEGIN
   END LOOP;
 END $$;
 
--- Each entry removes one protection, then its check must fail. The rollback
+-- Each entry removes one protection, then its check must fail as named. The rollback
 -- restores the protection before the next entry.
-CREATE TABLE sec.mutations(name text PRIMARY KEY, check_name text NOT NULL, ddl text NOT NULL);
+CREATE TABLE sec.mutations(name text PRIMARY KEY, check_name text NOT NULL, ddl text NOT NULL, fails_on text NOT NULL);
+-- Removing a protection counts only if its check fails on the assertion that
+-- guards it. Any other error means the check broke, and proves nothing.
+CREATE FUNCTION sec.mutation_outcome(p_error text, p_fails_on text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE WHEN starts_with(p_error, 'FAIL: ' || p_fails_on) THEN 'caught: ' ELSE 'WRONG FAILURE: ' END || left(p_error, 150)
+$$;
 CREATE FUNCTION sec.run_mutations() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE m record; outcome text;
 BEGIN
@@ -148,7 +155,7 @@ BEGIN
         EXECUTE format('SELECT sec.%I()', m.check_name);
         outcome := 'NOT CAUGHT';
       EXCEPTION WHEN others THEN
-        outcome := 'caught: ' || left(SQLERRM, 150);
+        outcome := sec.mutation_outcome(SQLERRM, m.fails_on);
       END;
       RAISE EXCEPTION 'rollback' USING ERRCODE = 'SEC02';
     EXCEPTION WHEN SQLSTATE 'SEC02' THEN
