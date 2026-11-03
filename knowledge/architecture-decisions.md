@@ -363,6 +363,8 @@ OS encryption protects a locked phone. It does nothing about two people using th
 - **App size, iOS.** Two release IPAs from the same source: 69,760,631 bytes without SQLCipher and 69,788,363 with it, so 27,732 bytes more (0.04%). Installed, the app grows by 84 KB, and the SQLite framework goes from 1,648,832 to 1,734,896 bytes. On iOS this build uses Apple's CommonCrypto (`commoncrypto` in the binary, linked to `Security.framework`). Android isn't measured yet.
 - **Crash reports never carry a key.** A `SqliteException` includes its statement, and `ATTACH ... KEY` contains the key, so those errors are rethrown without it.
 
+**Android size, release AAB:** 126,877,098 bytes at `7aa16b95`, 134,280,067 with SQLCipher (+7,402,969, about 5.8%). The arm64 library grows from 1,749,200 to 5,086,272 bytes. An AAB holds every ABI, so this isn't the download size for one phone, which wasn't measured.
+
 **Checked on devices, build `6c911765`:**
 - **Real process kills, iOS 26.5 simulator.** A throwaway app ran this cipher file (one import swapped), the real Keychain and a copy of a real plaintext database. It killed itself after each migration step and during the copy (at 1.1 MB), then relaunched: every case resumed with all rows, encrypted, and no plaintext. A removed key threw, left the file unchanged and created no key, also after a restart, and restoring the key opened the data (`~/pg_quality/a5_finish_20261102/kill_harness_ios_sim.txt`).
 - **Real-app upgrade, iOS 26.5 simulator.** A's plaintext data stayed plain on the first launch and was encrypted on the next: `sqlite3` gets error 26, the medication name is gone from the file, and the medication, Health History event and attachment still show. A's reminder fired on this build.
