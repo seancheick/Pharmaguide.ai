@@ -528,6 +528,16 @@ void main() {
     late AccountSwitchGuard guard;
     late ProviderContainer scope;
     late Completer<Map<String, dynamic>?> network;
+    late Completer<void> scanReachedNetwork;
+
+    Future<Map<String, dynamic>?> awaitNetwork() {
+      if (!scanReachedNetwork.isCompleted) scanReachedNetwork.complete();
+      return network.future;
+    }
+
+    // The database runs on its own isolate, so a late write takes real time.
+    Future<void> letLateWorkFinish() =>
+        Future<void>.delayed(const Duration(milliseconds: 200));
 
     Future<FitScoreResult?> fitNow() async {
       // The provider is autoDispose: a listener keeps it alive across awaits.
@@ -583,6 +593,7 @@ void main() {
             ),
           );
       network = Completer<Map<String, dynamic>?>();
+      scanReachedNetwork = Completer<void>();
 
       await guard.boot(sessionUid: accountA);
       await guard.database!.saveProfile(
@@ -598,7 +609,7 @@ void main() {
           coreDatabaseProvider.overrideWithValue(catalog),
           userDatabaseProvider.overrideWithValue(guard.database!),
           detailBlobServiceProvider.overrideWithValue(
-            _Blobs((_) => network.future),
+            _Blobs((_) => awaitNetwork()),
           ),
           fitScoreServiceProvider.overrideWith((ref) async => fitService),
           clinicalProfileSchemaProvider.overrideWith((ref) async => schema),
@@ -617,7 +628,7 @@ void main() {
       scope.listen(fitScoreForProductProvider(productId), (_, next) {
         if (next.hasValue && !next.isLoading) resultsForA.add(next.value);
       });
-      await pumpEventQueue();
+      await scanReachedNetwork.future;
       return resultsForA;
     }
 
@@ -626,7 +637,7 @@ void main() {
 
       await switchTo(accountB);
       network.complete(_vitaminEBlob());
-      await pumpEventQueue();
+      await letLateWorkFinish();
 
       expect(resultsForA, isEmpty, reason: 'A left before the result arrived');
       expect(await guard.database!.getProfile(), isNull);
@@ -644,13 +655,13 @@ void main() {
       // tree coming down can stop A's result.
       final resultsForA = await scanInFlightForA(
         overrides: () => [
-          detailBlobProvider.overrideWith((ref, id) => network.future),
+          detailBlobProvider.overrideWith((ref, id) => awaitNetwork()),
         ],
       );
 
       await switchTo(accountB);
       network.complete(_vitaminEBlob());
-      await pumpEventQueue();
+      await letLateWorkFinish();
       expect(resultsForA, isEmpty, reason: 'A left before the result arrived');
 
       final forB = await fitNow();
