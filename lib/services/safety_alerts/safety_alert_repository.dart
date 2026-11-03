@@ -13,6 +13,7 @@ final class SafetyAlertRelease {
     required this.alerts,
     required this.baselineRevisions,
     required this.isComplete,
+    this.neverVerified = false,
   });
 
   final List<SafetyAlert> alerts;
@@ -21,6 +22,11 @@ final class SafetyAlertRelease {
   /// They surface in-app, but never create a retrospective "new" event.
   final Map<String, int> baselineRevisions;
   final bool isComplete;
+
+  /// No fully readable verified feed is available for an all-clear. This also
+  /// covers verified bytes containing unsupported alerts or a missing extended
+  /// feed. A readable saved copy remains usable when only the network fails.
+  final bool neverVerified;
 }
 
 /// Fetches only the public, current release and refuses bytes that do not
@@ -30,13 +36,17 @@ class SafetyAlertRepository {
   SafetyAlertRepository({
     SupabaseClient? client,
     SharedPreferencesAsync? preferences,
-  }) : _client = client ?? supabase,
+  }) : _givenClient = client,
        _preferences = preferences ?? SharedPreferencesAsync();
 
   static const _cacheKey = 'safety_alert_release_v1';
   static const _watermarkKey = 'safety_alert_baseline_revisions_v1';
-  final SupabaseClient _client;
+  final SupabaseClient? _givenClient;
   final SharedPreferencesAsync _preferences;
+
+  /// Read inside the fetch: Supabase failing to start is a failed fetch, and a
+  /// saved copy still counts.
+  SupabaseClient get _client => _givenClient ?? supabase;
 
   Future<SafetyAlertRelease> loadCurrent() async {
     try {
@@ -46,11 +56,10 @@ class SafetyAlertRepository {
           .eq('is_current', true)
           .maybeSingle();
       if (row == null) {
-        return const SafetyAlertRelease(
-          alerts: [],
-          baselineRevisions: {},
-          isComplete: true,
-        );
+        // Missing metadata cannot withdraw saved alerts or establish that the
+        // reviewed alert set is empty. Use the same verified-cache fallback as
+        // an unavailable feed; only verified feed bytes can replace that copy.
+        throw const FormatException('No current safety-alert release.');
       }
       final remote = await _decodeRemote(Map<String, dynamic>.from(row));
       final release = remote.keeping(
@@ -68,6 +77,7 @@ class SafetyAlertRepository {
           alerts: [],
           baselineRevisions: {},
           isComplete: false,
+          neverVerified: true,
         );
       }
       return await _withWatermark(cached, isComplete: false);
@@ -225,6 +235,7 @@ class SafetyAlertRepository {
         alerts: release.alerts,
         baselineRevisions: current,
         isComplete: isComplete,
+        neverVerified: release.hasUnsupported,
       );
     }
     final baseline = <String, int>{};
@@ -244,12 +255,14 @@ class SafetyAlertRepository {
         alerts: release.alerts,
         baselineRevisions: current,
         isComplete: isComplete,
+        neverVerified: release.hasUnsupported,
       );
     }
     return SafetyAlertRelease(
       alerts: release.alerts,
       baselineRevisions: baseline,
       isComplete: isComplete,
+      neverVerified: release.hasUnsupported,
     );
   }
 }
