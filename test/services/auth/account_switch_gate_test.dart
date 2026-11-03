@@ -128,6 +128,7 @@ void main() {
       Future<void> Function()? onOwnerChange,
       String? Function()? readSessionUid,
       bool askBeforeAdoptingGuest = false,
+      Future<void> Function()? clearSharedReport,
     }) {
       final guard = AccountSwitchGuard(
         ownerStore: AccountOwnerStore(),
@@ -136,6 +137,7 @@ void main() {
         onOwnerChange: onOwnerChange,
         readSessionUid: readSessionUid,
         askBeforeAdoptingGuest: askBeforeAdoptingGuest,
+        clearSharedReport: clearSharedReport ?? () async {},
       );
       addTearDown(guard.close);
       return guard;
@@ -1106,6 +1108,65 @@ void main() {
       final recents = prefs.getKeys().where((k) => k.startsWith('recent'));
       expect(recents.where((key) => key.contains(_a)), isEmpty);
       expect(recents, isNotEmpty);
+    });
+
+    group('the shared clinician report copy', () {
+      var clears = 0;
+      Future<void> countClear() async => clears++;
+      setUp(() => clears = 0);
+
+      test('is cleared on every launch, even with the same owner', () async {
+        final guard = guardWith(clearSharedReport: countClear);
+        await guard.boot(sessionUid: null);
+        expect(clears, 1);
+      });
+
+      test('is cleared at sign-out', () async {
+        final guard = guardWith(clearSharedReport: countClear);
+        await guard.boot(sessionUid: _a);
+        clears = 0;
+        await signOut(guard);
+        expect(clears, 1);
+      });
+
+      test('is cleared when switching straight to another account', () async {
+        final guard = guardWith(clearSharedReport: countClear);
+        await guard.boot(sessionUid: _a);
+        clears = 0;
+        await signIn(guard, _b);
+        expect(clears, 1);
+      });
+
+      test('is cleared when an account that is not open is removed', () async {
+        final guard = guardWith(clearSharedReport: countClear);
+        await guard.boot(sessionUid: _a);
+        await signOut(guard);
+        clears = 0;
+        await guard.removeAccountData(_a);
+        expect(clears, 1);
+      });
+
+      test('a clear that never finishes does not hold up launch', () async {
+        final guard = guardWith(
+          clearSharedReport: () => Completer<void>().future,
+        );
+        await guard.boot(sessionUid: _a);
+        expect(guard.database, isNotNull);
+      });
+
+      test('a failed clear blocks neither launch nor sign-out', () async {
+        final guard = guardWith(
+          clearSharedReport: () async =>
+              throw const FileSystemException('refused'),
+        );
+        await guard.boot(sessionUid: _a);
+        expect(guard.database, isNotNull);
+        expect(guard.ownerUid, _a);
+
+        await signOut(guard);
+        expect(guard.database, isNotNull);
+        expect(guard.ownerUid, isNull);
+      });
     });
 
     test('each account imports attachments into its own folder', () async {
