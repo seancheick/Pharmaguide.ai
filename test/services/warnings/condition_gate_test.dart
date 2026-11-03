@@ -854,10 +854,12 @@ void main() {
         });
       });
 
-      // Export contract: the pipeline removes a row from analyzed_ingredients
-      // when it has no UL comparison, but the exposure is real. The row reads
-      // per serving until the pipeline puts the per-day figure on it (253281).
-      test('a filtered exposure reads per day once the row carries it', () {
+      // Export contract with pipeline branch duplicate-dose-lineage: a row the
+      // export keeps out of analyzed_ingredients gets the enriched row's
+      // dose_role, per_day_min, per_day_max and converted_unit on its
+      // ingredients row. Until then it reads per serving (253281: 200 mg of
+      // caffeine at 600 mg a day).
+      group('rows the export filtered', () {
         const caffeineRule = StackDoseThresholdRule(
           conditionId: 'pregnancy',
           canonicalId: 'caffeine',
@@ -866,30 +868,120 @@ void main() {
           thresholdUnit: 'mg',
           comparator: '>',
         );
-        final row = labelRow(
-          'ingredientRows[0]',
-          'Caffeine Anhydrous',
-          'caffeine',
-          200,
-          'mg',
-          standardName: 'Caffeine',
-        );
+        Map<String, dynamic> caffeine(
+          String path,
+          num quantity,
+          String unit, {
+          Map<String, dynamic> stamp = const {},
+        }) => {
+          ...labelRow(
+            path,
+            'Caffeine Anhydrous',
+            'caffeine',
+            quantity,
+            unit,
+            standardName: 'Caffeine',
+          ),
+          ...stamp,
+        };
 
-        expect(
-          alertsForStack([
-            blob([row], const []),
-          ], caffeineRule),
-          isEmpty,
-        );
-        expect(
-          alertsForStack([
+        test('253281: an exposure reads its per-day figure once stamped', () {
+          final today = caffeine('ingredientRows[0]', 200, 'mg');
+          final stamped = caffeine(
+            'ingredientRows[0]',
+            0.2,
+            'g',
+            stamp: const {
+              'dose_role': 'declared_total',
+              'per_day_min': 200,
+              'per_day_max': 600,
+              'converted_unit': 'mg',
+            },
+          );
+
+          expect(
+            alertsForStack([
+              blob([today], const []),
+            ], caffeineRule),
+            isEmpty,
+          );
+          expect(
+            extractIngredientDoses(blob([stamped], const []))['caffeine'],
+            (value: 600.0, unit: 'mg'),
+          );
+          expect(
+            alertsForStack([
+              blob([stamped], const []),
+            ], caffeineRule).single.totalValue,
+            600,
+          );
+        });
+
+        test('a row with no per-day figure still reads its label amount', () {
+          final result = extractIngredientDoses(
             blob([
-              {...row, 'per_day_max': 600},
+              caffeine(
+                'ingredientRows[0]',
+                200,
+                'mg',
+                stamp: const {'dose_role': 'declared_total'},
+              ),
             ], const []),
-          ], caffeineRule).single.totalValue,
-          600,
-        );
+          );
+
+          expect(result['caffeine'], (value: 200.0, unit: 'mg'));
+        });
+
+        test('246519: stamped form rows add nothing to their parent', () {
+          final result = extractIngredientDoses(
+            blob([
+              caffeine(
+                'ingredientRows[4]',
+                300,
+                'mg',
+                stamp: const {'dose_role': 'declared_total'},
+              ),
+              for (final (path, amount) in const [
+                ('ingredientRows[4].nestedRows[0]', 200),
+                ('ingredientRows[4].nestedRows[1]', 100),
+              ])
+                caffeine(
+                  path,
+                  amount,
+                  'mg',
+                  stamp: const {'dose_role': 'form_component'},
+                ),
+            ], const []),
+          );
+
+          expect(result['caffeine'], (value: 300.0, unit: 'mg'));
+        });
       });
+    });
+
+    test('223553: two real extracts at the same amount stay additive', () {
+      final result = extractIngredientDoses(
+        blob([
+          labelRow(
+            'ingredientRows[0]',
+            'Tribulus fruit extract',
+            'tribulus',
+            250,
+            'mg',
+            standardName: 'Tribulus',
+          ),
+          labelRow(
+            'ingredientRows[1]',
+            'Tribulus aerial parts extract',
+            'tribulus',
+            250,
+            'mg',
+            standardName: 'Tribulus',
+          ),
+        ], const []),
+      );
+
+      expect(result['tribulus'], (value: 500.0, unit: 'mg'));
     });
 
     test('row 10 is not nested under row 1', () {
