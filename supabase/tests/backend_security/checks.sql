@@ -374,24 +374,63 @@ END $$;
 -- === Staff identifiers (finding F2) ===
 
 -- A submitter sees their own receipt, not which staff account acted on it or
--- the cleanup worker's claim token.
+-- the cleanup worker's claim.
+CREATE FUNCTION sec.staff_columns() RETURNS text[] LANGUAGE sql IMMUTABLE
+  AS $$ SELECT ARRAY['reviewed_by','evidence_requested_by','cleanup_claim_token','cleanup_claimed_at'] $$;
 CREATE FUNCTION sec.check_submitter_cannot_read_staff_columns() RETURNS void LANGUAGE plpgsql AS $$
 DECLARE c text;
 BEGIN
-  FOREACH c IN ARRAY ARRAY['reviewed_by','evidence_requested_by','cleanup_claim_token'] LOOP
+  FOREACH c IN ARRAY sec.staff_columns() LOOP
     PERFORM sec.expect('A', format('SELECT %I FROM public.product_submissions', c), 'denied:42501', 'submitter read of ' || c);
   END LOOP;
   PERFORM sec.expect('A', 'SELECT uploader_id FROM public.product_submission_photos', 'denied:42501', 'submitter read of uploader_id');
 END $$;
 
--- The exact reads the shipped app makes (product_submission_service.dart).
+-- Every read in the app's source, run as a signed-in user. A column added to a
+-- Dart select list without a grant fails here.
 CREATE FUNCTION sec.check_app_reads_keep_working() RETURNS void LANGUAGE plpgsql AS $$
+DECLARE r record; t text; got text; sql text; keys record;
 BEGIN
-  PERFORM sec.expect('A', $q$SELECT id,kind,normalized_upc,identifier,upload_state,review_status,created_at,display_name,
-    approval_revision,promoted_approval_revision,promoted_catalog_version,promoted_at,dismissed_at,
-    resolution_code,resolution_detail,resolved_dsld_id,evidence_revision,evidence_requested_revision,
-    evidence_request_reason,evidence_request_panels FROM public.product_submissions$q$, 'rows:1', 'app submission list');
-  PERFORM sec.expect('A', 'SELECT photo_id,categories,content_sha256,revision FROM public.product_submission_photos', 'rows:1', 'app photo manifest');
-  PERFORM sec.expect('A', 'SELECT submission_id,photo_id,seq,categories,object_path FROM public.product_submission_photos', 'rows:1', 'app photo paths');
-  PERFORM sec.expect('A', 'SELECT submission_id,revision,photo_ids FROM public.product_submission_evidence_revisions', 'rows:1', 'app revisions');
+  FOREACH t IN ARRAY ARRAY['product_submissions','product_submission_photos',
+      'product_submission_evidence_revisions','product_submission_mismatch_details'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM sec.app_reads a WHERE a.table_name = t) THEN
+      RAISE EXCEPTION 'FAIL: the app read extractor loaded no read of %', t;
+    END IF;
+  END LOOP;
+  FOR r IN SELECT * FROM sec.app_reads ORDER BY embedded_fk NULLS FIRST, table_name, columns LOOP
+    sql := format('SELECT %s FROM public.%I', r.columns, r.table_name);
+    IF r.embedded_fk IS NOT NULL THEN
+      -- PostgREST joins an embed through this named foreign key.
+      SELECT (SELECT string_agg(format('child.%I = parent.%I', a.attname, b.attname), ' AND ')
+          FROM unnest(c.conkey, c.confkey) AS k(child, parent)
+          JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.child
+          JOIN pg_attribute b ON b.attrelid = c.confrelid AND b.attnum = k.parent) AS join_on INTO keys
+      FROM pg_constraint c
+      WHERE c.conname = r.embedded_fk AND c.contype = 'f'
+        AND c.conrelid = format('public.%I', r.table_name)::regclass
+        AND c.confrelid = format('public.%I', r.parent_table)::regclass;
+      IF keys.join_on IS NULL THEN
+        RAISE EXCEPTION 'FAIL: app embed has no relationship: %', r.embedded_fk;
+      END IF;
+      sql := format('SELECT %s FROM public.%I AS parent JOIN public.%I AS child ON %s',
+        (SELECT string_agg('child.' || quote_ident(c), ',') FROM unnest(string_to_array(r.columns, ',')) c),
+        r.parent_table, r.table_name, keys.join_on);
+    END IF;
+    got := sec.try('A', sql);
+    IF got NOT LIKE 'rows:%' OR (got = 'rows:0' AND r.table_name = ANY(sec.owned_tables())) THEN
+      RAISE EXCEPTION 'FAIL: app read of % (as A): columns [%] got %', r.table_name, r.columns, got;
+    END IF;
+  END LOOP;
+END $$;
+
+-- The suite's own proof rests on this, so it is held to the same rule.
+CREATE FUNCTION sec.check_mutation_judge_is_strict() RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  IF sec.mutation_outcome('syntax error at or near "x"', 'some assertion') LIKE 'caught:%'
+     OR sec.mutation_outcome('FAIL: another assertion', 'some assertion') LIKE 'caught:%' THEN
+    RAISE EXCEPTION 'FAIL: the mutation judge accepted an unrelated error';
+  END IF;
+  IF sec.mutation_outcome('FAIL: some assertion (as A)', 'some assertion') NOT LIKE 'caught:%' THEN
+    RAISE EXCEPTION 'FAIL: the mutation judge refused the named assertion';
+  END IF;
 END $$;
