@@ -194,6 +194,7 @@ void main() {
   late FakeReleaseBundle bundle;
   late ReleaseStore store;
   late bool failOpen;
+  late bool diskFull;
   late AccountSwitchGuard guard;
   late int mounts;
   late CoreDatabase core;
@@ -226,12 +227,16 @@ void main() {
       rulesVersion: '1.0.15',
     );
     failOpen = false;
+    diskFull = false;
     store = ReleaseStore(
       documents: documents,
       bundle: bundle,
       onStep: (step) {
         if (failOpen && step == ReleaseStep.openNew) {
           throw StateError('This file will not open here');
+        }
+        if (diskFull && step == ReleaseStep.writeRecord) {
+          throw StateError('The disk is full');
         }
       },
     );
@@ -532,6 +537,36 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+
+  testWidgets('a blocked release that cannot be left yet is not "up to date"', (
+    tester,
+  ) async {
+    await boot(tester);
+    final releaseBefore = store.active!.id;
+    final coreBefore = core;
+    await tester.runAsync(() async {
+      await store.recordVerified(
+        sequence: 1,
+        blockedCatalog: const {_bundledCatalog},
+        blockedRules: const {},
+      );
+      publisher.row = {
+        'db_version': _bundledCatalog,
+        'checksum': 'sha256:${sha(bundle.catalog!)}',
+        'is_current': true,
+      };
+      diskFull = true;
+    });
+
+    await checkForUpdates(tester);
+
+    expect(find.text(_couldNotCheck), findsOneWidget);
+    expect(find.text(_upToDate), findsNothing);
+    expect(store.active!.id, releaseBefore);
+    expect(mounts, 1, reason: 'nothing moved');
+    expect(identical(core, coreBefore), isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   group('the notices come back on a relaunch with no network', () {
     Future<void> relaunchOffline(

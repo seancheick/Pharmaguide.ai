@@ -515,6 +515,11 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       // Whatever the check found, the line has to say the phone moved.
       if (await _settleBlockedRelease(store)) {
         outcome = UpdateCheckOutcome.deviceChanged;
+      } else if (outcome == UpdateCheckOutcome.upToDate &&
+          _generation != null &&
+          !store.isSettled(_generation!)) {
+        // A manifest blocks what's in use and the phone couldn't move off it.
+        outcome = UpdateCheckOutcome.couldNotCheck;
       }
       return outcome;
     } finally {
