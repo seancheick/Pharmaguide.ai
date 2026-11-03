@@ -171,6 +171,7 @@ Future<List<InteractionWarning>> _warnings({
   String? bundledSeverity,
   ProfileState profile = const ProfileState(),
   bool profileFails = false,
+  bool flagsFail = false,
 }) async {
   final coreDb = CoreDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
@@ -202,9 +203,9 @@ Future<List<InteractionWarning>> _warnings({
       ),
       loadedProfileProvider.overrideWith((ref) async => profile),
       evaluatorProfileFlagsProvider.overrideWith(
-        (ref) async => {
-          if (profile.conditions.contains('pregnancy')) 'pregnant',
-        },
+        (ref) async => flagsFail
+            ? throw StateError('no taxonomy')
+            : {if (profile.conditions.contains('pregnancy')) 'pregnant'},
       ),
       if (profileFails)
         localMedicationIdentityProvider.overrideWith(
@@ -385,6 +386,34 @@ void main() {
         ),
         throwsA(anything),
       );
+    });
+
+    test('a failed taxonomy surfaces for someone whose profile is on file, '
+        'with products in the stack too', () async {
+      final ts = DateTime.utc(2026, 11, 3, 12);
+      for (final stack in [
+        const <UserStacksLocalData>[],
+        [
+          UserStacksLocalData(
+            id: 'supp-other',
+            type: 'supplement',
+            name: 'Other',
+            addedAt: ts,
+            clientUpdatedAt: ts,
+          ),
+        ],
+      ]) {
+        await expectLater(
+          _warnings(
+            alerts: [_pregnancyRule()],
+            medicationIds: const {},
+            profile: _pregnant,
+            flagsFail: true,
+            stack: stack,
+          ),
+          throwsA(anything),
+        );
+      }
     });
 
     test('nobody else sees it', () async {
