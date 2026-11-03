@@ -581,7 +581,35 @@ void main() {
       expect(result['vitamin_k'], (value: 170.0, unit: 'mcg'));
     });
 
-    test('206322: a label repeating one name and amount stays one row', () {
+    // The reader joins on row paths and never guesses from a name and amount.
+    // These read as written until the pipeline marks the duplicate or the
+    // alternate label column.
+    test('two rows at distinct paths both count, however equal they look', () {
+      final result = extractIngredientDoses(
+        blob(const [], [
+          analyzedRow(
+            'ingredientRows[0]',
+            'Vitamin C',
+            'vitamin_c',
+            100,
+            100,
+            'mg',
+          ),
+          analyzedRow(
+            'ingredientRows[1]',
+            'Vitamin C',
+            'vitamin_c',
+            100,
+            100,
+            'mg',
+          ),
+        ]),
+      );
+
+      expect(result['vitamin_c'], (value: 200.0, unit: 'mg'));
+    });
+
+    test('206322: a name and amount repeated three times adds up', () {
       List<Map<String, dynamic>> rows(
         Map<String, dynamic> Function(String path) row,
       ) => [
@@ -599,7 +627,146 @@ void main() {
         ),
       );
 
-      expect(result['colostrum'], (value: 1500.0, unit: 'mg'));
+      expect(result['colostrum'], (value: 4500.0, unit: 'mg'));
+    });
+
+    test('329778: a repeated row with its mirrors counts once per path', () {
+      final result = extractIngredientDoses(
+        blob(
+          [
+            labelRow('ingredientRows[3]', 'Selenium', 'selenium', 55, 'mcg'),
+            labelRow('ingredientRows[16]', 'Selenium', 'selenium', 55, 'mcg'),
+          ],
+          [
+            analyzedRow(
+              'ingredientRows[3]',
+              'Selenium',
+              'selenium',
+              55,
+              55,
+              'mcg',
+            ),
+            analyzedRow(
+              'ingredientRows[16]',
+              'Selenium',
+              'selenium',
+              55,
+              55,
+              'mcg',
+            ),
+          ],
+        ),
+      );
+
+      expect(result['selenium'], (value: 110.0, unit: 'mcg'));
+    });
+
+    test(
+      '217227: rows that look like label columns add until they are marked',
+      () {
+        final result = extractIngredientDoses(
+          blob(const [], [
+            analyzedRow(
+              'ingredientRows[4]',
+              'Vitamin D',
+              'vitamin_d',
+              20,
+              20,
+              'mcg',
+            ),
+            analyzedRow(
+              'ingredientRows[5]',
+              'Vitamin D',
+              'vitamin_d',
+              10,
+              10,
+              'mcg',
+            ),
+          ]),
+        );
+
+        expect(result['vitamin_d'], (value: 30.0, unit: 'mcg'));
+      },
+    );
+
+    group('legacy threshold alerts', () {
+      const rule = StackDoseThresholdRule(
+        conditionId: 'kidney_disease',
+        canonicalId: 'vitamin_c',
+        displayName: 'Vitamin C',
+        thresholdValue: 150,
+        thresholdUnit: 'mg',
+      );
+
+      List<StackDoseThresholdAlert> alertsFor(Map<String, dynamic> detailBlob) {
+        final facts = ProductHealthFacts.fromDetailBlob(detailBlob);
+        const summer = StackDoseSummer();
+        return summer.thresholdAlerts(
+          totals: summer.sum([
+            StackItemNutrients(
+              stackEntryId: 'a',
+              productName: 'Vitamin C',
+              ingredients: facts.doseRowsForThresholds,
+            ),
+          ]),
+          userConditions: const ['kidney_disease'],
+          thresholdRules: const [rule],
+        );
+      }
+
+      test('rows at distinct paths reach the threshold together', () {
+        final alerts = alertsFor(
+          blob(const [], [
+            analyzedRow(
+              'ingredientRows[0]',
+              'Vitamin C',
+              'vitamin_c',
+              100,
+              100,
+              'mg',
+            ),
+            analyzedRow(
+              'ingredientRows[1]',
+              'Vitamin C',
+              'vitamin_c',
+              100,
+              100,
+              'mg',
+            ),
+          ]),
+        );
+
+        expect(alerts, hasLength(1));
+        expect(alerts.single.totalValue, 200);
+      });
+
+      test('a row and its mirror do not reach it', () {
+        final alerts = alertsFor(
+          blob(
+            [
+              labelRow(
+                'ingredientRows[0]',
+                'Vitamin C',
+                'vitamin_c',
+                100,
+                'mg',
+              ),
+            ],
+            [
+              analyzedRow(
+                'ingredientRows[0]',
+                'Vitamin C',
+                'vitamin_c',
+                100,
+                100,
+                'mg',
+              ),
+            ],
+          ),
+        );
+
+        expect(alerts, isEmpty);
+      });
     });
 
     test('row 10 is not nested under row 1', () {
