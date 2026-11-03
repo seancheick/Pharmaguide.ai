@@ -25,9 +25,10 @@ trap cleanup EXIT
 psql_owner() { "$docker_bin" exec -i "$test_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 "$@"; }
 psql_admin() { "$docker_bin" exec -i "$test_container" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 "$@"; }
 ready=false
-for attempt in {1..120}; do
-  # The image restarts once after init, so require the role its init creates.
-  if psql_admin -q -c "SELECT 1 FROM pg_roles WHERE rolname='authenticated'" >/dev/null 2>&1 \
+for attempt in {1..240}; do
+  # The image accepts connections, then restarts when init ends.
+  if "$docker_bin" logs "$test_container" 2>&1 | grep 'init process complete' >/dev/null \
+    && psql_admin -q -c 'SELECT 1' >/dev/null 2>&1 \
     && psql_owner -q -c 'SELECT 1' >/dev/null 2>&1; then
     ready=true
     break
@@ -57,4 +58,8 @@ psql_admin -c 'SELECT name, result FROM sec.check_results ORDER BY name'
 psql_admin -q -c 'SELECT sec.run_mutations()' >/dev/null
 psql_admin -c 'SELECT name, check_name, result FROM sec.mutation_results ORDER BY check_name, name'
 psql_admin -q -c 'SELECT sec.require_all_passed()'
+audit_page="$repo_dir/docs/security/SECURITY_DEFINER_AUDIT.md"
+for key in $(psql_admin -At -c 'SELECT key FROM sec.definer_exposure'); do
+  grep -qF "\`$key\`" "$audit_page" || { echo "No audit row for $key" >&2; exit 1; }
+done
 echo 'Backend security SQL tests passed.'

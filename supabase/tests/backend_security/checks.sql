@@ -146,6 +146,10 @@ CREATE FUNCTION sec.check_other_user_cannot_update_stack() RETURNS void LANGUAGE
 BEGIN
   PERFORM sec.expect('A', $q$UPDATE public.user_stacks SET name='mine' WHERE id='sec-stack-a'$q$, 'rows:1', 'owner updates own stack');
   PERFORM sec.expect('B', $q$UPDATE public.user_stacks SET name='stolen' WHERE id='sec-stack-a'$q$, 'rows:0', 'other user update of a stack');
+  -- The app syncs by upsert, and the primary key is id alone.
+  PERFORM sec.expect('B', $q$INSERT INTO public.user_stacks(id, user_id, name, dsld_id, client_updated_at)
+    VALUES ('sec-stack-a', sec.uid('B'), 'stolen', '2', now())
+    ON CONFLICT (id) DO UPDATE SET name = excluded.name$q$, 'denied:42501', 'other user upsert over a stack');
 END $$;
 CREATE FUNCTION sec.check_other_user_cannot_delete_stack() RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
