@@ -114,7 +114,19 @@ class ProductHealthFacts {
           ..._doseRowsWithForms(entry.key, entry.value.value, entry.value.unit),
       ];
     }
-    if (activeIngredients.isNotEmpty) return activeIngredients;
+    if (activeIngredients.isNotEmpty) {
+      // A row hidden by its dose_role stays out here too: no raw row carries
+      // the role (213414: folic acid under a skipped folate total).
+      final hiddenPaths = {
+        for (final row in nutrients)
+          if (!isUsableDoseRow(row) && row['raw_source_path'] != null)
+            row['raw_source_path'],
+      };
+      return [
+        for (final row in activeIngredients)
+          if (!hiddenPaths.contains(row['raw_source_path'])) row,
+      ];
+    }
     return nutrients;
   }
 
