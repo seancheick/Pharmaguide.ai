@@ -33,7 +33,7 @@ void main() {
         opener: () async => fail('opener must not run when no staging'),
       );
 
-      final result = await swapper.swap();
+      final result = await swapper.swap(expectedVersion: '2026.01.01.000000');
 
       expect(result, isA<SwapNoStaging>());
     });
@@ -47,7 +47,7 @@ void main() {
         opener: () async => fail('opener must not run after path failure'),
       );
 
-      final result = await swapper.swap();
+      final result = await swapper.swap(expectedVersion: '2026.01.01.000000');
 
       expect(result, isA<SwapRolledBack>());
       final rolledBack = result as SwapRolledBack;
@@ -64,11 +64,10 @@ void main() {
         activator: () async {
           throw StateError('rename failed: permission denied');
         },
-        opener: () async =>
-            fail('opener must not run after activation failure'),
+        opener: () async => throw StateError('nothing to reopen'),
       );
 
-      final result = await swapper.swap();
+      final result = await swapper.swap(expectedVersion: '2026.01.01.000000');
 
       expect(result, isA<SwapRolledBack>());
       final rolledBack = result as SwapRolledBack;
@@ -89,7 +88,7 @@ void main() {
         },
       );
 
-      final result = await swapper.swap();
+      final result = await swapper.swap(expectedVersion: '2026.01.01.000000');
 
       expect(result, isA<SwapRolledBack>());
       final rolledBack = result as SwapRolledBack;
@@ -115,7 +114,7 @@ void main() {
         opener: () async => memoryDb,
       );
 
-      final result = await swapper.swap();
+      final result = await swapper.swap(expectedVersion: '2026.01.01.000000');
 
       expect(result, isA<SwapRolledBack>());
       final rolledBack = result as SwapRolledBack;
@@ -140,7 +139,7 @@ void main() {
         opener: () async => fail('opener must not run'),
       );
 
-      final result = await swapper.swap();
+      final result = await swapper.swap(expectedVersion: '2026.01.01.000000');
 
       expect(result, isA<SwapNoStaging>());
       expect(
@@ -167,7 +166,7 @@ void main() {
           opener: () async => fail('opener must not run'),
         );
 
-        await swapper.swap();
+        await swapper.swap(expectedVersion: '2026.01.01.000000');
 
         final errors = CrashReportingService().recordedErrors;
         expect(errors, hasLength(1));
@@ -184,10 +183,10 @@ void main() {
         final swapper = CatalogSwapper(
           corePathProvider: tempPath,
           activator: () async => throw StateError('rename failed'),
-          opener: () async => fail('opener must not run'),
+          opener: () async => throw StateError('nothing to reopen'),
         );
 
-        await swapper.swap();
+        await swapper.swap(expectedVersion: '2026.01.01.000000');
 
         final errors = CrashReportingService().recordedErrors;
         expect(errors, hasLength(1));

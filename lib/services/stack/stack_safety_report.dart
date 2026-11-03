@@ -36,13 +36,23 @@ class StackSafetyReport {
     this.timingOptimizations = const <TimingOptimization>[],
     this.coverageIncomplete = false,
     this.checksIncomplete = false,
+    this.catalogProductSkipped = false,
+    this.limitedDataProducts = const <String>[],
   });
+
+  /// Stack products whose label coverage is below the trust floor, by name, so
+  /// the consumer copy can say which product the gap belongs to.
+  final List<String> limitedDataProducts;
 
   /// True when at least one product in the stack has a label mapping
   /// coverage below the 0.3 trust floor — its ingredients may not have
   /// fired the interaction checks. The banner must hedge ("results may
   /// be incomplete") instead of rendering a success tone.
   final bool coverageIncomplete;
+
+  /// True when part of [coverageIncomplete] is a catalog product whose details
+  /// didn't load, as opposed to a product the catalog doesn't have.
+  final bool catalogProductSkipped;
 
   /// True when one or more safety subsystems failed while building the report.
   /// The UI must hedge instead of rendering an all-clear, because an empty

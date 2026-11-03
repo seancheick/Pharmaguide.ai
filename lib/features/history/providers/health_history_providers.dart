@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/repositories/health_event_repository.dart';
@@ -157,7 +160,10 @@ final userHealthEventServiceProvider = Provider<UserHealthEventService>((ref) {
 });
 
 final healthAttachmentStoreProvider = Provider<HealthAttachmentStore>((ref) {
-  return HealthAttachmentStore();
+  final root = ref.watch(activeAccountProvider).attachmentsPath;
+  return HealthAttachmentStore(
+    root: root == null ? null : () async => Directory(root),
+  );
 });
 
 final clinicalSignalLifecycleServiceProvider =
@@ -201,11 +207,17 @@ final healthReminderSchedulerProvider = Provider<HealthReminderScheduler>((
 /// log. No notification-specific health database exists.
 final healthReminderSyncProvider =
     FutureProvider.autoDispose<HealthReminderSyncResult>((ref) async {
+      final guard = ref.watch(accountSwitchGuardProvider);
       final policy = ref.watch(notificationDeliveryPolicyProvider);
       final scheduler = ref.watch(healthReminderSchedulerProvider);
+      final account = guard == null ? null : ref.watch(activeAccountProvider);
+      Future<T> osCall<T>(Future<T> Function() call) => guard == null
+          ? call()
+          : guard.runNotificationWork(call, account: account!);
+
       switch (policy.actionFor(NotificationCategory.healthHistoryReminders)) {
         case NotificationDeliveryAction.cancel:
-          final cancelled = await scheduler.cancelOwned();
+          final cancelled = await osCall(scheduler.cancelOwned);
           return HealthReminderSyncResult(
             scheduled: 0,
             cancelled: cancelled,
@@ -228,8 +240,10 @@ final healthReminderSyncProvider =
       }
 
       final items = await ref.watch(healthHistoryUpcomingProvider.future);
-      return scheduler.sync(
-        items.map((item) => item.event).toList(growable: false),
-        permissionAlreadyGranted: true,
+      return osCall(
+        () => scheduler.sync(
+          items.map((item) => item.event).toList(growable: false),
+          permissionAlreadyGranted: true,
+        ),
       );
     });

@@ -2,8 +2,8 @@
 //
 // Favorites stay in `user_data.db` and never sync to Supabase (same privacy
 // boundary as profile / medications), so guests keep a wishlist too (Sean
-// 2026-09-28). Like the stack, the rows stay on the device after sign-out;
-// a different account signing in clears them (AccountSwitchGuard).
+// 2026-09-28). Like the stack, the rows stay in the account's folder after
+// sign-out, where no one else can open them (AccountSwitchGuard).
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/data/database/user_database.dart';

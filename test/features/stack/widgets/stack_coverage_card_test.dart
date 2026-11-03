@@ -130,7 +130,7 @@ void main() {
     await tester.pumpWidget(host(const StackGoalSupportCard(report: report)));
     expect(find.byKey(const Key('coverage-hedge-line')), findsOneWidget);
     expect(
-      find.textContaining("Some labels couldn't be fully analyzed"),
+      find.textContaining("Some products couldn't be fully checked"),
       findsOneWidget,
     );
   });
@@ -167,10 +167,7 @@ void main() {
     var tapped = false;
     await tester.pumpWidget(
       host(
-        StackGoalSupportCard(
-          report: report,
-          onAddGoals: () => tapped = true,
-        ),
+        StackGoalSupportCard(report: report, onAddGoals: () => tapped = true),
       ),
     );
     expect(find.byKey(const Key('coverage-no-goals')), findsOneWidget);

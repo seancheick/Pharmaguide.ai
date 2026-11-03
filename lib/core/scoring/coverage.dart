@@ -14,11 +14,11 @@ const double kLowCoverageFloor = 0.3;
 /// Base hedge sentence shown when coverage is below [kLowCoverageFloor]
 /// (or data is otherwise incomplete). Surfaces append a context suffix via
 /// [coverageHedge].
-const String kCoverageHedgeBase = "Some labels couldn't be fully analyzed";
+const String kCoverageHedgeBase = "Some products couldn't be fully checked";
 
 /// Build the standard hedge line, e.g.
 /// `coverageHedge('results may be incomplete')` →
-/// "Some labels couldn't be fully analyzed — results may be incomplete."
+/// "Some products couldn't be fully checked — results may be incomplete."
 String coverageHedge(String suffix) => '$kCoverageHedgeBase — $suffix.';
 
 /// True when a product's mapped coverage is below the trust floor.

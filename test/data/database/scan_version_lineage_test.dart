@@ -86,7 +86,7 @@ void main() {
       ''');
       legacy.execute('PRAGMA user_version = 7;');
     } finally {
-      legacy.dispose();
+      legacy.close();
     }
 
     final db = UserDatabase.open(dbPath);

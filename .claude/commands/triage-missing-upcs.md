@@ -33,7 +33,7 @@ format. Don't guess silently.
 To dump the queue from a Mac terminal:
 
 ```bash
-sqlite3 ~/Library/Containers/<bundle-id>/Data/Documents/user_data.db \
+sqlite3 ~/Library/Containers/<bundle-id>/Data/Library/Application\ Support/<bundle-id>/users/<scope>/user_data.db \
   -header -csv \
   'SELECT upc, attempt_count, first_seen, last_seen
    FROM user_failed_scans

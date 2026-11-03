@@ -1,8 +1,7 @@
-// FIX 3 — a banned/recalled asset load failure must not silently disable
-// recall detection. Before the fix the provider swallowed the error and
-// returned an empty report (no error recorded, no hedge), so an
-// FDA-recalled product read as "all clear". Now the load failure is
-// recorded AND carried as an `incomplete` signal the banner can hedge on.
+// A failed load of the banned/recalled list must not disable recall detection.
+// The catalog flags decide; the list only names the substance. So the failure
+// is recorded and flagged products still warn. A stack product the catalog
+// can't give us is the real unknown, and the report names it.
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,6 +45,16 @@ class _WorkingRecallRepo extends ReferenceDataRepository {
         },
       ],
     };
+  }
+}
+
+/// A catalog whose product lookup fails, as a damaged file would.
+class _UnreadableCoreDatabase extends CoreDatabase {
+  _UnreadableCoreDatabase() : super.memory();
+
+  @override
+  Future<ProductsCoreData?> findById(String dsldId) async {
+    throw StateError('catalog read failed');
   }
 }
 
@@ -113,11 +122,10 @@ void main() {
         recalledIngredientsReportProvider.future,
       );
 
-      // Degrades to an empty report (never throws), but the SAME report
-      // carries the unavailable state to every consumer.
+      // The catalog has no row for SUPP_1, and that is the only gap reported.
       expect(report.isEmpty, isTrue);
-      expect(report.incomplete, isTrue);
-      // ...but the failure is now recorded, not swallowed silently.
+      expect(report.notInCatalog, ['Test Supp']);
+      // The load failure is recorded, not swallowed silently.
       final errors = CrashReportingService().recordedErrors;
       expect(
         errors.any(
@@ -126,6 +134,44 @@ void main() {
         isTrue,
         reason: 'a recall-detection load failure must be reported',
       );
+    },
+  );
+
+  test(
+    'a flagged product still warns when the recall list fails to load',
+    () async {
+      final coreDb = CoreDatabase.memory();
+      addTearDown(coreDb.close);
+      await _seedProduct(
+        coreDb,
+        dsldId: 'SUPP_SPIKED',
+        tags: ['sibutramine'],
+        hasBannedFlag: 1,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          referenceDataRepositoryProvider.overrideWith(
+            (ref) => _ThrowingRecallRepo(),
+          ),
+          activeStackProvider.overrideWith(
+            (ref) async => [
+              _supplement(dsldId: 'SUPP_SPIKED', name: 'Spiked Supp'),
+            ],
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final report = await container.read(
+        recalledIngredientsReportProvider.future,
+      );
+
+      expect(report.violations, hasLength(1));
+      expect(report.violations.single.isBannedSubstance, isTrue);
+      expect(report.violations.single.recalledIngredients, isEmpty);
+      expect(report.incomplete, isFalse);
     },
   );
 
@@ -200,5 +246,35 @@ void main() {
       reason:
           'A stack product that could not be inspected is unknown, not recall-free.',
     );
+    expect(report.notInCatalog, ['Missing Product']);
+    expect(report.notInCatalogMessage, contains('Missing Product'));
   });
+
+  test(
+    'a catalog read failure is incomplete without blaming the catalog',
+    () async {
+      final coreDb = _UnreadableCoreDatabase();
+      addTearDown(coreDb.close);
+
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          referenceDataRepositoryProvider.overrideWith(
+            (ref) => _WorkingRecallRepo(),
+          ),
+          activeStackProvider.overrideWith(
+            (ref) async => [_supplement(dsldId: 'SUPP_1', name: 'Test Supp')],
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final report = await container.read(
+        recalledIngredientsReportProvider.future,
+      );
+
+      expect(report.incomplete, isTrue);
+      expect(report.notInCatalog, isEmpty);
+    },
+  );
 }

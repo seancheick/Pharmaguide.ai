@@ -47,7 +47,7 @@ void main() {
       );
       legacy.execute('PRAGMA user_version = 3');
     } finally {
-      legacy.dispose();
+      legacy.close();
     }
 
     final database = CoreDatabase.open(path);

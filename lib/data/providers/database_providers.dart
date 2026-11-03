@@ -193,15 +193,105 @@ Future<void> _writeBytesChunked(File file, Uint8List bytes) async {
   }
 }
 
-/// Opens the core catalog DB and probes it. If open or the structural
-/// snapshot probe ([CoreDatabase.validateCatalogSnapshot]) throws, the
-/// on-disk file is force-restored from the bundled asset and the open
-/// is retried once.
+/// Durable activation intent, written before any file moves. Both versions are
+/// needed: an interrupted activation can leave either the old or new file live.
+Future<void> recordCatalogActivation({
+  required String dbPath,
+  required String expectedVersion,
+  required String? previousVersion,
+}) async {
+  final marker = File('$dbPath.activation.json');
+  if (await marker.exists()) {
+    throw StateError('Previous catalog activation has not been settled');
+  }
+  final temporary = File('${marker.path}.tmp');
+  await temporary.writeAsString(
+    jsonEncode({'expected': expectedVersion, 'previous': previousVersion}),
+    flush: true,
+  );
+  await temporary.rename(marker.path);
+}
+
+/// Settle the interrupted activation before the bundle check can touch it.
+/// A structurally valid file is insufficient when a swap recorded a different
+/// version. Without a backup to return to, or without readable intent to judge
+/// the live file by, the shipped catalog takes over: a refused file is never
+/// reopened, and the phone is never left with no catalog. Restoration failures
+/// propagate and the intent stays, so the next launch tries again.
+Future<void> _settleCatalogActivation(String dbPath, AssetBundle bundle) async {
+  final backup = File('$dbPath.backup');
+  final marker = File('$dbPath.activation.json');
+  final hasMarker = await marker.exists();
+  final hasBackup = await backup.exists();
+  if (!hasMarker && !hasBackup) return;
+
+  final intent = hasMarker ? await _readCatalogActivation(marker) : null;
+  final version = hasMarker && intent == null
+      ? null
+      : await _catalogVersion(dbPath);
+  final accepted =
+      version != null &&
+      (intent == null ||
+          version == intent.expected ||
+          version == intent.previous);
+  if (accepted) {
+    if (hasBackup) await backup.delete();
+  } else if (hasBackup) {
+    debugPrint('[catalog-rollback] restoring the last good catalog');
+    await backup.rename(dbPath);
+  } else {
+    debugPrint(
+      '[catalog-rollback] no recovery file, using the shipped catalog',
+    );
+    await _restoreBundledCoreDatabase(dbPath: dbPath, bundle: bundle);
+  }
+  if (hasMarker) await marker.delete();
+}
+
+/// Null when [marker] can't be read as intent.
+Future<({String expected, String? previous})?> _readCatalogActivation(
+  File marker,
+) async {
+  try {
+    final intent = jsonDecode(await marker.readAsString());
+    if (intent is! Map) return null;
+    final expected = intent['expected'];
+    final previous = intent['previous'];
+    if (expected is! String || expected.isEmpty) return null;
+    if (previous != null && previous is! String) return null;
+    return (expected: expected, previous: previous as String?);
+  } on Object {
+    return null;
+  }
+}
+
+Future<String?> _catalogVersion(String path) async {
+  if (!await File(path).exists()) return null;
+  CoreDatabase? db;
+  try {
+    db = CoreDatabase.open(path);
+    return await db.validateCatalogSnapshot();
+  } on Object {
+    return null;
+  } finally {
+    try {
+      await db?.close();
+    } on Object {
+      // Best-effort; the answer above is what matters.
+    }
+  }
+}
+
+/// Opens the core catalog DB and probes it. A backup left by catalog
+/// activation is settled first, so a bad update returns the phone to the last
+/// catalog that worked. If open or the structural snapshot probe
+/// ([CoreDatabase.validateCatalogSnapshot]) still throws, the on-disk file is
+/// force-restored from the bundled asset and the open is retried once.
 ///
 /// **D4 rollback safety.** Bundle corruption (truncated OTA file,
 /// schema drift, partial swap) must never brick the app. The bundled
 /// asset is always available — it ships with the binary — and serves
-/// as the always-good fallback. The retry runs against a known-good
+/// as the last-resort fallback. The retry runs against a known-good
 /// file shape, so a second failure indicates the bundled asset itself
 /// is broken (a build-gate problem, not a runtime one) and we let it
 /// surface to the caller.
@@ -214,6 +304,8 @@ Future<CoreDatabase> openCoreDatabase({
   final dir = documentsDirectory ?? await getApplicationDocumentsDirectory();
   final dbPath = p.join(dir.path, 'pharmaguide_core.db');
   final assetBundle = bundle ?? rootBundle;
+  // Before the bundle check, which would overwrite a live file it can't read.
+  await _settleCatalogActivation(dbPath, assetBundle);
   await ensureCoreDatabaseAvailable(dbPath: dbPath, bundle: assetBundle);
 
   CoreDatabase? db;
@@ -250,10 +342,8 @@ Future<CoreDatabase> openCoreDatabase({
   }
 }
 
-/// Open the UserDatabase at the standard application documents path.
-Future<UserDatabase> openUserDatabase() async {
-  final dir = await getApplicationDocumentsDirectory();
-  final dbPath = p.join(dir.path, 'user_data.db');
+/// Open the UserDatabase at [dbPath], inside an account's folder.
+Future<UserDatabase> openUserDatabase(String dbPath) async {
   final db = UserDatabase.open(dbPath);
   // Fire-and-forget cache housekeeping — must never block or fail boot.
   unawaited(

@@ -67,6 +67,10 @@ void main() {
     bool signedIn = false,
     bool stackSafetyFails = false,
     bool coverageFails = false,
+    bool recallFails = false,
+    RecalledIngredientsReport recallReport = const RecalledIngredientsReport(
+      violations: [],
+    ),
     StackSafetyReport safetyReport = const StackSafetyReport(),
     List<StackDoseThresholdAlert> doseThresholdAlerts = const [],
   }) async {
@@ -104,9 +108,10 @@ void main() {
           synergyReportProvider.overrideWith(
             (ref) async => SynergyReport.empty(),
           ),
-          recalledIngredientsReportProvider.overrideWith(
-            (ref) async => RecalledIngredientsReport.empty(),
-          ),
+          recalledIngredientsReportProvider.overrideWith((ref) async {
+            if (recallFails) throw StateError('recall check failed');
+            return recallReport;
+          }),
           stackDoseThresholdAlertsProvider.overrideWith(
             (ref) async => doseThresholdAlerts,
           ),
@@ -720,6 +725,124 @@ void main() {
       },
     );
 
+    group('recall card', () {
+      final stack = [
+        stackEntry(
+          id: 'stack-1',
+          name: 'Magnesium',
+          type: 'supplement',
+          dsldId: '12345',
+        ),
+      ];
+
+      testWidgets(
+        'missing-product card preserves a separate unreadable product',
+        (tester) async {
+          await pumpWithStack(
+            tester,
+            const StackV2Screen(showNavBar: false),
+            stack: stack,
+            safetyReport: const StackSafetyReport(
+              coverageIncomplete: true,
+              checksIncomplete: true,
+            ),
+            recallReport: const RecalledIngredientsReport(
+              violations: [],
+              incomplete: true,
+              notInCatalog: ['Old Brand Magnesium'],
+              unreadableProducts: ['Vitamin D'],
+            ),
+          );
+          expect(
+            find.textContaining(
+              "Old Brand Magnesium isn't in our current catalog",
+              skipOffstage: false,
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.textContaining(
+              'could not read product data for Vitamin D',
+              skipOffstage: false,
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.textContaining(
+              'recall check did not finish',
+              skipOffstage: false,
+            ),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets('names a product the catalog does not have', (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          stack: stack,
+          recallReport: const RecalledIngredientsReport(
+            violations: [],
+            incomplete: true,
+            notInCatalog: ['Magnesium'],
+          ),
+        );
+
+        expect(
+          find.text('Not in our catalog', skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            "Magnesium isn't in our current catalog, so we can't check it "
+            'for recalls or interactions.',
+            skipOffstage: false,
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('unavailable', skipOffstage: false),
+          findsNothing,
+        );
+      });
+
+      testWidgets('a failed check is still not shown as clear', (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          stack: stack,
+          recallFails: true,
+        );
+
+        expect(
+          find.text("Recall check didn't finish", skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('unavailable', skipOffstage: false),
+          findsNothing,
+        );
+      });
+
+      testWidgets('a clean report shows no recall card', (tester) async {
+        await pumpWithStack(
+          tester,
+          const StackV2Screen(showNavBar: false),
+          stack: stack,
+        );
+
+        expect(
+          find.text('Not in our catalog', skipOffstage: false),
+          findsNothing,
+        );
+        expect(
+          find.text("Recall check didn't finish", skipOffstage: false),
+          findsNothing,
+        );
+      });
+    });
+
     testWidgets(
       'Stack v2 surfaces coverage errors instead of an empty gap card',
       (tester) async {
@@ -742,7 +865,7 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.textContaining('Try again shortly', skipOffstage: false),
+          find.textContaining('Please reopen', skipOffstage: false),
           findsOneWidget,
         );
       },

@@ -52,12 +52,15 @@ class SafetyAlertRepository {
           isComplete: true,
         );
       }
-      final release = await _decodeRemote(Map<String, dynamic>.from(row));
+      final remote = await _decodeRemote(Map<String, dynamic>.from(row));
+      final release = remote.keeping(
+        (await _loadCached())?.rowsFor(remote.unreadableIds) ?? const [],
+      );
       await _preferences.setString(
         _cacheKey,
         jsonEncode(_cachePayload(release)),
       );
-      return await _withWatermark(release, isComplete: true);
+      return await _withWatermark(release, isComplete: !release.hasUnsupported);
     } on Object {
       final cached = await _loadCached();
       if (cached == null) {
@@ -107,13 +110,26 @@ class SafetyAlertRepository {
     if (decoded is! Map || decoded['alerts'] is! List) {
       throw const FormatException('Safety-alert feed is malformed.');
     }
-    final alerts = (decoded['alerts'] as List)
-        .map(
-          (raw) => SafetyAlert.fromJson(Map<String, Object?>.from(raw as Map)),
-        )
-        .toList(growable: false);
+    final alerts = <SafetyAlert>[];
+    final rows = <String, Map<String, Object?>>{};
+    final unreadableIds = <String>{};
+    var hasUnsupported = false;
+    for (final raw in decoded['alerts'] as List) {
+      final row = Map<String, Object?>.from(raw as Map);
+      try {
+        final alert = SafetyAlert.fromJson(row);
+        alerts.add(alert);
+        rows[alert.alertId] = row;
+      } on UnsupportedSafetyAlert {
+        hasUnsupported = true;
+        unreadableIds.add((row['alert_id'] as String).trim());
+      }
+    }
     return _DecodedRelease(
-      alerts: alerts,
+      alerts: List.unmodifiable(alerts),
+      rows: rows,
+      unreadableIds: unreadableIds,
+      hasUnsupported: hasUnsupported,
       checksum: actual,
       feedBytes: Uint8List.fromList(bytes).asUnmodifiableView(),
     );
@@ -129,10 +145,19 @@ class SafetyAlertRepository {
           decoded['checksum'] is! String) {
         return null;
       }
-      return _decodeBytes(
+      final release = _decodeBytes(
         base64Decode(decoded['feed'] as String),
         decoded['checksum'] as String,
       );
+      final kept = decoded['kept'];
+      if (kept == null) return release;
+      if (kept is! String || decoded['kept_checksum'] != _checksumOf(kept)) {
+        return null;
+      }
+      return release.keeping([
+        for (final row in jsonDecode(kept) as List)
+          Map<String, Object?>.from(row as Map),
+      ]);
     } on Object {
       return null;
     }
@@ -143,7 +168,15 @@ class SafetyAlertRepository {
     // Retain exactly the verified downloaded bytes: re-encoding parsed alert
     // models loses feed metadata/formatting and invalidates the checksum.
     'feed': base64Encode(release.feedBytes),
+    if (release.keptRows.isNotEmpty)
+      ...() {
+        final kept = jsonEncode(release.keptRows);
+        return {'kept': kept, 'kept_checksum': _checksumOf(kept)};
+      }(),
   };
+
+  String _checksumOf(String text) =>
+      'sha256:${sha256.convert(utf8.encode(text))}';
 
   Future<SafetyAlertRelease> _withWatermark(
     _DecodedRelease release, {
@@ -191,10 +224,60 @@ class SafetyAlertRepository {
 final class _DecodedRelease {
   const _DecodedRelease({
     required this.alerts,
+    required this.rows,
+    required this.unreadableIds,
+    required this.hasUnsupported,
     required this.checksum,
     required this.feedBytes,
+    this.keptRows = const [],
   });
   final List<SafetyAlert> alerts;
+
+  /// The raw record behind each alert in [alerts], so one can be carried into
+  /// a later release.
+  final Map<String, Map<String, Object?>> rows;
+
+  /// Alerts whose current revision this build can't read.
+  final Set<String> unreadableIds;
+
+  /// Earlier revisions carried over for [unreadableIds]. A revision this build
+  /// can't read must not take away a warning the device already shows; it goes
+  /// when the publisher withdraws the alert or a readable revision arrives.
+  final List<Map<String, Object?>> keptRows;
+
+  /// The feed held alerts this build can't read, so it can never count as a
+  /// complete check.
+  final bool hasUnsupported;
   final String checksum;
   final Uint8List feedBytes;
+
+  List<Map<String, Object?>> rowsFor(Set<String> ids) => [
+    for (final id in ids)
+      if (rows[id] case final row?) row,
+  ];
+
+  _DecodedRelease keeping(List<Map<String, Object?>> kept) {
+    // Re-evaluate carried rows with this reader: an app upgrade may now read
+    // the current revision. Withdrawn or readable alerts must not be revived.
+    kept = [
+      for (final row in kept)
+        if (row['alert_id'] case final String id)
+          if (unreadableIds.contains(id.trim()) && !rows.containsKey(id.trim()))
+            row,
+    ];
+    if (kept.isEmpty) return this;
+    final keptAlerts = kept.map(SafetyAlert.fromJson).toList();
+    return _DecodedRelease(
+      alerts: List.unmodifiable([...alerts, ...keptAlerts]),
+      rows: {
+        ...rows,
+        for (final (i, alert) in keptAlerts.indexed) alert.alertId: kept[i],
+      },
+      unreadableIds: unreadableIds,
+      hasUnsupported: hasUnsupported,
+      checksum: checksum,
+      feedBytes: feedBytes,
+      keptRows: kept,
+    );
+  }
 }

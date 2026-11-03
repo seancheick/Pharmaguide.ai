@@ -651,6 +651,69 @@ void main() {
       );
     });
 
+    group('never a false all-clear', () {
+      for (final state in [
+        FitAssessmentState.strongMatch,
+        FitAssessmentState.goodFit,
+      ]) {
+        for (final severity in [Severity.contraindicated, Severity.avoid]) {
+          test('a ${severity.name} warning outranks a ${state.name} fit', () {
+            final summary = _summary(
+              fitResult: _fit(state: state),
+              warnings: [_warning(severity: severity)],
+            );
+
+            expect(summary.status, ProfileRelevanceStatus.notRecommended);
+            expect(summary.headline, isNot(kNoProfileConcernsHeadline));
+          });
+        }
+      }
+
+      test('a failed check still shows the concerns other checks found', () {
+        final summary = buildProfileRelevanceSummary(
+          fitResult: _fit(),
+          checksFailed: true,
+          topGoalLabel: null,
+          warnings: [_warning(severity: Severity.contraindicated)],
+          interactionHint: '',
+          matchedAllergens: const [],
+          freeFromConflicts: const [],
+          hasInteractionProfile: true,
+        );
+
+        expect(summary.status, ProfileRelevanceStatus.notRecommended);
+      });
+
+      test('a failed check with nothing found is no all-clear', () {
+        final summary = buildProfileRelevanceSummary(
+          fitResult: _fit(),
+          checksFailed: true,
+          topGoalLabel: null,
+          warnings: const [],
+          interactionHint: '',
+          matchedAllergens: const [],
+          freeFromConflicts: const [],
+          hasInteractionProfile: true,
+        );
+
+        expect(summary.headline, isNot(kNoProfileConcernsHeadline));
+      });
+
+      test('a profiled user with no fit result gets no all-clear', () {
+        final summary = buildProfileRelevanceSummary(
+          fitResult: null,
+          topGoalLabel: null,
+          warnings: const [],
+          interactionHint: '',
+          matchedAllergens: const [],
+          freeFromConflicts: const [],
+          hasInteractionProfile: true,
+        );
+
+        expect(summary.headline, isNot(kNoProfileConcernsHeadline));
+      });
+    });
+
     test('missing fit result renders incomplete profile action state', () {
       final summary = buildProfileRelevanceSummary(
         fitResult: null,

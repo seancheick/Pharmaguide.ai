@@ -81,7 +81,7 @@ void main() {
         .any((o) => o.ruleId == ruleId);
   }
 
-  tearDownAll(() => db.dispose());
+  tearDownAll(() => db.close());
 
   List<Map<String, dynamic>> verifiedRules() =>
       rules.where((r) => r['review_status'] == 'verified').toList();

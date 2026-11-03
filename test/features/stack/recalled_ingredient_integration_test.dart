@@ -422,8 +422,8 @@ void main() {
       );
     });
 
-    test('malformed recalled_ingredients yields an incomplete report, '
-        'not a false all-clear', () async {
+    test('malformed recalled_ingredients leaves detection to the catalog '
+        'flags', () async {
       final coreDb = CoreDatabase.memory();
       final userDb = UserDatabase.memory();
 
@@ -439,9 +439,8 @@ void main() {
         userDb: userDb,
         recallPayload: {
           'schema_version': '1.1',
-          // Drifted shape: a map instead of the expected list. The
-          // provider must degrade to an empty report instead of
-          // throwing a TypeError outside its try/catch.
+          // Drifted shape: a map instead of the expected list. The list only
+          // names substances, so the unflagged product stays unflagged.
           'recalled_ingredients': {'canonical_id': 'sibutramine'},
         },
       );
@@ -455,7 +454,7 @@ void main() {
         recalledIngredientsReportProvider.future,
       );
       expect(report.isEmpty, isTrue);
-      expect(report.incomplete, isTrue);
+      expect(report.incomplete, isFalse);
     });
 
     test('non-map entries in the recall list are skipped without losing '

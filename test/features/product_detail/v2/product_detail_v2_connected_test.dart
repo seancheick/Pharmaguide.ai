@@ -16,7 +16,9 @@ import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/detail_blob_provider.dart';
+import 'package:pharmaguide/core/models/fit_score_result.dart';
 import 'package:pharmaguide/features/product_detail/providers/fit_score_provider.dart';
+import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/personalized_warnings_provider.dart';
 import 'package:pharmaguide/features/product_detail/v2/product_detail_v2_connected.dart';
 import 'package:pharmaguide/features/product_detail/v2/sections/ingredients_section.dart';
@@ -166,6 +168,10 @@ Future<void> _pumpConnectedScreen(
   bool settle = true,
   bool blocked = false,
   double mappedCoverage = 1,
+  FitScoreResult? fitResult,
+  bool profiled = false,
+  bool warningsFail = false,
+  bool profileRulesFail = false,
 }) async {
   final coreDb = CoreDatabase.memory();
   final userDb = UserDatabase.memory();
@@ -189,16 +195,28 @@ Future<void> _pumpConnectedScreen(
           expect(dsldId, _connectedDsldId);
           return detailBlob;
         }),
-        personalizedInteractionWarningsProvider.overrideWith(
-          (ref, dsldId) async => const [],
-        ),
+        if (profiled)
+          profileProvider.overrideWith(
+            (ref) => ProfileNotifier()..setAgeBracket('31-50'),
+          ),
+        personalizedInteractionWarningsProvider.overrideWith((
+          ref,
+          dsldId,
+        ) async {
+          if (warningsFail) throw StateError('interaction check unavailable');
+          return const [];
+        }),
+        if (profileRulesFail)
+          profileWarningRuleWarningsProvider.overrideWith(
+            (ref, dsldId) async => throw StateError('rules unavailable'),
+          ),
         fitScoreForProductProvider.overrideWith((ref, dsldId) async {
           fitCalls?.add(1);
           if (fitGate != null) await fitGate.future;
           if (fitFails && (fitCalls == null || fitCalls.length == 1)) {
             throw StateError('fit inputs unavailable');
           }
-          return null;
+          return fitResult;
         }),
         currentStackMedicationClassIdsProvider.overrideWith(
           (ref) async => const <String>{},
@@ -225,6 +243,17 @@ Future<void> _pumpConnectedScreen(
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
+}
+
+class _FailingCoreDatabase extends CoreDatabase {
+  _FailingCoreDatabase() : super.memory();
+
+  var failing = true;
+
+  @override
+  Future<ProductsCoreData?> findById(String dsldId) => failing
+      ? Future.error(StateError('disk I/O error'))
+      : super.findById(dsldId);
 }
 
 Future<void> _scrollConnectedTowardTop(WidgetTester tester) async {
@@ -369,6 +398,41 @@ void main() {
     }
   });
   group('connected unavailable states', () {
+    testWidgets('a failed catalog read leaves the loading state', (
+      tester,
+    ) async {
+      final coreDb = _FailingCoreDatabase();
+      final userDb = UserDatabase.memory();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await coreDb.close();
+        await userDb.close();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+          ],
+          child: const MaterialApp(
+            home: ProductDetailV2ConnectedScreen(dsldId: _connectedDsldId),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Product unavailable'), findsNothing);
+      expect(find.textContaining('not an all-clear'), findsOneWidget);
+
+      coreDb.failing = false;
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+
+      // The read works now, and this id genuinely isn't in the catalog.
+      expect(find.text('Product unavailable'), findsOneWidget);
+    });
+
     testWidgets('low coverage keeps the score and shows coverage beside it', (
       tester,
     ) async {
@@ -408,6 +472,57 @@ void main() {
       );
       expect(find.text('Personalized checks are incomplete'), findsOneWidget);
       expect(find.textContaining('not an all-clear'), findsOneWidget);
+    });
+
+    group('a personal check that failed is never an all-clear', () {
+      const cleanFit = FitScoreResult(
+        missingFields: [],
+        state: FitAssessmentState.limitedFit,
+        reasons: [],
+        mappedCoverage: 1,
+      );
+      final blob = <String, dynamic>{
+        'ingredients': const <Map<String, dynamic>>[],
+        'display_ingredients': [_activeLedgerRow('Active row', 0)],
+        'quality_pillars_v4': _connectedV4Pillars(),
+      };
+
+      testWidgets('control: every check passing shows the all-clear', (
+        tester,
+      ) async {
+        await _pumpConnectedScreen(
+          tester,
+          initialSection: null,
+          detailBlob: blob,
+          profiled: true,
+          fitResult: cleanFit,
+        );
+
+        expect(find.text('No known concerns'), findsOneWidget);
+      });
+
+      for (final (name, warningsFail, profileRulesFail) in [
+        ('interaction check', true, false),
+        ('profile rule check', false, true),
+      ]) {
+        testWidgets('$name failed', (tester) async {
+          await _pumpConnectedScreen(
+            tester,
+            initialSection: null,
+            detailBlob: blob,
+            profiled: true,
+            fitResult: cleanFit,
+            warningsFail: warningsFail,
+            profileRulesFail: profileRulesFail,
+          );
+
+          expect(
+            find.byKey(const Key('personalized-checks-error-banner')),
+            findsOneWidget,
+          );
+          expect(find.text('No known concerns'), findsNothing);
+        });
+      }
     });
 
     // Critique 2026-09-29: checks still loading were reported as failed

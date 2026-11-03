@@ -82,10 +82,97 @@ void main() {
         'not SizedBox.shrink', (tester) async {
       await pump(tester, const StackSafetyReport(coverageIncomplete: true));
       expect(
-        find.text("Some labels couldn't be fully analyzed"),
+        find.text("Some products couldn't be fully checked"),
         findsOneWidget,
       );
-      expect(find.textContaining('results may be incomplete'), findsOneWidget);
+      expect(find.textContaining('may not include it yet'), findsOneWidget);
+    });
+
+    testWidgets('a low-coverage product is named, never reported as clear', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const StackSafetyReport(
+          coverageIncomplete: true,
+          limitedDataProducts: ['Fructose'],
+        ),
+      );
+      expect(find.text("We can't fully check Fructose"), findsOneWidget);
+      expect(find.textContaining('may not include it'), findsOneWidget);
+      expect(find.textContaining('Safe'), findsNothing);
+    });
+
+    testWidgets('low coverage preserves an independent failed check', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const StackSafetyReport(
+          coverageIncomplete: true,
+          limitedDataProducts: ['Fructose'],
+          checksIncomplete: true,
+        ),
+      );
+      expect(find.text("We can't fully check Fructose"), findsOneWidget);
+      expect(
+        find.textContaining('Some stack safety checks could not finish'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('several low-coverage products are all named', (tester) async {
+      await pump(
+        tester,
+        const StackSafetyReport(
+          coverageIncomplete: true,
+          limitedDataProducts: ['Fructose', 'Sucralose'],
+        ),
+      );
+      expect(find.text("We can't fully check 2 products"), findsOneWidget);
+      expect(find.textContaining('Fructose, Sucralose'), findsOneWidget);
+    });
+
+    testWidgets('a product the recall card already names gets no second card', (
+      tester,
+    ) async {
+      final snapshot = const StackIntelligenceEngine().summarizeFromReports(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(coverageIncomplete: true),
+        recalledReport: const RecalledIngredientsReport(
+          violations: [],
+          incomplete: true,
+          notInCatalog: ['Old Brand Magnesium'],
+        ),
+        synergyReport: SynergyReport.empty(),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: StackSafetyBanner(snapshot: snapshot)),
+        ),
+      );
+      expect(find.byKey(const Key('stack-safety-banner')), findsNothing);
+      expect(snapshot.intelligence.analysisIncomplete, isTrue);
+    });
+
+    testWidgets('a failed check still shows beside a product not in the '
+        'catalog', (tester) async {
+      final snapshot = const StackIntelligenceEngine().summarizeFromReports(
+        stackSize: 1,
+        safetyReport: const StackSafetyReport(checksIncomplete: true),
+        recalledReport: const RecalledIngredientsReport(
+          violations: [],
+          incomplete: true,
+          notInCatalog: ['Old Brand Magnesium'],
+        ),
+        synergyReport: SynergyReport.empty(),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: StackSafetyBanner(snapshot: snapshot)),
+        ),
+      );
+      expect(find.text('More info needed'), findsOneWidget);
     });
 
     testWidgets('empty report without coverage flag stays hidden', (
@@ -111,7 +198,7 @@ void main() {
       );
       await pump(tester, report);
       expect(
-        find.text("Some labels couldn't be fully analyzed"),
+        find.text("Some products couldn't be fully checked"),
         findsOneWidget,
       );
       // The success-toned "Safe — ..." title must NOT render.

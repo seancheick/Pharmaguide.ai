@@ -35,12 +35,18 @@ class StackHealthSnapshot {
   final List<ClinicalSignal> reviewSignals;
   final bool checksIncomplete;
   final bool coverageIncomplete;
+  final bool catalogProductSkipped;
+  final List<String> limitedDataProducts;
+  final List<String> notInCatalog;
 
   const StackHealthSnapshot({
     required this.intelligence,
     required this.reviewSignals,
     required this.checksIncomplete,
     required this.coverageIncomplete,
+    this.catalogProductSkipped = false,
+    required this.limitedDataProducts,
+    required this.notInCatalog,
   });
 }
 
@@ -74,6 +80,9 @@ class StackIntelligenceEngine {
       ),
       checksIncomplete: safetyReport.checksIncomplete,
       coverageIncomplete: safetyReport.coverageIncomplete,
+      catalogProductSkipped: safetyReport.catalogProductSkipped,
+      limitedDataProducts: safetyReport.limitedDataProducts,
+      notInCatalog: recalledReport.notInCatalog,
     );
   }
 

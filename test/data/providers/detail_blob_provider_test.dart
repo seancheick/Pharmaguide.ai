@@ -2,7 +2,7 @@
 // product's CURRENT `detail_blob_sha256` on every read.
 //
 // Before this fix the provider persisted `sha256 = null` for every cached
-// blob and served any fresh (<24h) row unconditionally — so a catalog
+// blob and served any recent row unconditionally — so a catalog
 // update that re-pointed a product at a new blob kept serving the previous
 // snapshot's ingredient/warning JSON, and a poisoned cache row could never
 // be detected. [cachedDetailIsServable] is the PURE serve decision; the
@@ -33,30 +33,21 @@ class _FakeBlobService extends DetailBlobService {
 }
 
 void main() {
-  final now = DateTime(2026, 7, 5, 12);
-
   group('cachedDetailIsServable (pure cache-serve decision)', () {
-    test('fresh cache with matching sha is served', () {
+    test('cache with matching sha is served', () {
       expect(
-        cachedDetailIsServable(
-          cachedAt: now.subtract(const Duration(hours: 1)),
-          cachedSha256: 'aaa',
-          productSha256: 'aaa',
-          now: now,
-        ),
+        cachedDetailIsServable(cachedSha256: 'aaa', productSha256: 'aaa'),
         isTrue,
       );
     });
 
-    test('fresh cache whose sha differs from the product row is a MISS', () {
-      // Catalog OTA re-pointed the product at a new blob: the 24h TTL must
-      // NOT keep serving the old snapshot's JSON.
+    test('cache whose sha differs from the product row is a MISS', () {
+      // Catalog OTA re-pointed the product at a new blob: the old snapshot's
+      // JSON must NOT keep being served.
       expect(
         cachedDetailIsServable(
-          cachedAt: now.subtract(const Duration(minutes: 5)),
           cachedSha256: 'old-sha',
           productSha256: 'new-sha',
-          now: now,
         ),
         isFalse,
       );
@@ -68,41 +59,20 @@ void main() {
         // Rows cached before this fix carry sha256 = null; they must be
         // re-fetched (and re-verified) rather than trusted.
         expect(
-          cachedDetailIsServable(
-            cachedAt: now.subtract(const Duration(minutes: 5)),
-            cachedSha256: null,
-            productSha256: 'abc',
-            now: now,
-          ),
+          cachedDetailIsServable(cachedSha256: null, productSha256: 'abc'),
           isFalse,
         );
       },
     );
 
-    test('cache older than the TTL is a miss even when the sha matches', () {
+    test('a product without a blob hash has nothing to verify against', () {
       expect(
-        cachedDetailIsServable(
-          cachedAt: now.subtract(kDetailBlobCacheTtl),
-          cachedSha256: 'aaa',
-          productSha256: 'aaa',
-          now: now,
-        ),
+        cachedDetailIsServable(cachedSha256: null, productSha256: null),
         isFalse,
       );
-    });
-
-    test('product without a blob hash still serves a legacy cache row', () {
-      // Both null → nothing to verify against and nothing to re-fetch;
-      // preserving the pre-fix behavior for this corner keeps products
-      // that never had a blob from churning.
       expect(
-        cachedDetailIsServable(
-          cachedAt: now.subtract(const Duration(hours: 1)),
-          cachedSha256: null,
-          productSha256: null,
-          now: now,
-        ),
-        isTrue,
+        cachedDetailIsServable(cachedSha256: '', productSha256: ''),
+        isFalse,
       );
     });
   });
@@ -151,7 +121,7 @@ void main() {
       'stale-sha cache row triggers a re-fetch and persists the new sha',
       () async {
         await seedProduct('p1', blobSha: 'new-sha');
-        // Fresh-by-TTL cache row, but written against the OLD blob.
+        // Cache row written against the OLD blob.
         await userDb.cacheDetail('p1', jsonEncode({'v': 'old'}), 'old-sha');
 
         final service = _FakeBlobService({'v': 'new'});
@@ -160,11 +130,9 @@ void main() {
         final blob = await container.read(detailBlobProvider('p1').future);
 
         expect(blob, {'v': 'new'});
-        expect(
-          service.requestedHashes,
-          ['new-sha'],
-          reason: 'sha mismatch must be treated as a cache miss',
-        );
+        expect(service.requestedHashes, [
+          'new-sha',
+        ], reason: 'sha mismatch must be treated as a cache miss');
 
         final cached = await userDb.getCachedDetail('p1');
         expect(
@@ -175,6 +143,33 @@ void main() {
               're-checkable on the next read (never null again)',
         );
         expect(jsonDecode(cached!.blobJson), {'v': 'new'});
+      },
+    );
+
+    test(
+      'a verified row is still served after 30 days without any network',
+      () async {
+        await seedProduct('old', blobSha: 'same-sha');
+        await userDb
+            .into(userDb.detailCache)
+            .insert(
+              DetailCacheCompanion(
+                dsldId: const Value('old'),
+                blobJson: Value(jsonEncode({'v': 'cached'})),
+                sha256: const Value('same-sha'),
+                cachedAt: Value(
+                  DateTime.now().subtract(const Duration(days: 30)),
+                ),
+              ),
+            );
+
+        final service = _FakeBlobService(null);
+        final container = buildContainer(service);
+
+        final blob = await container.read(detailBlobProvider('old').future);
+
+        expect(blob, {'v': 'cached'});
+        expect(service.requestedHashes, isEmpty);
       },
     );
 
@@ -196,24 +191,48 @@ void main() {
     );
 
     test(
-      'matching fresh cache row is served without any network fetch',
+      'a legacy row for a product no longer in the catalog is not served',
       () async {
-        await seedProduct('p3', blobSha: 'same-sha');
-        await userDb.cacheDetail('p3', jsonEncode({'v': 'cached'}), 'same-sha');
+        await userDb.cacheDetail('gone', jsonEncode({'v': 'legacy'}), null);
 
-        final service = _FakeBlobService({'v': 'network'});
-        final container = buildContainer(service);
+        final container = buildContainer(_FakeBlobService(null));
 
-        final blob = await container.read(detailBlobProvider('p3').future);
-
-        expect(blob, {'v': 'cached'});
-        expect(
-          service.requestedHashes,
-          isEmpty,
-          reason: 'a verified fresh cache row must not hit the CDN',
-        );
+        expect(await container.read(detailBlobProvider('gone').future), isNull);
       },
     );
+
+    for (final (name, sha) in [('null', null), ('empty', '')]) {
+      test('a product with a $name hash serves no cached row', () async {
+        await seedProduct('hashless', blobSha: sha);
+        await userDb.cacheDetail('hashless', jsonEncode({'v': 'legacy'}), sha);
+
+        final service = _FakeBlobService(null);
+        final container = buildContainer(service);
+
+        expect(
+          await container.read(detailBlobProvider('hashless').future),
+          isNull,
+        );
+        expect(service.requestedHashes, isEmpty);
+      });
+    }
+
+    test('matching cache row is served without any network fetch', () async {
+      await seedProduct('p3', blobSha: 'same-sha');
+      await userDb.cacheDetail('p3', jsonEncode({'v': 'cached'}), 'same-sha');
+
+      final service = _FakeBlobService({'v': 'network'});
+      final container = buildContainer(service);
+
+      final blob = await container.read(detailBlobProvider('p3').future);
+
+      expect(blob, {'v': 'cached'});
+      expect(
+        service.requestedHashes,
+        isEmpty,
+        reason: 'a verified cache row must not hit the CDN',
+      );
+    });
 
     test(
       'fetch failure caches nothing and remains an unavailable error',
@@ -233,11 +252,9 @@ void main() {
           throwsA(isA<DetailBlobUnavailableException>()),
         );
 
-        expect(
-          service.requestedHashes,
-          ['want'],
-          reason: 'unavailable clinical data must not retry invisibly',
-        );
+        expect(service.requestedHashes, [
+          'want',
+        ], reason: 'unavailable clinical data must not retry invisibly');
         expect(await userDb.getCachedDetail('p4'), isNull);
       },
     );

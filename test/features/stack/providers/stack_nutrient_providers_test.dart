@@ -72,7 +72,7 @@ void main() {
               ],
               'warnings': [_thresholdWarning('pregnancy', 'Caffeine', 200)],
             }),
-            null,
+            _blobSha,
           );
         }
 
@@ -145,7 +145,7 @@ void main() {
               _thresholdWarning('bleeding_disorders', 'Omega-3', 3000),
             ],
           }),
-          null,
+          _blobSha,
         );
         await userDb.cacheDetail(
           'OMEGA_B',
@@ -158,7 +158,7 @@ void main() {
               _thresholdWarning('bleeding_disorders', 'Omega-3', 3000),
             ],
           }),
-          null,
+          _blobSha,
         );
 
         final container = ProviderContainer(
@@ -225,7 +225,7 @@ void main() {
                 ),
               ],
             }),
-            null,
+            _blobSha,
           );
         }
 
@@ -282,7 +282,7 @@ void main() {
               ),
             ],
           }),
-          null,
+          _blobSha,
         );
 
         await _seedProduct(coreDb, dsldId: 'LEGACY_CAFF', name: 'Caffeine');
@@ -300,7 +300,7 @@ void main() {
             ],
             'warnings': [_thresholdWarning('pregnancy', 'Caffeine', 200)],
           }),
-          null,
+          _blobSha,
         );
 
         final container = ProviderContainer(
@@ -367,7 +367,7 @@ void main() {
               ),
             ],
           }),
-          null,
+          _blobSha,
         );
 
         await _seedProduct(coreDb, dsldId: 'LEGACY_CAFF', name: 'Caffeine B');
@@ -385,7 +385,7 @@ void main() {
             ],
             'warnings': [_thresholdWarning('pregnancy', 'Caffeine', 200)],
           }),
-          null,
+          _blobSha,
         );
 
         final container = ProviderContainer(
@@ -449,7 +449,7 @@ void main() {
                 ),
               ],
             }),
-            null,
+            _blobSha,
           );
         }
 
@@ -537,6 +537,8 @@ Map<String, Object?> _thresholdWarning(
   };
 }
 
+const _blobSha = 'cached-blob-sha';
+
 Future<void> _seedProduct(
   CoreDatabase coreDb, {
   required String dsldId,
@@ -551,6 +553,7 @@ Future<void> _seedProduct(
           exportVersion: 'test',
           exportedAt: '2026-05-21T00:00:00Z',
           productStatus: const Value('active'),
+          detailBlobSha256: const Value(_blobSha),
         ),
       );
 }

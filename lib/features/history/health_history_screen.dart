@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:pharmaguide/core/components/pg_segmented_control.dart';
 import 'package:pharmaguide/core/theme/v2/v2_palette.dart';
@@ -312,7 +311,10 @@ void _showWhy(BuildContext context, HealthHistoryItem item) {
               style: V2Typography.label(color: context.v2.accent),
             ),
             const SizedBox(height: V2Spacing.space8),
-            Text(item.whyChanged, style: V2Typography.body(color: context.v2.fg)),
+            Text(
+              item.whyChanged,
+              style: V2Typography.body(color: context.v2.fg),
+            ),
             if (item.changedFieldLabels.isNotEmpty) ...[
               const SizedBox(height: V2Spacing.space16),
               Text(
@@ -352,14 +354,16 @@ void _showWhy(BuildContext context, HealthHistoryItem item) {
   );
 }
 
-class _AttachmentRow extends StatelessWidget {
+class _AttachmentRow extends ConsumerWidget {
   const _AttachmentRow({required this.attachment});
 
   final LocalHealthAttachment attachment;
 
   @override
-  Widget build(BuildContext context) {
-    final file = File(attachment.path);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final file = ref
+        .watch(activeAccountProvider)
+        .attachmentFile(attachment.path);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: ClipRRect(

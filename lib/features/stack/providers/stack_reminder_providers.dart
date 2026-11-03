@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
 import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/services/notifications/local_notification_timezone.dart';
 import 'package:pharmaguide/services/notifications/notification_authorization_service.dart';
@@ -20,11 +22,17 @@ final stackReminderSchedulerProvider = Provider<StackReminderScheduler>((ref) {
 
 final stackReminderSyncProvider =
     FutureProvider.autoDispose<StackReminderSyncResult>((ref) async {
+      final guard = ref.watch(accountSwitchGuardProvider);
       final policy = ref.watch(notificationDeliveryPolicyProvider);
       final scheduler = ref.watch(stackReminderSchedulerProvider);
+      final account = guard == null ? null : ref.watch(activeAccountProvider);
+      Future<T> osCall<T>(Future<T> Function() call) => guard == null
+          ? call()
+          : guard.runNotificationWork(call, account: account!);
+
       switch (policy.actionFor(NotificationCategory.stackReminders)) {
         case NotificationDeliveryAction.cancel:
-          final cancelled = await scheduler.cancelOwned();
+          final cancelled = await osCall(scheduler.cancelOwned);
           return StackReminderSyncResult(
             scheduled: 0,
             cancelled: cancelled,
@@ -57,7 +65,9 @@ final stackReminderSyncProvider =
               minutesAfterMidnight: entry.reminderMinutes!,
             ),
       ];
-      return scheduler.sync(reminders, permissionAlreadyGranted: true);
+      return osCall(
+        () => scheduler.sync(reminders, permissionAlreadyGranted: true),
+      );
     });
 
 /// Whether the OS will actually deliver the reminders the user saved.

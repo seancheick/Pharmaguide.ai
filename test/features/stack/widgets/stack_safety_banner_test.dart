@@ -22,12 +22,13 @@ void main() {
   Future<void> pumpBanner(
     WidgetTester tester, {
     required StackSafetyReport report,
+    RecalledIngredientsReport? recalledReport,
     VoidCallback? onTap,
   }) async {
     final snapshot = const StackIntelligenceEngine().summarizeFromReports(
       stackSize: 1,
       safetyReport: report,
-      recalledReport: RecalledIngredientsReport.empty(),
+      recalledReport: recalledReport ?? RecalledIngredientsReport.empty(),
       synergyReport: SynergyReport.empty(),
     );
     await tester.pumpWidget(
@@ -678,5 +679,97 @@ void main() {
     expect(banner.title, isNot(contains('Grapefruit')));
     expect(banner.body, contains('Space doses'));
     expect(banner.body, contains('1 more signal'));
+  });
+
+  group('a product missing from the catalog', () {
+    const missing = RecalledIngredientsReport(
+      violations: [],
+      incomplete: true,
+      notInCatalog: ['Old Brand Magnesium'],
+    );
+
+    testWidgets('adds no card of its own, because the recall card names it', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        report: const StackSafetyReport(coverageIncomplete: true),
+        recalledReport: missing,
+      );
+      expect(find.byKey(const Key('stack-safety-banner')), findsNothing);
+    });
+
+    testWidgets('names a failed check, not details, when both are unrelated', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        report: const StackSafetyReport(
+          coverageIncomplete: true,
+          checksIncomplete: true,
+        ),
+        recalledReport: missing,
+      );
+      expect(
+        find.textContaining('Some stack safety checks could not finish'),
+        findsOneWidget,
+      );
+      expect(find.textContaining("We couldn't load the details"), findsNothing);
+    });
+
+    testWidgets('says both when details and a check each fell short', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        report: const StackSafetyReport(
+          coverageIncomplete: true,
+          catalogProductSkipped: true,
+          checksIncomplete: true,
+        ),
+        recalledReport: missing,
+      );
+      expect(
+        find.textContaining("We couldn't load the details"),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Some stack safety checks could not finish'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('does not hide another product whose details did not load', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        report: const StackSafetyReport(
+          coverageIncomplete: true,
+          catalogProductSkipped: true,
+        ),
+        recalledReport: missing,
+      );
+      expect(find.byKey(const Key('stack-safety-banner')), findsOneWidget);
+      expect(
+        find.textContaining("We couldn't load the details"),
+        findsOneWidget,
+      );
+    });
+  });
+
+  testWidgets('a details gap and a failed check are both said', (tester) async {
+    await pumpBanner(
+      tester,
+      report: const StackSafetyReport(
+        coverageIncomplete: true,
+        checksIncomplete: true,
+      ),
+    );
+    expect(find.textContaining("We couldn't load the details"), findsOneWidget);
+    expect(
+      find.textContaining('Some stack safety checks could not finish'),
+      findsOneWidget,
+    );
   });
 }

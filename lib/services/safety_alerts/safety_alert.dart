@@ -7,6 +7,14 @@ enum SafetyAlertEventType { ingredientBan, productRecall }
 
 enum SafetyAlertDisposition { block, review }
 
+/// A well-formed alert written for a newer app: its event type or disposition
+/// isn't one this build knows. Skipped rather than treated as damage, so
+/// publishing a new alert kind can't cost older builds the alerts they can read.
+class UnsupportedSafetyAlert extends FormatException {
+  const UnsupportedSafetyAlert(String field)
+    : super('Safety alert $field is unsupported.');
+}
+
 final class SafetyAlert {
   const SafetyAlert({
     required this.alertId,
@@ -52,21 +60,28 @@ final class SafetyAlert {
     final eventType = switch (requiredString('event_type')) {
       'ingredient_ban' => SafetyAlertEventType.ingredientBan,
       'product_recall' => SafetyAlertEventType.productRecall,
-      _ => throw const FormatException('Safety alert event type is unsupported.'),
+      _ => throw const UnsupportedSafetyAlert('event type'),
     };
     final disposition = switch (requiredString('consumer_disposition')) {
       'block' => SafetyAlertDisposition.block,
       'review' => SafetyAlertDisposition.review,
-      _ => throw const FormatException('Safety alert disposition is unsupported.'),
+      _ => throw const UnsupportedSafetyAlert('disposition'),
     };
     final sourceUrl = Uri.tryParse(requiredString('source_url'));
-    if (sourceUrl == null || sourceUrl.scheme != 'https' || sourceUrl.host.isEmpty) {
+    if (sourceUrl == null ||
+        sourceUrl.scheme != 'https' ||
+        sourceUrl.host.isEmpty) {
       throw const FormatException('Safety alert source is not an HTTPS URL.');
     }
     final resolved = _stringSet(json['resolved_dsld_ids'], 'resolved_dsld_ids');
     final scope = json['scope'];
-    if (scope is! Map) throw const FormatException('Safety alert scope is malformed.');
-    final ingredients = _stringSet(scope['ingredient_canonical_ids'], 'scope.ingredient_canonical_ids');
+    if (scope is! Map) {
+      throw const FormatException('Safety alert scope is malformed.');
+    }
+    final ingredients = _stringSet(
+      scope['ingredient_canonical_ids'],
+      'scope.ingredient_canonical_ids',
+    );
     return SafetyAlert(
       alertId: id,
       revision: revision,
@@ -81,13 +96,18 @@ final class SafetyAlert {
     );
   }
 
-  bool appliesTo({required String dsldId, required Iterable<String> ingredientCanonicalIds}) {
+  bool appliesTo({
+    required String dsldId,
+    required Iterable<String> ingredientCanonicalIds,
+  }) {
     if (resolvedDsldIds.contains(dsldId)) return true;
     return ingredientCanonicalIds.any(this.ingredientCanonicalIds.contains);
   }
 
   static Set<String> _stringSet(Object? value, String field) {
-    if (value is! List) throw FormatException('Safety alert $field is malformed.');
+    if (value is! List) {
+      throw FormatException('Safety alert $field is malformed.');
+    }
     final result = <String>{};
     for (final item in value) {
       if (item is! String || item.trim().isEmpty) {

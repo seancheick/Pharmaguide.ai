@@ -104,6 +104,7 @@ void main() {
           accountEmail: 'user@example.com',
           onSignOut: () async {
             signedOut = true;
+            return true;
           },
         ),
       ),

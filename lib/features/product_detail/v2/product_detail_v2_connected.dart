@@ -86,6 +86,7 @@ import 'package:pharmaguide/features/product_detail/widgets/pg_favorite_button.d
 import 'package:pharmaguide/features/product_detail/widgets/pg_stack_action_buttons.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_safety_providers.dart';
+import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/perf_trace_service.dart';
 import 'package:pharmaguide/services/health/rda_reference_contract.dart';
 import 'package:pharmaguide/services/sharing/share_service.dart';
@@ -192,6 +193,7 @@ class _ProductDetailV2ConnectedState
   /// Product from CoreDatabase (instant local lookup, no network).
   ProductsCoreData? _product;
   bool _productLoading = true;
+  bool _productReadFailed = false;
 
   /// Scroll anchor bookkeeping — owns the 3 GlobalKeys + the
   /// `?section=` retry loop + the unsafe-CTA jump. See
@@ -300,6 +302,7 @@ class _ProductDetailV2ConnectedState
       setState(() {
         _product = null;
         _productLoading = true;
+        _productReadFailed = false;
       });
       _loadProduct();
     }
@@ -309,11 +312,24 @@ class _ProductDetailV2ConnectedState
   Future<void> _loadProduct() async {
     final requestedDsldId = widget.dsldId;
     final coreDb = ref.read(coreDatabaseProvider);
-    final product = await coreDb.findById(requestedDsldId);
+    ProductsCoreData? product;
+    var readFailed = false;
+    try {
+      product = await coreDb.findById(requestedDsldId);
+    } on Object catch (error, stackTrace) {
+      // Offers a retry, with no verdict, rather than loading forever.
+      readFailed = true;
+      CrashReportingService().recordError(
+        error,
+        stackTrace,
+        hint: 'product_detail:catalog_read_failed',
+      );
+    }
     if (mounted && widget.dsldId == requestedDsldId) {
       setState(() {
         _product = product;
         _productLoading = false;
+        _productReadFailed = readFailed;
       });
     }
   }
@@ -390,13 +406,27 @@ class _ProductDetailV2ConnectedState
             child: PGEmptyState(
               icon: Icons.inventory_2_outlined,
               eyebrow: 'Catalog',
-              headline: 'Product unavailable',
-              body:
-                  'This shared or scanned product is not in the verified '
-                  'catalog on this device.',
-              primaryLabel: 'Search catalog',
-              primaryIcon: Icons.search_rounded,
-              onPrimaryTap: () => context.go(Routes.search),
+              headline: _productReadFailed
+                  ? 'Product didn\'t load'
+                  : 'Product unavailable',
+              body: _productReadFailed
+                  ? 'We couldn\'t read this product from the catalog on this '
+                        'device. This is not an all-clear — please try again.'
+                  : 'This shared or scanned product is not in the verified '
+                        'catalog on this device.',
+              primaryLabel: _productReadFailed ? 'Try again' : 'Search catalog',
+              primaryIcon: _productReadFailed
+                  ? Icons.refresh_rounded
+                  : Icons.search_rounded,
+              onPrimaryTap: _productReadFailed
+                  ? () {
+                      setState(() {
+                        _productLoading = true;
+                        _productReadFailed = false;
+                      });
+                      _loadProduct();
+                    }
+                  : () => context.go(Routes.search),
               secondaryLabel: 'Go home',
               onSecondaryTap: () => context.go(Routes.home),
             ),
@@ -647,6 +677,7 @@ class _ProductDetailV2ConnectedState
     final profileRelevanceSummary = buildProfileRelevanceSummary(
       fitResult: fitResult,
       topGoalLabel: topGoalLabelFromFit(fitResult),
+      checksFailed: personalizedChecksFailed,
       warnings: partitionedWarnings.profile,
       interactionHint: interactionHint,
       matchedAllergens: matchedAllergens,

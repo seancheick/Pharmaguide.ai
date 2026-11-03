@@ -51,9 +51,9 @@ void main() {
           stmt.execute([r.key, r.value]);
         }
       } finally {
-        stmt.dispose();
+        stmt.close();
       }
-      db.dispose();
+      db.close();
       return dbPath;
     }
 

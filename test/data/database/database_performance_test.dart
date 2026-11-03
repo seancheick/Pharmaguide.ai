@@ -117,7 +117,7 @@ void main() {
         try {
           legacy.execute('PRAGMA user_version = 2;');
         } finally {
-          legacy.dispose();
+          legacy.close();
         }
 
         final mismatched = CoreDatabase.open(dbPath);
@@ -205,7 +205,7 @@ void main() {
           );
           legacy.execute('PRAGMA user_version = 8;');
         } finally {
-          legacy.dispose();
+          legacy.close();
         }
 
         final db = UserDatabase.open(dbPath);
@@ -261,7 +261,7 @@ void main() {
           PRAGMA user_version = 8;
         ''');
       } finally {
-        legacy.dispose();
+        legacy.close();
       }
 
       final db = UserDatabase.open(dbPath);
@@ -286,13 +286,18 @@ void main() {
       await db.close();
     });
 
-    Future<void> seedDetail(String id, DateTime cachedAt) {
+    Future<void> seedDetail(
+      String id,
+      DateTime cachedAt, {
+      String? sha = 'sha',
+    }) {
       return db
           .into(db.detailCache)
           .insert(
             DetailCacheCompanion(
               dsldId: Value(id),
               blobJson: const Value('{}'),
+              sha256: Value(sha),
               cachedAt: Value(cachedAt),
             ),
           );
@@ -310,19 +315,122 @@ void main() {
           );
     }
 
-    test(
-      'purgeExpiredCaches evicts stale detail rows, keeps fresh ones',
-      () async {
+    test('purgeExpiredCaches keeps a verified detail row however old', () async {
+      final now = DateTime.now();
+      await seedDetail('new', now);
+      await seedDetail('old', now.subtract(const Duration(days: 400)));
+
+      await db.purgeExpiredCaches();
+
+      expect(await db.getCachedDetail('new'), isNotNull);
+      expect(
+        await db.getCachedDetail('old'),
+        isNotNull,
+        reason:
+            'age alone must never take product data away from an offline user',
+      );
+    });
+
+    test('purgeExpiredCaches drops legacy rows that have no hash', () async {
+      await seedDetail('legacy', DateTime.now(), sha: null);
+      await seedDetail('verified', DateTime.now());
+
+      await db.purgeExpiredCaches();
+
+      expect(
+        await db.getCachedDetail('legacy'),
+        isNull,
+        reason: 'a row with no hash can never be checked against the catalog',
+      );
+      expect(await db.getCachedDetail('verified'), isNotNull);
+    });
+
+    group('detail cache row cap', () {
+      Future<void> seedOverCap(DateTime base) {
+        return db.batch((batch) {
+          for (var i = 0; i < UserDatabase.detailCacheMaxRows; i++) {
+            batch.insert(
+              db.detailCache,
+              DetailCacheCompanion(
+                dsldId: Value('filler-$i'),
+                blobJson: const Value('{}'),
+                sha256: const Value('sha'),
+                cachedAt: Value(base.add(Duration(seconds: i))),
+              ),
+            );
+          }
+        });
+      }
+
+      Future<void> addStackItem(
+        String id, {
+        String? dsldId,
+        String type = 'supplement',
+      }) {
+        return db.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: id,
+            name: id,
+            type: Value(type),
+            dsldId: Value(dsldId),
+          ),
+        );
+      }
+
+      test('evicts the oldest row once the cache is over the cap', () async {
         final now = DateTime.now();
-        await seedDetail('fresh', now);
-        await seedDetail('stale', now.subtract(const Duration(hours: 25)));
+        await seedDetail('oldest', now.subtract(const Duration(days: 30)));
+        await seedOverCap(now.subtract(const Duration(days: 1)));
 
         await db.purgeExpiredCaches();
 
-        expect(await db.getCachedDetail('fresh'), isNotNull);
-        expect(await db.getCachedDetail('stale'), isNull);
-      },
-    );
+        expect(await db.getCachedDetail('oldest'), isNull);
+        expect(await db.getCachedDetail('filler-0'), isNotNull);
+      });
+
+      test('never evicts a product in the active stack', () async {
+        final now = DateTime.now();
+        await seedDetail('stacked', now.subtract(const Duration(days: 30)));
+        await addStackItem('item-1', dsldId: 'stacked');
+        await seedOverCap(now.subtract(const Duration(days: 1)));
+
+        await db.purgeExpiredCaches();
+
+        expect(await db.getCachedDetail('stacked'), isNotNull);
+      });
+
+      test(
+        'a medication row with no product id does not disable eviction',
+        () async {
+          // Medication rows have a NULL dsld_id. `x NOT IN (…NULL…)` is never
+          // true in SQL, so an unfiltered subquery would silently stop every
+          // eviction (or, written the other way round, protect nothing).
+          final now = DateTime.now();
+          await seedDetail('oldest', now.subtract(const Duration(days: 30)));
+          await seedDetail('stacked', now.subtract(const Duration(days: 30)));
+          await addStackItem('item-1', dsldId: 'stacked');
+          await addStackItem('med-1', type: 'medication');
+          await seedOverCap(now.subtract(const Duration(days: 1)));
+
+          await db.purgeExpiredCaches();
+
+          expect(await db.getCachedDetail('oldest'), isNull);
+          expect(await db.getCachedDetail('stacked'), isNotNull);
+        },
+      );
+
+      test('a removed stack item no longer protects its row', () async {
+        final now = DateTime.now();
+        await seedDetail('removed', now.subtract(const Duration(days: 30)));
+        await addStackItem('item-1', dsldId: 'removed');
+        await db.removeFromStack('item-1');
+        await seedOverCap(now.subtract(const Duration(days: 1)));
+
+        await db.purgeExpiredCaches();
+
+        expect(await db.getCachedDetail('removed'), isNull);
+      });
+    });
 
     test(
       'purgeExpiredCaches applies image TTLs: 30d positive, 7d negative',
@@ -382,17 +490,6 @@ void main() {
 
       final remaining = await db.getFailedScans();
       expect(remaining.map((r) => r.upc), ['111111111111']);
-    });
-
-    test('clearDetailCache removes all detail rows', () async {
-      final now = DateTime.now();
-      await seedDetail('a', now);
-      await seedDetail('b', now);
-
-      await db.clearDetailCache();
-
-      expect(await db.getCachedDetail('a'), isNull);
-      expect(await db.getCachedDetail('b'), isNull);
     });
   });
 }

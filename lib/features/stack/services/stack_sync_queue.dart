@@ -506,8 +506,8 @@ class StackSyncService {
     }
 
     // Guard 4: account ownership. Never push rows under a uid that does
-    // not own the local data — the account-switch guard normally clears
-    // before this can matter, but a launch race or interrupted switch
+    // not own the local data — the account-switch guard normally opens the
+    // right folder before this can matter, but a launch race or interrupted switch
     // must not cross-upload the previous user's rows (read at execution
     // time so a just-completed adopt/switch is honored).
     final ownerUid = await _readOwnerUid();

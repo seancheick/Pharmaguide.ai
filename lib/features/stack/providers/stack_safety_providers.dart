@@ -276,11 +276,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // Set when the nutrient pass skipped a stack item; ORed into the report's
   // coverage flag below so the banner and the clinician report both hedge.
   var nutrientCoverageIncomplete = false;
+  var catalogProductSkipped = false;
   List<NutrientStatus> nutrientStatuses;
   try {
     final result = await ref.watch(stackNutrientStatusesProvider.future);
     nutrientStatuses = result.statuses;
     nutrientCoverageIncomplete = result.incomplete;
+    catalogProductSkipped = result.catalogProductSkipped;
   } on Object catch (e, st) {
     checksIncomplete = true;
     CrashReportingService().recordError(
@@ -328,6 +330,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // product's ingredients may never fire the interaction checks, so the
   // report must hedge rather than claim a clean result.
   var coverageIncomplete = nutrientCoverageIncomplete;
+  final limitedDataProducts = <String>[];
   final hydrated = <HydratedSupplement>[];
   for (final entry in supplements) {
     final id = entry.dsldId;
@@ -339,13 +342,18 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       // Couldn't hydrate this product — it is excluded from every check
       // below, so the report must hedge rather than claim a clean result.
       coverageIncomplete = true;
+      checksIncomplete = true;
+      catalogProductSkipped = true;
       continue;
     }
     if (product == null) {
       coverageIncomplete = true;
       continue;
     }
-    if (isLowCoverage(product.mappedCoverage)) coverageIncomplete = true;
+    if (isLowCoverage(product.mappedCoverage)) {
+      coverageIncomplete = true;
+      limitedDataProducts.add(entry.name);
+    }
     hydrated.add(HydratedSupplement(entry: entry, product: product));
   }
 
@@ -646,6 +654,8 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
     timingOptimizations: timingOptimizations,
     coverageIncomplete: coverageIncomplete,
     checksIncomplete: checksIncomplete,
+    catalogProductSkipped: catalogProductSkipped,
+    limitedDataProducts: limitedDataProducts,
   );
 });
 
@@ -759,8 +769,8 @@ _normalizeMedicationRowsForSafety(
 
 /// Recall detection report for the active stack.
 ///
-/// [RecalledIngredientsReport.incomplete] is set whenever the authored asset
-/// or any stack product could not be inspected. Every consumer reads this same
+/// [RecalledIngredientsReport.incomplete] is set whenever a stack product could
+/// not be inspected. Every consumer reads this same
 /// report object, so Home, Stack, and clinician output cannot disagree about
 /// whether the scan completed.
 ///
@@ -789,25 +799,20 @@ final recalledIngredientsReportProvider =
         return RecalledIngredientsReport.empty();
       }
 
-      // Load banned/recalled ingredients data. A failure here disables recall
-      // detection for the whole stack — record it and flag the result incomplete
-      // so the banner hedges rather than implying "no recalls".
-      final Map<String, dynamic> recallData;
+      // The authored list only names the substance. The catalog flags below
+      // decide whether a product is flagged, so a failure here is reported and
+      // detection carries on without the names.
+      var recalledList = const <dynamic>[];
       try {
-        recallData = await refDataRepo.loadBannedRecalledIngredients();
+        final recallData = await refDataRepo.loadBannedRecalledIngredients();
+        final recalledRaw = recallData['recalled_ingredients'];
+        if (recalledRaw is List) recalledList = recalledRaw;
       } on Object catch (e, st) {
         CrashReportingService().recordError(
           e,
           st,
           hint: 'stack_safety:recalled_ingredients_load_failed',
         );
-        return RecalledIngredientsReport.empty(incomplete: true);
-      }
-
-      final recalledRaw = recallData['recalled_ingredients'];
-      final recalledList = recalledRaw is List ? recalledRaw : null;
-      if (recalledList == null || recalledList.isEmpty) {
-        return RecalledIngredientsReport.empty(incomplete: true);
       }
 
       // Index the authored records by INGREDIENT NAME, not by `canonical_id`.
@@ -828,18 +833,11 @@ final recalledIngredientsReportProvider =
       // made.
       final bannedByIngredient = <String, RecalledIngredientAlert>{};
       final recalledByProductName = <String, RecalledIngredientAlert>{};
-      var incomplete = false;
       for (final recallJson in recalledList) {
-        if (recallJson is! Map) {
-          incomplete = true;
-          continue;
-        }
+        if (recallJson is! Map) continue;
         final recall = Map<String, dynamic>.from(recallJson);
         final canonicalId = recall['canonical_id']?.toString().trim();
-        if (canonicalId == null || canonicalId.isEmpty) {
-          incomplete = true;
-          continue;
-        }
+        if (canonicalId == null || canonicalId.isEmpty) continue;
 
         final rawCommonNames = recall['common_names'];
         final commonNames = rawCommonNames is List
@@ -879,10 +877,7 @@ final recalledIngredientsReportProvider =
           safetyWarningOneLiner: safetyWarningOneLiner,
           banContext: banContext,
         );
-        if (commonNames.isEmpty) {
-          incomplete = true;
-          continue;
-        }
+        if (commonNames.isEmpty) continue;
         for (final name in commonNames) {
           final key = normalizeCanonicalId(name);
           if (key == null) continue;
@@ -896,10 +891,14 @@ final recalledIngredientsReportProvider =
 
       // Check each supplement for recalled ingredients.
       final violations = <RecalledIngredientViolation>[];
+      final notInCatalog = <String>[];
+      final unreadableProducts = <String>[];
+      var incomplete = false;
       for (final entry in supplements) {
         final productId = entry.dsldId;
         if (productId == null || productId.isEmpty) {
           incomplete = true;
+          notInCatalog.add(entry.name);
           continue;
         }
 
@@ -908,6 +907,7 @@ final recalledIngredientsReportProvider =
           product = await coreDb.findById(productId);
         } on Object catch (e, st) {
           incomplete = true;
+          unreadableProducts.add(entry.name);
           CrashReportingService().recordError(
             e,
             st,
@@ -917,6 +917,7 @@ final recalledIngredientsReportProvider =
         }
         if (product == null) {
           incomplete = true;
+          notInCatalog.add(entry.name);
           continue;
         }
 
@@ -979,6 +980,8 @@ final recalledIngredientsReportProvider =
       return RecalledIngredientsReport(
         violations: violations,
         incomplete: incomplete,
+        notInCatalog: notInCatalog,
+        unreadableProducts: unreadableProducts,
       );
     });
 

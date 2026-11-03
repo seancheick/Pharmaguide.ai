@@ -21,23 +21,30 @@ import 'package:pharmaguide/core/theme/v2/v2_typography.dart';
 import 'package:pharmaguide/core/utils/retry.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/database/interaction_database.dart';
-import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/supabase/supabase_client.dart';
 import 'package:pharmaguide/data/supabase/sync_service.dart';
 import 'package:pharmaguide/features/dev/screenshot_seeder.dart';
 import 'package:pharmaguide/features/settings/providers/app_preferences_provider.dart';
 import 'package:pharmaguide/features/ai_share/ai_share_snapshot_pusher.dart';
+import 'package:pharmaguide/features/settings/v2/guest_data_question_screen.dart';
 import 'package:pharmaguide/features/stack/services/stack_sync_queue.dart';
 import 'package:pharmaguide/features/history/providers/clinical_signal_lifecycle_provider.dart';
 import 'package:pharmaguide/features/history/providers/health_history_providers.dart';
 import 'package:pharmaguide/features/safety_alerts/providers/safety_push_provider.dart';
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/stack/providers/stack_reminder_providers.dart';
 import 'package:pharmaguide/services/catalog_swap.dart';
 import 'package:pharmaguide/services/catalog_updater_service.dart';
 import 'package:pharmaguide/services/crash_reporting_service.dart';
 import 'package:pharmaguide/services/onboarding_prefs.dart';
 import 'package:pharmaguide/services/settings/app_preferences.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:pharmaguide/core/components/pg_empty_state.dart';
+import 'package:pharmaguide/services/auth/account_storage.dart';
+import 'package:pharmaguide/services/auth/pg_auth_service.dart';
+import 'package:pharmaguide/services/product_submission_draft_store.dart';
+import 'package:pharmaguide/services/sharing/ai_share_prefs_store.dart';
 
 /// SharedPreferences key for the most recently activated catalog
 /// version. Persisting this means a relaunch with the same remote
@@ -138,7 +145,15 @@ Future<void> _runApp() async {
     debugPrint('[vocab-registry] init failed (non-fatal): $e');
   }
 
-  final userDb = await openUserDatabase();
+  final accountGuard = AccountSwitchGuard.production(
+    openDatabase: openUserDatabase,
+    readSessionUid: _launchSessionUid,
+    onOwnerChange: _endOutgoingOwnerWork,
+    onNotificationCleanup: _cancelAccountNotifications,
+    onAccountRemoved: (uid) async =>
+        (await ProductSubmissionDraftStore.open()).deleteAccount(uid),
+  );
+  await accountGuard.boot(sessionUid: _launchSessionUid());
 
   // Materialize the bundled interaction DB and open it. Soft-fail: if the
   // bundle is missing or corrupt, we still launch the app — interaction
@@ -176,7 +191,7 @@ Future<void> _runApp() async {
   try {
     runApp(
       PharmaGuideBootstrap(
-        userDb: userDb,
+        accountGuard: accountGuard,
         interactionDb: interactionDb,
         supabaseReady: supabaseReady,
         hasSeenOnboarding: hasSeenOnboarding,
@@ -190,8 +205,34 @@ Future<void> _runApp() async {
   }
 }
 
+/// The session this launch starts with. Null in guest and placeholder builds.
+String? _launchSessionUid() {
+  try {
+    return supabase.auth.currentUser?.id;
+  } on Object {
+    return null;
+  }
+}
+
+/// Cancel OS writes without changing the active owner's account preferences.
+Future<void> _cancelAccountNotifications() async {
+  await FlutterLocalNotificationsPlugin().cancelAll();
+}
+
+/// Clear outgoing-owner state; the new tree schedules its own reminders.
+Future<void> _endOutgoingOwnerWork() async {
+  await Future.wait([
+    Future.sync(_cancelAccountNotifications),
+    Future.sync(
+      () => AiSharePrefsStore(
+        SharedPreferencesAsyncAppPreferencesStore(),
+      ).clear(),
+    ),
+  ]);
+}
+
 class PharmaGuideBootstrap extends StatefulWidget {
-  final UserDatabase userDb;
+  final AccountSwitchGuard accountGuard;
   final InteractionDatabase? interactionDb;
   final bool supabaseReady;
   final bool hasSeenOnboarding;
@@ -202,7 +243,7 @@ class PharmaGuideBootstrap extends StatefulWidget {
 
   const PharmaGuideBootstrap({
     super.key,
-    required this.userDb,
+    required this.accountGuard,
     required this.interactionDb,
     required this.supabaseReady,
     required this.hasSeenOnboarding,
@@ -215,12 +256,7 @@ class PharmaGuideBootstrap extends StatefulWidget {
 }
 
 class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
-  // Cache invalidation: cached detail blobs were fetched against the
-  // previous catalog snapshot and may not match the new rows'
-  // detail_blob_sha256 — clear them whenever a new catalog activates.
-  late final SyncService _syncService = SyncService(
-    onCatalogActivated: () => widget.userDb.clearDetailCache(),
-  );
+  late final SyncService _syncService = SyncService();
   late final CatalogSwapper _swapper = CatalogSwapper.production(
     syncService: _syncService,
   );
@@ -234,6 +270,7 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   bool _catalogAvailable = false;
   bool _bootstrapped = false;
   bool _syncInFlight = false;
+  bool _accountSwitching = false;
   int _scopeVersion = 0;
   Timer? _catalogRefreshTimer;
 
@@ -256,6 +293,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   @override
   void initState() {
     super.initState();
+    widget.accountGuard.releaseConsumers = _releaseAccountConsumers;
+    widget.accountGuard.onChanged = _onAccountChanged;
+    widget.accountGuard.onGuestDataQuestion = _onGuestDataQuestion;
     unawaited(_bootstrapCatalog());
   }
 
@@ -265,9 +305,33 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     _catalogRefreshTimer?.cancel();
     unawaited(_coreDb?.close());
     unawaited(widget.interactionDb?.close());
-    unawaited(widget.userDb.close());
+    unawaited(widget.accountGuard.close());
     widget.appPreferencesController.dispose();
     super.dispose();
+  }
+
+  /// Removing the tree disposes its providers, listeners and timers. Frames
+  /// stop in the background, and the switch must not wait for the next launch.
+  Future<void> _releaseAccountConsumers() async {
+    if (!mounted) return;
+    setState(() => _accountSwitching = true);
+    await WidgetsBinding.instance.endOfFrame.timeout(
+      const Duration(seconds: 2),
+      onTimeout: () {},
+    );
+  }
+
+  void _onAccountChanged() {
+    if (!mounted) return;
+    setState(() {
+      _accountSwitching = false;
+      _scopeVersion++;
+    });
+    returnHomeAfterAccountChange();
+  }
+
+  void _onGuestDataQuestion() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _bootstrapCatalog() async {
@@ -329,7 +393,10 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
     // SCREENSHOT_MODE is false, so this adds no overhead to normal
     // builds (and the entire code path constant-folds away in release).
     if (initialDb != null) {
-      await ScreenshotSeeder.maybeRun(coreDb: initialDb, userDb: widget.userDb);
+      final userDb = widget.accountGuard.database;
+      if (userDb != null) {
+        await ScreenshotSeeder.maybeRun(coreDb: initialDb, userDb: userDb);
+      }
     }
 
     setState(() {
@@ -506,33 +573,65 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
   Future<void> _activateStagedCatalog({
     required String downloadedVersion,
   }) async {
-    final swapResult = await _swapper.swap();
+    final swapResult = await _swapper.swap(expectedVersion: downloadedVersion);
 
     switch (swapResult) {
       case SwapSuccess(:final newDb, :final version):
-        if (!mounted) {
-          await newDb.close();
-          return;
+        if (await _adoptCatalog(newDb, version)) {
+          _showCatalogUpdatedToast(version);
         }
-        final oldDb = _coreDb;
-        setState(() {
-          _coreDb = newDb;
-          _activeCatalogVersion = version;
-          _catalogAvailable = true;
-          _catalogUnavailableReason = null;
-          _scopeVersion++;
-        });
-        unawaited(_persistActiveCatalogVersion(version));
-        unawaited(oldDb?.close());
-        _showCatalogUpdatedToast(version);
-      case SwapRolledBack(:final reason):
+      case SwapRolledBack(
+        :final reason,
+        :final restoredDb,
+        :final restoredVersion,
+        :final previousHandleInvalid,
+      ):
         debugPrint('Catalog swap rolled back: $reason');
+        if (restoredDb != null && restoredVersion != null) {
+          await _adoptCatalog(restoredDb, restoredVersion);
+        } else if (previousHandleInvalid) {
+          _dropDeadCatalog();
+        }
       case SwapNoStaging():
         debugPrint(
           'Catalog swap: no staging file present after download '
           'returned $downloadedVersion',
         );
     }
+  }
+
+  /// Moves the app onto [db] and closes the handle it replaces. Returns false
+  /// (closing [db]) when the app is no longer mounted.
+  Future<bool> _adoptCatalog(CoreDatabase db, String version) async {
+    if (!mounted) {
+      await db.close();
+      return false;
+    }
+    final oldDb = _coreDb;
+    setState(() {
+      _coreDb = db;
+      _activeCatalogVersion = version;
+      _catalogAvailable = true;
+      _catalogUnavailableReason = null;
+      _scopeVersion++;
+    });
+    unawaited(_persistActiveCatalogVersion(version));
+    unawaited(oldDb?.close());
+    return true;
+  }
+
+  /// The open handle stopped working and no replacement could be opened. The
+  /// unavailable state and its retry take over, as when boot finds no catalog.
+  void _dropDeadCatalog() {
+    if (!mounted) return;
+    final oldDb = _coreDb;
+    setState(() {
+      _coreDb = null;
+      _catalogAvailable = false;
+      _catalogUnavailableReason = _unavailableReason(includeRetryHint: true);
+      _scopeVersion++;
+    });
+    unawaited(oldDb?.close());
   }
 
   /// Persist the activated catalog version so the next launch's
@@ -577,7 +676,28 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_bootstrapped) {
+    final userDb = widget.accountGuard.database;
+    if (widget.accountGuard.awaitingGuestDataAnswer) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: V2Theme.light,
+        darkTheme: V2Theme.dark,
+        themeMode: widget.appPreferencesController.preferences.theme.themeMode,
+        home: GuestDataQuestionScreen(
+          onAnswer: widget.accountGuard.answerGuestDataQuestion,
+        ),
+      );
+    }
+    if (_bootstrapped && !_accountSwitching && userDb == null) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: V2Theme.light,
+        darkTheme: V2Theme.dark,
+        themeMode: widget.appPreferencesController.preferences.theme.themeMode,
+        home: _UserDataUnavailableScreen(onRetry: widget.accountGuard.retry),
+      );
+    }
+    if (!_bootstrapped || _accountSwitching || userDb == null) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: V2Theme.light,
@@ -595,7 +715,9 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           (_) => widget.appPreferencesController,
           disposeNotifier: false,
         ),
-        userDatabaseProvider.overrideWithValue(widget.userDb),
+        userDatabaseProvider.overrideWithValue(userDb),
+        activeAccountProvider.overrideWithValue(widget.accountGuard.account),
+        accountSwitchGuardProvider.overrideWithValue(widget.accountGuard),
         if (_coreDb != null) coreDatabaseProvider.overrideWithValue(_coreDb!),
         if (widget.interactionDb != null)
           interactionDatabaseProvider.overrideWithValue(widget.interactionDb!),
@@ -607,6 +729,8 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
       child: Consumer(
         builder: (context, ref, child) {
           ref.watch(stackSyncListenerProvider);
+          // Keeps the stack's product detail ready for offline checks.
+          ref.watch(stackDetailReadyProvider);
           // Opt-in AI-share refresh (ADR-009). Off for every connection until
           // the user switches it on; never runs for guests.
           ref.watch(aiShareSnapshotListenerProvider);
@@ -632,6 +756,35 @@ class _PharmaGuideBootstrapState extends State<PharmaGuideBootstrap> {
           onRetryCatalogLoad: _retryCatalogLoad,
           hasSeenOnboarding: widget.hasSeenOnboarding,
           launchLocation: _launchLocation,
+        ),
+      ),
+    );
+  }
+}
+
+/// The owner's data didn't open. An empty database here would read as having no
+/// medications, so the app waits rather than showing anything.
+class _UserDataUnavailableScreen extends StatelessWidget {
+  const _UserDataUnavailableScreen({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: PGEmptyState(
+            icon: Icons.lock_outline_rounded,
+            eyebrow: 'Your health data',
+            headline: "Your health data didn't open",
+            body:
+                'Nothing on this phone has changed. Please try again. Until it '
+                'opens, PharmaGuide can\'t check your medications.',
+            primaryLabel: 'Try again',
+            primaryIcon: Icons.refresh_rounded,
+            onPrimaryTap: onRetry,
+          ),
         ),
       ),
     );

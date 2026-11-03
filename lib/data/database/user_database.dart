@@ -176,6 +176,38 @@ class UserDatabase extends _$UserDatabase {
     return (select(userProfiles)..limit(1)).getSingleOrNull();
   }
 
+  /// Whether a person has put anything here themselves. A blank profile row, and
+  /// an empty snapshot saving one writes, say nothing about anyone. Retained
+  /// personal values in history still need consent even after a profile clears.
+  /// Catalog caches and failed scans, which hold only barcodes, do not count.
+  Future<bool> hasPersonalData() async {
+    final row = await customSelect('''
+      SELECT EXISTS(
+               SELECT 1 FROM user_profile
+               WHERE COALESCE(nickname, '') != ''
+                  OR COALESCE(age_bracket, '') != ''
+                  OR COALESCE(sex, '') != ''
+                  OR goals != '[]'
+                  OR conditions != '[]'
+                  OR drug_classes != '[]'
+                  OR allergens != '[]'
+                  OR profile_flags != '[]')
+          OR EXISTS(SELECT 1 FROM user_stacks_local WHERE deleted_at IS NULL)
+          OR EXISTS(SELECT 1 FROM user_favorites)
+          OR EXISTS(SELECT 1 FROM user_scan_history)
+          OR EXISTS(
+               SELECT 1 FROM health_history_events
+               WHERE subject_type != 'profile'
+                  OR EXISTS(
+                       SELECT 1 FROM json_tree(previous_value_json)
+                       WHERE atom IS NOT NULL AND CAST(atom AS TEXT) != '')
+                  OR EXISTS(
+                       SELECT 1 FROM json_tree(current_value_json)
+                       WHERE atom IS NOT NULL AND CAST(atom AS TEXT) != '')) AS found
+    ''').getSingle();
+    return row.read<bool>('found');
+  }
+
   /// Insert or update the user profile (upsert on id conflict).
   Future<int> saveProfile(UserProfilesCompanion profile) {
     return into(userProfiles).insertOnConflictUpdate(profile);
@@ -435,28 +467,30 @@ class UserDatabase extends _$UserDatabase {
   /// Evicts expired cache rows. Fire-and-forget after DB open — best-effort
   /// housekeeping, never user-facing.
   ///
-  /// TTLs mirror the read-side conventions (the readers already treat
-  /// expired rows as misses; this just reclaims the storage):
-  ///   - product_detail_cache: 24h ([kDetailBlobCacheTtl] in
-  ///     detail_blob_provider.dart), plus a ~5000-row LRU cap.
+  /// Retention per table:
+  ///   - product_detail_cache: no age limit, because offline verdicts depend
+  ///     on it and age says nothing about a content-addressed blob. Rows with
+  ///     no hash are dropped because they can never be verified. Over the
+  ///     ~5000-row cap the oldest go first, except products in the active
+  ///     stack, which are never evicted.
   ///   - product_image_cache: 30d positive / 7d negative ("no_image"),
   ///     matching ProductImageResolver.
   ///   - user_failed_scans: 90 days since last_seen.
   Future<void> purgeExpiredCaches() async {
     final now = DateTime.now();
 
-    // Detail cache: TTL expiry, then LRU cap on whatever survives.
-    await (delete(detailCache)..where(
-          (t) => t.cachedAt.isSmallerThanValue(
-            now.subtract(const Duration(hours: 24)),
-          ),
-        ))
-        .go();
+    await (delete(detailCache)..where((t) => t.sha256.isNull())).go();
+    // Medication rows have a NULL dsld_id. The IS NOT NULL filter matters:
+    // `x NOT IN (…NULL…)` is never true, so one medication would otherwise
+    // stop every eviction.
     await customStatement(
       'DELETE FROM product_detail_cache '
       'WHERE dsld_id NOT IN ('
       '  SELECT dsld_id FROM product_detail_cache '
       '  ORDER BY cached_at DESC LIMIT $detailCacheMaxRows'
+      ') AND dsld_id NOT IN ('
+      '  SELECT dsld_id FROM user_stacks_local '
+      '  WHERE deleted_at IS NULL AND dsld_id IS NOT NULL'
       ')',
     );
 
@@ -481,48 +515,5 @@ class UserDatabase extends _$UserDatabase {
           ),
         ))
         .go();
-  }
-
-  /// Deletes ALL detail-cache rows. Called on OTA catalog activation —
-  /// cached blobs were fetched against the previous catalog snapshot and
-  /// may not match the new rows' detail_blob_sha256.
-  Future<void> clearDetailCache() {
-    return delete(detailCache).go();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Account-switch hygiene
-  // ---------------------------------------------------------------------------
-
-  /// Deletes ALL user-owned data. Called by the account-switch guard when
-  /// a DIFFERENT uid signs in on this device — the next user must not
-  /// inherit (or upload) the previous user's medical data.
-  ///
-  /// DESTRUCTIVE and unrecoverable: profile, medications, conditions, and
-  /// allergens have NO cloud backup. Never call this outside
-  /// `AccountSwitchGuard` (see pg_auth_service.dart), which gates it on a
-  /// genuine different-uid sign-in.
-  ///
-  /// Scope:
-  ///   WIPED — user_profile (conditions/allergens/goals/drug classes/
-  ///     flags), user_stacks_local (supplements, medications, tombstones —
-  ///     hard-deleting rows also destroys all sync dirty/queue state, so
-  ///     nothing of the previous user can ever push under the new uid),
-  ///     user_favorites, user_scan_history, health_history_events (the local
-  ///     stack, appointment, and lifecycle timeline).
-  ///   PRESERVED — product_detail_cache and product_image_cache (product-
-  ///     keyed catalog mirrors, no user linkage) and user_failed_scans
-  ///     (no-PII device telemetry; see failed_scans_table.dart).
-  ///
-  /// Runs in a single transaction so a crash mid-clear can't leave a
-  /// half-wiped, half-attributable state.
-  Future<void> clearAllLocalUserData() {
-    return transaction(() async {
-      await delete(userStacksLocal).go();
-      await delete(userProfiles).go();
-      await delete(userFavorites).go();
-      await delete(scanHistory).go();
-      await delete(healthHistoryEvents).go();
-    });
   }
 }

@@ -146,7 +146,114 @@ ProviderContainer _container({
   );
 }
 
+class _SelectiveAuditDb extends CoreDatabase {
+  _SelectiveAuditDb() : super.memory();
+  @override
+  Future<ProductsCoreData?> findById(String id) async {
+    if (id == 'UNREADABLE') {
+      throw Exception('synthetic per-product read failure');
+    }
+    return super.findById(id);
+  }
+}
+
 void main() {
+  test(
+    'mixed missing and unreadable products preserve both failure reasons',
+    () async {
+      final coreDb = _SelectiveAuditDb();
+      final interactionDb = InteractionDatabase.memory();
+      final userDb = UserDatabase.memory();
+      addTearDown(() async {
+        await coreDb.close();
+        await interactionDb.close();
+        await userDb.close();
+      });
+      for (final id in ['MISSING', 'UNREADABLE']) {
+        await userDb.addToStack(
+          UserStacksLocalCompanion.insert(
+            id: 'stack-$id',
+            name: id,
+            dsldId: Value(id),
+          ),
+        );
+      }
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          interactionDatabaseProvider.overrideWithValue(interactionDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+          loadedProfileProvider.overrideWith(
+            (ref) async => const ProfileState(),
+          ),
+          stackNutrientStatusesProvider.overrideWith(
+            (ref) async => const StackNutrientStatuses.empty(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final report = await container.read(stackSafetyReportProvider.future);
+      final recalls = await container.read(
+        recalledIngredientsReportProvider.future,
+      );
+      expect(report.coverageIncomplete, isTrue);
+      expect(report.checksIncomplete, isTrue);
+      expect(report.limitedDataProducts, isEmpty);
+      expect(recalls.notInCatalog, ['MISSING']);
+      expect(recalls.incomplete, isTrue);
+      expect(recalls.notInCatalogMessage, contains('UNREADABLE'));
+      expect(recalls.notInCatalogMessage, contains('could not read'));
+    },
+  );
+
+  for (final includeUnreadableBlob in [false, true]) {
+    test(
+      'missing catalog item with separate nutrient gap: $includeUnreadableBlob',
+      () async {
+        final coreDb = CoreDatabase.memory();
+        final interactionDb = InteractionDatabase.memory();
+        final userDb = UserDatabase.memory();
+        addTearDown(() async {
+          await coreDb.close();
+          await interactionDb.close();
+          await userDb.close();
+        });
+        if (includeUnreadableBlob) {
+          await _seedSupplement(
+            coreDb,
+            dsldId: 'PRESENT',
+            name: 'Present',
+            canonicalTags: [],
+          );
+        }
+        for (final id in ['MISSING', if (includeUnreadableBlob) 'PRESENT']) {
+          await userDb.addToStack(
+            UserStacksLocalCompanion.insert(
+              id: 'stack-$id',
+              name: id,
+              dsldId: Value(id),
+            ),
+          );
+        }
+        final container = ProviderContainer(
+          overrides: [
+            coreDatabaseProvider.overrideWithValue(coreDb),
+            interactionDatabaseProvider.overrideWithValue(interactionDb),
+            userDatabaseProvider.overrideWithValue(userDb),
+            loadedProfileProvider.overrideWith(
+              (ref) async => const ProfileState(),
+            ),
+            detailBlobProvider.overrideWith((ref, id) async => null),
+          ],
+        );
+        addTearDown(container.dispose);
+        final report = await container.read(stackSafetyReportProvider.future);
+        expect(report.coverageIncomplete, isTrue);
+        expect(report.checksIncomplete, includeUnreadableBlob);
+      },
+    );
+  }
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('safetyCheckForAddProvider — medication interactions', () {
@@ -545,6 +652,59 @@ void main() {
         expect(result.isConfidentClear, isFalse);
       },
     );
+  });
+
+  test('the stack report names low-coverage products and only those', () async {
+    final coreDb = CoreDatabase.memory();
+    final interactionDb = InteractionDatabase.memory();
+    final userDb = UserDatabase.memory();
+    addTearDown(() async {
+      await coreDb.close();
+      await interactionDb.close();
+      await userDb.close();
+    });
+    await _seedSupplement(
+      coreDb,
+      dsldId: 'LOW',
+      name: 'Fructose',
+      canonicalTags: const [],
+    );
+    await _seedSupplement(
+      coreDb,
+      dsldId: 'MAPPED',
+      name: 'Magnesium',
+      canonicalTags: const ['magnesium'],
+    );
+    await (coreDb.update(coreDb.productsCore)
+          ..where((t) => t.dsldId.equals('MAPPED')))
+        .write(const ProductsCoreCompanion(mappedCoverage: Value(1.0)));
+    for (final (id, name) in [('LOW', 'Fructose'), ('MAPPED', 'Magnesium')]) {
+      await userDb.addToStack(
+        UserStacksLocalCompanion.insert(
+          id: 'stack-$id',
+          name: name,
+          dsldId: Value(id),
+        ),
+      );
+    }
+
+    final container = ProviderContainer(
+      overrides: [
+        coreDatabaseProvider.overrideWithValue(coreDb),
+        interactionDatabaseProvider.overrideWithValue(interactionDb),
+        userDatabaseProvider.overrideWithValue(userDb),
+        loadedProfileProvider.overrideWith((ref) async => const ProfileState()),
+        stackNutrientStatusesProvider.overrideWith(
+          (ref) async => const StackNutrientStatuses.empty(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final report = await container.read(stackSafetyReportProvider.future);
+
+    expect(report.limitedDataProducts, ['Fructose']);
+    expect(report.coverageIncomplete, isTrue);
   });
 
   group('PreAddSafetyResult.isConfidentClear — pure decision', () {
