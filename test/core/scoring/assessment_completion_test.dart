@@ -16,12 +16,14 @@ ProductsCoreData _p({
   String? qualityAssessmentStatus,
   double? qualityScoreV4100,
   String? productSafetyStatus = 'no_known_catalog_concern',
+  String? safetyAssessmentStatus,
 }) => ProductsCoreData(
   dsldId: 'TEST-1',
   productName: 'Test Supplement',
   mappedCoverage: 1.0,
   qualityScoreV4100: qualityScoreV4100,
   productSafetyStatus: productSafetyStatus,
+  safetyAssessmentStatus: safetyAssessmentStatus,
   qualityScoreStatus: qualityScoreStatus,
   qualityAssessmentStatus: qualityAssessmentStatus,
   exportVersion: 'test',
@@ -132,5 +134,19 @@ void main() {
       );
       expect(catalogProductHasCompletePublicScore(p), isFalse);
     });
+  });
+
+  // The page hides the For You card on a block, so only this can see the rule.
+  group('finished safety checks never clear a block (ADR-015)', () {
+    for (final status in ['blocked', 'unsafe']) {
+      test(status, () {
+        final p = _p(
+          qualityScoreStatus: 'suppressed_safety',
+          productSafetyStatus: status,
+          safetyAssessmentStatus: 'complete',
+        );
+        expect(catalogProductCanReportNoConcerns(p), isFalse);
+      });
+    }
   });
 }

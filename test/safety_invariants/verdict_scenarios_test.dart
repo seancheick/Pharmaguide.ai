@@ -49,6 +49,12 @@ const _stJohnsWort = '18219';
 const _allClear = 'No known concerns';
 const _notRecommended = 'Not recommended for your profile';
 const _qualifiedClear = 'Nothing specific to your profile';
+const _qualityTitle = 'Quality assessment incomplete';
+const _qualityBody =
+    "We haven't finished assessing this product's quality yet.";
+const _safetyTitle = 'Safety checks incomplete';
+const _safetyBody = "We haven't finished this product's safety checks yet.";
+const _noScore = 'Product quality score unavailable.';
 const _warfarinWarning = 'Do not combine with warfarin';
 
 const _onWarfarin = ProfileState(
@@ -325,7 +331,7 @@ void main() {
             'partial',
             'no_known_catalog_concern',
             1,
-            'Assessment incomplete',
+            _qualityTitle,
           ),
           (
             'the assessment failed',
@@ -450,13 +456,13 @@ void main() {
     });
   });
 
-  group('a finished assessment decides the all-clear (ADR-015)', () {
-    // An unfinished assessment shows as incomplete with no all-clear (Sean,
-    // 2026-11-03). `safety_assessment_status` can still withhold on top of a
-    // finished one. The pipeline folds identity, dose and not-scored gaps into
-    // `incomplete`, so the page has one state for all of them.
-    testWidgets('evidence review alone missing: the incomplete assessment '
-        'shows, with no all-clear', (tester) async {
+  group('safety checks decide the all-clear (ADR-015)', () {
+    // Sean, 2026-11-03: "A quality evidence gap alone must not imply that safety
+    // checks failed; genuinely unavailable or incomplete required safety checks
+    // must still withhold an all-clear." Each message shows only when its own
+    // assessment is incomplete.
+    testWidgets('evidence review alone missing: the quality message and the '
+        'all-clear both show', (tester) async {
       await pumpPage(
         tester,
         catalog: await _catalog(
@@ -467,9 +473,10 @@ void main() {
         phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
       );
 
-      expect(find.text(_allClear), findsNothing);
-      expect(find.text(_qualifiedClear), findsNothing);
-      expect(find.text('Assessment incomplete'), findsOneWidget);
+      expect(find.text(_allClear), findsOneWidget);
+      expect(find.text(_qualityTitle), findsOneWidget);
+      expect(find.text(_qualityBody), findsOneWidget);
+      expect(find.text(_safetyTitle), findsNothing);
       expect(find.text('60/100'), findsNothing);
     });
 
@@ -493,8 +500,8 @@ void main() {
       expect(find.text(_allClear), findsNothing);
     });
 
-    testWidgets('evidence review alone missing: a pregnant user sees the '
-        'clinician line alone', (tester) async {
+    testWidgets('evidence review alone missing: a pregnant user keeps the '
+        'clinician line', (tester) async {
       await pumpPage(
         tester,
         catalog: await _catalog(
@@ -505,12 +512,15 @@ void main() {
         phone: await _phone(profile: _pregnant, cachedBlob: _vitaminEBlob()),
       );
 
-      expect(find.text(_allClear), findsNothing);
+      expect(find.text(_allClear), findsOneWidget);
+      await tester.ensureVisible(find.text(_allClear));
+      await tester.tap(find.text(_allClear));
+      await tester.pumpAndSettle();
       expect(find.text(kLifeStageClinicianNote), findsOneWidget);
     });
 
     testWidgets('finished assessment and finished safety checks: the '
-        'all-clear shows', (tester) async {
+        'all-clear shows, with neither message', (tester) async {
       await pumpPage(
         tester,
         catalog: await _catalog(safetyAssessment: 'complete'),
@@ -518,7 +528,8 @@ void main() {
       );
 
       expect(find.text(_allClear), findsOneWidget);
-      expect(find.text('Assessment incomplete'), findsNothing);
+      expect(find.text(_qualityTitle), findsNothing);
+      expect(find.text(_safetyTitle), findsNothing);
     });
 
     testWidgets('older catalog: a finished product keeps the all-clear', (
@@ -531,62 +542,133 @@ void main() {
       );
 
       expect(find.text(_allClear), findsOneWidget);
+      expect(find.text(_safetyTitle), findsNothing);
     });
 
-    // Each row is withheld for one reason only, and says so somewhere else on
-    // the page once the card is gone (Sean, 2026-11-03, decision 5).
-    for (final (name, assessment, safetyAssessment, scoreStatus, stillSays)
-        in <(String, String, String?, String, String)>[
+    // A null status means an older catalog, where nothing says the checks are
+    // unfinished. It keeps the stricter rule, so it withholds without claiming.
+    for (final (
+          name,
+          score,
+          scoreStatus,
+          assessment,
+          safetyChecks,
+          clear,
+          quality,
+          safetyNote,
+          scoreLine,
+        )
+        in <
+          (String, double?, String, String, String?, bool, bool, bool, String?)
+        >[
           (
-            'identity or dose gap on an unfinished assessment',
-            'partial',
-            'incomplete',
+            'finished score, checks unfinished',
+            95,
             'scored',
-            'Assessment incomplete',
-          ),
-          (
-            'safety checks unfinished on a finished score',
             'complete',
             'incomplete',
-            'scored',
-            'Assessment incomplete',
+            false,
+            false,
+            true,
+            '95/100',
           ),
           (
-            'a status this build has never seen',
+            'finished score, a status this build has never seen',
+            95,
+            'scored',
             'complete',
             'something_new',
-            'scored',
-            'Assessment incomplete',
+            false,
+            false,
+            true,
+            '95/100',
           ),
           (
-            'an empty status',
+            'finished score, an empty status',
+            95,
+            'scored',
             'complete',
             '',
-            'scored',
-            'Assessment incomplete',
+            false,
+            false,
+            true,
+            '95/100',
           ),
           (
-            'older catalog: no status, assessment unfinished',
-            'partial',
-            null,
+            'partial quality, checks unfinished',
+            60,
             'scored',
-            'Assessment incomplete',
-          ),
-          (
-            'not scored',
             'partial',
             'incomplete',
+            false,
+            true,
+            true,
+            null,
+          ),
+          (
+            'partial quality, a status this build has never seen',
+            60,
+            'scored',
+            'partial',
+            'something_new',
+            false,
+            true,
+            true,
+            null,
+          ),
+          (
+            'partial quality, older catalog',
+            60,
+            'scored',
+            'partial',
+            null,
+            false,
+            true,
+            false,
+            null,
+          ),
+          (
+            'no score, checks unfinished',
+            null,
             'not_scored',
-            'Product quality score unavailable.',
+            'partial',
+            'incomplete',
+            false,
+            false,
+            true,
+            _noScore,
+          ),
+          (
+            'no score, checks finished',
+            null,
+            'not_scored',
+            'partial',
+            'complete',
+            true,
+            false,
+            false,
+            _noScore,
+          ),
+          (
+            'no score, older catalog',
+            null,
+            'not_scored',
+            'partial',
+            null,
+            false,
+            false,
+            false,
+            _noScore,
           ),
         ]) {
-      testWidgets('withheld and still says so: $name', (tester) async {
+      testWidgets('$name', (tester) async {
         await pumpPage(
           tester,
           catalog: await _catalog(
+            score: score,
             scoreStatus: scoreStatus,
             assessment: assessment,
-            safetyAssessment: safetyAssessment,
+            safetyAssessment: safetyChecks,
           ),
           phone: await _phone(
             profile: _noMatch,
@@ -594,22 +676,62 @@ void main() {
           ),
         );
 
-        expect(find.text(_allClear), findsNothing);
+        expect(find.text(_allClear), clear ? findsOneWidget : findsNothing);
         expect(find.text(_qualifiedClear), findsNothing);
-        expect(find.text(stillSays), findsOneWidget);
+        expect(
+          find.text(_qualityTitle),
+          quality ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.text(_qualityBody),
+          quality ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.text(_safetyTitle),
+          safetyNote ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.text(_safetyBody),
+          safetyNote ? findsOneWidget : findsNothing,
+        );
+        if (scoreLine != null) expect(find.text(scoreLine), findsOneWidget);
       });
     }
 
-    testWidgets('safety checks unfinished keeps the finished score beside '
-        'the incomplete note', (tester) async {
+    testWidgets('no score, checks unfinished: a real concern stays beside the '
+        'note', (tester) async {
       await pumpPage(
         tester,
-        catalog: await _catalog(safetyAssessment: 'incomplete'),
+        catalog: await _catalog(
+          score: null,
+          scoreStatus: 'not_scored',
+          assessment: 'partial',
+          safetyAssessment: 'incomplete',
+        ),
+        phone: await _phone(
+          profile: _onWarfarin,
+          cachedBlob: _stJohnsWortBlob(),
+        ),
+      );
+
+      expect(find.text(_notRecommended), findsOneWidget);
+      expect(find.text(_safetyTitle), findsOneWidget);
+      expect(find.text(_allClear), findsNothing);
+    });
+
+    testWidgets('catalog safety not assessed: the note explains the missing '
+        'all-clear, whatever the status says', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          safety: 'not_assessed',
+          safetyAssessment: 'complete',
+        ),
         phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
       );
 
-      expect(find.text('95/100'), findsOneWidget);
-      expect(find.text('Assessment incomplete'), findsOneWidget);
+      expect(find.text(_allClear), findsNothing);
+      expect(find.text(_safetyTitle), findsOneWidget);
     });
 
     testWidgets('withheld: coverage below the floor', (tester) async {
@@ -712,9 +834,32 @@ void main() {
           findsWidgets,
         );
         expect(find.text(_allClear), findsNothing);
-        expect(find.text('Assessment incomplete'), findsNothing);
+        expect(find.text(_qualityTitle), findsNothing);
+        expect(find.text(_safetyTitle), findsNothing);
       });
     }
+
+    testWidgets('blocked with finished safety checks keeps the block', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: null,
+          scoreStatus: 'suppressed_safety',
+          safetyAssessment: 'complete',
+          safety: 'blocked',
+          verdict: 'BLOCKED',
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(
+        find.text('PharmaGuide does not recommend this product'),
+        findsWidgets,
+      );
+      expect(find.text(_allClear), findsNothing);
+    });
   });
 
   group('a catalog caution with nothing personal (ADR-015)', () {
@@ -811,19 +956,40 @@ void main() {
       expect(find.text(_qualifiedClear), findsNothing);
     });
 
-    for (final (name, assessment, safetyAssessment)
-        in <(String, String, String)>[
-          ('evidence review open', 'partial', 'complete'),
-          ('safety checks unfinished', 'complete', 'incomplete'),
-        ]) {
-      testWidgets('$name: no qualified wording, and the page says incomplete', (
+    testWidgets('evidence review open, checks finished: the qualified wording '
+        'stays beside the quality message', (tester) async {
+      await pumpPage(
         tester,
-      ) async {
+        catalog: await _catalog(
+          score: 60,
+          assessment: 'partial',
+          safetyAssessment: 'complete',
+          safety: 'caution',
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(find.text(_allClear), findsNothing);
+      expect(find.text(_qualifiedClear), findsOneWidget);
+      expect(find.text(_qualityTitle), findsOneWidget);
+      expect(find.text(_safetyTitle), findsNothing);
+    });
+
+    for (final (name, score, assessment, scoreStatus, safetyChecks, quality)
+        in <(String, double?, String, String, String, bool)>[
+          ('finished score', 95, 'complete', 'scored', 'incomplete', false),
+          ('partial quality', 60, 'partial', 'scored', 'incomplete', true),
+          ('no score', null, 'partial', 'not_scored', 'incomplete', false),
+        ]) {
+      testWidgets('$name, checks unfinished: no qualified wording, and the '
+          'note says why', (tester) async {
         await pumpPage(
           tester,
           catalog: await _catalog(
+            score: score,
+            scoreStatus: scoreStatus,
             assessment: assessment,
-            safetyAssessment: safetyAssessment,
+            safetyAssessment: safetyChecks,
             safety: 'caution',
           ),
           phone: await _phone(
@@ -834,7 +1000,11 @@ void main() {
 
         expect(find.text(_allClear), findsNothing);
         expect(find.text(_qualifiedClear), findsNothing);
-        expect(find.text('Assessment incomplete'), findsOneWidget);
+        expect(find.text(_safetyTitle), findsOneWidget);
+        expect(
+          find.text(_qualityTitle),
+          quality ? findsOneWidget : findsNothing,
+        );
       });
     }
   });

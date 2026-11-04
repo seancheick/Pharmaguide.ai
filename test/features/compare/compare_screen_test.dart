@@ -167,7 +167,7 @@ void main() {
   testWidgets('an unfinished assessment shows no definitive score or tier', (
     tester,
   ) async {
-    // The detail hero says "Assessment incomplete" for these; Compare must not
+    // The detail hero says "Quality assessment incomplete" for these; Compare must not
     // publish the tier the unassessed pillar could still move.
     await seed(
       product: _product(
@@ -192,7 +192,7 @@ void main() {
 
     await pumpCompare(tester);
 
-    expect(find.text('Assessment incomplete'), findsOneWidget);
+    expect(find.text('Quality assessment incomplete'), findsOneWidget);
     expect(find.textContaining('72', findRichText: true), findsNothing);
     expect(find.textContaining('Good', findRichText: true), findsNothing);
 

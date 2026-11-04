@@ -35,9 +35,10 @@ enum HeroScoreDisplay {
   none,
 }
 
-const String kAssessmentIncompleteTitle = 'Assessment incomplete';
-const String kAssessmentIncompleteBody =
-    'We haven\'t finished assessing this product yet.';
+const String kQualityAssessmentIncompleteTitle =
+    'Quality assessment incomplete';
+const String kQualityAssessmentIncompleteBody =
+    'We haven\'t finished assessing this product\'s quality yet.';
 
 /// Decide what the hero's score slot renders. Precedence mirrors the
 /// verdict enum (BLOCKED > NOT_SCORED > scored): the blocked banner beats
@@ -351,14 +352,14 @@ class PGHeroSection extends StatelessWidget {
           ] else if (scoreDisplay == HeroScoreDisplay.assessmentIncomplete) ...[
             const SizedBox(height: V2Spacing.space8),
             Text(
-              kAssessmentIncompleteTitle,
+              kQualityAssessmentIncompleteTitle,
               style: V2Typography.bodyMedium(color: context.v2.fg),
             ),
             const SizedBox(height: V2Spacing.space4),
             Text(
               // Generic and true. The specific missing dimension is named by
               // the pillar that owns it, not restated here.
-              kAssessmentIncompleteBody,
+              kQualityAssessmentIncompleteBody,
               style: V2Typography.bodySm(color: context.v2.fgMuted),
             ),
           ] else if (scoreDisplay == HeroScoreDisplay.notScored) ...[

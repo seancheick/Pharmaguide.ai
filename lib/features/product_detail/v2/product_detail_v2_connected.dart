@@ -32,8 +32,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pharmaguide/core/components/pg_empty_state.dart';
-import 'package:pharmaguide/core/components/pg_hero_section.dart'
-    show kAssessmentIncompleteBody, kAssessmentIncompleteTitle;
 import 'package:pharmaguide/core/components/pg_review_before_use_card.dart';
 import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/constants/schema_ids.dart';
@@ -890,16 +888,16 @@ class _ProductDetailV2ConnectedState
                         const SizedBox(height: V2Spacing.space12),
                       ],
 
-                      // The hero shows a finished score, so nothing else says
-                      // the safety checks behind the missing all-clear are
-                      // unfinished (ADR-015).
-                      if (catalogProductHasCompletePublicScore(_product) &&
-                          !catalogProductCanReportNoConcerns(_product)) ...[
+                      // Nothing else explains the missing all-clear, whatever
+                      // the quality state (ADR-015).
+                      if (catalogProductSafetyChecksIncomplete(_product)) ...[
                         const PGSeverityBanner(
-                          key: Key('assessment-incomplete-banner'),
+                          key: Key('safety-checks-incomplete-banner'),
                           tone: PGBannerTone.info,
-                          title: kAssessmentIncompleteTitle,
-                          body: kAssessmentIncompleteBody,
+                          title: 'Safety checks incomplete',
+                          body:
+                              'We haven\'t finished this product\'s safety '
+                              'checks yet.',
                         ),
                         const SizedBox(height: V2Spacing.space12),
                       ],

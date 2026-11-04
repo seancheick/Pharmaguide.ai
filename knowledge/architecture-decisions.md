@@ -393,15 +393,12 @@ OS encryption protects a locked phone. It does nothing about two people using th
 
 ---
 
-## ADR-015: A finished assessment decides "No known concerns"
+## ADR-015: Safety checks decide "No known concerns"; each incomplete message speaks for its own assessment
 
 **Date:** 2026-11-03
-**Status:** DECIDED. Implemented in PR #177.
-**Supersedes:** the part of the earlier step below that lets a product whose only gap is evidence review say "No known concerns". The rest of that step stands: identity gaps, dose gaps, an unknown catalog safety status and failed personal checks withhold the all-clear, `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces, a null `safety_assessment_status` means a catalog older than the column, and the clinician line still shows when the all-clear is withheld. ADR-014's two open questions are answered here.
+**Status:** DECIDED. Implemented in PR #177, on the contract in pipeline PR #338. They land together.
 
-**Context:** Under that step the page put "Assessment incomplete" directly above "No known concerns" on evidence-only products: 5,686 products in the next build. Sean reviewed that pairing and the other open questions from PR #177.
-
-**Decision:** Sean's answers, as given:
+**Context:** PR #177 first withheld "No known concerns" unless the public quality score was complete, using quality completion as a stand-in for safety completion. Sean then answered, asked "May a product missing only evidence review say 'no known concerns' once its safety checks are done?": "Yes, safety checks decide." On reviewing the page, where "Assessment incomplete" sat directly above "No known concerns", he answered six open questions:
 
 1. Caution products: "No. Caution products should not say "No known concerns." Use the proposed qualified wording and investigate the 17 informational "avoid" interactions and the critical warning before treating those cases as correct."
 2. Evidence-only products: "No. Don't pair "Assessment incomplete" with "No known concerns." Show the incomplete assessment without the all-clear."
@@ -410,30 +407,24 @@ OS encryption protects a locked phone. It does nothing about two people using th
 5. The For You card going away on withheld products: "Accept if the incomplete status remains clear elsewhere on the product."
 6. Unknown safety status with no incomplete copy: "Leave for now, but add coverage so an unknown safety status can't accidentally appear as an all-clear."
 
+**Decision:** Sean then narrowed decision 2: "A quality evidence gap alone must not imply that safety checks failed; genuinely unavailable or incomplete required safety checks must still withhold an all-clear." The ambiguous wording was the problem, so it is replaced rather than paired. He set these two messages, relayed through the integrator:
+
+- Quality assessment incomplete: "We haven't finished assessing this product's quality yet."
+- Safety checks incomplete: "We haven't finished this product's safety checks yet."
+
+Each shows only when that assessment is incomplete, so a finished quality score never gets the quality message. Missing safety checks must have an explanation, including when no quality score is available. Existing concerns stay visible.
+
 **What this means in the code:**
 
-- `catalogProductCanReportNoConcerns` needs a finished public assessment, a known catalog safety status, and `safety_assessment_status` of `complete` or null. An unfinished assessment shows as incomplete with no all-clear, whatever the safety checks say.
-- **What `safety_assessment_status` still decides:** it can only withhold, and only on a product whose public assessment is finished. There it keeps the all-clear and the caution wording away when the safety checks are unfinished, and the page then says the assessment is incomplete beside the finished score. It never lifts or hides a block, and it no longer grants anything to an unfinished product. In the next build that reaches 31 products that aren't blocked: 9 with no known concern and 22 with a caution.
-- That note beside a finished score (`assessment-incomplete-banner`) exists for decision 5. Without it those 31 products showed a finished score and nothing saying the checks were unfinished. It reuses the hero's existing strings.
-- A catalog caution with no personal finding reads "Nothing specific to your profile" / "This product has general safety notes." Only a product with a Product Safety card adds "See Product Safety below." A caution product can have only watchlist notes and no such card, and sending the user to a card that isn't there would be wrong.
-- A caution product with an unfinished assessment gets no qualified wording, for the same reason as decision 2: the hero already says incomplete.
-- A concern the checks found always leads, on any of these products.
+- `catalogProductCanReportNoConcerns` reads a known catalog safety status and `safety_assessment_status`, not quality completion. Only `complete` allows the all-clear; any other value withholds it.
+- A null value means a catalog older than the column: the app backfills it as null and accepts that catalog, so those rows keep the stricter rule of a finished public assessment. A release build cannot write null (`--strict`, pipeline PR #338).
+- `catalogProductSafetyChecksIncomplete` decides the safety note, whatever the quality state. It is true for a `not_assessed` catalog safety status and for any declared status other than `complete`.
+- A null status gets no safety note, because nothing says the checks are unfinished. It withholds the all-clear without making that claim.
+- The quality message is the hero's, and Compare uses the same title. A product with no score keeps "Product quality score unavailable."
+- `quality_assessment_status` says whether the quality assessment finished, and `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces. A product with a quality gap still shows no completed score or tier.
+- A block keeps the page to itself: `safety_assessment_status` never lifts or hides one, and a blocked product gets neither the all-clear nor the note.
+- A catalog caution with no personal finding reads "Nothing specific to your profile" / "This product has general safety notes." Only a product with a Product Safety card adds "See Product Safety below." It gets this wording only when its checks can report, so unfinished checks show the note instead.
+- A concern the checks found always leads, on any of these products. Failed personal checks, an unreadable alert feed, missing rules (ADR-014) and coverage below the floor still withhold the all-clear.
+- The clinician line (`kLifeStageClinicianNote`) stays for a pregnant or breastfeeding user, because it's advice for the life stage and not a finding about the product.
 
-**Not changed:** the pipeline's `safety_assessment_status` field and its rule (pipeline PR #338), and the page's wording for a hard interaction with no warning row (decision 4).
-
-### Earlier step in PR #177: safety checks decide "No known concerns"
-
-**Date:** 2026-11-03
-**Status:** DECIDED. Implemented in PR #177 on the field declared by pipeline PR #338.
-**Context:** PR #177 added `catalogProductCanReportNoConcerns`, which withholds "No known concerns" unless the public quality score is complete. That uses quality completion as a stand-in for safety completion. In the unpublished 2026.11.02 build, 6,264 of the 6,294 scored partial products carry only evidence-review blockers in `assessment_readiness.release_assessment.blockers`. The core row can't show that today.
-
-**Decision:** Sean, asked "May a product missing only evidence review say 'no known concerns' once its safety checks are done?", answered: "Yes, safety checks decide."
-
-- A product whose only gap is evidence review may say "No known concerns" once its safety checks are complete.
-- Identity gaps, dose gaps, an unknown catalog safety status and failed personal checks keep withholding it.
-- This decides the all-clear only. Such a product still shows no completed quality score or verdict, and `catalogProductHasCompletePublicScore` stays as it is for ranking and quality surfaces.
-- The predicate reads `safety_assessment_status`, which the pipeline declares (`complete` or `incomplete`). Only `complete` allows the all-clear, and any other value withholds it.
-- A null value means a catalog older than the column: the app backfills it as null and accepts that catalog, so those rows keep the stricter earlier check (a complete public score and a known catalog safety status). Withholding on null would remove the all-clear from every finished product until the new catalog ships. A release build cannot write null (`--strict`, pipeline PR #338).
-- The clinician line (`kLifeStageClinicianNote`) still shows when the all-clear is withheld, because it's advice for the life stage and not a finding about the product.
-
-**Not decided here:** whether to hold back products with no safety signal and no barcode, and whether a product with catalog status `caution` may say "No known concerns". Both questions stay with Sean. Caution keeps its earlier behaviour for now.
+**Not changed:** the pipeline's `safety_assessment_status` field and its rule, and the page's wording for a hard interaction with no warning row (decision 4). Product counts for each state belong to the measured release build, not this record.

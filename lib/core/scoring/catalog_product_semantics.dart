@@ -155,24 +155,39 @@ bool catalogProductHasCompletePublicScore(ProductsCoreData? product) {
 
 /// Whether a check that found nothing may be reported as "no known concerns".
 ///
-/// It takes a finished public assessment and finished safety checks (ADR-015).
-/// An unfinished assessment shows as incomplete with no all-clear, whatever the
-/// safety checks say. On a finished one, the pipeline's
-/// `safety_assessment_status` still withholds unless it says `complete`, and so
-/// does an unknown catalog safety status. Concerns the checks did find still
-/// show.
+/// The safety checks decide, not quality completion (ADR-015): a known catalog
+/// safety status and `safety_assessment_status` of `complete`. A quality gap
+/// belongs to the quality message, and any status other than `complete`
+/// withholds. Concerns the checks did find still show.
 ///
 /// An older catalog has no such column, so the row reads null, and a finished
 /// public assessment is all it can offer.
 bool catalogProductCanReportNoConcerns(ProductsCoreData? product) {
   if (product == null ||
+      catalogProductIsBlocked(product) ||
       catalogProductSafetyStatus(product) ==
-          CatalogProductSafetyStatus.notAssessed ||
-      !catalogProductHasCompletePublicScore(product)) {
+          CatalogProductSafetyStatus.notAssessed) {
     return false;
   }
   final safetyChecks = product.safetyAssessmentStatus;
-  return safetyChecks == null || safetyChecks == 'complete';
+  return safetyChecks == null
+      ? catalogProductHasCompletePublicScore(product)
+      : safetyChecks == 'complete';
+}
+
+/// Whether the page should say this product's safety checks are unfinished.
+///
+/// True whenever the catalog says so, whatever the quality state. A null status
+/// says nothing either way, so it withholds the all-clear without this claim. A
+/// block is its own answer and keeps the page to itself.
+bool catalogProductSafetyChecksIncomplete(ProductsCoreData? product) {
+  if (product == null || catalogProductIsBlocked(product)) return false;
+  if (catalogProductSafetyStatus(product) ==
+      CatalogProductSafetyStatus.notAssessed) {
+    return true;
+  }
+  final safetyChecks = product.safetyAssessmentStatus;
+  return safetyChecks != null && safetyChecks != 'complete';
 }
 
 /// Whether the catalog has no usable quality number for this product.
