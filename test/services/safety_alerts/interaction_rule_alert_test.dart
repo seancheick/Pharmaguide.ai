@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'legacy_readers/pre_skip_repository.dart' as pre_skip;
 import 'legacy_readers/skip_unknown_repository.dart' as skip_unknown;
+import 'signed_feed_support.dart';
 
 const _medicationId = 'class:fake_test_medications';
 
@@ -73,19 +74,28 @@ SupabaseClient _client(
       if (request.url.path.contains('/storage/')) {
         return http.Response.bytes(bytes, 200, request: request);
       }
+      final named =
+          (manifest ??
+                  {
+                    if (extended != null)
+                      'extended_feed': {
+                        'path': _extendedPath,
+                        'checksum': 'sha256:${sha256.convert(_feedBytes)}',
+                      },
+                  })
+              as Map;
       return http.Response(
         jsonEncode({
           'feed_path': 'safety/feed.json',
           'checksum': 'sha256:${sha256.convert(bytes)}',
-          'manifest':
-              manifest ??
-              {
-                if (extended != null)
-                  'extended_feed': {
-                    'path': _extendedPath,
-                    'checksum': 'sha256:${sha256.convert(_feedBytes)}',
-                  },
-              },
+          'manifest': {
+            ...named,
+            'signed_feed': await signedFeedBlock(
+              path: 'safety/feed.json',
+              checksum: 'sha256:${sha256.convert(bytes)}',
+              extended: named['extended_feed'],
+            ),
+          },
         }),
         200,
         headers: {'content-type': 'application/json'},
@@ -448,6 +458,7 @@ void main() {
         }),
       );
       final release = await SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(() => bytes),
         preferences: _MemoryPreferences(),
       ).loadCurrent();
@@ -463,6 +474,7 @@ void main() {
       () async {
         Object? served = _baseBytes;
         final repository = SafetyAlertRepository(
+          verificationKeys: testAlertFeedKeys,
           client: _client(() => served, extended: () => _feedBytes),
           preferences: _MemoryPreferences(),
         );
@@ -492,6 +504,7 @@ void main() {
     test('fetching the feed sends nothing about medications', () async {
       final requests = <http.Request>[];
       final release = await SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(
           () => _baseBytes,
           extended: () => _feedBytes,
@@ -529,6 +542,7 @@ void main() {
         Object? superset = _feedBytes;
         Object? base = _baseBytes;
         final repository = SafetyAlertRepository(
+          verificationKeys: testAlertFeedKeys,
           client: _client(() => base, extended: () => superset),
           preferences: _MemoryPreferences(),
         );
@@ -547,6 +561,7 @@ void main() {
 
     test('this build reads every alert when the release names it', () async {
       final release = await SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(() => _baseBytes, extended: () => _feedBytes),
         preferences: _MemoryPreferences(),
       ).loadCurrent();
@@ -562,6 +577,7 @@ void main() {
 
     test('a release that names none is read as it always was', () async {
       final release = await SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(() => _baseBytes),
         preferences: _MemoryPreferences(),
       ).loadCurrent();
@@ -573,6 +589,7 @@ void main() {
     test('unavailable: bans and recalls still load, and it is not a complete '
         'check', () async {
       final release = await SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(() => _baseBytes, extended: () => null),
         preferences: _MemoryPreferences(),
       ).loadCurrent();
@@ -586,6 +603,7 @@ void main() {
       () async {
         Object? base = _baseBytes;
         final repository = SafetyAlertRepository(
+          verificationKeys: testAlertFeedKeys,
           client: _client(() => base, extended: () => null),
           preferences: _MemoryPreferences(),
         );
@@ -601,6 +619,7 @@ void main() {
 
     test('tampered bytes count as unavailable', () async {
       final release = await SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(() => _baseBytes, extended: () => utf8.encode('{}')),
         preferences: _MemoryPreferences(),
       ).loadCurrent();
@@ -611,6 +630,7 @@ void main() {
 
     test('a damaged manifest entry counts as unavailable', () async {
       final release = await SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(
           () => _baseBytes,
           manifest: {'extended_feed': 'not a location'},
@@ -631,6 +651,7 @@ void main() {
         'checksum': 'sha256:${sha256.convert(_feedBytes)}',
       };
       final repository = SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(
           () => base,
           extended: () => superset,
@@ -665,6 +686,7 @@ void main() {
     test('offline, the rules come back from the verified copy', () async {
       Object? base = _baseBytes;
       final repository = SafetyAlertRepository(
+        verificationKeys: testAlertFeedKeys,
         client: _client(() => base, extended: () => _feedBytes),
         preferences: _MemoryPreferences(),
       );
