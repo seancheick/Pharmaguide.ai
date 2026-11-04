@@ -150,7 +150,15 @@ class StackIntelligenceEngine {
     final hasBannedIngredient = recalledReport.violations.any(
       (violation) => violation.isBannedSubstance,
     );
-    final hasRecalledIngredient = !recalledReport.isEmpty;
+    // One recall, one rank: it is Unsafe whether the catalog or the feed
+    // reports it. Other feed alerts keep the rank of their own severity.
+    final hasRecalledIngredient =
+        !recalledReport.isEmpty ||
+        regulatorySafetyAlerts.any(
+          (match) =>
+              match.alert.eventType == SafetyAlertEventType.productRecall &&
+              match.alert.disposition == SafetyAlertDisposition.block,
+        );
     final analysisIncomplete =
         alertChecksIncomplete ||
         safetyReport.checksIncomplete ||

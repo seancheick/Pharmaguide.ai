@@ -291,7 +291,11 @@ void main() {
           expect(result.intelligence.interactionCount, 0);
           expect(
             result.intelligence.tier,
-            disposition == 'block' ? StackTier.concerning : StackTier.decent,
+            disposition == 'review'
+                ? StackTier.decent
+                : row['event_type'] == 'product_recall'
+                ? StackTier.unsafe
+                : StackTier.concerning,
           );
           expect(
             describeStackSummary(result.intelligence),
@@ -373,6 +377,86 @@ void main() {
       expect(intelligence.hasContraindicatedInteraction, isFalse);
       expect(intelligence.interactionCount, 0);
       expect(intelligence.nutrientWarningCount, 0);
+    });
+
+    group('a feed alert beside the catalog recall flag', () {
+      ({SafetyAlert alert, String dsldId}) feedAlert(
+        String eventType,
+        String disposition,
+      ) {
+        final feed = jsonDecode(
+          File(
+            'test/fixtures/safety_alerts/interaction_rule_feed.json',
+          ).readAsStringSync(),
+        );
+        final row = (feed['alerts'] as List)
+            .cast<Map<String, dynamic>>()
+            .firstWhere((r) => r['event_type'] == eventType);
+        return (
+          alert: SafetyAlert.fromJson({
+            ...row,
+            'consumer_disposition': disposition,
+          }),
+          dsldId: '999',
+        );
+      }
+
+      StackIntelligence diagnoseFeed(({SafetyAlert alert, String dsldId}) m) =>
+          engine.diagnose(
+            stackSize: 3,
+            safetyReport: const StackSafetyReport(),
+            recalledReport: emptyRecall,
+            synergyReport: emptySynergy,
+            qualityScore: 90,
+            regulatorySafetyAlerts: [m],
+          );
+
+      test('the same recall ranks Unsafe from the catalog or the feed', () {
+        final fromCatalog = engine.diagnose(
+          stackSize: 3,
+          safetyReport: const StackSafetyReport(),
+          recalledReport: RecalledIngredientsReport(
+            violations: [
+              _violation(productName: 'Recalled', recallStatus: 'recalled'),
+            ],
+          ),
+          synergyReport: emptySynergy,
+          qualityScore: 90,
+        );
+        final fromFeed = diagnoseFeed(feedAlert('product_recall', 'block'));
+
+        expect(fromCatalog.tier, StackTier.unsafe);
+        expect(fromFeed.tier, fromCatalog.tier);
+        expect(fromFeed.hasRecalledIngredient, isTrue);
+        expect(
+          describeStackSummary(fromFeed),
+          describeStackSummary(fromCatalog),
+        );
+      });
+
+      test('a feed recall at block is never counted as an interaction', () {
+        final result = diagnoseFeed(feedAlert('product_recall', 'block'));
+
+        expect(result.interactionCount, 0);
+        expect(result.hasContraindicatedInteraction, isFalse);
+      });
+
+      test('a feed ban at block is not promoted', () {
+        final result = diagnoseFeed(feedAlert('ingredient_ban', 'block'));
+
+        expect(result.tier, StackTier.concerning);
+        expect(result.hasRecalledIngredient, isFalse);
+        expect(result.hasBannedIngredient, isFalse);
+      });
+
+      test('a feed recall or ban at review is not promoted', () {
+        for (final eventType in ['product_recall', 'ingredient_ban']) {
+          final result = diagnoseFeed(feedAlert(eventType, 'review'));
+
+          expect(result.tier, StackTier.decent, reason: eventType);
+          expect(result.hasRecalledIngredient, isFalse, reason: eventType);
+        }
+      });
     });
 
     test('single banned ingredient + clean stack → unsafe', () {
