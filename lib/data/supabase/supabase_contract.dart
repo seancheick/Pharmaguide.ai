@@ -34,6 +34,15 @@ abstract final class SupabaseContract {
   /// Full path: `v{version}/pharmaguide_core.db`
   static String coreDbPath(String version) => 'v$version/pharmaguide_core.db';
 
+  /// The gzip of that core DB, the same catalog for less download.
+  /// The pipeline owner is `supabase_client.core_db_compressed_remote_path`.
+  static String compressedCoreDbPath(String version) =>
+      '${coreDbPath(version)}.gz';
+
+  /// What a build with no release keys reads to learn about [compressedCoreDbPath].
+  static String compressedCoreDbDescriptorPath(String version) =>
+      '${compressedCoreDbPath(version)}.json';
+
   /// Detail index path pattern.
   static String detailIndexPath(String version) =>
       'v$version/detail_index.json';

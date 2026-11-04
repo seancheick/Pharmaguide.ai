@@ -363,6 +363,98 @@ void main() {
       );
     });
   });
+
+  group('compressed catalog entry', () {
+    const version = '2026.11.03.120000';
+    const gzPath = 'v$version/pharmaguide_core.db.gz';
+
+    Future<ReleaseManifest> parse(Map<String, Object?>? compressed) async {
+      final signed = signer.manifestText(
+        sequence: 5,
+        catalogVersion: version,
+        catalogSha256: _sha,
+        compressed: compressed,
+      );
+      return ReleaseManifest.verify(
+        signedRelease: signed,
+        signature: await signer.sign(signed),
+        keys: signer.keys,
+      );
+    }
+
+    final good = {
+      'decompressed_size': 66,
+      'path': gzPath,
+      'sha256': _sha,
+      'size': 8,
+    };
+
+    test('text the pipeline signed verifies and carries it', () async {
+      final manifest = await ReleaseManifest.verify(
+        signedRelease: _pythonCompressed,
+        signature: _pythonCompressedSignature,
+        keys: {'vector-key-2': _pythonCompressedPublicKey},
+      );
+      final compressed = manifest.catalog.compressed!;
+      expect(compressed.path, gzPath);
+      expect(compressed.size, 8402758);
+      expect(compressed.decompressedSize, 66658304);
+      expect(manifest.catalog.path, 'v$version/pharmaguide_core.db');
+    });
+
+    test('is read from the verified text', () async {
+      final compressed = (await parse(good)).catalog.compressed!;
+      expect(compressed.path, gzPath);
+      expect(compressed.sha256, _sha);
+      expect(compressed.size, 8);
+      expect(compressed.decompressedSize, 66);
+    });
+
+    test('is absent on a release from before compression', () async {
+      expect((await parse(null)).catalog.compressed, isNull);
+    });
+
+    test('a rules entry never has one', () async {
+      final text = signer.manifestText(
+        sequence: 5,
+        catalogVersion: version,
+        catalogSha256: _sha,
+        rulesVersion: '1.0.16',
+        rulesSha256: _sha,
+      );
+      final decoded = jsonDecode(text) as Map<String, Object?>;
+      (decoded['rules']! as Map<String, Object?>)['compressed'] = {
+        ...good,
+        'path': 'v1.0.16/pharmaguide_core.db.gz',
+      };
+      final signed = jsonEncode(decoded);
+      final manifest = await ReleaseManifest.verify(
+        signedRelease: signed,
+        signature: await signer.sign(signed),
+        keys: signer.keys,
+      );
+      expect(manifest.rules!.compressed, isNull);
+    });
+
+    final malformed = <String, Map<String, Object?>>{
+      'a path elsewhere': {...good, 'path': 'elsewhere/evil.gz'},
+      'a bad hash': {...good, 'sha256': 'xx'},
+      'an uppercase hash': {...good, 'sha256': _sha.toUpperCase()},
+      'a size that is text': {...good, 'size': '8'},
+      'a zero size': {...good, 'size': 0},
+      'no decompressed size': {...good}..remove('decompressed_size'),
+    };
+    malformed.forEach((name, entry) {
+      test(
+        '$name leaves the plain file, and the release still verifies',
+        () async {
+          final manifest = await parse(entry);
+          expect(manifest.catalog.compressed, isNull);
+          expect(manifest.catalog.path, 'v$version/pharmaguide_core.db');
+        },
+      );
+    });
+  });
 }
 
 const _pythonPublicKey =
@@ -375,3 +467,9 @@ const _pythonCatalogOnly =
     r'''{"blocked_versions":{"catalog":["2026.11.02.000000"],"rules":["1.0.14"]},"catalog":{"min_app_version":"1.0.0","path":"v2026.11.03.120000/pharmaguide_core.db","schema_version":"5.3.0","sha256":"652f55016243bf1b9f1bbea46d5749ef892dbe394e46de9d66ab1aacf0b4af57","version":"2026.11.03.120000"},"format":1,"key_id":"vector-key-1","min_rules_version":"1.0.15","release_sequence":42,"rules":null}''';
 const _pythonCatalogOnlySignature =
     'vector-key-1:mIgDvhdypUq6lBFzUi46OROmrleTgGkX/sg9rk4g8ydsdtt+zqhQMjqeQ300NYfsloqo3ZAf+2ivOTnfU9iLDQ==';
+const _pythonCompressedPublicKey =
+    'aeeb50a50a11763cc12ed7049c00bc5afe4573b8f5ba2cec6d9edcfdc0ce9340';
+const _pythonCompressed =
+    r'''{"blocked_versions":{"catalog":[],"rules":[]},"catalog":{"compressed":{"decompressed_size":66658304,"path":"v2026.11.03.120000/pharmaguide_core.db.gz","sha256":"a32e75af651a77187dc563e4741158563b79f4409743e5fdd2d47c7aa753331b","size":8402758},"min_app_version":"1.0.0","path":"v2026.11.03.120000/pharmaguide_core.db","schema_version":"5.3.0","sha256":"652f55016243bf1b9f1bbea46d5749ef892dbe394e46de9d66ab1aacf0b4af57","version":"2026.11.03.120000"},"format":1,"key_id":"vector-key-2","min_rules_version":"1.0.15","release_sequence":43,"rules":null}''';
+const _pythonCompressedSignature =
+    'vector-key-2:NtIBkDQIAhKTozmGnkU2ZYRr1FQW0Znbuy4JY8al1cyUZLFgtYXNn7TN9oVbyZJOknKpf+FTGnEh6KRbWpHSDQ==';

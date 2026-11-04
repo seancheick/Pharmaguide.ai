@@ -27,6 +27,7 @@ typedef CatalogStager =
       required String version,
       String? storagePath,
       String? expectedSha256,
+      CompressedCatalog? compressed,
     });
 typedef RulesStager =
     Future<File> Function({
@@ -171,11 +172,13 @@ class CatalogUpdaterService {
             required String version,
             String? storagePath,
             String? expectedSha256,
+            CompressedCatalog? compressed,
           }) => svc.stageCatalog(
             downloads: store.downloads,
             version: version,
             storagePath: storagePath,
             expectedSha256: expectedSha256,
+            compressed: compressed,
           ),
       stageRules:
           ({
@@ -383,6 +386,7 @@ class CatalogUpdaterService {
               version: catalog.version,
               storagePath: catalog.path,
               expectedSha256: catalog.sha256,
+              compressed: catalog.compressed,
             );
 
       final rules = manifest.rules;
@@ -406,6 +410,10 @@ class CatalogUpdaterService {
           rulesSha256: rules?.sha256,
         ),
       );
+    } on CatalogStorageFullException catch (e) {
+      // Expected on a full phone, on every refresh. Not a defect to report.
+      CrashReportingService().log('catalog_updater: $e');
+      return CatalogStageFailed(error: e, reason: 'Staging failed: $e');
     } on Object catch (e, st) {
       CrashReportingService().recordError(
         e,
