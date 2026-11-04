@@ -113,6 +113,8 @@ class _MedicationEntryV2ScreenState
   String _lastSavedDoseText = '';
   String _lastSavedFrequencyText = '';
   int _contextGeneration = 0;
+  // Identity hydration survives dose edits; only a new selection invalidates it.
+  int _selectionGeneration = 0;
   int _reviewGeneration = 0;
   String? _confirmedRoute;
   String? _confirmedUseContext;
@@ -139,6 +141,7 @@ class _MedicationEntryV2ScreenState
     _availableProcedures = {};
     _pairwiseChoiceProcedures = {};
     _contextGeneration++;
+    _selectionGeneration++;
     _reviewGeneration++;
     _resolvingClasses = false;
   }
@@ -306,7 +309,7 @@ class _MedicationEntryV2ScreenState
 
   Future<void> _selectSuggestion(RxNormSuggestion suggestion) async {
     _resetMedicationContext();
-    final selectionGeneration = _contextGeneration;
+    final selectionGeneration = _selectionGeneration;
     final displayName = medicationDisplayName(suggestion.name);
     setState(() {
       _selectedName = displayName;
@@ -333,13 +336,13 @@ class _MedicationEntryV2ScreenState
 
     final classesResult = await classesFuture;
     if (!mounted ||
-        selectionGeneration != _contextGeneration ||
+        selectionGeneration != _selectionGeneration ||
         _selectedRxcui != suggestion.rxcui) {
       return;
     }
     final genericsResult = await genericsFuture;
     if (!mounted ||
-        selectionGeneration != _contextGeneration ||
+        selectionGeneration != _selectionGeneration ||
         _selectedRxcui != suggestion.rxcui) {
       return;
     }
@@ -356,7 +359,7 @@ class _MedicationEntryV2ScreenState
           runtimeClassIds: classesResult,
         );
     if (!mounted ||
-        selectionGeneration != _contextGeneration ||
+        selectionGeneration != _selectionGeneration ||
         _selectedRxcui != suggestion.rxcui) {
       return;
     }
@@ -1579,6 +1582,13 @@ class _MedicationProfileReviewCard extends StatelessWidget {
                         : warning?.body ?? '',
                     style: V2Typography.bodySm(color: context.v2.fgMuted),
                   ),
+                  if (!resolving && !unavailable && warning != null) ...[
+                    const SizedBox(height: V2Spacing.space8),
+                    Text(
+                      warning.evidenceLevel.label,
+                      style: V2Typography.caption(color: context.v2.fgMuted),
+                    ),
+                  ],
                   if (!resolving &&
                       !unavailable &&
                       warning != null &&

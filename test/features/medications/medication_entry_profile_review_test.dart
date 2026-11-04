@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:pharmaguide/core/components/pg_pill_button.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -183,6 +184,74 @@ void main() {
   // CachingAssetBundle otherwise retains futures from an earlier test.
   setUp(rootBundle.clear);
 
+  for (final editSchedule in [false, true]) {
+    testWidgets(
+      'optional ${editSchedule ? "schedule" : "dose"} edit during hydration keeps Save available',
+      (tester) async {
+        final db = InteractionDatabase.memory();
+        final fake = _DelayedRxNormHttp();
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              interactionDatabaseProvider.overrideWithValue(db),
+              referenceDataRepositoryProvider.overrideWith(
+                (ref) => _FakeReferenceDataRepository(),
+              ),
+              loadedProfileProvider.overrideWith(
+                (ref) async => const ProfileState(),
+              ),
+              clinicalProfileSchemaProvider.overrideWith(
+                (ref) async => _testClinicalProfileSchema,
+              ),
+              rxNormApiServiceProvider.overrideWithValue(
+                RxNormApiService(httpGet: fake.call, offlineDb: db),
+              ),
+            ],
+            child: const MaterialApp(home: MedicationEntryV2Screen()),
+          ),
+        );
+        await tester.enterText(
+          find.byKey(const Key('med-entry-search')),
+          'aspirin',
+        );
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('med-entry-suggestion-1191')));
+        await tester.pump();
+        final target = editSchedule
+            ? find.text('Once daily')
+            : find.byKey(const Key('med-entry-dose'));
+        await tester.scrollUntilVisible(
+          target,
+          150,
+          scrollable: find.byType(Scrollable).first,
+        );
+        if (editSchedule) {
+          await tester.drag(
+            find.byType(Scrollable).first,
+            const Offset(0, -200),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(target, warnIfMissed: true);
+        } else {
+          await tester.enterText(target, '325');
+        }
+        await tester.pump();
+        fake.aspirinClasses.complete('{}');
+        await tester.pumpAndSettle();
+        final button = tester.widget<PGPillButton>(
+          find.descendant(
+            of: find.byKey(const Key('med-entry-save')),
+            matching: find.byType(PGPillButton),
+          ),
+        );
+        expect(button.onPressed, isNotNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await db.close();
+      },
+    );
+  }
+
   testWidgets(
     'offline class picker retains existing pregnancy and kidney warnings',
     (tester) async {
@@ -250,6 +319,7 @@ void main() {
         find.text('Review systemic NSAID use with kidney disease'),
         findsOneWidget,
       );
+      expect(find.text('Strong supporting evidence'), findsNWidgets(2));
       await tester.pumpWidget(const SizedBox.shrink());
       await db.close();
     },
