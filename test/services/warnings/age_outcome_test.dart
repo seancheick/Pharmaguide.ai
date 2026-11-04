@@ -4,6 +4,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/v2/warnings_pipeline.dart';
+import 'package:pharmaguide/services/fit_score/e1_dosage_calculator.dart';
+import 'package:pharmaguide/services/fit_score/e2a_goal_calculator.dart';
+import 'package:pharmaguide/services/fit_score/e2b_age_calculator.dart';
+import 'package:pharmaguide/services/fit_score/fit_score_service.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
@@ -43,6 +47,34 @@ const _couldBe =
     'that fits you.';
 
 void main() {
+  test('Fit Score applies the same age outcome as the warning card', () {
+    final service = FitScoreService(
+      e1: E1DosageCalculator(const {}),
+      e2a: E2aGoalCalculator(const {}),
+      e2b: E2bAgeCalculator(const {}),
+    );
+    String? severity(String age) => service
+        .calculate(
+          nutrients: const [],
+          productClusters: const [],
+          interactionSummary: const {
+            'condition_summary': {
+              'pregnancy': {'highest_severity': 'caution'},
+            },
+          },
+          ageBracket: age,
+          sex: 'Female',
+          userConditions: const ['pregnancy'],
+          userProfileFlags: const {'pregnant'},
+          warnings: [_warning('4340')],
+        )
+        .maxRelevantSeverity;
+
+    expect(severity('14-18'), Severity.contraindicated.name);
+    expect(severity('31-50'), isNull);
+    expect(severity('Prefer not to say'), Severity.caution.name);
+  });
+
   group('resolvedForAge', () {
     test('14-18 reads the teen outcome, severity and card', () {
       final teen = _warning('4340').resolvedForAge('14-18');

@@ -65,6 +65,7 @@ class FitScoreService {
         : _applyProfileGateFilter(
             interactionSummary: interactionSummary,
             warnings: warnings,
+            ageBracket: ageBracket,
             userConditions: userConditions,
             userDrugClasses: userDrugClasses,
             userProfileFlags: userProfileFlags,
@@ -149,6 +150,7 @@ class FitScoreService {
   Map<String, dynamic> _applyProfileGateFilter({
     required Map<String, dynamic> interactionSummary,
     required List<InteractionWarning> warnings,
+    required String? ageBracket,
     required List<String> userConditions,
     required List<String> userDrugClasses,
     required Set<String> userProfileFlags,
@@ -176,6 +178,7 @@ class FitScoreService {
           ? Map<String, dynamic>.from(rawCond)
           : const <String, dynamic>{},
       warnings: warnings,
+      ageBracket: ageBracket,
       userProfile: userProfile,
       productContext: productContext,
       productContextForWarning: productContextForWarning,
