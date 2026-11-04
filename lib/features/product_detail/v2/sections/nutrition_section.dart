@@ -37,83 +37,29 @@ Widget buildNutritionSection({
   List<Map<String, dynamic>> labelRows = const [],
   bool embedded = false,
 }) {
+  // The printed ledger owns legacy labels. Typed-only labels use the summary.
+  final detail = nutritionDetail ?? const <String, dynamic>{};
+  final calories =
+      caloriesPerServing ?? _readNumber(detail, 'calories_per_serving');
+  final summaryFacts = <PGNutritionFact>[
+    for (final (key, label, unit, indent) in _summaryFields)
+      if (_readNumber(detail, key) case final value?)
+        PGNutritionFact(
+          label: label,
+          value: _amountText(detail, key, value, unit),
+          indentLevel: indent,
+        ),
+  ];
+  final caloriesOperator = _operatorFor(detail, 'calories_per_serving');
   if (labelRows.isNotEmpty) {
     return _buildFromLabelRows(
       labelRows,
-      fallbackCaloriesPerServing: caloriesPerServing,
+      fallbackCaloriesPerServing: calories,
+      fallbackCaloriesOperator: caloriesOperator,
       embedded: embedded,
     );
   }
-
-  // Calories: column is canonical. Falls back to blob value when null.
-  final calories =
-      caloriesPerServing ??
-      _readNumber(nutritionDetail, 'calories_per_serving');
-
-  // Macros: FDA-order, each only rendered when value is non-null.
-  final facts = <PGNutritionFact>[];
-  if (nutritionDetail != null) {
-    final fat = _readNumber(nutritionDetail, 'total_fat_g');
-    if (fat != null) {
-      facts.add(
-        PGNutritionFact(
-          label: 'Total Fat',
-          value: _gramsText(nutritionDetail, 'total_fat_g', fat),
-        ),
-      );
-    }
-
-    final polyFat = _readNumber(nutritionDetail, 'polyunsaturated_fat_g');
-    if (polyFat != null) {
-      facts.add(
-        PGNutritionFact(
-          label: 'Polyunsaturated Fat',
-          value: _gramsText(nutritionDetail, 'polyunsaturated_fat_g', polyFat),
-          indentLevel: 1,
-        ),
-      );
-    }
-
-    final carbs = _readNumber(nutritionDetail, 'total_carbohydrates_g');
-    if (carbs != null) {
-      facts.add(
-        PGNutritionFact(
-          label: 'Total Carbs',
-          value: _gramsText(nutritionDetail, 'total_carbohydrates_g', carbs),
-        ),
-      );
-    }
-
-    final fiber = _readNumber(nutritionDetail, 'dietary_fiber_g');
-    if (fiber != null) {
-      facts.add(
-        PGNutritionFact(
-          label: 'Dietary Fiber',
-          value: _gramsText(nutritionDetail, 'dietary_fiber_g', fiber),
-        ),
-      );
-    }
-
-    final sugars = _readNumber(nutritionDetail, 'total_sugars_g');
-    if (sugars != null) {
-      facts.add(
-        PGNutritionFact(
-          label: 'Total Sugars',
-          value: _gramsText(nutritionDetail, 'total_sugars_g', sugars),
-        ),
-      );
-    }
-
-    final protein = _readNumber(nutritionDetail, 'protein_g');
-    if (protein != null) {
-      facts.add(
-        PGNutritionFact(
-          label: 'Protein',
-          value: _gramsText(nutritionDetail, 'protein_g', protein),
-        ),
-      );
-    }
-  }
+  final facts = summaryFacts;
 
   if (calories == null && facts.isEmpty) {
     return const SizedBox.shrink();
@@ -122,7 +68,7 @@ Widget buildNutritionSection({
   return PGNutritionPanel(
     caloriesPerServing: calories?.round(),
     facts: facts,
-    // Production title — verbatim "Nutrition Facts" (FDA label vocabulary).
+    caloriesQualifier: caloriesOperator,
     title: 'Nutrition Facts',
     collapsible: true,
     initiallyExpanded: false,
@@ -133,9 +79,11 @@ Widget buildNutritionSection({
 Widget _buildFromLabelRows(
   List<Map<String, dynamic>> rows, {
   required double? fallbackCaloriesPerServing,
+  required String fallbackCaloriesOperator,
   required bool embedded,
 }) {
   int? calories;
+  var caloriesOperator = fallbackCaloriesOperator;
   final facts = <PGNutritionFact>[];
   for (final row in rows) {
     final label = _firstText(row, const [
@@ -153,6 +101,10 @@ Widget _buildFromLabelRows(
 
     if (label.trim().toLowerCase() == 'calories') {
       calories = _firstNumber(printedValue ?? '')?.round();
+      if (calories != null) {
+        caloriesOperator =
+            RegExp(r'^(<=|>=|[<>~≤≥])').stringMatch(printedValue ?? '') ?? '';
+      }
       continue;
     }
 
@@ -173,6 +125,7 @@ Widget _buildFromLabelRows(
   return PGNutritionPanel(
     caloriesPerServing: calories,
     facts: facts,
+    caloriesQualifier: caloriesOperator,
     title: 'Nutrition Facts',
     collapsible: true,
     initiallyExpanded: false,
@@ -228,13 +181,33 @@ double? _readNumber(Map<String, dynamic>? blob, String key) {
 
 /// The pipeline's printed qualifier for [key] ("<" for "less than 1 g"), so a
 /// bound is never shown as an exact amount. Flutter does not derive it.
-String _gramsText(Map<String, dynamic> detail, String key, double value) {
+String _operatorFor(Map<String, dynamic> detail, String key) {
   final operators = detail['quantity_operators'];
   final operator = operators is Map ? operators[key]?.toString() ?? '' : '';
-  // "=" means exact; only a bound carries a visible qualifier.
-  final prefix = operator == '=' ? '' : operator;
-  return '$prefix${_formatGrams(value)} g';
+  return operator == '=' ? '' : operator;
 }
+
+String _amountText(
+  Map<String, dynamic> detail,
+  String key,
+  double value,
+  String unit,
+) => '${_operatorFor(detail, key)}${_formatGrams(value)} $unit';
+
+const _summaryFields = [
+  ('total_fat_g', 'Total Fat', 'g', 0),
+  ('saturated_fat_g', 'Saturated Fat', 'g', 1),
+  ('trans_fat_g', 'Trans Fat', 'g', 1),
+  ('polyunsaturated_fat_g', 'Polyunsaturated Fat', 'g', 1),
+  ('monounsaturated_fat_g', 'Monounsaturated Fat', 'g', 1),
+  ('cholesterol_mg', 'Cholesterol', 'mg', 0),
+  ('sodium_mg', 'Sodium', 'mg', 0),
+  ('total_carbohydrates_g', 'Total Carbs', 'g', 0),
+  ('dietary_fiber_g', 'Dietary Fiber', 'g', 1),
+  ('total_sugars_g', 'Total Sugars', 'g', 1),
+  ('added_sugars_g', 'Added Sugars', 'g', 2),
+  ('protein_g', 'Protein', 'g', 0),
+];
 
 /// Format a macro value: whole-number when integer, one decimal otherwise.
 /// Verbatim port of production's `_formatGrams` (nutrition_panel.dart:251).
