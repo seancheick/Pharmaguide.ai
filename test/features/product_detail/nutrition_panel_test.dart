@@ -18,6 +18,43 @@ Future<void> _expandNutrition(WidgetTester tester) async {
 
 void main() {
   group('Nutrition section', () {
+    testWidgets('typed nutrition renders sugar hierarchy and mg fields', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        buildNutritionSection(
+          caloriesPerServing: 5,
+          nutritionDetail: const {
+            'total_carbohydrates_g': 1,
+            'total_sugars_g': 1,
+            'added_sugars_g': 1,
+            'cholesterol_mg': 5,
+            'sodium_mg': 0,
+            'quantity_operators': {'cholesterol_mg': '<'},
+          },
+        ),
+      );
+      await _expandNutrition(tester);
+      expect(find.text('<5 mg'), findsOneWidget);
+      expect(find.text('0 mg'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Added Sugars')).dx,
+        greaterThan(tester.getTopLeft(find.text('Total Sugars')).dx),
+      );
+      final facts = tester
+          .widget<PGNutritionPanel>(find.byType(PGNutritionPanel))
+          .facts;
+      expect(
+        facts.singleWhere((fact) => fact.label == 'Total Sugars').indentLevel,
+        1,
+      );
+      expect(
+        facts.singleWhere((fact) => fact.label == 'Added Sugars').indentLevel,
+        2,
+      );
+    });
+
     testWidgets('canonical label rows replace aggregate nutrition fields', (
       tester,
     ) async {

@@ -18,9 +18,7 @@ class PGNutritionFact {
   /// production renders with bold weight + heavier divider.
   final bool isHeadline;
 
-  /// Source-label nesting depth for subordinate facts such as saturated or
-  /// polyunsaturated fat. The panel uses one modest indent as the hierarchy
-  /// cue without changing the label text.
+  /// Nesting depth for subordinate facts. Each level adds one indent.
   final int indentLevel;
 
   const PGNutritionFact({
@@ -40,6 +38,7 @@ class PGNutritionPanel extends StatefulWidget {
   /// Optional kcal per serving — production renders this as the first
   /// row in bold.
   final int? caloriesPerServing;
+  final String caloriesQualifier;
 
   /// Nutrition fact rows in label order (caller respects the FDA
   /// nutrition-facts ordering convention).
@@ -54,6 +53,7 @@ class PGNutritionPanel extends StatefulWidget {
   const PGNutritionPanel({
     super.key,
     this.caloriesPerServing,
+    this.caloriesQualifier = '',
     this.facts = const [],
     this.title = 'Nutrition facts',
     this.servingSize,
@@ -145,7 +145,9 @@ class _PGNutritionPanelState extends State<PGNutritionPanel> {
                       if (widget.servingSize != null) ...[
                         Text(
                           'Serving size · ${widget.servingSize}',
-                          style: V2Typography.caption(color: context.v2.fgMuted),
+                          style: V2Typography.caption(
+                            color: context.v2.fgMuted,
+                          ),
                         ),
                       ],
                       const SizedBox(height: V2Spacing.space8),
@@ -153,7 +155,8 @@ class _PGNutritionPanelState extends State<PGNutritionPanel> {
                         _NutritionRow(
                           fact: PGNutritionFact(
                             label: 'Calories',
-                            value: '${widget.caloriesPerServing}',
+                            value:
+                                '${widget.caloriesQualifier}${widget.caloriesPerServing}',
                             isHeadline: true,
                           ),
                           isLast: widget.facts.isEmpty,
@@ -188,9 +191,7 @@ class _NutritionRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : Border(
-                bottom: BorderSide(color: context.v2.outline, width: 0.4),
-              ),
+            : Border(bottom: BorderSide(color: context.v2.outline, width: 0.4)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: V2Spacing.space8),
@@ -199,12 +200,15 @@ class _NutritionRow extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: EdgeInsets.only(
-                  left: fact.indentLevel > 0 ? V2Spacing.space12 : 0,
+                  left: V2Spacing.space12 * fact.indentLevel,
                 ),
                 child: Text(fact.label, style: labelStyle),
               ),
             ),
-            Text(fact.value, style: V2Typography.monoData(color: context.v2.fg)),
+            Text(
+              fact.value,
+              style: V2Typography.monoData(color: context.v2.fg),
+            ),
             if (fact.dailyValue != null) ...[
               const SizedBox(width: V2Spacing.space12),
               SizedBox(
