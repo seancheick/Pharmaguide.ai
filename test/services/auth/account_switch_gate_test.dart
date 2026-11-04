@@ -973,6 +973,31 @@ void main() {
       );
 
       test(
+        'failed reminder cleanup remains owed until a later launch',
+        () async {
+          var fail = true;
+          var attempts = 0;
+          Future<void> reminders() async {
+            attempts++;
+            if (fail) throw StateError('OS cancellation failed');
+          }
+
+          final guard = await lockedGuard(onOwnerChange: reminders);
+          failure = null;
+          await guard.startOver();
+          expect(await _names(guard.database!), isEmpty);
+          expect(erasingFolders(), hasLength(1));
+          await guard.close();
+
+          fail = false;
+          final next = guardWith(open: openOrFail, onOwnerChange: reminders);
+          await next.boot(sessionUid: _a);
+          expect(attempts, 2);
+          expect(erasingFolders(), isEmpty);
+        },
+      );
+
+      test(
         'a cleanup that fails still removes the health data, and retries next launch',
         () async {
           var fail = true;

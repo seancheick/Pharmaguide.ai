@@ -370,8 +370,7 @@ class AccountSwitchGuard {
       await _storage.sweepErased({
         // Their scheduled reminders outlive the folder.
         'reminders': forOwner((uid) async {
-          await _endOwnerWork(previousOwner: uid, incomingUid: uid);
-          return true;
+          return _endOwnerWork(previousOwner: uid, incomingUid: uid);
         }),
         'drafts': forOwner((uid) async {
           if (uid != null) await _onAccountRemoved?.call(uid);
@@ -597,7 +596,7 @@ class AccountSwitchGuard {
     }
   }
 
-  Future<void> _endOwnerWork({
+  Future<bool> _endOwnerWork({
     required String? previousOwner,
     required String? incomingUid,
   }) async {
@@ -609,12 +608,14 @@ class AccountSwitchGuard {
           Future.sync(PendingSubmissionIntent.clear),
         if (_onOwnerChange != null) Future.sync(_onOwnerChange),
       ]);
+      return true;
     } on Object catch (error, stackTrace) {
       CrashReportingService().recordError(
         error,
         stackTrace,
         hint: 'account_switch:owner_change',
       );
+      return false;
     }
   }
 
