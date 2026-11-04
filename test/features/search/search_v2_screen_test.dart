@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,7 +40,60 @@ class _FakeRecentSearchesService extends RecentSearchesService {
   }
 }
 
+class _DelayedSearchDatabase extends CoreDatabase {
+  _DelayedSearchDatabase() : super.memory();
+  final firstSearch = Completer<List<ProductsCoreData>>();
+
+  @override
+  Future<List<ProductsCoreData>> searchProducts(
+    String query, {
+    int limit = 50,
+    int offset = 0,
+  }) => query == 'magnesium' ? firstSearch.future : Future.value([]);
+}
+
 void main() {
+  for (final nextQuery in ['zinc', '']) {
+    testWidgets(
+      'old product response cannot replace edited query "$nextQuery"',
+      (tester) async {
+        final db = _DelayedSearchDatabase();
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              coreDatabaseProvider.overrideWithValue(db),
+              recentSearchesServiceProvider.overrideWithValue(
+                _FakeRecentSearchesService(),
+              ),
+            ],
+            child: const MaterialApp(home: SearchV2Screen()),
+          ),
+        );
+        await tester.pump();
+        await tester.enterText(find.byType(TextField).first, 'magnesium');
+        await tester.pump(const Duration(milliseconds: 301));
+        await tester.enterText(find.byType(TextField).first, nextQuery);
+        db.firstSearch.complete([
+          const ProductsCoreData(
+            dsldId: 'stale-magnesium',
+            productName: 'Stale magnesium',
+            exportVersion: 'test',
+            exportedAt: '2026-11-03',
+          ),
+        ]);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(
+          find.byKey(const ValueKey('search-product-stale-magnesium')),
+          findsNothing,
+        );
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpWidget(const SizedBox.shrink());
+        await db.close();
+      },
+    );
+  }
+
   test(
     'reviewed submission-origin product with no UPC hydrates by name and brand',
     () async {
