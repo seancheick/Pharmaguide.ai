@@ -124,10 +124,12 @@ INSERT INTO sec.mutations(name, check_name, ddl, fails_on) VALUES
 ('pairing gates gone', 'check_pairing_refuses_other_user', $$SELECT sec.mutate('ai_pairing_phone', 'WHERE user_id=u\s+AND code_hash', 'WHERE code_hash'); SELECT sec.mutate('ai_pairing_phone', 'OR NOT public\.ai_pairing_live_session\(u,r\.browser_session_id::text\)', '')$$,
   $f$preview_ai_connection_pairing answered for another user's code$f$),
 
+-- A helper gate guards every RPC in its list, so its check fails on the first
+-- one by name. That RPC then refuses for a different reason, past the gate.
 ('reviewer helper gate gone', 'check_reviewer_rpcs_refuse_non_reviewers', $$SELECT sec.mutate('assert_product_submission_reviewer', 'reviewer IS NULL OR NOT EXISTS\(.*?\) THEN', 'false THEN')$$,
-  $f$non-reviewer call of load_product_submission_reviewer_draft (as A)$f$),
+  $f$non-reviewer call of assert_product_submission_fully_verified (as A)$f$),
 ('worker helper gate gone', 'check_worker_rpcs_refuse_non_workers', $$SELECT sec.mutate('product_submission_extraction_worker_id', 'worker_id IS NULL OR NOT EXISTS \(.*?\) THEN', 'false THEN')$$,
-  $f$non-worker call of heartbeat_product_submission_extraction_job (as A)$f$),
+  $f$non-worker call of claim_product_submission_extraction_jobs (as A)$f$),
 ('server RPC granted: list objects', 'check_server_only_rpcs_refuse_signed_in_users', 'GRANT EXECUTE ON FUNCTION public.list_product_submission_objects_for_user(uuid) TO authenticated',
   $f$authenticated can run list_product_submission_objects_for_user(uuid)$f$),
 
