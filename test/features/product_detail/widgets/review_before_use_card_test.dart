@@ -1236,13 +1236,14 @@ void main() {
     'category_contamination_risk',
     'manufacturer_violation',
     'marketing_claim',
+    'watchlist_substance',
   ]) {
     testWidgets('$type renders as product context with evidence and citation', (
       tester,
     ) async {
       final warning = InteractionWarning.fromJson({
         'type': type,
-        'severity': 'informational',
+        'severity': type == 'watchlist_substance' ? 'caution' : 'informational',
         'display_mode_default': 'informational',
         'evidence_level': 'ungraded',
         'title': 'Source-backed context',
