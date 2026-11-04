@@ -2351,7 +2351,10 @@
           "drug_classes_any": [],
           "profile_flags_any": [],
           "product_forms_any": [],
-          "nutrient_forms_any": []
+          "nutrient_forms_any": [
+            "beta_carotene",
+            "mixed_carotenoids"
+          ]
         },
         "dose": {
           "basis": "per_day",
@@ -2398,7 +2401,10 @@
           "drug_classes_any": [],
           "profile_flags_any": [],
           "product_forms_any": [],
-          "nutrient_forms_any": []
+          "nutrient_forms_any": [
+            "beta_carotene",
+            "mixed_carotenoids"
+          ]
         },
         "dose": {
           "basis": "per_day",
@@ -2589,8 +2595,8 @@
       }
     },
     {
-      "name": "gold_caffeine_pregnant_at_threshold_not_met",
-      "description": "Caffeine 200 mg/day while pregnant is not above the > 200 threshold: monitor",
+      "name": "gold_caffeine_pregnant_at_threshold_met",
+      "description": "Caffeine 200 mg/day while pregnant meets the >= 200 threshold: avoid",
       "gate": {
         "gate_type": "combination",
         "requires": {
@@ -2609,7 +2615,7 @@
         },
         "dose": {
           "basis": "per_day",
-          "comparator": ">",
+          "comparator": ">=",
           "value": 200,
           "unit": "mg",
           "severity_if_met": "avoid",
@@ -2632,12 +2638,12 @@
       "base_severity": null,
       "expected": {
         "fires": true,
-        "severity": "monitor"
+        "severity": "avoid"
       }
     },
     {
-      "name": "gold_caffeine_pregnant_above_threshold",
-      "description": "Caffeine 201 mg/day while pregnant escalates to avoid",
+      "name": "gold_caffeine_pregnant_below_threshold",
+      "description": "Caffeine 199 mg/day while pregnant is below the >= 200 threshold: monitor",
       "gate": {
         "gate_type": "combination",
         "requires": {
@@ -2656,7 +2662,7 @@
         },
         "dose": {
           "basis": "per_day",
-          "comparator": ">",
+          "comparator": ">=",
           "value": 200,
           "unit": "mg",
           "severity_if_met": "avoid",
@@ -2673,13 +2679,13 @@
       "product_context": {
         "product_form": null,
         "nutrient_form": null,
-        "dose_per_day": 201,
+        "dose_per_day": 199,
         "dose_unit": "mg"
       },
       "base_severity": null,
       "expected": {
         "fires": true,
-        "severity": "avoid"
+        "severity": "monitor"
       }
     },
     {
@@ -2803,7 +2809,7 @@
         },
         "sources": [
           "https://www.nccih.nih.gov/health/bitter-orange",
-          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/regulation/about-products/synephrine.html"
+          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/legislation-guidelines/guidance-documents/notice-use-synephrine.html"
         ]
       }
     },
@@ -3247,7 +3253,7 @@
         },
         "sources": [
           "https://www.nccih.nih.gov/health/bitter-orange",
-          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/regulation/about-products/synephrine.html"
+          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/legislation-guidelines/guidance-documents/notice-use-synephrine.html"
         ]
       }
     },
@@ -3332,7 +3338,7 @@
         },
         "sources": [
           "https://www.nccih.nih.gov/health/bitter-orange",
-          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/regulation/about-products/synephrine.html"
+          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/legislation-guidelines/guidance-documents/notice-use-synephrine.html"
         ]
       }
     },
@@ -3417,7 +3423,7 @@
         },
         "sources": [
           "https://www.nccih.nih.gov/health/bitter-orange",
-          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/regulation/about-products/synephrine.html"
+          "https://www.canada.ca/en/health-canada/services/drugs-health-products/natural-non-prescription/legislation-guidelines/guidance-documents/notice-use-synephrine.html"
         ]
       }
     }
