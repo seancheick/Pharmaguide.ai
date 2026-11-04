@@ -3,6 +3,7 @@
 // and only adds to the tier: it never moves the internal stack score.
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,7 +53,7 @@ Map<String, dynamic> _labelWarning({
   'title': 'Label warning',
   'detail': text,
   'alert_body': text,
-  'sources': <String>[],
+  'source_urls': <String>[],
   'condition_ids': conditionIds,
   'drug_class_ids': <String>[],
   'profile_gate': {
@@ -220,24 +221,46 @@ void main() {
     expect(report.checksIncomplete, isFalse);
   });
 
-  test(
-    'other warning types stay on the product page, not in this signal',
-    () async {
-      final report = await _report(
-        conditions: const ['pregnancy'],
-        blob: () async => {
-          'warnings': [
-            {
-              ..._labelWarning(),
-              'type': 'interaction',
-              'source': 'interaction_rules',
-            },
-          ],
-        },
+  test('real pipeline output reaches the Stack signal word for word', () async {
+    final blobs =
+        jsonDecode(
+              File(
+                'test/fixtures/pipeline/label_statement_real_warnings.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    for (final id in ['200725', '278001', '241881']) {
+      final blob = blobs[id] as Map<String, dynamic>;
+      final text =
+          ((blob['warnings'] as List).cast<Map<String, dynamic>>().firstWhere(
+                (warning) => warning['type'] == 'label_statement',
+              ))['detail']
+              as String;
+      for (final condition in ['pregnancy', 'lactation']) {
+        final report = await _report(
+          conditions: [condition],
+          blob: () async => blob,
+        );
+        final row = report.stackInteractions.where(
+          (result) => result.id.startsWith('LABEL_'),
+        );
+        expect(row.map((result) => result.mechanism), [text], reason: id);
+        expect(row.single.severity, Severity.avoid);
+        expect(row.single.agent2Name, 'Label warning');
+      }
+      final noProfile = await _report(
+        conditions: const [],
+        blob: () async => blob,
       );
-      expect(report.stackInteractions, isEmpty);
-    },
-  );
+      expect(
+        noProfile.stackInteractions.where(
+          (result) => result.id.startsWith('LABEL_'),
+        ),
+        isEmpty,
+        reason: id,
+      );
+    }
+  });
 
   test('a label warning moves the tier but never the internal score', () async {
     final clean = await _report(

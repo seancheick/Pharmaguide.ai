@@ -2,6 +2,9 @@
 // names, word for word, through the real profile: the condition the picker
 // writes, the bundled taxonomy, the real gate and the real fit.
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,7 +58,7 @@ Map<String, dynamic> _statement({
   'title': 'Label warning',
   'detail': text,
   'alert_body': text,
-  'sources': <String>[],
+  'source_urls': <String>[],
   'condition_ids': conditionIds,
   'drug_class_ids': <String>[],
   'profile_gate': {
@@ -79,7 +82,8 @@ Map<String, dynamic> _statement({
 Future<void> _pumpPage(
   WidgetTester tester, {
   required List<String> conditions,
-  required List<Map<String, dynamic>> warnings,
+  List<Map<String, dynamic>> warnings = const [],
+  Map<String, dynamic>? blob,
   String? sex,
 }) async {
   // A widget test's clock can't wait on the asset bundle, so the real taxonomy
@@ -124,7 +128,7 @@ Future<void> _pumpPage(
         safetyAlertRepositoryProvider.overrideWithValue(_NoAlerts()),
         activeStackProvider.overrideWith((ref) async => const []),
         detailBlobProvider.overrideWith(
-          (ref, id) async => {'warnings': warnings},
+          (ref, id) async => blob ?? {'warnings': warnings},
         ),
         profileProvider.overrideWith(
           (ref) => ProfileNotifier()
@@ -155,6 +159,24 @@ void _expectUnchanged({String text = _text}) {
   expect(find.textContaining(text), findsNothing);
   expect(find.text(_allClear), findsOneWidget);
 }
+
+// What the pipeline emitted for these labels, from the raw label through the
+// enricher and `build_detail_blob`. See the pipeline's test_label_statement_warnings.
+final _realBlobs =
+    jsonDecode(
+          File(
+            'test/fixtures/pipeline/label_statement_real_warnings.json',
+          ).readAsStringSync(),
+        )
+        as Map<String, dynamic>;
+
+Map<String, dynamic> _real(String id) => _realBlobs[id] as Map<String, dynamic>;
+
+String _statementText(String id) =>
+    ((_real(id)['warnings'] as List).cast<Map<String, dynamic>>().firstWhere(
+          (warning) => warning['type'] == 'label_statement',
+        ))['detail']
+        as String;
 
 void main() {
   const notRecommended = 'Not recommended · $_text · Evidence not graded';
@@ -355,5 +377,72 @@ void main() {
       warnings: [_statement(severity: 'avoid', conditionIds: const [])],
     );
     expect(find.text(notRecommended), findsOneWidget);
+  });
+
+  group('real pipeline output', () {
+    for (final id in ['200725', '278001', '241881']) {
+      final line =
+          'Not recommended · ${_statementText(id)} · Evidence not graded';
+
+      testWidgets('$id reaches a pregnant viewer', (tester) async {
+        await _pumpPage(tester, conditions: _pregnancy, blob: _real(id));
+        _expectCard(line);
+        expect(find.text('Not recommended for your profile'), findsOneWidget);
+      });
+
+      testWidgets('$id reaches a nursing viewer', (tester) async {
+        await _pumpPage(tester, conditions: _lactation, blob: _real(id));
+        _expectCard(line);
+        expect(find.text('Not recommended for your profile'), findsOneWidget);
+      });
+
+      testWidgets('$id shows nothing from the label with no profile', (
+        tester,
+      ) async {
+        await _pumpPage(tester, conditions: const [], blob: _real(id));
+        expect(find.text('Label warning'), findsNothing);
+        expect(find.textContaining(_statementText(id)), findsNothing);
+      });
+    }
+
+    testWidgets('241881 keeps its all-clear with no profile', (tester) async {
+      await _pumpPage(tester, conditions: const [], blob: _real('241881'));
+      expect(find.text(_allClear), findsOneWidget);
+    });
+
+    testWidgets('178352 asks a pregnant viewer to review', (tester) async {
+      await _pumpPage(tester, conditions: _pregnancy, blob: _real('178352'));
+      _expectCard(
+        'Use caution · ${_statementText('178352')} · Evidence not graded',
+      );
+    });
+
+    testWidgets('298076 names conception, so it reaches that viewer', (
+      tester,
+    ) async {
+      await _pumpPage(tester, conditions: _ttc, blob: _real('298076'));
+      _expectCard(
+        'Not recommended · ${_statementText('298076')} · Evidence not graded',
+      );
+    });
+
+    testWidgets('66519 gives a man trying to conceive the statement to men', (
+      tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        conditions: _ttc,
+        sex: 'Male',
+        blob: _real('66519'),
+      );
+      expect(find.textContaining('Not for use in men'), findsOneWidget);
+      expect(find.textContaining('pregnant or nursing women'), findsNothing);
+    });
+
+    testWidgets('66519 gives a pregnant viewer only hers', (tester) async {
+      await _pumpPage(tester, conditions: _pregnancy, blob: _real('66519'));
+      expect(find.textContaining('pregnant or nursing women'), findsOneWidget);
+      expect(find.textContaining('Not for use in men'), findsNothing);
+    });
   });
 }
