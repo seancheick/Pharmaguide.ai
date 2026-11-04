@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pharmaguide/core/components/pg_score_breakdown_card.dart';
 import 'package:pharmaguide/core/components/pg_trust_receipts_sheet.dart';
 import 'package:pharmaguide/core/scoring/v4_pillars.dart';
+import 'package:pharmaguide/core/theme/v2/v2_spacing.dart';
 
 /// Renders the optional explanation of a scored catalog product.
 Widget buildScoreBreakdownSection({
@@ -20,13 +21,16 @@ Widget buildScoreBreakdownSection({
   final pillars = _buildV4Pillars(parsed, onPillarTap: onPillarTap);
 
   return Builder(
-    builder: (context) => PGScoreBreakdownCard(
-      pillars: pillars,
-      // Preserve the source value; the card owns the shared whole-number
-      // consumer presentation used by the hero, headline, and total.
-      heroScore: showTotal ? heroScore : null,
-      qualityTier: qualityTier,
-      onHowScoringWorks: () => showTrustReceiptsSheet(context),
+    builder: (context) => Padding(
+      padding: const EdgeInsets.only(bottom: V2Spacing.space12),
+      child: PGScoreBreakdownCard(
+        pillars: pillars,
+        // Preserve the source value; the card owns the shared whole-number
+        // consumer presentation used by the hero, headline, and total.
+        heroScore: showTotal ? heroScore : null,
+        qualityTier: qualityTier,
+        onHowScoringWorks: () => showTrustReceiptsSheet(context),
+      ),
     ),
   );
 }
