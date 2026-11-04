@@ -531,6 +531,7 @@ class _ProductDetailV2ConnectedState
       productStatus: _product?.productStatus,
       personalizedWarnings: personalizedWarnings,
       resolvedRuleWarnings: profileRuleWarnings,
+      ageBracket: profile.ageBracket,
       userConditions: userConditionsSet,
       userDrugClasses: userDrugClassesSet,
       userProfileFlags: userProfileFlagsSet,
@@ -726,6 +727,7 @@ class _ProductDetailV2ConnectedState
       // A threshold that applies here and couldn't be read is no all-clear.
       checksFailed:
           personalizedChecksFailed ||
+          !catalogProductCanReportNoConcerns(_product) ||
           hasUnreadDoseRule(
             [
               ...personalizedWarnings,
@@ -734,7 +736,7 @@ class _ProductDetailV2ConnectedState
                 detailBlob,
                 productStatus: _product?.productStatus,
               ),
-            ],
+            ].map((warning) => warning.resolvedForAge(profile.ageBracket)),
             userConditions: userConditionsSet,
             userDrugClasses: userDrugClassesSet,
             userProfileFlags: userProfileFlagsSet,
@@ -749,6 +751,13 @@ class _ProductDetailV2ConnectedState
       hasPregnancyOrBreastfeeding:
           userConditionsSet.contains('pregnancy') ||
           userConditionsSet.contains('lactation'),
+      hasCatalogCaution:
+          _product != null &&
+          catalogProductSafetyStatus(_product!) ==
+              CatalogProductSafetyStatus.caution,
+      hasMaterialSafetyNotes: partitionedWarnings.general.any(
+        isMaterialSafetyNote,
+      ),
       hasProfileInformation:
           profile.ageBracket != null ||
           profile.sex != null ||
@@ -906,6 +915,30 @@ class _ProductDetailV2ConnectedState
                                     'try again before relying on these results.',
                           actionLabel: 'Retry',
                           onAction: _retryPersonalizedChecks,
+                        ),
+                        const SizedBox(height: V2Spacing.space12),
+                      ],
+
+                      // Nothing else explains the missing all-clear, whatever
+                      // the quality state (ADR-016).
+                      if (catalogProductSafetyChecksIncomplete(_product)) ...[
+                        PGSeverityBanner(
+                          key: const Key('safety-checks-incomplete-banner'),
+                          tone: PGBannerTone.info,
+                          title: 'Safety checks incomplete',
+                          body:
+                              catalogProductSafetyGapIsUndisclosedUpperLimit(
+                                _product,
+                              )
+                              ? 'Dose safety could not be fully assessed. This '
+                                    'product contains a nutrient with an '
+                                    'established upper intake limit, but the '
+                                    'label does not disclose enough information '
+                                    'to evaluate the amount. This does not '
+                                    'establish that the product exceeds the '
+                                    'limit.'
+                              : 'We haven\'t finished this product\'s safety '
+                                    'checks yet.',
                         ),
                         const SizedBox(height: V2Spacing.space12),
                       ],

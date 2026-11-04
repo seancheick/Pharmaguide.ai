@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
+import 'package:pharmaguide/core/models/clinical_signal.dart';
 import 'package:pharmaguide/core/units/dose_units.dart';
 import 'package:pharmaguide/core/utils/num_parse.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
@@ -1097,6 +1098,16 @@ class StackDoseThresholdRule {
   /// its whole exposure. Its label rows are no substitute for that amount.
   final bool amountUnresolved;
 
+  String get signalId => canonicalSignalId(
+    family: SignalFamily.doseThreshold,
+    targetType: targetType,
+    targetId: conditionId,
+    nutrientId: canonicalId,
+    comparator: comparator,
+    thresholdValue: thresholdValue,
+    thresholdUnit: normalizeDoseUnit(thresholdUnit),
+  );
+
   bool get _hasAmount =>
       (normalizedDailyAmount ?? -1) >= 0 &&
       normalizedDailyUnit?.trim().isNotEmpty == true;
@@ -1250,6 +1261,16 @@ class StackDoseThresholdAlert {
   final bool isIncomplete;
   final Severity clinicalSeverity;
   final ConsumerDisposition consumerDisposition;
+
+  String get signalId => canonicalSignalId(
+    family: SignalFamily.doseThreshold,
+    targetType: targetType,
+    targetId: conditionId,
+    nutrientId: canonicalId,
+    comparator: comparator,
+    thresholdValue: thresholdValue,
+    thresholdUnit: normalizeDoseUnit(thresholdUnit),
+  );
 
   /// Approved wording shown as written, in place of the generic threshold text.
   final String? consumerBody;

@@ -267,7 +267,7 @@ void main() {
             .toString();
         expect(
           (kReleasePreparation, fingerprint),
-          (1, _preparationFingerprint),
+          (2, _preparationFingerprint),
           reason:
               'The open-time work changed. Raise kReleasePreparation so phones '
               'rebuild their prepared files, then update this pin.',
@@ -275,8 +275,9 @@ void main() {
       },
     );
 
-    test('a folder from an older build is rebuilt from the same files, and '
-        'the old folder is not written', () async {
+    // Seeds the active release as a folder an older build prepared, without the
+    // column that build never added. Returns the old folder's path.
+    Future<String> seedOlderFolder(int preparation) async {
       final s = store();
       await boot(s);
       final generation = await activate(s, await candidate());
@@ -284,27 +285,86 @@ void main() {
       final folder = p.join(documents.path, 'releases', id);
       final record = File(p.join(folder, 'release.json'));
       final json = jsonDecode(record.readAsStringSync()) as Map;
-      final oldId = id.replaceFirst('_p1', '_p0');
-      json['preparation'] = 0;
+      final oldId = id.replaceFirst('_p$kReleasePreparation', '_p$preparation');
+      json['preparation'] = preparation;
       json['id'] = oldId;
       await generation.close();
       open.remove(generation);
       record.writeAsStringSync(jsonEncode(json));
       final oldFolder = p.join(documents.path, 'releases', oldId);
       Directory(folder).renameSync(oldFolder);
+      final catalog = raw.sqlite3.open(p.join(oldFolder, 'catalog.db'));
+      catalog.execute(
+        'ALTER TABLE products_core DROP COLUMN safety_assessment_status',
+      );
+      catalog.execute(
+        'ALTER TABLE products_core DROP COLUMN safety_assessment_reason',
+      );
+      catalog.close();
       final pointerFile = File(
         p.join(documents.path, 'releases', 'active.json'),
       );
       final pointer = pointerOnDisk()..['active'] = oldId;
       pointerFile.writeAsStringSync(jsonEncode(pointer));
+      return oldFolder;
+    }
+
+    for (final preparation in [0, kReleasePreparation - 1]) {
+      test('a folder from preparation $preparation is rebuilt from the same '
+          'files, and the old folder is not written', () async {
+        final oldFolder = await seedOlderFolder(preparation);
+        final oldHash = sha256
+            .convert(File(p.join(oldFolder, 'catalog.db')).readAsBytesSync())
+            .toString();
+
+        final rebuilt = await boot(store());
+        expect(rebuilt.record.preparation, kReleasePreparation);
+        expect(
+          rebuilt.record.id,
+          p
+              .basename(oldFolder)
+              .replaceFirst('_p$preparation', '_p$kReleasePreparation'),
+        );
+        await expectPair(rebuilt, catalog: _updateCatalog, rules: _updateRules);
+        expect(
+          sha256
+              .convert(File(p.join(oldFolder, 'catalog.db')).readAsBytesSync())
+              .toString(),
+          oldHash,
+        );
+      });
+    }
+
+    // On a full phone the rebuild can't run, and the old folder stays active.
+    // Typed reads use SELECT *, so a column it never had reads as null, which
+    // means an older catalog and keeps the stricter rule (ADR-016). Naming that
+    // column in a query would break this phone.
+    test('a folder that cannot be rebuilt still reads, with no safety status, '
+        'and is not written', () async {
+      final oldFolder = await seedOlderFolder(kReleasePreparation - 1);
       final oldHash = sha256
           .convert(File(p.join(oldFolder, 'catalog.db')).readAsBytesSync())
           .toString();
 
-      final rebuilt = await boot(store());
-      expect(rebuilt.record.id, id);
-      expect(rebuilt.record.preparation, kReleasePreparation);
-      await expectPair(rebuilt, catalog: _updateCatalog, rules: _updateRules);
+      final kept = await boot(
+        store(
+          onStep: (step) async {
+            if (step == ReleaseStep.prepare) {
+              throw const FileSystemException(
+                'No space left on device',
+                '',
+                OSError('disk full', 28),
+              );
+            }
+          },
+        ),
+      );
+
+      expect(kept.record.preparation, kReleasePreparation - 1);
+      final product = (await kept.core.findById(kFixtureProduct))!;
+      expect(product.safetyAssessmentStatus, isNull);
+      expect(product.safetyAssessmentReason, isNull);
+      expect(await kept.core.countProducts(), greaterThan(0));
       expect(
         sha256
             .convert(File(p.join(oldFolder, 'catalog.db')).readAsBytesSync())
@@ -2363,4 +2423,4 @@ void main() {
 }
 
 const _preparationFingerprint =
-    'ad631fba03b41d375732aa42743bd5626183709765f364968cee4ee5ef8d66fe';
+    '2447eb8c853e4909bdbe34f1af4513fb6c857bbd2c638a49ec058bd5bab47428';

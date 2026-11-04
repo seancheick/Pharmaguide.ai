@@ -2,14 +2,20 @@
   "_metadata": {
     "description": "Controlled clinical risk taxonomy for condition and medication-class interaction alerts",
     "purpose": "interaction_alert_taxonomy",
-    "schema_version": "5.4.0",
+    "schema_version": "5.5.0",
     "contract_test": "scripts/tests/test_clinical_risk_taxonomy_contract.py",
-    "last_updated": "2026-10-11",
-    "total_entries": 83,
+    "last_updated": "2026-11-03",
+    "total_entries": 85,
     "flutter_top_level_key": "clinical_risk_taxonomy",
     "drug_classes_count": 31,
     "migration": {
       "completed_migrations": [
+        {
+          "from": "5.4.0",
+          "to": "5.5.0",
+          "date": "2026-11-03",
+          "summary": "Additive: profile flags sex_male and sex_unstated, derived on the device from the profile's sex, so a label statement addressed to men reaches men and anyone who has not stated a sex, and no woman who has. No other flag or condition changed."
+        },
         {
           "from": "5.2.0",
           "to": "5.3.0",
@@ -693,6 +699,22 @@
       "category": "immune",
       "capture_mode": "user_selectable",
       "description": "User is severely immunocompromised (e.g. chemotherapy, organ transplant, high-dose immunosuppressants). Gates probiotic infection risk and other severe-only warnings."
+    },
+    {
+      "id": "sex_male",
+      "label": "Male",
+      "category": "reproductive",
+      "capture_mode": "derived_from_sex",
+      "source_sex": "Male",
+      "description": "The profile's sex is Male. Gates label statements addressed to men."
+    },
+    {
+      "id": "sex_unstated",
+      "label": "Sex not stated",
+      "category": "reproductive",
+      "capture_mode": "derived_from_sex",
+      "source_sex": "unstated",
+      "description": "The profile's sex is neither Male nor Female: not set, Prefer not to say, or a legacy Other. Gates label statements addressed to men, so a man who skipped the question is not falsely reassured."
     }
   ],
   "product_forms": [

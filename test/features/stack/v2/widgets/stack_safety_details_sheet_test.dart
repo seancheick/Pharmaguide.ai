@@ -161,6 +161,38 @@ void main() {
     });
   });
 
+  testWidgets('a label statement shows word for word, with its grade', (
+    tester,
+  ) async {
+    const label = 'Do not use Moringa if you are pregnant or nursing.';
+    await _pump(
+      tester,
+      const StackSafetyReport(
+        stackInteractions: [
+          InteractionResult(
+            id: 'LABEL_1_x',
+            type: InteractionType.conditionSupplement,
+            severity: Severity.avoid,
+            evidenceLevel: EvidenceLevel.ungraded,
+            agent1Name: 'Moringa',
+            agent2Name: 'Label warning',
+            mechanism: label,
+            management: '',
+            doseDependant: false,
+            doseThreshold: null,
+            sourceUrls: [],
+            source: InteractionSource.pipeline,
+          ),
+        ],
+      ),
+    );
+    expect(find.text(label), findsOneWidget);
+    expect(
+      find.text('HEALTH-CONTEXT GUIDANCE · EVIDENCE NOT GRADED'),
+      findsOneWidget,
+    );
+  });
+
   group('details sheet — migrated structure (disposition grouping)', () {
     testWidgets('groups into Needs attention / Good to know', (tester) async {
       await _pump(tester, _report());

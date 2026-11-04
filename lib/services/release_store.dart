@@ -31,7 +31,7 @@ import 'package:pharmaguide/services/crash_reporting_service.dart';
 /// `InteractionDatabase` change (a test pins them): the next launch rebuilds
 /// the folder from the same files, because release files are never written in
 /// place.
-const int kReleasePreparation = 1;
+const int kReleasePreparation = 2;
 
 const _catalogFile = 'catalog.db';
 const _rulesFile = 'rules.sqlite';

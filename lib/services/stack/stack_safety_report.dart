@@ -18,12 +18,14 @@
 // Spec §8.3.
 
 import 'package:flutter/foundation.dart';
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
 import 'package:pharmaguide/services/health/dose_safety.dart';
 import 'package:pharmaguide/services/stack/medication_profile_gate_evaluator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
+import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
 
 /// A stack product below the coverage trust floor, with the pipeline's reason
 /// its score is unavailable.
@@ -40,6 +42,7 @@ class StackSafetyReport {
   const StackSafetyReport({
     this.nutrientStatuses = const <NutrientStatus>[],
     this.stackInteractions = const <InteractionResult>[],
+    this.unreadDoseBlocks = const {},
     this.medicationInteractions = const <InteractionResult>[],
     this.medicationPairInteractions = const <InteractionResult>[],
     this.medicationProfileWarnings = const <MedicationProfileWarning>[],
@@ -78,6 +81,16 @@ class StackSafetyReport {
   /// M4 curated supplement-pair interactions
   /// (`StackInteractionChecker.checkSupplementPairInteractions`).
   final List<InteractionResult> stackInteractions;
+
+  /// A product's authored block owns the signal when its amount is unresolved.
+  final Map<String, Severity> unreadDoseBlocks;
+
+  bool showsDoseThresholdAlert(StackDoseThresholdAlert alert) {
+    final block = unreadDoseBlocks[alert.signalId];
+    return block == null ||
+        (alert.consumerDisposition == ConsumerDisposition.block &&
+            alert.clinicalSeverity.weight > block.weight);
+  }
 
   /// M4 curated medication interactions
   /// (`StackInteractionChecker.checkMedicationInteractions`). Always

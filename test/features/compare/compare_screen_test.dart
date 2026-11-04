@@ -143,6 +143,10 @@ void main() {
     expect(find.text('Alpha Multi'), findsOneWidget);
     expect(find.text('Beta Multi'), findsOneWidget);
     expect(find.text('Pillar by pillar'), findsOneWidget);
+    expect(
+      find.text('Six pillars, out of 100 — they add up to each score.'),
+      findsOneWidget,
+    );
     // All six pillar labels render once each.
     for (final label in [
       'Formulation',
@@ -167,7 +171,7 @@ void main() {
   testWidgets('an unfinished assessment shows no definitive score or tier', (
     tester,
   ) async {
-    // The detail hero says "Assessment incomplete" for these; Compare must not
+    // The detail hero says "Quality assessment incomplete" for these; Compare must not
     // publish the tier the unassessed pillar could still move.
     await seed(
       product: _product(
@@ -192,9 +196,76 @@ void main() {
 
     await pumpCompare(tester);
 
-    expect(find.text('Assessment incomplete'), findsOneWidget);
+    expect(find.text('Quality assessment incomplete'), findsOneWidget);
     expect(find.textContaining('72', findRichText: true), findsNothing);
     expect(find.textContaining('Good', findRichText: true), findsNothing);
+
+    await tearDownDbs(tester);
+  });
+
+  // The page withholds this total, so the two totals can't be compared either.
+  for (final (name, partialScore, completeScore) in [
+    ('below', 72.0, 81.0),
+    ('above', 92.0, 80.0),
+  ]) {
+    testWidgets('an unfinished total $name a finished one gets no delta line, '
+        'and its pillars still show', (tester) async {
+      await seed(
+        product: _product(
+          dsldId: 'prod-a',
+          name: 'Alpha Partial',
+          score: partialScore,
+          qualityAssessmentStatus: 'partial',
+        ),
+        blob: _pillarsBlob(formulation: 18),
+      );
+      await seed(
+        product: _product(
+          dsldId: 'prod-b',
+          name: 'Beta Complete',
+          score: completeScore,
+          qualityAssessmentStatus: 'complete',
+        ),
+        blob: _pillarsBlob(formulation: 11),
+      );
+
+      await pumpCompare(tester);
+
+      expect(find.byKey(const Key('compare-delta-callout')), findsNothing);
+      expect(find.byType(PGComparePillarRow), findsNWidgets(6));
+      expect(find.text('Six pillars, out of 100.'), findsOneWidget);
+
+      await tearDownDbs(tester);
+    });
+  }
+
+  testWidgets('the unfinished total on the second side gets no delta line', (
+    tester,
+  ) async {
+    await seed(
+      product: _product(
+        dsldId: 'prod-a',
+        name: 'Alpha Complete',
+        score: 92,
+        qualityAssessmentStatus: 'complete',
+      ),
+      blob: _pillarsBlob(formulation: 18),
+    );
+    await seed(
+      product: _product(
+        dsldId: 'prod-b',
+        name: 'Beta Partial',
+        score: 80,
+        qualityAssessmentStatus: 'partial',
+      ),
+      blob: _pillarsBlob(formulation: 11),
+    );
+
+    await pumpCompare(tester);
+
+    expect(find.byKey(const Key('compare-delta-callout')), findsNothing);
+    expect(find.text('Six pillars, out of 100.'), findsOneWidget);
+    expect(find.byType(PGComparePillarRow), findsNWidgets(6));
 
     await tearDownDbs(tester);
   });

@@ -91,6 +91,7 @@ ProfileRelevanceSummary _summary({
   bool hasProfileInformation = true,
   List<String> selectedGoalLabels = const [],
   bool hasPregnancyOrBreastfeeding = false,
+  bool checksFailed = false,
   void Function(List<String>)? onTapCitations,
 }) {
   return buildProfileRelevanceSummary(
@@ -106,6 +107,7 @@ ProfileRelevanceSummary _summary({
     hasProfileInformation: hasProfileInformation,
     selectedGoalLabels: selectedGoalLabels,
     hasPregnancyOrBreastfeeding: hasPregnancyOrBreastfeeding,
+    checksFailed: checksFailed,
   );
 }
 
@@ -351,6 +353,38 @@ void main() {
       );
       expect(summary.headline, isNot('No known concerns'));
       expect(summary.footnote, isNull);
+    });
+
+    test('a withheld all-clear keeps the obstetrician line', () {
+      final summary = _summary(
+        fitResult: _fit(),
+        hasPregnancyOrBreastfeeding: true,
+        checksFailed: true,
+      );
+      expect(summary.status, ProfileRelevanceStatus.coverageLimited);
+      expect(summary.footnote, kLifeStageClinicianNote);
+      expect(summary.shouldRender, isTrue);
+    });
+
+    test('a withheld all-clear stays silent for other profiles', () {
+      final summary = _summary(fitResult: _fit(), checksFailed: true);
+      expect(summary.footnote, isNull);
+      expect(summary.shouldRender, isFalse);
+    });
+
+    testWidgets('a withheld all-clear shows only the line, verbatim', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _summary(
+          fitResult: _fit(mappedCoverage: 0.2),
+          hasPregnancyOrBreastfeeding: true,
+        ),
+      );
+      expect(find.text(kLifeStageClinicianNote), findsOneWidget);
+      expect(find.text('Profile assessment unavailable'), findsNothing);
+      expect(find.text('For You'), findsNothing);
     });
 
     testWidgets('the footnote renders under the verdict', (tester) async {
@@ -1248,6 +1282,56 @@ void main() {
       expect(opened, isTrue);
     });
   }
+  test('material safety notes qualify an otherwise clear profile', () {
+    final summary = buildProfileRelevanceSummary(
+      fitResult: _fit(),
+      topGoalLabel: null,
+      warnings: const [],
+      interactionHint: '',
+      matchedAllergens: const [],
+      freeFromConflicts: const [],
+      hasInteractionProfile: true,
+      hasMaterialSafetyNotes: true,
+    );
+    expect(summary.headline, kNothingSpecificHeadline);
+    expect(summary.tone, PGReviewTone.info);
+  });
+
+  test('neutral sourced watchlist notes are not material cautions', () {
+    for (final severity in ['informational', 'safe']) {
+      final warning = InteractionWarning.fromJson({
+        'type': 'watchlist_substance',
+        'severity': severity,
+        'display_mode_default': 'informational',
+        'safety_warning': 'Context from the source.',
+        'sources': ['https://example.com/study'],
+      });
+      expect(isMaterialSafetyNote(warning), isFalse);
+    }
+  });
+
+  testWidgets('a sourced watchlist note belongs in Product Safety', (
+    tester,
+  ) async {
+    final warning = InteractionWarning.fromJson({
+      'type': 'watchlist_substance',
+      'severity': 'caution',
+      'display_mode_default': 'informational',
+      'title': 'Watchlist ingredient: Frangula bark',
+      'safety_warning': 'Stimulant laxative for short-term use.',
+      'sources': <String>[],
+      'source_urls': [
+        {'url': 'https://doi.org/10.2903/j.efsa.2024.8766'},
+      ],
+    });
+    expect(warning.sourceUrls, ['https://doi.org/10.2903/j.efsa.2024.8766']);
+    final section = buildGeneralNotesSection(warnings: [warning]);
+    expect(section, isNotNull);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: section!)));
+    expect(find.text('Review this product'), findsOneWidget);
+    expect(find.text('Product context'), findsNothing);
+  });
+
   test('context visibility rejects empty copy and hard hazards', () {
     for (final values in [
       {

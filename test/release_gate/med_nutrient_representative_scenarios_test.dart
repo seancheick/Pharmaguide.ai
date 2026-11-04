@@ -165,6 +165,67 @@ const _scenarios = <_Scenario>[
     },
   ),
   (
+    label: 'colchicine + B12',
+    medication: 'colchicine',
+    rxcui: '2683',
+    expectedClasses: {},
+    expectedVisible: {'DEP_COLCHICINE_VITAMINB12'},
+    expectedSuppressed: {},
+  ),
+  (
+    label: 'triamterene + folate',
+    medication: 'triamterene',
+    rxcui: '10763',
+    expectedClasses: {},
+    expectedVisible: {'DEP_DIURETICS_FOLATE'},
+    expectedSuppressed: {},
+  ),
+  (
+    label: 'thiazide + zinc',
+    medication: 'hydrochlorothiazide',
+    rxcui: '5487',
+    expectedClasses: {'class:thiazide_diuretics'},
+    expectedVisible: {'DEP_DIURETICS_ZINC'},
+    expectedSuppressed: {},
+  ),
+  (
+    label: 'isoniazid + B6',
+    medication: 'isoniazid',
+    rxcui: '6038',
+    expectedClasses: {},
+    expectedVisible: {'DEP_ISONIAZID_VITAMINB6'},
+    expectedSuppressed: {},
+  ),
+  (
+    label: 'methotrexate + folate',
+    medication: 'methotrexate',
+    rxcui: '6851',
+    expectedClasses: {},
+    expectedVisible: {'DEP_METHOTREXATE_FOLATE'},
+    expectedSuppressed: {},
+  ),
+  (
+    label: 'orlistat + fat-soluble vitamins',
+    medication: 'orlistat',
+    rxcui: '37925',
+    expectedClasses: {},
+    expectedVisible: {
+      'DEP_ORLISTAT_VITAMINA',
+      'DEP_ORLISTAT_VITAMIND',
+      'DEP_ORLISTAT_VITAMINE',
+      'DEP_ORLISTAT_VITAMINK',
+    },
+    expectedSuppressed: {},
+  ),
+  (
+    label: 'sulfasalazine + folate',
+    medication: 'sulfasalazine',
+    rxcui: '9524',
+    expectedClasses: {},
+    expectedVisible: {'DEP_SULFASALAZINE_FOLATE'},
+    expectedSuppressed: {},
+  ),
+  (
     label: 'no-match case',
     medication: 'unmapped medication',
     rxcui: '99999999',
@@ -172,6 +233,24 @@ const _scenarios = <_Scenario>[
     expectedVisible: {},
     expectedSuppressed: {},
   ),
+];
+
+// Clinician-approved records, each with its own `drug_ref` in the pipeline's
+// scripts/data/medication_depletions.json.
+const _approvedRecords = <({String id, String rxcui, String drugRef})>[
+  (id: 'DEP_COLCHICINE_VITAMINB12', rxcui: '2683', drugRef: '2683'),
+  (id: 'DEP_DIURETICS_FOLATE', rxcui: '10763', drugRef: '10763'),
+  (
+    id: 'DEP_DIURETICS_ZINC',
+    rxcui: '5487',
+    drugRef: 'class:thiazide_diuretics',
+  ),
+  (id: 'DEP_ISONIAZID_VITAMINB6', rxcui: '6038', drugRef: '6038'),
+  (id: 'DEP_METHOTREXATE_FOLATE', rxcui: '6851', drugRef: '6851'),
+  (id: 'DEP_ORLISTAT_VITAMIND', rxcui: '37925', drugRef: '37925'),
+  (id: 'DEP_ORLISTAT_VITAMINE', rxcui: '37925', drugRef: '37925'),
+  (id: 'DEP_ORLISTAT_VITAMINK', rxcui: '37925', drugRef: '37925'),
+  (id: 'DEP_SULFASALAZINE_FOLATE', rxcui: '9524', drugRef: '9524'),
 ];
 
 void main() {
@@ -280,6 +359,46 @@ void main() {
             ),
           );
         }
+      },
+    );
+  }
+
+  for (final record in _approvedRecords) {
+    test(
+      '${record.id}: the approved record reaches the user unchanged',
+      () async {
+        final source = (artifact['depletions'] as List)
+            .cast<Map<String, dynamic>>()
+            .singleWhere((row) => row['id'] == record.id);
+        expect(
+          source['b1_clinical_approval_status'],
+          'approved_for_controlled_beta',
+        );
+        expect(source['citation_review_status'], 'verified');
+        expect((source['drug_ref'] as Map)['id'], record.drugRef);
+
+        final resolution = await bridge.resolve(selectedRxcui: record.rxcui);
+        final matches = DepletionChecker().check(
+          medications: const [],
+          medicationIdentities: [
+            DepletionMedicationIdentity(
+              name: record.id,
+              rxcui: record.rxcui,
+              drugClassIds: resolution.mergedInteractionClassIds,
+            ),
+          ],
+          depletionsData: artifact,
+        );
+        final match = matches.singleWhere((m) => m.depletionId == record.id);
+        expect(match.recommendation, source['recommendation']);
+        expect(match.severity, source['severity']);
+        expect(match.evidenceLevel, source['evidence_level']);
+        expect(match.alertBody, source['alert_body']);
+        expect(match.sources, isNotEmpty);
+        expect(
+          match.sources.map((s) => s.url).toList(),
+          (source['sources'] as List).map((s) => (s as Map)['url']).toList(),
+        );
       },
     );
   }

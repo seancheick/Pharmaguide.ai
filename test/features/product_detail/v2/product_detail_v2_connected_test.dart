@@ -116,7 +116,9 @@ Future<void> _seedProduct(
           qualityScoreStatus: const Value('scored'),
           mappedCoverage: Value(mappedCoverage),
           verdict: Value(blocked ? 'BLOCKED' : 'SAFE'),
-          productSafetyStatus: Value(blocked ? 'blocked' : null),
+          productSafetyStatus: Value(
+            blocked ? 'blocked' : 'no_known_catalog_concern',
+          ),
           blockingReason: Value(blocked ? 'banned_ingredient' : null),
           hasBannedSubstance: Value(blocked ? 1 : 0),
           topWarnings: Value(

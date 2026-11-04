@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
@@ -15,6 +16,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/models/interaction_result.dart';
 import 'package:pharmaguide/core/models/timing_optimization.dart';
+import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/utils/product_canonical_ids.dart'
     show normalizeCanonicalId, canonicalIdsFromJsonString;
@@ -380,6 +382,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       coverageIncomplete = true;
       continue;
     }
+    if (catalogProductSafetyChecksIncomplete(product)) checksIncomplete = true;
     if (isLowCoverage(product.mappedCoverage)) {
       coverageIncomplete = true;
       limitedDataProducts.add(
@@ -417,6 +420,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // ---------------------------------------------------------------------------
   final stackInteractions = <InteractionResult>[];
   final seenStackIds = <String>{};
+  final unreadDoseBlocks = <String, Severity>{};
   if (hydrated.length >= 2) {
     for (var i = 0; i < hydrated.length; i++) {
       final self = hydrated[i];
@@ -562,6 +566,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           userConditions: conditions,
           userDrugClasses: classes,
           userProfileFlags: flags,
+          ageBracket: profile.ageBracket,
         );
         final warnings = partitionProfileWarnings(
           warnings: guarded,
@@ -597,8 +602,21 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           )) {
             continue;
           }
-          if (stackDoseThresholdRulesFromWarnings([warning]).isNotEmpty) {
-            continue;
+          // A Stack total can't judge an amount left open, so a blocking answer
+          // on it stays this product's own card.
+          final decision = warning.doseDecision;
+          final blockedUnread =
+              decision != null &&
+              decision.amountUnread &&
+              consumerDispositionFromWire(decision.consumerDisposition) ==
+                  ConsumerDisposition.block;
+          final doseRules = stackDoseThresholdRulesFromWarnings([warning]);
+          if (!blockedUnread && doseRules.isNotEmpty) continue;
+          for (final rule in doseRules) {
+            final previous = unreadDoseBlocks[rule.signalId];
+            if (previous == null || warning.severity.weight > previous.weight) {
+              unreadDoseBlocks[rule.signalId] = warning.severity;
+            }
           }
           final body = warning.displayBody;
           final identity = warning.warningType == 'label_statement'
@@ -874,6 +892,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   return StackSafetyReport(
     nutrientStatuses: nutrientStatuses,
     stackInteractions: stackInteractions,
+    unreadDoseBlocks: Map.unmodifiable(unreadDoseBlocks),
     medicationInteractions: medicationInteractions,
     medicationPairInteractions: medicationPairInteractions,
     medicationProfileWarnings: medicationProfileWarnings,

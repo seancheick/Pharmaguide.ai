@@ -449,3 +449,13 @@ bool isProductContextNote(InteractionWarning warning) =>
     warning.severity == Severity.informational &&
     warning.displayModeDefault == 'informational' &&
     warning.displayBody.trim().isNotEmpty;
+
+bool isSourcedWatchlistSafetyNote(InteractionWarning warning) =>
+    warning.warningType == 'watchlist_substance' &&
+    warning.displayModeDefault == 'informational' &&
+    warning.severity.isActionable &&
+    warning.conditionIds.isEmpty &&
+    warning.drugClassIds.isEmpty &&
+    warning.profileGate == null &&
+    warning.sourceUrls.isNotEmpty &&
+    (warning.alertBody?.trim().isNotEmpty ?? false);

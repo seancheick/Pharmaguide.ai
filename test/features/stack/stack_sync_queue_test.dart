@@ -2,10 +2,13 @@
 // Mock HTTP keeps payload verification offline. The PHI release gate also
 // checks the column allowlist; debounce has its own focused tests.
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pharmaguide/services/auth_state_service.dart';
@@ -169,6 +172,125 @@ void main() {
       );
     }
     expect(await queue.pendingCount(), 0);
+  });
+
+  // The app can die while the upsert is on the wire. Nothing may count as sent
+  // until the server said so, and the next launch must finish the job.
+  test('relaunch during a push keeps the row pending, and the next launch '
+      'sends it once', () async {
+    const owner = '00000000-0000-0000-0000-000000000001';
+    final now = DateTime.now().toUtc();
+    final tokenClaims = base64Url
+        .encode(
+          utf8.encode(
+            jsonEncode({
+              'sub': owner,
+              'exp':
+                  now.add(const Duration(hours: 1)).millisecondsSinceEpoch ~/
+                  1000,
+            }),
+          ),
+        )
+        .replaceAll('=', '');
+    final upserts = <List<dynamic>>[];
+    final firstUpsertArrived = Completer<void>();
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(
+      url: 'https://stack-sync.invalid',
+      publishableKey: 'fixture-only',
+      debug: false,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.implicit,
+        autoRefreshToken: false,
+        detectSessionInUri: false,
+        localStorage: EmptyLocalStorage(),
+      ),
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/auth/v1/token') {
+          return http.Response(
+            jsonEncode({
+              'access_token': 'eyJhbGciOiJIUzI1NiJ9.$tokenClaims.fixture',
+              'refresh_token': 'fixture-only',
+              'token_type': 'bearer',
+              'expires_in': 3600,
+              'user': {
+                'id': owner,
+                'aud': 'authenticated',
+                'created_at': now.toIso8601String(),
+                'app_metadata': <String, dynamic>{},
+                'user_metadata': <String, dynamic>{},
+              },
+            }),
+            200,
+            request: request,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        upserts.add(jsonDecode(request.body) as List<dynamic>);
+        if (upserts.length == 1) {
+          firstUpsertArrived.complete();
+          // The process dies here: the response never comes back.
+          await Completer<void>().future;
+        }
+        return http.Response(
+          '[]',
+          201,
+          request: request,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+    addTearDown(() => Supabase.instance.dispose());
+    await Supabase.instance.client.auth.signInWithPassword(
+      email: 'fixture@example.invalid',
+      password: 'fixture-only',
+    );
+    final root = await Directory.systemTemp.createTemp('stack_sync_relaunch');
+    addTearDown(() => root.delete(recursive: true));
+    final path = p.join(root.path, 'user_data.db');
+
+    final firstLaunch = UserDatabase.open(path);
+    await firstLaunch
+        .into(firstLaunch.userStacksLocal)
+        .insert(
+          UserStacksLocalCompanion.insert(
+            id: 'item',
+            name: 'Item',
+            type: const Value('supplement'),
+            dsldId: const Value('278011'),
+          ),
+        );
+    final interrupted = StackSyncService(
+      StackSyncQueue(firstLaunch),
+      _SignedInAuth(),
+      _OnlineConnectivity(),
+      readOwnerUid: () async => owner,
+    );
+    addTearDown(interrupted.dispose);
+    unawaited(interrupted.pushAll(force: true));
+    await firstUpsertArrived.future;
+    await firstLaunch.close();
+
+    final secondLaunch = UserDatabase.open(path);
+    addTearDown(secondLaunch.close);
+    final queueAfterRelaunch = StackSyncQueue(secondLaunch);
+    expect(await queueAfterRelaunch.pendingCount(), 1);
+    expect(await queueAfterRelaunch.statusOf('item'), StackSyncStatus.pending);
+
+    final resumed = StackSyncService(
+      queueAfterRelaunch,
+      _SignedInAuth(),
+      _OnlineConnectivity(),
+      readOwnerUid: () async => owner,
+    );
+    addTearDown(resumed.dispose);
+    expect(await resumed.pushAll(force: true), SyncResult.ok);
+    expect(upserts, hasLength(2));
+    expect(upserts.last.single['dsld_id'], '278011');
+    expect(await queueAfterRelaunch.pendingCount(), 0);
+
+    expect(await resumed.pushAll(force: true), SyncResult.ok);
+    expect(upserts, hasLength(2), reason: 'nothing is left to send');
   });
 
   group('StackSyncQueue batched sync semantics', () {

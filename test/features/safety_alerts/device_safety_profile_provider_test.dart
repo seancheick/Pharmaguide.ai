@@ -35,6 +35,20 @@ void main() {
     expect(device.isComplete, isTrue);
   });
 
+  test('sex alone leaves a profile with nothing to check', () async {
+    for (final sex in const [null, 'Male', 'Female', 'Prefer not to say']) {
+      final device = await _read([
+        localMedicationIdentityProvider.overrideWith(
+          (ref) async => (ids: const <String>{}, isComplete: true),
+        ),
+        loadedProfileProvider.overrideWith(
+          (ref) async => ProfileState(sex: sex),
+        ),
+      ]);
+      expect(device.isEmpty, isTrue, reason: '$sex');
+    }
+  });
+
   test('breastfeeding becomes the flag rules ask for, and a condition stays '
       'itself, through the bundled taxonomy', () async {
     final device = await _read([
