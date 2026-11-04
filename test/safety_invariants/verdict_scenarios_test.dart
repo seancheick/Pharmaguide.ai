@@ -545,8 +545,8 @@ void main() {
       expect(find.text(_safetyTitle), findsNothing);
     });
 
-    // A null status means an older catalog, where nothing says the checks are
-    // unfinished. It keeps the stricter rule, so it withholds without claiming.
+    // A null status means an older catalog. With no finished score to stand on,
+    // the missing all-clear still needs an explanation (Sean, 2026-11-03).
     for (final (
           name,
           score,
@@ -624,7 +624,7 @@ void main() {
             null,
             false,
             true,
-            false,
+            true,
             null,
           ),
           (
@@ -657,7 +657,7 @@ void main() {
             null,
             false,
             false,
-            false,
+            true,
             _noScore,
           ),
         ]) {
@@ -718,6 +718,34 @@ void main() {
       expect(find.text(_safetyTitle), findsOneWidget);
       expect(find.text(_allClear), findsNothing);
     });
+
+    // Decision 6: an unknown catalog safety status withholds without a claim,
+    // and a null status doesn't change that.
+    for (final (name, score, scoreStatus) in <(String, double?, String)>[
+      ('partial quality', 60, 'scored'),
+      ('no score', null, 'not_scored'),
+    ]) {
+      testWidgets('unknown catalog safety, older catalog, $name: no note', (
+        tester,
+      ) async {
+        await pumpPage(
+          tester,
+          catalog: await _catalog(
+            score: score,
+            scoreStatus: scoreStatus,
+            assessment: 'partial',
+            safety: 'something_new',
+          ),
+          phone: await _phone(
+            profile: _noMatch,
+            cachedBlob: _stJohnsWortBlob(),
+          ),
+        );
+
+        expect(find.text(_allClear), findsNothing);
+        expect(find.text(_safetyTitle), findsNothing);
+      });
+    }
 
     testWidgets('catalog safety not assessed: the note explains the missing '
         'all-clear, whatever the status says', (tester) async {
