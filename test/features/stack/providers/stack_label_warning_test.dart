@@ -41,6 +41,8 @@ Map<String, dynamic> _labelWarning({
   String text = _text,
   List<String> flags = const ['pregnant', 'breastfeeding'],
   List<String> conditionIds = const ['pregnancy', 'lactation'],
+  List<String> conditionsAny = const [],
+  String gateType = 'profile_flag',
 }) => {
   'type': 'label_statement',
   'source': 'label_statements',
@@ -54,9 +56,9 @@ Map<String, dynamic> _labelWarning({
   'condition_ids': conditionIds,
   'drug_class_ids': <String>[],
   'profile_gate': {
-    'gate_type': 'profile_flag',
+    'gate_type': gateType,
     'requires': {
-      'conditions_any': <String>[],
+      'conditions_any': conditionsAny,
       'drug_classes_any': <String>[],
       'profile_flags_any': flags,
     },
@@ -74,6 +76,7 @@ Map<String, dynamic> _labelWarning({
 Future<StackSafetyReport> _report({
   required List<String> conditions,
   required Future<Map<String, dynamic>?> Function() blob,
+  String? sex,
 }) async {
   final coreDb = CoreDatabase.memory();
   final interactionDb = InteractionDatabase.memory();
@@ -109,7 +112,7 @@ Future<StackSafetyReport> _report({
       ),
       // The condition the picker writes; the bundled taxonomy derives the flag.
       loadedProfileProvider.overrideWith(
-        (ref) async => ProfileState(conditions: conditions),
+        (ref) async => ProfileState(conditions: conditions, sex: sex),
       ),
       stackNutrientStatusesProvider.overrideWith(
         (ref) async => const StackNutrientStatuses.empty(),
@@ -289,6 +292,42 @@ void main() {
       expect(report.stackInteractions, hasLength(1));
     },
   );
+  group('a statement to men trying to conceive', () {
+    final men = _labelWarning(
+      text: 'Not for use in men if attempting to conceive.',
+      gateType: 'combination',
+      flags: const ['sex_male'],
+      conditionsAny: const ['ttc'],
+      conditionIds: const ['ttc'],
+    );
+
+    Future<int> count({
+      required String sex,
+      required List<String> conditions,
+    }) async {
+      final report = await _report(
+        sex: sex,
+        conditions: conditions,
+        blob: () async => {
+          'warnings': [men],
+        },
+      );
+      return report.stackInteractions.length;
+    }
+
+    test('reaches a man trying to conceive', () async {
+      expect(await count(sex: 'Male', conditions: const ['ttc']), 1);
+    });
+
+    test('stays from a woman trying to conceive', () async {
+      expect(await count(sex: 'Female', conditions: const ['ttc']), 0);
+    });
+
+    test('stays from a man not trying to conceive', () async {
+      expect(await count(sex: 'Male', conditions: const ['hypertension']), 0);
+    });
+  });
+
   group('from the real reader to what gets shared', () {
     Future<StackSafetyReport> pregnant() => _report(
       conditions: const ['pregnancy'],

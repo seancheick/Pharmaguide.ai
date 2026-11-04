@@ -53,10 +53,10 @@ void main() {
       );
     });
 
-    test('loads clinical_risk_taxonomy with 8 profile flags', () async {
+    test('loads clinical_risk_taxonomy with 9 profile flags', () async {
       final taxonomy = await repo.loadClinicalRiskTaxonomy();
       final profileFlags = taxonomy['profile_flags'] as List;
-      expect(profileFlags.length, 8);
+      expect(profileFlags.length, 9);
       expect(
         profileFlags.map((entry) => (entry as Map)['id']),
         containsAll(['pregnant', 'trying_to_conceive', 'bleeding_history']),
@@ -87,6 +87,30 @@ void main() {
           'lactation': 'breastfeeding',
           'surgery_scheduled': 'surgery_scheduled',
         });
+        expect(schema.derivedFlagBySex, {'Male': 'sex_male'});
+        expect(
+          schema.evaluatorFlags(
+            conditions: const [],
+            explicitFlags: const [],
+            sex: 'Male',
+          ),
+          {'sex_male'},
+        );
+        for (final sex in const [
+          null,
+          'Female',
+          'Prefer not to say',
+          'Other',
+        ]) {
+          expect(
+            schema.evaluatorFlags(
+              conditions: const [],
+              explicitFlags: const [],
+              sex: sex,
+            ),
+            isEmpty,
+          );
+        }
       },
     );
 

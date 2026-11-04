@@ -43,6 +43,9 @@ Map<String, dynamic> _statement({
   required String severity,
   List<String> flags = const ['pregnant', 'breastfeeding'],
   List<String> conditionIds = const ['pregnancy', 'lactation'],
+  List<String> conditionsAny = const [],
+  String gateType = 'profile_flag',
+  String text = _text,
 }) => {
   'type': 'label_statement',
   'source': 'label_statements',
@@ -50,15 +53,15 @@ Map<String, dynamic> _statement({
   'display_mode_default': 'suppress',
   'evidence_level': 'ungraded',
   'title': 'Label warning',
-  'detail': _text,
-  'alert_body': _text,
+  'detail': text,
+  'alert_body': text,
   'sources': <String>[],
   'condition_ids': conditionIds,
   'drug_class_ids': <String>[],
   'profile_gate': {
-    'gate_type': 'profile_flag',
+    'gate_type': gateType,
     'requires': {
-      'conditions_any': <String>[],
+      'conditions_any': conditionsAny,
       'drug_classes_any': <String>[],
       'profile_flags_any': flags,
     },
@@ -77,6 +80,7 @@ Future<void> _pumpPage(
   WidgetTester tester, {
   required List<String> conditions,
   required List<Map<String, dynamic>> warnings,
+  String? sex,
 }) async {
   // A widget test's clock can't wait on the asset bundle, so the real taxonomy
   // is read first and the real providers derive from it.
@@ -125,6 +129,7 @@ Future<void> _pumpPage(
         profileProvider.overrideWith(
           (ref) => ProfileNotifier()
             ..setAgeBracket('31-50')
+            ..setSex(sex)
             ..setConditions(conditions),
         ),
         reference_data.referenceDataRepositoryProvider.overrideWithValue(
@@ -145,9 +150,9 @@ void _expectCard(String line) {
   expect(find.text(_allClear), findsNothing);
 }
 
-void _expectUnchanged() {
+void _expectUnchanged({String text = _text}) {
   expect(find.text('Label warning'), findsNothing);
-  expect(find.textContaining(_text), findsNothing);
+  expect(find.textContaining(text), findsNothing);
   expect(find.text(_allClear), findsOneWidget);
 }
 
@@ -250,6 +255,79 @@ void main() {
       ],
     );
     _expectCard(notRecommended);
+  });
+
+  group('a statement to men trying to conceive', () {
+    const menText = 'Not for use in men if attempting to conceive.';
+    final men = _statement(
+      severity: 'avoid',
+      text: menText,
+      gateType: 'combination',
+      flags: const ['sex_male'],
+      conditionsAny: _ttc,
+      conditionIds: _ttc,
+    );
+    const menCard = 'Not recommended · $menText · Evidence not graded';
+
+    testWidgets('reaches a man trying to conceive', (tester) async {
+      await _pumpPage(tester, sex: 'Male', conditions: _ttc, warnings: [men]);
+      _expectCard(menCard);
+    });
+
+    testWidgets('stays from a woman trying to conceive', (tester) async {
+      await _pumpPage(tester, sex: 'Female', conditions: _ttc, warnings: [men]);
+      _expectUnchanged(text: menText);
+    });
+
+    testWidgets('stays from a man not trying to conceive', (tester) async {
+      await _pumpPage(
+        tester,
+        sex: 'Male',
+        conditions: const [],
+        warnings: [men],
+      );
+      _expectUnchanged(text: menText);
+    });
+
+    testWidgets('stays from a pregnant viewer', (tester) async {
+      await _pumpPage(
+        tester,
+        sex: 'Female',
+        conditions: _pregnancy,
+        warnings: [men],
+      );
+      _expectUnchanged(text: menText);
+    });
+
+    testWidgets('stays separate from a pregnancy and nursing statement', (
+      tester,
+    ) async {
+      final both = [men, _statement(severity: 'avoid')];
+      await _pumpPage(tester, sex: 'Male', conditions: _ttc, warnings: both);
+      _expectCard(menCard);
+      expect(find.textContaining(_text), findsNothing);
+    });
+
+    testWidgets('a pregnant viewer of the same label sees only hers', (
+      tester,
+    ) async {
+      final both = [men, _statement(severity: 'avoid')];
+      await _pumpPage(
+        tester,
+        sex: 'Female',
+        conditions: _pregnancy,
+        warnings: both,
+      );
+      _expectCard(notRecommended);
+      expect(find.textContaining(menText), findsNothing);
+    });
+
+    for (final sex in const [null, 'Prefer not to say']) {
+      testWidgets('no stated sex ($sex): decision pending', (tester) async {
+        await _pumpPage(tester, sex: sex, conditions: _ttc, warnings: [men]);
+        _expectUnchanged(text: menText);
+      });
+    }
   });
 
   // The page keeps an untagged hard warning visible as a safety default, so the

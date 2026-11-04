@@ -612,5 +612,6 @@ final evaluatorProfileFlagsProvider = FutureProvider<Set<String>>((ref) async {
   return schema.evaluatorFlags(
     conditions: profile.conditionsForEvaluator,
     explicitFlags: profile.profileFlags,
+    sex: profile.sex,
   );
 }, retry: (_, __) => null);

@@ -1,6 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-enum ProfileCaptureMode { derivedFromCondition, userSelectable, reserved }
+enum ProfileCaptureMode {
+  derivedFromCondition,
+  derivedFromSex,
+  userSelectable,
+  reserved,
+}
 
 @immutable
 class ClinicalProfileOption {
@@ -44,10 +49,14 @@ class ClinicalProfileSchema {
   final List<ClinicalProfileFlag> userSelectableFlags;
   final Map<String, String> derivedFlagByCondition;
 
+  /// Flags derived from the profile's stored sex, keyed by that value.
+  final Map<String, String> derivedFlagBySex;
+
   const ClinicalProfileSchema({
     required this.selectableConditions,
     required this.userSelectableFlags,
     required this.derivedFlagByCondition,
+    this.derivedFlagBySex = const <String, String>{},
   });
 
   factory ClinicalProfileSchema.fromJson(Map<String, dynamic> json) {
@@ -96,6 +105,7 @@ class ClinicalProfileSchema {
     final flagIds = <String>{};
     final selectableFlags = <ClinicalProfileFlag>[];
     final derivedByCondition = <String, String>{};
+    final derivedBySex = <String, String>{};
     for (final raw in rawFlags) {
       if (raw is! Map) {
         throw const FormatException('Clinical profile flag must be an object');
@@ -130,6 +140,14 @@ class ClinicalProfileSchema {
               '$source derives more than one clinical profile flag',
             );
           }
+        case ProfileCaptureMode.derivedFromSex:
+          final source = entry['source_sex']?.toString().trim() ?? '';
+          if (source.isEmpty || flag.sourceConditionId != null) {
+            throw FormatException(
+              '$id: sex-derived flag needs only source_sex',
+            );
+          }
+          derivedBySex[source] = id;
         case ProfileCaptureMode.userSelectable:
           if (flag.sourceConditionId != null) {
             throw FormatException(
@@ -150,6 +168,7 @@ class ClinicalProfileSchema {
       selectableConditions: List.unmodifiable(conditions),
       userSelectableFlags: List.unmodifiable(selectableFlags),
       derivedFlagByCondition: Map.unmodifiable(derivedByCondition),
+      derivedFlagBySex: Map.unmodifiable(derivedBySex),
     );
   }
 
@@ -170,8 +189,11 @@ class ClinicalProfileSchema {
   Set<String> evaluatorFlags({
     required Iterable<String> conditions,
     required Iterable<String> explicitFlags,
+    String? sex,
   }) {
     final result = <String>{...explicitFlags};
+    final sexFlag = derivedFlagBySex[sex];
+    if (sexFlag != null) result.add(sexFlag);
     for (final condition in conditions) {
       final derived = derivedFlagByCondition[condition];
       if (derived != null) result.add(derived);
@@ -195,6 +217,7 @@ String _requiredString(
 ProfileCaptureMode _parseCaptureMode(dynamic value, {required String flagId}) {
   return switch (value) {
     'derived_from_condition' => ProfileCaptureMode.derivedFromCondition,
+    'derived_from_sex' => ProfileCaptureMode.derivedFromSex,
     'user_selectable' => ProfileCaptureMode.userSelectable,
     'reserved' => ProfileCaptureMode.reserved,
     _ => throw FormatException('$flagId: unknown capture_mode $value'),
