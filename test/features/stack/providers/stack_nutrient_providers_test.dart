@@ -1120,7 +1120,11 @@ void main() {
       Map<String, Object?> confirmedAndMixture() => {
         'ingredients': [_mixtureRow(maximum: 4000)],
         'warnings': [
-          _betaCaroteneCard(status: 'form_unknown', disposition: 'review'),
+          _betaCaroteneCard(
+            status: 'form_unknown',
+            disposition: 'suppress',
+            amount: 5000,
+          ),
           _betaCaroteneCard(
             status: 'below_threshold',
             disposition: 'suppress',
@@ -1135,7 +1139,7 @@ void main() {
       Map<String, Object?> largeMixture() => {
         'ingredients': [_mixtureRow(maximum: 12500)],
         'warnings': [
-          _betaCaroteneCard(status: 'form_unknown', disposition: 'review'),
+          _betaCaroteneCard(status: 'form_unknown', disposition: 'suppress'),
           _betaCaroteneCard(
             status: 'form_unknown',
             disposition: 'suppress',
@@ -1148,7 +1152,11 @@ void main() {
       Map<String, Object?> smallMixture(double maximum) => {
         'ingredients': [_mixtureRow(maximum: maximum)],
         'warnings': [
-          _betaCaroteneCard(status: 'amount_unknown', disposition: 'suppress'),
+          _betaCaroteneCard(
+            status: 'below_threshold',
+            disposition: 'suppress',
+            amount: 0,
+          ),
         ],
       };
 
@@ -1250,6 +1258,40 @@ void main() {
           incomplete: false,
         );
       });
+
+      test(
+        'a part confirmed beside a maximum counts toward the line',
+        () async {
+          final container = await stack({
+            'A': confirmed(7500),
+            'MIX': confirmedAndMixture(),
+          });
+
+          final alerts = await container.read(
+            stackDoseThresholdAlertsProvider.future,
+          );
+
+          expect(alerts.single.totalValue, 12500);
+          expect(alerts.single.isIncomplete, isTrue);
+          expect(
+            await container.read(stackDoseRulesUnreadProvider.future),
+            isTrue,
+          );
+        },
+      );
+
+      test(
+        'with nothing to read the maximum from it still reads as a review',
+        () async {
+          final blob = largeMixture()..remove('ingredients');
+
+          await expectRead(
+            await stack({'MIX': blob}),
+            totals: const [],
+            incomplete: true,
+          );
+        },
+      );
 
       test('a mcg RAE partner leaves a confirmed crossing complete', () async {
         final container = await stack({

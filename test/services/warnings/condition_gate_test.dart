@@ -1822,6 +1822,45 @@ void main() {
       );
     });
 
+    group('a beta-carotene form the pipeline could not settle', () {
+      Map<String, dynamic> carotene({String gateType = 'condition'}) => {
+        ...card(
+          status: 'form_unknown',
+          conditions: const ['current_smoker'],
+          gateType: gateType,
+        ),
+        'ingredient_canonical_id': 'beta_carotene',
+      };
+
+      bool read(Map<String, dynamic> row, Set<String> conditions) =>
+          hasUnreadDoseRule(
+            parseBlobWarnings({
+              'warnings': [row],
+            }),
+            userConditions: conditions,
+            userDrugClasses: const {},
+          );
+
+      test('stays unread for the person its condition card names', () {
+        expect(read(carotene(), {'current_smoker'}), isTrue);
+        expect(read(carotene(), const {}), isFalse);
+      });
+
+      test('its every-viewer dose card adds nothing, for anyone', () {
+        final dose = {
+          ...carotene(gateType: 'dose'),
+          'profile_gate': {
+            'gate_type': 'dose',
+            'requires': <String, Object?>{},
+            'excludes': <String, Object?>{},
+          },
+        };
+
+        expect(read(dose, const {}), isFalse);
+        expect(read(dose, {'current_smoker'}), isFalse);
+      });
+    });
+
     test('a surface that shows no card counts one the pipeline kept', () {
       for (final disposition in ['review', 'block', 'suppress']) {
         expect(

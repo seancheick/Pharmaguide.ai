@@ -254,17 +254,20 @@ class InteractionWarning {
   /// dose rules use this value directly instead of reinterpreting display copy.
   final String? ingredientCanonicalId;
 
-  /// A beta-carotene rule the pipeline left unread and suppressed: no beta-
-  /// carotene mass to count, such as a vitamin A activity figure. It adds
-  /// nothing and leaves the check complete. An unresolved mass it kept as a
-  /// review stays unread.
+  /// A beta-carotene rule that adds nothing and leaves the check complete: no
+  /// beta-carotene mass to count (`amount_unknown`, such as a vitamin A activity
+  /// figure), or the every-viewer dose card of an unsettled mixture, whose
+  /// condition cards already report it to the people it applies to. A
+  /// `form_unknown` condition card stays unread for its person.
   bool get unreadBetaCaroteneAddsNothing {
     final decision = doseDecision;
     return decision != null &&
         decision.amountUnread &&
         ingredientCanonicalId?.trim() == 'beta_carotene' &&
         consumerDispositionFromWire(decision.consumerDisposition) ==
-            ConsumerDisposition.suppress;
+            ConsumerDisposition.suppress &&
+        (decision.evaluationStatus == 'amount_unknown' ||
+            profileGate?['gate_type'] == 'dose');
   }
 
   /// v6.0 `profile_gate` — deterministic predicate the evaluator runs
