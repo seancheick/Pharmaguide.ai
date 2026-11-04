@@ -462,6 +462,7 @@ void main() {
             'standard_name': 'Vitamin E',
             'unit': 'mg alpha-tocopherol',
             'data': [
+              {'group': 'Male', 'age_range': '14-18', 'rda_ai': 15, 'ul': 800},
               {'group': 'Male', 'age_range': '19-30', 'rda_ai': 15, 'ul': 1000},
             ],
           },
@@ -469,12 +470,15 @@ void main() {
       },
     );
 
-    NutrientStatus status(List<StackItemNutrients> stack) {
+    NutrientStatus status(
+      List<StackItemNutrients> stack, {
+      String ageBracket = '19-30',
+    }) {
       const aggregator = StackNutrientAggregator();
       return rangeChecker
           .check(
             aggregator.aggregate(stack),
-            ageBracket: '19-30',
+            ageBracket: ageBracket,
             sex: 'Male',
             pipelineVerdicts: aggregator.extractPipelineUlVerdicts(stack),
           )
@@ -492,10 +496,52 @@ void main() {
     test('a high at or below the limit rules the excess out', () {
       final result = status([_rangeItem('a', 80, 176.3)]);
 
-      expect(result.pctOfUl, closeTo(17.63, 0.001));
+      expect(result.pctOfUl, closeTo(8, 0.001));
       expect(result.tier, isNot(NutrientTier.exceedsUl));
       expect(result.ulAssessmentIndeterminate, isFalse);
     });
+
+    test('a bound near the limit is not called approaching it', () {
+      final result = status([_rangeItem('a', 600, 950)]);
+
+      expect(result.pctOfUl, closeTo(60, 0.001));
+      expect(result.tier, isNot(NutrientTier.approachingUl));
+    });
+
+    // 211459, 4178, 178778: 670 mg by label, 900 mg at the worst-case form.
+    group(
+      'a worst-case figure the pipeline assessed against the adult limit',
+      () {
+        test('an adult gets no excess and no review', () {
+          final result = status([_worstCaseItem('a')]);
+
+          expect(result.tier, isNot(NutrientTier.exceedsUl));
+          expect(result.tier, isNot(NutrientTier.approachingUl));
+          expect(result.ulAssessmentIndeterminate, isFalse);
+          expect(result.pctOfUl, isNull);
+          expect(result.total.totalAmount, 670);
+        });
+
+        test('a teen gets a review and never a confirmed excess', () {
+          final result = status([_worstCaseItem('a')], ageBracket: '14-18');
+
+          expect(result.ulAssessmentIndeterminate, isTrue);
+          expect(result.tier, isNot(NutrientTier.exceedsUl));
+          expect(result.pctOfUl, isNull);
+          expect(result.total.totalAmount, 670);
+        });
+
+        test('its bound adds to the rest of the stack', () {
+          final result = status([
+            _worstCaseItem('a'),
+            _rangeItem('b', 200, 200, range: false),
+          ]);
+
+          expect(result.ulAssessmentIndeterminate, isTrue);
+          expect(result.tier, isNot(NutrientTier.exceedsUl));
+        });
+      },
+    );
 
     test('a range across the limit is unresolved and keeps the intake', () {
       final result = status([_rangeItem('a', 26, 1776)]);
@@ -521,7 +567,7 @@ void main() {
 
       final below = status(stack(800));
       expect(below.ulAssessmentIndeterminate, isFalse);
-      expect(below.pctOfUl, closeTo(97.63, 0.001));
+      expect(below.pctOfUl, closeTo(88, 0.001));
     });
 
     test('a pipeline excess is not reduced by the range', () {
@@ -540,6 +586,26 @@ void main() {
     },
   );
 }
+
+StackItemNutrients _worstCaseItem(String id) => StackItemNutrients(
+  stackEntryId: id,
+  productName: id,
+  ingredients: const [
+    {
+      'canonical_id': 'vitamin_e',
+      'name': 'Vitamin E',
+      'dose_role': 'declared_total',
+      'per_day_min': 670.0,
+      'per_day_max': 670.0,
+      'converted_unit': 'mg',
+      'skip_ul_check': true,
+      'skip_ul_reason': 'worst_case_natural_vitamin_e_within_ul',
+      'ul_gate_eligible': true,
+      'ul_assessment_status': 'assessed_within_limit',
+      'safety_exposure': {'per_day': 900.0, 'unit': 'mg'},
+    },
+  ],
+);
 
 StackItemNutrients _rangeItem(
   String id,

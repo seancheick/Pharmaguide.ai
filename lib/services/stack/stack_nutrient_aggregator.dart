@@ -200,6 +200,16 @@ class StackNutrientAggregator {
           } else {
             total.hasUnresolvedUlContribution = true;
           }
+        } else if (canContributeToUl && _isWithinLimitBound(row)) {
+          // The pipeline cleared this worst-case figure against the adult limit
+          // only. It is an upper bound with no floor: another limit can find
+          // a possible excess in it, never a confirmed one.
+          total.addUlComparableAmount(
+            readUlDoseAmount(row)!,
+            readUlDoseUnit(row),
+            range:
+                readUlDoseRange(row) ?? (low: 0, high: readUlDoseAmount(row)!),
+          );
         } else if (canContributeToUl && _isUnresolvedUlContribution(row)) {
           total.hasUnresolvedUlContribution = true;
         }
@@ -307,6 +317,14 @@ class StackNutrientAggregator {
       row.containsKey('ul_gate_eligible') ||
       row.containsKey('ul_assessment_status') ||
       row['dose_role'] == 'ul_scoped_component';
+
+  static bool _isWithinLimitBound(Map<String, dynamic> row) =>
+      row['skip_ul_check'] == true &&
+      row['ul_gate_eligible'] != false &&
+      row['ul_assessment_status'] == 'assessed_within_limit' &&
+      row.containsKey('safety_exposure') &&
+      readUlDoseUnit(row).isNotEmpty &&
+      (readUlDoseAmount(row) ?? -1) >= 0;
 
   static bool _isUnresolvedUlContribution(Map<String, dynamic> row) {
     if (isUlEvaluationEligible(row)) return false;

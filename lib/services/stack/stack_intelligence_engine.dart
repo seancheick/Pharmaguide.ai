@@ -170,6 +170,9 @@ class StackIntelligenceEngine {
     final analysisIncomplete =
         alertChecksIncomplete ||
         doseRulesUnread ||
+        safetyReport.nutrientStatuses.any(
+          (status) => status.ulAssessmentIndeterminate,
+        ) ||
         safetyReport.checksIncomplete ||
         safetyReport.coverageIncomplete ||
         recalledReport.incomplete ||

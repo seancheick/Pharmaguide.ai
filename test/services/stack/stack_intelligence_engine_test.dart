@@ -887,6 +887,30 @@ void main() {
       expect(intelligence.issues, isEmpty);
     });
 
+    test('a limit that could not be compared is an incomplete check', () {
+      final intelligence = engine.diagnoseFromReports(
+        stackSize: 1,
+        safetyReport: StackSafetyReport(
+          nutrientStatuses: [
+            NutrientStatus(
+              total: _nutrient(
+                id: 'vitamin_e',
+                tier: NutrientTier.adequate,
+              ).total,
+              tier: NutrientTier.adequate,
+              ulAssessmentIndeterminate: true,
+            ),
+          ],
+        ),
+        recalledReport: emptyRecall,
+        synergyReport: SynergyReport.empty(),
+      );
+
+      expect(intelligence.analysisIncomplete, isTrue);
+      expect(intelligence.tier, StackTier.incomplete);
+      expect(intelligence.nutrientWarningCount, 0);
+    });
+
     test('an unread dose rule is an incomplete check, not a clean tier', () {
       StackIntelligence diagnosis({required bool unread}) =>
           engine.diagnoseFromReports(

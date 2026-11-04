@@ -229,8 +229,9 @@ class StackUlChecker {
     final ul = ulLookup.value;
 
     // A form range is read ahead of the single figure. A low above the limit
-    // establishes the excess and a high at or below it rules one out. Anything
-    // between is unresolved: no percentage, and the intake stays counted.
+    // establishes the excess and a high at or below it rules one out, leaving
+    // the low as all that is known of the exposure. Anything between is
+    // unresolved: no percentage, and the intake stays counted.
     var rangeUnresolved = false;
     final rangeLow = total.ulComparableLowAmount;
     final rangeHigh = total.ulComparableHighAmount;
@@ -252,7 +253,7 @@ class StackUlChecker {
       if (low != null && low > ul) {
         safetyAmountInReferenceUnit = low;
       } else if (high != null && high <= ul) {
-        safetyAmountInReferenceUnit = high;
+        safetyAmountInReferenceUnit = low != null && low > 0 ? low : null;
       } else {
         safetyAmountInReferenceUnit = null;
         rangeUnresolved = verdict?.overUl != true;
