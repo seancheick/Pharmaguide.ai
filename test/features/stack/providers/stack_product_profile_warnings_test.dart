@@ -355,6 +355,18 @@ void main() {
           ],
         }, profile: const ProfileState(allergens: ['ALLERGEN_SOY']));
         expect(report.stackInteractions, hasLength(1));
+        final snapshot = const StackIntelligenceEngine().summarizeFromReports(
+          stackSize: 1,
+          safetyReport: report,
+          recalledReport: const RecalledIngredientsReport(violations: []),
+          synergyReport: SynergyReport.empty(),
+        );
+        expect(snapshot.reviewSignals, hasLength(1));
+        expect(
+          snapshot.actionableSignals,
+          hasLength(presence == 'manufactured_in_facility' ? 0 : 1),
+        );
+
         expect(report.stackInteractions.single.severity, switch (presence) {
           'contains' => Severity.avoid,
           'may_contain' => Severity.caution,

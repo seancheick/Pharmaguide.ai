@@ -34,6 +34,13 @@ import 'package:pharmaguide/services/stack/synergy_result.dart';
 class StackHealthSnapshot {
   final StackIntelligence intelligence;
   final List<ClinicalSignal> reviewSignals;
+
+  /// Review counts and warning headlines exclude informational context. The
+  /// complete signal list remains available to the Good to know details lane.
+  List<ClinicalSignal> get actionableSignals => reviewSignals
+      .where((signal) => signal.consumerDisposition.requiresReview)
+      .toList(growable: false);
+
   final bool checksIncomplete;
   final bool coverageIncomplete;
   final bool catalogProductSkipped;

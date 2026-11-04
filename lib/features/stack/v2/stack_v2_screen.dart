@@ -742,9 +742,9 @@ class _StackSummaryCard extends ConsumerWidget {
     final Color tone = status?.color ?? fallback.tone;
     final statusTone = context.v2.tintedLabel(tone);
     final statusLabel = status?.label ?? fallback.label;
-    final reviewSignals = healthSnapshot?.reviewSignals ?? const [];
-    final canReviewSignals = reviewSignals.isNotEmpty;
-    final insightLine = canReviewSignals
+    final reviewSignals = healthSnapshot?.actionableSignals ?? const [];
+    final canReviewSignals = healthSnapshot?.reviewSignals.isNotEmpty ?? false;
+    final insightLine = reviewSignals.isNotEmpty
         ? describeSafetySignalReview(reviewSignals.length)
         : intelligence == null
         ? stackHealthFallbackSummary(
@@ -844,8 +844,7 @@ class _StackSummaryCard extends ConsumerWidget {
     if (!canReviewSignals) return card;
     return Semantics(
       button: true,
-      label:
-          '${describeSafetySignalReview(reviewSignals.length)}. View details',
+      label: '$insightLine. View details',
       child: Material(
         color: Colors.transparent,
         child: InkWell(

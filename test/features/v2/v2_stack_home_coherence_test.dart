@@ -444,6 +444,45 @@ void main() {
       },
     );
 
+    for (final home in [true, false]) {
+      testWidgets(
+        '${home ? 'Home' : 'Stack'} does not count informational facility notes as review concerns',
+        (tester) async {
+          const note = InteractionResult(
+            id: 'allergen_fixture',
+            type: InteractionType.conditionSupplement,
+            severity: Severity.informational,
+            evidenceLevel: EvidenceLevel.ungraded,
+            agent1Name: 'Supplement',
+            agent2Name: 'Soy',
+            mechanism: 'Facility: Soy',
+            management: '',
+            doseDependant: false,
+            doseThreshold: null,
+            sourceUrls: [],
+            source: InteractionSource.pipeline,
+          );
+          await pumpWithStack(
+            tester,
+            home
+                ? const HomeV2Screen(showNavBar: false)
+                : const StackV2Screen(showNavBar: false),
+            stack: [
+              stackEntry(
+                id: 'supp-1',
+                name: 'Supplement',
+                type: 'supplement',
+                dsldId: '12345',
+              ),
+            ],
+            safetyReport: const StackSafetyReport(stackInteractions: [note]),
+          );
+          expect(find.text('1 safety signal to review'), findsNothing);
+          expect(find.text('1 Signal'), findsNothing);
+        },
+      );
+    }
+
     testWidgets('Home Stack Health uses the complete safety-signal count', (
       tester,
     ) async {

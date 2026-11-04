@@ -520,7 +520,7 @@ class _StackHealthCard extends ConsumerWidget {
     final statusTone = context.v2.tintedLabel(tone);
     final insightTone = context.v2.tintedLabel(tone, fillAlpha: 0.08);
     final statusLabel = status?.label ?? fallback.label;
-    final reviewSignals = healthSnapshot?.reviewSignals ?? const [];
+    final reviewSignals = healthSnapshot?.actionableSignals ?? const [];
     final safetySignalCount = reviewSignals.length;
     final insightLine = hasRealData
         ? reviewSignals.isNotEmpty
