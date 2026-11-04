@@ -171,9 +171,15 @@ bool catalogProductCanReportNoConcerns(ProductsCoreData? product) {
   }
   final safetyChecks = product.safetyAssessmentStatus;
   return safetyChecks == null
-      ? catalogProductHasCompletePublicScore(product)
+      ? _hasFinishedScoreNumber(product)
       : safetyChecks == 'complete';
 }
+
+// Suppression counts as a finished assessment but leaves no number, so it gives
+// an older catalog nothing to stand on.
+bool _hasFinishedScoreNumber(ProductsCoreData product) =>
+    catalogProductHasCompletePublicScore(product) &&
+    product.qualityScoreV4100 != null;
 
 /// Whether the page should say this product's safety checks are unfinished.
 ///
@@ -190,7 +196,7 @@ bool catalogProductSafetyChecksIncomplete(ProductsCoreData? product) {
   if (safetyChecks != null) return safetyChecks != 'complete';
   return catalogProductSafetyStatus(product) !=
           CatalogProductSafetyStatus.notAssessed &&
-      !catalogProductHasCompletePublicScore(product);
+      !_hasFinishedScoreNumber(product);
 }
 
 /// Whether the catalog has no usable quality number for this product.

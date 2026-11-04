@@ -136,6 +136,27 @@ void main() {
     });
   });
 
+  group('an older catalog needs a number before an all-clear (ADR-015)', () {
+    test('a suppressed score with no number withholds, and says why', () {
+      final p = _p(
+        qualityScoreStatus: 'suppressed_safety',
+        qualityAssessmentStatus: 'complete',
+      );
+      expect(catalogProductCanReportNoConcerns(p), isFalse);
+      expect(catalogProductSafetyChecksIncomplete(p), isTrue);
+    });
+
+    test('a finished score still clears', () {
+      final p = _p(
+        qualityScoreStatus: 'scored',
+        qualityAssessmentStatus: 'complete',
+        qualityScoreV4100: 90,
+      );
+      expect(catalogProductCanReportNoConcerns(p), isTrue);
+      expect(catalogProductSafetyChecksIncomplete(p), isFalse);
+    });
+  });
+
   // The page hides the For You card on a block, so only this can see the rule.
   group('finished safety checks never clear a block (ADR-015)', () {
     for (final status in ['blocked', 'unsafe']) {

@@ -747,6 +747,24 @@ void main() {
       });
     }
 
+    // The older rule needs a finished score, and suppression is no number.
+    testWidgets('older catalog, a suppressed score with no number, nothing '
+        'blocking it: no all-clear, and the note explains why', (tester) async {
+      await pumpPage(
+        tester,
+        catalog: await _catalog(
+          score: null,
+          scoreStatus: 'suppressed_safety',
+          assessment: 'complete',
+        ),
+        phone: await _phone(profile: _noMatch, cachedBlob: _stJohnsWortBlob()),
+      );
+
+      expect(find.text(_allClear), findsNothing);
+      expect(find.text(_qualifiedClear), findsNothing);
+      expect(find.text(_safetyTitle), findsOneWidget);
+    });
+
     testWidgets('catalog safety not assessed: the note explains the missing '
         'all-clear, whatever the status says', (tester) async {
       await pumpPage(
