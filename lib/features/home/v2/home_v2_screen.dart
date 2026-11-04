@@ -11,6 +11,7 @@ import 'package:pharmaguide/core/constants/routes.dart';
 import 'package:pharmaguide/core/models/stack_intelligence.dart';
 import 'package:pharmaguide/core/utils/stack_intelligence_helpers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/profile/widgets/profile_load_gate.dart';
 import 'package:pharmaguide/features/stack/providers/stack_providers.dart';
 import 'package:pharmaguide/features/stack/widgets/stack_health_fallback_display.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
@@ -233,6 +234,7 @@ Future<void> _onHomeV2Refresh(WidgetRef ref) async {
   unawaited(PGHaptics.tap());
   ref.invalidate(activeStackProvider);
   ref.invalidate(_v2RecentScansProvider);
+  retryProfileLoad(ref);
   await Future<void>.delayed(const Duration(milliseconds: 350));
 }
 
@@ -573,6 +575,7 @@ class _StackHealthCard extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
+                    const ProfileLoadRetryButton(),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

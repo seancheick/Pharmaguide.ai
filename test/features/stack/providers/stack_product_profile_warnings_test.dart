@@ -29,6 +29,8 @@ Future<StackSafetyReport> reportFor(
   bool secondBlobFails = false,
   List<InteractionWarning>? resolvedRules,
   bool resolutionFails = false,
+  bool flagsFail = false,
+  bool classesFail = false,
   Future<void> Function(ProviderContainer, StackSafetyReport)? inspect,
 }) async {
   final user = UserDatabase.memory();
@@ -85,8 +87,14 @@ Future<StackSafetyReport> reportFor(
       interactionDatabaseProvider.overrideWithValue(interactions),
       activeStackProvider.overrideWith((ref) async => rows),
       loadedProfileProvider.overrideWith((ref) async => profile),
+      if (classesFail)
+        currentStackMedicationClassIdsProvider.overrideWith(
+          (ref) async => throw StateError('classes unavailable'),
+        ),
       evaluatorProfileFlagsProvider.overrideWith(
-        (ref) async => profile.conditions.contains('pregnancy')
+        (ref) async => flagsFail
+            ? throw StateError('flags unavailable')
+            : profile.conditions.contains('pregnancy')
             ? {'pregnant'}
             : <String>{},
       ),
@@ -311,6 +319,70 @@ void main() {
         hasLength(1),
       );
       expect(report.checksIncomplete, isTrue);
+    },
+  );
+  for (final flagsFail in [true, false]) {
+    test(
+      'condition-only warning survives missing ${flagsFail ? "flags" : "classes"}',
+      () async {
+        final warnings = [
+          {
+            'type': 'interaction',
+            'severity': 'caution',
+            'evidence_level': 'established',
+            'title': 'Known condition',
+            'mechanism': 'Known condition concern',
+            'condition_ids': ['pregnancy'],
+          },
+          {
+            'type': 'interaction',
+            'severity': 'avoid',
+            'title': 'Excluded context',
+            'mechanism': 'Cannot evaluate absent inputs',
+            'condition_ids': ['pregnancy'],
+            'profile_gate': {
+              'gate_type': 'condition',
+              'requires': {
+                'conditions_any': ['pregnancy'],
+              },
+              'excludes': {
+                flagsFail ? 'profile_flags_any' : 'drug_classes_any': [
+                  'fixture',
+                ],
+              },
+            },
+          },
+        ];
+        final report = await reportFor(
+          {'warnings': warnings},
+          flagsFail: flagsFail,
+          classesFail: !flagsFail,
+        );
+        expect(report.stackInteractions.map((w) => w.mechanism), [
+          'Known condition concern',
+        ]);
+        expect(report.checksIncomplete, isTrue);
+      },
+    );
+  }
+  test(
+    'distinct visible warning headlines keep distinct Stack identities',
+    () async {
+      final warnings = [
+        for (final headline in ['First concern', 'Second concern'])
+          {
+            'type': 'interaction',
+            'severity': 'caution',
+            'evidence_level': 'established',
+            'title': 'Same internal title',
+            'alert_headline': headline,
+            'mechanism': 'Shared body',
+            'condition_ids': ['pregnancy'],
+          },
+      ];
+      final report = await reportFor({'warnings': warnings});
+      expect(report.stackInteractions, hasLength(2));
+      expect(report.stackInteractions.map((w) => w.id).toSet(), hasLength(2));
     },
   );
   test('unmatched profile does not receive SJW pregnancy warning', () async {

@@ -28,6 +28,7 @@ import 'package:pharmaguide/core/widgets/product_image.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
+import 'package:pharmaguide/features/profile/widgets/profile_load_gate.dart';
 import 'package:pharmaguide/core/scoring/coverage.dart';
 import 'package:pharmaguide/core/scoring/catalog_product_semantics.dart';
 import 'package:pharmaguide/core/widgets/pg_haptics.dart';
@@ -621,6 +622,7 @@ class _StackTabState extends ConsumerState<_StackTab> {
     // activeStackProvider.
     return RefreshIndicator(
       onRefresh: () async {
+        retryProfileLoad(ref);
         ref.invalidate(activeStackProvider);
         await ref.read(activeStackProvider.future);
       },
@@ -822,6 +824,7 @@ class _StackSummaryCard extends ConsumerWidget {
               ),
             ],
           ),
+          const ProfileLoadRetryButton(),
           const SizedBox(height: V2Spacing.space16),
           Row(
             children: [

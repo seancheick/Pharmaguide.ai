@@ -36,8 +36,7 @@ class ProfileLoadGate extends ConsumerWidget {
                       const SizedBox(height: 16),
                       FilledButton(
                         onPressed: () {
-                          ref.invalidate(profileProvider);
-                          ref.invalidate(profileLoadedProvider);
+                          retryProfileLoad(ref);
                         },
                         child: const Text('Retry'),
                       ),
@@ -48,5 +47,30 @@ class ProfileLoadGate extends ConsumerWidget {
             ),
           ),
         );
+  }
+}
+
+/// Retry the existing readiness owner only after an unsuccessful load. Healthy
+/// in-memory edits are never discarded by a Home/Stack pull-to-refresh.
+void retryProfileLoad(WidgetRef ref) {
+  if (!ref.read(profileLoadedProvider).hasError) return;
+  ref.invalidate(profileProvider);
+  ref.invalidate(profileLoadedProvider);
+}
+
+/// Shared recovery action for Home and Stack; it does not decide safety.
+class ProfileLoadRetryButton extends ConsumerWidget {
+  const ProfileLoadRetryButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(profileLoadedProvider).hasError) {
+      return const SizedBox.shrink();
+    }
+    return TextButton.icon(
+      onPressed: () => retryProfileLoad(ref),
+      icon: const Icon(Icons.refresh),
+      label: const Text('Retry profile checks'),
+    );
   }
 }

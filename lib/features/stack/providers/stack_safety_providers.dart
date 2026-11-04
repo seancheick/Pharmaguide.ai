@@ -293,24 +293,36 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // If the nutrient provider errors, we still want the interaction half
   // of the report to render, so we fall back to an empty list.
   var checksIncomplete = false;
+  ProfileState? profile;
+  try {
+    profile = await ref.watch(loadedProfileProvider.future);
+  } on Object {
+    // Unknown is not an empty profile. Keep independent findings available,
+    // but do not evaluate personalized rules against invented defaults.
+    checksIncomplete = true;
+  }
   // Set when the nutrient pass skipped a stack item; ORed into the report's
   // coverage flag below so the banner and the clinician report both hedge.
   var nutrientCoverageIncomplete = false;
   var catalogProductSkipped = false;
   List<NutrientStatus> nutrientStatuses;
-  try {
-    final result = await ref.watch(stackNutrientStatusesProvider.future);
-    nutrientStatuses = result.statuses;
-    nutrientCoverageIncomplete = result.incomplete;
-    catalogProductSkipped = result.catalogProductSkipped;
-  } on Object catch (e, st) {
-    checksIncomplete = true;
-    CrashReportingService().recordError(
-      e,
-      st,
-      hint: 'stack_safety:nutrient_statuses_failed',
-    );
+  if (profile == null) {
     nutrientStatuses = const <NutrientStatus>[];
+  } else {
+    try {
+      final result = await ref.watch(stackNutrientStatusesProvider.future);
+      nutrientStatuses = result.statuses;
+      nutrientCoverageIncomplete = result.incomplete;
+      catalogProductSkipped = result.catalogProductSkipped;
+    } on Object catch (e, st) {
+      checksIncomplete = true;
+      CrashReportingService().recordError(
+        e,
+        st,
+        hint: 'stack_safety:nutrient_statuses_failed',
+      );
+      nutrientStatuses = const <NutrientStatus>[];
+    }
   }
 
   final supplements = stack
@@ -342,8 +354,6 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
       );
     }
   }
-
-  final profile = await ref.watch(loadedProfileProvider.future);
 
   // Hydrate each supplement once for canonical interaction identities.
   // Track low label-mapping coverage: below the 0.3 trust floor a
@@ -443,17 +453,25 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   // Product Detail owns profile gating, dose suppression and deduplication.
   // Carry its ordinary condition/allergen findings into the same Stack report.
   // Cumulative dose rules and global UL/regulatory findings keep their owners.
-  if (hydrated.isNotEmpty) {
+  if (hydrated.isNotEmpty && profile != null) {
     final conditions = profile.conditionsForEvaluator.toSet();
-    Set<String>? flags;
+    var flags = <String>{};
+    var flagsAvailable = true;
     var classes = profile.drugClassesForEvaluator.toSet();
+    var classesAvailable = true;
     try {
       flags = await ref.watch(evaluatorProfileFlagsProvider.future);
+    } on Object {
+      flagsAvailable = false;
+      checksIncomplete = true;
+    }
+    try {
       classes = {
         ...classes,
         ...await ref.watch(currentStackMedicationClassIdsProvider.future),
       };
     } on Object {
+      classesAvailable = false;
       checksIncomplete = true;
     }
     for (final h in hydrated) {
@@ -489,7 +507,6 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           );
           if (seenStackIds.add(result.id)) stackInteractions.add(result);
         }
-        if (flags == null) continue;
         var resolved = const <InteractionWarning>[];
         try {
           resolved = await ref.watch(
@@ -500,11 +517,48 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           // readable authored warning from the same blob.
           checksIncomplete = true;
         }
+        final readableWarnings =
+            [
+                  ...parseBlobWarnings(
+                    blob,
+                    productStatus: h.product.productStatus,
+                  ),
+                  ...resolved,
+                ]
+                .where((warning) {
+                  bool references(String key) {
+                    for (final branch in ['requires', 'excludes']) {
+                      final gate = warning.profileGate?[branch];
+                      if (gate is Map &&
+                          gate[key] is List &&
+                          (gate[key] as List).isNotEmpty) {
+                        return true;
+                      }
+                    }
+                    return false;
+                  }
+
+                  if (!flagsAvailable && references('profile_flags_any')) {
+                    return false;
+                  }
+                  if (!classesAvailable &&
+                      (warning.drugClassIds.isNotEmpty ||
+                          references('drug_classes_any'))) {
+                    return false;
+                  }
+                  return true;
+                })
+                .toList(growable: false);
         final guarded = composeGuardedWarnings(
-          detailBlob: blob,
+          // Remove only already-parsed warnings: retain all dose/form/UL facts
+          // for the canonical Product Detail evaluator.
+          detailBlob: {
+            ...blob,
+            'warnings': const <Map<String, dynamic>>[],
+            'warnings_profile_gated': const <Map<String, dynamic>>[],
+          },
           productStatus: h.product.productStatus,
-          personalizedWarnings: const [],
-          resolvedRuleWarnings: resolved,
+          personalizedWarnings: readableWarnings,
           userConditions: conditions,
           userDrugClasses: classes,
           userProfileFlags: flags,
@@ -549,7 +603,13 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           final body = warning.displayBody;
           final identity = warning.warningType == 'label_statement'
               ? body
-              : jsonEncode([warning.warningType, warning.title, body]);
+              : jsonEncode([
+                  warning.warningType,
+                  warning.title,
+                  warning.displayHeadline,
+                  warning.displayModeDefault,
+                  body,
+                ]);
           final digest = sha256.convert(utf8.encode(identity));
           final prefix = warning.warningType == 'label_statement'
               ? 'LABEL'
@@ -681,7 +741,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
   //    through the same profile_gate engine used by product warnings.
   // ---------------------------------------------------------------------------
   var medicationProfileWarnings = const <MedicationProfileWarning>[];
-  if (safetyMedications.isNotEmpty) {
+  if (safetyMedications.isNotEmpty && profile != null) {
     try {
       final userProfileFlags = await ref.watch(
         evaluatorProfileFlagsProvider.future,
@@ -1152,9 +1212,9 @@ final recalledIngredientsReportProvider =
     });
 
 /// The single Stack Health presentation snapshot consumed by Home, Stack,
-/// the hero warning, and the details sheet. Any dependency failure is carried
-/// by this provider as one unavailable state rather than allowing surfaces to
-/// assemble different subsets independently.
+/// the hero warning, and the details sheet. Failed profile-dependent checks
+/// remain incomplete while known independent findings stay in this shared
+/// snapshot; individual surfaces never rebuild a different subset.
 final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
   ref,
 ) async {
@@ -1164,9 +1224,17 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
     recalledIngredientsReportProvider.future,
   );
   final synergyReport = await ref.watch(synergyReportProvider.future);
-  final doseThresholdAlerts = await ref.watch(
-    stackDoseThresholdAlertsProvider.future,
-  );
+  var doseChecksIncomplete = false;
+  var doseThresholdAlerts = const <StackDoseThresholdAlert>[];
+  try {
+    doseThresholdAlerts = await ref.watch(
+      stackDoseThresholdAlertsProvider.future,
+    );
+  } on Object {
+    // A missing profile/dose assessment cannot erase independent pairwise
+    // findings or catalog recalls. The shared snapshot still carries the gap.
+    doseChecksIncomplete = true;
+  }
 
   // Keep known findings available while the feed loads or fails; only a fully
   // readable verified feed can support the shared clean result. Readable cached
@@ -1178,6 +1246,7 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
   return const StackIntelligenceEngine().summarizeFromReports(
     regulatorySafetyAlerts: alerts?.matches ?? const [],
     alertChecksIncomplete:
+        doseChecksIncomplete ||
         alertsAsync.hasError ||
         alerts == null ||
         alerts.neverVerified ||
