@@ -896,6 +896,33 @@ void main() {
         },
       );
 
+      test(
+        'an unread rule with no decision rule sums no rows either',
+        () async {
+          final container = await stack({
+            'UNREAD': {
+              'ingredients': [row('Caffeine', 650)],
+              'warnings': [
+                {
+                  ..._thresholdWarning('hypertension', 'Caffeine', 400),
+                  'ingredient_canonical_id': 'caffeine',
+                  'dose_decision': {
+                    'clinical_severity': 'caution',
+                    'evaluation_status': 'form_unknown',
+                    'consumer_disposition': 'review',
+                  },
+                },
+              ],
+            },
+          });
+
+          expect(
+            await container.read(stackDoseThresholdAlertsProvider.future),
+            isEmpty,
+          );
+        },
+      );
+
       test('a rule from an older blob still sums its rows', () async {
         final container = await stack({
           'OLD': {
