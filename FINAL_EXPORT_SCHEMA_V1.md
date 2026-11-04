@@ -1,8 +1,12 @@
 # FINAL EXPORT SCHEMA V1
 
-> Version: 2.0.0 — 2026-06-08
+> Historical app-side snapshot, June 8, 2026. For the current export schema,
+> see the [canonical pipeline specification](https://github.com/seancheick/PharmaGuide_Pipeline/blob/main/scripts/FINAL_EXPORT_SCHEMA_V1.md).
+> The [Flutter data contract](FLUTTER_DATA_CONTRACT_V1.md) describes current app reads.
+>
+> Snapshot version: 2.0.0
 > Consumes: v4 six-pillar scorer (`score_supplements_v4` + `scoring_v4/`) via the export adapter; enrichment schema v5.1.0+
-> Status: ACTIVE — **v2.0.0 BREAKING:** the production catalog is v4 only. The legacy /80 columns `score_quality_80` + `score_display_80` are **DROPPED**; the canonical shipped score is `quality_score_v4_100` (/100), with `score_100_equivalent` / `score_display_100_equivalent` as honest /100 compat mirrors. New `products_core` columns: `quality_score_v4_100`, `quality_score_status` (scored/suppressed_safety/not_scored), `quality_tier`, `quality_score_suppressed_reason`, `raw_score_v4_100` (audit only), `v4_module`, `v4_confidence`, `score_model_version`, `quality_score_version`, `scoring_engine_version`, `classification_schema_version`, `v4_config_fingerprint`. New detail-blob keys: `quality_pillars_v4`, `clean_label_flags_v4`, `raw_score_v4_100`, `v4_safety_gate`, `v4_completeness_gate`, `v4_score_provenance`, `v4_score_explanation`. Ranking/dedup/index move to `quality_score_v4_100`. Flutter must read `quality_score_v4_100`, rank/exclude on `quality_score_status`, and render the six `quality_pillars_v4`.
+> At v2.0.0: the production catalog is v4 only. The legacy /80 columns `score_quality_80` + `score_display_80` are **DROPPED**; the canonical shipped score is `quality_score_v4_100` (/100), with `score_100_equivalent` / `score_display_100_equivalent` as honest /100 compat mirrors. New `products_core` columns: `quality_score_v4_100`, `quality_score_status` (scored/suppressed_safety/not_scored), `quality_tier`, `quality_score_suppressed_reason`, `raw_score_v4_100` (audit only), `v4_module`, `v4_confidence`, `score_model_version`, `quality_score_version`, `scoring_engine_version`, `classification_schema_version`, `v4_config_fingerprint`. New detail-blob keys: `quality_pillars_v4`, `clean_label_flags_v4`, `raw_score_v4_100`, `v4_safety_gate`, `v4_completeness_gate`, `v4_score_provenance`, `v4_score_explanation`. Ranking/dedup/index move to `quality_score_v4_100`. Flutter must read `quality_score_v4_100`, rank/exclude on `quality_score_status`, and render the six `quality_pillars_v4`.
 >
 > Status (v1 history): v1.6.1 landed the unified inactive-ingredient resolver + Vitamin A IU→mcg RAE form-aware conversion + canonical_id / delivers_markers propagation.
 > Updated: **v1.6.1 adds (2026-05-12): (a) unified inactive-ingredient resolver via `scripts/inactive_ingredient_resolver.py` — consults `banned_recalled_ingredients.json`, `harmful_additives.json`, `other_ingredients.json` in priority order with strict standard_name+aliases-only matching; (b) four new fields on every inactive blob entry: `is_banned`, `safety_reason`, `matched_source`, `matched_rule_id` — closes the TiO2/Talc silent-ship gap (1,178+311 occurrences now correctly flagged is_safety_concern=true / severity_status=critical); (c) `canonical_id` + `delivers_markers` now emitted on every active blob entry — was 0% emit pre-fix, 100% post-fix on mapped actives. Foundational for interaction rules, stack-checking, evidence routing, biomarker scoring; (d) `display_label` for branded botanicals now preserves brand + species + plant-part + form (e.g. "Capsimax(TM) Capsicum Fruit Extract" → "Capsimax Capsicum Fruit Extract", trademark stripped); (e) Vitamin A IU labels now normalize form-aware to mcg RAE (β-carotene factor 0.1, retinol 0.3) — pregnancy UL gate now evaluable. v1.6.0 added `profile_gate` passthrough on `interaction` / `drug_interaction` warning entries. v1.5.0 introduced the canonical active + inactive ingredient contract (`display_form_label` / `form_status` / `form_match_status` / `dose_status` on actives; `display_label` / `display_role_label` / `severity_status` / `is_safety_concern` on inactives). Legacy fields (`form`, `is_harmful`) kept for back-compat and documented as deprecated. v1.4.0 adds `image_thumbnail_url` TEXT column (91 cols) and `normalize_upc` field. v1.3.4 added CAERS B8 penalty scoring (159 adverse event signals) and offline UNII cache (172K substances). v1.3.3 expanded interaction rules to 129 (now 145 per `scripts/data/interaction_rules.json` schema 6.1.0). v1.3.2 adds `calories_per_serving` REAL column (90 cols) and two new detail_blob subkeys: `nutrition_detail` (all five macros) and `unmapped_actives` (transparency panel). v1.3.1 bugfixes `dosing_summary`/`servings_per_container` and adds `net_contents_quantity` + `net_contents_unit` for refill-reminder features. Schema now has 91 columns; `build_final_db.py` CORE_COLUMN_COUNT is the runtime source of truth.**
@@ -13,11 +17,8 @@
 
 ## Purpose
 
-This document defines the exact contract between the pipeline (this repo) and the
-PharmaGuide Flutter app. The pipeline produces a SQLite database and per-product
-detail blobs. The app consumes them.
-
-This contract is frozen. Field renames after the app ships are expensive.
+This snapshot records the v2.0.0 handoff between the pipeline and the
+PharmaGuide Flutter app.
 
 Assumptions:
 

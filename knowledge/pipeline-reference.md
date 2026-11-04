@@ -39,13 +39,11 @@ All files use `_metadata` contract: `schema_version`, `last_updated`, `total_ent
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `quality_score_v4_100` | REAL | Canonical public whole-number quality score /100; null when not displayable |
+| `quality_score_v4_100` | INTEGER | Canonical public whole-number quality score /100; null when not displayable |
 | `quality_score_status` | TEXT | `scored` / `suppressed_safety` / `not_scored`; controls score display eligibility |
 | `quality_tier` | TEXT | Exceptional / Excellent / Very good / Good / Needs improvement / Poor; quality only |
 | `product_safety_status` | TEXT | `blocked` / `unsafe` / `caution` / `no_known_catalog_concern` / `not_assessed`; independent of score |
 | `quality_assessment_status` | TEXT | `complete` / `partial` / `failed`; completion is distinct from score availability |
-| `score_100_equivalent` | REAL | Compatibility mirror of the public /100 quality score |
-| `score_display_100_equivalent` | TEXT | Compatibility display mirror |
 | `grade` | TEXT | Compatibility label derived from `quality_tier` |
 | `verdict` | TEXT | Compatibility/readiness only: SAFE / CAUTION / UNSAFE / BLOCKED / NOT_SCORED. POOR is readable only in older cached catalogs |
 
@@ -121,24 +119,10 @@ replace the independent catalog safety disposition.
 }
 ```
 
-### section_breakdown (inside detail blob)
+### `quality_pillars_v4` (inside detail blob)
 
-```json
-{
-  "ingredient_quality": {
-    "score": 18.5,
-    "max": 25,
-    "sub": {
-      "bioavailability": { "score": 5.0, "max": 8 },
-      "premium_forms": { "score": 3.5, "max": 5 },
-      "omega3_breakdown": { ... }
-    }
-  },
-  "safety_purity": { "score": 24.0, "max": 30 },
-  "evidence_research": { "score": 12.0, "max": 20 },
-  "brand_trust": { "score": 3.0, "max": 5 }
-}
-```
+The current [Flutter data contract](../FLUTTER_DATA_CONTRACT_V1.md#product-page)
+describes how Product Detail and Compare read these six pipeline-owned values.
 
 ### warnings (inside detail blob)
 
