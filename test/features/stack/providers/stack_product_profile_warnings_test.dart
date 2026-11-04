@@ -134,7 +134,7 @@ void main() {
   group('a dose rule this product has no number for', () {
     Map<String, dynamic> blobWith(String status, String disposition) {
       final rule = Map<String, dynamic>.from(
-        (sjw['warnings'] as List).cast<Map>().firstWhere(
+        (sjw['warnings'] as List).cast<Map<String, dynamic>>().firstWhere(
           (w) => (w['condition_ids'] as List?)?.contains('pregnancy') ?? false,
         ),
       );

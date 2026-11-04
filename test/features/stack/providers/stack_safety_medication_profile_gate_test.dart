@@ -237,9 +237,9 @@ void main() {
         overrides: [
           activeStackProvider.overrideWith((ref) async => [supplement]),
           safetyAlertMatchesProvider.overrideWith(
-            (ref) async => SafetyAlertMatchSet(
-              matches: const [],
-              baselineSignalKeys: const {},
+            (ref) async => const SafetyAlertMatchSet(
+              matches: [],
+              baselineSignalKeys: {},
               isComplete: true,
               neverVerified: false,
             ),
