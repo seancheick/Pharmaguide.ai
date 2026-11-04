@@ -67,6 +67,7 @@ class StackIntelligenceEngine {
     List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
         const [],
     bool alertChecksIncomplete = false,
+    bool doseRulesUnread = false,
   }) {
     return StackHealthSnapshot(
       intelligence: diagnoseFromReports(
@@ -77,6 +78,7 @@ class StackIntelligenceEngine {
         doseThresholdAlerts: doseThresholdAlerts,
         regulatorySafetyAlerts: regulatorySafetyAlerts,
         alertChecksIncomplete: alertChecksIncomplete,
+        doseRulesUnread: doseRulesUnread,
       ),
       reviewSignals: List<ClinicalSignal>.unmodifiable(
         allClinicalSignalsFrom(
@@ -85,7 +87,10 @@ class StackIntelligenceEngine {
           regulatorySafetyAlerts: regulatorySafetyAlerts,
         ),
       ),
-      checksIncomplete: safetyReport.checksIncomplete || alertChecksIncomplete,
+      checksIncomplete:
+          safetyReport.checksIncomplete ||
+          alertChecksIncomplete ||
+          doseRulesUnread,
       coverageIncomplete: safetyReport.coverageIncomplete,
       catalogProductSkipped: safetyReport.catalogProductSkipped,
       limitedDataProducts: safetyReport.limitedDataProducts,
@@ -107,6 +112,7 @@ class StackIntelligenceEngine {
     List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
         const [],
     bool alertChecksIncomplete = false,
+    bool doseRulesUnread = false,
   }) {
     final safetyScore = const StackSafetyScorer().compute(
       issues: _interactionIssuesForScore(safetyReport),
@@ -122,6 +128,7 @@ class StackIntelligenceEngine {
       doseThresholdAlerts: doseThresholdAlerts,
       regulatorySafetyAlerts: regulatorySafetyAlerts,
       alertChecksIncomplete: alertChecksIncomplete,
+      doseRulesUnread: doseRulesUnread,
     );
   }
 
@@ -146,6 +153,7 @@ class StackIntelligenceEngine {
     List<({SafetyAlert alert, String dsldId})> regulatorySafetyAlerts =
         const [],
     bool alertChecksIncomplete = false,
+    bool doseRulesUnread = false,
   }) {
     final hasBannedIngredient = recalledReport.violations.any(
       (violation) => violation.isBannedSubstance,
@@ -161,6 +169,7 @@ class StackIntelligenceEngine {
         );
     final analysisIncomplete =
         alertChecksIncomplete ||
+        doseRulesUnread ||
         safetyReport.checksIncomplete ||
         safetyReport.coverageIncomplete ||
         recalledReport.incomplete ||

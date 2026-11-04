@@ -1632,4 +1632,132 @@ void main() {
       expect(result['caffeine']?.value, 200);
     });
   });
+
+  group('hasUnreadDoseRule', () {
+    Map<String, dynamic> card({
+      String status = 'amount_unknown',
+      String disposition = 'suppress',
+      List<String> conditions = const ['high_cholesterol'],
+      List<String> drugClasses = const [],
+      List<String> excludedConditions = const [],
+      String gateType = 'condition',
+      String? direction,
+    }) => {
+      'type': 'interaction',
+      'severity': 'caution',
+      'title': 'Niacin / dose',
+      'ingredient_name': 'Niacin',
+      'condition_ids': conditions,
+      'drug_class_ids': drugClasses,
+      'direction': ?direction,
+      'profile_gate': {
+        'gate_type': gateType,
+        'requires': {
+          'conditions_any': conditions,
+          'drug_classes_any': drugClasses,
+          'profile_flags_any': const <String>[],
+        },
+        'excludes': {
+          'conditions_any': excludedConditions,
+          'drug_classes_any': const <String>[],
+          'profile_flags_any': const <String>[],
+          'product_forms_any': const <String>[],
+          'nutrient_forms_any': const <String>[],
+        },
+        'dose': {
+          'basis': 'per_day',
+          'comparator': '>=',
+          'value': 1500,
+          'unit': 'mg',
+          'severity_if_met': 'caution',
+          'severity_if_not_met': 'informational',
+        },
+      },
+      'dose_decision': {
+        'clinical_severity': 'caution',
+        'evaluation_status': status,
+        'consumer_disposition': disposition,
+      },
+    };
+
+    bool unread(
+      Map<String, dynamic> row, {
+      Set<String> conditions = const {},
+      Set<String> drugClasses = const {},
+    }) => hasUnreadDoseRule(
+      parseBlobWarnings({
+        'warnings': [row],
+      }),
+      userConditions: conditions,
+      userDrugClasses: drugClasses,
+    );
+
+    test('an unread amount on a rule that applies to this person counts', () {
+      expect(unread(card(), conditions: {'high_cholesterol'}), isTrue);
+      expect(
+        unread(card(status: 'form_unknown'), conditions: {'high_cholesterol'}),
+        isTrue,
+      );
+      expect(
+        unread(
+          card(conditions: const [], drugClasses: const ['statins']),
+          drugClasses: {'statins'},
+        ),
+        isTrue,
+      );
+    });
+
+    test('the same rule on someone it does not apply to does not count', () {
+      expect(unread(card(), conditions: {'pregnancy'}), isFalse);
+      expect(unread(card()), isFalse);
+      expect(
+        unread(
+          card(excludedConditions: const ['pregnancy']),
+          conditions: {'high_cholesterol', 'pregnancy'},
+        ),
+        isFalse,
+      );
+    });
+
+    test('a rule with no target applies to every viewer', () {
+      final untargeted = card(conditions: const [], gateType: 'dose');
+
+      expect(unread(untargeted), isTrue);
+      expect(unread(untargeted, conditions: {'pregnancy'}), isTrue);
+    });
+
+    test('an amount that was read does not count', () {
+      expect(
+        unread(
+          card(status: 'below_threshold'),
+          conditions: {'high_cholesterol'},
+        ),
+        isFalse,
+      );
+      expect(
+        unread(card(status: 'excluded_form'), conditions: {'high_cholesterol'}),
+        isFalse,
+      );
+    });
+
+    test('a card already on screen does not count', () {
+      for (final disposition in ['review', 'block']) {
+        expect(
+          unread(
+            card(disposition: disposition),
+            conditions: {'high_cholesterol'},
+          ),
+          isFalse,
+          reason: disposition,
+        );
+      }
+    });
+
+    test('a beneficial rule does not count', () {
+      expect(
+        unread(card(direction: 'beneficial'), conditions: {'high_cholesterol'}),
+        isFalse,
+      );
+    });
+  });
 }

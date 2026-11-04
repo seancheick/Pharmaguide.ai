@@ -19,15 +19,18 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/data/database/core_database.dart';
+import 'package:pharmaguide/data/database/user_database.dart';
 import 'package:pharmaguide/data/providers/detail_blob_provider.dart';
 import 'package:pharmaguide/data/providers/database_providers.dart';
 import 'package:pharmaguide/data/providers/reference_data_provider.dart'
     as ref_data;
+import 'package:pharmaguide/features/stack/providers/active_stack_provider.dart';
 import 'package:pharmaguide/features/profile/profile_provider.dart';
 import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
 import 'package:pharmaguide/services/medications/medication_class_bridge.dart';
 import 'package:pharmaguide/services/health/product_health_facts.dart';
 import 'package:pharmaguide/services/stack/stack_dose_summer.dart';
+import 'package:pharmaguide/services/warnings/condition_gate.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_aggregator.dart';
 import 'package:pharmaguide/services/stack/stack_nutrient_models.dart';
@@ -170,6 +173,78 @@ final stackNutrientStatusesProvider = FutureProvider<StackNutrientStatuses>((
   );
 });
 
+/// The profile's drug classes plus those of the stack's medications.
+Set<String> _activeDrugClasses(
+  ProfileState profile,
+  List<UserStacksLocalData> stackEntries,
+) {
+  final activeDrugClasses = profile.drugClasses.toSet();
+  final bridgeClassIds = <String>[];
+  for (final entry in stackEntries) {
+    if (entry.type != 'medication') continue;
+    final raw = entry.drugClassesCol;
+    if (raw == null || raw.isEmpty) continue;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        bridgeClassIds.addAll(
+          decoded
+              .map((value) => value.toString().trim())
+              .where((value) => value.isNotEmpty),
+        );
+      }
+    } on FormatException {
+      // Malformed local metadata contributes no class. The existing
+      // medication safety surface remains responsible for its diagnostics.
+    }
+  }
+  activeDrugClasses.addAll(
+    MedicationClassBridge.profileGateIdsForClasses(bridgeClassIds),
+  );
+  return activeDrugClasses;
+}
+
+/// Whether a stack product has a dose rule that applies to this person and
+/// couldn't be read ([hasUnreadDoseRule]). Stack Health reads it as an
+/// incomplete check. A product whose data can't load makes no claim here.
+final stackDoseRulesUnreadProvider = FutureProvider<bool>((ref) async {
+  final stackEntries = await ref.watch(activeStackProvider.future);
+  if (stackEntries.isEmpty) return false;
+  final profile = await ref.watch(loadedProfileProvider.future);
+  final userProfileFlags = await ref.watch(
+    evaluatorProfileFlagsProvider.future,
+  );
+  final userConditions = profile.conditionsForEvaluator.toSet();
+  final userDrugClasses = _activeDrugClasses(profile, stackEntries);
+  for (final entry in stackEntries) {
+    final dsldId = entry.dsldId;
+    if (dsldId == null || dsldId.isEmpty) continue;
+    final Map<String, dynamic>? blob;
+    try {
+      blob = await ref.watch(detailBlobProvider(dsldId).future);
+    } on Exception {
+      continue;
+    }
+    if (blob == null) continue;
+    final resolvedRuleWarnings = await ref.watch(
+      profileWarningRuleWarningsProvider(dsldId).future,
+    );
+    final facts = ProductHealthFacts.fromDetailBlob(
+      blob,
+      resolvedRuleWarnings: resolvedRuleWarnings,
+    );
+    if (hasUnreadDoseRule(
+      facts.warnings,
+      userConditions: userConditions,
+      userDrugClasses: userDrugClasses,
+      userProfileFlags: userProfileFlags,
+    )) {
+      return true;
+    }
+  }
+  return false;
+});
+
 final stackDoseThresholdAlertsProvider =
     FutureProvider<List<StackDoseThresholdAlert>>((ref) async {
       final userDb = ref.watch(userDatabaseProvider);
@@ -180,29 +255,7 @@ final stackDoseThresholdAlertsProvider =
       if (stackEntries.isEmpty) {
         return const <StackDoseThresholdAlert>[];
       }
-      final activeDrugClasses = profile.drugClasses.toSet();
-      final bridgeClassIds = <String>[];
-      for (final entry in stackEntries) {
-        if (entry.type != 'medication') continue;
-        final raw = entry.drugClassesCol;
-        if (raw == null || raw.isEmpty) continue;
-        try {
-          final decoded = jsonDecode(raw);
-          if (decoded is List) {
-            bridgeClassIds.addAll(
-              decoded
-                  .map((value) => value.toString().trim())
-                  .where((value) => value.isNotEmpty),
-            );
-          }
-        } on FormatException {
-          // Malformed local metadata contributes no class. The existing
-          // medication safety surface remains responsible for its diagnostics.
-        }
-      }
-      activeDrugClasses.addAll(
-        MedicationClassBridge.profileGateIdsForClasses(bridgeClassIds),
-      );
+      final activeDrugClasses = _activeDrugClasses(profile, stackEntries);
 
       final items = <StackItemNutrients>[];
       final thresholdRules = <StackDoseThresholdRule>[];

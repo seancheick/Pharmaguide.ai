@@ -17,6 +17,7 @@ import 'package:pharmaguide/services/ingredients/elemental_form_dedupe.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_canonicalizer.dart';
 import 'package:pharmaguide/services/ingredients/ingredient_row_fields.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/services/warnings/profile_gate_evaluator.dart';
 
 /// Single ingredient's dose entry as extracted from the detail blob.
 typedef IngredientDose = ({double value, String unit});
@@ -38,6 +39,48 @@ List<InteractionWarning> applyConsumerDispositionGate(
             ConsumerDisposition.suppress;
       })
       .toList(growable: false);
+}
+
+/// Whether a dose rule that applies to this person went unread: the pipeline
+/// suppressed it because it could not read the product's amount or form.
+///
+/// The disposition stands, so nothing is shown and no hazard is invented, but a
+/// threshold nobody could read is not an all-clear. Callers report an incomplete
+/// check. Who a rule applies to comes from its gate with the dose taken out,
+/// since the dose is the part that could not be read, so a rule with no target
+/// applies to every viewer.
+bool hasUnreadDoseRule(
+  Iterable<InteractionWarning> warnings, {
+  required Set<String> userConditions,
+  required Set<String> userDrugClasses,
+  Set<String> userProfileFlags = const <String>{},
+}) {
+  const unread = {'amount_unknown', 'form_unknown'};
+  final profile = UserProfile(
+    conditions: userConditions,
+    drugClasses: userDrugClasses,
+    profileFlags: userProfileFlags,
+  );
+  return warnings.any((warning) {
+    final decision = warning.doseDecision;
+    if (decision == null ||
+        !unread.contains(decision.evaluationStatus) ||
+        warning.direction == 'beneficial' ||
+        consumerDispositionFromWire(decision.consumerDisposition) !=
+            ConsumerDisposition.suppress) {
+      return false;
+    }
+    final gate = warning.profileGate;
+    if (gate == null) {
+      return warning.conditionIds.any(userConditions.contains) ||
+          warning.drugClassIds.any(userDrugClasses.contains);
+    }
+    return evaluateProfileGate(
+      {...gate, 'dose': null},
+      profile,
+      const ProductContext(),
+    ).fires;
+  });
 }
 
 /// Shared dose-suppression guardrail (G3) for BOTH dose gates — the

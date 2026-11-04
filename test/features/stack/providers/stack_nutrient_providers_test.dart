@@ -21,6 +21,130 @@ import 'package:pharmaguide/services/stack/stack_safety_report.dart';
 import 'package:pharmaguide/services/stack/synergy_result.dart';
 
 void main() {
+  group('stackDoseRulesUnreadProvider', () {
+    Future<ProviderContainer> stack({
+      required List<String> conditions,
+      required String carrierStatus,
+    }) async {
+      final coreDb = CoreDatabase.memory();
+      final userDb = UserDatabase.memory();
+      addTearDown(() async {
+        await coreDb.close();
+        await userDb.close();
+      });
+      await userDb.saveProfile(
+        ProfileState(
+          ageBracket: '19-30',
+          sex: 'Female',
+          conditions: conditions,
+        ).toCompanion(),
+      );
+      await _seedProduct(coreDb, dsldId: 'READ', name: 'Read');
+      await _seedStack(userDb, dsldId: 'READ', name: 'Read');
+      await userDb.cacheDetail(
+        'READ',
+        jsonEncode({
+          'ingredients': [
+            {
+              'name': 'Caffeine',
+              'standard_name': 'Caffeine',
+              'quantity': 400,
+              'unit': 'mg',
+            },
+          ],
+          'warnings': [_thresholdWarning('hypertension', 'Caffeine', 400)],
+        }),
+        _blobSha,
+      );
+      await _seedProduct(coreDb, dsldId: 'CARRIER', name: 'Carrier');
+      await _seedStack(userDb, dsldId: 'CARRIER', name: 'Carrier');
+      await userDb.cacheDetail(
+        'CARRIER',
+        jsonEncode({
+          'ingredients': [
+            {'name': 'Caffeine', 'standard_name': 'Caffeine'},
+          ],
+          'warnings': [
+            {
+              'type': 'interaction',
+              'severity': 'caution',
+              'title': 'Caffeine / hypertension',
+              'ingredient_name': 'Caffeine',
+              'condition_ids': ['hypertension'],
+              'profile_gate': {
+                'gate_type': 'condition',
+                'requires': {
+                  'conditions_any': ['hypertension'],
+                  'drug_classes_any': <String>[],
+                  'profile_flags_any': <String>[],
+                },
+                'excludes': <String, Object?>{},
+                'dose': {
+                  'basis': 'per_day',
+                  'comparator': '>',
+                  'value': 400,
+                  'unit': 'mg',
+                  'severity_if_met': 'caution',
+                  'severity_if_not_met': 'informational',
+                },
+              },
+              'dose_decision': {
+                'clinical_severity': 'caution',
+                'evaluation_status': carrierStatus,
+                'consumer_disposition': 'suppress',
+              },
+            },
+          ],
+        }),
+        _blobSha,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          coreDatabaseProvider.overrideWithValue(coreDb),
+          userDatabaseProvider.overrideWithValue(userDb),
+          evaluatorProfileFlagsProvider.overrideWith(
+            (ref) async => const <String>{},
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('exactly 400 beside an unread carrier reads as incomplete', () async {
+      final container = await stack(
+        conditions: const ['hypertension'],
+        carrierStatus: 'amount_unknown',
+      );
+
+      expect(await container.read(stackDoseRulesUnreadProvider.future), isTrue);
+    });
+
+    test('someone the rule does not apply to is unaffected', () async {
+      final container = await stack(
+        conditions: const ['pregnancy'],
+        carrierStatus: 'amount_unknown',
+      );
+
+      expect(
+        await container.read(stackDoseRulesUnreadProvider.future),
+        isFalse,
+      );
+    });
+
+    test('a carrier whose amount was read is unaffected', () async {
+      final container = await stack(
+        conditions: const ['hypertension'],
+        carrierStatus: 'below_threshold',
+      );
+
+      expect(
+        await container.read(stackDoseRulesUnreadProvider.future),
+        isFalse,
+      );
+    });
+  });
+
   group('stackDoseThresholdAlertsProvider', () {
     test('feeds StackDoseSummer through ProductHealthFacts dose rows', () {
       final source = File(

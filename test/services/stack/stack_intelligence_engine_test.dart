@@ -158,6 +158,7 @@ void main() {
       bool reloadMatches = false,
       bool refreshMatches = false,
       bool throws = false,
+      bool doseRulesUnread = false,
       List<({SafetyAlert alert, String dsldId})> matches = const [],
     }) async {
       final now = DateTime.utc(2026, 11, 3);
@@ -186,6 +187,9 @@ void main() {
           ),
           synergyReportProvider.overrideWith((_) async => emptySynergy),
           stackDoseThresholdAlertsProvider.overrideWith((_) async => []),
+          stackDoseRulesUnreadProvider.overrideWith(
+            (_) async => doseRulesUnread,
+          ),
           if (unreadableDevice) ...[
             deviceSafetyProfileProvider.overrideWith(
               (_) async => const DeviceSafetyProfile(isComplete: false),
@@ -228,6 +232,15 @@ void main() {
       }
       return container.read(stackHealthSnapshotProvider.future);
     }
+
+    test('an unread dose rule withholds a clean Stack Health result', () async {
+      final result = await snapshot(doseRulesUnread: true);
+
+      expect(result.checksIncomplete, isTrue);
+      expect(result.intelligence.analysisIncomplete, isTrue);
+      expect(result.intelligence.tier, StackTier.incomplete);
+      expect(result.intelligence.nutrientWarningCount, 0);
+    });
 
     test('an unverified feed withholds a clean Stack Health result', () async {
       for (final throws in [false, true]) {
@@ -872,6 +885,22 @@ void main() {
       expect(intelligence.qualityScore, 100);
       expect(intelligence.tier, StackTier.optimized);
       expect(intelligence.issues, isEmpty);
+    });
+
+    test('an unread dose rule is an incomplete check, not a clean tier', () {
+      StackIntelligence diagnosis({required bool unread}) =>
+          engine.diagnoseFromReports(
+            stackSize: 2,
+            safetyReport: const StackSafetyReport(),
+            recalledReport: emptyRecall,
+            synergyReport: SynergyReport.empty(),
+            doseRulesUnread: unread,
+          );
+
+      expect(diagnosis(unread: false).analysisIncomplete, isFalse);
+      expect(diagnosis(unread: true).analysisIncomplete, isTrue);
+      expect(diagnosis(unread: true).tier, StackTier.incomplete);
+      expect(diagnosis(unread: true).nutrientWarningCount, 0);
     });
 
     test(

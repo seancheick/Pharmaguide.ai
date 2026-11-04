@@ -1007,6 +1007,7 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
   final doseThresholdAlerts = await ref.watch(
     stackDoseThresholdAlertsProvider.future,
   );
+  final doseRulesUnread = await ref.watch(stackDoseRulesUnreadProvider.future);
 
   // Keep known findings available while the feed loads or fails; only a fully
   // readable verified feed can support the shared clean result. Readable cached
@@ -1022,6 +1023,7 @@ final stackHealthSnapshotProvider = FutureProvider<StackHealthSnapshot>((
         alerts == null ||
         alerts.neverVerified ||
         !alerts.isDeviceComplete,
+    doseRulesUnread: doseRulesUnread,
     stackSize: stack.length,
     safetyReport: safetyReport,
     recalledReport: recalledReport,
