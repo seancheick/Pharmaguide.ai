@@ -194,6 +194,37 @@ void main() {
       });
     }
   });
+  test(
+    '249741: an avoid answer on an open caffeine range reaches Stack, once',
+    () async {
+      final caffeine =
+          jsonDecode(
+                File(
+                  'test/fixtures/pipeline/caffeine_estimate_249741.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      final body = caffeine['alert_body'] as String;
+      Map<String, dynamic> blob() => {
+        ...sjw,
+        'warnings': [caffeine],
+        'warnings_profile_gated': const <Map<String, dynamic>>[],
+      };
+      final pregnant = await reportFor(blob());
+      final card = pregnant.stackInteractions.where((w) => w.mechanism == body);
+      expect(card, hasLength(1));
+      expect(card.single.severity, Severity.avoid);
+      expect(card.single.evidenceLevel, EvidenceLevel.established);
+      final nursing = await reportFor(
+        blob(),
+        profile: const ProfileState(conditions: ['lactation']),
+      );
+      expect(
+        nursing.stackInteractions.where((w) => w.mechanism == body),
+        isEmpty,
+      );
+    },
+  );
   test('frozen SJW pregnancy warning reaches combined Stack', () async {
     final report = await reportFor(sjw);
     final warnings = report.stackInteractions.where(

@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:pharmaguide/services/warnings/interaction_warning.dart';
+import 'package:pharmaguide/core/constants/consumer_disposition.dart';
 import 'package:pharmaguide/core/constants/severity.dart';
 import 'package:pharmaguide/features/product_detail/allergen_match.dart';
 import 'package:pharmaguide/features/product_detail/providers/profile_warning_rule_provider.dart';
@@ -562,6 +563,7 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           userConditions: conditions,
           userDrugClasses: classes,
           userProfileFlags: flags,
+          ageBracket: profile.ageBracket,
         );
         final warnings = partitionProfileWarnings(
           warnings: guarded,
@@ -597,7 +599,16 @@ final stackSafetyReportProvider = FutureProvider<StackSafetyReport>((
           )) {
             continue;
           }
-          if (stackDoseThresholdRulesFromWarnings([warning]).isNotEmpty) {
+          // A Stack total can't judge an amount left open, so a blocking answer
+          // on it stays this product's own card.
+          final decision = warning.doseDecision;
+          final blockedUnread =
+              decision != null &&
+              decision.amountUnread &&
+              consumerDispositionFromWire(decision.consumerDisposition) ==
+                  ConsumerDisposition.block;
+          if (!blockedUnread &&
+              stackDoseThresholdRulesFromWarnings([warning]).isNotEmpty) {
             continue;
           }
           final body = warning.displayBody;

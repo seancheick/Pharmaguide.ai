@@ -75,6 +75,7 @@ Map<String, dynamic> filterConditionSummaryByProfileGate({
   required List<InteractionWarning> warnings,
   required UserProfile userProfile,
   required ProductContext productContext,
+  String? ageBracket,
   ProductContextForWarning? productContextForWarning,
 }) {
   if (conditionSummary.isEmpty) return const <String, dynamic>{};
@@ -94,7 +95,7 @@ Map<String, dynamic> filterConditionSummaryByProfileGate({
       continue;
     }
 
-    final anyFires = relevant.any((w) {
+    final matching = relevant.where((w) {
       final context = productContextForWarning?.call(w) ?? productContext;
       return w.matchesProfile(
         userConditions: userProfile.conditions,
@@ -106,7 +107,25 @@ Map<String, dynamic> filterConditionSummaryByProfileGate({
         dosePerDay: context.dosePerDay,
       );
     });
-    if (anyFires) {
+    if (matching.isEmpty) continue;
+
+    if (relevant.any((w) => w.doseDecision?.ageOutcomes.isNotEmpty == true)) {
+      final applicable = matching
+          .map((w) => w.resolvedForAge(ageBracket))
+          .where(
+            (w) =>
+                w.direction != 'beneficial' &&
+                w.doseDecision?.consumerDisposition != 'suppress',
+          );
+      if (applicable.isEmpty) continue;
+      final strongest = applicable.reduce(
+        (a, b) => a.severity.weight >= b.severity.weight ? a : b,
+      );
+      out[conditionId] = {
+        if (entry.value case final Map value) ...value,
+        'highest_severity': strongest.severity.name,
+      };
+    } else {
       out[conditionId] = entry.value;
     }
     // else: every backing warning is gated off — drop the aggregation.
